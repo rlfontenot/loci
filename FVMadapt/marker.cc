@@ -50,7 +50,7 @@ using std::ofstream;
 using Loci::MPI_processes;
 namespace Loci{
   void parallelClassifyCell(fact_db &facts) ;
-   void createEdgesParallel(fact_db &facts) ;
+   void createEdgesPar(fact_db &facts) ;
 }
 
   
@@ -63,15 +63,19 @@ int main(int argc, char ** argv) {
   // This is the name of the mesh file that you want to read in.
   // This may be overridden by the command line argument "-g file.xdr"
   //  string meshfile = "testGrid.xdr";
-  string meshfile = "testGrid.vog";
+  string meshfile ;
   //This is the name of the input refinement plan file
   string planFile = "out1.plan"; //default file can be empty file
   //This is the name of the output refinement file
   string outFile  = "out.plan";
   //this is the name of the tag file
-  string tagFile = "r1.tag";
+  string tagFile ;
+  //this is the name of the tolerance file, this option allows
+  //each marked node has a unique tolerance value
+  string parFile;
+
   //this is the name of xml file
-  string xmlFile = "region.xml";
+  string xmlFile;
   // Here's where we parse out the command line arguments that are
   // relevant to this program.
   int j=1;
@@ -84,6 +88,7 @@ int main(int argc, char ** argv) {
   bool xml_input = false;
   bool tol_input = false;
   bool tag_input = false;
+  bool par_input = false;
   bool levels_input = false;
   int split_mode = 0;//default mode, hexcells and prisms split according to edge length
   //print out help info
@@ -97,15 +102,22 @@ int main(int argc, char ** argv) {
       cout <<"-g <file> -- original grid file(required)," << endl;
       cout <<"             refinement plans are based on this grid" << endl;
       cout <<"-r <file> -- input refinement plan file(optional)" <<endl;
+      
       cout << "-xml <file> -- input xml file(optional), the file define a geometric region" << endl;
-      cout << "            --all cells inside the region will be refined to a tolerance value" << endl;
-      cout << "            --xml option and -tag option can not be selected at the same time" <<endl;
-      cout << "            --and one of them has to be selected" << endl;
+      cout << "               all cells inside the region will be refined to a tolerance value" << endl;
+      cout << "               -xml option is uaually used with -tol option" << endl;
       
       cout <<"-tag <file> -- input tag file(optional), " << endl;
       cout <<"               if there is an input refinement plan file,"<<endl;
       cout <<"               the tag file is for the refined grid" << endl;
       cout <<"               otherwise, the tag file is for the original grid" << endl;
+      cout <<"               -tag option might be used with -levels option" << endl;
+      
+      cout <<"-par <file> -- input parameter file(optional), " << endl;
+      cout <<"               The parameters will decide recursively if each cell need to split" <<endl;               
+      cout << "              -xml option and -tag option and --par can not be selected at the same time" <<endl;
+      cout<< "               and one of them must be selected"<<endl;
+      
       cout <<"-o <file> -- output refinement plan file" << endl;
       cout <<"-tol <double> -- tolerance, minimum grid spacing allowed(default value: 1e-10), need to be specified for -xml option" << endl;
       cout <<"-fold <double> -- twist value, maximum face folding allowed(default value: 1.5708)" << endl;
@@ -147,6 +159,11 @@ int main(int argc, char ** argv) {
       //replace the tag filename with the next argument
       tagFile =  argv[++i];
       tag_input = true;
+    }
+    else if(arg == "-par" && (i+1) < argc){
+      //replace the tag filename with the next argument
+      parFile =  argv[++i];
+      par_input = true;
     }
      else if(arg == "-xml" && (i+1) < argc){
        //replace the xml filename with the next argument
@@ -202,6 +219,7 @@ int main(int argc, char ** argv) {
   planFile = pathname + planFile;
   tagFile = pathname + tagFile;
   xmlFile = pathname + xmlFile;
+  parFile = pathname + parFile;
   
   if(Loci::MPI_rank == 0){
     cout <<"Marker running" <<endl;
@@ -238,15 +256,33 @@ int main(int argc, char ** argv) {
     cerr<<"          the value of levels is not used"<< endl;
     }
   }
-  if((!xml_input) && (!tag_input)){
-    if(Loci::MPI_rank == 0)  cerr <<"WARNING: one option has to be specified, either  -tag option or -xml option"<< endl;
+  if((!xml_input) && (!tag_input)&&(!par_input)){
+    if(Loci::MPI_rank == 0)  cerr <<"WARNING: one option has to be specified, \neither  -tag option or -xml option or -par option"<< endl;
     Loci::Abort();
   }
+  
   if(xml_input && tag_input){
     if(Loci::MPI_rank == 0)  cerr <<"WARNING: only one option need to be specified, either  -tag option or -xml option"<< endl;
     Loci::Abort();
   }
+  
+  if(xml_input && par_input){
+    if(Loci::MPI_rank == 0)  cerr <<"WARNING: only one option need to be specified, either  -par option or -xml option"<< endl;
+    Loci::Abort();
+  }
+  
+  if(tol_input && par_input){
+    if(Loci::MPI_rank == 0){
+      cerr<<"WARNING: in -par option, the value of -tol option is not used"<< endl;
+    }
+  }
 
+  if(levels_input && par_input){
+    if(Loci::MPI_rank == 0){
+      cerr <<"WARNING: in -par options , the value of -levels option is not used"<< endl;
+    }
+  } 
+ 
 
   // Setup the rule database.
   // Add all registered rules.  
@@ -266,62 +302,66 @@ int main(int argc, char ** argv) {
   
   //Setup Loci datastructures
   Loci::createLowerUpper(facts) ;
-  Loci::createEdgesParallel(facts) ;
+  Loci::createEdgesPar(facts) ;
   Loci:: parallelClassifyCell(facts);
  
-  
- 
-  
-  param<std::string> tagfile_par ;
-  
-  *tagfile_par = tagFile;
-  facts.create_fact("tagfile_par",tagfile_par) ;
-  
   param<std::string> outfile_par ;
   *outfile_par = outFile;
-  facts.create_fact("outfile_par",outfile_par) ;
-  
-  
+  facts.create_fact("outfile_par",outfile_par) ; 
  
-
-  if(restart && xml_input){
+  if(tag_input){
+    param<std::string> tagfile_par ;
+    *tagfile_par = tagFile;
+    facts.create_fact("tagfile_par",tagfile_par) ;
+  }
+ 
+  
+  if(par_input){
+    param<std::string> parfile_par ;
+    *parfile_par = parFile;
+    facts.create_fact("parfile_par",parfile_par) ;
+  }
+  
+  if(xml_input){
+    param<std::string> xmlfile_par ;
+    *xmlfile_par = xmlFile;
+    facts.create_fact("xmlfile_par",xmlfile_par) ;
+  }
+  
+  //parameters to identify different options
+  if(restart){
     param<std::string> planfile_par ;
     *planfile_par = planFile;
     facts.create_fact("planfile_par",planfile_par) ;
     
-    param<int> restart_xml_par;
-    *restart_xml_par = 1;
-    facts.create_fact("restart_xml_par",restart_xml_par);
+    if(xml_input){
+      param<int> restart_xml_par;
+      *restart_xml_par = 1;
+      facts.create_fact("restart_xml_par",restart_xml_par);
+    } else if(tag_input){
+      param<int> restart_tag_par;
+      *restart_tag_par = 1;
+      facts.create_fact("restart_tag_par",restart_tag_par);
+    }else if(par_input){
+      param<int> restart_par_par;
+      *restart_par_par = 1;
+      facts.create_fact("restart_par_par",restart_par_par); 
+    }
+  }else{
+    if(xml_input){
+      param<int> no_restart_xml_par;
+      *no_restart_xml_par = 1;
+      facts.create_fact("no_restart_xml_par",no_restart_xml_par);
+    }else if(tag_input){
+      param<int> no_restart_tag_par;
+      *no_restart_tag_par = 1;
+      facts.create_fact("no_restart_tag_par",no_restart_tag_par);
+    }else if(par_input){
+       param<int> no_restart_par_par;
+      *no_restart_par_par = 1;
+      facts.create_fact("no_restart_par_par",no_restart_par_par);
+    }
   }
-  else if(restart && (!xml_input)){
-    param<std::string> planfile_par ;
-    *planfile_par = planFile;
-    facts.create_fact("planfile_par",planfile_par) ;
-    
-    param<int> restart_no_xml_par;
-    *restart_no_xml_par = 1;
-    facts.create_fact("restart_no_xml_par",restart_no_xml_par);
-  }
-
-  else if((!restart) && xml_input){
-    param<std::string> xmlfile_par ;
-    *xmlfile_par = xmlFile;
-    facts.create_fact("xmlfile_par",xmlfile_par) ;
-    
-    param<int> no_restart_xml_par;
-    *no_restart_xml_par = 1;
-    facts.create_fact("no_restart_xml_par",no_restart_xml_par);
-  }
-  else if((!restart) && (!xml_input)){
-    param<std::string> xmlfile_par ;
-    *xmlfile_par = xmlFile;
-    facts.create_fact("xmlfile_par",xmlfile_par) ;
-    
-    param<int> no_restart_no_xml_par;
-    *no_restart_no_xml_par = 1;
-    facts.create_fact("no_restart_no_xml_par",no_restart_no_xml_par);
-  }
-
   
   param<int> split_mode_par;
   *split_mode_par = split_mode;

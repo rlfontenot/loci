@@ -421,52 +421,7 @@ DiamondCell* DiamondCell::getSiblingNeib(const Cell* aCell,
   return 0;
 }
 
-//when faceID >= nfold, a cell will share the same face with its parentCell
-//this function find the faceID in parentCell
-//condition: faceID >= nfold && faceID < 2*nfold
-/*
-int DiamondCell::parentFace( int faceID)const{
-  if(faceID < nfold || faceID >= 2*nfold){
-    cerr<<"WARNING: no parent faceID" << endl;
-    return -1;
-  }
-  
-  int childID = this->whichChild;
-  int n = this->parentCell->nfold;
-  
-  if(childID == 1) return faceID; //childCell 1 has same faceID as parent
-  if(childID == 0) return 2*n - faceID -1;
 
-  if(childID >= 2 && childID <= n+1){
-    switch(faceID){
-    case 3:
-      return childID -2;
-    case 4:
-      return  n+ childID -2;
-    case 5:
-      return (childID==2?(n-1):(childID-3));
-    default:
-      cerr << "WARNING: illegal faceID" << endl;
-      return -1;
-    }
-  }
-  if(childID >= n+2 && childID <= 2*n+1){
-    switch(faceID){
-    case 3:
-      return childID-2-n;
-    case 4:
-      return (childID==(2*n+1)?n:(childID -1));
-    case 5:
-      return childID -2;
-    default:
-      cerr << "WARNING: illegal faceID" << endl;
-      return -1;
-    }
-  }
-  cerr<<"WARNING: no parent faceID" << endl;
-  return -1;
-}
-*/
 
 
 int DiamondCell::parentFace( int faceID)const{
@@ -669,7 +624,19 @@ bool DiamondCell::get_tagged(){
   }
   return false;
 }
-
+bool DiamondCell::get_tagged(const vector<source_par>& sources){
+  std::set<Node*> node_set;
+  get_nodes(node_set);
+  
+  std::vector<Node*> nodes(node_set.size());
+  int vi = 0;
+  for(std::set<Node*>::const_iterator ni = node_set.begin(); ni != node_set.end();
+      ni++, vi++){
+    nodes[vi] = *ni;
+  }
+  double min_len = get_min_edge_length();
+  return tag_cell(nodes, sources, min_len);
+}
 void Cell::resplit( const std::vector<char>& cellPlan,
                     std::list<Node*>& node_list,
                     std::list<Edge*>& edge_list,
@@ -1042,6 +1009,17 @@ bool Cell::get_tagged(){
   }
     return false;
 }
+
+bool Cell::get_tagged(const vector<source_par>& sources){
+  vector<Node*> nodes(numNode);
+  for(int i = 0; i<numNode; i++){
+    nodes[i] = node[i];
+  }
+  double min_len = get_min_edge_length();
+  return tag_cell(nodes, sources, min_len);  
+}
+
+
 int Cell::get_num_fine_faces(){
   int count = 0;
   for(int i = 0; i < numFace; i++){

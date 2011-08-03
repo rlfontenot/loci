@@ -1,6 +1,8 @@
 #include <Loci.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include <string>
 #include <iostream>
@@ -75,6 +77,17 @@ void Usage() {
        << "  -tag <file>: input tag filename" << endl
        << "  -o <file>: output tag filename" << endl ;
   exit(-1) ;
+}
+
+string getPosFile(string output_dir,string iteration, string casename) {
+  string posname = output_dir+"/grid_pos." + iteration + "_" + casename ;
+  struct stat tmpstat ;
+  if(stat(posname.c_str(),&tmpstat) != 0) {
+    posname = output_dir+"/grid_pos." + casename ;
+  } else if(tmpstat.st_size == 0) {
+    posname = output_dir+"/grid_pos." + casename ;
+  }
+  return posname ;
 }
 
 int main(int ac, char *av[]) {
@@ -215,7 +228,7 @@ int main(int ac, char *av[]) {
   cout << "processing "<< node_set.size() << " boundary nodes. " << endl ;
 
   store<vector3d<double> > pos ;
-  string posname = "output/grid_pos." + iteration + "_" + casename ;
+  string posname = getPosFile("output",iteration, casename) ;
 
   file_id = Loci::hdf5OpenFile(posname.c_str(),
                                      H5F_ACC_RDONLY,

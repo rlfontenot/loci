@@ -48,7 +48,7 @@ class get_interior_face_faces_gh:public pointwise_rule{
   const_store<char> fr;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_store<vect3d> pos; 
   const_Map cl;
   const_Map cr;
@@ -270,7 +270,7 @@ class get_interior_face_faces_hg:public pointwise_rule{
   const_store<char> fl;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_store<vect3d> pos; 
   const_Map cl;
   const_Map cr;
@@ -490,7 +490,7 @@ class get_interior_face_faces_gp:public pointwise_rule{
   const_store<char> fr;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_store<vect3d> pos; 
   const_Map cl;
   const_Map cr;
@@ -775,7 +775,7 @@ class get_interior_face_faces_pg:public pointwise_rule{
   const_store<char> fl;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_store<vect3d> pos; 
   const_Map cl;
   const_Map cr;
@@ -1073,7 +1073,7 @@ class get_interior_face_faces_hp:public pointwise_rule{
   const_store<char> fr;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_store<vect3d> pos; 
   const_Map cl;
   const_Map cr;
@@ -1291,7 +1291,7 @@ class get_interior_face_faces_ph:public pointwise_rule{
   const_store<char> fr;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_store<vect3d> pos; 
   const_Map cl;
   const_Map cr;

@@ -120,7 +120,7 @@ public:
           for(int i = 0; i < 2; i++){
             if(childx[i] != 0){
               delete childx[i];
-               childx[i] = 0;
+              childx[i] = 0;
             }
           }
           delete[] childx;
@@ -165,7 +165,7 @@ public:
 
   inline Node* wireframe(){
     
-     //allocate edgecenter
+    //allocate edgecenter
     vect3d* edgecenter = new vect3d[4];
     double* len = new double[4];
     
@@ -191,8 +191,8 @@ public:
   //precondition:: all its edges have been split
   inline Node* centroid(){
     switch(CENTROID){
-      case 0:
-        return simple_center();
+    case 0:
+      return simple_center();
     case 1:
       return wireframe();
     default:
@@ -255,7 +255,7 @@ public:
   //get leaves that is in the same order as the face is bulit as defined by face2node and resplit without orientCode
   void get_leaves(const std::vector<char>& facePlan, char orientCode,std::vector<QuadFace*>& fine_faces); 
 
- //define face2node
+  //define face2node
   void set_f2n(std::list<int32>& f2n);
 
   int get_num_leaves()const;
@@ -302,7 +302,7 @@ public:
 
 QuadFace* build_quad_face( const Entity* face2node, 
                            const Entity* face2edge,
-                           const const_multiMap& edge2node,
+                           const const_MapVec<2>& edge2node,
                            const const_store<vect3d>& pos,
                            const const_store<std::vector<char> >& edgePlan,
                            std::list<Node*>& bnode_list,
@@ -312,7 +312,7 @@ QuadFace* build_quad_face( const Entity* face2node,
 //parallel version
 QuadFace* build_quad_face( const Entity* face2node, 
                            const Entity* face2edge,
-                           const const_multiMap& edge2node,
+                           const const_MapVec<2>& edge2node,
                            const const_store<vect3d>& pos,
                            const const_store<std::vector<char> >& edgePlan,
                            const const_store<int>& node_offset,
@@ -323,7 +323,7 @@ QuadFace* build_quad_face( const Entity* face2node,
 //this function is used in build_general_cell with quadface
 QuadFace* build_tmp_quad_face( const Entity* face2node, 
                                const Entity* face2edge,
-                               const const_multiMap& edge2node,
+                               const const_MapVec<2>& edge2node,
                                const const_store<std::vector<char> >& edgePlan,
                                std::list<Node*>& bnode_list,
                                std::list<Edge*>& edge_list);
@@ -351,24 +351,24 @@ inline void cleanup_list(std::list<Node*>& node_list,
   
   for(std::list<Node*>::iterator p = node_list.begin(); p != node_list.end(); p++){
     if((*p) != 0){
-    delete (*p);
-    (*p) = 0;
+      delete (*p);
+      (*p) = 0;
     }
   }
   node_list.clear();
    
   for(std::list<Edge*>::iterator p = edge_list.begin(); p != edge_list.end(); p++){
     if((*p) != 0){
-    delete (*p);
-    (*p) = 0;
+      delete (*p);
+      (*p) = 0;
     }
   }
   edge_list.clear();
   
-   for(std::list<QuadFace*>::iterator p = face_list.begin();  p != face_list.end(); p++){
+  for(std::list<QuadFace*>::iterator p = face_list.begin();  p != face_list.end(); p++){
     if((*p) != 0){
-    delete (*p);
-    (*p) = 0;
+      delete (*p);
+      (*p) = 0;
     }
   }
   face_list.clear();

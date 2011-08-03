@@ -84,7 +84,7 @@ class advance_cell_updated_prism : public pointwise_rule{
   const_store<Array<char, 6> > prism2node;
   const_store<Array<char, 5> > orientCode;
   const_multiMap face2node;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_multiMap face2edge;
   const_store<vect3d> pos;
   const_store<bool> cellUnchangedn;

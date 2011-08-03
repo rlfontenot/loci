@@ -25,6 +25,7 @@
 #include <Loci.h>
 #include <algorithm>
 #include "hexcell.h"
+#include "read_par.h"
 #ifdef USE_LIBXML2
 #include <libxml/parser.h>
 #include <libxml/tree.h>
@@ -57,7 +58,7 @@ class make_hex_cellplan:public pointwise_rule{
   const_store<Array<char, 6> > hex2face;
   const_store<Array<char, 8> > hex2node;
   const_store<Array<char, 6> > orientCode;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_multiMap face2edge;
   const_multiMap face2node;
   const_store<std::vector<char> > cellPlan;
@@ -167,7 +168,7 @@ public:
       bool cell_split = false; //if any cell split, the whole big cell rebalance
       for(int i = 0; i < numCells; i++){
        
-        cells[i]->setSplitCode(*split_mode_par);
+        cells[i]->setSplitCode(*split_mode_par, Globals::tolerance);
         if(cells[i]->getMySplitCode()!=0) {
           if(*split_mode_par == 2){
             double min_edge_length =cells[i]->get_min_edge_length();
@@ -187,7 +188,7 @@ public:
       
     }
     else{
-      aCell->setSplitCode(*split_mode_par);
+      aCell->setSplitCode(*split_mode_par, Globals::tolerance);
       if(aCell->getMySplitCode() != 0 ){
         if(*split_mode_par == 2){
           double min_edge_length =aCell->get_min_edge_length();
@@ -225,7 +226,7 @@ class make_hex_cellplan_norestart:public pointwise_rule{
   const_store<Array<char, 6> > hex2face;
   const_store<Array<char, 8> > hex2node;
   const_store<Array<char, 6> > orientCode;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_multiMap face2edge;
   const_multiMap face2node;
    const_store<char>  posTag;
@@ -295,7 +296,7 @@ public:
                                     face_list,
                                     node_l2f);
     
-    aCell->setSplitCode(*split_mode_par);
+    aCell->setSplitCode(*split_mode_par, Globals::tolerance);
   
   
       
@@ -333,7 +334,7 @@ class make_hex_cellplan_xml:public pointwise_rule{
   const_store<Array<char, 6> > hex2face;
   const_store<Array<char, 8> > hex2node;
   const_store<Array<char, 6> > orientCode;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_multiMap face2edge;
   const_multiMap face2node;
   const_store<std::vector<char> > cellPlan;
@@ -464,7 +465,7 @@ public:
    
    while(!Q.empty()){
      current =Q.front();
-      current->setSplitCode(*split_mode_par);
+     current->setSplitCode(*split_mode_par, Globals::tolerance);
      if(current->getMySplitCode() != 0){
         former_pnt = bnode_list.end();
         current->split(bnode_list, edge_list, face_list);
@@ -511,7 +512,7 @@ class make_hex_cellplan_xml_norestart:public pointwise_rule{
   const_store<Array<char, 6> > hex2face;
   const_store<Array<char, 8> > hex2node;
   const_store<Array<char, 6> > orientCode;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_multiMap face2edge;
   const_multiMap face2node;
  
@@ -614,7 +615,7 @@ public:
     HexCell* current;
     while(!Q.empty()){
       current =Q.front();
-       current->setSplitCode(*split_mode_par);
+      current->setSplitCode(*split_mode_par, Globals::tolerance);
       // if(current->getMySplitCode() != 0) cout << "mysplitCode " << char(current->getMySplitCode()+'0') << endl;
       if(current->getMySplitCode()!=0){  
         std::list<Node*>::iterator former_pnt = bnode_list.end();
@@ -655,4 +656,274 @@ public:
 };
 
 register_rule<make_hex_cellplan_xml_norestart> register_make_hex_cellplan_xml_norestart;
+
+class make_hex_cellplan_par:public pointwise_rule{
+  const_param<std::string> parfile_par;
+  const_store<vect3d> pos;
+  const_multiMap upper;
+  const_multiMap lower;
+  const_multiMap boundary_map;
+  const_store<Array<char, 6> > hex2face;
+  const_store<Array<char, 8> > hex2node;
+  const_store<Array<char, 6> > orientCode;
+  const_MapVec<2> edge2node;
+  const_multiMap face2edge;
+  const_multiMap face2node;
+  const_store<std::vector<char> > cellPlan;
+  const_store<std::vector<char> > facePlan;
+  const_store<std::vector<char> > edgePlan;
+   const_store<bool> isIndivisible;
+  const_param<int> split_mode_par;
+  const_param<int> restart_par_par;
+  store<std::vector<char> > newCellPlan;
+
+ vector<source_par> sources;
+  const_store<int> node_l2f;
+public:
+  make_hex_cellplan_par(){
+
+     name_store("parfile_par", parfile_par);
+    name_store("pos", pos);
+    name_store("lower", lower);
+    name_store("upper", upper);
+    name_store("boundary_map", boundary_map);
+    name_store("hex2face", hex2face);
+    name_store("hex2node", hex2node);
+    name_store("hexOrientCode", orientCode);
+    name_store("face2node", face2node);
+    name_store("face2edge", face2edge);
+    name_store("edge2node", edge2node);
+    name_store("cellPlan", cellPlan);
+    name_store("facePlan", facePlan);
+    name_store("edgePlan", edgePlan);
+    name_store("isIndivisible", isIndivisible);
+    name_store("newCellPlan", newCellPlan);
+    name_store("split_mode_par", split_mode_par);
+    name_store("fileNumber(face2node)", node_l2f);
+    name_store("restart_par_par", restart_par_par);
+    input("parfile_par");
+    input("split_mode_par");
+    input("(cellPlan, hex2face, hex2node, hexOrientCode)");
+    input("isIndivisible");
+    input("(lower, upper, boundary_map) -> (fileNumber(face2node),facePlan)"); 
+    input("(lower, upper, boundary_map)->face2node->pos");
+    input("(lower, upper, boundary_map)->face2edge->edge2node->pos");
+    input("(lower, upper, boundary_map)->face2edge->edgePlan");
+    input("restart_par_par");
+    output("newCellPlan");
+    constraint("hexcells");
+  }
+  virtual void compute(const sequence &seq){
+    if(seq.size()!=0){
+      readPar(*parfile_par, sources);
+      if(sources.size()==0){
+        cerr << "WARNING: fail to read par file" << endl;
+        Loci::Abort();
+      }
+       do_loop(seq, this);
+    }
+  }
+  void calculate(Entity cc){
+    if(!isIndivisible[cc]){
+    
+      std::list<Edge*> edge_list;
+      std::list<QuadFace*> face_list;
+      std::list<Node*> bnode_list;
+   
+      std::queue<HexCell*> Q;
+    
+      HexCell* aCell = build_hex_cell(lower[cc].begin(), lower.num_elems(cc),
+                                      upper[cc].begin(), upper.num_elems(cc),
+                                      boundary_map[cc].begin(), boundary_map.num_elems(cc),
+                                      hex2face[cc],
+                                      hex2node[cc],
+                                      orientCode[cc],
+                                      face2node,
+                                      face2edge,
+                                      edge2node,
+                                      pos,
+                                      edgePlan,
+                                      facePlan,
+                                      bnode_list,
+                                      edge_list,
+                                      face_list,
+                                      node_l2f);
+    
+    
+      
+   
+    std::vector<HexCell*> cells;
+   
+    aCell->resplit( cellPlan[cc], 
+                    bnode_list,
+                    edge_list,
+                    face_list,
+                    cells);
+       
+    HexCell* current;
+    int numCells = cells.size();
+   
+    if(numCells != 0){
+      for(int i = 0; i < numCells; i++)Q.push(cells[i]);
+    }
+    else{
+      Q.push(aCell);
+    }
+   
+   while(!Q.empty()){
+     current =Q.front();
+   
+     if(current->get_tagged(sources)){
+        
+        current->split(bnode_list, edge_list, face_list);
+         
+                
+        for(int i = 0; i < current->numChildren(); i++){
+          Q.push(current->getChildCell(i));
+        }
+     }
+     
+     Q.pop();
+   }
+  aCell->rebalance_cells(*split_mode_par, bnode_list, edge_list, face_list);
+   
+      
+    //write new cellPlan
+    newCellPlan[cc] = aCell->make_cellplan();
+    //clean up
+    if(aCell != 0){
+      delete aCell;
+      aCell = 0;
+    }
+    cleanup_list(bnode_list, edge_list, face_list);
+
+    reduce_vector(newCellPlan[cc]);
+    }
+
+  }
+};
+
+register_rule<make_hex_cellplan_par> register_make_hex_cellplan_par;
+
+class make_hex_cellplan_par_norestart:public pointwise_rule{
+   const_param<std::string> parfile_par;
+  const_store<vect3d> pos;
+  const_multiMap upper;
+  const_multiMap lower;
+  const_multiMap boundary_map;
+  const_store<Array<char, 6> > hex2face;
+  const_store<Array<char, 8> > hex2node;
+  const_store<Array<char, 6> > orientCode;
+  const_MapVec<2> edge2node;
+  const_multiMap face2edge;
+  const_multiMap face2node;
+ 
+  const_store<bool> isIndivisible;
+  const_param<int> split_mode_par;
+  const_param<int> no_restart_par_par;
+  store<std::vector<char> > newCellPlan;
+
+ vector<source_par> sources;
+  const_store<int> node_l2f;
+public:
+  make_hex_cellplan_par_norestart(){
+    name_store("parfile_par", parfile_par);
+    name_store("pos", pos);
+    name_store("lower", lower);
+    name_store("upper", upper);
+    name_store("boundary_map", boundary_map);
+    name_store("hex2face", hex2face);
+    name_store("hex2node", hex2node);
+    name_store("hexOrientCode", orientCode);
+    name_store("face2node", face2node);
+    name_store("face2edge", face2edge);
+    name_store("edge2node", edge2node);
+    name_store("isIndivisible", isIndivisible);
+    name_store("no_restart_par_par", no_restart_par_par);
+    name_store("newCellPlan", newCellPlan);
+     name_store("split_mode_par", split_mode_par);
+     name_store("fileNumber(face2node)", node_l2f);
+     input("no_restart_par_par");
+    input("split_mode_par, parfile_par");
+    input("isIndivisible, hex2face, hex2node, hexOrientCode");
+    input("(lower, upper, boundary_map)->face2node-> pos");
+    input("(lower, upper, boundary_map)->face2edge->edge2node->pos");
+    input("(lower, upper, boundary_map)->fileNumber(face2node)");
+    output("newCellPlan");
+    constraint("hexcells");
+  }
+  virtual void compute(const sequence &seq){
+    if(seq.size()!=0){
+      readPar(*parfile_par, sources);
+      if(sources.size()==0){
+        cerr << "WARNING: fail to read par file" << endl;
+        Loci::Abort();
+      }
+      do_loop(seq, this); 
+    }
+    
+    
+  }
+  void calculate(Entity cc){
+     if(!isIndivisible[cc]){
+    
+    std::list<Edge*> edge_list;
+    std::list<QuadFace*> face_list;
+    std::list<Node*> bnode_list;
+    std::queue<HexCell*> Q;
+                                           
+    
+    HexCell* aCell = build_hex_cell(lower[cc].begin(), lower.num_elems(cc),
+                                    upper[cc].begin(), upper.num_elems(cc),
+                                    boundary_map[cc].begin(), boundary_map.num_elems(cc),
+                                    hex2face[cc],
+                                    hex2node[cc],
+                                    orientCode[cc],
+                                    face2node,
+                                    face2edge,
+                                    edge2node,
+                                    pos,
+                                    bnode_list,
+                                    edge_list,
+                                    face_list,
+                                    node_l2f);
+    
+   
+    
+    Q.push(aCell);
+    
+    HexCell* current;
+    while(!Q.empty()){
+      current =Q.front();
+     
+      if(current->get_tagged(sources)){  
+          current->split(bnode_list, edge_list, face_list);
+          for(int i = 0; i < current->numChildren(); i++){
+            Q.push(current->getChildCell(i));
+          }
+      }
+      Q.pop();
+    }
+    aCell->rebalance_cells(*split_mode_par, bnode_list, edge_list, face_list);
+    //write new cellPlan
+    
+    
+    newCellPlan[cc] =  aCell->make_cellplan();
+   
+    
+    //clean up
+    if(aCell != 0){
+      delete aCell;
+      aCell = 0;
+    }
+    cleanup_list(bnode_list, edge_list, face_list);
+    reduce_vector(newCellPlan[cc]);
+   
+    
+    }
+
+  }
+};
+
+register_rule<make_hex_cellplan_par_norestart> register_make_hex_cellplan_par_norestart;
 

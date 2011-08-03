@@ -40,7 +40,7 @@ std::vector<Entity> reorder_nodes(const const_store<int>& node_remap, const enti
   return orderedSet;
 }
 
-std::vector<Entity> reorder_edges(const const_store<int>& node_remap,const const_multiMap& edge2node, const entitySet& localSet){
+std::vector<Entity> reorder_edges(const const_store<int>& node_remap,const const_MapVec<2>& edge2node, const entitySet& localSet){
   
   //reverse the map 
   std::vector<pair<std::vector<int>, Entity> > node_f2l(localSet.size());
@@ -95,7 +95,7 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
                          const const_store<bool>& is_quadface,
                          const const_multiMap& face2node,
                          const const_multiMap& face2edge,
-                         const const_multiMap& edge2node,
+                         const const_MapVec<2>& edge2node,
                          const const_store<vect3d>& pos,
                          const const_store<std::vector<char> >& edgePlan,
                          const const_store<std::vector<char> >& facePlan,
@@ -267,7 +267,7 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
                          const Entity* boundary_map, int boundary_map_size,
                          const const_multiMap& face2node,
                          const const_multiMap& face2edge,
-                         const const_multiMap& edge2node,
+                         const const_MapVec<2>& edge2node,
                          std::list<Node*>& bnode_list,
                          std::list<Edge*>& edge_list,
                          std::list<Face*>& face_list,
@@ -378,7 +378,7 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
                          const const_store<bool>& is_quadface,
                          const const_multiMap& face2node,
                          const const_multiMap& face2edge,
-                         const const_multiMap& edge2node,
+                         const const_MapVec<2>& edge2node,
                          const const_store<vect3d>& pos,
                          const const_store<std::vector<char> >& edgePlan,
                          const const_store<std::vector<char> >& facePlan,
@@ -583,13 +583,14 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
         
         
 }
+
 //parallel version in make_general_cellplan.cc
 Cell* build_general_cell(const Entity* lower, int lower_size,
                          const Entity* upper, int upper_size,
                          const Entity* boundary_map, int boundary_map_size,
                          const const_multiMap& face2node,
                          const const_multiMap& face2edge,
-                         const const_multiMap& edge2node,
+                         const const_MapVec<2>& edge2node,
                          const const_store<vect3d>& pos,
                          const const_store<char>& posTag,
                          std::list<Node*>& bnode_list,
@@ -694,14 +695,13 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
     
     
 }
-
 //parallel version in make_general_cellplan.cc
 Cell* build_general_cell(const Entity* lower, int lower_size,
                          const Entity* upper, int upper_size,
                          const Entity* boundary_map, int boundary_map_size,
                          const const_multiMap& face2node,
                          const const_multiMap& face2edge,
-                         const const_multiMap& edge2node,
+                         const const_MapVec<2>& edge2node,
                          const const_store<vect3d>& pos,
                          std::list<Node*>& bnode_list,
                          std::list<Edge*>& edge_list,
@@ -813,7 +813,7 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
                          const const_store<bool>& is_quadface,
                          const_multiMap& face2node,
                          const_multiMap& face2edge,
-                         const_multiMap& edge2node,
+                         const_MapVec<2>& edge2node,
                          const_store<vect3d>& pos,
                          const_store<std::vector<char> >& edgePlan,
                          const_store<std::vector<char> >& facePlan,

@@ -79,7 +79,7 @@ class advance_cell_updated : public pointwise_rule{
   const_multiMap upper;
   const_multiMap boundary_map;
   const_multiMap face2node;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_multiMap face2edge;
   const_store<vect3d> pos;
   const_store<bool> cellUnchangedn;

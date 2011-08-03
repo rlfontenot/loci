@@ -40,15 +40,13 @@ struct Cell_Face{
   Cell_Face(DiamondCell* c1, int i, Face* f1):c(c1), fi(i), f(f1){};
 };
 
-//std::vector<Entity> reorder_nodes(const const_store<int>& node_remap, const entitySet& localSet);
-//std::vector<Entity> reorder_edges(const const_store<int>& node_remap,const const_multiMap& edge2node, const entitySet& localSet);
-//void reorder_faces(const const_store<int>& node_remap, const const_multiMap& face2node, std::vector<Entity>& localSet, char* orient);
+
 std::vector<int32> get_c1(const Entity* lower, int lower_size,
                           const Entity* upper, int upper_size,
                           const Entity* boundary_map, int boundary_map_size,
                           const const_multiMap& face2node, 
                           const const_multiMap& face2edge,
-                          const const_multiMap& edge2node,
+                          const const_MapVec<2>& edge2node,
                           const std::vector<char>& cellPlan,
                           const std::vector<char>& facePlan,
                           Entity ff,
@@ -224,7 +222,7 @@ std::vector<int32> get_c1_general(const Entity* lower, int lower_size,
                                   bool is_quadface,
                                   const const_multiMap& face2node, 
                                   const const_multiMap& face2edge,
-                                  const const_multiMap& edge2node,
+                                  const const_MapVec<2>& edge2node,
                                   const std::vector<char>& cellPlan,
                                   const std::vector<char>& facePlan,
                                   Entity ff,

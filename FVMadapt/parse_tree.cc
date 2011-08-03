@@ -690,18 +690,18 @@ vect3d  process_translate(xmlNode* anode){
       if(xmlStrEqual(cur_node->name, BAD_CAST("translate")) ){ 
         aMatrix.translate( process_translate(cur_node));
       }
-     else if(xmlStrEqual(cur_node->name, BAD_CAST("scale")) ){ 
+      else if(xmlStrEqual(cur_node->name, BAD_CAST("scale")) ){ 
         aMatrix.scale( process_scale(cur_node));
       }
       
       else  if(xmlStrEqual(cur_node->name, BAD_CAST("rotateX")) ){ 
         aMatrix.rotateX( process_rotate(cur_node));
       }
-
+      
       else  if(xmlStrEqual(cur_node->name, BAD_CAST("rotateY")) ){ 
         aMatrix.rotateY( process_rotate(cur_node));
       }
-
+      
       else  if(xmlStrEqual(cur_node->name, BAD_CAST("rotateZ")) ){ 
         aMatrix.rotateZ( process_rotate(cur_node));
       }else{

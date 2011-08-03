@@ -49,7 +49,7 @@ class get_general_cell_nodes : public pointwise_rule{
   const_multiMap boundary_map;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_store<vect3d> pos;
 
 
@@ -158,7 +158,7 @@ register_rule<get_general_cell_nodes> register_get_general_cell_nodes;
 class get_edge_nodes : public pointwise_rule{
   const_store<std::vector<char> > edgePlan;
   const_store<vect3d> pos;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   store<Loci::FineNodes> inner_nodes;
 public:
   get_edge_nodes(){

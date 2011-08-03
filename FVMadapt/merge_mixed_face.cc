@@ -43,7 +43,7 @@ std::vector<char>   extract_general_face(const Entity* lower, int lower_size,
                                          const Entity* boundary_map, int boundary_map_size,
                                          const const_multiMap& face2node,
                                          const const_multiMap& face2edge,
-                                         const const_multiMap& edge2node,
+                                         const const_MapVec<2>& edge2node,
                                          const std::vector<char>& cellPlan,
                                          Entity ff,
                                          const const_store<int>& node_remap
@@ -78,7 +78,7 @@ class merge_face_gh:public pointwise_rule{
   const_multiMap upper;
   const_multiMap boundary_map;
   const_multiMap face2node;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_multiMap face2edge;
   const_store<vect3d> pos; //dummy
   const_store<std::vector<char> > cellPlan;
@@ -158,7 +158,7 @@ class merge_face_hg:public pointwise_rule{
   const_multiMap upper;
   const_multiMap boundary_map;
   const_multiMap face2node;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_multiMap face2edge;
   const_store<vect3d> pos; //dummy
   const_store<std::vector<char> > cellPlan;
@@ -234,7 +234,7 @@ class merge_face_gp:public pointwise_rule{
   const_multiMap upper;
   const_multiMap boundary_map;
   const_multiMap face2node;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_multiMap face2edge;
   const_store<vect3d> pos; //dummy
   const_store<std::vector<char> > cellPlan;
@@ -317,7 +317,7 @@ class merge_face_pg:public pointwise_rule{
   const_multiMap upper;
   const_multiMap boundary_map;
   const_multiMap face2node;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_multiMap face2edge;
   const_store<vect3d> pos; //dummy
   const_store<std::vector<char> > cellPlan;

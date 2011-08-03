@@ -25,6 +25,7 @@
 #include <Loci.h>
 #include <algorithm>
 #include "prism.h"
+
 #ifdef USE_LIBXML2
 #include <libxml/parser.h>
 #include <libxml/tree.h>
@@ -57,7 +58,7 @@ class make_prism_cellplan:public pointwise_rule{
   const_store<Array<char, 5> > prism2face;
   const_store<Array<char, 6> > prism2node;
   const_store<Array<char, 5> > orientCode;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_multiMap face2edge;
   const_multiMap face2node;
   const_store<std::vector<char> > cellPlan;
@@ -178,7 +179,7 @@ public:
       bool cell_split = false; //if any cell split, the whole big cell rebalance
       for(int i = 0; i < numCells; i++){
    
-        cells[i]->setSplitCode(*split_mode_par);
+        cells[i]->setSplitCode(*split_mode_par, Globals::tolerance);
         if(cells[i]->getMySplitCode()!=0) {
           if(*split_mode_par == 2){
             double min_edge_length =cells[i]->get_min_edge_length();
@@ -198,7 +199,7 @@ public:
     }
     else{
    
-      aCell->setSplitCode(*split_mode_par);
+      aCell->setSplitCode(*split_mode_par, Globals::tolerance);
       if(aCell->getMySplitCode() != 0 ){
         if(*split_mode_par == 2){
           double min_edge_length =aCell->get_min_edge_length();
@@ -237,7 +238,7 @@ class make_prism_cellplan_norestart:public pointwise_rule{
   const_store<Array<char, 5> > prism2face;
   const_store<Array<char, 6> > prism2node;
   const_store<Array<char, 5> > orientCode;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_multiMap face2edge;
   const_multiMap face2node;
   const_store<bool> isIndivisible;
@@ -309,7 +310,7 @@ public:
                                     node_l2f);
 
 
-    aCell->setSplitCode(*split_mode_par);
+    aCell->setSplitCode(*split_mode_par, Globals::tolerance);
   
   
       
@@ -339,7 +340,7 @@ public:
 register_rule<make_prism_cellplan_norestart> register_make_prism_cellplan_norestart;
 
 //this rule make  a newCellPlan according to cellPlan 
-//and nodeTag, posTag
+//and xml file
 class make_prism_cellplan_xml:public pointwise_rule{
    const_param<std::string> xmlfile_par;
   const_store<vect3d> pos;
@@ -349,7 +350,7 @@ class make_prism_cellplan_xml:public pointwise_rule{
   const_store<Array<char, 5> > prism2face;
   const_store<Array<char, 6> > prism2node;
   const_store<Array<char, 5> > orientCode;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_multiMap face2edge;
   const_multiMap face2node;
   const_store<std::vector<char> > cellPlan;
@@ -502,7 +503,7 @@ public:
 
       
       
-     if( current->getMySplitCode()==0)current->setSplitCode(*split_mode_par);
+      if( current->getMySplitCode()==0)current->setSplitCode(*split_mode_par, Globals::tolerance);
       if(current->getMySplitCode()!=0){
         std::list<Node*>::iterator former_pnt = bnode_list.end();
         current->split(bnode_list, edge_list, qface_list, gface_list);
@@ -550,7 +551,7 @@ class make_prism_cellplan_xml_norestart:public pointwise_rule{
   const_store<Array<char, 5> > prism2face;
   const_store<Array<char, 6> > prism2node;
   const_store<Array<char, 5> > orientCode;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_multiMap face2edge;
   const_multiMap face2node;
   const_store<bool> isIndivisible;
@@ -652,7 +653,7 @@ public:
      current =Q.front();
      
      
-     if(current->getMySplitCode()==0) current->setSplitCode(*split_mode_par);
+     if(current->getMySplitCode()==0) current->setSplitCode(*split_mode_par, Globals::tolerance);
      if(current->getMySplitCode()!=0){
        std::list<Node*>::iterator former_pnt = bnode_list.end();
        former_pnt--;
@@ -689,4 +690,284 @@ public:
 };
 
 register_rule<make_prism_cellplan_xml_norestart> register_make_prism_cellplan_xml_norestart;
+
+
+class make_prism_cellplan_par:public pointwise_rule{
+  const_param<std::string> parfile_par;
+  const_store<vect3d> pos;
+  const_multiMap upper;
+  const_multiMap lower;
+  const_multiMap boundary_map;
+  const_store<Array<char, 5> > prism2face;
+  const_store<Array<char, 6> > prism2node;
+  const_store<Array<char, 5> > orientCode;
+  const_MapVec<2> edge2node;
+  const_multiMap face2edge;
+  const_multiMap face2node;
+  const_store<std::vector<char> > cellPlan;
+  const_store<std::vector<char> > facePlan;
+  const_store<std::vector<char> > edgePlan;
+  
+  const_store<bool> isIndivisible;
+  const_param<int> split_mode_par;
+  const_param<int> restart_par_par;
+  store<std::vector<char> > newCellPlan;
+  vector<source_par> sources;
+  const_store<int>  node_l2f;
+public:
+  make_prism_cellplan_par(){
+    name_store("parfile_par", parfile_par);
+    name_store("pos", pos);
+    name_store("lower", lower);
+    name_store("upper", upper);
+    name_store("boundary_map", boundary_map);
+    name_store("prism2face", prism2face);
+    name_store("prism2node", prism2node);
+    name_store("prismOrientCode", orientCode);
+    name_store("face2node", face2node);
+    name_store("face2edge", face2edge);
+    name_store("edge2node", edge2node);
+    name_store("cellPlan", cellPlan);
+    name_store("facePlan", facePlan);
+    name_store("edgePlan", edgePlan);
+  
+    name_store("isIndivisible", isIndivisible);
+    name_store("split_mode_par", split_mode_par);
+    name_store("restart_par_par", restart_par_par);
+    name_store("newCellPlan", newCellPlan);
+    name_store("fileNumber(face2node)", node_l2f);
+    input("restart_par_par");
+    input("(split_mode_par,parfile_par)");
+
+    input("(cellPlan, prism2face, prism2node, prismOrientCode)");
+    input("isIndivisible");
+    input("(lower, upper, boundary_map) ->(fileNumber(face2node), facePlan)"); 
+    input("(lower, upper, boundary_map)->face2node->pos");
+    input("(lower, upper, boundary_map)->face2edge->edge2node->pos");
+    input("(lower, upper, boundary_map)->face2edge->edgePlan");
+
+    
+    output("newCellPlan");
+    constraint("prisms");
+  }
+  virtual void compute(const sequence &seq){
+    if(seq.size()!=0){
+      readPar(*parfile_par, sources);
+      if(sources.size()==0){
+        cerr << "WARNING: fail to read par file" << endl;
+        Loci::Abort();
+      }
+      do_loop(seq, this);  
+    }
+ 
+  }
+  void calculate(Entity cc){
+
+    if(!isIndivisible[cc]){
+   
+    std::list<Edge*> edge_list;
+    std::list<QuadFace*> qface_list;
+    std::list<Face*> gface_list;
+    std::list<Node*> bnode_list;
+    std::queue<Prism*> Q;
+
+    
+  
+
+                                                 
+    Prism* aCell = build_prism_cell(lower[cc].begin(), lower.num_elems(cc),
+                                    upper[cc].begin(), upper.num_elems(cc),
+                                    boundary_map[cc].begin(), boundary_map.num_elems(cc),
+                                    prism2face[cc],
+                                    prism2node[cc],
+                                    orientCode[cc],
+                                    face2node,
+                                    face2edge,
+                                    edge2node,
+                                    pos,
+                                    edgePlan,
+                                    facePlan,
+                                    bnode_list,
+                                    edge_list,
+                                    qface_list,
+                                    gface_list,
+                                    node_l2f
+                                    );
+    
+  
+  
+    
+ 
+ 
+ 
+    
+   
+    std::vector<Prism*> cells;
+    aCell->resplit( cellPlan[cc], 
+                    bnode_list,
+                    edge_list,
+                    qface_list,
+                    gface_list,
+                    cells);
+   
+    
+    Prism* current;
+    int numCells = cells.size();
+    
+    if(numCells != 0){
+      for(int i = 0; i < numCells; i++)Q.push(cells[i]);
+   }
+   else{
+     Q.push(aCell);
+   }
+
+    while(!Q.empty()){
+      current =Q.front();
+      if(current->get_tagged(sources)){
+        current->split(bnode_list, edge_list, qface_list, gface_list);
+        for(int i = 0; i < current->numChildren(); i++){
+          Q.push(current->getChildCell(i));
+        }
+      }
+      Q.pop();
+    }
+    aCell->rebalance_cells(*split_mode_par, bnode_list, edge_list, qface_list, gface_list);
+        
+    //write new cellPlan
+    newCellPlan[cc] = aCell->make_cellplan();
+    //clean up
+    if(aCell != 0){
+      delete aCell;
+      aCell = 0;
+    }
+    cleanup_list(bnode_list, edge_list, qface_list);
+    
+    cleanup_list(gface_list);
+    reduce_vector(newCellPlan[cc]);
+    
+    
+    }
+  }
+};
+
+register_rule<make_prism_cellplan_par> register_make_prism_cellplan_par;
+
+class make_prism_cellplan_par_norestart:public pointwise_rule{
+  const_param<std::string> parfile_par;
+  const_store<vect3d> pos;
+  const_multiMap upper;
+  const_multiMap lower;
+  const_multiMap boundary_map;
+  const_store<Array<char, 5> > prism2face;
+  const_store<Array<char, 6> > prism2node;
+  const_store<Array<char, 5> > orientCode;
+  const_MapVec<2> edge2node;
+  const_multiMap face2edge;
+  const_multiMap face2node;
+  const_store<bool> isIndivisible;
+  
+   const_param<int> split_mode_par;
+  const_param<int> no_restart_par_par;
+  store<std::vector<char> > newCellPlan;
+
+  vector<source_par> sources;
+  const_store<int> node_l2f;
+public:
+  make_prism_cellplan_par_norestart(){
+ name_store("parfile_par", parfile_par);
+    name_store("pos", pos);
+    name_store("lower", lower);
+    name_store("upper", upper);
+    name_store("boundary_map", boundary_map);
+    name_store("prism2face", prism2face);
+    name_store("prism2node", prism2node);
+    name_store("prismOrientCode", orientCode);
+    name_store("face2node", face2node);
+    name_store("face2edge", face2edge);
+    name_store("edge2node", edge2node);
+     
+    name_store("isIndivisible", isIndivisible);
+    name_store("split_mode_par", split_mode_par);
+    name_store("no_restart_par_par", no_restart_par_par);
+    name_store("newCellPlan", newCellPlan);
+    name_store("fileNumber(face2node)", node_l2f);
+    input("no_restart_par_par");
+    input("split_mode_par, parfile_par"); 
+    input("isIndivisible, prism2face, prism2node, prismOrientCode");
+    input("(lower, upper, boundary_map)->face2node->pos");
+    input("(lower, upper, boundary_map)->face2edge->edge2node->pos");
+    input("(lower, upper, boundary_map)->fileNumber(face2node)");
+    output("newCellPlan");
+    constraint("prisms");
+  }
+  virtual void compute(const sequence &seq){
+    if(seq.size()!=0){
+      readPar(*parfile_par, sources);
+      if(sources.size()==0){
+        cerr << "WARNING: fail to read par file" << endl;
+        Loci::Abort();
+      }
+       do_loop(seq, this); 
+    }
+  }
+  void calculate(Entity cc){
+    if(!isIndivisible[cc]){   
+    std::list<Edge*> edge_list;
+    std::list<QuadFace*> qface_list;
+    std::list<Face*> gface_list;
+    std::list<Node*> bnode_list;
+       std::queue<Prism*> Q; 
+    
+    Prism* aCell = build_prism_cell(lower[cc].begin(), lower.num_elems(cc),
+                                    upper[cc].begin(), upper.num_elems(cc),
+                                    boundary_map[cc].begin(), boundary_map.num_elems(cc),
+                                    prism2face[cc],
+                                    prism2node[cc],
+                                    orientCode[cc],
+                                    face2node,
+                                    face2edge,
+                                    edge2node,
+                                    pos,
+                                    bnode_list,
+                                    edge_list,
+                                    qface_list,
+                                    gface_list,
+                                    node_l2f);
+   
+    Q.push(aCell);
+  
+   Prism* current;
+   while(!Q.empty()){
+     current =Q.front();
+     
+     
+     if(current->get_tagged(sources)){
+       current->split(bnode_list, edge_list, qface_list, gface_list);
+       for(int i = 0; i < current->numChildren(); i++){
+         Q.push(current->getChildCell(i));
+       }
+     }
+     Q.pop();
+   }
+   aCell->rebalance_cells(*split_mode_par, bnode_list, edge_list, qface_list, gface_list);
+   
+   
+     newCellPlan[cc] =  aCell->make_cellplan();
+     
+    
+    //clean up
+    if(aCell != 0){
+      delete aCell;
+      aCell = 0;
+    }
+    cleanup_list(bnode_list, edge_list, qface_list);
+    cleanup_list(gface_list);
+    reduce_vector(newCellPlan[cc]);
+   
+    }
+
+  }
+};
+
+register_rule<make_prism_cellplan_par_norestart> register_make_prism_cellplan_par_norestart;
 

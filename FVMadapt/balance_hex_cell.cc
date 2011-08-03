@@ -82,7 +82,7 @@ class advance_hex_cell_updated : public pointwise_rule{
   const_store<Array<char, 8> > hex2node;
   const_store<Array<char, 6> > orientCode;
   const_multiMap face2node;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_multiMap face2edge;
   const_store<vect3d> pos;
   const_store<bool> cellUnchangedn;

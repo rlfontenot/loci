@@ -1084,7 +1084,32 @@ bool HexCell::getTagged(){
   return tagged;
 }
       
+bool HexCell::get_tagged(const vector<source_par>& sources){
+  std::vector<Node*> nodes(8);
+  //definition from build_hexcell.cc
+  // int node0[12] = {0, 1, 2, 3, 0, 1, 4, 5, 0, 2, 4, 6}; //head
+  // int node1[12] = {4, 5, 6, 7, 2, 3, 6, 7, 1, 3, 5, 7}; //tail
+  //  int f2e[6][4]= {{6, 11, 7, 10}, {4, 9, 5, 8}, {2, 11, 3, 9}, {0, 10, 1, 8},
+  //              {1, 7, 3, 5}, {0, 6, 2, 4}};
   
+  nodes[0] = face[1]->edge[0]->head;
+  nodes[1] = face[1]->edge[2]->head;
+  nodes[2] = face[1]->edge[0]->tail;
+  nodes[3] = face[1]->edge[2]->tail;
+  nodes[4] = face[0]->edge[0]->head;
+  nodes[5] = face[0]->edge[2]->head;
+  nodes[6] = face[0]->edge[0]->tail;
+  nodes[7] = face[0]->edge[2]->tail;
+
+  double min_len = get_min_edge_length();
+  if(tag_cell(nodes, sources, min_len)){
+    mySplitCode = 7;
+    return true;
+  }else{
+    mySplitCode = 0;
+    return false;
+  }
+} 
    //find the minimum edge length in a cell(before split)
 double HexCell::get_min_edge_length(){
   std::vector<Edge*> edges = get_edges();
@@ -1106,7 +1131,7 @@ double HexCell::get_min_edge_length(){
   //if 
   //if max_edge_length/min_edge_length > Globals::factor1 and they are in different direction
   //split the max_length edge
-void HexCell::setSplitCode(int split_mode){
+void HexCell::setSplitCode(int split_mode, double tol){
   if(getTagged()){
    
    
@@ -1161,9 +1186,9 @@ void HexCell::setSplitCode(int split_mode){
     average_length[2] /= 4.0;
 
     bitset<3> tolerance_mask(7); //all 1s
-    if(min_length[0] < 2*Globals::tolerance)tolerance_mask.reset(2);
-    if(min_length[1] < 2*Globals::tolerance)tolerance_mask.reset(1);
-    if(min_length[2] < 2*Globals::tolerance) tolerance_mask.reset(0);
+    if(min_length[0] < 2*tol)tolerance_mask.reset(2);
+    if(min_length[1] < 2*tol)tolerance_mask.reset(1);
+    if(min_length[2] < 2*tol) tolerance_mask.reset(0);
     //    cout << "tolerance: " << tolerance_mask.to_ulong() << endl;
     
     double minimum_length = *std::min_element(min_length.begin(), min_length.end());
@@ -1236,7 +1261,7 @@ void HexCell::setSplitCode(int split_mode){
         // mySplitCode = 1;//z direction get split
         return;
       }
-      else if(minimum_length > 2.0*Globals::tolerance){
+      else if(minimum_length > 2.0*tol){
         
         mySplitCode = 7;
       return;
@@ -1349,7 +1374,7 @@ void HexCell::setSplitCode(int split_mode){
     }//end if(split_mode == 1)
     
     else if(split_mode == 2){
-      if(minimum_length/Globals::tolerance  > 2.0){
+      if(minimum_length/tol  > 2.0){
         mySplitCode = 7;
         return;
       }

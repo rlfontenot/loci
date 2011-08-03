@@ -23,7 +23,8 @@ include $(LOCI_BASE)/Loci.conf
 #COPTLESS =	-O0 -g -ansi -pedantic
 #COPT =		$(COPTLESS)
 
-MARKOBJS =	classify_cell.o \
+MARKOBJS =	read_par.o \
+		classify_cell.o \
 		transfer_fc.o \
 		quadface.o  \
 		face.o \
@@ -65,9 +66,11 @@ MARKOBJS =	classify_cell.o \
 		update_mixed_face.o \
 		transfer_plan.o \
 		parse_tree.o \
-		marker.o
+		marker.o 
 
-REFOBJS =	classify_cell.o \
+
+REFOBJS =	read_par.o \
+		classify_cell.o \
 		transfer_fc.o \
 		quadface.o \
 		face.o \
