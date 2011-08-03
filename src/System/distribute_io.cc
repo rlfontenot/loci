@@ -643,11 +643,25 @@ namespace Loci {
 	  tmp_total_size = t_sp->pack_size(tmp_set) ;
 	}
         if(np == 1) {
-          if(fi.size) {
-            qrep->copy(tmp_sp,dom) ;
-          } else {
-            qrep->copy(t_sp,dom) ;
+          if(tmp_total_size > total_size) {
+            total_size = tmp_total_size ;
+            tmp_buf = new unsigned char[total_size] ;
           }
+          start += count ;
+          int loc = 0 ;
+          if(fi.size)
+            tmp_sp->pack(tmp_buf, loc, total_size, tmp_set) ;
+          else
+            t_sp->pack(tmp_buf, loc, total_size, tmp_set) ;
+          int loc_unpack = 0 ;
+          
+          if(fi.size)
+            if(fi.size > 1)
+              qrep->set_elem_size(fi.size) ;
+          
+          sequence tmp_seq = sequence(dom) ;
+          qrep->allocate(dom) ;
+          qrep->unpack(tmp_buf, loc_unpack, total_size, tmp_seq) ;
         } else {
           if(tmp_total_size > total_size) {
             total_size = tmp_total_size ;
@@ -914,9 +928,8 @@ namespace Loci {
         newnum[i] = g2f[l2g[i]] ;
       } ENDFORALL ;
     } else {
-      FORALL(resultSet,i) {
-        newnum[i] = i ;
-      } ENDFORALL ;
+      result->copy(input,resultSet) ;
+      return ;
     }
 
     int p = 0 ;
@@ -1092,11 +1105,6 @@ namespace Loci {
   void read_container_redistribute(hid_t file_id, std::string vname,
                                    storeRepP var, entitySet read_set,
                                    fact_db &facts) {
-    fact_db::distribute_infoP dist = facts.get_distribute_info() ;
-    if(dist == 0) {
-      readContainerRAW(file_id,vname,var,MPI_COMM_WORLD) ;
-      return ;
-    }
     hid_t group_id = 0;
     if(MPI_rank == 0)
       group_id = H5Gopen(file_id, vname.c_str()) ;
@@ -1112,11 +1120,14 @@ namespace Loci {
     storeRepP new_store = var->new_store(EMPTY) ;
     read_store( group_id, new_store,offset,MPI_COMM_WORLD) ;
 
+
     // Allocate space for reordered container
     storeRepP result = var->new_store(read_set) ;
+    
     // map from file number to local numbering
+    fact_db::distribute_infoP dist = facts.get_distribute_info() ;
     File2LocalOrder(result,read_set,new_store,offset,dist,MPI_COMM_WORLD) ;
-
+    
     // Copy results into container
     var->copy(result,read_set) ;
 
