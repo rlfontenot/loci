@@ -146,6 +146,12 @@ namespace Loci {
   extern void writeVOG(std::string filename,store<vector3d<double> > &pos,
                        Map &cl, Map &cr, multiMap &face2node,
                        std::vector<std::pair<int,std::string> > surfaceids) ;
-}
+  extern void writeVOG(std::string filename,store<vector3d<double> > &pos,
+                       Map &cl, Map &cr, multiMap &face2node,
+                       std::vector<std::pair<int,std::string> >& surfaceids,
+                       std::vector<std::pair<std::string,entitySet> >& volTags) ;
+} 
+
+
 
 #endif
