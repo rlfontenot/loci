@@ -249,7 +249,26 @@ namespace Loci {
       }
     }
   }
-
+  
+  void writeVOGTag(hid_t output_fid,  vector<pair<string,entitySet> >& volTags){
+    hid_t cell_info = H5Gcreate(output_fid,"cell_info", 0) ;
+    
+    for(size_t i=0;i<volTags.size();++i) {
+      hid_t vol_id = H5Gcreate(cell_info,volTags[i].first.c_str(),0) ;
+      hsize_t dims = 1 ;
+      hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
+      
+      hid_t att_id = H5Acreate(vol_id,"Ident", H5T_NATIVE_INT,
+                               dataspace_id, H5P_DEFAULT) ;
+      int num = int(i) ;
+      H5Awrite(att_id,H5T_NATIVE_INT,&num) ;
+      H5Aclose(att_id) ;
+      Loci::HDF5_WriteDomain(vol_id,volTags[i].second) ;
+      H5Gclose(vol_id) ;
+    }
+    H5Gclose(cell_info) ;
+  }
+  
   void writeVOGNode(hid_t file_id, store<vector3d<double> > &pos) {
     hid_t group_id = 0 ;
     
@@ -409,5 +428,20 @@ namespace Loci {
     writeVOGFace(file_id,cl,cr,face2node) ;
     writeVOGClose(file_id) ;
   }
+
+ void writeVOG(string filename,store<vector3d<double> > &pos,
+                Map &cl, Map &cr, multiMap &face2node,
+               vector<pair<int,string> >& surface_ids,
+               vector<pair<string,entitySet> >& volTags ) {
+   // write grid file
+   
+   hid_t file_id = writeVOGOpen(filename) ;
+   writeVOGTag(file_id, volTags) ;
+   writeVOGSurf(file_id,surface_ids) ;
+   writeVOGNode(file_id,pos) ;
+   writeVOGFace(file_id,cl,cr,face2node) ;
+   writeVOGClose(file_id) ;
+ }
+  
 
 }
