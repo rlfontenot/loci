@@ -91,20 +91,23 @@ namespace Loci {
   class constraint_limiter: public constraint_rule {
     const_param<std::string> limiter ;
     Constraint V_limiter, B_limiter, N_limiter, Z_limiter,NB_limiter ;
+    Constraint V2_limiter ;
   public:
     constraint_limiter() {
       name_store("limiter",limiter) ;
       name_store("V_limiter",V_limiter) ;
+      name_store("V2_limiter",V2_limiter) ;
       name_store("B_limiter",B_limiter) ;
       name_store("NB_limiter",NB_limiter) ;
       name_store("N_limiter",N_limiter) ;
       name_store("Z_limiter",Z_limiter) ;
       input("limiter") ;
-      output("V_limiter,B_limiter,NB_limiter,N_limiter,Z_limiter") ;
+      output("V_limiter,V2_limiter,B_limiter,NB_limiter,N_limiter,Z_limiter") ;
     }
     virtual void compute(const sequence& seq) {
       //      std::cerr << "Setting limiter constraints!" << endl ;
       V_limiter = EMPTY ;
+      V2_limiter = EMPTY ;
       B_limiter = EMPTY ;
       NB_limiter = EMPTY ;
       N_limiter = EMPTY ;
@@ -112,6 +115,8 @@ namespace Loci {
       
       if(*limiter == "venkatakrishnan" || *limiter == "V") {
         V_limiter = ~EMPTY ;
+      } else if(*limiter == "V2") {
+        V2_limiter = ~EMPTY ;
       } else if(*limiter == "barth" || *limiter == "B") {
         B_limiter = ~EMPTY ;
       } else if(*limiter == "nodalbarth" || *limiter == "NB") {
@@ -290,138 +295,10 @@ namespace Loci {
   }
 
 
-  // The following is another way to get the limiter of gradient approach.
-  class get_grad_vlimiter : public pointwise_rule {
-    storeVec<real> limiterv ;
-    const_store<real> vol ;
-    const_multiMap upper,lower,boundary_map ;
-    const_Map cl, cr ;
-    const_store<vect3d> cellcenter ;
-    const_store<vect3d> facecenter ;
-    const_storeVec<real> X, X_f ;
-    const_storeVec<vect3d> Xgrad ;
-    const_param<real> Kl ;
-    const_param<real> grid_vol ;
-    const_store<char> firstOrderCells ;
-    real Kl3 ;
-  public:
-    get_grad_vlimiter() ;
-    void calculate(Entity cc) ;
-    virtual void compute(const sequence &seq) ;
-  } ;
-
-  get_grad_vlimiter::get_grad_vlimiter() {
-    name_store("Kl",Kl) ;
-    name_store("vol",vol) ;
-    name_store("limiterv(X)",limiterv) ;
-    name_store("cl",cl) ;
-    name_store("cr",cr) ;
-    name_store("upper",upper) ;
-    name_store("lower",lower) ;
-    name_store("boundary_map",boundary_map) ;
-    name_store("facecenter",facecenter) ;
-    name_store("cellcenter",cellcenter) ;
-    name_store("X",X) ;
-    name_store("X_f",X_f) ;
-    name_store("gradv(X)",Xgrad) ;
-    name_store("grid_vol",grid_vol) ;
-    name_store("firstOrderCells",firstOrderCells) ;
-    input("firstOrderCells") ;
-    
-    constraint("geom_cells,V_limiter") ;
-    input("Kl,grid_vol") ;
-    input("cellcenter,X,gradv(X),vol") ;
-    input("upper->cr->X") ;
-    input("upper->facecenter") ;
-    input("lower->cl->X") ;
-    input("lower->facecenter") ;
-    input("boundary_map->X_f") ;
-    output("limiterv(X)") ;
-  }
-
-  void get_grad_vlimiter::calculate(Entity cc) {
-    const vect3d &cctr = cellcenter[cc] ;
-    real ref = 0.0 ;
-    const int vs = X.vecSize() ;
-    
-    for(int i=0;i<vs;++i)
-      ref += X[cc][i] ;
-    ref = max(ref,1e-5) ;
-
-    const real refsq = ref*ref ;
-    for(int i=0;i<vs;++i) {
-      const real &Xcc = X[cc][i] ;
-      real qmax = Xcc ;
-      real qmin = qmax ;
-      const vect3d &Xgr = Xgrad[cc][i] ;
-      // Epsilon squared is equal to (Kl D)^3 where D is the diameter of
-      // a sphere with the same volume as the given cell.
-      const real epsilon2 = Kl3*vol[cc]*refsq ;
-      
-      for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
-        const int fc = *fi ;
-        qmin = min(qmin,X[cr[fc]][i]) ;
-        qmax = max(qmax,X[cr[fc]][i]) ;
-      }
-      for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
-        const int fc = *fi ;
-        qmin = min(qmin,X[cl[fc]][i]) ;
-        qmax = max(qmax,X[cl[fc]][i]) ;
-      }
-      for(const int *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) {
-        const int fc = *fi ;
-        qmin = min(qmin,X_f[fc][i]) ;
-        qmax = max(qmax,X_f[fc][i]) ;
-      }
-      real limi = 1.0 ;
-      if(firstOrderCells[cc] != 0)
-        limi = 0.0 ;
-      
-      for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
-        const int fc = *fi ;
-        real Xf = Xcc + dot(Xgr,(facecenter[fc]-cctr)) ;
-        real qdif = Xcc -Xf ;
-        real lim = 1.0 ;
-        
-        if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
-        else {
-          const real deltap = (qdif>0.0)?qmin-Xcc:qmax-Xcc;
-          const real deltam = -qdif ;
-          lim = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
-            (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
-        }
-        limi = min(limi,lim) ;
-      }
-      for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
-        const int fc = *fi ;
-        real Xf = Xcc + dot(Xgr,(facecenter[fc]-cctr)) ;
-        real qdif = Xcc -Xf ;
-        real lim = 1.0 ;
-        if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
-        else {
-          const real deltap =(qdif>0.0)?qmin-Xcc:qmax-Xcc;
-          const real deltam =-qdif ;
-          lim = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
-            (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
-        }
-        limi = min(limi,lim) ;
-      }
-      limiterv[cc][i] = limi ;
-    }
-  }
-
-  const double pi = M_PI ;
-
-  void get_grad_vlimiter::compute(const sequence &seq) {
-    Kl3 = (*Kl)*(*Kl)*(*Kl)*6./pi/(*grid_vol) ;
-    limiterv.setVecSize(X.vecSize()) ;
-    do_loop(seq,this) ;
-  }
 
   register_rule<limiterv_none> register_limiterv_none ;
   register_rule<limiterv_zero> register_limiterv_zero ;
   register_rule<get_limiterv> register_get_limiterv ;
-  register_rule<get_grad_vlimiter> register_get_grad_vlimiter ;
 
   // The following is to get the limiter of gradient approach.
   class get_limiter_none_scalar : public pointwise_rule {
@@ -564,137 +441,6 @@ namespace Loci {
 
   register_rule<get_limiter_scalar> register_get_limiter_scalar ;
 
-  // The following is another way to get the limiter of gradient approach.
-  class get_vlimiter_scalar : public pointwise_rule {
-    store<real> grad_limiter ;
-    const_store<real> vol ;
-    const_multiMap upper,lower,boundary_map ;
-    const_Map cl, cr ;
-    const_store<vect3d> cellcenter ;
-    const_store<vect3d> facecenter ;
-    const_store<real> X, X_f ;
-    const_store<vect3d> Xgrad ;
-    const_param<real> Kl ;
-    const_param<real> grid_vol ;
-    const_store<char> firstOrderCells ;
-    real Kl3 ;
-  public:
-    get_vlimiter_scalar() ;
-    void calculate(Entity cc) ;
-    virtual void compute(const sequence &seq) ;
-  } ;
-
-  get_vlimiter_scalar::get_vlimiter_scalar() {
-    name_store("Kl",Kl) ;
-    name_store("vol",vol) ;
-    name_store("limiters(X)",grad_limiter) ;
-    name_store("cl",cl) ;
-    name_store("cr",cr) ;
-    name_store("upper",upper) ;
-    name_store("lower",lower) ;
-    name_store("boundary_map",boundary_map) ;
-    name_store("facecenter",facecenter) ;
-    name_store("cellcenter",cellcenter) ;
-    name_store("X",X) ;
-    name_store("X_f",X_f) ;
-    name_store("grads(X)",Xgrad) ;
-    name_store("grid_vol",grid_vol) ;
-    name_store("firstOrderCells",firstOrderCells) ;
-    input("firstOrderCells") ;
-    
-    constraint("geom_cells,V_limiter") ;
-    input("Kl,grid_vol") ;
-    input("cellcenter,X,grads(X),vol") ;
-    input("upper->cr->X") ;
-    input("upper->facecenter") ;
-    input("lower->cl->X") ;
-    input("lower->facecenter") ;
-    input("boundary_map->X_f") ;
-    output("limiters(X)") ;
-  }
-
-  void get_vlimiter_scalar::calculate(Entity cc) {
-    const vect3d &cctr = cellcenter[cc] ;
-
-    real refsq = X[cc]*X[cc] ;
-    int numrefs = 1 ;
-
-    const real &Xcc = X[cc] ;
-    real qmax = Xcc ;
-    real qmin = qmax ;
-    const vect3d &Xgr = Xgrad[cc];
-    // Epsilon squared is equal to (Kl D)^3 where D is the diameter of
-    // a sphere with the same volume as the given cell.
-      
-    for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
-      const int fc = *fi ;
-      const real Xr = X[cr[fc]] ;
-      qmin = min(qmin,Xr) ;
-      qmax = max(qmax,Xr) ;
-      refsq += Xr*Xr ;
-      numrefs++ ;
-    }
-    for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
-      const int fc = *fi ;
-      const real Xl = X[cl[fc]] ;
-      qmin = min(qmin,Xl) ;
-      qmax = max(qmax,Xl) ;
-      refsq += Xl*Xl ;
-      numrefs++ ;
-    }
-    for(const int *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) {
-      const int fc = *fi ;
-      const real Xf = X_f[fc] ;
-      qmin = min(qmin,Xf) ;
-      qmax = max(qmax,Xf) ;
-      refsq += Xf*Xf ;
-      numrefs++ ;
-    }
-    const real ref = 1e-20+sqrt(refsq)/numrefs ;
-     
-    const real epsilon2 = Kl3*vol[cc]*ref*ref ;
-    real limi = 1.0 ;
-    if(firstOrderCells[cc] != 0)
-      limi=0.0 ;
-    
-    for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
-      const int fc = *fi ;
-      real Xf = Xcc + dot(Xgr,(facecenter[fc]-cctr)) ;
-      real qdif = Xcc -Xf ;
-      real lim = 1.0 ;
-        
-      if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
-      else {
-        const real deltap = (qdif>0.0)?qmin-Xcc:qmax-Xcc;
-        const real deltam = -qdif ;
-        lim = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
-          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
-      }
-      limi = min(limi,lim) ;
-    }
-    for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
-      const int fc = *fi ;
-      real Xf = Xcc + dot(Xgr,(facecenter[fc]-cctr)) ;
-      real qdif = Xcc -Xf ;
-      real lim = 1.0 ;
-      if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
-      else {
-        const real deltap =(qdif>0.0)?qmin-Xcc:qmax-Xcc;
-        const real deltam =-qdif ;
-        lim = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
-          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
-      }
-      limi = min(limi,lim) ;
-    }
-    grad_limiter[cc] = limi ;
-  }
-
-  void get_vlimiter_scalar::compute(const sequence &seq) {
-    Kl3 = (*Kl)*(*Kl)*(*Kl)*6./pi/(*grid_vol) ;
-    do_loop(seq,this) ;
-  }
-
-  register_rule<get_vlimiter_scalar> register_vlimiter_scalar ;
 
 
   // The following is to get the limiter of gradient approach.
@@ -870,178 +616,6 @@ namespace Loci {
 
   register_rule<get_limiter3d> register_get_limiter3d ;
 
-  // The following is another way to get the limiter3d of gradient approach.
-  class get_vlimiter3d : public pointwise_rule {
-    store<vect3d> grad_limiter3d ;
-    const_store<real> vol ;
-    const_multiMap upper,lower,boundary_map ;
-    const_Map cl, cr ;
-    const_store<vect3d> cellcenter ;
-    const_store<vect3d> facecenter ;
-    const_store<vect3d> X, X_f ;
-    const_store<tens3d> Xgrad ;
-    const_param<real> Kl ;
-    const_param<real> grid_vol ;
-    const_store<char> firstOrderCells ;
-    real Kl3 ;
-  public:
-    get_vlimiter3d() ;
-    void calculate(Entity cc) ;
-    virtual void compute(const sequence &seq) ;
-  } ;
-
-  get_vlimiter3d::get_vlimiter3d() {
-    name_store("Kl",Kl) ;
-    name_store("vol",vol) ;
-    name_store("limiterv3d(X)",grad_limiter3d) ;
-    name_store("cl",cl) ;
-    name_store("cr",cr) ;
-    name_store("upper",upper) ;
-    name_store("lower",lower) ;
-    name_store("boundary_map",boundary_map) ;
-    name_store("facecenter",facecenter) ;
-    name_store("cellcenter",cellcenter) ;
-    name_store("X",X) ;
-    name_store("X_f",X_f) ;
-    name_store("gradv3d(X)",Xgrad) ;
-    name_store("grid_vol",grid_vol) ;
-    name_store("firstOrderCells",firstOrderCells) ;
-    input("firstOrderCells") ;
-    
-    constraint("geom_cells,V_limiter") ;
-    input("Kl,grid_vol") ;
-    input("cellcenter,X,gradv3d(X),vol") ;
-    input("upper->cr->X") ;
-    input("upper->facecenter") ;
-    input("lower->cl->X") ;
-    input("lower->facecenter") ;
-    input("boundary_map->X_f") ;
-    output("limiterv3d(X)") ;
-  }
-
-  void get_vlimiter3d::calculate(Entity cc) {
-    real refsq = dot(X[cc],X[cc]) ;
-    int numrefs = 1 ;
-
-    const vect3d Xcc = X[cc] ;
-    vect3d qmax = Xcc ;
-    vect3d qmin = qmax ;
-    const tens3d &Xgr = Xgrad[cc];
-    // Epsilon squared is equal to (Kl D)^3 where D is the diameter of
-    // a sphere with the same volume as the given cell.
-      
-    for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
-      const Entity fc = *fi ;
-      const vect3d Xr = X[cr[fc]] ;
-      qmin.x = min(qmin.x,Xr.x) ;
-      qmin.y = min(qmin.y,Xr.y) ;
-      qmin.z = min(qmin.z,Xr.z) ;
-      qmax.x = max(qmax.x,Xr.x) ;
-      qmax.y = max(qmax.y,Xr.y) ;
-      qmax.z = max(qmax.z,Xr.z) ;
-      refsq += dot(Xr,Xr) ;
-      numrefs++ ;
-    }
-    for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
-      const Entity fc = *fi ;
-      const vect3d Xl = X[cl[fc]] ;
-      qmin.x = min(qmin.x,Xl.x) ;
-      qmin.y = min(qmin.y,Xl.y) ;
-      qmin.z = min(qmin.z,Xl.z) ;
-      qmax.x = max(qmax.x,Xl.x) ;
-      qmax.y = max(qmax.y,Xl.y) ;
-      qmax.z = max(qmax.z,Xl.z) ;
-      refsq += dot(Xl,Xl) ;
-      numrefs++ ;
-    }
-    for(const int *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) {
-      const int fc = *fi ;
-      const vect3d Xf = X_f[fc] ;
-      qmin.x = min(qmin.x,Xf.x) ;
-      qmin.y = min(qmin.y,Xf.y) ;
-      qmin.z = min(qmin.z,Xf.z) ;
-      qmax.x = max(qmax.x,Xf.x) ;
-      qmax.y = max(qmax.y,Xf.y) ;
-      qmax.z = max(qmax.z,Xf.z) ;
-      refsq += dot(Xf,Xf) ;
-      numrefs++ ;
-    }
-    const real ref = 1e-20+sqrt(refsq)/numrefs ;
-     
-    const real epsilon2 = Kl3*vol[cc]*ref*ref ;
-    vect3d limi = vect3d(1.0,1.0,1.0) ;
-    if(firstOrderCells[cc] != 0)
-      limi = vect3d(0.0,0.0,0.0) ;
-    
-    for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
-      const int fc = *fi ;
-      const vect3d drl = facecenter[fc] - cellcenter[cc] ;
-      vect3d Xf = Xcc + vect3d(dot(Xgr.x,drl),dot(Xgr.y,drl),dot(Xgr.z,drl)) ;
-      vect3d qdif = Xcc -Xf ;
-
-      vect3d lim = vect3d(1.0,1.0,1.0) ;
-        
-      if(fabs(qdif.x) > ref*1e-4) {
-        const real deltap = (qdif.x>0.0)?qmin.x-Xcc.x:qmax.x-Xcc.x;
-        const real deltam = -qdif.x ;
-        lim.x = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
-          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
-      }
-      if(fabs(qdif.y) > ref*1e-4) {
-        const real deltap = (qdif.y>0.0)?qmin.y-Xcc.y:qmax.y-Xcc.y;
-        const real deltam = -qdif.y ;
-        lim.y = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
-          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
-      }
-      if(fabs(qdif.z) > ref*1e-4) {
-        const real deltap = (qdif.z>0.0)?qmin.z-Xcc.z:qmax.z-Xcc.z;
-        const real deltam = -qdif.z ;
-        lim.z = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
-          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
-      }
-      limi.x = min(limi.x,lim.x) ;
-      limi.y = min(limi.y,lim.y) ;
-      limi.z = min(limi.z,lim.z) ;
-    }
-    for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
-      const int fc = *fi ;
-      const vect3d drl = facecenter[fc] - cellcenter[cc] ;
-      vect3d Xf = Xcc + vect3d(dot(Xgr.x,drl),dot(Xgr.y,drl),dot(Xgr.z,drl)) ;
-      vect3d qdif = Xcc -Xf ;
-
-      vect3d lim = vect3d(1.0,1.0,1.0) ;
-
-      if(fabs(qdif.x) > ref*1e-4) {
-        const real deltap = (qdif.x>0.0)?qmin.x-Xcc.x:qmax.x-Xcc.x;
-        const real deltam = -qdif.x ;
-        lim.x = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
-          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
-      }
-      if(fabs(qdif.y) > ref*1e-4) {
-        const real deltap = (qdif.y>0.0)?qmin.y-Xcc.y:qmax.y-Xcc.y;
-        const real deltam = -qdif.y ;
-        lim.y = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
-          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
-      }
-      if(fabs(qdif.z) > ref*1e-4) {
-        const real deltap = (qdif.z>0.0)?qmin.z-Xcc.z:qmax.z-Xcc.z;
-        const real deltam = -qdif.z ;
-        lim.z = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
-          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
-      }
-      limi.x = min(limi.x,lim.x) ;
-      limi.y = min(limi.y,lim.y) ;
-      limi.z = min(limi.z,lim.z) ;
-    }
-    grad_limiter3d[cc] = limi ;
-  }
-
-  void get_vlimiter3d::compute(const sequence &seq) {
-    Kl3 = (*Kl)*(*Kl)*(*Kl)*6./pi/(*grid_vol) ;
-    do_loop(seq,this) ;
-  }
-
-  register_rule<get_vlimiter3d> register_vlimiter3d ;
 
     class periodic_limiters : public pointwise_rule {
     store<real_t> limiters ;
@@ -1429,4 +1003,937 @@ namespace Loci {
 
   register_rule<nodal_barth_vec> register_nodal_barth_vec ;
     
+  // The following is another way to get the limiter of gradient approach.
+  class limiter_mixture_V : public pointwise_rule {
+    storeVec<real> limiterv ;
+    const_store<real> vol ;
+    const_multiMap upper,lower,boundary_map ;
+    const_Map cl, cr ;
+    const_store<vect3d> cellcenter ;
+    const_store<vect3d> facecenter ;
+    const_storeVec<real> X, X_f ;
+    const_storeVec<vect3d> Xgrad ;
+    const_param<real> Kl ;
+    const_param<real> grid_vol ;
+    const_store<char> firstOrderCells ;
+    real Kl3 ;
+  public:
+    limiter_mixture_V() ;
+    void calculate(Entity cc) ;
+    virtual void compute(const sequence &seq) ;
+  } ;
+
+  limiter_mixture_V::limiter_mixture_V() {
+    name_store("Kl",Kl) ;
+    name_store("vol",vol) ;
+    name_store("limiterv(X)",limiterv) ;
+    name_store("cl",cl) ;
+    name_store("cr",cr) ;
+    name_store("upper",upper) ;
+    name_store("lower",lower) ;
+    name_store("boundary_map",boundary_map) ;
+    name_store("facecenter",facecenter) ;
+    name_store("cellcenter",cellcenter) ;
+    name_store("X",X) ;
+    name_store("X_f",X_f) ;
+    name_store("gradv(X)",Xgrad) ;
+    name_store("grid_vol",grid_vol) ;
+    name_store("firstOrderCells",firstOrderCells) ;
+    input("firstOrderCells") ;
+    
+    constraint("geom_cells,V_limiter") ;
+    input("Kl,grid_vol") ;
+    input("cellcenter,X,gradv(X),vol") ;
+    input("upper->cr->X") ;
+    input("upper->facecenter") ;
+    input("lower->cl->X") ;
+    input("lower->facecenter") ;
+    input("boundary_map->X_f") ;
+    output("limiterv(X)") ;
+  }
+
+  void limiter_mixture_V::calculate(Entity cc) {
+    const vect3d &cctr = cellcenter[cc] ;
+    real ref = 0.0 ;
+    const int vs = X.vecSize() ;
+    
+    for(int i=0;i<vs;++i)
+      ref += X[cc][i] ;
+    ref = max(ref,1e-5) ;
+
+    const real refsq = ref*ref ;
+    for(int i=0;i<vs;++i) {
+      const real &Xcc = X[cc][i] ;
+      real qmax = Xcc ;
+      real qmin = qmax ;
+      const vect3d &Xgr = Xgrad[cc][i] ;
+      // Epsilon squared is equal to (Kl D)^3 where D is the diameter of
+      // a sphere with the same volume as the given cell.
+      const real epsilon2 = Kl3*vol[cc]*refsq ;
+      
+      for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
+        const int fc = *fi ;
+        qmin = min(qmin,X[cr[fc]][i]) ;
+        qmax = max(qmax,X[cr[fc]][i]) ;
+      }
+      for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
+        const int fc = *fi ;
+        qmin = min(qmin,X[cl[fc]][i]) ;
+        qmax = max(qmax,X[cl[fc]][i]) ;
+      }
+      for(const int *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) {
+        const int fc = *fi ;
+        qmin = min(qmin,X_f[fc][i]) ;
+        qmax = max(qmax,X_f[fc][i]) ;
+      }
+      real limi = 1.0 ;
+      if(firstOrderCells[cc] != 0)
+        limi = 0.0 ;
+      
+      for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
+        const int fc = *fi ;
+        real Xf = Xcc + dot(Xgr,(facecenter[fc]-cctr)) ;
+        real qdif = Xcc -Xf ;
+        real lim = 1.0 ;
+        
+        if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
+        else {
+          const real deltap = (qdif>0.0)?qmin-Xcc:qmax-Xcc;
+          const real deltam = -qdif ;
+          lim = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
+            (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+        }
+        limi = min(limi,lim) ;
+      }
+      for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
+        const int fc = *fi ;
+        real Xf = Xcc + dot(Xgr,(facecenter[fc]-cctr)) ;
+        real qdif = Xcc -Xf ;
+        real lim = 1.0 ;
+        if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
+        else {
+          const real deltap =(qdif>0.0)?qmin-Xcc:qmax-Xcc;
+          const real deltam =-qdif ;
+          lim = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
+            (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+        }
+        limi = min(limi,lim) ;
+      }
+      limiterv[cc][i] = limi ;
+    }
+  }
+
+  const double pi = M_PI ;
+
+  void limiter_mixture_V::compute(const sequence &seq) {
+    Kl3 = (*Kl)*(*Kl)*(*Kl)*6./pi/(*grid_vol) ;
+    limiterv.setVecSize(X.vecSize()) ;
+    do_loop(seq,this) ;
+  }
+  
+  register_rule<limiter_mixture_V> register_limiter_mixture_V ;
+  
+  // The following is another way to get the limiter of gradient approach.
+  class limiter_scalar_V : public pointwise_rule {
+    store<real> grad_limiter ;
+    const_store<real> vol ;
+    const_multiMap upper,lower,boundary_map ;
+    const_Map cl, cr ;
+    const_store<vect3d> cellcenter ;
+    const_store<vect3d> facecenter ;
+    const_store<real> X, X_f ;
+    const_store<vect3d> Xgrad ;
+    const_param<real> Kl ;
+    const_param<real> grid_vol ;
+    const_store<char> firstOrderCells ;
+    real Kl3 ;
+  public:
+    limiter_scalar_V() ;
+    void calculate(Entity cc) ;
+    virtual void compute(const sequence &seq) ;
+  } ;
+
+  limiter_scalar_V::limiter_scalar_V() {
+    name_store("Kl",Kl) ;
+    name_store("vol",vol) ;
+    name_store("limiters(X)",grad_limiter) ;
+    name_store("cl",cl) ;
+    name_store("cr",cr) ;
+    name_store("upper",upper) ;
+    name_store("lower",lower) ;
+    name_store("boundary_map",boundary_map) ;
+    name_store("facecenter",facecenter) ;
+    name_store("cellcenter",cellcenter) ;
+    name_store("X",X) ;
+    name_store("X_f",X_f) ;
+    name_store("grads(X)",Xgrad) ;
+    name_store("grid_vol",grid_vol) ;
+    name_store("firstOrderCells",firstOrderCells) ;
+    input("firstOrderCells") ;
+    
+    constraint("geom_cells,V_limiter") ;
+    input("Kl,grid_vol") ;
+    input("cellcenter,X,grads(X),vol") ;
+    input("upper->cr->X") ;
+    input("upper->facecenter") ;
+    input("lower->cl->X") ;
+    input("lower->facecenter") ;
+    input("boundary_map->X_f") ;
+    output("limiters(X)") ;
+  }
+
+  void limiter_scalar_V::calculate(Entity cc) {
+    const vect3d &cctr = cellcenter[cc] ;
+
+    real refsq = X[cc]*X[cc] ;
+    int numrefs = 1 ;
+
+    const real &Xcc = X[cc] ;
+    real qmax = Xcc ;
+    real qmin = qmax ;
+    const vect3d &Xgr = Xgrad[cc];
+    // Epsilon squared is equal to (Kl D)^3 where D is the diameter of
+    // a sphere with the same volume as the given cell.
+      
+    for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
+      const int fc = *fi ;
+      const real Xr = X[cr[fc]] ;
+      qmin = min(qmin,Xr) ;
+      qmax = max(qmax,Xr) ;
+      refsq += Xr*Xr ;
+      numrefs++ ;
+    }
+    for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
+      const int fc = *fi ;
+      const real Xl = X[cl[fc]] ;
+      qmin = min(qmin,Xl) ;
+      qmax = max(qmax,Xl) ;
+      refsq += Xl*Xl ;
+      numrefs++ ;
+    }
+    for(const int *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) {
+      const int fc = *fi ;
+      const real Xf = X_f[fc] ;
+      qmin = min(qmin,Xf) ;
+      qmax = max(qmax,Xf) ;
+      refsq += Xf*Xf ;
+      numrefs++ ;
+    }
+    const real ref = 1e-20+sqrt(refsq)/numrefs ;
+     
+    const real epsilon2 = Kl3*vol[cc]*ref*ref ;
+    real limi = 1.0 ;
+    if(firstOrderCells[cc] != 0)
+      limi=0.0 ;
+    
+    for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
+      const int fc = *fi ;
+      real Xf = Xcc + dot(Xgr,(facecenter[fc]-cctr)) ;
+      real qdif = Xcc -Xf ;
+      real lim = 1.0 ;
+        
+      if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
+      else {
+        const real deltap = (qdif>0.0)?qmin-Xcc:qmax-Xcc;
+        const real deltam = -qdif ;
+        lim = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
+          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+      }
+      limi = min(limi,lim) ;
+    }
+    for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
+      const int fc = *fi ;
+      real Xf = Xcc + dot(Xgr,(facecenter[fc]-cctr)) ;
+      real qdif = Xcc -Xf ;
+      real lim = 1.0 ;
+      if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
+      else {
+        const real deltap =(qdif>0.0)?qmin-Xcc:qmax-Xcc;
+        const real deltam =-qdif ;
+        lim = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
+          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+      }
+      limi = min(limi,lim) ;
+    }
+    grad_limiter[cc] = limi ;
+  }
+
+  void limiter_scalar_V::compute(const sequence &seq) {
+    Kl3 = (*Kl)*(*Kl)*(*Kl)*6./pi/(*grid_vol) ;
+    do_loop(seq,this) ;
+  }
+
+  register_rule<limiter_scalar_V> register_limiter_scalar_V ;
+  
+  // The following is another way to get the limiter3d of gradient approach.
+  class limiter_v3d_V : public pointwise_rule {
+    store<vect3d> grad_limiter3d ;
+    const_store<real> vol ;
+    const_multiMap upper,lower,boundary_map ;
+    const_Map cl, cr ;
+    const_store<vect3d> cellcenter ;
+    const_store<vect3d> facecenter ;
+    const_store<vect3d> X, X_f ;
+    const_store<tens3d> Xgrad ;
+    const_param<real> Kl ;
+    const_param<real> grid_vol ;
+    const_store<char> firstOrderCells ;
+    real Kl3 ;
+  public:
+    limiter_v3d_V() ;
+    void calculate(Entity cc) ;
+    virtual void compute(const sequence &seq) ;
+  } ;
+
+  limiter_v3d_V::limiter_v3d_V() {
+    name_store("Kl",Kl) ;
+    name_store("vol",vol) ;
+    name_store("limiterv3d(X)",grad_limiter3d) ;
+    name_store("cl",cl) ;
+    name_store("cr",cr) ;
+    name_store("upper",upper) ;
+    name_store("lower",lower) ;
+    name_store("boundary_map",boundary_map) ;
+    name_store("facecenter",facecenter) ;
+    name_store("cellcenter",cellcenter) ;
+    name_store("X",X) ;
+    name_store("X_f",X_f) ;
+    name_store("gradv3d(X)",Xgrad) ;
+    name_store("grid_vol",grid_vol) ;
+    name_store("firstOrderCells",firstOrderCells) ;
+    input("firstOrderCells") ;
+    
+    constraint("geom_cells,V_limiter") ;
+    input("Kl,grid_vol") ;
+    input("cellcenter,X,gradv3d(X),vol") ;
+    input("upper->cr->X") ;
+    input("upper->facecenter") ;
+    input("lower->cl->X") ;
+    input("lower->facecenter") ;
+    input("boundary_map->X_f") ;
+    output("limiterv3d(X)") ;
+  }
+
+  void limiter_v3d_V::calculate(Entity cc) {
+    real refsq = dot(X[cc],X[cc]) ;
+    int numrefs = 1 ;
+
+    const vect3d Xcc = X[cc] ;
+    vect3d qmax = Xcc ;
+    vect3d qmin = qmax ;
+    const tens3d &Xgr = Xgrad[cc];
+    // Epsilon squared is equal to (Kl D)^3 where D is the diameter of
+    // a sphere with the same volume as the given cell.
+      
+    for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
+      const Entity fc = *fi ;
+      const vect3d Xr = X[cr[fc]] ;
+      qmin.x = min(qmin.x,Xr.x) ;
+      qmin.y = min(qmin.y,Xr.y) ;
+      qmin.z = min(qmin.z,Xr.z) ;
+      qmax.x = max(qmax.x,Xr.x) ;
+      qmax.y = max(qmax.y,Xr.y) ;
+      qmax.z = max(qmax.z,Xr.z) ;
+      refsq += dot(Xr,Xr) ;
+      numrefs++ ;
+    }
+    for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
+      const Entity fc = *fi ;
+      const vect3d Xl = X[cl[fc]] ;
+      qmin.x = min(qmin.x,Xl.x) ;
+      qmin.y = min(qmin.y,Xl.y) ;
+      qmin.z = min(qmin.z,Xl.z) ;
+      qmax.x = max(qmax.x,Xl.x) ;
+      qmax.y = max(qmax.y,Xl.y) ;
+      qmax.z = max(qmax.z,Xl.z) ;
+      refsq += dot(Xl,Xl) ;
+      numrefs++ ;
+    }
+    for(const int *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) {
+      const int fc = *fi ;
+      const vect3d Xf = X_f[fc] ;
+      qmin.x = min(qmin.x,Xf.x) ;
+      qmin.y = min(qmin.y,Xf.y) ;
+      qmin.z = min(qmin.z,Xf.z) ;
+      qmax.x = max(qmax.x,Xf.x) ;
+      qmax.y = max(qmax.y,Xf.y) ;
+      qmax.z = max(qmax.z,Xf.z) ;
+      refsq += dot(Xf,Xf) ;
+      numrefs++ ;
+    }
+    const real ref = 1e-20+sqrt(refsq)/numrefs ;
+     
+    const real epsilon2 = Kl3*vol[cc]*ref*ref ;
+    vect3d limi = vect3d(1.0,1.0,1.0) ;
+    if(firstOrderCells[cc] != 0)
+      limi = vect3d(0.0,0.0,0.0) ;
+    
+    for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
+      const int fc = *fi ;
+      const vect3d drl = facecenter[fc] - cellcenter[cc] ;
+      vect3d Xf = Xcc + vect3d(dot(Xgr.x,drl),dot(Xgr.y,drl),dot(Xgr.z,drl)) ;
+      vect3d qdif = Xcc -Xf ;
+
+      vect3d lim = vect3d(1.0,1.0,1.0) ;
+        
+      if(fabs(qdif.x) > ref*1e-4) {
+        const real deltap = (qdif.x>0.0)?qmin.x-Xcc.x:qmax.x-Xcc.x;
+        const real deltam = -qdif.x ;
+        lim.x = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
+          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+      }
+      if(fabs(qdif.y) > ref*1e-4) {
+        const real deltap = (qdif.y>0.0)?qmin.y-Xcc.y:qmax.y-Xcc.y;
+        const real deltam = -qdif.y ;
+        lim.y = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
+          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+      }
+      if(fabs(qdif.z) > ref*1e-4) {
+        const real deltap = (qdif.z>0.0)?qmin.z-Xcc.z:qmax.z-Xcc.z;
+        const real deltam = -qdif.z ;
+        lim.z = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
+          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+      }
+      limi.x = min(limi.x,lim.x) ;
+      limi.y = min(limi.y,lim.y) ;
+      limi.z = min(limi.z,lim.z) ;
+    }
+    for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
+      const int fc = *fi ;
+      const vect3d drl = facecenter[fc] - cellcenter[cc] ;
+      vect3d Xf = Xcc + vect3d(dot(Xgr.x,drl),dot(Xgr.y,drl),dot(Xgr.z,drl)) ;
+      vect3d qdif = Xcc -Xf ;
+
+      vect3d lim = vect3d(1.0,1.0,1.0) ;
+
+      if(fabs(qdif.x) > ref*1e-4) {
+        const real deltap = (qdif.x>0.0)?qmin.x-Xcc.x:qmax.x-Xcc.x;
+        const real deltam = -qdif.x ;
+        lim.x = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
+          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+      }
+      if(fabs(qdif.y) > ref*1e-4) {
+        const real deltap = (qdif.y>0.0)?qmin.y-Xcc.y:qmax.y-Xcc.y;
+        const real deltam = -qdif.y ;
+        lim.y = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
+          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+      }
+      if(fabs(qdif.z) > ref*1e-4) {
+        const real deltap = (qdif.z>0.0)?qmin.z-Xcc.z:qmax.z-Xcc.z;
+        const real deltam = -qdif.z ;
+        lim.z = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
+          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+      }
+      limi.x = min(limi.x,lim.x) ;
+      limi.y = min(limi.y,lim.y) ;
+      limi.z = min(limi.z,lim.z) ;
+    }
+    grad_limiter3d[cc] = limi ;
+  }
+
+  void limiter_v3d_V::compute(const sequence &seq) {
+    Kl3 = (*Kl)*(*Kl)*(*Kl)*6./pi/(*grid_vol) ;
+    do_loop(seq,this) ;
+  }
+
+  register_rule<limiter_v3d_V> register_vlimiter_v3d_V ;
+  
+  // V2 version of venkatakrishnan limiter, limit to original gradient points
+  // not face centers.  This should be less compressive.
+  
+  // The following is another way to get the limiter of gradient approach.
+  class limiter_mixture_V2 : public pointwise_rule {
+    storeVec<real> limiterv ;
+    const_store<real> vol ;
+    const_multiMap upper,lower,boundary_map ;
+    const_Map cl, cr ;
+    const_store<vect3d> cellcenter ;
+    const_store<vect3d> facecenter ;
+    const_storeVec<real> X, X_f ;
+    const_storeVec<vect3d> Xgrad ;
+    const_param<real> Kl ;
+    const_param<real> grid_vol ;
+    const_store<char> firstOrderCells ;
+    real Kl3 ;
+  public:
+    limiter_mixture_V2() ;
+    void calculate(Entity cc) ;
+    virtual void compute(const sequence &seq) ;
+  } ;
+
+  limiter_mixture_V2::limiter_mixture_V2() {
+    name_store("Kl",Kl) ;
+    name_store("vol",vol) ;
+    name_store("limiterv(X)",limiterv) ;
+    name_store("cl",cl) ;
+    name_store("cr",cr) ;
+    name_store("upper",upper) ;
+    name_store("lower",lower) ;
+    name_store("boundary_map",boundary_map) ;
+    name_store("facecenter",facecenter) ;
+    name_store("cellcenter",cellcenter) ;
+    name_store("X",X) ;
+    name_store("X_f",X_f) ;
+    name_store("gradv(X)",Xgrad) ;
+    name_store("grid_vol",grid_vol) ;
+    name_store("firstOrderCells",firstOrderCells) ;
+    input("firstOrderCells") ;
+    
+    constraint("geom_cells,V2_limiter") ;
+    input("Kl,grid_vol") ;
+    input("cellcenter,X,gradv(X),vol") ;
+    input("upper->cr->X") ;
+    input("upper->cr->cellcenter") ;
+    input("lower->cl->X") ;
+    input("lower->cl->cellcenter") ;
+    input("boundary_map->X_f") ;
+    input("boundary_map->facecenter") ;
+    output("limiterv(X)") ;
+  }
+
+  void limiter_mixture_V2::calculate(Entity cc) {
+    const vect3d &cctr = cellcenter[cc] ;
+    real ref = 0.0 ;
+    const int vs = X.vecSize() ;
+    
+    for(int i=0;i<vs;++i)
+      ref += X[cc][i] ;
+    ref = max(ref,1e-5) ;
+
+    const real refsq = ref*ref ;
+    for(int i=0;i<vs;++i) {
+      const real &Xcc = X[cc][i] ;
+      real qmax = Xcc ;
+      real qmin = qmax ;
+      const vect3d &Xgr = Xgrad[cc][i] ;
+      // Epsilon squared is equal to (Kl D)^3 where D is the diameter of
+      // a sphere with the same volume as the given cell.
+      const real epsilon2 = Kl3*vol[cc]*refsq ;
+      
+      for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
+        const int fc = *fi ;
+        qmin = min(qmin,X[cr[fc]][i]) ;
+        qmax = max(qmax,X[cr[fc]][i]) ;
+      }
+      for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
+        const int fc = *fi ;
+        qmin = min(qmin,X[cl[fc]][i]) ;
+        qmax = max(qmax,X[cl[fc]][i]) ;
+      }
+      for(const int *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) {
+        const int fc = *fi ;
+        qmin = min(qmin,X_f[fc][i]) ;
+        qmax = max(qmax,X_f[fc][i]) ;
+      }
+      real limi = 1.0 ;
+      if(firstOrderCells[cc] != 0)
+        limi = 0.0 ;
+      
+      for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
+        const int fc = *fi ;
+        real Xf = Xcc + dot(Xgr,(cellcenter[cr[fc]]-cctr)) ;
+        real qdif = Xcc -Xf ;
+        real lim = 1.0 ;
+        
+        if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
+        else {
+          const real deltap = (qdif>0.0)?qmin-Xcc:qmax-Xcc;
+          const real deltam = -qdif ;
+          lim = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
+            (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+        }
+        limi = min(limi,lim) ;
+      }
+      for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
+        const int fc = *fi ;
+        real Xf = Xcc + dot(Xgr,(cellcenter[cl[fc]]-cctr)) ;
+        real qdif = Xcc -Xf ;
+        real lim = 1.0 ;
+        if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
+        else {
+          const real deltap =(qdif>0.0)?qmin-Xcc:qmax-Xcc;
+          const real deltam =-qdif ;
+          lim = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
+            (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+        }
+        limi = min(limi,lim) ;
+      }
+      for(const int *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) {
+        const int fc = *fi ;
+        real Xf = Xcc + dot(Xgr,(facecenter[fc]-cctr)) ;
+        real qdif = Xcc -Xf ;
+        real lim = 1.0 ;
+        if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
+        else {
+          const real deltap =(qdif>0.0)?qmin-Xcc:qmax-Xcc;
+          const real deltam =-qdif ;
+          lim = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
+            (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+        }
+        limi = min(limi,lim) ;
+      }
+      limiterv[cc][i] = limi ;
+    }
+  }
+
+
+  void limiter_mixture_V2::compute(const sequence &seq) {
+    Kl3 = (*Kl)*(*Kl)*(*Kl)*6./pi/(*grid_vol) ;
+    limiterv.setVecSize(X.vecSize()) ;
+    do_loop(seq,this) ;
+  }
+  
+  register_rule<limiter_mixture_V2> register_limiter_mixture_V2 ;
+  
+  // The following is another way to get the limiter of gradient approach.
+  class limiter_scalar_V2 : public pointwise_rule {
+    store<real> grad_limiter ;
+    const_store<real> vol ;
+    const_multiMap upper,lower,boundary_map ;
+    const_Map cl, cr ;
+    const_store<vect3d> cellcenter ;
+    const_store<vect3d> facecenter ;
+    const_store<real> X, X_f ;
+    const_store<vect3d> Xgrad ;
+    const_param<real> Kl ;
+    const_param<real> grid_vol ;
+    const_store<char> firstOrderCells ;
+    real Kl3 ;
+  public:
+    limiter_scalar_V2() ;
+    void calculate(Entity cc) ;
+    virtual void compute(const sequence &seq) ;
+  } ;
+
+  limiter_scalar_V2::limiter_scalar_V2() {
+    name_store("Kl",Kl) ;
+    name_store("vol",vol) ;
+    name_store("limiters(X)",grad_limiter) ;
+    name_store("cl",cl) ;
+    name_store("cr",cr) ;
+    name_store("upper",upper) ;
+    name_store("lower",lower) ;
+    name_store("boundary_map",boundary_map) ;
+    name_store("facecenter",facecenter) ;
+    name_store("cellcenter",cellcenter) ;
+    name_store("X",X) ;
+    name_store("X_f",X_f) ;
+    name_store("grads(X)",Xgrad) ;
+    name_store("grid_vol",grid_vol) ;
+    name_store("firstOrderCells",firstOrderCells) ;
+    input("firstOrderCells") ;
+    
+    constraint("geom_cells,V2_limiter") ;
+    input("Kl,grid_vol") ;
+    input("cellcenter,X,grads(X),vol") ;
+    input("upper->cr->X") ;
+    input("upper->cr->cellcenter") ;
+    input("lower->cl->X") ;
+    input("lower->cl->cellcenter") ;
+    input("boundary_map->X_f") ;
+    input("boundary_map->facecenter") ;
+    output("limiters(X)") ;
+  }
+
+  void limiter_scalar_V2::calculate(Entity cc) {
+    const vect3d &cctr = cellcenter[cc] ;
+
+    real refsq = X[cc]*X[cc] ;
+    int numrefs = 1 ;
+
+    const real &Xcc = X[cc] ;
+    real qmax = Xcc ;
+    real qmin = qmax ;
+    const vect3d &Xgr = Xgrad[cc];
+    // Epsilon squared is equal to (Kl D)^3 where D is the diameter of
+    // a sphere with the same volume as the given cell.
+      
+    for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
+      const int fc = *fi ;
+      const real Xr = X[cr[fc]] ;
+      qmin = min(qmin,Xr) ;
+      qmax = max(qmax,Xr) ;
+      refsq += Xr*Xr ;
+      numrefs++ ;
+    }
+    for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
+      const int fc = *fi ;
+      const real Xl = X[cl[fc]] ;
+      qmin = min(qmin,Xl) ;
+      qmax = max(qmax,Xl) ;
+      refsq += Xl*Xl ;
+      numrefs++ ;
+    }
+    for(const int *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) {
+      const int fc = *fi ;
+      const real Xf = X_f[fc] ;
+      qmin = min(qmin,Xf) ;
+      qmax = max(qmax,Xf) ;
+      refsq += Xf*Xf ;
+      numrefs++ ;
+    }
+    const real ref = 1e-20+sqrt(refsq)/numrefs ;
+     
+    const real epsilon2 = Kl3*vol[cc]*ref*ref ;
+    real limi = 1.0 ;
+    if(firstOrderCells[cc] != 0)
+      limi=0.0 ;
+    
+    for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
+      const int fc = *fi ;
+      real Xf = Xcc + dot(Xgr,(cellcenter[cr[fc]]-cctr)) ;
+      real qdif = Xcc -Xf ;
+      real lim = 1.0 ;
+        
+      if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
+      else {
+        const real deltap = (qdif>0.0)?qmin-Xcc:qmax-Xcc;
+        const real deltam = -qdif ;
+        lim = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
+          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+      }
+      limi = min(limi,lim) ;
+    }
+    for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
+      const int fc = *fi ;
+      real Xf = Xcc + dot(Xgr,(cellcenter[cl[fc]]-cctr)) ;
+      real qdif = Xcc -Xf ;
+      real lim = 1.0 ;
+      if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
+      else {
+        const real deltap =(qdif>0.0)?qmin-Xcc:qmax-Xcc;
+        const real deltam =-qdif ;
+        lim = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
+          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+      }
+      limi = min(limi,lim) ;
+    }
+    for(const int *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) {
+      const int fc = *fi ;
+      real Xf = Xcc + dot(Xgr,(facecenter[fc]-cctr)) ;
+      real qdif = Xcc -Xf ;
+      real lim = 1.0 ;
+      if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
+      else {
+        const real deltap =(qdif>0.0)?qmin-Xcc:qmax-Xcc;
+        const real deltam =-qdif ;
+        lim = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
+          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+      }
+      limi = min(limi,lim) ;
+    }
+    grad_limiter[cc] = limi ;
+  }
+
+  void limiter_scalar_V2::compute(const sequence &seq) {
+    Kl3 = (*Kl)*(*Kl)*(*Kl)*6./pi/(*grid_vol) ;
+    do_loop(seq,this) ;
+  }
+
+  register_rule<limiter_scalar_V2> register_limiter_scalar_V2 ;
+  
+  // The following is another way to get the limiter3d of gradient approach.
+  class limiter_v3d_V2 : public pointwise_rule {
+    store<vect3d> grad_limiter3d ;
+    const_store<real> vol ;
+    const_multiMap upper,lower,boundary_map ;
+    const_Map cl, cr ;
+    const_store<vect3d> cellcenter ;
+    const_store<vect3d> facecenter ;
+    const_store<vect3d> X, X_f ;
+    const_store<tens3d> Xgrad ;
+    const_param<real> Kl ;
+    const_param<real> grid_vol ;
+    const_store<char> firstOrderCells ;
+    real Kl3 ;
+  public:
+    limiter_v3d_V2() ;
+    void calculate(Entity cc) ;
+    virtual void compute(const sequence &seq) ;
+  } ;
+
+  limiter_v3d_V2::limiter_v3d_V2() {
+    name_store("Kl",Kl) ;
+    name_store("vol",vol) ;
+    name_store("limiterv3d(X)",grad_limiter3d) ;
+    name_store("cl",cl) ;
+    name_store("cr",cr) ;
+    name_store("upper",upper) ;
+    name_store("lower",lower) ;
+    name_store("boundary_map",boundary_map) ;
+    name_store("facecenter",facecenter) ;
+    name_store("cellcenter",cellcenter) ;
+    name_store("X",X) ;
+    name_store("X_f",X_f) ;
+    name_store("gradv3d(X)",Xgrad) ;
+    name_store("grid_vol",grid_vol) ;
+    name_store("firstOrderCells",firstOrderCells) ;
+    input("firstOrderCells") ;
+    
+    constraint("geom_cells,V2_limiter") ;
+    input("Kl,grid_vol") ;
+    input("cellcenter,X,gradv3d(X),vol") ;
+    input("upper->cr->X") ;
+    input("upper->cr->cellcenter") ;
+    input("lower->cl->X") ;
+    input("lower->cl->cellcenter") ;
+    input("boundary_map->X_f") ;
+    input("boundary_map->facecenter") ;
+    output("limiterv3d(X)") ;
+  }
+
+  void limiter_v3d_V2::calculate(Entity cc) {
+    real refsq = dot(X[cc],X[cc]) ;
+    int numrefs = 1 ;
+
+    const vect3d Xcc = X[cc] ;
+    vect3d qmax = Xcc ;
+    vect3d qmin = qmax ;
+    const tens3d &Xgr = Xgrad[cc];
+    // Epsilon squared is equal to (Kl D)^3 where D is the diameter of
+    // a sphere with the same volume as the given cell.
+      
+    for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
+      const Entity fc = *fi ;
+      const vect3d Xr = X[cr[fc]] ;
+      qmin.x = min(qmin.x,Xr.x) ;
+      qmin.y = min(qmin.y,Xr.y) ;
+      qmin.z = min(qmin.z,Xr.z) ;
+      qmax.x = max(qmax.x,Xr.x) ;
+      qmax.y = max(qmax.y,Xr.y) ;
+      qmax.z = max(qmax.z,Xr.z) ;
+      refsq += dot(Xr,Xr) ;
+      numrefs++ ;
+    }
+    for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
+      const Entity fc = *fi ;
+      const vect3d Xl = X[cl[fc]] ;
+      qmin.x = min(qmin.x,Xl.x) ;
+      qmin.y = min(qmin.y,Xl.y) ;
+      qmin.z = min(qmin.z,Xl.z) ;
+      qmax.x = max(qmax.x,Xl.x) ;
+      qmax.y = max(qmax.y,Xl.y) ;
+      qmax.z = max(qmax.z,Xl.z) ;
+      refsq += dot(Xl,Xl) ;
+      numrefs++ ;
+    }
+    for(const int *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) {
+      const int fc = *fi ;
+      const vect3d Xf = X_f[fc] ;
+      qmin.x = min(qmin.x,Xf.x) ;
+      qmin.y = min(qmin.y,Xf.y) ;
+      qmin.z = min(qmin.z,Xf.z) ;
+      qmax.x = max(qmax.x,Xf.x) ;
+      qmax.y = max(qmax.y,Xf.y) ;
+      qmax.z = max(qmax.z,Xf.z) ;
+      refsq += dot(Xf,Xf) ;
+      numrefs++ ;
+    }
+    const real ref = 1e-20+sqrt(refsq)/numrefs ;
+     
+    const real epsilon2 = Kl3*vol[cc]*ref*ref ;
+    vect3d limi = vect3d(1.0,1.0,1.0) ;
+    if(firstOrderCells[cc] != 0)
+      limi = vect3d(0.0,0.0,0.0) ;
+    
+    for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
+      const int fc = *fi ;
+      const vect3d drl = cellcenter[cr[fc]] - cellcenter[cc] ;
+      vect3d Xf = Xcc + vect3d(dot(Xgr.x,drl),dot(Xgr.y,drl),dot(Xgr.z,drl)) ;
+      vect3d qdif = Xcc -Xf ;
+
+      vect3d lim = vect3d(1.0,1.0,1.0) ;
+        
+      if(fabs(qdif.x) > ref*1e-4) {
+        const real deltap = (qdif.x>0.0)?qmin.x-Xcc.x:qmax.x-Xcc.x;
+        const real deltam = -qdif.x ;
+        lim.x = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
+          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+      }
+      if(fabs(qdif.y) > ref*1e-4) {
+        const real deltap = (qdif.y>0.0)?qmin.y-Xcc.y:qmax.y-Xcc.y;
+        const real deltam = -qdif.y ;
+        lim.y = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
+          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+      }
+      if(fabs(qdif.z) > ref*1e-4) {
+        const real deltap = (qdif.z>0.0)?qmin.z-Xcc.z:qmax.z-Xcc.z;
+        const real deltam = -qdif.z ;
+        lim.z = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
+          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+      }
+      limi.x = min(limi.x,lim.x) ;
+      limi.y = min(limi.y,lim.y) ;
+      limi.z = min(limi.z,lim.z) ;
+    }
+    for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
+      const int fc = *fi ;
+      const vect3d drl = cellcenter[cl[fc]] - cellcenter[cc] ;
+      vect3d Xf = Xcc + vect3d(dot(Xgr.x,drl),dot(Xgr.y,drl),dot(Xgr.z,drl)) ;
+      vect3d qdif = Xcc -Xf ;
+
+      vect3d lim = vect3d(1.0,1.0,1.0) ;
+
+      if(fabs(qdif.x) > ref*1e-4) {
+        const real deltap = (qdif.x>0.0)?qmin.x-Xcc.x:qmax.x-Xcc.x;
+        const real deltam = -qdif.x ;
+        lim.x = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
+          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+      }
+      if(fabs(qdif.y) > ref*1e-4) {
+        const real deltap = (qdif.y>0.0)?qmin.y-Xcc.y:qmax.y-Xcc.y;
+        const real deltam = -qdif.y ;
+        lim.y = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
+          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+      }
+      if(fabs(qdif.z) > ref*1e-4) {
+        const real deltap = (qdif.z>0.0)?qmin.z-Xcc.z:qmax.z-Xcc.z;
+        const real deltam = -qdif.z ;
+        lim.z = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
+          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+      }
+      limi.x = min(limi.x,lim.x) ;
+      limi.y = min(limi.y,lim.y) ;
+      limi.z = min(limi.z,lim.z) ;
+    }
+    for(const int *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) {
+      const int fc = *fi ;
+
+      const vect3d drl = facecenter[fc] - cellcenter[cc] ;
+      vect3d Xf = Xcc + vect3d(dot(Xgr.x,drl),dot(Xgr.y,drl),dot(Xgr.z,drl)) ;
+      vect3d qdif = Xcc -Xf ;
+
+      vect3d lim = vect3d(1.0,1.0,1.0) ;
+
+      if(fabs(qdif.x) > ref*1e-4) {
+        const real deltap = (qdif.x>0.0)?qmin.x-Xcc.x:qmax.x-Xcc.x;
+        const real deltam = -qdif.x ;
+        lim.x = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
+          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+      }
+      if(fabs(qdif.y) > ref*1e-4) {
+        const real deltap = (qdif.y>0.0)?qmin.y-Xcc.y:qmax.y-Xcc.y;
+        const real deltam = -qdif.y ;
+        lim.y = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
+          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+      }
+      if(fabs(qdif.z) > ref*1e-4) {
+        const real deltap = (qdif.z>0.0)?qmin.z-Xcc.z:qmax.z-Xcc.z;
+        const real deltam = -qdif.z ;
+        lim.z = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
+          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+      }
+      limi.x = min(limi.x,lim.x) ;
+      limi.y = min(limi.y,lim.y) ;
+      limi.z = min(limi.z,lim.z) ;
+    }
+    grad_limiter3d[cc] = limi ;
+  }
+
+  void limiter_v3d_V2::compute(const sequence &seq) {
+    Kl3 = (*Kl)*(*Kl)*(*Kl)*6./pi/(*grid_vol) ;
+    do_loop(seq,this) ;
+  }
+
+  register_rule<limiter_v3d_V2> register_vlimiter_v3d_V2 ;
 }

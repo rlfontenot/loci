@@ -473,8 +473,8 @@ namespace Loci {
     }
     $cellcenter = nodesum/areasum ;
   }
-
-  /* chem::get_aw_facecenter : pointwise_rule
+  
+  /* 
    *	Computes the area-weighted face centroid by:
    *		- generating triangular facets from pairs of adjacent
    *		  vertices and the edge-length-weighted face
@@ -487,48 +487,38 @@ namespace Loci {
    */
   $rule pointwise(truecentroid::facecenter<-face2node->pos
                   ),constraint(exactCentroid,face2node->pos) {
-    // Compute wireframe centroid for face
+    
+    // Compute approximate centroid
+    const int fsz = $face2node.size() ;
     vector3d<real_t> nodesum(0.0,0.0,0.0) ;
-    real_t lensum = 0 ;
-    warn($face2node.begin() == $face2node.end() ||
-         $face2node.begin()+1 == $face2node.end()) ;
-    for(const Entity *id=$face2node.begin();id+1!=$face2node.end();++id) {
-      const Entity *nd = id+1 ;
-      vector3d<real_t> edge_loc = 0.5*(id->$pos + nd->$pos) ;
-      vector3d<real_t> edge_vec = id->$pos - nd->$pos ;
-      real_t len = sqrt(dot(edge_vec,edge_vec)) ;
-      nodesum += len*edge_loc ;
-      lensum += len ;
+    for(int i=0;i<fsz;++i) 
+      nodesum += $face2node[i]->$pos ;
+    
+    vector3d<real_t> tmpcenter = nodesum/real_t(fsz) ;
+    
+    // Iterate to find exact centroid that is on the face
+    const int NITER=4 ;
+    for(int iter=0;iter<NITER;++iter) {
+    
+      // compute centroid using triangles formed by wireframe centroid
+      vector3d<real_t> centroidsum(0.0,0.0,0.0) ;
+      real_t facearea = 0 ;
+      for(int i=0;i<fsz;++i) {
+        int n1 = i ;
+        int n2 = (i+1==fsz)?0:i+1 ;
+        const vector3d<real_t> t_centroid = ($face2node[n1]->$pos +
+                                             $face2node[n2]->$pos +
+                                             tmpcenter)/3.0 ;
+        const real_t t_area = 0.5*norm(cross($face2node[n1]->$pos-tmpcenter,
+                                             $face2node[n2]->$pos-tmpcenter)) ;
+        centroidsum += t_area*t_centroid ;
+        facearea += t_area ;
+      }
+      tmpcenter = centroidsum/facearea ;
     }
-    const Entity *id = $face2node.begin() ;
-    const Entity *idend = $face2node.end() - 1 ;
-    vector3d<real_t> edge_loc = 0.5*(id->$pos + idend->$pos) ;
-    vector3d<real_t> edge_vec = id->$pos - idend->$pos ;
-    real_t len = sqrt(dot(edge_vec,edge_vec)) ;
-    nodesum += len*edge_loc ;
-    lensum += len ;
-    
-    vector3d<real_t> tmpcenter = nodesum/lensum ;
-    
-    // compute centroid using triangles formed by wireframe centroid
-    vector3d<real_t> centroidsum(0.0,0.0,0.0) ;
-    real_t facearea = 0 ;
-    for(const Entity *id=$face2node.begin();id+1!=$face2node.end();++id) {
-      const Entity *nd = id+1 ;
-      const vector3d<real_t> t_centroid = (id->$pos + nd->$pos + tmpcenter)/3.0 ;
-      const real_t t_area = 0.5*norm(cross(id->$pos-tmpcenter,
-                                         nd->$pos-tmpcenter)) ;
-      centroidsum += t_area*t_centroid ;
-      facearea += t_area ;
-    }
-    const vector3d<real_t> t_centroid = (id->$pos + idend->$pos + tmpcenter)/3.0 ;
-    const real_t t_area = 0.5*norm(cross(id->$pos-tmpcenter,
-                                       idend->$pos-tmpcenter)) ;
-    centroidsum += t_area*t_centroid ;
-    facearea += t_area ;
-    
-    $facecenter = centroidsum/facearea ;
+    $facecenter = tmpcenter ;
   }
+  
   $rule pointwise(truecentroid::cellcenter<-
                   (upper,lower,boundary_map)->(facecenter,area),
                   (upper,lower,boundary_map)->face2node->pos
