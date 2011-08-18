@@ -49,7 +49,7 @@ System : FRC
 	cd System; $(MAKE) LOCI_BASE="$(LOCI_BASE)" libLoci.a
 
 METIS : FRC
-	cd ParMetis-3.1; $(MAKE) LOCI_BASE="$(LOCI_BASE)" 
+	cd ParMetis-4.0; $(MAKE) LOCI_BASE="$(LOCI_BASE)" 
 
 SPRNG : FRC
 	cd sprng; $(MAKE) LOCI_BASE="$(LOCI_BASE)"
@@ -79,7 +79,7 @@ clean:
 	rm -f $(JUNK)
 	cd Tools ; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)" 
 	cd System ; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)" 
-	cd ParMetis-3.1 ; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)" 
+	cd ParMetis-4.0 ; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)" 
 	cd sprng ; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)" 
 	cd FVMtools; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)"
 	cd FVMMod; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)"
@@ -90,7 +90,7 @@ distclean:
 	rm -f $(JUNK)
 	cd Tools ; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
 	cd System ; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
-	cd ParMetis-3.1 ; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)" 
+	cd ParMetis-4.0 ; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)" 
 	cd sprng ; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)" 
 	cd FVMtools; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
 	cd FVMMod; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
