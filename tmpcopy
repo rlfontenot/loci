@@ -78,7 +78,7 @@ if [ ${target:0:1} != "/" ]; then
 fi
 
 TARGET_DIRS="System Tools include include/Tools include/Config include/MPI_stubb"
-TOOLS_DIRS="lpp FVMadapt FVMadapt/include FVMtools FVMtools/libadf FVMMod ParMetis-3.1 ParMetis-3.1/METISLib ParMetis-3.1/ParMETISLib sprng sprng/include sprng/include/sprng"
+TOOLS_DIRS="lpp FVMadapt FVMadapt/include FVMtools FVMtools/libadf FVMMod ParMetis-4.0 ParMetis-4.0/GKLib ParMetis-4.0/METISLib ParMetis-4.0/ParMETISLib sprng sprng/include sprng/include/sprng"
 
 echo -n "Making Directory Structure: "
 mkdir -p $target
@@ -155,11 +155,14 @@ fi
 if [ ! -h fvm_m.so ]; then
   ln -s ../FVMMod/fvm_m.so fvm_m.so
 fi
+if [ ! -h libgk.so ] ; then
+  ln -s ../ParMetis-4.0/GKLib/libgk.so libgk.so
+fi
 if [ ! -h libmetis.so ] ; then
-  ln -s ../ParMetis-3.1/METISLib/libmetis.so libmetis.so
+  ln -s ../ParMetis-4.0/METISLib/libmetis.so libmetis.so
 fi
 if [ ! -h libparmetis.so ] ; then
-  ln -s ../ParMetis-3.1/ParMETISLib/libparmetis.so libparmetis.so
+  ln -s ../ParMetis-4.0/ParMETISLib/libparmetis.so libparmetis.so
 fi
 if [ ! -h libsprng.so ] ; then
     ln -s ../sprng/libsprng.so libsprng.so
