@@ -474,6 +474,7 @@ void process_mean(string casename, string iteration,
         vector<double> mean ;
         vector<double> M2 ;
         vector<int> ids ;
+        map<int,int> id2local ;
         double n = 0;
         for(int it = start_iter;it<=end_iter;it+=inc_iter) {
           char buf[512] ;
@@ -494,11 +495,13 @@ void process_mean(string casename, string iteration,
           
           hid_t di = H5Gopen(file_id,"dataInfo") ;
           int nbel = sizeElementType(di,"entityIds") ;
-
+          
           if(it == start_iter) {
             vector<int> elemIds(nbel) ;
             readElementType(di,"entityIds",elemIds) ;
             ids.swap(elemIds) ;
+            for(size_t i=0;i<ids.size();++i)
+              id2local[ids[i]] = i ;
             vector<double> tmp1(nbel,0.0) ;
             mean.swap(tmp1) ;
             vector<double> tmp2(nbel,0.0) ;
@@ -508,12 +511,22 @@ void process_mean(string casename, string iteration,
           H5Gclose(di) ;
           vector<float> bvar(nbel) ;
           readElementType(file_id,variables[i].c_str(),bvar) ;
+          di = H5Gopen(file_id,"dataInfo") ;
+          vector<int> eid(nbel,-1) ;
+          readElementType(di,"entityIds",eid) ;
           H5Fclose(file_id) ;
-
+        
           for(int i=0;i<nbel;++i) {
-            double delta = bvar[i] - mean[i] ;
-            mean[i] += delta/n ;
-            M2[i] += delta*(bvar[i]-mean[i]) ;
+            map<int,int>::const_iterator mi ;
+            if((mi=id2local.find(eid[i])) == id2local.end()) {
+              cerr << "problems with ids in boundaries not matching" << endl ;
+              cerr << "i=" << i << ",eid=" << eid[i] << endl ;
+              exit(-1) ;
+            }
+            int lid = mi->second ;
+            double delta = bvar[i] - mean[lid] ;
+            mean[lid] += delta/n ;
+            M2[lid] += delta*(bvar[i]-mean[lid]) ;
           }
         }
         vector<float> m(mean.size()) ;
@@ -553,6 +566,7 @@ void process_mean(string casename, string iteration,
         vector<vector3d<double> > mean ;
         vector<vector3d<double> > M2 ;
         vector<int> ids ;
+        map<int,int> id2local ;
         double n = 0;
         for(int it = start_iter;it<=end_iter;it+=inc_iter) {
           char buf[512] ;
@@ -578,6 +592,8 @@ void process_mean(string casename, string iteration,
             vector<int> elemIds(nbel) ;
             readElementType(di,"entityIds",elemIds) ;
             ids.swap(elemIds) ;
+            for(size_t i=0;i<ids.size();++i)
+              id2local[ids[i]] = i ;
             vector<vector3d<double> > tmp1(nbel,vector3d<double>(0.,0.,0.)) ;
             mean.swap(tmp1) ;
             vector<vector3d<double> > tmp2(nbel,vector3d<double>(0.,0.,0.)) ;
@@ -587,16 +603,26 @@ void process_mean(string casename, string iteration,
           H5Gclose(di) ;
           vector<vector3d<float> > bvar(nbel) ;
           readElementType(file_id,variables[i].c_str(),bvar) ;
+          di = H5Gopen(file_id,"dataInfo") ;
+          vector<int> eid(nbel,-1) ;
+          readElementType(di,"entityIds",eid) ;
           H5Fclose(file_id) ;
 
           for(int i=0;i<nbel;++i) {
-            vector3d<double> delta = vector3d<double>(bvar[i].x - mean[i].x,
-                                                      bvar[i].y - mean[i].y,
-                                                      bvar[i].z - mean[i].z) ;
-            mean[i] += (1./n)*delta ;
-            M2[i].x += delta.x*(bvar[i].x-mean[i].x) ;
-            M2[i].y += delta.y*(bvar[i].y-mean[i].y) ;
-            M2[i].z += delta.z*(bvar[i].z-mean[i].z) ;
+            map<int,int>::const_iterator mi ;
+            if((mi=id2local.find(eid[i])) == id2local.end()) {
+              cerr << "problems with ids in boundaries not matching" << endl ;
+              exit(-1) ;
+            }
+            int lid = mi->second ;
+            
+            vector3d<double> delta = vector3d<double>(bvar[i].x - mean[lid].x,
+                                                      bvar[i].y - mean[lid].y,
+                                                      bvar[i].z - mean[lid].z) ;
+            mean[lid] += (1./n)*delta ;
+            M2[lid].x += delta.x*(bvar[i].x-mean[lid].x) ;
+            M2[lid].y += delta.y*(bvar[i].y-mean[lid].y) ;
+            M2[lid].z += delta.z*(bvar[i].z-mean[lid].z) ;
           }
         }
         vector<vector3d<float> > m(mean.size()) ;
