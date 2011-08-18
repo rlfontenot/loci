@@ -1305,9 +1305,14 @@ int main(int ac, char *av[]) {
         plot_type = ENSIGHT ;
       else if(!strcmp(av[i],"-fv"))
         plot_type = FIELDVIEW ;
-      else if(!strcmp(av[i],"-tec"))
+      else if(!strcmp(av[i],"-tec")) {
         plot_type = TECPLOT ;
-      else if(!strcmp(av[i],"-cut"))
+	cout << "*****************************************************************************"<< endl ;
+	cout << "NOTICE!! Latest versions of tecplot360 will perform better using using the" << endl
+	     << "         the Ensight importer.  It is recommended that you use extract -en " << endl
+	     << "         instead of extract -tec." << endl ;
+	cout << "*****************************************************************************"<< endl ;
+      } else if(!strcmp(av[i],"-cut"))
 	plot_type = CUTTINGPLANE ;
       else if(!strcmp(av[i],"-Sx")) {
 	i++ ;
