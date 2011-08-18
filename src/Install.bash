@@ -33,8 +33,9 @@ echo Installing Library Files
 cp Tools/libTools.so $INSTALL_PATH/lib
 cp System/libLoci.so $INSTALL_PATH/lib
 cp FVMMod/fvm_m.so $INSTALL_PATH/lib
-cp ParMetis-3.1/METISLib/libmetis.so $INSTALL_PATH/lib
-cp ParMetis-3.1/ParMETISLib/libparmetis.so $INSTALL_PATH/lib
+cp ParMetis-4.0/GKLib/libgk.so $INSTALL_PATH/lib
+cp ParMetis-4.0/METISLib/libmetis.so $INSTALL_PATH/lib
+cp ParMetis-4.0/ParMETISLib/libparmetis.so $INSTALL_PATH/lib
 cp sprng/libsprng.so $INSTALL_PATH/lib
 
 echo Installing Loci Tools
@@ -70,6 +71,8 @@ mkdir -p $INSTALL_PATH/include
 cp include/*.h $INSTALL_PATH/include
 cp include/*.lh $INSTALL_PATH/include
 cp include/Loci $INSTALL_PATH/include
+mkdir -p $INSTALL_PATH/ParMetis-4.0
+cp ParMetis-4.0/*.h $INSTALL_PATH/ParMetis-4.0
 
 for i in  Tools Config MPI_stubb ; do
     mkdir -p $INSTALL_PATH/include/$i

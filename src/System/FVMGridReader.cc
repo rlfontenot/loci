@@ -63,7 +63,6 @@ using std::istringstream ;
 
 extern "C" {
   typedef int idxtype ;
-  void ParMETIS_PartKway(idxtype *, idxtype *, idxtype *, idxtype *, idxtype *, int *, int *, int *, int *, int *, idxtype *, MPI_Comm *);
   void ParMETIS_V3_PartKway(idxtype *, idxtype *, idxtype *, idxtype *, idxtype *, int *, int *, int *, int *, float *, float *, int *, int *, idxtype *, MPI_Comm *);
 }
 
@@ -1305,16 +1304,17 @@ namespace Loci {
         int ncon = 2 ;          // number of weights per vertex
         int nparts = Loci::MPI_processes ; // number of partitions
         int tpwgts_len = ncon*nparts ;
-        float* tpwgts = new float[tpwgts_len] ;
+        vector<float> tpwgts(tpwgts_len) ;
+
         for(int i=0;i<tpwgts_len;++i)
           tpwgts[i] = 1.0 / nparts ;
-
-        float* ubvec = new float[ncon] ;
+        
+        vector<float> ubvec(ncon) ;
         for(int i=0;i<ncon;++i)
           ubvec[i] = 1.05 ;     // as recommended by the ParMETIS manual
 
         // now construct the vertex weights
-        idxtype* vwgt = new idxtype[ncon*size_map] ;
+        vector<idxtype> vwgt(ncon*size_map) ;
         int cnt = 0 ;
         for(entitySet::const_iterator
               ei=local_cells[Loci::MPI_rank].begin();
@@ -1326,13 +1326,10 @@ namespace Loci {
         }
 
         // now call the ParMETIS routine (V3)
-        ParMETIS_V3_PartKway(vdist,xadj,adjncy,vwgt,NULL,
+        ParMETIS_V3_PartKway(vdist,xadj,adjncy,&vwgt[0],NULL,
                              &wgtflag,&numflag,&ncon,&nparts,
-                             tpwgts,ubvec,&options,&edgecut,part,&mc) ;
+                             &tpwgts[0],&ubvec[0],&options,&edgecut,part,&mc) ;
 
-        delete[] vwgt ;
-        delete[] ubvec ;
-        delete[] tpwgts ;
           
       } else {
         // if weight file does not exist, then we would
@@ -1341,16 +1338,31 @@ namespace Loci {
           std::cout << "ParMETIS cell weight file not found, "
                     << "using non-weighted partition..." << std::endl ;
         }
-        ParMETIS_PartKway(vdist,xadj,adjncy,NULL,NULL,
-                          &wgtflag,&numflag,&num_partitions,
-                          &options,&edgecut,part, &mc) ;
+        int ncon = 1 ;
+        int tpwgts_len = ncon*num_partitions ;
+        vector<float> tpwgts(tpwgts_len) ;
+        for(int i=0;i<tpwgts_len;++i)
+          tpwgts[i] = 1.0 / float(num_partitions) ;
+        
+        float ubvec = 1.05 ;
+        ParMETIS_V3_PartKway(vdist,xadj,adjncy,NULL,NULL,
+                             &wgtflag,&numflag,&ncon,&num_partitions,
+                             &tpwgts[0],&ubvec,&options,&edgecut,
+                             part,&mc) ;
       }
       
     } else {
-      // use the old metis routine
-      ParMETIS_PartKway(vdist,xadj,adjncy,NULL,NULL,
-                        &wgtflag,&numflag,&num_partitions,
-                        &options,&edgecut,part, &mc) ;
+      int ncon = 1 ;
+      int tpwgts_len = ncon*num_partitions ;
+      vector<float> tpwgts(tpwgts_len) ;
+      for(int i=0;i<tpwgts_len;++i)
+        tpwgts[i] = 1.0 / float(num_partitions) ;
+
+      float ubvec = 1.05 ;
+      ParMETIS_V3_PartKway(vdist,xadj,adjncy,NULL,NULL,
+                           &wgtflag,&numflag,&ncon,&num_partitions,
+                           &tpwgts[0],&ubvec,&options,&edgecut,
+                           part,&mc) ;
     }
 
     if(Loci::MPI_rank == 0)
