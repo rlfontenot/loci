@@ -216,9 +216,9 @@ namespace Loci {
       return ;
     }
       
-    unsigned long long lsz = list.size() ;
-    unsigned long long tsz = 0 ;
-    MPI_Allreduce(&lsz,&tsz,1,MPI_UNSIGNED_LONG_LONG,MPI_SUM,comm) ;
+    long long lsz = int(list.size()) ;
+    long long tsz = 0 ;
+    MPI_Allreduce(&lsz,&tsz,1,MPI_LONG_LONG,MPI_SUM,comm) ;
     // Compute target number of processors needed to sort this set of numbers
     // ideally this will have p^2 numbers per processor
     int target_p = int(floor(pow(double(tsz),1./3.))) ;
@@ -239,7 +239,7 @@ namespace Loci {
         }
 
         std::vector<T> nlist(loc_size) ;
-        for(size_t i=0;i<lsz;++i)
+        for(long long i=0;i<lsz;++i)
           nlist[i] = list[i] ;
 
         int loc = lsz ;

@@ -19,7 +19,7 @@ libparmetis.a: $(OBJS)
 
 LIB_OBJS=$(OBJS:.o=_lo.o)
 libparmetis.so: $(LIB_OBJS)
-	$(SHARED_LD) $(SHARED_LD_FLAGS) libparmetis.so $(LIB_FLAGS) $(LIB_OBJS) 
+	$(DYNAMIC_LD) $(DYNAMIC_LD_FLAGS) libparmetis.$(LIB_SUFFIX) $(LIB_FLAGS) $(LIB_OBJS) 
 
 JUNK =  *~ core ii_files ti_files KCC_files so_locations rii_files
 

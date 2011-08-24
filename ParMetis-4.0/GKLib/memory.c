@@ -9,15 +9,18 @@ can be used to define other memory allocation routines.
 
 \date   Started 4/3/2007
 \author George
-\version\verbatim $Id: memory.c 10561 2011-07-13 13:19:54Z karypis $ \endverbatim
+\version\verbatim $Id: memory.c,v 1.1 2011/08/18 02:18:47 lush Exp $ \endverbatim
 */
-
+#include <Config/conf.h>
 
 #include <GKlib.h>
 
 /* This is for the global mcore that tracks all heap allocations */
+#ifdef NO_THREAD_MEMORY
+static gk_mcore_t *gkmcore = NULL;
+#else
 static __thread gk_mcore_t *gkmcore = NULL;
-
+#endif
 
 /*************************************************************************/
 /*! Define the set of memory allocation routines for each data type */

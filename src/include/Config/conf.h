@@ -131,6 +131,7 @@
 #if defined(LOCI_SYS_Darwin)
 #define BSD
 #define DARWIN
+#define NO_THREAD_MEMORY
 #endif
 
 #ifdef __CYGWIN__

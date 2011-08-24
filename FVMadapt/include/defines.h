@@ -26,7 +26,9 @@
 #include <string>
 #include <fstream>
 #include <iostream>
+#ifdef HAS_MALLINFO
 #include <malloc.h>
+#endif
 using std::cerr;
 using std::endl;
 using std::ostream;
@@ -410,8 +412,12 @@ namespace Loci{
 
 
 inline int currentMem(void){
+#ifdef HAS_MALLINFO
   struct mallinfo info = mallinfo() ;
   return info.arena+info.hblkhd ;
+#else
+  return 0 ;
+#endif
 }
 
 

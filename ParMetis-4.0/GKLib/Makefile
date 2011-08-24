@@ -17,7 +17,7 @@ libgk.a: $(OBJS)
 
 LIB_OBJS=$(OBJS:.o=_lo.o)
 libgk.so: $(LIB_OBJS)
-	$(SHARED_LD) $(SHARED_LD_FLAGS) libgk.so $(LIB_FLAGS) $(LIB_OBJS) 
+	$(DYNAMIC_LD) $(DYNAMIC_LD_FLAGS) libgk.$(LIB_SUFFIX) $(LIB_FLAGS) $(LIB_OBJS) 
 
 JUNK =  *~ core ii_files ti_files KCC_files so_locations rii_files
 

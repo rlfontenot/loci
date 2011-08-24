@@ -59,7 +59,7 @@ libLoci.a: $(OBJS)
 
 LIB_OBJS=$(OBJS:.o=_lo.o)
 libLoci.so: $(LIB_OBJS) 
-	$(SHARED_LD) $(SHARED_LD_FLAGS) libLoci.so $(LIB_FLAGS) $(LIB_OBJS) 
+	$(DYNAMIC_LD) $(DYNAMIC_LD_FLAGS) libLoci.$(LIB_SUFFIX) $(LIB_FLAGS) $(LIB_OBJS) 
 
 Loci_version.o: FORCE
 Loci_version_lo.o: FORCE
