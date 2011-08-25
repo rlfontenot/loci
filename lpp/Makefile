@@ -18,7 +18,6 @@
 # along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 #
 ###############################################################################
-#LOCI_BASE=/usr/local/Loci-Linux-x86_64-mpic++-rel-3-0-p8/
 include $(LOCI_BASE)/Loci.conf
 #COPT = -g
 
