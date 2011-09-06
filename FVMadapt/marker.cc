@@ -270,6 +270,11 @@ int main(int argc, char ** argv) {
     if(Loci::MPI_rank == 0)  cerr <<"WARNING: only one option need to be specified, either  -par option or -xml option"<< endl;
     Loci::Abort();
   }
+
+ if(tag_input && par_input){
+    if(Loci::MPI_rank == 0)  cerr <<"WARNING: only one option need to be specified, either  -par option or -tag option"<< endl;
+    Loci::Abort();
+  }
   
   if(tol_input && par_input){
     if(Loci::MPI_rank == 0){
@@ -349,17 +354,17 @@ int main(int argc, char ** argv) {
     }
   }else{
     if(xml_input){
-      param<int> no_restart_xml_par;
-      *no_restart_xml_par = 1;
-      facts.create_fact("no_restart_xml_par",no_restart_xml_par);
+      param<int> norestart_xml_par;
+      *norestart_xml_par = 1;
+      facts.create_fact("norestart_xml_par",norestart_xml_par);
     }else if(tag_input){
-      param<int> no_restart_tag_par;
-      *no_restart_tag_par = 1;
-      facts.create_fact("no_restart_tag_par",no_restart_tag_par);
+      param<int> norestart_tag_par;
+      *norestart_tag_par = 1;
+      facts.create_fact("norestart_tag_par",norestart_tag_par);
     }else if(par_input){
-       param<int> no_restart_par_par;
-      *no_restart_par_par = 1;
-      facts.create_fact("no_restart_par_par",no_restart_par_par);
+       param<int> norestart_par_par;
+      *norestart_par_par = 1;
+      facts.create_fact("norestart_par_par",norestart_par_par);
     }
   }
   
