@@ -71,11 +71,11 @@ JUNK =  *~ core ii_files ti_files KCC_files so_locations rii_files
 
 .PHONY: clean
 clean:
-	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(JUNK)
+	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(JUNK) libLoci.$(LIB_SUFFIX)
 
 .PHONY: distclean
 distclean:
-	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(JUNK) $(DEPEND_FILES)
+	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(JUNK) $(DEPEND_FILES) libLoci.$(LIB_SUFFIX)
 
 
 DEPEND_FILES=$(subst .o,.d,$(OBJS))
