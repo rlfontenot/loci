@@ -1,7 +1,7 @@
 
 include $(LOCI_BASE)/Loci.conf
 
-INCLUDES=-I. -I.. -I../GKLib
+INCLUDES=-I. -I.. -I../GKLib -DNDEBUG -DNDEBUG2
 
 COPT = $(CC_LIB_FLAGS) $(COPTLESS)
 
@@ -23,11 +23,11 @@ libmetis.so: $(LIB_OBJS)
 JUNK =  *~ core ii_files ti_files KCC_files so_locations rii_files
 
 clean:
-	rm -fr $(LIB_OBJS) $(OBJS) $(TARGET) $(JUNK)
+	rm -fr $(LIB_OBJS) $(OBJS) $(TARGET) $(JUNK) libmetis.$(LIB_SUFFIX)
 
 
 distclean:
-	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(JUNK) $(DEPEND_FILES)
+	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(JUNK) $(DEPEND_FILES) libmetis.$(LIB_SUFFIX)
 
 DEPEND_FILES=$(subst .o,.d,$(OBJS))
 
