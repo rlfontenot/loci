@@ -1217,32 +1217,52 @@ namespace Loci {
     vector<pair<int,int> >().swap(rawMap) ; // Free up memory from rawMap
     int count = 0 ;
     int size_map = local_cells[Loci::MPI_rank].size() ;
-    entitySet dom_map = Loci::interval(0, size_map-1) ;
-    store<int> size_adj ;
-    size_adj.allocate(dom_map) ;
+    vector<int> size_adj(size_map) ;
     count = 0 ;
     for(entitySet::const_iterator ei = local_cells[Loci::MPI_rank].begin(); ei != local_cells[Loci::MPI_rank].end(); ++ei) {
-      size_adj[count] = cell2cell.end(*ei)-cell2cell.begin(*ei) ;
+      size_adj[count] = cell2cell[*ei].size() ;
       ++count ;
     }
 
-    int *part = new int[size_map] ;
-    int *xadj = new int[size_map+1] ;
+    vector<int> part(size_map) ;
+    vector<int> xadj(size_map+1) ;
     int edgecut ;
-    int *vdist = new int[Loci::MPI_processes + 1] ;
+    vector<int> vdist(Loci::MPI_processes + 1) ;
     int cmin = local_cells[0].Min();
-    for(int i = 0; i < Loci::MPI_processes; i++)
+    for(int i = 0; i < Loci::MPI_processes; i++) {
       cmin = min(local_cells[i].Min(), cmin);
-
+    }
+    
+    // check local_cells to be consistent with parmetis partitioning
+    for(int i=0;i<Loci::MPI_processes;++i) {
+      if(local_cells[i].size() == 0 ||
+         local_cells[i].size() != local_cells[i].Max()-local_cells[i].Min()+1) {
+        cerr << "invalid local cell set, p=" << i
+             << ", local_cells=" << local_cells[i] << endl ;
+      }
+      if(i>0 && local_cells[i-1].Max()+1 != local_cells[i].Min()) {
+        cerr << "gap between processors in cell numbering" << endl ;
+      }
+    }
+    
+      
+    
     edgecut = 0 ;
     xadj[0] = 0 ;
     for(int i = 0; i < size_map; ++i)
       xadj[i+1] = xadj[i] + size_adj[i] ;
 
-    int *adjncy = new int[xadj[size_map]] ;
+    int min_size = size_adj[0] ;
+    for(int i = 0; i < size_map; ++i)
+      min_size = min(min_size,size_adj[i]) ;
+    if(min_size == 0) 
+      cerr << "cell with no adjacency!" << endl ;
+    
+    int tot = xadj[size_map] ;
+    vector<int> adjncy(tot) ;
     count = 0 ;
     for(entitySet::const_iterator ei = local_cells[Loci::MPI_rank].begin(); ei != local_cells[Loci::MPI_rank].end(); ++ei) {
-      size_t sz = cell2cell.end(*ei)-cell2cell.begin(*ei) ;
+      size_t sz = cell2cell[*ei].size() ;
       for(size_t i = 0; i != sz; ++i)        {
 	adjncy[count] = cell2cell[*ei][i] - cmin ;
 	count ++ ;
@@ -1253,9 +1273,17 @@ namespace Loci {
     vdist[0] = 0 ;
     for(int i = 1; i <= Loci::MPI_processes; ++i)
       vdist[i] = vdist[i-1] + local_cells[i-1].size() ;
-
+    int top = vdist[Loci::MPI_processes] ;
+    
+    bool trouble = false ;
+    for(int i=0;i<tot;++i)
+      if(adjncy[i] >= top)
+        trouble = true ;
+    if(trouble)
+      cerr << "adjacency list contains out of bounds reference" << endl ;
+    
     MPI_Comm mc = MPI_COMM_WORLD ;
-    int num_partitions = Loci::MPI_processes ;
+    int nparts = Loci::MPI_processes ; // number of partitions
     int wgtflag = 0 ;
     int numflag = 0 ;
     int options = 0 ;
@@ -1302,12 +1330,11 @@ namespace Loci {
         // compute necessary ParMETIS data-structure
         wgtflag = 2 ;           // weights on the vertices only
         int ncon = 2 ;          // number of weights per vertex
-        int nparts = Loci::MPI_processes ; // number of partitions
         int tpwgts_len = ncon*nparts ;
         vector<float> tpwgts(tpwgts_len) ;
 
         for(int i=0;i<tpwgts_len;++i)
-          tpwgts[i] = 1.0 / nparts ;
+          tpwgts[i] = 1.0 / double(nparts) ;
         
         vector<float> ubvec(ncon) ;
         for(int i=0;i<ncon;++i)
@@ -1326,9 +1353,10 @@ namespace Loci {
         }
 
         // now call the ParMETIS routine (V3)
-        ParMETIS_V3_PartKway(vdist,xadj,adjncy,&vwgt[0],NULL,
+        ParMETIS_V3_PartKway(&vdist[0],&xadj[0],&adjncy[0],&vwgt[0],NULL,
                              &wgtflag,&numflag,&ncon,&nparts,
-                             &tpwgts[0],&ubvec[0],&options,&edgecut,part,&mc) ;
+                             &tpwgts[0],&ubvec[0],&options,&edgecut,&part[0],
+                             &mc) ;
 
           
       } else {
@@ -1339,37 +1367,37 @@ namespace Loci {
                     << "using non-weighted partition..." << std::endl ;
         }
         int ncon = 1 ;
-        int tpwgts_len = ncon*num_partitions ;
+        int tpwgts_len = ncon*nparts ;
         vector<float> tpwgts(tpwgts_len) ;
         for(int i=0;i<tpwgts_len;++i)
-          tpwgts[i] = 1.0 / float(num_partitions) ;
+          tpwgts[i] = 1.0 / double(nparts) ;
+        
         
         float ubvec = 1.05 ;
-        ParMETIS_V3_PartKway(vdist,xadj,adjncy,NULL,NULL,
-                             &wgtflag,&numflag,&ncon,&num_partitions,
+        wgtflag = 0 ;
+        ParMETIS_V3_PartKway(&vdist[0],&xadj[0],&adjncy[0],NULL,NULL,
+                             &wgtflag,&numflag,&ncon,&nparts,
                              &tpwgts[0],&ubvec,&options,&edgecut,
-                             part,&mc) ;
+                             &part[0],&mc) ;
       }
       
     } else {
       int ncon = 1 ;
-      int tpwgts_len = ncon*num_partitions ;
+      int tpwgts_len = ncon*nparts ;
       vector<float> tpwgts(tpwgts_len) ;
       for(int i=0;i<tpwgts_len;++i)
-        tpwgts[i] = 1.0 / float(num_partitions) ;
+        tpwgts[i] = 1.0 / double(nparts) ;
 
       float ubvec = 1.05 ;
-      ParMETIS_V3_PartKway(vdist,xadj,adjncy,NULL,NULL,
-                           &wgtflag,&numflag,&ncon,&num_partitions,
+      wgtflag = 0 ;
+      ParMETIS_V3_PartKway(&vdist[0],&xadj[0],&adjncy[0],NULL,NULL,
+                           &wgtflag,&numflag,&ncon,&nparts,
                            &tpwgts[0],&ubvec,&options,&edgecut,
-                           part,&mc) ;
+                           &part[0],&mc) ;
     }
 
     if(Loci::MPI_rank == 0)
       Loci::debugout << " Parmetis Edge cut   " <<  edgecut << endl ;
-    delete [] xadj ;
-    delete [] adjncy ;
-    delete [] vdist ;
 
     //find the partition ptn given by Metis
     vector<entitySet> ptn ;
@@ -1380,7 +1408,6 @@ namespace Loci {
     for(int i=0;i<size_map;++i) {
       ptn[part[i]] += i + cmin ;
     }
-    delete [] part ;
     return ptn;
 
   }
