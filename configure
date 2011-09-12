@@ -310,7 +310,16 @@ if [ -d $PETSC_BASE ]; then
 	    rm sys.conf
 	    exit -1
 	fi
-	BLASLAPACK_LIB=`egrep ^BLASLAPACK_LIB $PETSC_BASE/bmake/$PETSC_ARCH/petscconf`
+	if [ -e $PETSC_BASE/bmake/$PETSC_ARCH/petscconf ]; then
+	    BLASLAPACK_LIB=`egrep ^BLASLAPACK_LIB $PETSC_BASE/bmake/$PETSC_ARCH/petscconf`
+	else
+	    echo WARNING: Unable to find file $PETSC_BASE/bmake/$PETSC_ARCH/petscconf!
+	    BLASLAPACK_LIB=
+	fi
+	if [ "$BLASLAPACK_LIB" == "" ] ; then
+	    echo WARNING: BLAS library paths not extracted from PETSC config files!
+	    echo WARNING:  Is PETSC installed properly?
+	fi
 	echo Using PETSc libraries found in \"$PETSC_BASE\".
 	echo PETSC_BASE = $PETSC_BASE >> sys.conf
 	echo $BLASLAPACK_LIB >> sys.conf
@@ -319,7 +328,16 @@ if [ -d $PETSC_BASE ]; then
 	echo PETSC_INCLUDE = -I\$\(PETSC_BASE\)/include -I\$\(PETSC_BASE\)/bmake/\$\(PETSC_ARCH\) >> sys.conf
 	echo PETSC_DEFINE = -DUSE_PETSC -DPETSC_USE_EXTERN_CXX >> sys.conf
     else
-	BLASLAPACK_LIB=`egrep ^BLASLAPACK_LIB $PETSC_BASE/conf/petscvariables`
+	if [ -e $PETSC_BASE/conf/petscvariables ]; then
+	    BLASLAPACK_LIB=`egrep ^BLASLAPACK_LIB $PETSC_BASE/conf/petscvariables`
+	else
+	    echo WARNING: Unable to find file $PETSC_BASE/conf/petscvariables!
+	    BLASLAPACK_LIB=
+	fi
+	if [ "$BLASLAPACK_LIB" == "" ] ; then
+	    echo WARNING: BLAS library paths not extracted from PETSC config files!
+	    echo WARNING:  Is PETSC installed properly?
+	fi
 	echo Using PETSc libraries found in \"$PETSC_BASE\".
 	echo PETSC_BASE = $PETSC_BASE >> sys.conf
 	echo $BLASLAPACK_LIB >> sys.conf
