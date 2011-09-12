@@ -19,14 +19,15 @@
 # along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 #
 ###############################################################################
+set +e
+set -u
+set -f
 LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/:/usr:/usr/local:/opt:/opt/local
 PETSC_BASE=$PETSC_DIR
 if [ "$PETSC_BASE" == "" ]; then
     PETSC_BASE=/notinstalled/petsc
 fi
 H5PATH=/notinstalled/hdf5
-set -e
-set -u
 
 
 find_exec() {
