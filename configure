@@ -302,6 +302,7 @@ fi
 
 if [ -d $PETSC_BASE ]; then
     if [ -e $PETSC_BASE/bmake/petscconf ]; then
+# This is the OLD v2 petsc setup
 	PETSC_ARCH=`grep PETSC_ARCH $PETSC_BASE/bmake/petscconf | sed s/PETSC_ARCH=//`
 	if [ ! -d $PETSC_BASE/bmake/$PETSC_ARCH ]; then 
 	    echo Problem with PETSc library setup, check PETSC_DIR
@@ -328,11 +329,18 @@ if [ -d $PETSC_BASE ]; then
 	echo PETSC_INCLUDE = -I\$\(PETSC_BASE\)/include -I\$\(PETSC_BASE\)/bmake/\$\(PETSC_ARCH\) >> sys.conf
 	echo PETSC_DEFINE = -DUSE_PETSC -DPETSC_USE_EXTERN_CXX >> sys.conf
     else
+	BLASLAPACK_LIB=
 	if [ -e $PETSC_BASE/conf/petscvariables ]; then
 	    BLASLAPACK_LIB=`egrep ^BLASLAPACK_LIB $PETSC_BASE/conf/petscvariables`
-	else
-	    echo WARNING: Unable to find file $PETSC_BASE/conf/petscvariables!
-	    BLASLAPACK_LIB=
+	fi
+	if [ "$BLASLAPACK_LIB" == "" ] ; then
+	    set +f
+	    if [ -e $PETSC_BASE/arch-*/conf/petscvariables ]; then
+		BLASLAPACK_LIB=`egrep ^BLASLAPACK_LIB $PETSC_BASE/arch-*/conf/petscvariables`
+	    else 
+		echo WARNING: Unable to find file $PETSC_BASE/arch-*/conf/petscvariables!
+	    fi
+	    set -f	    
 	fi
 	if [ "$BLASLAPACK_LIB" == "" ] ; then
 	    echo WARNING: BLAS library paths not extracted from PETSC config files!
