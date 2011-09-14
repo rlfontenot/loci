@@ -156,6 +156,8 @@ string getName(istream &s) {
 	(s.peek() >= '0' && s.peek() <='9')||
  	s.peek() == '_' || s.peek() == '-'){
     char c = s.get() ;
+    if(c == '-')
+      c = '_' ;
     str += c ;
   }
 
@@ -219,7 +221,7 @@ int scanFluentFile(string filename,
 	int zone = getZoneInfo(s,start,end,type,dim) ;
 	if(type != 1) {
 	  cerr << "can only handle type 1 nodes" << endl;
-	  exit(-2) ;
+          //	  exit(-2) ;
 	}
         if(zone == 0) { // allocate pos ;
           if(dimension == 2) {
