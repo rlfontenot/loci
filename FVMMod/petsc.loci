@@ -54,6 +54,12 @@ using Loci::Entity ;
 $include "FVM.lh"
 
 
+
+#if (PETSC_VERSION_MAJOR > 3) || ((PETSC_VERSION_MAJOR == 3) && (PETSC_VERSION_MINOR > 1))
+#define PETSC_32_API
+#endif
+
+
 // Create a namespace for the PETSC objects so there is no confusion. Note that
 // there is already a type "Mat" defined by Loci.
 namespace Petsc {
@@ -77,8 +83,12 @@ namespace Loci {
       bool created ;
       mutable Petsc::Vec v ;
     public:
-      PETSCVector() : created(false) {}
-      ~PETSCVector() { if(created) VecDestroy(v) ; }
+    PETSCVector() : created(false) {}
+#ifdef PETSC_32_API
+    ~PETSCVector() { if(created) VecDestroy(&v) ; }
+#else
+    ~PETSCVector() { if(created) VecDestroy(v) ; }
+#endif
     public:
       int AssemblyBegin() const {
         int ierr=VecAssemblyBegin(v) ; CHKERRQ(ierr) ; return 0 ;
@@ -128,7 +138,12 @@ namespace Loci {
       mutable Petsc::Mat m ;
     public:
       PETSCMatrix() : created(false) {}
-      ~PETSCMatrix() { if(created) MatDestroy(m) ; }
+#ifdef PETSC_32_API
+    ~PETSCMatrix() { if(created) MatDestroy(&m) ; }
+#else
+    ~PETSCMatrix() { if(created) MatDestroy(m) ; }
+#endif
+    
     public:
       int AssemblyBegin() const {
         int ierr=MatAssemblyBegin(m,MAT_FINAL_ASSEMBLY) ;
@@ -172,7 +187,11 @@ namespace Loci {
   public:
     mutable Petsc::Mat m ;
     PETSCBlockMatrix() : created(false) {}
+#ifdef PETSC_32_API
+    ~PETSCBlockMatrix() { if(created) MatDestroy(&m) ; }
+#else
     ~PETSCBlockMatrix() { if(created) MatDestroy(m) ; }
+#endif
   public:
     int AssemblyBegin() const {
       int ierr=MatAssemblyBegin(m,MAT_FINAL_ASSEMBLY) ;
@@ -220,7 +239,11 @@ namespace Loci {
     mutable Petsc::KSP ksp ;
   public:
     PETSCKsp() : created(false) {}
+#ifdef PETSC_32_API
+    ~PETSCKsp() { if(created) KSPDestroy(&ksp) ; }
+#else
     ~PETSCKsp() { if(created) KSPDestroy(ksp) ; }
+#endif
   public:
     int Create() {
       if(created) return 0 ;
