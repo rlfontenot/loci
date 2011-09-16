@@ -189,13 +189,15 @@ namespace Loci {
     // test for self-cycle and non-chompable
     // internal variables in a graph
     // test_gr is a subgraph of gr
+    //#define CHOMP_DEBUG
 #ifdef CHOMP_DEBUG
     namespace {
       int problem_code = 0 ;
     } 
 #endif
     inline bool has_problem(const digraph& gr, const digraph& test_gr,
-                            const variableSet& validChompVars) {
+                            const variableSet& validChompVars,
+                            const variableSet& merged_vars) {
       digraph::vertexSet sources = test_gr.get_source_vertices()
         - test_gr.get_target_vertices() ;
       digraph::vertexSet targets = test_gr.get_target_vertices()
@@ -211,13 +213,17 @@ namespace Loci {
       variableSet problem_vars =
         variableSet(internal_vars - validChompVars) ;
 
+      digraph::vertexSet merged = get_vertexSet(merged_vars) ;
+
 #ifdef CHOMP_DEBUG
       if(has_path(gr,targets,sources))
         problem_code = 1 ;
       else if(problem_vars != EMPTY)
         problem_code = 2 ;
 #endif
-      return (has_path(gr,targets,sources) || (problem_vars != EMPTY)) ;
+      return (has_path(gr,targets,sources) ||
+              (has_path(gr,sources,merged) && has_path(gr,merged,targets)) ||
+              (problem_vars != EMPTY)) ;
     }
     
     // this function computes the internal variables
@@ -344,6 +350,7 @@ namespace Loci {
 
       digraph grt = gr.transpose() ;
       variableSet valid_chomp_vars = chomp_vars ;
+      variableSet merged_vars ;
       list<chomp_chain> temp_result ;
       
       while(!chomp_vars_order.empty()) {
@@ -412,7 +419,7 @@ namespace Loci {
               digraph test_gr =
                 gen_tmp_graph(cur_chomp_gr,new_vertices,gr) ;
 
-              if(!has_problem(gr,test_gr,valid_chomp_vars)){
+              if(!has_problem(gr,test_gr,valid_chomp_vars,merged_vars)){
                 sub_chomp_vars += *lvi ;
                 all_rules += reachable_rules ;
                 cur_chomp_gr = test_gr ;
@@ -454,7 +461,7 @@ namespace Loci {
         // we need to test for self-cycle, if has, it is
         // then discarded
         if(sub_chomp_vars.size() == 1) {
-          if(has_problem(gr,cur_chomp_gr,valid_chomp_vars)) {
+          if(has_problem(gr,cur_chomp_gr,valid_chomp_vars,merged_vars)) {
             variable v = *(sub_chomp_vars.begin()) ;
             valid_chomp_vars -= v ;
 
@@ -471,7 +478,7 @@ namespace Loci {
             // ESPECIALLY WITH THE MORE ROBUST gen_tmp_graph FUNCTION,
             // THIS NOTIFY ACTION MAY NOT BE NECESSARY. We'll revise this
             // in the future.
-            notify_existchains(temp_result,chomp_vars_order,
+            notify_existchains(result,chomp_vars_order,
                                valid_chomp_vars,v) ;
             continue ;
           }
@@ -496,6 +503,7 @@ namespace Loci {
         }
 
         valid_chomp_vars -= sub_chomp_vars ;
+        merged_vars += sub_chomp_vars ;
 
 #ifdef CHOMP_DEBUG
         cerr << "Valid_chomp_vars removed (sub_chomp): "
@@ -533,7 +541,7 @@ namespace Loci {
             if( (shared & chomp_vars) != EMPTY) {
               digraph test_gr = merge_2_graphs(new_gr,this_gr,gr) ;
 
-              if(!has_problem(gr,test_gr,chomp_vars)) {
+              if(!has_problem(gr,test_gr,chomp_vars,merged_vars)) {
                 new_gr = test_gr ;
                 remove.push_back(li) ;
                 merge = true ;
@@ -595,7 +603,7 @@ namespace Loci {
                                           new_gr.get_all_vertices()) ;
             variableSet new_chomp_vars_in_chain = chomp_vars_in_chain ;
             new_chomp_vars_in_chain += *vi ;
-            if(!has_problem(gr,test_gr,chomp_vars)) {
+            if(!has_problem(gr,test_gr,chomp_vars,merged_vars)) {
               new_gr = test_gr ;
               chomp_vars_in_chain = new_chomp_vars_in_chain ;
             }
