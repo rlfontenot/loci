@@ -810,37 +810,42 @@ namespace Loci {
     // into the graph
     list<chomp_chain> cc ;
     for(list<chomp_chain>::const_iterator li=ccin.begin();li!=ccin.end();++li) {
+      // Form set of chomp chain variables and rules
       digraph chomp_graph = li->first ;
       variableSet chomp_vars = li->second ;
       digraph::vertexSet chomp_vars_vertices = get_vertexSet(chomp_vars) ;
-
-      // get all nodes that lead out of the chomp
       digraph::vertexSet all_vertices = chomp_graph.get_all_vertices() ;
-      entitySet chomp_set = all_vertices + chomp_vars_vertices ;
-
-      entitySet out_vertices ;
-      entitySet::const_iterator ei ;
+      ruleSet all_rules = extract_rules(all_vertices) ;
+      digraph::vertexSet rules_vertices = get_vertexSet(all_rules) ;
+      // chomp_set is the set of vertices that form the chomp
+      digraph::vertexSet chomp_set = rules_vertices + chomp_vars_vertices ;
+      
+      // Compute the vertices that are outgoing edges from the chomp chain
+      digraph::vertexSet out_vertices ;
+      digraph::vertexSet::const_iterator ei ;
       for(ei=chomp_set.begin();ei!=chomp_set.end();++ei)
 	out_vertices += gr[*ei] ;
       out_vertices -= chomp_set ;
-
-      // Now follow out verticies until no new vertices are found
-      entitySet visit_set = out_vertices ;
-      entitySet found_set = out_vertices ;
+      
+      // Now follow outgoing vertices until no new vertices are found
+      digraph::vertexSet visit_set = out_vertices ;
+      digraph::vertexSet found_set = out_vertices ;
       do {
-	entitySet new_set ;
-	for(ei=found_set.begin();++ei!=found_set.end();++ei)
+        digraph::vertexSet new_set ;
+        found_set -= chomp_set ;
+	for(ei=found_set.begin();ei!=found_set.end();++ei)
 	  new_set += gr[*ei] ;
 	found_set = new_set - visit_set ;
 	visit_set += found_set ;
-      } while(found_set!= EMPTY) ;
-
-      // Check to see if outgoing edges led back to chomp, if so then
+      } while(found_set!=EMPTY) ;
+      
+      // Check to see if any outgoing edges led back to chomp, if so then
       // making this chomp a supernode will cause cycle, otherwise
       // if it doesn't, then it is ok to process
       if((visit_set & chomp_set) == EMPTY)
-	cc.push_back(*li) ;
+	cc.push_back(*li) ; // OK chomp, schedule it
       else {
+        // This chomp could cause a cycle, print diagnostic in debug file
 	debugout << "NOTE:  Removing chomp chain for vars = " << chomp_vars
 		 << endl ;
 	debugout << "cycle variables = " 
