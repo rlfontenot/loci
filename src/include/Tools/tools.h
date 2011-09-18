@@ -107,7 +107,7 @@ template <class T> inline T square(const T &a)   { return a*a ; }
 template <class T> inline T sign(T a, T b) { return (b>=0)?abs(a):-abs(a) ; }
 
 namespace Loci {
-  void register_closing_function(void (*fptr)()) ;
+  void register_closing_function(void (*fptr)(int code)) ;
 }
 
 #endif

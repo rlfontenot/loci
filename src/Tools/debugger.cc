@@ -81,26 +81,30 @@ namespace Loci {
 
   struct closing_function_list {
     struct closing_function_list *next ;
-    void (*fptr)() ;
+    void (*fptr)(int code) ;
   } ;
 
   closing_function_list *closing_funcs_list = 0 ;
 
-  void register_closing_function(void (*fptr)()) {
+  void register_closing_function(void (*fptr)(int code)) {
     closing_function_list *fl = new closing_function_list ;
     fl->next = closing_funcs_list ;
     fl->fptr = fptr ;
     closing_funcs_list = fl ;
   }
 
-  void debugger_()
-  {
+  void call_closing_functions(int code) {
     // loop over registed closing functions
     closing_function_list *fl = closing_funcs_list ;
     while(fl != 0) {
-      (*(fl->fptr))() ;
+      (*(fl->fptr))(code) ;
       fl = fl->next ;
     }
+  }
+
+  void debugger_()
+  {
+    call_closing_functions(-1) ;
 
     void (*dbc)() = debug_callback ;
     debug_callback = 0 ;
