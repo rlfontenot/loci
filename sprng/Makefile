@@ -20,7 +20,7 @@ libsprng.a: $(OBJS)
 
 LIB_OBJS=$(OBJS:.o=_lo.o)
 libsprng.so: $(LIB_OBJS)
-	$(SHARED_LD) $(SHARED_LD_FLAGS) libsprng.so $(LIB_FLAGS) $(LIB_OBJS) 
+	$(DYNAMIC_LD) $(DYNAMIC_LD_FLAGS) libsprng.$(LIB_SUFFIX) $(LIB_FLAGS) $(LIB_OBJS) 
 
 JUNK =  *~ core ii_files ti_files so_locations rii_files
 

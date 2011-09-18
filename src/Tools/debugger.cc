@@ -28,7 +28,9 @@
 #endif
 
 #ifndef __CYGWIN__
+#ifndef DARWIN
 #include <ucontext.h>
+#endif
 #endif
 
 #ifdef SUN
