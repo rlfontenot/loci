@@ -19,14 +19,19 @@
 # along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 #
 ###############################################################################
-LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/:/usr:/usr/local:/opt:/opt/local
+
+LD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:$LD_LIBRARY_PATH:/:/usr:/usr/local:/opt:/opt/local
 PETSC_BASE=$PETSC_DIR
+
+set +e
+set -u
+set -f
+
+
 if [ "$PETSC_BASE" == "" ]; then
     PETSC_BASE=/notinstalled/petsc
 fi
 H5PATH=/notinstalled/hdf5
-set -e
-set -u
 
 
 find_exec() {
@@ -66,7 +71,19 @@ case "$ARCH" in
     ;;
 esac
 
+NO_MPI=0
+
 PREFIX=/usr/local
+if [ $# -eq 0 ]; then
+    echo "*******************************************************************************"
+    echo "** NOTICE!!!!"
+    echo "** Usually the option --prefix will be used to specify an installation"
+    echo "**  directory.  The default setting for the prefix is \"${PREFIX}\".  If you"
+    echo "** want to install into a different directory, use the --prefix option of "
+    echo "** configure.  Execute \"./configure --help\" to see more configure options."
+    echo "** NOTICE!!!!"
+    echo "*******************************************************************************"
+fi
 while [ $# -ne 0 ]; do 
     case "$1" in
 	--prefix)
@@ -109,6 +126,9 @@ while [ $# -ne 0 ]; do
 	    tmp=$1
 	    OBJDIR=${tmp#--obj-dir\=}
 	    ;;
+	--nompi)
+	   NO_MPI=1
+	   ;;
 	 --help)
 	    echo "configure usage:"
 	    echo "./configure <options>"
@@ -116,6 +136,10 @@ while [ $# -ne 0 ]; do
 	    echo "  --prefix <install directory>    : tell configure where to install Loci."
 	    echo "  --petsc-dir <PETSc directory>   : tell configure where to find PETSc package."
 	    echo "  --hdf5-dir <HDF5 directory>     : tell configure where to find HDF5 package."
+	    echo "  --compiler <compiler name>      : tell configure what compiler to use"
+	    echo "  --obj-dir <OBJDIR name>         : tell configure where to put object files"
+	    echo "  --nompi                         : tell configure to build without using MPI"
+	    echo "  --help                          : output this help information"
 	    exit -1
 	    ;;
 	    
@@ -141,6 +165,7 @@ find_exec mpirun
 MPI_PATH=$RETURN_VALUE
 if [ $MPI_PATH == 0 ]; then
     HAS_MPI=0
+    MPI_PATH="/usr"
 fi
 MPI_C_COMPILER=none
 MPI_CPP_COMPILER=none
@@ -167,29 +192,44 @@ fi
 MPI_BASE=`echo $MPI_PATH | sed "s/\/.[a-zA-Z0-9]*$//"`
 
 echo \# MPI Libraries Setup >> sys.conf
-if [ "$MPI_C_COMPILER" == "none" ]; then
-    if [ "$ARCH" == "IRIX64" ]; then
-	echo MPI_BASE = /usr/ >> sys.conf
-	echo MPI_LIBS = -L/usr/lib64 \$\(RPATH\)/usr/lib64 -lmpi >> sys.conf
-	echo MPI_INCLUDE = -DMPI_NO_CPPBIND >> sys.conf
-	echo MPI_RUN = mpirun >> sys.conf
+if [ $NO_MPI == 1 ] ; then
+    echo "*********************************************************************"
+    echo "** Configuring Loci to not use MPI!  This install will not support"
+    echo "** parallel processing."
+    echo "*********************************************************************"
+
+    echo MPI_BASE = >> sys.conf
+    echo MPI_LIBS = >> sys.conf
+    echo MPI_INCLUDE = -I\$\(LOCI_BASE\)/include/MPI_Stubb >> sys.conf
+    echo MPI_RUN = none >> sys.conf
+    echo MPI_C_COMPILER = none >> sys.conf
+    echo MPI_CPP_COMPILER = none >> sys.conf
+    echo MPI_F90_COMPILER = none >> sys.conf
+else
+    if [ "$MPI_C_COMPILER" == "none" ]; then
+	if [ "$ARCH" == "IRIX64" ]; then
+	    echo MPI_BASE = /usr/ >> sys.conf
+	    echo MPI_LIBS = -L/usr/lib64 \$\(RPATH\)/usr/lib64 -lmpi >> sys.conf
+	    echo MPI_INCLUDE = -DMPI_NO_CPPBIND >> sys.conf
+	    echo MPI_RUN = mpirun >> sys.conf
+	else
+	    echo MPI_BASE =  $MPI_BASE >> sys.conf
+	    echo MPI_LIBS =  -L$MPI_BASE/lib -lmpi >> sys.conf
+	    echo MPI_INCLUDE = -I$MPI_BASE/include  >> sys.conf
+	    echo MPI_RUN=$MPI_PATH/mpirun >> sys.conf
+	fi
     else
 	echo MPI_BASE =  $MPI_BASE >> sys.conf
-	echo MPI_LIBS =  -L$MPI_BASE/lib -lmpi >> sys.conf
-	echo MPI_INCLUDE = -I$MPI_BASE/include  >> sys.conf
+	echo MPI_LIBS =   >> sys.conf
+	echo MPI_INCLUDE = -DMPICH_IGNORE_CXX_SEEK >> sys.conf
 	echo MPI_RUN=$MPI_PATH/mpirun >> sys.conf
     fi
-else
-    echo MPI_BASE =  $MPI_BASE >> sys.conf
-    echo MPI_LIBS =   >> sys.conf
-    echo MPI_INCLUDE = -DMPICH_IGNORE_CXX_SEEK >> sys.conf
-    echo MPI_RUN=$MPI_PATH/mpirun >> sys.conf
+    echo MPI_C_COMPILER = $MPI_C_COMPILER >> sys.conf
+    echo MPI_CPP_COMPILER = $MPI_CPP_COMPILER >> sys.conf
+    echo MPI_F90_COMPILER = $MPI_F90_COMPILER >> sys.conf
+    
 fi
 
-
-echo MPI_C_COMPILER = $MPI_C_COMPILER >> sys.conf
-echo MPI_CPP_COMPILER = $MPI_CPP_COMPILER >> sys.conf
-echo MPI_F90_COMPILER = $MPI_F90_COMPILER >> sys.conf
 echo >> sys.conf
 
 #setup hdf5
@@ -266,6 +306,7 @@ fi
 
 if [ -d $PETSC_BASE ]; then
     if [ -e $PETSC_BASE/bmake/petscconf ]; then
+# This is the OLD v2 petsc setup
 	PETSC_ARCH=`grep PETSC_ARCH $PETSC_BASE/bmake/petscconf | sed s/PETSC_ARCH=//`
 	if [ ! -d $PETSC_BASE/bmake/$PETSC_ARCH ]; then 
 	    echo Problem with PETSc library setup, check PETSC_DIR
@@ -274,7 +315,16 @@ if [ -d $PETSC_BASE ]; then
 	    rm sys.conf
 	    exit -1
 	fi
-	BLASLAPACK_LIB=`egrep ^BLASLAPACK_LIB $PETSC_BASE/bmake/$PETSC_ARCH/petscconf`
+	if [ -e $PETSC_BASE/bmake/$PETSC_ARCH/petscconf ]; then
+	    BLASLAPACK_LIB=`egrep ^BLASLAPACK_LIB $PETSC_BASE/bmake/$PETSC_ARCH/petscconf`
+	else
+	    echo WARNING: Unable to find file $PETSC_BASE/bmake/$PETSC_ARCH/petscconf!
+	    BLASLAPACK_LIB=
+	fi
+	if [ "$BLASLAPACK_LIB" == "" ] ; then
+	    echo WARNING: BLAS library paths not extracted from PETSC config files!
+	    echo WARNING:  Is PETSC installed properly?
+	fi
 	echo Using PETSc libraries found in \"$PETSC_BASE\".
 	echo PETSC_BASE = $PETSC_BASE >> sys.conf
 	echo $BLASLAPACK_LIB >> sys.conf
@@ -283,7 +333,23 @@ if [ -d $PETSC_BASE ]; then
 	echo PETSC_INCLUDE = -I\$\(PETSC_BASE\)/include -I\$\(PETSC_BASE\)/bmake/\$\(PETSC_ARCH\) >> sys.conf
 	echo PETSC_DEFINE = -DUSE_PETSC -DPETSC_USE_EXTERN_CXX >> sys.conf
     else
-	BLASLAPACK_LIB=`egrep ^BLASLAPACK_LIB $PETSC_BASE/conf/petscvariables`
+	BLASLAPACK_LIB=
+	if [ -e $PETSC_BASE/conf/petscvariables ]; then
+	    BLASLAPACK_LIB=`egrep ^BLASLAPACK_LIB $PETSC_BASE/conf/petscvariables`
+	fi
+	if [ "$BLASLAPACK_LIB" == "" ] ; then
+	    set +f
+	    if [ -e $PETSC_BASE/arch-*/conf/petscvariables ]; then
+		BLASLAPACK_LIB=`egrep ^BLASLAPACK_LIB $PETSC_BASE/arch-*/conf/petscvariables`
+	    else 
+		echo WARNING: Unable to find file $PETSC_BASE/arch-*/conf/petscvariables!
+	    fi
+	    set -f	    
+	fi
+	if [ "$BLASLAPACK_LIB" == "" ] ; then
+	    echo WARNING: BLAS library paths not extracted from PETSC config files!
+	    echo WARNING:  Is PETSC installed properly?
+	fi
 	echo Using PETSc libraries found in \"$PETSC_BASE\".
 	echo PETSC_BASE = $PETSC_BASE >> sys.conf
 	echo $BLASLAPACK_LIB >> sys.conf

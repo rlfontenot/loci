@@ -195,7 +195,8 @@ namespace Loci {
     } 
 #endif
     inline bool has_problem(const digraph& gr, const digraph& test_gr,
-                            const variableSet& validChompVars) {
+                            const variableSet& validChompVars,
+                            const variableSet& merged_vars) {
       digraph::vertexSet sources = test_gr.get_source_vertices()
         - test_gr.get_target_vertices() ;
       digraph::vertexSet targets = test_gr.get_target_vertices()
@@ -211,13 +212,17 @@ namespace Loci {
       variableSet problem_vars =
         variableSet(internal_vars - validChompVars) ;
 
+      digraph::vertexSet merged = get_vertexSet(merged_vars) ;
+
 #ifdef CHOMP_DEBUG
       if(has_path(gr,targets,sources))
         problem_code = 1 ;
       else if(problem_vars != EMPTY)
         problem_code = 2 ;
 #endif
-      return (has_path(gr,targets,sources) || (problem_vars != EMPTY)) ;
+      return (has_path(gr,targets,sources) ||
+              (has_path(gr,sources,merged) && has_path(gr,merged,targets)) ||
+              (problem_vars != EMPTY)) ;
     }
     
     // this function computes the internal variables
@@ -344,6 +349,7 @@ namespace Loci {
 
       digraph grt = gr.transpose() ;
       variableSet valid_chomp_vars = chomp_vars ;
+      variableSet merged_vars ;
       list<chomp_chain> temp_result ;
       
       while(!chomp_vars_order.empty()) {
@@ -412,7 +418,7 @@ namespace Loci {
               digraph test_gr =
                 gen_tmp_graph(cur_chomp_gr,new_vertices,gr) ;
 
-              if(!has_problem(gr,test_gr,valid_chomp_vars)){
+              if(!has_problem(gr,test_gr,valid_chomp_vars,merged_vars)){
                 sub_chomp_vars += *lvi ;
                 all_rules += reachable_rules ;
                 cur_chomp_gr = test_gr ;
@@ -454,7 +460,7 @@ namespace Loci {
         // we need to test for self-cycle, if has, it is
         // then discarded
         if(sub_chomp_vars.size() == 1) {
-          if(has_problem(gr,cur_chomp_gr,valid_chomp_vars)) {
+          if(has_problem(gr,cur_chomp_gr,valid_chomp_vars,merged_vars)) {
             variable v = *(sub_chomp_vars.begin()) ;
             valid_chomp_vars -= v ;
 
@@ -471,7 +477,7 @@ namespace Loci {
             // ESPECIALLY WITH THE MORE ROBUST gen_tmp_graph FUNCTION,
             // THIS NOTIFY ACTION MAY NOT BE NECESSARY. We'll revise this
             // in the future.
-            notify_existchains(temp_result,chomp_vars_order,
+            notify_existchains(result,chomp_vars_order,
                                valid_chomp_vars,v) ;
             continue ;
           }
@@ -496,6 +502,7 @@ namespace Loci {
         }
 
         valid_chomp_vars -= sub_chomp_vars ;
+        merged_vars += sub_chomp_vars ;
 
 #ifdef CHOMP_DEBUG
         cerr << "Valid_chomp_vars removed (sub_chomp): "
@@ -533,7 +540,7 @@ namespace Loci {
             if( (shared & chomp_vars) != EMPTY) {
               digraph test_gr = merge_2_graphs(new_gr,this_gr,gr) ;
 
-              if(!has_problem(gr,test_gr,chomp_vars)) {
+              if(!has_problem(gr,test_gr,chomp_vars,merged_vars)) {
                 new_gr = test_gr ;
                 remove.push_back(li) ;
                 merge = true ;
@@ -595,7 +602,7 @@ namespace Loci {
                                           new_gr.get_all_vertices()) ;
             variableSet new_chomp_vars_in_chain = chomp_vars_in_chain ;
             new_chomp_vars_in_chain += *vi ;
-            if(!has_problem(gr,test_gr,chomp_vars)) {
+            if(!has_problem(gr,test_gr,chomp_vars,merged_vars)) {
               new_gr = test_gr ;
               chomp_vars_in_chain = new_chomp_vars_in_chain ;
             }
@@ -797,8 +804,56 @@ namespace Loci {
   }
   
   // edit the graph to have the chomp node,
-  void chompRuleVisitor::edit_gr(digraph& gr,const list<chomp_chain>& cc,
+  void chompRuleVisitor::edit_gr(digraph& gr,const list<chomp_chain>& ccin,
                                  rulecomp_map& rcm) {
+    // First check to see if the chomp chain will produce cycles if introduced
+    // into the graph
+    list<chomp_chain> cc ;
+    for(list<chomp_chain>::const_iterator li=ccin.begin();li!=ccin.end();++li) {
+      // Form set of chomp chain variables and rules
+      digraph chomp_graph = li->first ;
+      variableSet chomp_vars = li->second ;
+      digraph::vertexSet chomp_vars_vertices = get_vertexSet(chomp_vars) ;
+      digraph::vertexSet all_vertices = chomp_graph.get_all_vertices() ;
+      ruleSet all_rules = extract_rules(all_vertices) ;
+      digraph::vertexSet rules_vertices = get_vertexSet(all_rules) ;
+      // chomp_set is the set of vertices that form the chomp
+      digraph::vertexSet chomp_set = rules_vertices + chomp_vars_vertices ;
+      
+      // Compute the vertices that are outgoing edges from the chomp chain
+      digraph::vertexSet out_vertices ;
+      digraph::vertexSet::const_iterator ei ;
+      for(ei=chomp_set.begin();ei!=chomp_set.end();++ei)
+	out_vertices += gr[*ei] ;
+      out_vertices -= chomp_set ;
+      
+      // Now follow outgoing vertices until no new vertices are found
+      digraph::vertexSet visit_set = out_vertices ;
+      digraph::vertexSet found_set = out_vertices ;
+      do {
+        digraph::vertexSet new_set ;
+        found_set -= chomp_set ;
+	for(ei=found_set.begin();ei!=found_set.end();++ei)
+	  new_set += gr[*ei] ;
+	found_set = new_set - visit_set ;
+	visit_set += found_set ;
+      } while(found_set!=EMPTY) ;
+      
+      // Check to see if any outgoing edges led back to chomp, if so then
+      // making this chomp a supernode will cause cycle, otherwise
+      // if it doesn't, then it is ok to process
+      if((visit_set & chomp_set) == EMPTY)
+	cc.push_back(*li) ; // OK chomp, schedule it
+      else {
+        // This chomp could cause a cycle, print diagnostic in debug file
+	debugout << "NOTE:  Removing chomp chain for vars = " << chomp_vars
+		 << endl ;
+	debugout << "cycle variables = " 
+		 <<  extract_vars(visit_set & chomp_set)
+		 << endl ;
+      }
+    }
+
     if(cc.empty())
       return ;
     

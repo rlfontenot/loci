@@ -30,13 +30,19 @@ mkdir -p $INSTALL_PATH/lib
 mkdir -p $INSTALL_PATH/bin
 
 echo Installing Library Files
-cp Tools/libTools.so $INSTALL_PATH/lib
-cp System/libLoci.so $INSTALL_PATH/lib
+LIB_POSTFIX="so"
+
+ARCH=${LOCI_ARCH-`uname -s`}
+if [ $ARCH == "Darwin" ]; then
+    LIB_POSTFIX="dylib"
+fi
+cp Tools/libTools.$LIB_POSTFIX $INSTALL_PATH/lib
+cp System/libLoci.$LIB_POSTFIX $INSTALL_PATH/lib
 cp FVMMod/fvm_m.so $INSTALL_PATH/lib
-cp ParMetis-4.0/GKLib/libgk.so $INSTALL_PATH/lib
-cp ParMetis-4.0/METISLib/libmetis.so $INSTALL_PATH/lib
-cp ParMetis-4.0/ParMETISLib/libparmetis.so $INSTALL_PATH/lib
-cp sprng/libsprng.so $INSTALL_PATH/lib
+cp ParMetis-4.0/GKLib/libgk.$LIB_POSTFIX $INSTALL_PATH/lib
+cp ParMetis-4.0/METISLib/libmetis.$LIB_POSTFIX $INSTALL_PATH/lib
+cp ParMetis-4.0/ParMETISLib/libparmetis.$LIB_POSTFIX $INSTALL_PATH/lib
+cp sprng/libsprng.$LIB_POSTFIX $INSTALL_PATH/lib
 
 echo Installing Loci Tools
 cp lpp/lpp $INSTALL_PATH/bin

@@ -225,7 +225,7 @@ class make_general_cellplan_norestart:public pointwise_rule{
   const_multiMap face2node;
   const_store<char>  posTag;
   const_store<bool> isIndivisible;
-  const_param<int> no_restart_tag_par;
+  const_param<int> norestart_tag_par;
   store<std::vector<char> > newCellPlan;
 
   const_store<int> node_l2f;
@@ -239,7 +239,7 @@ public:
     name_store("face2edge", face2edge);
     name_store("edge2node", edge2node);
     name_store("posTag", posTag);
-    name_store("no_restart_tag_par", no_restart_tag_par);
+    name_store("norestart_tag_par", norestart_tag_par);
     name_store("isIndivisible", isIndivisible);
     name_store("newCellPlan", newCellPlan);
     name_store("fileNumber(pos)", node_l2f);
@@ -248,7 +248,7 @@ public:
     input("isIndivisible");
     input("(lower, upper, boundary_map)->face2node->(pos, posTag, fileNumber(pos))");
     input("(lower, upper, boundary_map)->face2edge->edge2node->pos");
-    input("no_restart_tag_par");
+    input("norestart_tag_par");
     output("newCellPlan");
     constraint("gnrlcells");
   }
@@ -536,7 +536,7 @@ class make_general_cellplan_xml_norestart:public pointwise_rule{
   const_multiMap face2edge;
   const_multiMap face2node;
    const_store<bool> isIndivisible;
-  const_param<int> no_restart_xml_par;
+  const_param<int> norestart_xml_par;
   store<std::vector<char> > newCellPlan;
 
   const_store<int> node_l2f;
@@ -554,13 +554,13 @@ public:
     name_store("face2node", face2node);
     name_store("face2edge", face2edge);
     name_store("edge2node", edge2node);
-    name_store("no_restart_xml_par", no_restart_xml_par);
+    name_store("norestart_xml_par", norestart_xml_par);
    
     name_store("isIndivisible", isIndivisible);
     name_store("newCellPlan", newCellPlan);
     name_store("fileNumber(pos)", node_l2f);
     
-    input("no_restart_xml_par");
+    input("norestart_xml_par");
     input("(isIndivisible,xmlfile_par)");
     input("(lower, upper, boundary_map)->face2node->pos");
     input("(lower, upper, boundary_map)->face2edge->edge2node->pos");
@@ -822,7 +822,7 @@ class make_general_cellplan_par_norestart:public pointwise_rule{
   const_multiMap face2edge;
   const_multiMap face2node;
    const_store<bool> isIndivisible;
-  const_param<int> no_restart_par_par;
+  const_param<int> norestart_par_par;
   store<std::vector<char> > newCellPlan;
 
   const_store<int> node_l2f;
@@ -837,13 +837,13 @@ public:
     name_store("face2node", face2node);
     name_store("face2edge", face2edge);
     name_store("edge2node", edge2node);
-    name_store("no_restart_par_par", no_restart_par_par);
+    name_store("norestart_par_par", norestart_par_par);
    
     name_store("isIndivisible", isIndivisible);
     name_store("newCellPlan", newCellPlan);
     name_store("fileNumber(pos)", node_l2f);
     
-    input("no_restart_par_par");
+    input("norestart_par_par");
     input("(isIndivisible,parfile_par)");
     input("(lower, upper, boundary_map)->face2node->pos");
     input("(lower, upper, boundary_map)->face2edge->edge2node->pos");

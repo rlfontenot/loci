@@ -46,6 +46,7 @@ OBJS = Loci_version.o  Initialize.o Loci_Datatypes.o variable.o \
        keyspace.o interpolate_tools.o
 
 COPT = $(CC_LIB_FLAGS) $(COPTLESS) -DLOCI_RPATH=\"$(LOCI_RPATH)\"
+#COPT = $(CC_LIB_FLAGS) -g -O0 -DLOCI_RPATH=\"$(LOCI_RPATH)\"
 
 default:
 	cd .. ; make -f Makefile System
@@ -58,7 +59,7 @@ libLoci.a: $(OBJS)
 
 LIB_OBJS=$(OBJS:.o=_lo.o)
 libLoci.so: $(LIB_OBJS) 
-	$(SHARED_LD) $(SHARED_LD_FLAGS) libLoci.so $(LIB_FLAGS) $(LIB_OBJS) 
+	$(DYNAMIC_LD) $(DYNAMIC_LD_FLAGS) libLoci.$(LIB_SUFFIX) $(LIB_FLAGS) $(LIB_OBJS) 
 
 Loci_version.o: FORCE
 Loci_version_lo.o: FORCE
@@ -70,11 +71,11 @@ JUNK =  *~ core ii_files ti_files KCC_files so_locations rii_files
 
 .PHONY: clean
 clean:
-	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(JUNK)
+	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(JUNK) libLoci.$(LIB_SUFFIX)
 
 .PHONY: distclean
 distclean:
-	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(JUNK) $(DEPEND_FILES)
+	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(JUNK) $(DEPEND_FILES) libLoci.$(LIB_SUFFIX)
 
 
 DEPEND_FILES=$(subst .o,.d,$(OBJS))

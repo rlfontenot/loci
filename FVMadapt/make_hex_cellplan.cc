@@ -64,11 +64,11 @@ class make_hex_cellplan:public pointwise_rule{
   const_store<std::vector<char> > cellPlan;
   const_store<std::vector<char> > facePlan;
   const_store<std::vector<char> > edgePlan;
-   const_store<char>  posTag;
+  const_store<char>  posTag;
   const_store<std::vector<char> > nodeTag;
   const_store<bool> isIndivisible;
   const_param<int> split_mode_par;
-  const_param<int> restart_no_xml_par;
+  const_param<int> restart_tag_par;
   store<std::vector<char> > newCellPlan;
 
   const_store<int> node_l2f;
@@ -94,8 +94,8 @@ public:
     name_store("newCellPlan", newCellPlan);
     name_store("split_mode_par", split_mode_par);
     name_store("fileNumber(face2node)", node_l2f);
-    name_store("restart_no_xml_par", restart_no_xml_par);
-    input("restart_no_xml_par");
+    name_store("restart_tag_par", restart_tag_par);
+    input("restart_tag_par");
     input("split_mode_par");
     input("(cellPlan,nodeTag, hex2face, hex2node, hexOrientCode)");
     input("isIndivisible");
@@ -232,7 +232,7 @@ class make_hex_cellplan_norestart:public pointwise_rule{
    const_store<char>  posTag;
   const_store<bool> isIndivisible;
   const_param<int> split_mode_par;
-  const_param<int> no_restart_no_xml_par;
+  const_param<int> norestart_tag_par;
   store<std::vector<char> > newCellPlan;
 
   const_store<int>  node_l2f;
@@ -252,10 +252,10 @@ public:
      name_store("posTag", posTag);
     name_store("newCellPlan", newCellPlan);
     name_store("split_mode_par", split_mode_par);
-    name_store("no_restart_no_xml_par", no_restart_no_xml_par);
+    name_store("norestart_tag_par", norestart_tag_par);
     
    name_store("fileNumber(face2node)", node_l2f);
-   input("no_restart_no_xml_par");
+   input("norestart_tag_par");
    input("split_mode_par");
    input("isIndivisible, hex2face, hex2node, hexOrientCode");
    input("(lower, upper, boundary_map)->face2node->(posTag, pos)");
@@ -518,7 +518,7 @@ class make_hex_cellplan_xml_norestart:public pointwise_rule{
  
   const_store<bool> isIndivisible;
   const_param<int> split_mode_par;
-  const_param<int> no_restart_xml_par;
+  const_param<int> norestart_xml_par;
   store<std::vector<char> > newCellPlan;
 #ifdef USE_LIBXML2
   xmlDoc* doc ;
@@ -540,11 +540,11 @@ public:
     name_store("face2edge", face2edge);
     name_store("edge2node", edge2node);
     name_store("isIndivisible", isIndivisible);
-    name_store("no_restart_xml_par", no_restart_xml_par);
+    name_store("norestart_xml_par", norestart_xml_par);
     name_store("newCellPlan", newCellPlan);
      name_store("split_mode_par", split_mode_par);
      name_store("fileNumber(face2node)", node_l2f);
-     input("no_restart_xml_par");
+     input("norestart_xml_par");
     input("split_mode_par, xmlfile_par");
     input("isIndivisible, hex2face, hex2node, hexOrientCode");
     input("(lower, upper, boundary_map)->face2node-> pos");
@@ -820,7 +820,7 @@ class make_hex_cellplan_par_norestart:public pointwise_rule{
  
   const_store<bool> isIndivisible;
   const_param<int> split_mode_par;
-  const_param<int> no_restart_par_par;
+  const_param<int> norestart_par_par;
   store<std::vector<char> > newCellPlan;
 
  vector<source_par> sources;
@@ -839,11 +839,11 @@ public:
     name_store("face2edge", face2edge);
     name_store("edge2node", edge2node);
     name_store("isIndivisible", isIndivisible);
-    name_store("no_restart_par_par", no_restart_par_par);
+    name_store("norestart_par_par", norestart_par_par);
     name_store("newCellPlan", newCellPlan);
      name_store("split_mode_par", split_mode_par);
      name_store("fileNumber(face2node)", node_l2f);
-     input("no_restart_par_par");
+     input("norestart_par_par");
     input("split_mode_par, parfile_par");
     input("isIndivisible, hex2face, hex2node, hexOrientCode");
     input("(lower, upper, boundary_map)->face2node-> pos");

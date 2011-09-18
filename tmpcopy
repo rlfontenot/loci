@@ -27,10 +27,12 @@ source=`pwd`
 logname=${LOGNAME-user}
 target=${LOCI_TARGET-/usr/tmp/$logname/}
 subdir=Loci
-
+LIB_POSTFIX="so"
 
 ARCH=${LOCI_ARCH-`uname -s`}
-
+if [ $ARCH == "Darwin" ]; then
+    LIB_POSTFIX="dylib"
+fi
 if [ $ARCH == "IRIX64" ]; then
 # If IRIX OS, default to sgi compiler, otherwise default to gcc
   COMP=${LOCI_COMP-CC_sgi}
@@ -146,26 +148,26 @@ cd lib
 #if [ ! -h libLoci.a ]; then
 #  ln -s ../System/libLoci.a libLoci.a
 #fi
-if [ ! -h libTools.so ]; then
-  ln -s ../Tools/libTools.so libTools.so
+if [ ! -h libTools.${LIB_POSTFIX} ]; then
+  ln -s ../Tools/libTools.${LIB_POSTFIX} libTools.${LIB_POSTFIX}
 fi
-if [ ! -h libLoci.so ]; then
-  ln -s ../System/libLoci.so libLoci.so
+if [ ! -h libLoci.${LIB_POSTFIX} ]; then
+  ln -s ../System/libLoci.${LIB_POSTFIX} libLoci.${LIB_POSTFIX}
 fi
 if [ ! -h fvm_m.so ]; then
   ln -s ../FVMMod/fvm_m.so fvm_m.so
 fi
-if [ ! -h libgk.so ] ; then
-  ln -s ../ParMetis-4.0/GKLib/libgk.so libgk.so
+if [ ! -h libgk.${LIB_POSTFIX} ] ; then
+  ln -s ../ParMetis-4.0/GKLib/libgk.${LIB_POSTFIX} libgk.${LIB_POSTFIX}
 fi
-if [ ! -h libmetis.so ] ; then
-  ln -s ../ParMetis-4.0/METISLib/libmetis.so libmetis.so
+if [ ! -h libmetis.${LIB_POSTFIX} ] ; then
+  ln -s ../ParMetis-4.0/METISLib/libmetis.${LIB_POSTFIX} libmetis.${LIB_POSTFIX}
 fi
-if [ ! -h libparmetis.so ] ; then
-  ln -s ../ParMetis-4.0/ParMETISLib/libparmetis.so libparmetis.so
+if [ ! -h libparmetis.${LIB_POSTFIX} ] ; then
+  ln -s ../ParMetis-4.0/ParMETISLib/libparmetis.${LIB_POSTFIX} libparmetis.${LIB_POSTFIX}
 fi
-if [ ! -h libsprng.so ] ; then
-    ln -s ../sprng/libsprng.so libsprng.so
+if [ ! -h libsprng.${LIB_POSTFIX} ] ; then
+    ln -s ../sprng/libsprng.${LIB_POSTFIX} libsprng.${LIB_POSTFIX}
 fi
 cd ../bin
 if [ ! -h lpp ] ; then 
