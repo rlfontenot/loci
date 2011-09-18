@@ -1119,6 +1119,7 @@ namespace Loci {
     int offset = 0 ;
     storeRepP new_store = var->new_store(EMPTY) ;
     read_store( group_id, new_store,offset,MPI_COMM_WORLD) ;
+      
     
     // map from file number to local numbering
     fact_db::distribute_infoP dist = facts.get_distribute_info() ;
@@ -1133,7 +1134,10 @@ namespace Loci {
       }
       var->copy(result,read_set) ;
     } else {
-
+      if(offset != 0) {
+        // shift new store by offset to correct alignment
+        new_store->shift(offset) ;
+      }
       if(read_set == EMPTY) {
         read_set = new_store->domain() ;
         var->allocate(read_set) ;
