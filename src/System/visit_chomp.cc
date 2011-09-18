@@ -189,7 +189,6 @@ namespace Loci {
     // test for self-cycle and non-chompable
     // internal variables in a graph
     // test_gr is a subgraph of gr
-    //#define CHOMP_DEBUG
 #ifdef CHOMP_DEBUG
     namespace {
       int problem_code = 0 ;
@@ -805,8 +804,51 @@ namespace Loci {
   }
   
   // edit the graph to have the chomp node,
-  void chompRuleVisitor::edit_gr(digraph& gr,const list<chomp_chain>& cc,
+  void chompRuleVisitor::edit_gr(digraph& gr,const list<chomp_chain>& ccin,
                                  rulecomp_map& rcm) {
+    // First check to see if the chomp chain will produce cycles if introduced
+    // into the graph
+    list<chomp_chain> cc ;
+    for(list<chomp_chain>::const_iterator li=ccin.begin();li!=ccin.end();++li) {
+      digraph chomp_graph = li->first ;
+      variableSet chomp_vars = li->second ;
+      digraph::vertexSet chomp_vars_vertices = get_vertexSet(chomp_vars) ;
+
+      // get all nodes that lead out of the chomp
+      digraph::vertexSet all_vertices = chomp_graph.get_all_vertices() ;
+      entitySet chomp_set = all_vertices + chomp_vars_vertices ;
+
+      entitySet out_vertices ;
+      entitySet::const_iterator ei ;
+      for(ei=chomp_set.begin();ei!=chomp_set.end();++ei)
+	out_vertices += gr[*ei] ;
+      out_vertices -= chomp_set ;
+
+      // Now follow out verticies until no new vertices are found
+      entitySet visit_set = out_vertices ;
+      entitySet found_set = out_vertices ;
+      do {
+	entitySet new_set ;
+	for(ei=found_set.begin();++ei!=found_set.end();++ei)
+	  new_set += gr[*ei] ;
+	found_set = new_set - visit_set ;
+	visit_set += found_set ;
+      } while(found_set!= EMPTY) ;
+
+      // Check to see if outgoing edges led back to chomp, if so then
+      // making this chomp a supernode will cause cycle, otherwise
+      // if it doesn't, then it is ok to process
+      if((visit_set & chomp_set) == EMPTY)
+	cc.push_back(*li) ;
+      else {
+	debugout << "NOTE:  Removing chomp chain for vars = " << chomp_vars
+		 << endl ;
+	debugout << "cycle variables = " 
+		 <<  extract_vars(visit_set & chomp_set)
+		 << endl ;
+      }
+    }
+
     if(cc.empty())
       return ;
     
