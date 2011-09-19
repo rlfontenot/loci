@@ -422,7 +422,7 @@ namespace Loci {
    //**************************************************************************/
 
   template <class T>
-  inline int storeVecRepI<T>::estimated_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset)
+  inline int storeVecRepI<T>::get_estimated_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset)
   {
     int mysize;
   
@@ -464,7 +464,7 @@ namespace Loci {
  //**************************************************************************/
 
   template <class T>
-  int storeVecRepI<T>::estimated_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset)
+  int storeVecRepI<T>::get_estimated_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset)
   {
     
 
@@ -510,7 +510,7 @@ namespace Loci {
       data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_type;
 
-    return estimated_mpi_size( traits_type, eset );
+    return get_estimated_mpi_size( traits_type, eset );
   }
 
   template<class T> int storeVecRepI<T>::

@@ -409,7 +409,10 @@ namespace Loci {
   
   template <class T> 
   int dstoreRepI<T>::estimated_pack_size( const entitySet &eset) {
-    return pack_size(eset);
+    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
+    schema_converter traits_type;
+    
+    return get_estimated_mpi_size( traits_type, eset );  
   }
 
   
@@ -432,7 +435,17 @@ namespace Loci {
   {
     return ( sizeof(T)*eset.size() );
   }
+  
 
+//*******************************************************************/
+
+  template <class T>
+  int dstoreRepI<T>::get_estimated_mpi_size( IDENTITY_CONVERTER c,
+                                   const entitySet &eset)
+  {
+    return ( sizeof(T)*eset.size() );
+  }
+  
   //*******************************************************************/
   template <class T>
   int dstoreRepI<T>::get_mpi_size( USER_DEFINED_CONVERTER c,
@@ -453,6 +466,18 @@ namespace Loci {
     numBytes  += eset.size()*sizeof(int);
     return(numBytes) ;
   }
+ //*******************************************************************/
+  template <class T>
+  int dstoreRepI<T>::get_estimated_mpi_size( USER_DEFINED_CONVERTER c,
+                                   const entitySet &eset)
+  {
+    int numBytes = 0 ;
+    numBytes = eset.size()*50*sizeof(double);
+    numBytes  += eset.size()*sizeof(int);
+    return(numBytes) ;
+   
+  }
+  
   //*******************************************************************/
   template <class T> 
   void dstoreRepI<T>::pack( void *outbuf, int &position, int &size, 

@@ -277,7 +277,6 @@ namespace Loci {
                                                    const entitySet &eset)
   {
     int numBytes = 0 ;
-    // typedef data_schema_traits<T> converter_traits;
     numBytes = eset.size()*50*sizeof(double);
     numBytes  += eset.size()*sizeof(int);
     return(numBytes) ;

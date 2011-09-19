@@ -563,7 +563,17 @@ namespace Loci {
     sze += eset.size()*sizeof(int) ;
     return sze ;
   }
+ //**************************************************************************/
 
+  template <class T> 
+  inline int multiStoreRepI<T>::get_estimated_mpi_size(IDENTITY_CONVERTER c, const entitySet &eset ) 
+  {
+
+    int sze;
+    sze = 4*eset.size()*sizeof(T) ;
+    sze += eset.size()*sizeof(int) ;
+    return sze ;
+  }
   //**************************************************************************/
   template <class T> 
   int multiStoreRepI<T>::get_mpi_size(USER_DEFINED_CONVERTER c, const entitySet &eset ) 
@@ -588,7 +598,17 @@ namespace Loci {
     return( arraySize*sizeof(typename schema_traits::Converter_Base_Type) +
             numContainers*sizeof(int) );
   }
-
+  
+ //**************************************************************************/
+  template <class T> 
+  int multiStoreRepI<T>::get_estimated_mpi_size(USER_DEFINED_CONVERTER c, const entitySet &eset ) 
+  {
+    int  vsize = 4*eset.size()*50*sizeof(double)+
+      4*eset.size()*sizeof(int)  +   // size of each object
+      eset.size()*sizeof(int);       // size of each entity
+    
+    return(vsize);
+  }
   //**************************************************************************/
   template <class T> 
   int multiStoreRepI<T>::pack_size(const entitySet &eset ) 
@@ -605,7 +625,9 @@ namespace Loci {
   template <class T> 
   int multiStoreRepI<T>::estimated_pack_size(const entitySet &eset ) 
   {
-    return pack_size(eset );
+    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
+    schema_converter traits_type;
+    return get_estimated_mpi_size( traits_type, eset );  
   }
   
 

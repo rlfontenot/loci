@@ -428,7 +428,7 @@ namespace Loci {
 
   int dMapRepI::estimated_pack_size(const entitySet &e) {
     
-    return pack_size(e) ;
+    return e.size()*sizeof(int);
   }
 
   int dMapRepI::

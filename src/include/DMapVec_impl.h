@@ -700,7 +700,7 @@ namespace Loci {
 template <unsigned int M> 
   int dMapVecRepI<M>::estimated_pack_size( const entitySet &e)
 {
-  return pack_size(e);
+  return sizeof(int) * e.size() * M ;
 }
   
   template<unsigned int M> int dMapVecRepI<M>::

@@ -49,8 +49,9 @@ namespace Loci {
     void hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER g,const entitySet &en) const;
 
     int get_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset);
+    int get_estimated_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset);
     int get_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset);
-
+    int get_estimated_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset);
     void packdata(IDENTITY_CONVERTER c,     void *ptr, int &loc, int size );
     void packdata(USER_DEFINED_CONVERTER c, void *ptr, int &loc, int size );
 
@@ -484,14 +485,17 @@ namespace Loci {
 
     return get_mpi_size( schema_converter(), eset );
   }
-
+ //**************************************************************************/
    template <class T>
   int paramRepI<T>::estimated_pack_size( const entitySet &eset)
-  {
-    // return pack_size(eset);
-    return 0;
-  }
+   {
+      typedef typename
+      data_schema_traits<T>::Schema_Converter schema_converter;
 
+    return get_estimated_mpi_size( schema_converter(), eset );
+    
+   }
+ //**************************************************************************/
   template<class T> int paramRepI<T>::
   pack_size(const entitySet& e, entitySet& packed) {
     packed = domain() & e ;    
@@ -509,7 +513,14 @@ namespace Loci {
 
     return( sizeof(T) ) ;
   }
+ //**************************************************************************/
 
+  template <class T>
+  int paramRepI<T>::get_estimated_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset)
+  {
+
+    return( sizeof(T) ) ;
+  }
   //**************************************************************************/
 
   template <class T>
@@ -522,6 +533,13 @@ namespace Loci {
 
     return(arraySize*sizeof(typename schema_traits::Converter_Base_Type) + sizeof(int));
   }
+   //**************************************************************************/
+
+  template <class T>
+  int paramRepI<T>::get_estimated_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset)
+  {
+    return(50*sizeof(double) + sizeof(int));
+  } 
   //**************************************************************************/
 
   template <class T>

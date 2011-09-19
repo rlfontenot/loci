@@ -334,6 +334,15 @@ namespace Loci {
 
     entitySet variable_existence(variable v) ;
     void variable_request(variable v, entitySet e) ;
+
+    void clear_variable_request(){
+      for(vmap_type::iterator mi = vmap.begin();
+          mi != vmap.end(); mi++){
+        mi->second.requested=EMPTY;
+        mi->second.extra_unit_request = EMPTY;
+      }
+    }
+    // void reset_variable_request(variable v, entitySet e=EMPTY) ;
     void set_variable_shadow(variable v, entitySet e)
     { get_sched_info(v).shadow = e ; }
     void variable_shadow(variable v, entitySet e)
@@ -416,11 +425,16 @@ namespace Loci {
       sched_info &finfo = get_sched_info(v);
       finfo.extra_unit_request += x;
     }
+    // void reset_extra_unit_request(variable v, entitySet x=EMPTY) {
+//       sched_info &finfo = get_sched_info(v);
+//       finfo.extra_unit_request = x;
+//     }
 
     entitySet get_extra_unit_request(variable v) {
       sched_info &finfo = get_sched_info(v);
       return(finfo.extra_unit_request);
     }
+    
 
     //For map variables, it is necessary to change existence without
     //supllying any rules because Loci does not have rules

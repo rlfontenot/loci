@@ -390,7 +390,7 @@ namespace Loci
  
   int dmultiMapRepI::estimated_pack_size(const  entitySet &e ) 
   {
-    return pack_size(e);
+    return 5*e.size()*sizeof(int);
   }
   
   int dmultiMapRepI::

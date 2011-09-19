@@ -342,7 +342,7 @@ namespace Loci {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_type;
 
-    return estimated_mpi_size( traits_type, eset );
+    return get_estimated_mpi_size( traits_type, eset );
   }
 
   template<class T> int dstoreVecRepI<T>::
@@ -365,9 +365,13 @@ namespace Loci {
   
   //*************************************************************************/ 
   template <class T> 
-  int dstoreVecRepI<T>::estimated_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset) 
+  int dstoreVecRepI<T>::get_estimated_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset) 
   {
-   return (sizeof(T)*eset.size()*5 + sizeof(int));
+   int mysize;
+  
+    if( isMat) mysize = sizeof(T) * eset.size() * 25 +sizeof(int);
+    else  mysize = sizeof(T) * eset.size() * 5 +sizeof(int) ;
+    return (mysize) ; 
   }
 
 
@@ -401,16 +405,27 @@ namespace Loci {
 
  //*************************************************************************/
   template <class T> 
-  int dstoreVecRepI<T>::estimated_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset) 
+  int dstoreVecRepI<T>::get_estimated_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset) 
   {
+    
+    int     arraySize =0, numContainers = 0;
     int estimated_converter_size = 50*sizeof(double);
+   
     
-    int       arraySize =0, numContainers = 0;
-    arraySize = 5*eset.size()*estimated_converter_size;
-    numContainers =  5*eset.size();
+   
+   
+    if(isMat) arraySize = 25*eset.size()*estimated_converter_size;
+    else arraySize = 5*eset.size()*estimated_converter_size;
     
-    return(arraySize+
-           (numContainers+1)*sizeof(int) );
+    
+    
+    if(isMat) numContainers =  25*eset.size();
+    else  numContainers =  5*eset.size();
+    
+    
+    return(arraySize +
+           (numContainers+1)*sizeof(int));
+    
   }
 
 

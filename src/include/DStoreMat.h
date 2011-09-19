@@ -54,8 +54,8 @@ namespace Loci {
 
   public:
     typedef Mat<T> containerType ;
-    dstoreMat() {setRep(new storeType) ;}
-    dstoreMat(storeRepP &rp) {setRep(rp) ; }
+    dstoreMat() {setRep(new storeType) ; Rep()->setIsMat(true);}
+    dstoreMat(storeRepP &rp) {setRep(rp) ; Rep()->setIsMat(true); }
 
     virtual ~dstoreMat() ;
     virtual void notification() ;
@@ -127,9 +127,9 @@ namespace Loci {
 
   public:
     typedef const_Mat<T> containerType ;
-    const_dstoreMat() { setRep(new storeType) ; }
+    const_dstoreMat() { setRep(new storeType) ;  Rep()->setIsMat(true);}
 
-    const_dstoreMat(storeRepP &rp) { setRep(rp) ; }
+    const_dstoreMat(storeRepP &rp) { setRep(rp) ; Rep()->setIsMat(true); }
     
     virtual ~const_dstoreMat() ;
     virtual void notification() ;

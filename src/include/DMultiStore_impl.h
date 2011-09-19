@@ -340,14 +340,21 @@ namespace Loci {
 
     return get_mpi_size( traits_type, e );
   }
-   template <class T> 
+  
+  //***************************************************************************/
+  template <class T> 
   int dmultiStoreRepI<T>::estimated_pack_size(const entitySet &e ) 
   {
-    return pack_size(e);
+    
+    typedef typename
+      data_schema_traits<T>::Schema_Converter schema_converter;
+    schema_converter traits_type;
+    
+    return get_estimated_mpi_size( traits_type, e );
   }
-
-
   
+
+   //***************************************************************************/
   template<class T> int dmultiStoreRepI<T>::
   pack_size(const entitySet& e, entitySet& packed) {
     packed = domain() & e ;
@@ -370,7 +377,15 @@ namespace Loci {
     
     return( size*sizeof(T) + eset.size()*sizeof(int) ) ;
   }
+  //**************************************************************************/
 
+  template <class T>
+  int dmultiStoreRepI<T>::get_estimated_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset)
+  {
+    
+    
+    return( 4*eset.size()*sizeof(T) + eset.size()*sizeof(int) ) ;
+  }
   //**************************************************************************/
 
   template <class T>
@@ -401,7 +416,20 @@ namespace Loci {
 
     return(vsize);
   }
+  //**************************************************************************/
 
+  template <class T>
+  int dmultiStoreRepI<T>::get_estimated_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset)
+  {
+  
+    int  vsize = 4*eset.size()*50*sizeof(double)+
+      4*eset.size()*sizeof(int)  +   // size of each object
+      eset.size()*sizeof(int);       // size of each entity
+
+    return(vsize);
+  }
+
+  
   //**************************************************************************/
   
   template <class T> 

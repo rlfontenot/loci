@@ -395,7 +395,7 @@ namespace Loci {
   int blackboxRepI<T>::estimated_pack_size(const entitySet &eset) 
   {
     
-    return (sizeof(T) * eset.size() * 25);
+    return 0;
   }
   
   template <class T> 

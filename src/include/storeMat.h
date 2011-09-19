@@ -132,9 +132,9 @@ namespace Loci {
 
   public:
     typedef const_Mat<T> containerType ;
-    const_storeMat() { setRep(new storeType) ; }
+    const_storeMat() { setRep(new storeType) ; Rep()->setIsMat(true); }
 
-    const_storeMat(storeRepP rp) { setRep(rp) ; }
+    const_storeMat(storeRepP rp) { setRep(rp) ; Rep()->setIsMat(true); }
     
     virtual ~const_storeMat() ;
     virtual void notification() ;

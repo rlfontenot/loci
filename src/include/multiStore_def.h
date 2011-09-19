@@ -53,8 +53,10 @@ namespace Loci {
     void  hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER c, const entitySet &en) const;
 
     int get_mpi_size(IDENTITY_CONVERTER c, const entitySet &eset);
+    int get_estimated_mpi_size(IDENTITY_CONVERTER c, const entitySet &eset);
     int get_mpi_size(USER_DEFINED_CONVERTER c, const entitySet &eset);
-
+    int get_estimated_mpi_size(USER_DEFINED_CONVERTER c, const entitySet &eset);
+    
     void packdata(IDENTITY_CONVERTER c,     void *ptr, int &loc, int size,
                   const entitySet &e) ;
     void packdata(USER_DEFINED_CONVERTER c, void *ptr, int &loc, int size,
@@ -97,7 +99,7 @@ namespace Loci {
     
     virtual int pack_size(const entitySet& e, entitySet& packed) ;
     virtual int pack_size(const entitySet &e) ;
-     virtual int estimated_pack_size(const entitySet &e) ;
+    virtual int estimated_pack_size(const entitySet &e) ;
     virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
     virtual void unpack(void *ptr, int &loc, int &size,  const sequence &seq ) ;
     		      

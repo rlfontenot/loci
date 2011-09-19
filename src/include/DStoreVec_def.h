@@ -46,7 +46,7 @@ namespace Loci {
     entitySet                 store_domain ;
     size_t                       size;
     HASH_MAP(int,std::vector<T>)  attrib_data;
-    
+    bool         isMat; //if this is a storeMat
     void hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, frame_info &fi, entitySet &en) ;
     void hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER c, frame_info &fi, entitySet &usr) ;
 
@@ -55,8 +55,8 @@ namespace Loci {
 
     int get_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset);
     int get_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset);
-    int estimated_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset);
-    int estimated_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset);
+    int get_estimated_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset);
+    int get_estimated_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset);
     void packdata(IDENTITY_CONVERTER c,     void *ptr, int &loc, int size, const entitySet &e ) ;
     void packdata(USER_DEFINED_CONVERTER c, void *ptr, int &loc, int size, const entitySet &e ) ;
 
@@ -67,9 +67,9 @@ namespace Loci {
     frame_info get_frame_info(IDENTITY_CONVERTER g) ;
     frame_info get_frame_info(USER_DEFINED_CONVERTER g) ;
   public:
-    dstoreVecRepI() {}
+    dstoreVecRepI() {isMat=false;}
 
-    dstoreVecRepI(const entitySet &p) { allocate(p) ; }
+    dstoreVecRepI(const entitySet &p) { allocate(p) ; isMat=false; }
 
     virtual ~dstoreVecRepI() ;
     virtual void allocate(const entitySet &ptn) ;
@@ -103,6 +103,7 @@ namespace Loci {
     int get_size() const { return size; }
     virtual DatatypeP getType() ;
     virtual frame_info get_frame_info() ;
+    void setIsMat(bool im){isMat=im;}
   } ; 
 
   template<class T> class dstoreVec : public store_instance {
