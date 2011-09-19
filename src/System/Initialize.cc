@@ -561,7 +561,10 @@ namespace Loci {
 
   }
   //All Loci programs must end with this call.
+  extern void call_closing_functions(int code) ;
+
   void Finalize() {
+    call_closing_functions(0) ;
 #ifdef USE_PETSC
     PetscFinalize() ;
 #else
