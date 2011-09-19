@@ -53,6 +53,7 @@ namespace Loci {
     void hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, frame_info &fi, entitySet &usr);
     void hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER g, const entitySet &en) const;
     int  get_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset);
+    int  get_estimated_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset);
     void packdata(IDENTITY_CONVERTER, void *ptr, int &loc, int size,
                   const entitySet &e ) ;
     void unpackdata(IDENTITY_CONVERTER c, void *ptr, int &loc, int size,
@@ -61,7 +62,8 @@ namespace Loci {
     void hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER c, frame_info &fi, entitySet &en) ;
     void hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER g, const entitySet &en) const;
     int  get_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset);
-
+    int  get_estimated_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset);
+    
     void packdata(USER_DEFINED_CONVERTER c, void *ptr, int &loc, int size,
                   const entitySet &e ) ;
     void unpackdata(USER_DEFINED_CONVERTER c, void *ptr, int &loc, int size,
