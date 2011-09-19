@@ -1,0 +1,36 @@
+#
+# Imakefile for 2dgv
+#
+# Use the 'xmkmf' command to create the Makefile
+
+ARCH = $(shell uname -s)
+
+CXXIRIX64 = CC
+CXXOPTIRIX64 = -LANG:std -O2
+
+CXXSunOS = CC -O2
+CXXOPTSunOS = 
+
+CXXLinux = g++
+CXXOPTLinux = -Wall -O2
+
+CXXDarwin = g++
+CXXOPTDarwin = -Wall -O2
+
+CC = cc
+CXX = $(CXX$(ARCH))
+CXXOPTIONS = $(CXXOPT$(ARCH)) #-DDEBUG
+CXXDEBUGFLAGS =  #-g
+CCOPTIONS = $(CXXOPTIONS)
+CDEBUGFLAGS =  $(CXXDEBUGFLAGS)
+
+CCLINK = $(CXXLINK)
+
+DEFINES =
+LOCAL_LIBRARIES = $(XTOOLLIB) $(XAWLIB) $(XLIB)#$(XMULIBONLY) $(XTOOLLIB) $(XAWLIB) $(XLIB)
+SYS_LIBRARIES = -lm
+SRCS = device.cc Xdev.cc read_grid.cc parse.cc tools.cc main.cc draw.cc PSdev.cc
+OBJS = device.o  Xdev.o  read_grid.o  parse.o  tools.o  main.o  draw.o PSdev.o
+
+
+ComplexProgramTarget(2dgv) 
