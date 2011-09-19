@@ -413,10 +413,10 @@ namespace Loci {
   template <class T>
   inline int storeVecRepI<T>::get_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset)
   {
-    int size, M ;
+    int mysize, M ;
     M = get_size() ;
-    size = (sizeof(T) * eset.size() * M ) + sizeof(int) ;
-    return(size) ;
+    mysize = (sizeof(T) * eset.size() * M ) + sizeof(int) ;
+    return(mysize) ;
 
   }
    //**************************************************************************/
@@ -426,8 +426,8 @@ namespace Loci {
   {
     int mysize;
   
-    if( isMat) mysize = (sizeof(T) * eset.size() * 25) + sizeof(int) ;
-    else  mysize = (sizeof(T) * eset.size() * 5) + sizeof(int) ;
+    if( isMat) mysize = sizeof(T) * eset.size() * 25 +sizeof(int);
+    else  mysize = sizeof(T) * eset.size() * 5 +sizeof(int) ;
     return (mysize) ;
 
   }
@@ -470,14 +470,12 @@ namespace Loci {
 
     int     arraySize =0, numContainers = 0;
     int estimated_converter_size = 50*sizeof(double);
+   
     
-    entitySet::const_iterator ci;
-
-    fatal((eset - domain()) != EMPTY);
-
-    entitySet sdom = eset & domain() ;
-    if(isMat) arraySize = 25*sdom.size()*estimated_converter_size;
-    else arraySize = 5*sdom.size()*estimated_converter_size;
+   
+   
+    if(isMat) arraySize = 25*eset.size()*estimated_converter_size;
+    else arraySize = 5*eset.size()*estimated_converter_size;
     
     
     
