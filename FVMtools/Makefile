@@ -26,7 +26,7 @@ COPT = $(COPTLESS)
 # List the name of your compiled program here
 TARGET = extract
 
-OTHER_APPS = cfd++2xdr cobalt2xdr solidMesh2xdr plot3d2xdr plot3d2vog pb make_periodic xdr2cobalt xdr2vog vog2xdr ugrid2vog fluent2vog cobalt2vog vogmerge vogcut vogcheck extruder vog2surf ccm2vog
+OTHER_APPS = cfd++2xdr plot3d2vog make_periodic xdr2cobalt xdr2vog vog2xdr ugrid2vog fluent2vog cobalt2vog vogmerge vogcut vogcheck extruder vog2surf ccm2vog
 
 # List your object files here
 OBJS =  extract.o extract_ensight.o extract_2dgv.o extract_ascii.o extract_tecplot.o extract_fv.o extract_cut.o extract_surf.o extract_mean.o
@@ -89,23 +89,11 @@ vogmerge: vogmerge.o
 vogcut: vogcut.o vogtools.o
 	$(LD) -o vogcut vogcut.o vogtools.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
-cobalt2xdr: cobalt2xdr.o
-	$(LD) -o cobalt2xdr cobalt2xdr.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
-
 cfd++2xdr: cfd++2xdr.o
 	$(LD) -o cfd++2xdr cfd++2xdr.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
-plot3d2xdr: plot3d2xdr.o
-	$(LD) -o plot3d2xdr plot3d2xdr.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
-
 plot3d2vog: plot3d2vog.o vogtools.o
 	$(LD) -o plot3d2vog plot3d2vog.o vogtools.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
-
-solidMesh2xdr: solidMesh2xdr.o
-	$(LD) -o solidMesh2xdr solidMesh2xdr.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
-
-pb: pb.o predicates.o
-	$(LD) -o pb pb.o predicates.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
 make_periodic: make_periodic.o predicates.o vogtools.o
 	$(LD) -o make_periodic make_periodic.o predicates.o vogtools.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
