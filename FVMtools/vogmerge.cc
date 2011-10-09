@@ -470,18 +470,9 @@ void createNodeMap(const vector<coord3d>& pos,
                    std::map<int, vector<int> >& nodeID)
 {
   int sz =pos.size();
-  
-  //matrix for closure algorithm
-  int** matrix = new int*[sz];
-  for(int i = 0; i < sz; i++){
-    matrix[i] = new int[sz];
-  }
-  
-  //initialize matrix
-  for (int i = 0; i < sz; i++)
-    for(int j = 0; j < sz; j++)
-      matrix[i][j] = 0;
 
+  // Sparse matrix using entitySets  
+  vector<entitySet> matrix(sz)  ;
   
   //each point get an id
   vector<int> pntid(sz);
@@ -510,7 +501,8 @@ void createNodeMap(const vector<coord3d>& pos,
     for(unsigned int pi = 0; pi < found_pts.size(); pi++){
       vect3d p = vect3d(found_pts[pi].coords[0], found_pts[pi].coords[1], found_pts[pi].coords[2]);
       if(norm(p - center) <= min_len[i] && i != found_pts[pi].id){
-        matrix[i][found_pts[pi].id] = matrix[found_pts[pi].id][i] = 1;
+	matrix[i] += found_pts[pi].id ;
+	matrix[found_pts[pi].id] += i  ;
       }   
     }
     
@@ -520,36 +512,31 @@ void createNodeMap(const vector<coord3d>& pos,
   bool updated = true;
   while(updated){
     updated = false;
-    for(int i = 0; i < sz; i++){
-      for(int j = 0; j < sz; j++){
-        if(matrix[i][j] == 1){
+    for(int i = 0; i < sz; i++) {
+      for(entitySet::const_iterator ei=matrix[i].begin();
+	  ei != matrix[i].end(); ++ei) {
+	int j = *ei ;
           for(int k = 0; k < sz; k++){
-            if(matrix[j][k]==1 && i !=k){
-              if(matrix[i][k] == 0 ){
+            if(i!= k && matrix[j].inSet(k)){
+              if(!matrix[i].inSet(k)){
                 updated = true;
               }
-              matrix[i][k] =1;
+              matrix[i] += k ;
             }
           }
-        }
       }
     }
   }
   
   for(int i = 0; i < sz; i++){
     vector<int> eqPoints;
-    for(int j = 0; j < sz; j++){
-      if(matrix[i][j] ==1){
-        eqPoints.push_back(j);
-      }
+    for(entitySet::const_iterator ei=matrix[i].begin();
+	ei != matrix[i].end(); ++ei) {
+      int j = *ei ;
+      eqPoints.push_back(j);
     }
     if(eqPoints.size() >0) nodeID[i] = eqPoints;
   }
- 
-  for(int i = 0; i < sz; i++) delete [] matrix[i];
-  delete [] matrix;
-
- 
 }
 
 //find deleted nodes,set the global index in nodeMap, and update fileData
@@ -577,7 +564,7 @@ void setNodeIndex(const std::map<int, vector<int> >& nodeID,
     }
   }
   for(int i = 0; i < num_inputs; i++){
-  fileData[i].numActualNodes = fileData[i].numNodes - numDelNodes[i];
+    fileData[i].numActualNodes = fileData[i].numNodes - numDelNodes[i];
   }
   
   //compute nodeOffset in fileData
@@ -710,7 +697,7 @@ void createFaceMap(const vector<vector<int> >& face2node,
         continue; //no matched nodes
       }
       vector<int>  firstNodes = vector<int>(pnt->second);
-        bool found = false;
+      bool found = false;
       for(unsigned int ni = 0; ni < firstNodes.size(); ni++){
        
         for(int fi = 0; fi < node2face.num_elems(firstNodes[ni]); fi++){
@@ -733,10 +720,10 @@ void createFaceMap(const vector<vector<int> >& face2node,
               }else if(faceMap[f].block_id == faceMap[theface].block_id){
                 if(faceMap[f].face_id < faceMap[theface].face_id){
                   faceMap[f].mapped = 1;
-                faceMap[theface].mapped = -1;
-                numDelFaces[faceMap[theface].block_id]++;
-                faceMap[f].cl =  faceMap[f].cl + fileData[faceMap[f].block_id].cellOffset;
-                faceMap[f].cr =  faceMap[theface].cl + fileData[faceMap[theface].block_id].cellOffset;
+		  faceMap[theface].mapped = -1;
+		  numDelFaces[faceMap[theface].block_id]++;
+		  faceMap[f].cl =  faceMap[f].cl + fileData[faceMap[f].block_id].cellOffset;
+		  faceMap[f].cr =  faceMap[theface].cl + fileData[faceMap[theface].block_id].cellOffset;
                 }else{
                   faceMap[theface].mapped = 1;
                   faceMap[f].mapped = -1;
@@ -1349,7 +1336,7 @@ int main(int ac, char *av[]) {
           if(boundary_ids[i][bc].second == bc_glue[i][j]){
             bc_id = boundary_ids[i][bc].first;
             break;
-        }
+	  }
         }
         if(bc_id==-1 && bc_glue[i][j].substr(0,3)=="BC_"){
           bc_id = atoi(bc_glue[i][j].substr(3).c_str());
@@ -1522,7 +1509,7 @@ int main(int ac, char *av[]) {
         nodeMap_start += fileData[i].numBdNodes;
       }else{
         
-         // Now write out this file's part of the positions
+	// Now write out this file's part of the positions
         H5Sselect_hyperslab(dataspace,H5S_SELECT_SET, &start,&stride,&count,NULL)  ;
         dimension = count ;
         rank = 1 ;
@@ -1644,8 +1631,8 @@ int main(int ac, char *av[]) {
         
           for(unsigned long ii = 0; ii < fileData[i].numBdFaces; ii++){
             
-          if(faceMap[faceMap_start+ii].mapped==-1)fused[faceMap[faceMap_start+ii].face_id] = -1;
-          else CR[faceMap[faceMap_start+ii].face_id]=faceMap[faceMap_start+ii].cr;
+	    if(faceMap[faceMap_start+ii].mapped==-1)fused[faceMap[faceMap_start+ii].face_id] = -1;
+	    else CR[faceMap[faceMap_start+ii].face_id]=faceMap[faceMap_start+ii].cr;
           
           }
           
@@ -1655,183 +1642,183 @@ int main(int ac, char *av[]) {
 
 
         
-      for(size_t c=0;c<size;++c) { // Loop over clusters
-        count = csizes[c] ;
-        vector<unsigned char> cluster(count) ;
-        H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&start,&stride,&count,NULL) ;
-        dimension = count ;
-        memspace = H5Screate_simple(rank,&dimension,NULL) ;
-        err = H5Dread(dataset,H5T_NATIVE_UCHAR,memspace,dspace,H5P_DEFAULT,&cluster[0]) ;
-        if(err < 0) {
-          cerr << "unable to read cluster from file '" << input_files[i]
-               << "'" << endl ;
-        }
-        start += count ;
+	for(size_t c=0;c<size;++c) { // Loop over clusters
+	  count = csizes[c] ;
+	  vector<unsigned char> cluster(count) ;
+	  H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&start,&stride,&count,NULL) ;
+	  dimension = count ;
+	  memspace = H5Screate_simple(rank,&dimension,NULL) ;
+	  err = H5Dread(dataset,H5T_NATIVE_UCHAR,memspace,dspace,H5P_DEFAULT,&cluster[0]) ;
+	  if(err < 0) {
+	    cerr << "unable to read cluster from file '" << input_files[i]
+		 << "'" << endl ;
+	  }
+	  start += count ;
 
-        // Now scan cluster into local buffers
-        int nfaces = Loci::getClusterNumFaces(&cluster[0]) ;
-        Loci::entitySet fclust = Loci::interval(0,nfaces-1) ;
-        Loci::store<int> fcnts ;
-        fcnts.allocate(fclust) ;
-        Loci::fillClusterFaceSizes(&cluster[0],&fcnts[0]) ;
-        Loci::multiMap face2node ;
-        Loci::Map cl,cr ;
-        face2node.allocate(fcnts) ;
-        cl.allocate(fclust) ;
-        cr.allocate(fclust) ;
-        Loci::fillFaceInfo(&cluster[0],face2node,cl,cr,0) ;
-        if(gridXform[i].leftHanded()) {
-          // If coordinate system changes handedness, we need to flip face
-          // ordering to get correct normal orientation
-          for(int f=0;f<nfaces;++f) {
-            int fsz = face2node[f].size() ;
-            for(int n=0;n<fsz/2;++n) {
-              std::swap(face2node[f][n],face2node[f][fsz-1-n]) ;
-            }
-          }
-        }
+	  // Now scan cluster into local buffers
+	  int nfaces = Loci::getClusterNumFaces(&cluster[0]) ;
+	  Loci::entitySet fclust = Loci::interval(0,nfaces-1) ;
+	  Loci::store<int> fcnts ;
+	  fcnts.allocate(fclust) ;
+	  Loci::fillClusterFaceSizes(&cluster[0],&fcnts[0]) ;
+	  Loci::multiMap face2node ;
+	  Loci::Map cl,cr ;
+	  face2node.allocate(fcnts) ;
+	  cl.allocate(fclust) ;
+	  cr.allocate(fclust) ;
+	  Loci::fillFaceInfo(&cluster[0],face2node,cl,cr,0) ;
+	  if(gridXform[i].leftHanded()) {
+	    // If coordinate system changes handedness, we need to flip face
+	    // ordering to get correct normal orientation
+	    for(int f=0;f<nfaces;++f) {
+	      int fsz = face2node[f].size() ;
+	      for(int n=0;n<fsz/2;++n) {
+		std::swap(face2node[f][n],face2node[f][fsz-1-n]) ;
+	      }
+	    }
+	  }
         
         
-        Loci::entitySet act_fclust;
-        Loci::store<int> act_fcnts ;
-        Loci::multiMap act_face2node ;
-        Loci::Map act_cl,act_cr ;
-        for(int f=0;f<nfaces;++f) {
+	  Loci::entitySet act_fclust;
+	  Loci::store<int> act_fcnts ;
+	  Loci::multiMap act_face2node ;
+	  Loci::Map act_cl,act_cr ;
+	  for(int f=0;f<nfaces;++f) {
           
-          if(fused[face_id_start+f] != -1) act_fclust += f;
-        }
+	    if(fused[face_id_start+f] != -1) act_fclust += f;
+	  }
        
 
        
-        if(act_fclust.size() ==0){
-          face_id_start += nfaces;
-          continue;
-        }
-        act_fcnts.allocate(act_fclust);
-        for(entitySet::const_iterator ei = act_fclust.begin(); 
-            ei != act_fclust.end(); ei++){
-          act_fcnts[*ei] = fcnts[*ei];
-        }
-        act_cl.allocate(act_fclust);
-        act_cr.allocate(act_fclust);
-        act_face2node.allocate(act_fcnts);
+	  if(act_fclust.size() ==0){
+	    face_id_start += nfaces;
+	    continue;
+	  }
+	  act_fcnts.allocate(act_fclust);
+	  for(entitySet::const_iterator ei = act_fclust.begin(); 
+	      ei != act_fclust.end(); ei++){
+	    act_fcnts[*ei] = fcnts[*ei];
+	  }
+	  act_cl.allocate(act_fclust);
+	  act_cr.allocate(act_fclust);
+	  act_face2node.allocate(act_fcnts);
         
        
-        for(entitySet::const_iterator  f=act_fclust.begin();
-            f != act_fclust.end(); f++) {
-          if(find( glue_info[i].begin(),  glue_info[i].end(), -cr[*f])!=  glue_info[i].end()){//boundary face
+	  for(entitySet::const_iterator  f=act_fclust.begin();
+	      f != act_fclust.end(); f++) {
+	    if(find( glue_info[i].begin(),  glue_info[i].end(), -cr[*f])!=  glue_info[i].end()){//boundary face
             
-            int fsz = face2node[*f].size() ;
-            for(int n=0;n<fsz;++n){
-              act_face2node[*f][n] = used[face2node[*f][n]];
-            }
+	      int fsz = face2node[*f].size() ;
+	      for(int n=0;n<fsz;++n){
+		act_face2node[*f][n] = used[face2node[*f][n]];
+	      }
             
-            act_cl[*f] = cl[*f] + fileData[i].cellOffset ;
-            act_cr[*f] = CR[face_id_start+int(*f)];
-            if(act_cr[*f]<0){
-               map<int,int>::const_iterator mi ;
-              if((mi=bcr.find(cr[*f])) != bcr.end()) {
-                act_cr[*f] = mi->second ;
-              } else{
-              int id = -act_cr[*f] ;
-              char bcname[512] ;
-              sprintf(bcname,"BC_%d",id) ;
-              string bcstr(bcname) ;
+	      act_cl[*f] = cl[*f] + fileData[i].cellOffset ;
+	      act_cr[*f] = CR[face_id_start+int(*f)];
+	      if(act_cr[*f]<0){
+		map<int,int>::const_iterator mi ;
+		if((mi=bcr.find(cr[*f])) != bcr.end()) {
+		  act_cr[*f] = mi->second ;
+		} else{
+		  int id = -act_cr[*f] ;
+		  char bcname[512] ;
+		  sprintf(bcname,"BC_%d",id) ;
+		  string bcstr(bcname) ;
               
-              map<string,string>::const_iterator mis ;
+		  map<string,string>::const_iterator mis ;
               
-                if((mis = bc_rename[i].find(bcstr)) != bc_rename[i].end())
-                  bcstr = mis->second ;
-                if(newbcs.find(bcstr) == newbcs.end())
-                  newbcs[bcstr] = bcid++ ;
-                bcr[-id] = -newbcs[bcstr] ;
-                act_cr[*f] = bcr[-id] ;
+		  if((mis = bc_rename[i].find(bcstr)) != bc_rename[i].end())
+		    bcstr = mis->second ;
+		  if(newbcs.find(bcstr) == newbcs.end())
+		    newbcs[bcstr] = bcid++ ;
+		  bcr[-id] = -newbcs[bcstr] ;
+		  act_cr[*f] = bcr[-id] ;
                
-              }
-            }
-          }else{
-            int fsz = face2node[*f].size() ;
-            for(int n=0;n<fsz;++n){
-              act_face2node[*f][n] = used[face2node[*f][n]];
+		}
+	      }
+	    }else{
+	      int fsz = face2node[*f].size() ;
+	      for(int n=0;n<fsz;++n){
+		act_face2node[*f][n] = used[face2node[*f][n]];
              
-            }
+	      }
            
-            act_cl[*f] = cl[*f] + fileData[i].cellOffset ;
-            if(cr[*f] >=0)
-              act_cr[*f] = cr[*f] +  fileData[i].cellOffset ;
-            else {
-              map<int,int>::const_iterator mi ;
-              if((mi=bcr.find(cr[*f])) != bcr.end()) {
-                act_cr[*f] = mi->second ;
-              } else {
-                int id = -cr[*f] ;
-                char bcname[512] ;
-                sprintf(bcname,"BC_%d",id) ;
-                string bcstr(bcname) ;
+	      act_cl[*f] = cl[*f] + fileData[i].cellOffset ;
+	      if(cr[*f] >=0)
+		act_cr[*f] = cr[*f] +  fileData[i].cellOffset ;
+	      else {
+		map<int,int>::const_iterator mi ;
+		if((mi=bcr.find(cr[*f])) != bcr.end()) {
+		  act_cr[*f] = mi->second ;
+		} else {
+		  int id = -cr[*f] ;
+		  char bcname[512] ;
+		  sprintf(bcname,"BC_%d",id) ;
+		  string bcstr(bcname) ;
 
-                map<string,string>::const_iterator mis ;
+		  map<string,string>::const_iterator mis ;
                 
-                if((mis = bc_rename[i].find(bcstr)) != bc_rename[i].end())
-                  bcstr = mis->second ;
-                if(newbcs.find(bcstr) == newbcs.end())
-                  newbcs[bcstr] = bcid++ ;
-                bcr[-id] = -newbcs[bcstr] ;
-                act_cr[*f] = bcr[cr[*f]] ;
+		  if((mis = bc_rename[i].find(bcstr)) != bc_rename[i].end())
+		    bcstr = mis->second ;
+		  if(newbcs.find(bcstr) == newbcs.end())
+		    newbcs[bcstr] = bcid++ ;
+		  bcr[-id] = -newbcs[bcstr] ;
+		  act_cr[*f] = bcr[cr[*f]] ;
                
-              }
+		}
               
               
-            }
+	      }
           
                                      
           
-          }
+	    }
           
-        }//for(f = ....
+	  }//for(f = ....
        
         
-        entitySet cellSet = act_cl.image(act_fclust) +act_cr.image(act_fclust) ;
-        entitySet nodeSet = Loci::MapRepP(act_face2node.Rep())->image(act_fclust) ;
-        if(cellSet.size() > 256 || nodeSet.size() > 256) {
+	  entitySet cellSet = act_cl.image(act_fclust) +act_cr.image(act_fclust) ;
+	  entitySet nodeSet = Loci::MapRepP(act_face2node.Rep())->image(act_fclust) ;
+	  if(cellSet.size() > 256 || nodeSet.size() > 256) {
          
          
-          while(act_fclust.size() != 0) {
-            vector<unsigned char> cluster_out ;
-            entitySet fcluster =Loci::faceCluster(act_face2node,act_cl,act_cr,act_fclust,
-                                                  cluster_out,cluster_sizes) ;
-            size_t swrite = fwrite(&cluster_out[0],cluster_out.size(),1,scratch) ;
-            if(swrite != 1) {
-              perror("fwrite") ;
-              cerr << "write to temporary file failed"<< endl ;
-              fclose(scratch) ;
-              Loci::Abort() ;
-            }
+	    while(act_fclust.size() != 0) {
+	      vector<unsigned char> cluster_out ;
+	      entitySet fcluster =Loci::faceCluster(act_face2node,act_cl,act_cr,act_fclust,
+						    cluster_out,cluster_sizes) ;
+	      size_t swrite = fwrite(&cluster_out[0],cluster_out.size(),1,scratch) ;
+	      if(swrite != 1) {
+		perror("fwrite") ;
+		cerr << "write to temporary file failed"<< endl ;
+		fclose(scratch) ;
+		Loci::Abort() ;
+	      }
            
-            act_fclust -= fcluster ;
+	      act_fclust -= fcluster ;
            
-          }
+	    }
          
          
 
-        }else{
+	  }else{
          
-          vector<unsigned char> clusterout =
-            Loci::encode_face_cluster(act_face2node,act_cl,act_cr,act_fclust,nodeSet,cellSet) ;
-          // Write cluster to tmp file
-          size_t swrite = fwrite(&clusterout[0],clusterout.size(),1,scratch) ;
-          if(swrite != 1) {
-            perror("fwrite") ;
-            cerr << "write to temporary file failed"<< endl ;
-            fclose(scratch) ;
-            Loci::Abort() ;
-          }
-          unsigned short clsz = clusterout.size() ;
-          cluster_sizes.push_back(clsz) ;
-        }
-        face_id_start += nfaces;
+	    vector<unsigned char> clusterout =
+	      Loci::encode_face_cluster(act_face2node,act_cl,act_cr,act_fclust,nodeSet,cellSet) ;
+	    // Write cluster to tmp file
+	    size_t swrite = fwrite(&clusterout[0],clusterout.size(),1,scratch) ;
+	    if(swrite != 1) {
+	      perror("fwrite") ;
+	      cerr << "write to temporary file failed"<< endl ;
+	      fclose(scratch) ;
+	      Loci::Abort() ;
+	    }
+	    unsigned short clsz = clusterout.size() ;
+	    cluster_sizes.push_back(clsz) ;
+	  }
+	  face_id_start += nfaces;
 
        
-      }//for(size_t c = 0; c < csizes.size()...
+	}//for(size_t c = 0; c < csizes.size()...
       }else{
 
         // Read in clusters and transform
@@ -1851,76 +1838,76 @@ int main(int ac, char *av[]) {
           }
           start += count ;
 
-        // Now scan cluster into local buffers
+	  // Now scan cluster into local buffers
 
-        int nfaces = Loci::getClusterNumFaces(&cluster[0]) ;
-        Loci::entitySet fclust = Loci::interval(0,nfaces-1) ;
-        Loci::store<int> fcnts ;
-        fcnts.allocate(fclust) ;
-        Loci::fillClusterFaceSizes(&cluster[0],&fcnts[0]) ;
-        Loci::multiMap face2node ;
-        Loci::Map cl,cr ;
-        face2node.allocate(fcnts) ;
-        cl.allocate(fclust) ;
-        cr.allocate(fclust) ;
-        Loci::fillFaceInfo(&cluster[0],face2node,cl,cr,0) ;
-        if(gridXform[i].leftHanded()) {
-          // If coordinate system changes handedness, we need to flip face
-          // ordering to get correct normal orientation
-          for(int f=0;f<nfaces;++f) {
-            int fsz = face2node[f].size() ;
-            for(int n=0;n<fsz/2;++n) {
-              std::swap(face2node[f][n],face2node[f][fsz-1-n]) ;
-            }
-          }
-        }
-        for(int f=0;f<nfaces;++f) {
-          int fsz = face2node[f].size() ;
-          for(int n=0;n<fsz;++n)
-            face2node[f][n] += fileData[i].nodeOffset ;
-          cl[f] += fileData[i].cellOffset ;
-          if(cr[f] >=0)
-            cr[f] += fileData[i].cellOffset ;
-          else {
-            map<int,int>::const_iterator mi ;
-            if((mi=bcr.find(cr[f])) != bcr.end()) {
-              cr[f] = mi->second ;
-            } else {
-              int id = -cr[f] ;
-              char bcname[512] ;
-              sprintf(bcname,"BC_%d",id) ;
-              string bcstr(bcname) ;
+	  int nfaces = Loci::getClusterNumFaces(&cluster[0]) ;
+	  Loci::entitySet fclust = Loci::interval(0,nfaces-1) ;
+	  Loci::store<int> fcnts ;
+	  fcnts.allocate(fclust) ;
+	  Loci::fillClusterFaceSizes(&cluster[0],&fcnts[0]) ;
+	  Loci::multiMap face2node ;
+	  Loci::Map cl,cr ;
+	  face2node.allocate(fcnts) ;
+	  cl.allocate(fclust) ;
+	  cr.allocate(fclust) ;
+	  Loci::fillFaceInfo(&cluster[0],face2node,cl,cr,0) ;
+	  if(gridXform[i].leftHanded()) {
+	    // If coordinate system changes handedness, we need to flip face
+	    // ordering to get correct normal orientation
+	    for(int f=0;f<nfaces;++f) {
+	      int fsz = face2node[f].size() ;
+	      for(int n=0;n<fsz/2;++n) {
+		std::swap(face2node[f][n],face2node[f][fsz-1-n]) ;
+	      }
+	    }
+	  }
+	  for(int f=0;f<nfaces;++f) {
+	    int fsz = face2node[f].size() ;
+	    for(int n=0;n<fsz;++n)
+	      face2node[f][n] += fileData[i].nodeOffset ;
+	    cl[f] += fileData[i].cellOffset ;
+	    if(cr[f] >=0)
+	      cr[f] += fileData[i].cellOffset ;
+	    else {
+	      map<int,int>::const_iterator mi ;
+	      if((mi=bcr.find(cr[f])) != bcr.end()) {
+		cr[f] = mi->second ;
+	      } else {
+		int id = -cr[f] ;
+		char bcname[512] ;
+		sprintf(bcname,"BC_%d",id) ;
+		string bcstr(bcname) ;
 
-              map<string,string>::const_iterator mis ;
+		map<string,string>::const_iterator mis ;
               
-              if((mis = bc_rename[i].find(bcstr)) != bc_rename[i].end())
-                bcstr = mis->second ;
-              if(newbcs.find(bcstr) == newbcs.end())
-                newbcs[bcstr] = bcid++ ;
-              bcr[-id] = -newbcs[bcstr] ;
-              cr[f] = bcr[cr[f]] ;
-            }
-          }
-        }
-        entitySet cellSet = cl.image(fclust) +cr.image(fclust) ;
-        entitySet nodeSet = Loci::MapRepP(face2node.Rep())->image(fclust) ;
-        if(cellSet.size() > 256 || nodeSet.size() > 256) {
-          cerr << "problem encoding cluster" << endl ;
-        }
+		if((mis = bc_rename[i].find(bcstr)) != bc_rename[i].end())
+		  bcstr = mis->second ;
+		if(newbcs.find(bcstr) == newbcs.end())
+		  newbcs[bcstr] = bcid++ ;
+		bcr[-id] = -newbcs[bcstr] ;
+		cr[f] = bcr[cr[f]] ;
+	      }
+	    }
+	  }
+	  entitySet cellSet = cl.image(fclust) +cr.image(fclust) ;
+	  entitySet nodeSet = Loci::MapRepP(face2node.Rep())->image(fclust) ;
+	  if(cellSet.size() > 256 || nodeSet.size() > 256) {
+	    cerr << "problem encoding cluster" << endl ;
+	  }
 
-        vector<unsigned char> clusterout =
-          Loci::encode_face_cluster(face2node,cl,cr,fclust,nodeSet,cellSet) ;
-        // Write cluster to tmp file
-        size_t swrite = fwrite(&clusterout[0],clusterout.size(),1,scratch) ;
-        if(swrite != 1) {
-          perror("fwrite") ;
-          cerr << "write to temporary file failed"<< endl ;
-          fclose(scratch) ;
+	  vector<unsigned char> clusterout =
+	    Loci::encode_face_cluster(face2node,cl,cr,fclust,nodeSet,cellSet) ;
+	  // Write cluster to tmp file
+	  size_t swrite = fwrite(&clusterout[0],clusterout.size(),1,scratch) ;
+	  if(swrite != 1) {
+	    perror("fwrite") ;
+	    cerr << "write to temporary file failed"<< endl ;
+	    fclose(scratch) ;
 
-          Loci::Abort() ;
-        }
-        unsigned short clsz = clusterout.size() ;
-        cluster_sizes.push_back(clsz) ;
+	    Loci::Abort() ;
+	  }
+	  unsigned short clsz = clusterout.size() ;
+	  cluster_sizes.push_back(clsz) ;
         }
       }
       
