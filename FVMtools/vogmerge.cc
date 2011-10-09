@@ -516,14 +516,16 @@ void createNodeMap(const vector<coord3d>& pos,
       for(entitySet::const_iterator ei=matrix[i].begin();
 	  ei != matrix[i].end(); ++ei) {
 	int j = *ei ;
-          for(int k = 0; k < sz; k++){
-            if(i!= k && matrix[j].inSet(k)){
-              if(!matrix[i].inSet(k)){
-                updated = true;
-              }
-              matrix[i] += k ;
-            }
-          }
+	for(entitySet::const_iterator ek=matrix[j].begin();
+	    ek!= matrix[j].end();++ek) {
+	  int k = *ek ;
+	  if(i != k) {
+	    if(!matrix[i].inSet(k)){
+	      updated = true;
+	    }
+	    matrix[i] += k ;
+	  }
+	}
       }
     }
   }
