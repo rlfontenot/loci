@@ -129,7 +129,9 @@
 #endif
 
 #if defined(LOCI_SYS_Darwin)
+#ifndef BSD
 #define BSD
+#endif
 #define DARWIN
 #define NO_THREAD_MEMORY
 #endif
