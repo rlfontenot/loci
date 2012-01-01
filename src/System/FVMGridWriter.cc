@@ -109,8 +109,8 @@ namespace Loci {
 
 
 
-    dMap node2local ;
-    dMap cell2local ;
+    std::map<int,int> node2local ;
+    std::map<int,int> cell2local ;
     int cnt = 0 ;
     entitySet::const_iterator ei ;
     for(ei = nodeSet.begin();ei!=nodeSet.end();++ei) {
