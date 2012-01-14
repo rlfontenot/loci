@@ -21,7 +21,7 @@
 #ifndef LPP_H
 #define LPP_H
 
-#include <Loci.h>
+#include "variable.h"
 #include <list>
 #include <string>
 #include <algorithm>

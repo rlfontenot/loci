@@ -26,6 +26,30 @@ using namespace std ;
 list<string> include_dirs ;
 
 bool prettyOutput = false ;
+namespace {
+  const char *revision_name = "$Name:  $" ;
+
+  std::string version() {
+    const char *p = revision_name;
+    while(*p!=':' && *p!='\0')
+      ++p ;
+    if(*p!= '\0')
+      ++p ;
+    while(*p!=' ' && *p!='\0')
+      ++p ;
+    if(*p!= '\0')
+      ++p ;
+    std::string rn ;
+    while(*p!='$' &&  *p!=' ' && *p!='\0') 
+      rn += *p++ ;
+
+    rn += " lpp compiled at " ;
+    rn += __DATE__ ;
+    rn += " " ;
+    rn += __TIME__ ;
+    return rn ;
+  }
+}
 
 void Usage(int argc, char *argv[]) {
   cerr << "Loci Pre-Processor Usage:" << endl ;
@@ -57,10 +81,10 @@ int main(int argc, char *argv[]) {
         out_given = true ;
       }
       if(argv[i][1] == 'v') {
-        cout << "Loci version: " << Loci::version() << endl ;
+        cout << "Loci version: " << version() << endl ;
       }
       if(argv[i][1] == 'V') {
-        cout << "Loci version: " << Loci::version() << endl ;
+        cout << "Loci version: " << version() << endl ;
       }
     } else {
       if(file_given == true) {

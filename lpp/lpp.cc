@@ -1514,7 +1514,6 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
       v = v.drop_assign() ;
       while(v.time() != time_ident())
         v = v.parent() ;
-      debugout << "dropped v = " << v << endl ;
       if((mi = type_map.find(v)) == type_map.end()) {
         while(v.get_info().namespac.size() != 0)
           v = v.drop_namespace() ;
