@@ -144,7 +144,7 @@ namespace Loci {
   bool pointwise_duplication = false;
   bool extended_duplication = false;
   bool collect_timings = false;
-  double time_duration_to_collect_data = MPI_Wtick()*20;
+  double time_duration_to_collect_data = 0 ;
   bool use_duplicate_model = false;
   bool use_simple_partition = false ;
   bool use_orb_partition = false ;
@@ -240,6 +240,7 @@ namespace Loci {
 #else
     MPI_Init(argc, argv) ;
 #endif
+    time_duration_to_collect_data = MPI_Wtick()*20;
     signal(SIGTERM,TerminateSignal) ;
 
     //    MPI_Errhandler_set(MPI_COMM_WORLD,MPI_ERRORS_RETURN) ;
