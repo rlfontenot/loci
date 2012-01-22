@@ -1003,14 +1003,24 @@ namespace Loci {
 
   register_rule<nodal_barth_vec> register_nodal_barth_vec ;
 
-  inline real vlimit(real Xcc, real qmin, real qmax, real qdif, real epsilon2) {
-    const real deltap = (qdif>0.0)?qmin-Xcc:qmax-Xcc;
-    const real deltam = -qdif ;
-    const real denom = (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
-    real lim = 1. ;
-    if (fabs(denom) > 0) lim = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) / denom ;
-    else lim = 1. ;
-    return lim ;
+
+  inline real vlimit(real Xcc, real qmin, real qmax, real qdif, real eps2,
+		     real ref) {
+#ifdef REFLIM
+    // old way of preventing div zero errors
+    if(fabs(qdif)<=ref*1e-4) return 1.0 ;
+#endif
+    // delta +
+    const real delp = (qdif>0.0)?qmin-Xcc:qmax-Xcc;
+    // delta -
+    const real delm = -qdif ;
+    // numerator of limiter
+    const real num = ((delp*delp+eps2)*delm+ 2.0*delm*delm*delp)  ;
+    // denominator of limiter
+    const real den = (delm*(delp*delp+2.0*delm*delm+delm*delp+eps2)) ;
+    // make the limiting case of 0/0 work as expected
+    const real e = (den >= 0.0?1.0e-30:-1.0e-30) ;
+    return (num+e)/(den+e) ;
   }
     
   // The following is another way to get the limiter of gradient approach.
@@ -1068,7 +1078,7 @@ namespace Loci {
     const int vs = X.vecSize() ;
     
     for(int i=0;i<vs;++i)
-      ref += X[cc][i] ;
+      ref += fabs(X[cc][i]) ;
     ref = max(ref,1e-5) ;
 
     const real refsq = ref*ref ;
@@ -1104,24 +1114,13 @@ namespace Loci {
         const int fc = *fi ;
         real Xf = Xcc + dot(Xgr,(facecenter[fc]-cctr)) ;
         real qdif = Xcc -Xf ;
-        real lim = 1.0 ;
-        
-        if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
-        else {
-	  lim = vlimit(Xcc,qmin,qmax,qdif,epsilon2) ;
-        }
-        limi = min(limi,lim) ;
+        limi = min(limi,vlimit(Xcc,qmin,qmax,qdif,epsilon2,ref)) ;
       }
       for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
         const int fc = *fi ;
         real Xf = Xcc + dot(Xgr,(facecenter[fc]-cctr)) ;
         real qdif = Xcc -Xf ;
-        real lim = 1.0 ;
-        if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
-        else {
-	  lim = vlimit(Xcc,qmin,qmax,qdif,epsilon2) ;
-        }
-        limi = min(limi,lim) ;
+        limi = min(limi,vlimit(Xcc,qmin,qmax,qdif,epsilon2,ref)) ;
       }
       limiterv[cc][i] = limi ;
     }
@@ -1234,24 +1233,13 @@ namespace Loci {
       const int fc = *fi ;
       real Xf = Xcc + dot(Xgr,(facecenter[fc]-cctr)) ;
       real qdif = Xcc -Xf ;
-      real lim = 1.0 ;
-        
-      if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
-      else {
-	lim = vlimit(Xcc,qmin,qmax,qdif,epsilon2) ;
-      }
-      limi = min(limi,lim) ;
+      limi = min(limi,vlimit(Xcc,qmin,qmax,qdif,epsilon2,ref)) ;
     }
     for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
       const int fc = *fi ;
       real Xf = Xcc + dot(Xgr,(facecenter[fc]-cctr)) ;
       real qdif = Xcc -Xf ;
-      real lim = 1.0 ;
-      if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
-      else {
-	lim = vlimit(Xcc,qmin,qmax,qdif,epsilon2) ;
-      }
-      limi = min(limi,lim) ;
+      limi = min(limi,vlimit(Xcc,qmin,qmax,qdif,epsilon2,ref)) ;
     }
     grad_limiter[cc] = limi ;
   }
@@ -1372,20 +1360,9 @@ namespace Loci {
       vect3d Xf = Xcc + vect3d(dot(Xgr.x,drl),dot(Xgr.y,drl),dot(Xgr.z,drl)) ;
       vect3d qdif = Xcc -Xf ;
 
-      vect3d lim = vect3d(1.0,1.0,1.0) ;
-        
-      if(fabs(qdif.x) > ref*1e-4) {
-	lim.x = vlimit(Xcc.x,qmin.x,qmax.x,qdif.x,epsilon2) ;
-      }
-      if(fabs(qdif.y) > ref*1e-4) {
-	lim.y = vlimit(Xcc.y,qmin.y,qmax.y,qdif.y,epsilon2) ;
-      }
-      if(fabs(qdif.z) > ref*1e-4) {
-	lim.z = vlimit(Xcc.z,qmin.z,qmax.z,qdif.z,epsilon2) ;
-      }
-      limi.x = min(limi.x,lim.x) ;
-      limi.y = min(limi.y,lim.y) ;
-      limi.z = min(limi.z,lim.z) ;
+      limi.x = min(limi.x,vlimit(Xcc.x,qmin.x,qmax.x,qdif.x,epsilon2,ref)) ;
+      limi.y = min(limi.y,vlimit(Xcc.y,qmin.y,qmax.y,qdif.y,epsilon2,ref)) ;
+      limi.z = min(limi.z,vlimit(Xcc.z,qmin.z,qmax.z,qdif.z,epsilon2,ref)) ;
     }
     for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
       const int fc = *fi ;
@@ -1393,20 +1370,9 @@ namespace Loci {
       vect3d Xf = Xcc + vect3d(dot(Xgr.x,drl),dot(Xgr.y,drl),dot(Xgr.z,drl)) ;
       vect3d qdif = Xcc -Xf ;
 
-      vect3d lim = vect3d(1.0,1.0,1.0) ;
-
-      if(fabs(qdif.x) > ref*1e-4) {
-	lim.x = vlimit(Xcc.x,qmin.x,qmax.x,qdif.x,epsilon2) ;
-      }
-      if(fabs(qdif.y) > ref*1e-4) {
-	lim.y = vlimit(Xcc.y,qmin.y,qmax.y,qdif.y,epsilon2) ;
-      }
-      if(fabs(qdif.z) > ref*1e-4) {
-	lim.z = vlimit(Xcc.z,qmin.z,qmax.z,qdif.z,epsilon2) ;
-      }
-      limi.x = min(limi.x,lim.x) ;
-      limi.y = min(limi.y,lim.y) ;
-      limi.z = min(limi.z,lim.z) ;
+      limi.x = min(limi.x,vlimit(Xcc.x,qmin.x,qmax.x,qdif.x,epsilon2,ref)) ;
+      limi.y = min(limi.y,vlimit(Xcc.y,qmin.y,qmax.y,qdif.y,epsilon2,ref)) ;
+      limi.z = min(limi.z,vlimit(Xcc.z,qmin.z,qmax.z,qdif.z,epsilon2,ref)) ;
     }
     grad_limiter3d[cc] = limi ;
   }
@@ -1477,7 +1443,7 @@ namespace Loci {
     const int vs = X.vecSize() ;
     
     for(int i=0;i<vs;++i)
-      ref += X[cc][i] ;
+      ref += fabs(X[cc][i]) ;
     ref = max(ref,1e-5) ;
 
     const real refsq = ref*ref ;
@@ -1513,35 +1479,19 @@ namespace Loci {
         const int fc = *fi ;
         real Xf = Xcc + dot(Xgr,(cellcenter[cr[fc]]-cctr)) ;
         real qdif = Xcc -Xf ;
-        real lim = 1.0 ;
-        
-        if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
-        else {
-          lim = vlimit(Xcc,qmin,qmax,qdif,epsilon2) ;
-        }
-        limi = min(limi,lim) ;
+	limi = min(limi,vlimit(Xcc,qmin,qmax,qdif,epsilon2,ref)) ;
       }
       for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
         const int fc = *fi ;
         real Xf = Xcc + dot(Xgr,(cellcenter[cl[fc]]-cctr)) ;
         real qdif = Xcc -Xf ;
-        real lim = 1.0 ;
-        if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
-        else {
-          lim = vlimit(Xcc,qmin,qmax,qdif,epsilon2) ;
-        }
-        limi = min(limi,lim) ;
+	limi = min(limi,vlimit(Xcc,qmin,qmax,qdif,epsilon2,ref)) ;
       }
       for(const int *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) {
         const int fc = *fi ;
         real Xf = Xcc + dot(Xgr,(facecenter[fc]-cctr)) ;
         real qdif = Xcc -Xf ;
-        real lim = 1.0 ;
-        if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
-        else {
-          lim = vlimit(Xcc,qmin,qmax,qdif,epsilon2) ;
-        }
-        limi = min(limi,lim) ;
+	limi = min(limi,vlimit(Xcc,qmin,qmax,qdif,epsilon2,ref)) ;
       }
       limiterv[cc][i] = limi ;
     }
@@ -1654,35 +1604,19 @@ namespace Loci {
       const int fc = *fi ;
       real Xf = Xcc + dot(Xgr,(cellcenter[cr[fc]]-cctr)) ;
       real qdif = Xcc -Xf ;
-      real lim = 1.0 ;
-        
-      if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
-      else {
-	lim = vlimit(Xcc,qmin,qmax,qdif,epsilon2) ;
-      }
-      limi = min(limi,lim) ;
+      limi = min(limi,vlimit(Xcc,qmin,qmax,qdif,epsilon2,ref)) ;
     }
     for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
       const int fc = *fi ;
       real Xf = Xcc + dot(Xgr,(cellcenter[cl[fc]]-cctr)) ;
       real qdif = Xcc -Xf ;
-      real lim = 1.0 ;
-      if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
-      else {
-	lim = vlimit(Xcc,qmin,qmax,qdif,epsilon2) ;
-      }
-      limi = min(limi,lim) ;
+      limi = min(limi,vlimit(Xcc,qmin,qmax,qdif,epsilon2,ref)) ;
     }
     for(const int *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) {
       const int fc = *fi ;
       real Xf = Xcc + dot(Xgr,(facecenter[fc]-cctr)) ;
       real qdif = Xcc -Xf ;
-      real lim = 1.0 ;
-      if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
-      else {
-	lim = vlimit(Xcc,qmin,qmax,qdif,epsilon2) ;
-      }
-      limi = min(limi,lim) ;
+      limi = min(limi,vlimit(Xcc,qmin,qmax,qdif,epsilon2,ref)) ;
     }
     grad_limiter[cc] = limi ;
   }
@@ -1804,20 +1738,9 @@ namespace Loci {
       vect3d Xf = Xcc + vect3d(dot(Xgr.x,drl),dot(Xgr.y,drl),dot(Xgr.z,drl)) ;
       vect3d qdif = Xcc -Xf ;
 
-      vect3d lim = vect3d(1.0,1.0,1.0) ;
-        
-      if(fabs(qdif.x) > ref*1e-4) {
-	lim.x = vlimit(Xcc.x,qmin.x,qmax.x,qdif.x,epsilon2) ;
-      }
-      if(fabs(qdif.y) > ref*1e-4) {
-	lim.y = vlimit(Xcc.y,qmin.y,qmax.y,qdif.y,epsilon2) ;
-      }
-      if(fabs(qdif.z) > ref*1e-4) {
-	lim.z = vlimit(Xcc.z,qmin.z,qmax.z,qdif.z,epsilon2) ;
-      }
-      limi.x = min(limi.x,lim.x) ;
-      limi.y = min(limi.y,lim.y) ;
-      limi.z = min(limi.z,lim.z) ;
+      limi.x = min(limi.x,vlimit(Xcc.x,qmin.x,qmax.x,qdif.x,epsilon2,ref)) ;
+      limi.y = min(limi.y,vlimit(Xcc.y,qmin.y,qmax.y,qdif.y,epsilon2,ref)) ;
+      limi.z = min(limi.z,vlimit(Xcc.z,qmin.z,qmax.z,qdif.z,epsilon2,ref)) ;
     }
     for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
       const int fc = *fi ;
@@ -1825,20 +1748,9 @@ namespace Loci {
       vect3d Xf = Xcc + vect3d(dot(Xgr.x,drl),dot(Xgr.y,drl),dot(Xgr.z,drl)) ;
       vect3d qdif = Xcc -Xf ;
 
-      vect3d lim = vect3d(1.0,1.0,1.0) ;
-
-      if(fabs(qdif.x) > ref*1e-4) {
-	lim.x = vlimit(Xcc.x,qmin.x,qmax.x,qdif.x,epsilon2) ;
-      }
-      if(fabs(qdif.y) > ref*1e-4) {
-	lim.y = vlimit(Xcc.y,qmin.y,qmax.y,qdif.y,epsilon2) ;
-      }
-      if(fabs(qdif.z) > ref*1e-4) {
-	lim.z = vlimit(Xcc.z,qmin.z,qmax.z,qdif.z,epsilon2) ;
-      }
-      limi.x = min(limi.x,lim.x) ;
-      limi.y = min(limi.y,lim.y) ;
-      limi.z = min(limi.z,lim.z) ;
+      limi.x = min(limi.x,vlimit(Xcc.x,qmin.x,qmax.x,qdif.x,epsilon2,ref)) ;
+      limi.y = min(limi.y,vlimit(Xcc.y,qmin.y,qmax.y,qdif.y,epsilon2,ref)) ;
+      limi.z = min(limi.z,vlimit(Xcc.z,qmin.z,qmax.z,qdif.z,epsilon2,ref)) ;
     }
     for(const int *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) {
       const int fc = *fi ;
@@ -1847,20 +1759,9 @@ namespace Loci {
       vect3d Xf = Xcc + vect3d(dot(Xgr.x,drl),dot(Xgr.y,drl),dot(Xgr.z,drl)) ;
       vect3d qdif = Xcc -Xf ;
 
-      vect3d lim = vect3d(1.0,1.0,1.0) ;
-
-      if(fabs(qdif.x) > ref*1e-4) {
-	lim.x = vlimit(Xcc.x,qmin.x,qmax.x,qdif.x,epsilon2) ;
-      }
-      if(fabs(qdif.y) > ref*1e-4) {
-	lim.y = vlimit(Xcc.y,qmin.y,qmax.y,qdif.y,epsilon2) ;
-      }
-      if(fabs(qdif.z) > ref*1e-4) {
-	lim.z = vlimit(Xcc.z,qmin.z,qmax.z,qdif.z,epsilon2) ;
-      }
-      limi.x = min(limi.x,lim.x) ;
-      limi.y = min(limi.y,lim.y) ;
-      limi.z = min(limi.z,lim.z) ;
+      limi.x = min(limi.x,vlimit(Xcc.x,qmin.x,qmax.x,qdif.x,epsilon2,ref)) ;
+      limi.y = min(limi.y,vlimit(Xcc.y,qmin.y,qmax.y,qdif.y,epsilon2,ref)) ;
+      limi.z = min(limi.z,vlimit(Xcc.z,qmin.z,qmax.z,qdif.z,epsilon2,ref)) ;
     }
     grad_limiter3d[cc] = limi ;
   }
