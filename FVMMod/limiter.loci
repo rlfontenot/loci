@@ -1003,17 +1003,14 @@ namespace Loci {
 
   register_rule<nodal_barth_vec> register_nodal_barth_vec ;
 
-  inline real vlimit(real Xcc,real qdif, real qmin, real qmax, 
-		     real eps2) {
+  inline real vlimit(real Xcc, real qmin, real qmax, real qdif, real epsilon2) {
     const real deltap = (qdif>0.0)?qmin-Xcc:qmax-Xcc;
     const real deltam = -qdif ;
-    const real denom = (deltam*(deltap*deltap+
-				2.0*deltam*deltam+
-				deltam*deltap+
-				eps2)) ;
-    const real lim = ((deltap*deltap+eps2)*deltam+ 2.0*deltam*deltam*deltap)/
-    max(denom,1e-30) ;
-    return denom< 1e-30?1.0:lim ;
+    const real denom = (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+    real lim = 1. ;
+    if (fabs(denom) > 0) lim = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) / denom ;
+    else lim = 1. ;
+    return lim ;
   }
     
   // The following is another way to get the limiter of gradient approach.
@@ -1107,14 +1104,23 @@ namespace Loci {
         const int fc = *fi ;
         real Xf = Xcc + dot(Xgr,(facecenter[fc]-cctr)) ;
         real qdif = Xcc -Xf ;
-        real lim = vlimit(Xcc,qdif,qmin,qmax,epsilon2) ;
+        real lim = 1.0 ;
+        
+        if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
+        else {
+	  lim = vlimit(Xcc,qmin,qmax,qdif,epsilon2) ;
+        }
         limi = min(limi,lim) ;
       }
       for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
         const int fc = *fi ;
         real Xf = Xcc + dot(Xgr,(facecenter[fc]-cctr)) ;
         real qdif = Xcc -Xf ;
-        real lim = vlimit(Xcc,qdif,qmin,qmax,epsilon2) ;
+        real lim = 1.0 ;
+        if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
+        else {
+	  lim = vlimit(Xcc,qmin,qmax,qdif,epsilon2) ;
+        }
         limi = min(limi,lim) ;
       }
       limiterv[cc][i] = limi ;
@@ -1228,14 +1234,23 @@ namespace Loci {
       const int fc = *fi ;
       real Xf = Xcc + dot(Xgr,(facecenter[fc]-cctr)) ;
       real qdif = Xcc -Xf ;
-      real lim = vlimit(Xcc,qdif,qmin,qmax,epsilon2) ;
+      real lim = 1.0 ;
+        
+      if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
+      else {
+	lim = vlimit(Xcc,qmin,qmax,qdif,epsilon2) ;
+      }
       limi = min(limi,lim) ;
     }
     for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
       const int fc = *fi ;
       real Xf = Xcc + dot(Xgr,(facecenter[fc]-cctr)) ;
       real qdif = Xcc -Xf ;
-      real lim = vlimit(Xcc,qdif,qmin,qmax,epsilon2) ;
+      real lim = 1.0 ;
+      if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
+      else {
+	lim = vlimit(Xcc,qmin,qmax,qdif,epsilon2) ;
+      }
       limi = min(limi,lim) ;
     }
     grad_limiter[cc] = limi ;
@@ -1357,9 +1372,20 @@ namespace Loci {
       vect3d Xf = Xcc + vect3d(dot(Xgr.x,drl),dot(Xgr.y,drl),dot(Xgr.z,drl)) ;
       vect3d qdif = Xcc -Xf ;
 
-      limi.x = min(limi.x,vlimit(Xcc.x,qdif.x,qmin.x,qmax.x,epsilon2)) ;
-      limi.y = min(limi.y,vlimit(Xcc.y,qdif.y,qmin.y,qmax.y,epsilon2)) ;
-      limi.z = min(limi.z,vlimit(Xcc.z,qdif.z,qmin.z,qmax.z,epsilon2)) ;
+      vect3d lim = vect3d(1.0,1.0,1.0) ;
+        
+      if(fabs(qdif.x) > ref*1e-4) {
+	lim.x = vlimit(Xcc.x,qmin.x,qmax.x,qdif.x,epsilon2) ;
+      }
+      if(fabs(qdif.y) > ref*1e-4) {
+	lim.y = vlimit(Xcc.y,qmin.y,qmax.y,qdif.y,epsilon2) ;
+      }
+      if(fabs(qdif.z) > ref*1e-4) {
+	lim.z = vlimit(Xcc.z,qmin.z,qmax.z,qdif.z,epsilon2) ;
+      }
+      limi.x = min(limi.x,lim.x) ;
+      limi.y = min(limi.y,lim.y) ;
+      limi.z = min(limi.z,lim.z) ;
     }
     for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
       const int fc = *fi ;
@@ -1367,9 +1393,20 @@ namespace Loci {
       vect3d Xf = Xcc + vect3d(dot(Xgr.x,drl),dot(Xgr.y,drl),dot(Xgr.z,drl)) ;
       vect3d qdif = Xcc -Xf ;
 
-      limi.x = min(limi.x,vlimit(Xcc.x,qdif.x,qmin.x,qmax.x,epsilon2)) ;
-      limi.y = min(limi.y,vlimit(Xcc.y,qdif.y,qmin.y,qmax.y,epsilon2)) ;
-      limi.z = min(limi.z,vlimit(Xcc.z,qdif.z,qmin.z,qmax.z,epsilon2)) ;
+      vect3d lim = vect3d(1.0,1.0,1.0) ;
+
+      if(fabs(qdif.x) > ref*1e-4) {
+	lim.x = vlimit(Xcc.x,qmin.x,qmax.x,qdif.x,epsilon2) ;
+      }
+      if(fabs(qdif.y) > ref*1e-4) {
+	lim.y = vlimit(Xcc.y,qmin.y,qmax.y,qdif.y,epsilon2) ;
+      }
+      if(fabs(qdif.z) > ref*1e-4) {
+	lim.z = vlimit(Xcc.z,qmin.z,qmax.z,qdif.z,epsilon2) ;
+      }
+      limi.x = min(limi.x,lim.x) ;
+      limi.y = min(limi.y,lim.y) ;
+      limi.z = min(limi.z,lim.z) ;
     }
     grad_limiter3d[cc] = limi ;
   }
@@ -1480,10 +1517,7 @@ namespace Loci {
         
         if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
         else {
-          const real deltap = (qdif>0.0)?qmin-Xcc:qmax-Xcc;
-          const real deltam = -qdif ;
-          lim = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
-            (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+          lim = vlimit(Xcc,qmin,qmax,qdif,epsilon2) ;
         }
         limi = min(limi,lim) ;
       }
@@ -1494,10 +1528,7 @@ namespace Loci {
         real lim = 1.0 ;
         if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
         else {
-          const real deltap =(qdif>0.0)?qmin-Xcc:qmax-Xcc;
-          const real deltam =-qdif ;
-          lim = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
-            (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+          lim = vlimit(Xcc,qmin,qmax,qdif,epsilon2) ;
         }
         limi = min(limi,lim) ;
       }
@@ -1508,10 +1539,7 @@ namespace Loci {
         real lim = 1.0 ;
         if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
         else {
-          const real deltap =(qdif>0.0)?qmin-Xcc:qmax-Xcc;
-          const real deltam =-qdif ;
-          lim = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
-            (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+          lim = vlimit(Xcc,qmin,qmax,qdif,epsilon2) ;
         }
         limi = min(limi,lim) ;
       }
@@ -1630,10 +1658,7 @@ namespace Loci {
         
       if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
       else {
-        const real deltap = (qdif>0.0)?qmin-Xcc:qmax-Xcc;
-        const real deltam = -qdif ;
-        lim = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
-          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+	lim = vlimit(Xcc,qmin,qmax,qdif,epsilon2) ;
       }
       limi = min(limi,lim) ;
     }
@@ -1644,10 +1669,7 @@ namespace Loci {
       real lim = 1.0 ;
       if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
       else {
-        const real deltap =(qdif>0.0)?qmin-Xcc:qmax-Xcc;
-        const real deltam =-qdif ;
-        lim = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
-          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+	lim = vlimit(Xcc,qmin,qmax,qdif,epsilon2) ;
       }
       limi = min(limi,lim) ;
     }
@@ -1658,10 +1680,7 @@ namespace Loci {
       real lim = 1.0 ;
       if(fabs(qdif)<=ref*1e-4) lim = 1.0 ;
       else {
-        const real deltap =(qdif>0.0)?qmin-Xcc:qmax-Xcc;
-        const real deltam =-qdif ;
-        lim = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
-          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+	lim = vlimit(Xcc,qmin,qmax,qdif,epsilon2) ;
       }
       limi = min(limi,lim) ;
     }
@@ -1788,22 +1807,13 @@ namespace Loci {
       vect3d lim = vect3d(1.0,1.0,1.0) ;
         
       if(fabs(qdif.x) > ref*1e-4) {
-        const real deltap = (qdif.x>0.0)?qmin.x-Xcc.x:qmax.x-Xcc.x;
-        const real deltam = -qdif.x ;
-        lim.x = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
-          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+	lim.x = vlimit(Xcc.x,qmin.x,qmax.x,qdif.x,epsilon2) ;
       }
       if(fabs(qdif.y) > ref*1e-4) {
-        const real deltap = (qdif.y>0.0)?qmin.y-Xcc.y:qmax.y-Xcc.y;
-        const real deltam = -qdif.y ;
-        lim.y = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
-          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+	lim.y = vlimit(Xcc.y,qmin.y,qmax.y,qdif.y,epsilon2) ;
       }
       if(fabs(qdif.z) > ref*1e-4) {
-        const real deltap = (qdif.z>0.0)?qmin.z-Xcc.z:qmax.z-Xcc.z;
-        const real deltam = -qdif.z ;
-        lim.z = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
-          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+	lim.z = vlimit(Xcc.z,qmin.z,qmax.z,qdif.z,epsilon2) ;
       }
       limi.x = min(limi.x,lim.x) ;
       limi.y = min(limi.y,lim.y) ;
@@ -1818,22 +1828,13 @@ namespace Loci {
       vect3d lim = vect3d(1.0,1.0,1.0) ;
 
       if(fabs(qdif.x) > ref*1e-4) {
-        const real deltap = (qdif.x>0.0)?qmin.x-Xcc.x:qmax.x-Xcc.x;
-        const real deltam = -qdif.x ;
-        lim.x = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
-          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+	lim.x = vlimit(Xcc.x,qmin.x,qmax.x,qdif.x,epsilon2) ;
       }
       if(fabs(qdif.y) > ref*1e-4) {
-        const real deltap = (qdif.y>0.0)?qmin.y-Xcc.y:qmax.y-Xcc.y;
-        const real deltam = -qdif.y ;
-        lim.y = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
-          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+	lim.y = vlimit(Xcc.y,qmin.y,qmax.y,qdif.y,epsilon2) ;
       }
       if(fabs(qdif.z) > ref*1e-4) {
-        const real deltap = (qdif.z>0.0)?qmin.z-Xcc.z:qmax.z-Xcc.z;
-        const real deltam = -qdif.z ;
-        lim.z = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
-          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+	lim.z = vlimit(Xcc.z,qmin.z,qmax.z,qdif.z,epsilon2) ;
       }
       limi.x = min(limi.x,lim.x) ;
       limi.y = min(limi.y,lim.y) ;
@@ -1849,22 +1850,13 @@ namespace Loci {
       vect3d lim = vect3d(1.0,1.0,1.0) ;
 
       if(fabs(qdif.x) > ref*1e-4) {
-        const real deltap = (qdif.x>0.0)?qmin.x-Xcc.x:qmax.x-Xcc.x;
-        const real deltam = -qdif.x ;
-        lim.x = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
-          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+	lim.x = vlimit(Xcc.x,qmin.x,qmax.x,qdif.x,epsilon2) ;
       }
       if(fabs(qdif.y) > ref*1e-4) {
-        const real deltap = (qdif.y>0.0)?qmin.y-Xcc.y:qmax.y-Xcc.y;
-        const real deltam = -qdif.y ;
-        lim.y = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
-          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+	lim.y = vlimit(Xcc.y,qmin.y,qmax.y,qdif.y,epsilon2) ;
       }
       if(fabs(qdif.z) > ref*1e-4) {
-        const real deltap = (qdif.z>0.0)?qmin.z-Xcc.z:qmax.z-Xcc.z;
-        const real deltam = -qdif.z ;
-        lim.z = ((deltap*deltap+epsilon2)*deltam+ 2.0*deltam*deltam*deltap) /
-          (deltam*(deltap*deltap+2.0*deltam*deltam+deltam*deltap+epsilon2)) ;
+	lim.z = vlimit(Xcc.z,qmin.z,qmax.z,qdif.z,epsilon2) ;
       }
       limi.x = min(limi.x,lim.x) ;
       limi.y = min(limi.y,lim.y) ;
