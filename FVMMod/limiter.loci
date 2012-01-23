@@ -55,9 +55,9 @@ namespace Loci {
     vector3d<double> v1 = $cr->$cellcenter-$cl->$cellcenter ;
     vector3d<double> v2 = $facecenter-$cl->$cellcenter ;
     vector3d<double> v3 = $cr->$cellcenter-$facecenter ;
-    double nv1 = norm(v1) ;
-    double nv2 = norm(v2) ;
-    double nv3 = norm(v3) ;
+    double nv1 = max(norm(v1),1e-20) ;
+    double nv2 = max(norm(v2),1e-20) ;
+    double nv3 = max(norm(v3),1e-20) ;
     double mincosa = min(dot(v1,v2)/(nv1*nv2),dot(v1,v3)/(nv1*nv3)) ;
     if(mincosa < -.866) { // Greater than 150 degrees
       char tmp = 1 ;
