@@ -26,7 +26,7 @@ TARGET = lpp
 
 
 # List your object files here
-OBJS =  lpp.o main.o
+OBJS =  lpp.o main.o variable.o
 
 
 LOCAL_LIBS =
@@ -40,8 +40,10 @@ default:
 all: $(TARGET) 
 
 
+TOOLS_LIBS = $(RPATH)$(LOCI_RPATH) -L$(LOCI_BASE)/lib -lTools -lm
+
 $(TARGET): $(OBJS) 
-	$(LD) -o $(TARGET) $(OBJS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+	$(LDBSL) -o $(TARGET) $(OBJS) $(LOCAL_LIBS) $(TOOLS_LIBS) $(LDFLAGS)
 FRC : 
 
 clean:
