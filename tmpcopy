@@ -227,6 +227,10 @@ for dir in $TOOLS_DIRS; do
     fi
   done
 done
+if [ ! -h $fulltarget/lpp/variable.cc ] ; then
+    echo ln -s $source/src/System/variable.cc $fulltarget/lpp/variable.cc
+    ln -s $source/src/System/variable.cc $fulltarget/lpp/variable.cc
+fi
 
 #echo "** Be sure to set LOCI_BASE=\"$target/Loci\" **"
 
