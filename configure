@@ -173,11 +173,13 @@ while [ $# -ne 0 ]; do
 	    echo "./configure <options>"
 	    echo "where <options> may include"
 	    echo "  --prefix <install directory>    : tell configure where to install Loci."
-	    echo "  --petsc-dir <PETSc directory>   : tell configure where to find PETSc package."
-	    echo "  --hdf5-dir <HDF5 directory>     : tell configure where to find HDF5 package."
+	    echo "  --with-hdf5 <HDF5 directory>     : tell configure where to find HDF5 package."
+	    echo "  --with-mpi <MPI directory>      : tell configure where to find MPI package."
+	    echo "  --nompi                         : tell configure to build without using MPI"
+	    echo "  --with-petsc <PETSc directory>   : tell configure where to find PETSc package."
+	    
 	    echo "  --compiler <compiler name>      : tell configure what compiler to use"
 	    echo "  --obj-dir <OBJDIR name>         : tell configure where to put object files"
-	    echo "  --nompi                         : tell configure to build without using MPI"
 	    echo "  --help                          : output this help information"
 	    exit -1
 	    ;;
