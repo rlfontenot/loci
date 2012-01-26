@@ -1109,7 +1109,7 @@ namespace Loci {
     if(verbose || exec_seq.num_intervals() < 4) {
       s << exec_seq << endl ;
     } else {
-      s << "[ ... ]" << endl ;
+      s << "[ ... ], l=" << exec_seq.size() << endl ;
     }
   }
 
