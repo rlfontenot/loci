@@ -85,6 +85,7 @@
 #define NO_FENV
 #define NO_SIGNBIT
 #define USE_MAP_FOR_HASH_MAP
+#define __thread
 #else
 #if defined(__SUNPRO_CC)
 /* Sun CC compiler */
