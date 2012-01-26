@@ -55,6 +55,10 @@ find_lib() {
 	    RETURN_VALUE=$i
 	    break ;
 	fi
+	if [ -e $i/lib$1.dylib ]; then
+	    RETURN_VALUE=$i
+	    break ;
+	fi
     done
 }
 
@@ -84,6 +88,9 @@ if [ $# -eq 0 ]; then
     echo "** NOTICE!!!!"
     echo "*******************************************************************************"
 fi
+
+MPI_BASE=/notselected
+
 while [ $# -ne 0 ]; do 
     case "$1" in
 	--prefix)
@@ -102,6 +109,14 @@ while [ $# -ne 0 ]; do
 	    tmp=$1
 	    PETSC_BASE=${tmp#--petsc-dir\=}
 	    ;;
+	--with-petsc)
+	    shift
+	    PETSC_BASE=$1
+	    ;;
+	--with-petsc\=*)
+	    tmp=$1
+	    PETSC_BASE=${tmp#--with-petsc\=}
+	    ;;
 	--hdf5-dir)
 	    shift
 	    H5PATH=$1
@@ -109,6 +124,30 @@ while [ $# -ne 0 ]; do
 	--hdf5-dir\=*)
 	    tmp=$1
 	    H5PATH=${tmp#--hdf5-dir\=}
+	    ;;
+	--with-hdf5)
+	    shift
+	    H5PATH=$1
+	    ;;
+	--with-hdf5\=*)
+	    tmp=$1
+	    H5PATH=${tmp#--with-hdf5\=}
+	    ;;
+	--mpi-dir)
+	    shift
+	    MPI_BASE=$1
+	    ;;
+	--mpi-dir\=*)
+	    tmp=$1
+	    MPI_BASE=${tmp#--mpi-dir\=}
+	    ;;
+	--with-mpi)
+	    shift
+	    MPI_BASE=$1
+	    ;;
+	--with-mpi\=*)
+	    tmp=$1
+	    MPI_BASE=${tmp#--with-mpi\=}
 	    ;;
 	--compiler)
 	    shift
@@ -161,35 +200,88 @@ echo >> sys.conf
 #setup MPI
 
 HAS_MPI=1
-find_exec mpirun
-MPI_PATH=$RETURN_VALUE
-if [ $MPI_PATH == 0 ]; then
-    HAS_MPI=0
-    MPI_PATH="/usr"
-fi
-MPI_C_COMPILER=none
-MPI_CPP_COMPILER=none
-MPI_F90_COMPILER=none
-
-if [ -e $MPI_PATH/mpicc ]; then
-    MPI_C_COMPILER=mpicc
-fi
-if [ -e $MPI_PATH/mpif90 ]; then
-    MPI_F90_COMPILER=mpif90
-fi
-if [ -e $MPI_PATH/mpic++ ]; then
-    MPI_CPP_COMPILER=mpic++
-else
-    if [ -e $MPI_PATH/mpicxx ]; then
-	MPI_CPP_COMPILER=mpicxx
+if [ $MPI_BASE == "/notselected" ]; then
+    find_exec mpirun
+    if [ $RETURN_VALUE == 0 ]; then
+	find_exec mpiexec
+    fi
+    MPI_PATH=$RETURN_VALUE
+    if [ $MPI_PATH == 0 ]; then
+	HAS_MPI=0
+	MPI_PATH="/usr"
+    fi
+    MPI_C_COMPILER=none
+    MPI_CPP_COMPILER=none
+    MPI_F90_COMPILER=none
+    
+    if [ -e $MPI_PATH/mpicc ]; then
+	MPI_C_COMPILER=mpicc
+    fi
+    if [ -e $MPI_PATH/mpif90 ]; then
+	MPI_F90_COMPILER=mpif90
+    fi
+    if [ -e $MPI_PATH/mpic++ ]; then
+	MPI_CPP_COMPILER=mpic++
     else
-	if [ -e $MPI_PATH/mpiCC ]; then
-	    MPI_CPP_COMPILER=mpiCC
+	if [ -e $MPI_PATH/mpicxx ]; then
+	    MPI_CPP_COMPILER=mpicxx
+	else
+	    if [ -e $MPI_PATH/mpiCC ]; then
+		MPI_CPP_COMPILER=mpiCC
+	    fi
+	fi
+    fi
+    MPI_BASE=`echo $MPI_PATH | sed "s/\/.[a-zA-Z0-9]*$//"`
+else
+    MPI_PATH=$MPI_BASE/bin
+    MPI_C_COMPILER=none
+    MPI_CPP_COMPILER=none
+    MPI_F90_COMPILER=none
+    
+    if [ -e $MPI_PATH/mpicc ]; then
+	MPI_C_COMPILER=mpicc
+    fi
+    if [ -e $MPI_PATH/mpif90 ]; then
+	MPI_F90_COMPILER=mpif90
+    fi
+    if [ -e $MPI_PATH/mpic++ ]; then
+	MPI_CPP_COMPILER=mpic++
+    else
+	if [ -e $MPI_PATH/mpicxx ]; then
+	    MPI_CPP_COMPILER=mpicxx
+	else
+	    if [ -e $MPI_PATH/mpiCC ]; then
+		MPI_CPP_COMPILER=mpiCC
+	    fi
 	fi
     fi
 fi
 
-MPI_BASE=`echo $MPI_PATH | sed "s/\/.[a-zA-Z0-9]*$//"`
+MPI_LIBRARY=""
+
+if [ -e $MPI_BASE/lib/libmpi.a ]; then
+    MPI_LIBRARY="-lmpi"
+fi
+if [ -e $MPI_BASE/lib/libmpi.so ]; then
+    MPI_LIBRARY="-lmpi"
+fi
+if [ -e $MPI_BASE/lib/libmpi.dylib ]; then
+    MPI_LIBRARY="-lmpi"
+fi
+
+if [ $MPI_LIBRARY=="" ]; then
+    
+    if [ -e $MPI_BASE/lib/libmpich.a ]; then
+	MPI_LIBRARY="-lmpich"
+    fi
+    if [ -e $MPI_BASE/lib/libmpich.so ]; then
+	MPI_LIBRARY="-lmpich"
+    fi
+    if [ -e $MPI_BASE/lib/libmpich.dylib ]; then
+	MPI_LIBRARY="-lmpich"
+    fi
+fi
+
 
 echo \# MPI Libraries Setup >> sys.conf
 if [ $NO_MPI == 1 ] ; then
@@ -209,12 +301,12 @@ else
     if [ "$MPI_C_COMPILER" == "none" ]; then
 	if [ "$ARCH" == "IRIX64" ]; then
 	    echo MPI_BASE = /usr/ >> sys.conf
-	    echo MPI_LIBS = -L/usr/lib64 \$\(RPATH\)/usr/lib64 -lmpi >> sys.conf
+	    echo MPI_LIBS = -L/usr/lib64 \$\(RPATH\)/usr/lib64 $MPI_LIBRARY >> sys.conf
 	    echo MPI_INCLUDE = -DMPI_NO_CPPBIND >> sys.conf
 	    echo MPI_RUN = mpirun >> sys.conf
 	else
 	    echo MPI_BASE =  $MPI_BASE >> sys.conf
-	    echo MPI_LIBS =  -L$MPI_BASE/lib -lmpi >> sys.conf
+	    echo MPI_LIBS =  -L$MPI_BASE/lib $MPI_LIBRARY >> sys.conf
 	    echo MPI_INCLUDE = -I$MPI_BASE/include  >> sys.conf
 	    echo MPI_RUN=$MPI_PATH/mpirun >> sys.conf
 	fi
