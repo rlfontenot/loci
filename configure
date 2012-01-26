@@ -200,7 +200,7 @@ if [ $NO_MPI == 1 ] ; then
 
     echo MPI_BASE = >> sys.conf
     echo MPI_LIBS = >> sys.conf
-    echo MPI_INCLUDE = -I\$\(LOCI_BASE\)/include/MPI_Stubb >> sys.conf
+    echo MPI_INCLUDE = -I\$\(LOCI_BASE\)/include/MPI_stubb >> sys.conf
     echo MPI_RUN = none >> sys.conf
     echo MPI_C_COMPILER = none >> sys.conf
     echo MPI_CPP_COMPILER = none >> sys.conf
