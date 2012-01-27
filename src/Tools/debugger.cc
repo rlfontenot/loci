@@ -44,9 +44,6 @@
 
 #include "Tools/debugger.h"
 
-#include <mpi.h>
-
-
 #include <iostream>
 
 using std::cerr ;
@@ -109,18 +106,18 @@ namespace Loci {
     void (*dbc)() = debug_callback ;
     debug_callback = 0 ;
 
-    int MPI_rank ;
-    MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank) ;
-    cerr << "program failed on processor " << MPI_rank << endl ;
-
-    if(dbc == 0)
-      MPI_Abort(MPI_COMM_WORLD,-1) ;
+    if(dbc == 0) {
+      call_closing_functions(-2) ;
+      exit(-1) ;
+    }
 
     if(dbc != 0)
       (*dbc)() ;
 
-    if(!debugger_setup)
-      MPI_Abort(MPI_COMM_WORLD,-1);
+    if(!debugger_setup) {
+      call_closing_functions(-2) ;
+      exit(-1) ;
+    }
     
     int pid = getpid() ;
     char buf[512] ;
@@ -173,7 +170,8 @@ extern "C" {
     }
     fprintf(stderr,"ERROR: Program terminated due to %s\n",sigtype) ;
     Loci::debugger_() ;
-    MPI_Abort(MPI_COMM_WORLD,-1) ;
+    Loci::call_closing_functions(-2) ;
+    exit(-1) ;
   }
 }
 

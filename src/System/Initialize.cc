@@ -224,6 +224,19 @@ extern "C" {
 }
 
 namespace Loci {
+  extern   void register_closing_function(void (*fptr)(int code)) ;
+
+  void closeoutMPI(int code) {
+    if(code == -1) {
+      int MPI_rank ;
+      MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank) ;
+      cerr << "program failed on processor " << MPI_rank << endl ;
+    }
+    if(code == -2) {
+      MPI_Abort(MPI_COMM_WORLD,-1) ;
+    }
+    
+  }
   //This is the first call to be made for any Loci program be it
   //sequential or parallel.
   void Init(int* argc, char*** argv)  {
@@ -559,7 +572,7 @@ namespace Loci {
       cerr << "Out of memory: " << x.what() <<endl ;
       Loci::Abort() ;
     }
-
+    register_closing_function(closeoutMPI) ;
   }
   //All Loci programs must end with this call.
   extern void call_closing_functions(int code) ;
