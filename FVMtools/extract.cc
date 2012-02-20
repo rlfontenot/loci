@@ -60,6 +60,8 @@ void Usage(int ac, char *av[]) {
        << "-fv :  extract for the FieldView post-processing package" << endl
        << "-en :  extract for the Ensight post-processing package" << endl
        << "-tec:  extract for the TecPlot post-procesing package" << endl
+       << "-vtk:  extract for the Paraview post-procesing package" << endl
+       << "-vtk_surf:  extract boundary surface mesh for the Paraview post-procesing package" << endl
        << "-ascii: extract to an ascii file" << endl
        << "-surf: extract boundary surface mesh" << endl
        << "-cut:  extract a cutting plane for the 2dgv plotting package" << endl
@@ -1264,7 +1266,7 @@ int main(int ac, char *av[]) {
   Loci::disableDebugDir() ;
   Loci::Init(&ac,&av) ;
 
-  enum {ASCII,TWODGV,ENSIGHT,FIELDVIEW,TECPLOT,CUTTINGPLANE, SURFACE, MEAN,NONE} plot_type = NONE ;
+  enum {ASCII,TWODGV,ENSIGHT,FIELDVIEW,TECPLOT,VTK,VTK_SURFACE,CUTTINGPLANE, SURFACE, MEAN,NONE} plot_type = NONE ;
 
   string casename ;
   bool found_casename = false ;
@@ -1312,7 +1314,11 @@ int main(int ac, char *av[]) {
 	     << "         the Ensight importer.  It is recommended that you use extract -en " << endl
 	     << "         instead of extract -tec." << endl ;
 	cout << "*****************************************************************************"<< endl ;
-      } else if(!strcmp(av[i],"-cut"))
+      } else if(!strcmp(av[i],"-vtk"))
+        plot_type = VTK ;
+      else if(!strcmp(av[i],"-vtk_surf"))
+        plot_type = VTK_SURFACE ;
+      else if(!strcmp(av[i],"-cut"))
 	plot_type = CUTTINGPLANE ;
       else if(!strcmp(av[i],"-Sx")) {
 	i++ ;
@@ -1721,7 +1727,6 @@ int main(int ac, char *av[]) {
     Loci::Finalize() ;
     exit(0) ;
   }
-    
   
   // process grid topology
   grid_topo_handler *topo_out = 0 ;
@@ -1734,6 +1739,12 @@ int main(int ac, char *av[]) {
     break ;
   case TECPLOT:
     topo_out = new tecplot_topo_handler ;
+    break ;
+  case VTK:
+    topo_out = new vtk_topo_handler ;
+    break ;
+  case VTK_SURFACE:
+    topo_out = new vtk_surf_topo_handler(boundaries) ;
     break ;
   case CUTTINGPLANE:
     topo_out = new cuttingplane_topo_handler(transformMatrix, -xShift, -yShift, -zShift) ;

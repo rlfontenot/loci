@@ -248,6 +248,171 @@ public:
                                       int maxp, string valname) {}
 } ;
 
+class vtk_topo_handler : public grid_topo_handler {
+  string filename ;
+  int npnts ;
+  int ntets, nprsm, npyrm, nhexs, ngen ;
+  int nvars ;
+  int Offset ;
+  vector<Array<int, 8> > bricks ;
+  string boundary_name ;
+  float * pos;
+  float * data_store ;
+  vector<int> data_size;
+  int data_count ;
+  int * conn ;
+  int * cell_offsets ;
+  unsigned char * cell_types ;
+public:
+  vtk_topo_handler()
+  {
+    Offset = 0; 
+    data_count = 0;
+  }
+  virtual ~vtk_topo_handler() {}
+  virtual void fileWritingSequence(Array<int,7> &sequence) {
+    sequence[0] = GRID_POSITIONS ;
+    sequence[1] = GRID_VOLUME_ELEMENTS ;
+    sequence[2] = NODAL_VARIABLES ;
+    sequence[3] = GRID_BOUNDARY_ELEMENTS ;
+    sequence[4] = BOUNDARY_VARIABLES ;
+    sequence[5] = PARTICLE_POSITIONS ;
+    sequence[6] = PARTICLE_VARIABLES ;
+  }
+  virtual void open(string casename, string iteration ,int npnts,
+                    int ntets, int nprsm, int npyrm, int nhexs, int ngen,
+                    const vector<string> &bc_names,
+                    const vector<string> &variables,
+                    const vector<int> &variable_types,
+                    double time) ;
+  virtual void close() ;
+  virtual void create_mesh_positions(vector3d<float> pos[], int npnts) ;
+  virtual void create_mesh_elements() {}
+  virtual void write_tets(Array<int,4> tets[], int ntets, int block, int numblocks,int tottets) ;
+  virtual void write_pyrm(Array<int,5> prsm[], int npyrm, int block, int numblocks,int totpyrm) ;
+  virtual void write_prsm(Array<int,6> prsm[], int nprsm, int block, int numblocks,int totprsm)  ;
+  virtual void write_hexs(Array<int,8> hexs[], int nhexs, int block, int numblocks,int tothexs) ;
+  virtual void write_general_cell(int nfaces[], int nnfaces,
+                                  int nsides[], int nnsides,
+                                  int nodes[], int nnodes) ;
+  virtual void close_mesh_elements() ;
+  virtual void create_boundary_part(string name,int node_set[], int npnts) {}
+  virtual void write_quads(Array<int,4> quads[], int quad_ids[],
+                           int nquads) {}
+  virtual void write_trias(Array<int,3> trias[], int tria_ids[],
+                           int ntrias) {}
+  virtual void write_general_face(int nside_sizes[], int nside_ids[], int ngeneral,
+                             int nside_nodes[], int
+			     nside_nodes_size) {}
+  virtual void close_boundary_part() {}
+  virtual void create_nodal_output() {}
+  virtual void output_nodal_scalar(float val[], int npnts, string valname) ;
+  virtual void output_nodal_vector(vector3d<float> val[],
+                                   int npnts, string valname) ;
+  virtual void close_nodal_output() {} ; 
+  virtual void output_boundary_scalar(float val[], int node_set[],
+                                      int nvals, string
+				      valname) {}
+  virtual void output_boundary_vector(vector3d<float> val[], int node_set[],
+                                      int nvals, string
+				      valname) {}
+    
+  virtual void create_particle_positions(vector3d<float> pos[],
+                                         int np, int maxp) {}
+  virtual void output_particle_scalar(float val[], int np,
+                                      int maxp, string valname) {}
+  virtual void output_particle_vector(vector3d<float> val[], int np,
+                                      int maxp, string valname) {}
+} ;
+
+class vtk_surf_topo_handler : public grid_topo_handler {
+  string filename ;
+  int npnts, ncells;
+  int ntets, nprsm, npyrm, nhexs, ngen ;
+  int nvars ;
+  map<int,int> bmap;
+  int part_index;
+  bool output_boundary;
+  int elem_offset;
+  FILE *fid;
+  vector<Array<int, 8> > bricks ;
+  string boundary_name ;
+  vector<int> node_ids ;
+  vector<int> elem_ids ;
+  vector<int> elem_conn ;
+  vector<int> elem_offsets ;
+  map<int,int> nmap ;
+  vector<int> G2L;
+  vector<unsigned char> elem_types ;
+  vector<string> boundaries ;
+  vector<int> data_size ;
+  vector<float> elem_data ;
+  vector<string> data_names ;
+  float * position;
+public:
+  vtk_surf_topo_handler(vector<string> &these_boundaries)
+  {
+    boundaries = these_boundaries;
+    part_index = 0;
+    npnts = 0; ncells = 0; elem_offset = 0; output_boundary = false;	  
+  }
+  virtual ~vtk_surf_topo_handler() {
+    
+  }
+  virtual void fileWritingSequence(Array<int,7> &sequence) {
+    sequence[0] = GRID_BOUNDARY_ELEMENTS ;
+    sequence[1] = BOUNDARY_VARIABLES ;
+    sequence[2] = GRID_POSITIONS ;
+    sequence[3] = GRID_VOLUME_ELEMENTS ;
+    sequence[4] = NODAL_VARIABLES ;
+    sequence[5] = PARTICLE_POSITIONS ;
+    sequence[6] = PARTICLE_VARIABLES ;
+  }
+  virtual void open(string casename, string iteration ,int npnts,
+                    int ntets, int nprsm, int npyrm, int nhexs, int ngen,
+                    const vector<string> &bc_names,
+                    const vector<string> &variables,
+                    const vector<int> &variable_types,
+                    double time) ;
+  virtual void close() ;
+  virtual void create_mesh_positions(vector3d<float> pos[],int npnts);
+  virtual void create_mesh_elements() {}
+  virtual void write_tets(Array<int,4> tets[], int ntets,int block, int numblocks,int tottets) {}
+  virtual void write_pyrm(Array<int,5> prsm[], int npyrm, int block, int numblocks,int totpyrm) {}
+  virtual void write_prsm(Array<int,6> prsm[], int nprsm,int block, int numblocks,int totprsm) {}
+  virtual void write_hexs(Array<int,8> hexs[], int nhexs,int block, int numblocks,int tothexs) {}
+  virtual void write_general_cell(int nfaces[], int nnfaces,
+                                  int nsides[], int nnsides,
+                                  int nodes[], int nnodes) {}
+  virtual void close_mesh_elements() {}
+  virtual void create_boundary_part(string name,int node_set[], int npnts) ;
+  virtual void write_quads(Array<int,4> quads[], int quad_ids[],
+                           int nquads) ;
+  virtual void write_trias(Array<int,3> trias[], int tria_ids[],
+                           int ntrias) ;
+  virtual void write_general_face(int nside_sizes[], int nside_ids[], int ngeneral,
+                             int nside_nodes[], int nside_nodes_size) ;
+  virtual void close_boundary_part() ;
+  virtual void create_nodal_output() {}
+  virtual void output_nodal_scalar(float val[], int npnts,string valname) {}
+  virtual void output_nodal_vector(vector3d<float> val[],
+                                   int npnts, string valname) {}
+  virtual void close_nodal_output() {}
+  virtual void output_boundary_scalar(float val[], int node_set[],
+                                      int nvals, string valname) ;
+  virtual void output_boundary_vector(vector3d<float> val[], int node_set[],
+                                      int nvals, string valname) ;
+    
+  virtual void create_particle_positions(vector3d<float> pos[],
+                                         int np, int maxp) {}
+  virtual void output_particle_scalar(float val[], int np,
+                                      int maxp, string
+				      valname) {}
+  virtual void output_particle_vector(vector3d<float> val[], int np,
+                                      int maxp, string
+				      valname) {}
+} ;
+
 class fv_topo_handler : public grid_topo_handler {
   string dirname ;
   string filename ;
