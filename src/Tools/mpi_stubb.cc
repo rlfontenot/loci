@@ -24,8 +24,8 @@
 #ifdef MPI_STUBB
 #include <string.h>
 #include <cstdlib>
-
 #include <iostream>
+#include <sys/time.h>
 using std::cerr ;
 using std::endl ;
 const int MPI_TYPE_SIZE[] =
@@ -75,7 +75,9 @@ struct Comm_Buffer
   int copy(void *buf, int n_Size, MPI_Datatype datatype)
   {
     size = n_Size;
-    delete [] temp_buff;
+    if(temp_buff != NULL) {
+      free(temp_buff) ;
+    }
     temp_buff = malloc(MPI_GET_TYPE_SIZE(datatype) * n_Size);
     memcpy(temp_buff, buf, MPI_GET_TYPE_SIZE(datatype) * n_Size);
     return 1;
@@ -98,7 +100,9 @@ struct Comm_Buffer
     else
       {
 	size = n_Size;
-	delete [] temp_buff;
+	if(temp_buff != NULL) {
+	  free(temp_buff) ;
+	}
 
 	temp_buff = malloc(MPI_GET_TYPE_SIZE(datatype) * n_Size);
 
@@ -1068,12 +1072,15 @@ extern "C" {
 
   double  MPI_Wtime(void)
   {
-    return 0;
+    timeval tv ;
+    struct timezone tz ;
+    gettimeofday(&tv,&tz) ;
+    return double(tv.tv_sec)+1e-6*double(tv.tv_usec) ;
   }
 
   double  MPI_Wtick(void)
   {
-    return 0;
+    return 1e-6 ;
   }
 
   /* 7.5 */
