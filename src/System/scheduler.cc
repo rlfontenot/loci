@@ -111,7 +111,7 @@ namespace Loci {
   timeAccumulator ta_dist_unpack ;
 #endif
 
-#define PARTICLE_PERF
+  //#define PARTICLE_PERF
 #ifdef PARTICLE_PERF
   stopWatch sw_particle ;
   double pwalltime = 0 ;
@@ -1066,7 +1066,7 @@ namespace Loci {
     s << " -- Computation:   " << totComp << endl ;
     s << " -- Communication: " << totComm << endl ;
     s << " -- Control:       " << totCtrl << endl ;
-    double totTime = totComp+totComm+totCtrl ;
+    double totTime = totComp+totComm+totCtrl+1e-30 ;
     s << " -- totalTime:     " << totTime << endl ;
     s << endl ;
     s << "------------------------------------------------------------------------------" << endl ;
