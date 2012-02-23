@@ -59,8 +59,7 @@ void vtk_topo_handler::open(string casename, string iteration ,int inpnts,
   ngen = ingen ;
   nvars = 0 ;
   filename = "vtk_"+casename+"_"+iteration+".vtu" ;
-  int ncells = ntets+nprsm+npyrm+nhexs ;
-  string varstring = "\"x\", \"y\", \"z\"" ;
+  int ncells = ntets+nprsm+npyrm+nhexs+ngen;
   for(size_t i=0;i<variables.size();++i) {
     if(variable_types[i] == NODAL_SCALAR ||
        variable_types[i] == NODAL_DERIVED ||
@@ -85,47 +84,22 @@ void vtk_topo_handler::open(string casename, string iteration ,int inpnts,
   fclose(fid);
 }
 void vtk_topo_handler::close_mesh_elements() {
-  int ncells = bricks.size() ;
-  int *nm = &bricks[0][0];
+  int ncells = ntets+nprsm+npyrm+nhexs+ngen;
   FILE * fid = fopen(filename.c_str(),"a");
   fprintf(fid,"      <Cells>\n");
   fprintf(fid,"        <DataArray type='Int32' Name='connectivity' NumberOfComponents='1' format='appended' offset='%d'/>\n",Offset);
-  int counter=0 ;
-  conn = new int[ntets*4 + nhexs*8 + nprsm*6 + npyrm*5] ;
-  cell_offsets = new int[ntets+nhexs+nprsm+npyrm] ;
-  cell_types = new unsigned char[ntets+nhexs+nprsm+npyrm] ;
-  unsigned int tet = 10, pyrm = 14, prsm = 13, hex = 12;
-  for(int i = 0; i < ncells; i++) {
-    int j = i*8 ;
-    for (int k=0;k<4;k++) conn[counter+k] = nm[j+k];
-    if      (nm[j+7] > -1) {
-      for (int k=4;k<8;k++) conn[counter+k] = nm[j+k];
-      counter += 8 ;
-      cell_types[i] = (unsigned char)hex ;
-    }
-    else if (nm[j+5] > -1) {
-      conn[counter+4] = nm[j+4];
-      conn[counter+5] = nm[j+5];
-      counter += 6 ;
-      cell_types[i] = (unsigned char)prsm ;
-    }
-    else if (nm[j+4] > -1) {
-      conn[counter+4] = nm[j+4];
-      counter += 5 ;
-      cell_types[i] = (unsigned char)pyrm ;
-    }
-    else if (nm[j+3] > -1) {
-      counter += 4 ;
-      cell_types[i] = (unsigned char)tet ;
-    }
-    else printf("vtk extract doesn't understand cell connectivity\n") ;
-    cell_offsets[i] = counter ;
-  }
-  Offset += counter * sizeof (int) + sizeof(int) ;
+  //Offset += counter * sizeof (int) + sizeof(int) ;
+  Offset += off * sizeof (int) + sizeof(int) ;
   fprintf(fid,"        <DataArray type='Int32' Name='offsets' NumberOfComponents='1' format='appended' offset='%d'/>\n",Offset);
   Offset += ncells * sizeof (int) + sizeof(int) ;
   fprintf(fid,"        <DataArray type='UInt8' Name='types' NumberOfComponents='1' format='appended' offset='%d'/>\n",Offset);
   Offset += ncells * sizeof (unsigned char) + sizeof(int) ;
+  if (ngen) { // include faces and faceoffsets
+    fprintf(fid,"        <DataArray type='Int32' Name='faces' NumberOfComponents='1' format='appended' offset='%d'/>\n",Offset);
+    Offset += (int) cell_faces.size() * sizeof (int) + sizeof(int) ;
+    fprintf(fid,"        <DataArray type='Int32' Name='faceoffsets' NumberOfComponents='1' format='appended' offset='%d'/>\n",Offset);
+    Offset += (int) face_offsets.size() * sizeof (int) + sizeof(int) ;
+  }
   fprintf(fid,"      </Cells>\n");
   fprintf(fid,"      <PointData>\n");
   fclose(fid);
@@ -139,21 +113,29 @@ void vtk_topo_handler::close() {
   fprintf(fid,"  <AppendedData encoding='raw'>\n");
   fprintf(fid,"_");
   int Scalar = npnts * sizeof (float), Vector = 3 * Scalar;
-  int Cells = (ntets+nprsm+nhexs+npyrm) * sizeof(int);
-  int CellChars = (ntets+nprsm+nhexs+npyrm) * sizeof(unsigned char);
-  int Conn = (ntets*4+nprsm*6+nhexs*8+npyrm*5) * sizeof(int);
+  int Cells = (int) cell_types.size() * sizeof(int);
+  int CellChars = (int) cell_types.size() * sizeof(unsigned char);
+  int Conn = (int) conn.size() * sizeof(int);
   fwrite((const char *) (&Vector), 4, 1, fid) ;
   fwrite((const char *) (&pos[0]), sizeof (float), 3 * npnts, fid) ;
   if (pos) delete [] pos ;
   fwrite((const char *) (&Conn), 4, 1, fid) ;
-  fwrite((const char *) &conn[0], sizeof (int), 8*nhexs+6*nprsm+5*npyrm+4*ntets, fid) ;
-  if (conn) delete [] conn ;
+  fwrite((const char *) &conn[0], sizeof (int), (int) conn.size(), fid) ;
+  vector<int>().swap(conn) ;
   fwrite((const char *) (&Cells), 4, 1, fid) ;
-  fwrite((const char *) &cell_offsets[0], sizeof (int), nhexs+nprsm+npyrm+ntets, fid) ;
-  if (cell_offsets) delete [] cell_offsets ;
+  fwrite((const char *) &cell_offsets[0], sizeof (int), (int) cell_offsets.size(), fid) ;
+  vector<int>().swap(cell_offsets) ;
   fwrite((const char *) (&CellChars), 4, 1, fid) ;
-  fwrite((const char *) &cell_types[0], sizeof (unsigned char), nhexs+nprsm+npyrm+ntets, fid) ;
-  if (cell_types) delete [] cell_types ;
+  fwrite((const char *) &cell_types[0], sizeof (unsigned char), (int) cell_types.size(), fid) ;
+  vector<unsigned char>().swap(cell_types) ;
+  if (ngen) {
+    int Faces = (int) cell_faces.size() * sizeof(int) ;
+    int FaceConn = (int) face_offsets.size() * sizeof(int) ;
+    fwrite((const char *) (&Faces), 4, 1, fid) ;
+    fwrite((const char *) &cell_faces[0], sizeof (int), (int) cell_faces.size(), fid) ;
+    fwrite((const char *) (&FaceConn), 4, 1, fid) ;
+    fwrite((const char *) &face_offsets[0], sizeof (int), (int) face_offsets.size(), fid) ;
+  }
   int curr_loc = 0;
   for (int i=0;i<(int)data_size.size();i++) {
     int ndata = data_size[i], ndata_size = ndata * sizeof (float); 
@@ -170,66 +152,244 @@ void vtk_topo_handler::close() {
 void vtk_topo_handler::create_mesh_positions(vector3d<float> position[], int pts) {
   pos = new float[3*npnts];
   for(int i=0;i<npnts;++i) {
-    pos[3*i]   = position[i].x ;
-    pos[3*i+1] = position[i].y ;
-    pos[3*i+2] = position[i].z ;
+    int j=3*i;
+    pos[j]   = position[i].x ;
+    pos[j+1] = position[i].y ;
+    pos[j+2] = position[i].z ;
   }
 }
 
-void vtk_topo_handler::write_tets(Array<int,4> tets[], int ntets, int block, int nblocks, int tottets) {
-  for(int i=0;i<ntets;++i) {
-    Array<int,8> brick ;
-    brick[0] = tets[i][0]-1 ;
-    brick[1] = tets[i][1]-1 ;
-    brick[2] = tets[i][2]-1 ;
-    brick[3] = tets[i][3]-1 ;
-    brick[4] = -1 ;
-    brick[5] = -1 ;
-    brick[6] = -1 ;
-    brick[7] = -1 ;
-    bricks.push_back(brick) ;
-  }    
-}
-void vtk_topo_handler::write_pyrm(Array<int,5> pyrm[], int npyrm, int block, int nblocks, int totpyrm) {
-  for(int i=0;i<npyrm;++i) {
-    Array<int,8> brick ;
-    brick[0] = pyrm[i][0]-1 ;
-    brick[1] = pyrm[i][1]-1 ;
-    brick[2] = pyrm[i][2]-1 ;
-    brick[3] = pyrm[i][3]-1 ;
-    brick[4] = pyrm[i][4]-1 ;
-    brick[5] = -1 ;
-    brick[6] = -1 ;
-    brick[7] = -1 ;
-    bricks.push_back(brick) ;
+void vtk_topo_handler::write_tets(Array<int,4> cells[], int ncells, int block, int nblocks, int tottets) {
+  unsigned int type = 10 ;
+  unsigned char ctype = (unsigned char)type ;
+  int nnpc = 4;
+
+  const int nf=4,nnpf[nf]={3,3,3,3};
+  vector< vector<int> > ff(nf);
+  for (int i=0;i<nf;i++) ff[i].resize(nnpf[i]);
+  ff[0][0] = 0; ff[0][1] = 1; ff[0][2] = 3;
+  ff[1][0] = 1; ff[1][1] = 2; ff[1][2] = 3;
+  ff[2][0] = 2; ff[2][1] = 0; ff[2][2] = 3;
+  ff[3][0] = 0; ff[3][1] = 2; ff[3][2] = 1;
+
+  if (ngen) {
+    for(int i=0;i<ncells;++i) {
+      for (int j=0;j<nnpc;j++) { 
+        int nd = cells[i][j]-1 ;
+        conn.push_back(nd) ;
+        off++ ;
+      }
+      cell_types.push_back(ctype);
+      cell_offsets.push_back(off);
+      
+      cell_faces.push_back(nf); face_off++;
+      for (int j=0;j<nf;j++) {
+        cell_faces.push_back(nnpf[j]); face_off++;
+        for (int k=0;k<nnpf[j];k++) {
+	  int nn = cells[i][ff[j][k]] - 1;
+	  cell_faces.push_back(nn); face_off++;
+	}
+      }
+      face_offsets.push_back(face_off) ;
+    }
+  }
+  else {
+    for(int i=0;i<ncells;++i) {
+      for (int j=0;j<nnpc;j++) { 
+        int nd = cells[i][j]-1 ;
+        conn.push_back(nd) ;
+        off++ ;
+      }
+      cell_types.push_back(ctype);
+      cell_offsets.push_back(off);
+    }
   }
 }
-void vtk_topo_handler::write_prsm(Array<int,6> prsm[], int nprsm,int block, int nblocks, int totprsm) {
-  for(int i=0;i<nprsm;++i) {
-    Array<int,8> brick ;
-    brick[0] = prsm[i][0]-1 ;
-    brick[1] = prsm[i][1]-1 ;
-    brick[2] = prsm[i][2]-1 ;
-    brick[3] = prsm[i][3]-1 ;
-    brick[4] = prsm[i][4]-1 ;
-    brick[5] = prsm[i][5]-1 ;
-    brick[6] = -1 ;
-    brick[7] = -1 ;
-    bricks.push_back(brick) ;
+
+void vtk_topo_handler::write_pyrm(Array<int,5> cells[], int ncells, int block, int nblocks, int totpyrm) {
+  unsigned int type = 14 ;
+  unsigned char ctype = (unsigned char)type ;
+  int nnpc = 5;
+
+  const int nf=5,nnpf[nf]={4,3,3,3,3};
+  vector< vector<int> > ff(nf);
+  for (int i=0;i<nf;i++) ff[i].resize(nnpf[i]);
+  ff[0][0] = 0; ff[0][1] = 3; ff[0][2] = 2; ff[0][3] = 1;
+  ff[1][0] = 0; ff[1][1] = 1; ff[1][2] = 4;
+  ff[2][0] = 1; ff[2][1] = 2; ff[2][2] = 4;
+  ff[3][0] = 2; ff[3][1] = 3; ff[3][2] = 4;
+  ff[4][0] = 3; ff[4][1] = 0; ff[4][2] = 4; 
+
+  if (ngen) {
+    for(int i=0;i<ncells;++i) {
+      for (int j=0;j<nnpc;j++) { 
+        int nd = cells[i][j]-1 ;
+        conn.push_back(nd) ;
+        off++ ;
+      }
+      cell_types.push_back(ctype);
+      cell_offsets.push_back(off);
+      
+      cell_faces.push_back(nf); face_off++;
+      for (int j=0;j<nf;j++) {
+        cell_faces.push_back(nnpf[j]); face_off++;
+        for (int k=0;k<nnpf[j];k++) {
+	  int nn = cells[i][ff[j][k]] - 1;
+	  cell_faces.push_back(nn); face_off++;
+	}
+      }
+      face_offsets.push_back(face_off) ;
+    }
+  }
+  else {
+    for(int i=0;i<ncells;++i) {
+      for (int j=0;j<nnpc;j++) { 
+        int nd = cells[i][j]-1 ;
+        conn.push_back(nd) ;
+        off++ ;
+      }
+      cell_types.push_back(ctype);
+      cell_offsets.push_back(off);
+    }
   }
 }
-void vtk_topo_handler::write_hexs(Array<int,8> hexs[], int nhexs, int block, int nblocks, int tothexs) {
-  for(int i=0;i<nhexs;++i) {
-    Array<int,8> brick ;
-    for(int j=0;j<8;++j) brick[j] = hexs[i][j]-1 ;
-    bricks.push_back(brick) ;
+
+void vtk_topo_handler::write_prsm(Array<int,6> cells[], int ncells, int block, int nblocks, int totprsm) {
+  unsigned int type = 13 ;
+  unsigned char ctype = (unsigned char)type ;
+  int nnpc = 6;
+
+  const int nf=5,nnpf[nf]={4,4,4,3,3};
+  vector< vector<int> > ff(nf);
+  for (int i=0;i<nf;i++) ff[i].resize(nnpf[i]);
+  ff[0][0] = 0; ff[0][1] = 2; ff[0][2] = 5; ff[0][3] = 3;
+  ff[1][0] = 2; ff[1][1] = 1; ff[1][2] = 4; ff[1][3] = 5;
+  ff[2][0] = 0; ff[2][1] = 3; ff[2][2] = 4; ff[2][3] = 1;
+  ff[3][0] = 0; ff[3][1] = 1; ff[3][2] = 2;
+  ff[4][0] = 3; ff[4][1] = 5; ff[4][2] = 4; 
+
+  if (ngen) {
+    for(int i=0;i<ncells;++i) {
+      for (int j=0;j<nnpc;j++) { 
+        int nd = cells[i][j]-1 ;
+        conn.push_back(nd) ;
+        off++ ;
+      }
+      cell_types.push_back(ctype);
+      cell_offsets.push_back(off);
+      
+      cell_faces.push_back(nf); face_off++;
+      for (int j=0;j<nf;j++) {
+        cell_faces.push_back(nnpf[j]); face_off++;
+        for (int k=0;k<nnpf[j];k++) {
+	  int nn = cells[i][ff[j][k]] - 1;
+	  cell_faces.push_back(nn); face_off++;
+	}
+      }
+      face_offsets.push_back(face_off) ;
+    }
+  }
+  else {
+    for(int i=0;i<ncells;++i) {
+      for (int j=0;j<nnpc;j++) { 
+        int nd = cells[i][j]-1 ;
+        conn.push_back(nd) ;
+        off++ ;
+      }
+      cell_types.push_back(ctype);
+      cell_offsets.push_back(off);
+    }
+  }
+}
+
+void vtk_topo_handler::write_hexs(Array<int,8> cells[], int ncells, int block, int nblocks, int tothexs) {
+  unsigned int type = 12 ;
+  unsigned char ctype = (unsigned char)type ;
+  int nnpc = 8;
+
+  const int nf=6,nnpf[nf]={4,4,4,4,4,4};
+  vector< vector<int> > ff(nf);
+  for (int i=0;i<nf;i++) ff[i].resize(nnpf[i]);
+  ff[0][0] = 0; ff[0][1] = 1; ff[0][2] = 5; ff[0][3] = 4;
+  ff[1][0] = 1; ff[1][1] = 2; ff[1][2] = 6; ff[1][3] = 5;
+  ff[2][0] = 2; ff[2][1] = 3; ff[2][2] = 7; ff[2][3] = 6;
+  ff[3][0] = 3; ff[3][1] = 0; ff[3][2] = 4; ff[3][3] = 7;
+  ff[4][0] = 4; ff[4][1] = 5; ff[4][2] = 6; ff[4][3] = 7;
+  ff[5][0] = 0; ff[5][1] = 3; ff[5][2] = 2; ff[5][3] = 1;
+
+  if (ngen) {
+    for(int i=0;i<ncells;++i) {
+      for (int j=0;j<nnpc;j++) { 
+        int nd = cells[i][j]-1 ;
+        conn.push_back(nd) ;
+        off++ ;
+      }
+      cell_types.push_back(ctype);
+      cell_offsets.push_back(off);
+      
+      cell_faces.push_back(nf); face_off++;
+      for (int j=0;j<nf;j++) {
+        cell_faces.push_back(nnpf[j]); face_off++;
+        for (int k=0;k<nnpf[j];k++) {
+	  int nn = cells[i][ff[j][k]] - 1;
+	  cell_faces.push_back(nn); face_off++;
+	}
+      }
+      face_offsets.push_back(face_off) ;
+    }
+  }
+  else {
+    for(int i=0;i<ncells;++i) {
+      for (int j=0;j<nnpc;j++) { 
+        int nd = cells[i][j]-1 ;
+        conn.push_back(nd) ;
+        off++ ;
+      }
+      cell_types.push_back(ctype);
+      cell_offsets.push_back(off);
+    }
   }
 }
 
 void vtk_topo_handler::write_general_cell(int nfaces[], int nnfaces,
                                               int nsides[], int nnsides,
                                               int nodes[], int nnodes) {
-  cerr << "vtk extract module doesn't support general cells!" << endl ;
+  unsigned int type = 42 ;
+  unsigned char ctype = (unsigned char)type ;
+  int face = 0, node = 0 ;
+  vector<int> tmp;
+  for(int i=0;i<nnfaces;++i) {
+    int tsz=0,nf = nfaces[i] ;
+    
+    for (int j=0;j<nf;j++) { 
+      int ne = nsides[nf*i+j] ; 
+      for (int k=0;k<ne;k++) tsz++;
+    }
+    tmp.resize(tsz); tsz=0;
+    cell_faces.push_back(nf) ; face_off++ ;
+    for (int j=0;j<nf;j++) { 
+      int ne = nsides[face++] ; 
+      cell_faces.push_back(ne) ; face_off++ ;
+      for (int k=0;k<ne;k++) { 
+        int nd = nodes[node++]-1 ;
+	cell_faces.push_back(nd) ; face_off++ ;
+	tmp[tsz++] = nd ;
+      }
+    }
+
+    sort(tmp.begin(),tmp.end()) ;
+    tmp.erase(unique(tmp.begin(),tmp.end()),tmp.end()) ;
+    
+    for (size_t j=0;j<tmp.size();j++) conn.push_back(tmp[j]) ;  
+    off += (int) tmp.size() ;
+    
+    cell_types.push_back(ctype) ;
+    cell_offsets.push_back(off) ;
+    face_offsets.push_back(face_off) ;
+  }
+
+  if (nnodes  != node) cerr << "Problem in write_general_cell" << endl ;
+  if (nnsides != face) cerr << "Problem in write_general_cell" << endl ;
 }
 
 void vtk_topo_handler::output_nodal_scalar(float val[], int npnts,

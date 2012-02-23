@@ -253,21 +253,26 @@ class vtk_topo_handler : public grid_topo_handler {
   int npnts ;
   int ntets, nprsm, npyrm, nhexs, ngen ;
   int nvars ;
+  int face_off ;
   int Offset ;
-  vector<Array<int, 8> > bricks ;
+  int off ;
   string boundary_name ;
   float * pos;
   float * data_store ;
   vector<int> data_size;
   int data_count ;
-  int * conn ;
-  int * cell_offsets ;
-  unsigned char * cell_types ;
+  vector<int> conn ;
+  vector<int> cell_offsets ;
+  vector<int> cell_faces ;
+  vector<int> face_offsets ;
+  vector<unsigned char> cell_types ;
 public:
   vtk_topo_handler()
   {
-    Offset = 0; 
-    data_count = 0;
+    Offset = 0 ; 
+    data_count = 0 ;
+    off = 0 ;
+    face_off = 0 ;
   }
   virtual ~vtk_topo_handler() {}
   virtual void fileWritingSequence(Array<int,7> &sequence) {
