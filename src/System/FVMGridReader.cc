@@ -667,7 +667,9 @@ namespace Loci {
       for(int i=1;i<MPI_processes;++i) {
         // read in remote processor data
         int sz = local_nodes[i].size() ;
-
+        if(sz == 0) {
+          cerr << "sending a zero sized block" << endl ;
+        }
         vector<vector3d<double> > tpos(sz) ;
         
         dimension = sz ;
@@ -699,11 +701,23 @@ namespace Loci {
       int size = local_nodes[MPI_rank].size() ;
       MPI_Status status ;
       MPI_Recv(&pos[start],size*3,MPI_DOUBLE,MPI_rank-1,0,MPI_COMM_WORLD,&status) ;
+      int mxsz = 0 ;
+      for(int i=MPI_rank+1;i<MPI_processes;++i) {
+        int lsz = local_nodes[i].size() ;
+        mxsz = max(mxsz,lsz) ;
+      }
+
+      vector<vector3d<double> > tpos(mxsz) ;
       // Shift remaining ones into place
       for(int i=MPI_rank+1;i<MPI_processes;++i) {
         int lsz = local_nodes[i].size() ;
-        vector<vector3d<double> > tpos(lsz) ;
         MPI_Recv(&tpos[0],lsz*3,MPI_DOUBLE,MPI_rank-1,0,MPI_COMM_WORLD,&status) ;
+        int count = 0 ;
+        MPI_Get_count(&status,MPI_DOUBLE,&count) ;
+        if(count != lsz*3) {
+          cerr << "processor" << MPI_rank << " recieved " << count <<
+            " words but was expecting " << lsz*3 << endl ;
+        }
         MPI_Send(&tpos[0],lsz*3,MPI_DOUBLE,MPI_rank+1,0,MPI_COMM_WORLD) ;
       }
     }
