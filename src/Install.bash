@@ -59,6 +59,7 @@ cp FVMtools/cfd++2xdr $INSTALL_PATH/bin
 cp FVMtools/vogmerge $INSTALL_PATH/bin
 cp FVMtools/vogcheck $INSTALL_PATH/bin
 cp FVMtools/extract_movie $INSTALL_PATH/bin
+cp FVMtools/extruder $INSTALL_PATH/bin
 cp FVMadapt/refmesh $INSTALL_PATH/bin
 cp FVMadapt/marker $INSTALL_PATH/bin
 
