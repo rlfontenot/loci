@@ -34,25 +34,13 @@
 #include <mpi.h>
 
 #define HAS_KD_TREE_BOX_SEARCH
+#define KD_TREE_COORDINATE_IS_VECTOR
 namespace Loci {
   namespace kdTree {
 
-    template <class T> struct coordinate3d {
-      T coords[3] ;
-      T &operator[](size_t i) { return coords[i] ; }
-      T operator[](size_t i) const { return coords[i] ; }
-      coordinate3d() {} ;
-      coordinate3d(T x, T y, T z) { coords[0]=x;coords[1]=y;coords[2]=z; }
-      template<class S> coordinate3d(const vector3d<S> &v) 
-      {coords[0] = v.x; coords[1] = v.y ; coords[2] = v.z; }
-      template<class S> operator vector3d<S>() {
-	return vector3d<S>(coords[0],coords[1],coords[2]) ;
-      }
-    } ;
-    
     // Euclidean Distance Function
-    template <class T> inline double distance_sq(const coordinate3d<T> &v1,
-                                                 const coordinate3d<T> &v2) {
+    template <class T> inline double distance_sq(const vector3d<T> &v1,
+                                                 const vector3d<T> &v2) {
       const double vd[3] = {v1[0]-v2[0],v1[1]-v2[1],v1[2]-v2[2]} ;
       return vd[0]*vd[0]+vd[1]*vd[1]+vd[2]*vd[2] ;
     }
@@ -82,9 +70,10 @@ namespace Loci {
     // array index stored in split.  Once the size of a sub array is smaller than
     template <class T> class KDTree {
     public:
+      typedef vector3d<T> coordinate3d ;
       // Coordinate Info for kd-tree
       struct coord_info {
-        coordinate3d<T> coords ;
+        vector3d<T> coords ;
         int id ;
       } ;
 
@@ -205,7 +194,7 @@ namespace Loci {
       // defined by the center v, and the radius squared r.  proj_d
       // is the projected distance (squared) from the sphere center to
       // the current dividing plane and coord is the current dividing plane.
-      bool insphere(const coordinate3d<T> &v,double r, double proj_d,
+      bool insphere(const vector3d<T> &v,double r, double proj_d,
                     bounds bnd, int coord) const {
         if(proj_d > r) // sphere not touching dividing plane, so test fails
           return false ;
@@ -265,7 +254,7 @@ namespace Loci {
       // Search for the closest corresponding point to the vector defined by v
       // rmin is the current best known estimate for the distance to the closest
       // point.  bnds is the current bounding box.
-      int find_closest(int start,int end, int depth, const coordinate3d<T> &v,
+      int find_closest(int start,int end, int depth, const vector3d<T> &v,
                        double &rmin,bounds bnds) const {
   
         const int sz = end-start ;
@@ -358,21 +347,21 @@ namespace Loci {
         return id ;
       }
 
-      bool pt_in_box(coordinate3d<T> v,const bounds &b1) const {
+      bool pt_in_box(vector3d<T> v,const bounds &b1) const {
         return
           (v[0] >= b1.minc[0] && v[0] <= b1.maxc[0]) &&
           (v[1] >= b1.minc[1] && v[1] <= b1.maxc[1]) &&
           (v[2] >= b1.minc[2] && v[2] <= b1.maxc[2]) ;
       }
-      bool pt_in_boxb(coordinate3d<T> v,const bounds &b1) const {
+      bool pt_in_boxb(vector3d<T> v,const bounds &b1) const {
         return
           (v[0] >= b1.minc[0] && v[0] < b1.maxc[0]) &&
           (v[1] >= b1.minc[1] && v[1] < b1.maxc[1]) &&
           (v[2] >= b1.minc[2] && v[2] < b1.maxc[2]) ;
       }
     
-      coordinate3d<T> pselect(const bounds &b, int sel) const {
-        coordinate3d<T> v ;
+      vector3d<T> pselect(const bounds &b, int sel) const {
+        vector3d<T> v ;
         v[0] = ((sel&1)==0)?b.maxc[0]:b.minc[0] ;
         v[1] = ((sel&2)==0)?b.maxc[1]:b.minc[1] ;
         v[2] = ((sel&4)==0)?b.maxc[2]:b.minc[2] ;
@@ -495,7 +484,7 @@ namespace Loci {
       // rmin is the current best known estimate for the distance to the closest
       // point.  bnds is the current bounding box.
       int find_closest_box(int start,int end, int depth,
-                           const coordinate3d<T> &v, double &rmin,
+                           const vector3d<T> &v, double &rmin,
                            const bounds &box,
                            bounds bnds) const {
   
@@ -595,7 +584,7 @@ namespace Loci {
  
     public:
       // Build kd tree from list of points and their id's
-      KDTree(const std::vector<coordinate3d<T> > &inpnts,
+      KDTree(const std::vector<vector3d<T> > &inpnts,
              const std::vector<int> &ids) {
         // Build kd tree using KDTree internal data structure
         // allocate space for pnts, copy input values into data structure
@@ -655,7 +644,7 @@ namespace Loci {
       // Search for the closest point using the KDTree
       // rmin is current best known radius (squared)
       // returns id if found, otherwise returns smallest int
-      int find_closest(coordinate3d<T> v, double &rmin) const {
+      int find_closest(vector3d<T> v, double &rmin) const {
         const int sp = find_closest(0,pnts.size(),0,v,rmin,bbox) ;
         if(sp < 0)
           return std::numeric_limits<int>::min() ;
@@ -664,7 +653,7 @@ namespace Loci {
       }
       // Search for closest point without concern for current best known
       // rmin
-      int find_closest(coordinate3d<T> v) const {
+      int find_closest(vector3d<T> v) const {
         // Start with infinite closest point distance
         double rmin = std::numeric_limits<double>::max() ;
         return find_closest(v,rmin) ;
@@ -697,7 +686,7 @@ namespace Loci {
       
       // Find the closest point that is within a given bounding box
       // rmin argument works like find_closest
-      int find_closest_box(coordinate3d<T> v, bounds box, double &rmin) const {
+      int find_closest_box(vector3d<T> v, bounds box, double &rmin) const {
         if(box.maxc[0] < bbox.minc[0] ||
            box.minc[0] > bbox.maxc[0] ||
            box.maxc[1] < bbox.minc[1] ||
@@ -713,7 +702,7 @@ namespace Loci {
         return pnts[sp].id ;
       }
       // Same as above, only no rmin provided by user.
-      int find_closest_box(coordinate3d<T> v, bounds box) const {
+      int find_closest_box(vector3d<T> v, bounds box) const {
         // Start with infinite closest point distance
         double rmin = std::numeric_limits<double>::max() ;
         return find_closest_box(v,box,rmin) ;
@@ -727,8 +716,10 @@ namespace Loci {
     // The two branches of the tree are stored in the remaining array. The left
     // half immediately follows the pivot, and the right half starts at the
     // array index stored in split.  Once the size of a sub array is smaller than
-    typedef coordinate3d<double> coord3d ;
+    typedef vector3d<double> coord3d ;
     typedef KDTree<double> kd_tree ;
+    typedef vector3d<float> coord3df ;
+    typedef KDTree<float> kd_treef ;
 
 
 

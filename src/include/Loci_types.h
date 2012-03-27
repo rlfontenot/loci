@@ -124,7 +124,31 @@ namespace Loci {
 	a[2] = z ;
 	return a;
       }
-    } ;
+    T &operator[](int i) {
+      switch(i) {
+      case 0:
+        return x ;
+      case 1:
+        return y ;
+      case 2:
+        return z ;
+      default:
+        return z ;
+      }
+    }
+    const T &operator[](int i) const {
+      switch(i) {
+      case 0:
+        return x ;
+      case 1:
+        return y ;
+      case 2:
+        return z ;
+      default:
+        return z ;
+      }
+    }
+  } ;
   
   template <class T> inline std::ostream & operator<<(std::ostream &s, const vector3d<T> &v)
     {
@@ -327,7 +351,27 @@ namespace Loci {
       vector2d() {} 
       vector2d(T xx,T yy) : x(xx),y(yy) {}
       vector2d(const vector2d &v) {x=v.x;y=v.y;}
-    } ;
+    T &operator[](int i) {
+      switch(i) {
+      case 0:
+        return x ;
+      case 1:
+        return y ;
+      default:
+        return y ;
+      }
+    }
+    const T &operator[](int i) const {
+      switch(i) {
+      case 0:
+        return x ;
+      case 1:
+        return y ;
+      default:
+        return y ;
+      }
+    }
+  } ;
   
   template <class T> inline std::ostream & operator<<(std::ostream &s, const vector2d<T> &v)
     {

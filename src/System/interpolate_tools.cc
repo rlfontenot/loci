@@ -9,7 +9,7 @@ namespace Loci {
   vector<int> get_stencil(const kdTree::KDTree<float> &kd,vect3d pnt,
                           real_t delta) {
     vector<int> neighbors(8) ;
-    kdTree::coordinate3d<float> ccenter ;
+    kdTree::coord3df ccenter ;
     ccenter[0] = pnt.x ;
     ccenter[1] = pnt.y ;
     ccenter[2] = pnt.z ;
@@ -100,7 +100,7 @@ namespace Loci {
   vector<int> get_stencil(const kdTree::KDTree<real_t> &kd,vect3d pnt,
                           real_t delta) {
     vector<int> neighbors(8) ;
-    kdTree::coordinate3d<real_t> ccenter ;
+    kdTree::coord3d ccenter ;
     ccenter[0] = pnt.x ;
     ccenter[1] = pnt.y ;
     ccenter[2] = pnt.z ;
@@ -523,7 +523,7 @@ namespace Loci {
       // just estimate based on what we have on this processor
       for(int i=start;i<end;++i) {
 	real_t rmin = 1e30 ;
-	kdTree::coordinate3d<float> pt ;
+	kdTree::coord3df pt ;
 	pt[0] = pnts[i].x ;
 	pt[1] = pnts[i].y ;
 	pt[2] = pnts[i].z ;
