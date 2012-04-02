@@ -533,7 +533,8 @@ namespace Loci {
         return s ;
       }
       s.get() ;
-    
+      
+      variableSet read_vars ;
       for(;;) {
         parse::kill_white_space(s) ;
         if(s.peek() == '}') {
@@ -557,6 +558,10 @@ namespace Loci {
         }
 
         variable var(vname) ;
+        if(read_vars.inSet(var)) {
+          cerr << "WARNING: Variable '" << var << "' is redefined in fact_db input!!!" << endl ;
+        }
+        read_vars += var ;
         try {
           storeRepP vp = get_variable(var) ;
           if(vp == 0) {
@@ -712,7 +717,8 @@ namespace Loci {
         return s ;
       }
       s.get() ;
-    
+      
+      variableSet read_vars ;
       for(;;) {
         parse::kill_white_space(s) ;
         if(s.peek() == '}') {
@@ -735,6 +741,10 @@ namespace Loci {
           }
           
           variable var(vname) ;
+          if(read_vars.inSet(var)) {
+            cerr << "WARNING: Redefining variable '" << var << "' while reading in fact_db!!!!!" << endl ;
+          }
+          read_vars += var ;
           storeRepP vp = get_variable(var) ;
           if(vp == 0) {
             vp = get_variable_type(var) ;
