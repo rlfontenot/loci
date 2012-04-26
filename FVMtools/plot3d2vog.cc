@@ -80,6 +80,14 @@ block_topo::block_topo(int NI, int NJ, int NK) {
   nodes_base = -1 ;
 }
 
+const double Axx = sqrt(2.0) ;
+const double Ayy = sqrt(3.1415927) ;
+const double Azz = exp(1.0) ;
+
+const double Ax = Axx/(Axx+Ayy+Azz) ;
+const double Ay = Ayy/(Axx+Ayy+Azz) ;
+const double Az = Azz/(Axx+Ayy+Azz) ;
+
 struct sort_order {
   const_store<vect3d> pos ;
   sort_order(const sort_order &ref) : pos(ref.pos.Rep()) {}
@@ -87,8 +95,8 @@ struct sort_order {
   inline bool operator()(int p1, int p2) {
     vect3d vp1 = pos[p1] ;
     vect3d vp2 = pos[p2] ;
-    real norm1 = fabs(vp1.x)+fabs(vp1.y)+fabs(vp1.z) ;
-    real norm2 = fabs(vp2.x)+fabs(vp2.y)+fabs(vp2.z) ;
+    real norm1 = vp1.x*Ax + vp1.y*Ay + vp1.z*Az ;
+    real norm2 = vp2.x*Ax + vp2.y*Ay + vp2.z*Az ;
     return norm1 < norm2 ;
   }
 } ;
@@ -188,13 +196,17 @@ int main(int ac, char* av[]) {
   vector<boundary_face_info> boundaries_desc ;
   
   vector<string> combine_bc ;
-
+  double tol = 1e-2 ;
   string Lref = "NOSCALE" ;
   while(ac>=2 && av[1][0] == '-') {
     // If user specifies an alternate query, extract it from the
     // command line.
     if(ac >= 3 && !strcmp(av[1],"-Lref")) {
       Lref = av[2] ;
+      ac -= 2 ;
+      av += 2 ;
+    } else if(ac >= 3 && !strcmp(av[1],"-tol")) {
+      tol = atof(av[2]) ;
       ac -= 2 ;
       av += 2 ;
     } else if(ac >= 2 && !strcmp(av[1],"-v")) {
@@ -656,7 +668,7 @@ if(Lref == "")
       node_sort.push_back(*nd) ;
     }
     
-    const real delta = 1e-2 ; // If a point is 100 times closer than the
+    const real delta = tol ; // If a point is 100 times closer than the
     // smallest distance then assume that it is the same cell
     
     for(entitySet::const_iterator fc = bfaces.begin();fc!=bfaces.end();++fc) {
@@ -741,8 +753,8 @@ if(Lref == "")
 	const vect3d dv = p1 - p2 ;
 	const real dr2 = dr[nsj] ;
 	const real dvni = abs(dv.x)+abs(dv.y)+abs(dv.z);
-	if(abs((abs(p1.x)+abs(p1.y)+abs(p1.z))-
-	       (abs(p2.x)+abs(p2.y)+abs(p2.z))) > dr1)
+	if(abs((p1.x*Ax+p1.y*Ay+p1.z*Az)-
+	       (p2.x*Ax+p2.y*Ay+p2.z*Az)) > dr1)
 	  break ;
 	if(dvni <= dr1 && dvni <= dr2) {
 	  equal_graph.add_edge(nsi,nsj) ;
