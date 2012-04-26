@@ -31,6 +31,9 @@ using std::map ;
 #include <vector>
 using std::vector ;
 using std::string ;
+#include <set>
+using std::set ;
+
 typedef double real ;
 typedef Loci::vector3d<real> vect3d ;
 #include <Tools/digraph.h>
@@ -1082,9 +1085,20 @@ if(Lref == "")
   
   //get boundary names
   vector<pair<int,string> > surf_ids ;
+  set<string> iset ;
   for(int i=1;i<=npatch;++i){
-    if(boundary_file) surf_ids.push_back(pair<int,string>(i, bcnamelist[i]));
-    else{
+    if(boundary_file) {
+      if(iset.find(bcnamelist[i]) == iset.end()) {
+	surf_ids.push_back(pair<int,string>(i, bcnamelist[i]));
+      } else {
+	cerr << "warning, can't have boundary name '" << bcnamelist[i]
+	     << "' repeated in boundary file." << endl ;
+	char buf[512] ;
+	sprintf(buf,"BC_%d",i) ; 
+	surf_ids.push_back(pair<int,string>(i, string(buf))) ;
+      }
+      iset.insert(bcnamelist[i]) ;
+    } else{
       char buf[512] ;
       sprintf(buf,"BC_%d",i) ; 
       surf_ids.push_back(pair<int,string>(i, string(buf))) ;
