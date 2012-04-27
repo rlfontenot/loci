@@ -790,7 +790,7 @@ namespace Loci {
     void operator()(T &res, const T &arg)
     { res = min(res,arg) ; }
     template <class U> void operator()(T &res, const U &arg)
-    { res = max(res,arg) ; }
+    { res = min(res,arg) ; }
   } ;
   template <class T> struct Minimum<Vect<T> > {
     template <class U> void operator()(Vect<T> &res ,const U &arg)
