@@ -42,10 +42,15 @@ namespace Loci {
                                    fact_db &facts) ;
 
   inline hid_t hdf5CreateFile(const char *name, unsigned flags, hid_t create_id, hid_t access_id) {
-    if(Loci::MPI_rank==0)
-      return H5Fcreate(name,flags,create_id,access_id) ;
-    else
-      return 0 ;
+    hid_t file_id = 0 ;
+    if(Loci::MPI_rank==0) {
+      file_id = H5Fcreate(name,flags,create_id,access_id) ;
+      if(file_id < 0) {
+	cerr << "H5Fcreate unable to create file '" << name << "'" << endl ;
+	Loci::Abort() ;
+      }
+    }
+    return file_id ;
   }
 
   inline hid_t hdf5CreateFile(const char *name, unsigned flags, hid_t create_id, hid_t access_id, MPI_Comm comm) {
