@@ -93,13 +93,27 @@ double get_spacing(const vect3d& p, const source_par& s){
   else sp = s.s1*pow(r/s.r1, s.a);
   return sp;
 }
+vect3d get_center(const vector<Node*>& nodes){
+  vect3d center = vect3d(0.0, 0.0, 0.0);
+  int num_nodes = nodes.size();
+  if(num_nodes == 0){
+    cerr << "ERROR: num of nodes of a cell is zero" << endl;
+    return center;
+  }
+  for(int i = 0; i< num_nodes; i++)
+    center = center + nodes[i]->p;
+  center = (1.0/ num_nodes)*center;
+  return center;
+}
+//min value of spacing on each nodes and on the center 
 double get_min_spacing(const vector<Node*>& nodes, const vector<source_par>& ss){
-  //if(ss.size() == 1) return 0.25;
-  double spacing = std::numeric_limits<double>::max(); 
-  for(unsigned int np = 0; np < nodes.size(); np++){
-    for(unsigned int i = 0; i < ss.size(); i++){
+  vect3d center = get_center(nodes);
+  double spacing = std::numeric_limits<double>::max();
+  for(unsigned int i = 0; i < ss.size(); i++){
+    for(unsigned int np = 0; np < nodes.size(); np++){
       spacing = min(spacing, get_spacing(nodes[np]->p, ss[i]));
     }
+    spacing = min(spacing,get_spacing(center, ss[i]));
   }
   return spacing;
 }
@@ -120,9 +134,12 @@ bool tag_cell(const vector<Node*>& nodes, const vector<source_par>& sources, dou
     maxy = max(maxy, (nodes[i]->p).y);
     maxz = max(maxz, (nodes[i]->p).z);
   }
- 
+  vect3d center = get_center(nodes); 
+  
   for(unsigned int i = 0; i<sources.size(); i++){
-    //if any feature is in the bounding box
+    //if any feature is in the bounding box,
+    //and min_edge_length is larger than 0.5r1,
+    //then split the cell
     vect3d p1 = sources[i].p1;
     vect3d p2 = sources[i].p2;
     if((p1.x <= maxx && p1.x >= minx &&
@@ -131,8 +148,17 @@ bool tag_cell(const vector<Node*>& nodes, const vector<source_par>& sources, dou
         )||(p2.x <= maxx && p2.x >= minx &&
             p2.y <= maxy && p2.y >= miny &&
             p2.z <= maxz && p2.z >= minz)){
-      if(min_edge_len>=2*sources[i].r1)return true;
+      
+      if(min_edge_len>0.5*sources[i].r1)return true;
     }
+    //if anyany feature sphere intersect with the cell, 
+    //and min_edge_length of the cell is larger than 0.5r1,
+    //then split the cell
+    
+    
+    if((norm(center-0.5*(p1+p2))< (min_edge_len+sources[i].r1)) &&
+       (min_edge_len>0.5*sources[i].r1))return true;
+    
   }
       
   double min_spacing = get_min_spacing(nodes, sources);
