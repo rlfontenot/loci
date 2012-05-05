@@ -19,9 +19,9 @@
 //#
 //#############################################################################
 
+#ifdef MPI_STUBB
 #include "mpi.h"
 
-#ifdef MPI_STUBB
 #include <string.h>
 #include <cstdlib>
 #include <iostream>

@@ -23,7 +23,9 @@
 
 
 
+#ifndef MPI_STUBB
 #define MPI_STUBB
+#endif
 
 #ifdef __cplusplus
 extern "C" {

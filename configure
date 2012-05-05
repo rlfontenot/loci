@@ -202,10 +202,12 @@ echo >> sys.conf
 #setup MPI
 
 HAS_MPI=1
+MPIEXEC=mpirun
 if [ $MPI_BASE == "/notselected" ]; then
     find_exec mpirun
     if [ $RETURN_VALUE == 0 ]; then
 	find_exec mpiexec
+	MPIEXEC=mpiexec
     fi
     MPI_PATH=$RETURN_VALUE
     if [ $MPI_PATH == 0 ]; then
@@ -294,7 +296,7 @@ if [ $NO_MPI == 1 ] ; then
 
     echo MPI_BASE = >> sys.conf
     echo MPI_LIBS = >> sys.conf
-    echo MPI_INCLUDE = -I\$\(LOCI_BASE\)/include/MPI_stubb >> sys.conf
+    echo MPI_INCLUDE = -DMPI_STUBB -I\$\(LOCI_BASE\)/include/MPI_stubb >> sys.conf
     echo MPI_RUN = none >> sys.conf
     echo MPI_C_COMPILER = none >> sys.conf
     echo MPI_CPP_COMPILER = none >> sys.conf
@@ -305,18 +307,18 @@ else
 	    echo MPI_BASE = /usr/ >> sys.conf
 	    echo MPI_LIBS = -L/usr/lib64 \$\(RPATH\)/usr/lib64 $MPI_LIBRARY >> sys.conf
 	    echo MPI_INCLUDE = -DMPI_NO_CPPBIND >> sys.conf
-	    echo MPI_RUN = mpirun >> sys.conf
+	    echo MPI_RUN = $MPIEXEC >> sys.conf
 	else
 	    echo MPI_BASE =  $MPI_BASE >> sys.conf
 	    echo MPI_LIBS =  -L$MPI_BASE/lib $MPI_LIBRARY >> sys.conf
 	    echo MPI_INCLUDE = -I$MPI_BASE/include  >> sys.conf
-	    echo MPI_RUN=$MPI_PATH/mpirun >> sys.conf
+	    echo MPI_RUN=$MPI_PATH/$MPIEXEC >> sys.conf
 	fi
     else
 	echo MPI_BASE =  $MPI_BASE >> sys.conf
 	echo MPI_LIBS =   >> sys.conf
 	echo MPI_INCLUDE = -DMPICH_IGNORE_CXX_SEEK >> sys.conf
-	echo MPI_RUN=$MPI_PATH/mpirun >> sys.conf
+	echo MPI_RUN=$MPI_PATH/$MPIEXEC >> sys.conf
     fi
     echo MPI_C_COMPILER = $MPI_C_COMPILER >> sys.conf
     echo MPI_CPP_COMPILER = $MPI_CPP_COMPILER >> sys.conf
@@ -351,6 +353,11 @@ if [ ! -d $H5PATH ]; then
     exit -1
 fi
 
+H5SUPPORTLIBS=-lz
+
+if [ -e $H5PATH/lib/libhdf5.settings ]; then
+    H5SUPPORTLIBS=`grep "Extra libraries" $H5PATH/lib/libhdf5.settings | sed "s/.*://"`
+fi
 
 echo \# HDF5 File I/O Libraries Setup >> sys.conf
 echo HDF5_BASE = $H5PATH >> sys.conf
@@ -358,7 +365,7 @@ echo Using HDF5 libraries in directory \"$H5PATH\".
 if [ -e $H5PATH/lib64/libhdf5.so ]; then
 echo HDF5_LIBS = -L\$\(HDF5_BASE\)/lib64 \$\(RPATH\)\$\(HDF5_BASE\)/lib64 -L\$\(HDF5_BASE\)/lib \$\(RPATH\)\$\(HDF5_BASE\)/lib -lhdf5 -lz >> sys.conf
 else
-echo HDF5_LIBS = -L\$\(HDF5_BASE\)/lib -lhdf5 \$\(RPATH\)\$\(HDF5_BASE\)/lib -lz >> sys.conf
+echo HDF5_LIBS = -L\$\(HDF5_BASE\)/lib -lhdf5 \$\(RPATH\)\$\(HDF5_BASE\)/lib $H5SUPPORTLIBS >> sys.conf
 fi
 echo HDF5_INCLUDE = -I\$\(HDF5_BASE\)/include -DH5_USE_16_API >> sys.conf
 echo >> sys.conf
