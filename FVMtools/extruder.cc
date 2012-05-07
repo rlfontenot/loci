@@ -143,7 +143,7 @@ int main(int ac, char *av[]) {
       ac-- ;
       av++ ;
       nplanes = atoi(av[1]) ;
-      if(growth < 2) {
+      if(nplanes < 2) {
         cerr << "nplanes must be two or greater!" << endl ;
         Usage() ;
       }
