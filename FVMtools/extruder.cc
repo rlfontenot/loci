@@ -403,5 +403,23 @@ int main(int ac, char *av[]) {
   }
   cout << "nodes1= " << nodes1 << endl ;
   cout << "mxfsz = " << mxfsz << ", mnfsz = " << mnfsz << endl ;
+  
+  ofstream otfile("grid.tags",ios::out) ;
+  if(otfile.fail()) {
+    cerr << "can't open grid.tags" << endl ;
+    return  -1 ;
+  }
+  otfile << "#ID:    Group                   BC      Visc    Recon   Source  Trans   Rebuild" << endl ;
+  for(int i=0;i<nbcs;++i) {
+    otfile << "#" << i+1 << ":     " << bcs[i].name << "      "
+           << " 1 0 0 0 0 0" << endl ;
+  }
+  otfile << "#" << nbcs+1 << ":     " << "plane1" << "      "
+           << " 1 0 0 0 0 0" << endl ;
+  otfile << "#" << nbcs+2 << ":     " << "plane2" << "      "
+           << " 1 0 0 0 0 0" << endl ;
+  otfile.close() ;
+    
+  
   return 0;
 }
