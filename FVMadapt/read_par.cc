@@ -29,17 +29,7 @@ using std::endl;
 using std::vector;
 using std::ifstream;
 
-double get_distance(const vect3d& p, const vect3d& p1, const vect3d& p2){
-  if( norm(p1-p2) < NORMALIZE_ZERO_THRESHOLD) return norm(p - p1);
-  double dotp1 = dot(p2-p1, p-p1);
-  double dotp2 = dot(p1-p2, p-p2);
-  if(dotp1 > 0 && dotp2 > 0) return norm(cross(p2-p1, p-p1))/norm(p2-p1);
-  if(dotp1 <= 0) return norm(p-p1);
-  if(dotp2 <= 0) return norm(p-p2);
-  cerr<<"WARNING: get_distance reach dummy code" << endl;
-  return norm(p-0.5*(p1+p2));
-}
-  
+
 void readPar(string filename, vector<source_par>& sources){
   sources.clear();
  
@@ -74,21 +64,25 @@ void readPar(string filename, vector<source_par>& sources){
     sources[i] = s;
   }
   inFile.close();
-    // s1.p1= vect3d(1.5, 0, 3);
-//   s1.p2= vect3d(1.5, 1, 3);
-//   s1.r0 = 0.2;
-//   s1.s0 = 0.2;
-//   s1.r1 = 0.5;
-//   s1.s1 = 0.1; 
-//   s1.a = 0.2;
- 
-   cerr<<"reading parameters" << endl;  
+  
 }
-
+double get_distance(const vect3d& p, const vect3d& p1, const vect3d& p2){
+  if( norm(p1-p2) < NORMALIZE_ZERO_THRESHOLD) return norm(p - p1);
+  double dotp1 = dot(p2-p1, p-p1);
+  double dotp2 = dot(p1-p2, p-p2);
+  if(dotp1 > 0 && dotp2 > 0) return norm(cross(p2-p1, p-p1))/norm(p2-p1);
+  if(dotp1 <= 0) return norm(p-p1);
+  if(dotp2 <= 0) return norm(p-p2);
+  cerr<<"WARNING: get_distance reach dummy code" << endl;
+  return norm(p-0.5*(p1+p2));
+}
+  
 double get_spacing(const vect3d& p, const source_par& s){
   double sp;
   double r = get_distance(p, s.p1, s.p2);
-  if(r <= s.r0) sp = s.s0;
+  double dotp1 = dot(s.p2-s.p1, p-s.p1);
+  double dotp2 = dot(s.p1-s.p2, p-s.p2);
+  if(dotp1 > 0 && dotp2 > 0 && r <= s.r0) sp = s.s0;
   else if(r <= s.r1) sp = s.s1;
   else sp = s.s1*pow(r/s.r1, s.a);
   return sp;
