@@ -78,14 +78,13 @@ double get_distance(const vect3d& p, const vect3d& p1, const vect3d& p2){
 }
   
 double get_spacing(const vect3d& p, const source_par& s){
-  double sp;
+ 
   double r = get_distance(p, s.p1, s.p2);
   double dotp1 = dot(s.p2-s.p1, p-s.p1);
   double dotp2 = dot(s.p1-s.p2, p-s.p2);
-  if(dotp1 > 0 && dotp2 > 0 && r <= s.r0) sp = s.s0;
-  else if(r <= s.r1) sp = s.s1;
-  else sp = s.s1*pow(r/s.r1, s.a);
-  return sp;
+  if(dotp1 > 0 && dotp2 > 0 && r <= s.r0) return s.s0;
+  if(r <= s.r1) return s.s1;
+  return s.s1*pow(r/s.r1, s.a);
 }
 vect3d get_center(const vector<Node*>& nodes){
   vect3d center = vect3d(0.0, 0.0, 0.0);
