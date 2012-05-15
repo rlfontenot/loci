@@ -358,14 +358,11 @@ void vtk_topo_handler::write_general_cell(int nfaces[], int nnfaces,
   unsigned char ctype = (unsigned char)type ;
   int face = 0, node = 0 ;
   vector<int> tmp;
+  
   for(int i=0;i<nnfaces;++i) {
     int tsz=0,nf = nfaces[i] ;
-    
-    for (int j=0;j<nf;j++) { 
-      int ne = nsides[nf*i+j] ; 
-      for (int k=0;k<ne;k++) tsz++;
-    }
-    tmp.resize(tsz); tsz=0;
+    for (int j=0;j<nf;j++) tsz += nsides[face++] ; 
+    tmp.resize(tsz) ; face-=nf ; tsz=0 ;
     cell_faces.push_back(nf) ; face_off++ ;
     for (int j=0;j<nf;j++) { 
       int ne = nsides[face++] ; 
