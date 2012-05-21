@@ -150,9 +150,30 @@ public:
     }
     return -1;
   }
+  //find numChildren without actually building the cell   
+  inline int numChildren(char splitCode)const{
+    switch(splitCode){
+    case 0:
+      return 0;
+    case 1:
+    case 2:
+    case 4:
+      return 2;
+    case 3:
+    case 5:
+    case 6:
+      return 4;
+    case 7:
+      return 8;
+    default:
+      cerr<< "WARNING: illegal split code" << endl;
+      break;
+    }
+    return -1;
+  }
+  //find num_fine_cells without  actually building the tree
+  int32 num_fine_cells( const std::vector<char>& cellPlan)const;
   
-
-
   int get_num_fine_faces()const;//for mxfpc
   double get_min_edge_length();   
  
@@ -163,7 +184,8 @@ public:
  
   //only define childCell
   void empty_split();
-  void empty_resplit(const std::vector<char>& cellPlan);
+  //return num_fine_cells
+  int empty_resplit(const std::vector<char>& cellPlan);
 
   void resplit(const std::vector<char>& cellPlan,
                std::list<Node*>& node_list,

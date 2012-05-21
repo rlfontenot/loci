@@ -429,7 +429,8 @@ public:
   //split a general cell isotropically into DiamondCells
   //only define child
   void empty_split();
-  void empty_resplit(const std::vector<char>& cellPlan);
+  //return num_fine_cell
+  int empty_resplit(const std::vector<char>& cellPlan);
   
   int get_num_fine_faces();//for calculating mxfpc
   

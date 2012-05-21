@@ -43,10 +43,10 @@ using std::cout;
 using std::vector;
 
 //in each cell, only childCell, mySplitCode, and cellIndex is defined
-void Prism::empty_resplit( const std::vector<char>& cellPlan){
+int Prism::empty_resplit( const std::vector<char>& cellPlan){
   if(cellPlan.size() == 0){
     this->cellIndex = 1;
-    return;
+    return 1;
   }
   
   queue<Prism*> Q;
@@ -69,7 +69,6 @@ void Prism::empty_resplit( const std::vector<char>& cellPlan){
     
     if(current->mySplitCode ==0){
       current->cellIndex = ++cIndex;
-      //cells.push_back(current);
     }
     else{
       current->empty_split();
@@ -80,7 +79,8 @@ void Prism::empty_resplit( const std::vector<char>& cellPlan){
     }
     
     Q.pop();
-  } 
+  }
+  return cIndex;
 }
 
 
@@ -616,61 +616,42 @@ void set_prism_faces(const std::vector<Prism*>& cells,
 
 
 void Prism::empty_split(){
-  
-  switch(mySplitCode)
+   switch(mySplitCode)
     {
-      
-      //000 no split,this is a leaf, compare and set the maxLevels, output cells
+       //000 no split,this is a leaf, compare and set the maxLevels, output cells
     case 0:
       break;
-      
-      //100  x direction is splitted 
+       //100  x direction is splitted 
     case 1:
-
       childCell = new Prism*[2];
-      
       for(int i = 0; i <2; i++){
         childCell[i] = new Prism();
         childCell[i] ->nfold = nfold;
-        //	childCell[i]->whichChild = i;
-        // childCell[i]->parentCell = this;
       }
-      
-      
       break;
       
       //010  y direction is splitted 
     case 2:
-
       childCell = new Prism*[nfold];
-      
       for(int i = 0; i < nfold; i++){
         childCell[i] = new Prism();
         childCell[i]->nfold = 4;
-        //childCell[i]->whichChild = i;
-        // childCell[i]->parentCell = this;
       }
       break;
-      
-      
       //001  z direction is splitted 
     case 3:
-      
       childCell = new Prism*[2*nfold];
-      
       for(int i = 0; i <2*nfold; i++){
         childCell[i] = new Prism();
         childCell[i]->nfold = 4;
-        //	childCell[i]->whichChild = i;
-        //childCell[i]->parentCell = this;
-        }
+      }
       break;
-      
     default:
       cerr <<"WARNING: illegal splitcode in function Prism::reSplit()" << endl;
       break;
     }
 }
+
 
 
   

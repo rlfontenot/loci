@@ -29,12 +29,19 @@
 #include <stdio.h>
 #include "mpi.h"
 #include "defines.h"
+#include <iostream>
+#include <fstream>
 using Loci::storeRepP;
-
+using std::vector;
+using std::cerr;
+using std::cout;
+using std::endl;
+using std::string;
+using std::ofstream;
 typedef Loci::vector3d<double> vect3d;
 namespace Loci{
   std::vector<int> all_collect_sizes(int size);
-// Convert container from local numbering to file numbering
+  // Convert container from local numbering to file numbering
   // pass in store rep pointer: sp
   // entitySet to write: dom
   // return offset in file numbering (each processor will allocate from zero,
@@ -44,10 +51,10 @@ namespace Loci{
   storeRepP Local2FileOrder(storeRepP sp, entitySet dom, int &offset,
                             fact_db::distribute_infoP dist, MPI_Comm comm);
 
-   void File2LocalOrder(storeRepP &result, entitySet resultSet,
+  void File2LocalOrder(storeRepP &result, entitySet resultSet,
                        storeRepP input, int offset,
                        fact_db::distribute_infoP dist,
-                        MPI_Comm comm);
+                       MPI_Comm comm);
   
 }
 
@@ -117,7 +124,7 @@ public:
     local_faces = (*my_entities) & (*faces);
     local_geom_cells = (*my_entities)&(*geom_cells);
 
-     //each process computes its node  offset
+    //each process computes its node  offset
 
     int noffset = *num_original_nodes ;
 
@@ -147,9 +154,9 @@ public:
         noffset += edge_num_inner_nodes[ei];
       }ENDFORALL;
       Loci::File2LocalOrder(localVar, local_edges,
-                      edge_file_offset.Rep(), offset,
-                      dist,
-                      MPI_COMM_WORLD);
+                            edge_file_offset.Rep(), offset,
+                            dist,
+                            MPI_COMM_WORLD);
       
     }
     //finish with edge nodes
@@ -194,9 +201,9 @@ public:
       }ENDFORALL;
       //File2Local use the offset value set by Local2File    
       Loci::File2LocalOrder(localVar, local_geom_cells,
-                      cell_file_offset.Rep(), offset,
-                      dist,
-                      MPI_COMM_WORLD);
+                            cell_file_offset.Rep(), offset,
+                            dist,
+                            MPI_COMM_WORLD);
       //finish with cell nodes
     }
     //update noffset
@@ -237,9 +244,9 @@ public:
       }ENDFORALL;
       
       Loci::File2LocalOrder(localVar, local_faces,
-                    face_file_offset.Rep(), offset,
-                      dist,
-                      MPI_COMM_WORLD);
+                            face_file_offset.Rep(), offset,
+                            dist,
+                            MPI_COMM_WORLD);
       
     } 
   }
@@ -309,6 +316,93 @@ public:
 } ;
 register_rule<get_cell_offset> register_get_cell_offset;
 
+class init_num_original_faces : public unit_rule{
+  param<int> num_original_faces;
+public:
+  init_num_original_faces(){
+    name_store("num_original_faces", num_original_faces);
+    output("num_original_faces");
+    constraint("UNIVERSE");
+    
+  }
+  //parameter, no loop, 
+  virtual void compute(const sequence &seq){
+    
+    
+    *num_original_faces = 0;
+  }
+}; 
+register_rule<init_num_original_faces> register_init_num_original_faces;
+
+class apply_num_original_faces : public apply_rule<param<int>, Loci::Summation<int> >{
+  param<int> num_original_faces;
+  
+public:
+  apply_num_original_faces(){
+    name_store("num_original_faces", num_original_faces);
+    input("num_original_faces");
+    output("num_original_faces");
+    constraint("faces");
+  }
+  virtual void compute(const sequence &seq){
+    do_loop(seq, this);
+  }
+  void calculate(Entity cc){
+    *num_original_faces +=1;
+  }
+}; 
+register_rule<apply_num_original_faces> register_apply_num_original_faces;
+
+class get_cell_parent : public pointwise_rule {
+  const_store<int> num_fine_cells;
+  const_store<int> cell_offset;
+  const_store<int>  cell_l2f;
+  const_param<int> num_original_nodes;
+  const_param<int> num_original_faces;
+  
+  store<std::vector<pair<int, int> > > cell2parent;
+  
+public:
+  get_cell_parent(){
+    name_store("num_fine_cells", num_fine_cells);
+    name_store("cell_offset", cell_offset);
+    name_store("fileNumber(geom_cells)", cell_l2f);
+    name_store("cell2parent", cell2parent);
+    name_store("num_original_nodes", num_original_nodes);
+    name_store("num_original_faces", num_original_faces);
+   
+    input("num_fine_cells");
+    input("cell_offset");
+    input("fileNumber(geom_cells)");
+    input("num_original_nodes");
+    input("num_original_faces");
+    
+   
+    output("cell2parent");
+    constraint("geom_cells");
+  }
+  virtual void compute(const sequence &seq) {
+    if(seq.size()!=0){
+       
+      do_loop(seq, this);
+    }
+  }
+  void calculate(Entity cc){
+    std::vector<pair<int, int> > c2p(num_fine_cells[cc]);
+    for(int i = 0; i < num_fine_cells[cc]; i++){
+      
+      int child_index = cell_offset[cc]+i+1;//local cellindex start with 1
+      int parent_index = cell_l2f[cc]-*num_original_nodes-*num_original_faces+1;
+      
+      
+      c2p[i] = make_pair<int, int>(child_index, parent_index);
+      // std::cout << child_index << " : " << parent_index << std::endl;
+    }
+    c2p.swap(cell2parent[cc]);
+  }   
+} ;
+register_rule<get_cell_parent> register_get_cell_parent;
+
 
 
 
@@ -352,7 +446,120 @@ public:
 register_rule<apply_npnts> register_apply_npnts;
 
 
+class write_cell2parent : public pointwise_rule{
+  const_param<std::string> c2pfile_par;
+  const_store<std::vector<pair<int, int> > > cell2parent;
+  store<bool> c2p_output;
+public:
+  write_cell2parent(){
+    name_store("cell2parent_file_par", c2pfile_par);
+    name_store("cell2parent", cell2parent);
+    name_store("cell2parent_output", c2p_output);
+    input("cell2parent_file_par");
+    input("cell2parent");
+    output("cell2parent_output");
+    constraint("geom_cells");
+    disable_threading();
+  }
+  virtual void compute(const sequence &seq){
+    std::ofstream outFile;
+    int nprocs = Loci::MPI_processes;
+    
+    //process 0 open tagFile
+    if(Loci::MPI_rank == 0){
+      outFile.open((*c2pfile_par).c_str());
+      if(!outFile){
+        cerr <<"can not open " << *c2pfile_par << " for output" << endl;
+        Loci::Abort();
+      }
+    }
+    
+    entitySet dom = entitySet(seq);
+    
+    //serial version
+    if(nprocs == 1){
+      FORALL(dom, cc){
+        for(unsigned int i = 0; i < cell2parent[cc].size(); i++){
+          outFile << cell2parent[cc][i].first << ' '<<cell2parent[cc][i].second<<endl;
+        }
+      }ENDFORALL;
+      //close tagfile
+      outFile.close();
+      return;
+    }
+    //parallel version
+    
+   
+    //first create store in the order of file numbering      
+   
+   
+   
+    int my_size = 0;
+    FORALL(dom, cc){
+      my_size += 2*cell2parent[cc].size();
+    }ENDFORALL;
+    
+    int* size_buf = new int[nprocs];
+    
+    //compute buf_size on each process
+    unsigned int  buf_size = 0;
+    MPI_Allreduce(&my_size, &buf_size, 1, MPI_INT,
+                  MPI_MAX, MPI_COMM_WORLD);
+    //process 0 find out size of buffer for each process
+     
+    MPI_Gather(&my_size, 1, MPI_INT, size_buf, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      
+    int *buf = new int[buf_size]; 
+    
+    if(Loci::MPI_rank == 0){
+      
+      //process 0 write its local cell2parent 
+      FORALL(dom, cc){
+        for(unsigned int i = 0; i < cell2parent[cc].size(); i++){
+          outFile << cell2parent[cc][i].first << ' '<<cell2parent[cc][i].second<<endl;
+        }
+      }ENDFORALL;
+      
+      //process 0 recv the buf and write it out
+      for(int i = 1; i < nprocs; i++){
+        MPI_Status status;
+        MPI_Recv(buf, buf_size, MPI_INT, i, 20, MPI_COMM_WORLD, &status);
+        int recv_size = size_buf[i]/2; 
+        for(int j = 0; j < recv_size; j++)  
+          {
+            outFile << buf[2*j] << ' '<<buf[2*j+1]<<endl;
+          }
+       
+      }
+      
+    }else{ //other processes send buf to process 0
+   
+      int ptr = 0;
+      FORALL(dom, cc){
+        for(unsigned int i = 0; i < cell2parent[cc].size(); i++){
+          buf[ptr++] = cell2parent[cc][i].first;
+          buf[ptr++] = cell2parent[cc][i].second;
+        }
+      }ENDFORALL;
+      int send_size = ptr;
+      MPI_Send(buf, send_size, MPI_INT, 0, 20, MPI_COMM_WORLD);
+    }
+    
+   
+               
+    delete [] buf;
+    delete [] size_buf;
+    //process 0 close file
+    if(Loci::MPI_rank == 0){
+      outFile.close();
+      //  cout << "Finish reading  posTag " << endl;
+    }
+    
+  } 
 
+};
+register_rule<write_cell2parent> register_write_cell2parent;
+  
 
 
 

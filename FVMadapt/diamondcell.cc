@@ -702,64 +702,6 @@ void Cell::resplit( const std::vector<char>& cellPlan,
 }
 
 
-void Cell::empty_resplit(const std::vector<char>& cellPlan){
-  
-    int cellID = 0;                    
-    if(cellPlan.size() == 0){
-      return;
-    }
-    std::queue<DiamondCell*> Q;
-    //assume if cellPlan not empty, it always begin with 1
-    empty_split();
-  
-    for(int i = 0; i < numNode; i++){ 
-      Q.push(child[i]);
-    }
-  
-    //process the DiamondCells in the Q until Q is empty
-  
-    DiamondCell* current;
-    unsigned int index =1;
-    char currentCode;
-    while(!Q.empty()){
-      current = Q.front();
-      if(index >= cellPlan.size()){
-        currentCode = 0;
-      }
-      else{ 
-        //take a code from splitcode
-        currentCode = cellPlan[index];
-        index++;  
-      }
-      
-      switch(currentCode)
-        {
-          
-          //0 no split,this is a leaf, output cells
-        case 0:
-          current->cellIndex = ++cellID;
-          break;
-         
-        case 1:
-          
-          current->empty_split();
-         
-          for(int i = 0; i < 2*(current->nfold) +2; i++){
-            Q.push(current->childCell[i]);
-          }
-         
-          break;
-          
-        default:
-          cerr <<"WARNING: illegal splitcode in function Cell::empty_resplit()" << endl;
-         break;
-        }
-      
-      Q.pop();
-  }
-    
-}
-
 
 
 
@@ -991,17 +933,7 @@ void Cell::rebalance_cells(std::list<Node*>& node_list,
 }
 
 
-/*
-bool Cell::get_tagged(){
 
-  int num_nodes_tagged = 0;
-  for(int i = 0; i<numNode; i++){
-    if(node[i]->tag ==1) num_nodes_tagged++;
-  }
-  if(num_nodes_tagged >= numNode/2) return true;
-  else return false;
-}
-*/
 
 bool Cell::get_tagged(){
   for(int i = 0; i<numNode; i++){
@@ -1252,19 +1184,6 @@ void Cell:: split(std::list<Node*>& node_list, std::list<Edge*>& edge_list, std:
   delete [] facecenter;
 }
 
-void Cell::empty_split(){
-  child = new DiamondCell*[numNode];
-  for(int  nindex = 0; nindex < numNode; nindex++){
-    //find all the faces that connected to the node, put them into n2f
-    std::vector<Face*> n2f;
-    std::vector<Edge*> n2e;
-    std::vector<int> rot;
-    set_n2f_n2e(n2f, n2e,rot, nindex);
-    //define the child cell
-    child[nindex] = new DiamondCell(n2e.size());
-  }
-}
-
 std::vector<char> Cell::make_cellplan(){
   
   std::vector<char> cellPlan;
@@ -1296,4 +1215,73 @@ std::vector<char> Cell::make_cellplan(){
   return cellPlan;
 }
 
+void Cell::empty_split(){
+  child = new DiamondCell*[numNode];
+  for(int  nindex = 0; nindex < numNode; nindex++){
+    //find all the faces that connected to the node, put them into n2f
+    std::vector<Face*> n2f;
+    std::vector<Edge*> n2e;
+    std::vector<int> rot;
+    set_n2f_n2e(n2f, n2e,rot, nindex);
+    //define the child cell
+    child[nindex] = new DiamondCell(n2e.size());
+  }
+}
+int Cell::empty_resplit(const std::vector<char>& cellPlan){
+  
+                     
+    if(cellPlan.size() == 0){
+      return 1;
+    }
+    std::queue<DiamondCell*> Q;
+    //assume if cellPlan not empty, it always begin with 1
+    empty_split();
+  
+    for(int i = 0; i < numNode; i++){ 
+      Q.push(child[i]);
+    }
+  
+    //process the DiamondCells in the Q until Q is empty
+   int cIndex = 0;  
+    DiamondCell* current;
+    unsigned int index =1;
+    char currentCode;
+    while(!Q.empty()){
+      current = Q.front();
+      if(index >= cellPlan.size()){
+        currentCode = 0;
+      }
+      else{ 
+        //take a code from splitcode
+        currentCode = cellPlan[index];
+        index++;  
+      }
+      
+      switch(currentCode)
+        {
+          
+          //0 no split,this is a leaf, output cells
+        case 0:
+          current->cellIndex = ++cIndex;
+          break;
+         
+        case 1:
+          
+          current->empty_split();
+         
+          for(int i = 0; i < 2*(current->nfold) +2; i++){
+            Q.push(current->childCell[i]);
+          }
+         
+          break;
+          
+        default:
+          cerr <<"WARNING: illegal splitcode in function Cell::empty_resplit()" << endl;
+         break;
+        }
+      
+      Q.pop();
+  }
+    return cIndex;  
+}
 

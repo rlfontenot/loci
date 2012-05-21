@@ -49,7 +49,6 @@ std::vector<char> extract_prism_face(const  std::vector<char>& cellPlan,  int dd
   }
 
   Prism *aCell = new Prism(); // the root, nfold = 3
-  aCell->setNfold(3);
   aCell->empty_resplit(cellPlan); //only nfold and childCell is defined
   
 

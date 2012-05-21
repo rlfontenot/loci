@@ -18,29 +18,20 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
-//#include <fstream>
+
 #include <iostream>
 #include <string>
-//#include <utility>
-//#include <vector>
-//#include <list>
-//#include <algorithm>
 #include <Loci.h>
-//#include "hexcell.h"
 #include "defines.h"
-//#include <rpc/xdr.h>
-//#include <rpc/rpc.h>
 using std::string;
 using std::cout;
 using std::endl;
 using std::cerr;
-//using std::ofstream;
-//using std::ifstream;
 using std::ios;
 
 namespace Loci{
   void parallelClassifyCell(fact_db &facts) ;
-   void createEdgesPar(fact_db &facts);
+  void createEdgesPar(fact_db &facts);
 }
 
 
@@ -51,24 +42,17 @@ int main(int argc, char ** argv) {
   
 
   // This is the name of the mesh file that you want to read in.
-  // This may be overridden by the command line argument "-g file.xdr"
-  //  string meshfile = "testGrid.xdr";
-  string meshfile = "testGrid.vog";
+  string meshfile;
   //This is the name of the refinement plan file
-  string planFile = "out.plan";
+  string planFile;
   //This is the name of the output gridfile
-  string outFile  = "out.xdr";
-  
+  string outFile = "out.vog";
+  string c2pFile;
   // Here's where we parse out the command line arguments that are
   // relevant to this program.
   int j=1;
-  //string pathname = "../gridgen/restore/mixedcell/";
-  // string pathname = "/var/tmp/qxue/grid/";
-   string pathname = "";
-   //  bool restart = false;
-   // bool xdr = true;
-
-
+  string pathname = "";
+  bool cell2parent = false;
   
     //print out help info
   if( (argc == 1)||(argc==2) ){
@@ -80,7 +64,7 @@ int main(int argc, char ** argv) {
       cout <<"-g <file> -- original grid file, refinement plans are based on this grid" << endl;
       cout <<"-r <file> -- input refinement plan file" <<endl;
       cout <<"-o <file> -- output grid file" << endl;
-     
+      cout <<"-c2p <file> -- output cell2parent map file" << endl;
     }
     return 0;
   }
@@ -97,7 +81,11 @@ int main(int argc, char ** argv) {
        //replace the output filename with the next argument
       outFile =  argv[++i];
     }
-    
+     else if(arg == "-c2p" && (i+1) < argc){
+       //replace the filename with the next argument
+       c2pFile =  argv[++i];
+       cell2parent = true;
+    }
     else if(arg == "-r" && (i+1) < argc){
       //replace the input refinement plan filename with the next argument
       planFile =  argv[++i];
@@ -116,7 +104,7 @@ int main(int argc, char ** argv) {
   meshfile = pathname + meshfile;
   outFile = pathname + outFile;
   planFile = pathname + planFile;
-  
+  c2pFile = pathname + c2pFile;
 
 
 
@@ -137,7 +125,12 @@ int main(int argc, char ** argv) {
   param<std::string> outfile_par ;
   *outfile_par = outFile;
   facts.create_fact("outfile_par",outfile_par) ;
-
+  
+  if(cell2parent){
+    param<std::string> c2pfile_par ;
+    *c2pfile_par = c2pFile;
+    facts.create_fact("cell2parent_file_par",c2pfile_par) ;
+  }
   
   // Setup the rule database.
   // Add all registered rules.
@@ -156,8 +149,12 @@ int main(int argc, char ** argv) {
   Loci::createEdgesPar(facts) ;
  
   Loci:: parallelClassifyCell(facts);
-  
-
+  if(cell2parent){
+    if(!Loci::makeQuery(rules, facts, "cell2parent_output")) {
+      std::cerr << "query failed!" << std::endl;
+      Loci::Abort();
+    }
+  }
   
    if(!Loci::makeQuery(rules, facts, "node_output")) {
     std::cerr << "query failed!" << std::endl;
