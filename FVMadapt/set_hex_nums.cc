@@ -239,4 +239,51 @@ public:
 register_rule<set_quadface_nums> register_set_quadface_nums;
 
 
+class set_hexcell_num_cells_c2p : public pointwise_rule{
+  const_store<std::vector<char> > cellPlan;
+  const_store<std::vector<char> > parentPlan;
+  store<int> num_fine_cells;
+  store<int> parent_num_fine_cells;
+  store<std::vector<pair<int32, int32> > > indexMap;
+public:
+  set_hexcell_num_cells_c2p(){
+    name_store("cellPlan", cellPlan);
+    name_store("parentPlan", parentPlan);
+    name_store("priority::c2p::num_fine_cells", num_fine_cells);
+    name_store("parent_num_fine_cells", parent_num_fine_cells);
+    name_store("indexMap", indexMap);
+    input("cellPlan");
+    input("parentPlan");
+    output("priority::c2p::num_fine_cells");
+    output("parent_num_fine_cells");
+    output("indexMap");
+    constraint("hexcells");
+  }
+  virtual void compute(const sequence &seq){
+    if(seq.size()!=0){
+      do_loop(seq, this);
+      }
+    
+  }
+  void calculate(Entity cc){
+       
+    if(cellPlan[cc].size() == 0){
+      num_fine_cells[cc] = 1;
+      parent_num_fine_cells[cc]  = 1;
+      indexMap[cc].push_back(make_pair(1,1));
+      reduce_vector(indexMap[cc]);
+      return;
+    }
+    HexCell* aCell = new HexCell;
+    num_fine_cells[cc] = aCell->empty_resplit(cellPlan[cc]);
+    parent_num_fine_cells[cc] = aCell->traverse(parentPlan[cc],indexMap[cc]);
+    reduce_vector(indexMap[cc]);
+    //clean up
+    if(aCell != 0){
+      delete aCell;
+      aCell = 0;
+    }
+  }
+};
+register_rule<set_hexcell_num_cells_c2p> register_set_hexcell_num_cells_c2p;  
 

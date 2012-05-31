@@ -44,7 +44,7 @@
 
 using std::cerr;
 using std::endl;
-
+using std::list;
 
 class Cell;
 //when a general cell is splitted isotropically, it will become m DiamondCell
@@ -129,7 +129,7 @@ public:
   //this function splits diamondcell isotropically once
   //only define childCell
   void empty_split();
-  
+
   //this function check if aFace is one of the face
   //return -1: No
   //return i in [0, 2*nfold), Yes, face[i] == aFace
@@ -210,8 +210,8 @@ private:
   DiamondCell(const DiamondCell&);
   friend class Cell;
 private:
-  //get all the leaves
-  void get_leaves(std::vector<DiamondCell*>& leaf_cell);
+ //  //get all the leaves
+//   void get_leaves(std::vector<DiamondCell*>& leaf_cell);
 
   //get all the 2*nfold+2 nodes
   void get_nodes(std::set<Node*>& node);
@@ -430,8 +430,10 @@ public:
   //only define child
   void empty_split();
   //return num_fine_cell
-  int empty_resplit(const std::vector<char>& cellPlan);
-  
+  int32 empty_resplit(const std::vector<char>& cellPlan);
+  //  void get_leaves(std::vector<DiamondCell*>& leaf_cell);
+  //after the cell is split into a tree, get the indexMap from current index to parent index
+  int32 traverse(const std::vector<char>& parentPlan,  vector<pair<int32, int32> >& indexMap);
   int get_num_fine_faces();//for calculating mxfpc
   
   //find the node2edge of for all nodes, for each node, n2e[i] and n2e[i+1] share a face

@@ -44,7 +44,10 @@
 using std::cerr;
 using std::endl;
 using std::vector;
-
+using std::stack;
+using std::queue;
+using std::cout;
+using std::list;
 std::vector<int32> get_c1_prism(const std::vector<char>& cellPlan,
                                 const std::vector<char>& facePlan,
                                 char orientCode,
@@ -189,7 +192,8 @@ public:
  
   void empty_split();
   int empty_resplit(const std::vector<char>& cellPlan);
-  
+   //after the cell is split into a tree, get the indexMap from current index to parent index
+  int32 traverse(const std::vector<char>& parentPlan,  vector<pair<int32, int32> >& indexMap);
   
  
   

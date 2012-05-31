@@ -174,9 +174,8 @@ public:
     name_store("fileNumber(pos)", node_l2f);
     name_store("num_fine_cells", num_fine_cells);
     input("cellPlan");
-    input("(lower, upper, boundary_map)->face2edge");
-    input("(lower, upper, boundary_map)->face2node->(fileNumber(pos))");
-    input("(lower, upper, boundary_map)->face2edge->edge2node");
+    input("(lower, upper, boundary_map)->face2node->fileNumber(pos)");
+    input("(lower, upper, boundary_map)->face2edge->edge2node->fileNumber(pos)");
    
     output("num_fine_cells");
     constraint("gnrlcells");
@@ -223,7 +222,89 @@ public:
 };
 register_rule<set_general_cell_num_cells> register_set_general_cell_num_cells;  
 
+class set_general_num_cells_c2p : public pointwise_rule{
+  const_store<std::vector<char> > cellPlan;
+  const_store<std::vector<char> > parentPlan;
+  const_multiMap lower;
+  const_multiMap upper;
+  const_multiMap boundary_map;
+  const_multiMap face2node;
+  const_multiMap face2edge;
+  const_MapVec<2> edge2node;
+  store<int> num_fine_cells;
+  store<int> parent_num_fine_cells;
+  store<std::vector<pair<int32, int32> > > indexMap;
+  const_store<int> node_l2f;
+public:
+  set_general_num_cells_c2p(){
+    name_store("cellPlan", cellPlan);
+    name_store("parentPlan", parentPlan);
+    name_store("lower", lower);
+    name_store("upper", upper);
+    name_store("boundary_map", boundary_map);
+    name_store("face2node", face2node);
+    name_store("face2edge", face2edge);
+    name_store("edge2node", edge2node);
+    name_store("fileNumber(pos)", node_l2f);
+    name_store("priority::c2p::num_fine_cells", num_fine_cells);
+    name_store("parent_num_fine_cells", parent_num_fine_cells);
+    name_store("indexMap", indexMap);
+    input("cellPlan");
+    input("parentPlan");
+    
+    input("(lower, upper, boundary_map)->face2node->fileNumber(pos)");
+    input("(lower, upper, boundary_map)->face2edge->edge2node->fileNumber(pos)");
+   
+    output("priority::c2p::num_fine_cells");
+    output("parent_num_fine_cells");
+    output("indexMap");
+    constraint("gnrlcells");
+  }
+  virtual void compute(const sequence &seq){
+    if(seq.size()!=0){
+      do_loop(seq, this);
+    }
 
+  }
+  void calculate(Entity cc){
+    if(cellPlan[cc].size() == 0){
+      num_fine_cells[cc] = 1;
+      parent_num_fine_cells[cc]  = 1;
+      indexMap[cc].push_back(make_pair(1,1));
+      reduce_vector(indexMap[cc]);
+      return;
+    }
+
+    std::list<Node*> node_list;
+    std::list<Edge*> edge_list;
+    std::list<Face*> face_list;
+    
+    Cell* aCell = build_general_cell(lower[cc].begin(), lower.num_elems(cc),
+                                     upper[cc].begin(), upper.num_elems(cc),
+                                     boundary_map[cc].begin(), boundary_map.num_elems(cc),
+                                     face2node,
+                                     face2edge,
+                                     edge2node,
+                                     node_list,
+                                     edge_list,
+                                     face_list,
+                                     node_l2f);
+    
+        
+    num_fine_cells[cc] =  aCell->empty_resplit(cellPlan[cc]);
+    parent_num_fine_cells[cc] = aCell->traverse(parentPlan[cc],indexMap[cc]);
+    reduce_vector(indexMap[cc]);
+    //clean up
+    if(aCell != 0){
+      delete aCell;
+      aCell = 0;
+    }
+    
+    //aCell will clean up these
+    cleanup_list(node_list, edge_list, face_list);
+  }
+};
+register_rule<set_general_num_cells_c2p> register_set_general_num_cells_c2p;  
   
 class set_general_face_num_nodes : public pointwise_rule{
   const_store<std::vector<char> > facePlan;

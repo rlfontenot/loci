@@ -316,6 +316,79 @@ public:
 } ;
 register_rule<get_cell_offset> register_get_cell_offset;
 
+
+
+class get_parent_cell_offset : public pointwise_rule {
+  const_store<int> num_fine_cells;
+  store<int> cell_offset;
+    
+public:
+  get_parent_cell_offset(){
+    name_store("parent_num_fine_cells", num_fine_cells);
+    name_store("parent_cell_offset", cell_offset);
+    input("parent_num_fine_cells");
+    output("parent_cell_offset");
+    constraint("geom_cells");
+    disable_threading();
+  }
+  virtual void compute(const sequence &seq) {
+    int num_procs = Loci::MPI_processes;
+    int my_id = Loci::MPI_rank;
+    entitySet local_geom_cells = entitySet(seq);
+
+   
+    
+    if(num_procs ==  1){
+      int offset = 0;
+      FORALL(local_geom_cells, ei){
+        cell_offset[ei] = offset;
+        offset += num_fine_cells[ei];
+      }ENDFORALL;
+      
+      return;
+    }
+    
+  
+    
+    //compute num_local_fine_cells on each process
+    
+    int num_local_fine_cells = 0;
+    FORALL(local_geom_cells, ei){
+      num_local_fine_cells += num_fine_cells[ei];
+    }ENDFORALL;
+    
+   
+    std::vector<int> local_cells_sizes;
+    local_cells_sizes = Loci::all_collect_sizes(num_local_fine_cells);
+    
+    //each process computes its cell  offset
+    int coffset = 0;
+    for(int i = 0; i < my_id; i++){
+      coffset += local_cells_sizes[i];
+    }
+  
+   
+    
+    //compute the store values
+    FORALL(local_geom_cells, ei){
+      cell_offset[ei] = coffset;
+      coffset += num_fine_cells[ei];
+    }ENDFORALL;
+    
+   
+  }
+    
+} ;
+register_rule<get_parent_cell_offset> register_get_parent_cell_offset;
+
+
+
+
+
+
+
+
+
 class init_num_original_faces : public unit_rule{
   param<int> num_original_faces;
 public:
@@ -360,7 +433,7 @@ class get_cell_parent : public pointwise_rule {
   const_param<int> num_original_nodes;
   const_param<int> num_original_faces;
   
-  store<std::vector<pair<int, int> > > cell2parent;
+  store<std::vector<pair<int32, int32> > > cell2parent;
   
 public:
   get_cell_parent(){
@@ -388,7 +461,7 @@ public:
     }
   }
   void calculate(Entity cc){
-    std::vector<pair<int, int> > c2p(num_fine_cells[cc]);
+    std::vector<pair<int32, int32> > c2p(num_fine_cells[cc]);
     for(int i = 0; i < num_fine_cells[cc]; i++){
       
       int child_index = cell_offset[cc]+i+1;//local cellindex start with 1
@@ -396,7 +469,7 @@ public:
       
       
       c2p[i] = make_pair<int, int>(child_index, parent_index);
-      // std::cout << child_index << " : " << parent_index << std::endl;
+     
     }
     c2p.swap(cell2parent[cc]);
   }   
@@ -448,7 +521,7 @@ register_rule<apply_npnts> register_apply_npnts;
 
 class write_cell2parent : public pointwise_rule{
   const_param<std::string> c2pfile_par;
-  const_store<std::vector<pair<int, int> > > cell2parent;
+  const_store<std::vector<pair<int32, int32> > > cell2parent;
   store<bool> c2p_output;
 public:
   write_cell2parent(){
@@ -509,7 +582,7 @@ public:
      
     MPI_Gather(&my_size, 1, MPI_INT, size_buf, 1, MPI_INT, 0, MPI_COMM_WORLD);
       
-    int *buf = new int[buf_size]; 
+    int32 *buf = new int32[buf_size]; 
     
     if(Loci::MPI_rank == 0){
       
@@ -560,6 +633,41 @@ public:
 };
 register_rule<write_cell2parent> register_write_cell2parent;
   
+
+class get_cell2parent : public pointwise_rule {
+  const_store<int> cell_offset;
+  const_store<int> parent_cell_offset;
+  const_store<vector<pair<int32, int32> > > indexMap;
+  store<vector<pair<int32, int32> > > cell2parent;
+public:
+  get_cell2parent(){
+    name_store("cell_offset", cell_offset);
+    name_store("parent_cell_offset", parent_cell_offset);
+    name_store("indexMap", indexMap);
+    name_store("priority::restart::cell2parent", cell2parent);
+    input("cell_offset");
+    input("parent_cell_offset");
+    input("indexMap");
+    output("priority::restart::cell2parent");
+    constraint("geom_cells");
+  }
+  virtual void compute(const sequence &seq) {
+    
+   if(seq.size()!=0){
+     do_loop(seq, this);
+   }
+  }
+  void calculate(Entity cc){
+    vector<pair<int32, int32> > c2p(indexMap[cc].size());
+
+    for(unsigned int i = 0; i < indexMap[cc].size(); i++){
+      c2p[i]=  make_pair(indexMap[cc][i].first+cell_offset[cc],
+                         indexMap[cc][i].second+parent_cell_offset[cc]);
+    }
+    c2p.swap(cell2parent[cc]);
+  }
+} ;
+register_rule<get_cell2parent> register_get_cell2parent;
 
 
 

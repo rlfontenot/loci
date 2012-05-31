@@ -89,6 +89,42 @@ class get_cellPlan : public pointwise_rule{
   } 
 };
 register_rule<get_cellPlan> register_get_cellPlan;
+//read in plan from former cycle
+class get_parentPlan : public pointwise_rule{
+  const_param<std::string> parent_planfile_par;
+  store<std::vector<char> > parentPlan;
+  
+  public:
+  get_parentPlan(){
+    name_store("parent_planfile_par", parent_planfile_par);
+    name_store("parentPlan", parentPlan);
+    
+    input("parent_planfile_par");
+    output("parentPlan");
+    constraint("geom_cells");
+    disable_threading();
+  }
+  virtual void compute(const sequence &seq){
+   
+   
+    
+       hid_t file_id;
+       entitySet dom = entitySet(seq);
+       file_id = H5Fopen((*parent_planfile_par).c_str(), H5F_ACC_RDONLY,
+                         H5P_DEFAULT);
+       
+       Loci::readContainer(file_id,"cellPlan",parentPlan.Rep(),dom) ;
+       H5Fclose(file_id);
+       do_loop(seq, this); 
+      
+  }
+  void calculate(Entity cc){
+    if(parentPlan[cc].size() == 1 && parentPlan[cc][0] == 'C') parentPlan[cc].resize(0);
+  } 
+};
+register_rule<get_parentPlan> register_get_parentPlan;
+
+
 
 class process_plan : public pointwise_rule {
   const_store<std::vector<char> > balancedCellPlan ;

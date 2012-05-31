@@ -48,11 +48,14 @@ int main(int argc, char ** argv) {
   //This is the name of the output gridfile
   string outFile = "out.vog";
   string c2pFile;
+  string parentPlanFile;//the plan file from former cycle, only need it when cell2parent_output is queried
+  
   // Here's where we parse out the command line arguments that are
   // relevant to this program.
   int j=1;
   string pathname = "";
   bool cell2parent = false;
+  bool restart = false;
   
     //print out help info
   if( (argc == 1)||(argc==2) ){
@@ -63,6 +66,7 @@ int main(int argc, char ** argv) {
       cout << "options:" << endl;
       cout <<"-g <file> -- original grid file, refinement plans are based on this grid" << endl;
       cout <<"-r <file> -- input refinement plan file" <<endl;
+      cout <<"-pr <file> -- input refinement plan file from former cycle" <<endl;
       cout <<"-o <file> -- output grid file" << endl;
       cout <<"-c2p <file> -- output cell2parent map file" << endl;
     }
@@ -90,9 +94,12 @@ int main(int argc, char ** argv) {
       //replace the input refinement plan filename with the next argument
       planFile =  argv[++i];
       
+    }else if(arg == "-pr" && (i+1) < argc){
+      //replace the input refinement plan filename with the next argument
+      parentPlanFile =  argv[++i];
+      restart = true;
+      
     }
-     
-    
     else{
       // Anything that we don't recognize gets recycled back into argv
       argv[j++] = argv[i];
@@ -104,8 +111,8 @@ int main(int argc, char ** argv) {
   meshfile = pathname + meshfile;
   outFile = pathname + outFile;
   planFile = pathname + planFile;
-  c2pFile = pathname + c2pFile;
-
+  if(cell2parent)c2pFile = pathname + c2pFile;
+  if(restart)parentPlanFile = pathname + parentPlanFile;
 
 
  // Setup the fact database.
@@ -130,6 +137,11 @@ int main(int argc, char ** argv) {
     param<std::string> c2pfile_par ;
     *c2pfile_par = c2pFile;
     facts.create_fact("cell2parent_file_par",c2pfile_par) ;
+    if(restart){
+      param<std::string> parent_planfile_par ;
+    *parent_planfile_par = parentPlanFile;
+    facts.create_fact("parent_planfile_par",parent_planfile_par) ;
+    }
   }
   
   // Setup the rule database.
@@ -154,6 +166,7 @@ int main(int argc, char ** argv) {
       std::cerr << "query failed!" << std::endl;
       Loci::Abort();
     }
+    
   }
   
    if(!Loci::makeQuery(rules, facts, "node_output")) {

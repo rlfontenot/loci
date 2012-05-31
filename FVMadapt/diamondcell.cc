@@ -283,7 +283,7 @@ void DiamondCell::split(std::list<Node*>& node_list,
     delete [] edgecenter;
     edgecenter = 0;
   }
-  if(facecenter !=0){
+   if(facecenter !=0){
     delete [] facecenter;
     facecenter = 0;
   }
@@ -768,22 +768,26 @@ void set_general_faces(const Cell* aCell,
  }
  
  
+// void Cell:: get_leaves(std::vector<DiamondCell*>& leaf_cell){
+//   if(child==0) return;
+//   for(int i = 0; i < numNode; i++){
+//     child[i]->get_leaves(leaf_cell);
+//   }
+// }
 
 
-
-void DiamondCell::get_leaves(std::vector<DiamondCell*>& leaf_cell){
+// void DiamondCell::get_leaves(std::vector<DiamondCell*>& leaf_cell){
   
-  if(childCell == 0){
-    leaf_cell.push_back(this);
-    
-    return;
-  }
-  else{
-    for(int i = 0; i < 2*nfold+2; i++){
-      childCell[i]->get_leaves(leaf_cell);
-    }
-  }
-}
+//   if(childCell == 0){
+//     leaf_cell.push_back(this);
+//     return;
+//   }
+//   else{
+//     for(int i = 0; i < 2*nfold+2; i++){
+//       childCell[i]->get_leaves(leaf_cell);
+//     }
+//   }
+// }
 
 //this function balance a leaf cell current_cell
 
@@ -1227,7 +1231,7 @@ void Cell::empty_split(){
     child[nindex] = new DiamondCell(n2e.size());
   }
 }
-int Cell::empty_resplit(const std::vector<char>& cellPlan){
+int32 Cell::empty_resplit(const std::vector<char>& cellPlan){
   
                      
     if(cellPlan.size() == 0){
@@ -1276,12 +1280,90 @@ int Cell::empty_resplit(const std::vector<char>& cellPlan){
           break;
           
         default:
-          cerr <<"WARNING: illegal splitcode in function Cell::empty_resplit()" << endl;
+          cerr <<"WARNING: illegal splitcode in function Cell::empty_resplit(): " << currentCode+'0'<< endl;
          break;
         }
       
       Q.pop();
   }
+    return cIndex;  
+}
+
+
+
+int32 Cell::traverse(const std::vector<char>& parentPlan,  vector<pair<int32, int32> >& indexMap){
+  indexMap.clear();
+  if(parentPlan.size() == 0){
+    
+    if(child==0){
+      indexMap.push_back(make_pair(1,1));
+      return 1;
+    }else{
+      
+      list<DiamondCell*> leaves;
+      for(int i = 0; i < numNode; i++){
+        child[i]->sort_leaves(leaves);
+      }
+      for(std::list<DiamondCell*>::const_iterator p = leaves.begin(); p != leaves.end(); p++){
+        indexMap.push_back(make_pair((*p)->cellIndex, 1));
+       
+      }
+      return 1;
+    }
+  }
+  
+  std::queue<DiamondCell*> Q;
+  //assume if parentPlan not empty, it always begin with 1
+  for(int i = 0; i < numNode; i++){ 
+    Q.push(child[i]);
+  }
+  //process the DiamondCells in the Q until Q is empty
+  int32 cIndex = 0;  
+  DiamondCell* current;
+  unsigned int index =1;
+  char currentCode;
+  while(!Q.empty()){
+    current = Q.front();
+    //take a code from splitcode
+
+     if(index >= parentPlan.size()){
+       currentCode = 0;
+     }
+     else{ 
+       //take a code from splitcode
+       currentCode = parentPlan[index];
+       index++;  
+     }
+  
+    list<DiamondCell*> leaves;
+    switch(currentCode)
+      {
+        
+        //0 no split,this is a leaf, output cells
+      case 0:
+        ++cIndex;
+        current->sort_leaves(leaves);
+        for(std::list<DiamondCell*>::const_iterator p = leaves.begin(); p != leaves.end(); p++){
+          indexMap.push_back(make_pair((*p)->cellIndex, cIndex));
+          
+        }
+        break;
+         
+      case 1:
+        for(int i = 0; i < 2*(current->nfold) +2; i++){
+          Q.push(current->childCell[i]);
+        }
+         
+        break;
+          
+      default:
+        cerr <<"WARNING: illegal splitcode in function Cell:traverse(): " <<currentCode+'0'<< endl;
+        break;
+      }
+      
+      Q.pop();
+  }
+  
     return cIndex;  
 }
 

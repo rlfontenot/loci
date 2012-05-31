@@ -41,7 +41,7 @@
 #include "read_par.h"
 using std::cerr;
 using std::endl;
-
+using std::list;
 std::vector<int32> get_c1_hex(const std::vector<char>& cellPlan,
                               const std::vector<char>& facePlan,
                               char orientCode,
@@ -186,6 +186,9 @@ public:
   void empty_split();
   //return num_fine_cells
   int empty_resplit(const std::vector<char>& cellPlan);
+  
+  //after the cell is split into a tree, get the indexMap from current index to parent index
+  int32 traverse(const std::vector<char>& parentPlan,  vector<pair<int32, int32> >& indexMap);
 
   void resplit(const std::vector<char>& cellPlan,
                std::list<Node*>& node_list,
@@ -287,8 +290,8 @@ private:
   HexCell(const HexCell&);
   
 private:
-  //get all the leaves
-  void get_leaves(std::vector<HexCell*>& leaf_cell);
+  // //get all the leaves
+//   void get_leaves(std::vector<HexCell*>& leaf_cell);
 
   //get 8 nodes
   inline void get_nodes(Node** node){

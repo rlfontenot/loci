@@ -63,7 +63,6 @@ public:
 
 class general_edge_points_apply : public apply_rule<store<SetLong>, SetLongUnion>{
   const_store<std::vector<char> > facePlan;
-  const_param<std::string> planfile_par;
   const_multiMap face2edge;
   const_multiMap face2node;
   const_MapVec<2> edge2node;
@@ -73,7 +72,6 @@ class general_edge_points_apply : public apply_rule<store<SetLong>, SetLongUnion
 public:
   general_edge_points_apply(){
     name_store("facePlan", facePlan);
-     name_store("planfile_par", planfile_par);
     name_store("face2edge", face2edge);
     name_store("pointSet", pointSet);
     name_store("face2node", face2node);
@@ -81,7 +79,7 @@ public:
     name_store("pos", pos);
     name_store("is_quadface", is_quadface);
     
-    input("planfile_par");
+  
     input("facePlan, is_quadface");
     input("face2node->pos");
     input("face2edge->edge2node->pos");
