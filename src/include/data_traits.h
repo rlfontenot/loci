@@ -370,6 +370,10 @@ namespace Loci {
     typedef StringStreamConverter<exprP> Converter_Type ;
   } ;
 
+  template<class T> inline DatatypeP getLociType(const T &in) {
+    return data_schema_traits<T>::get_type() ;
+  }
+
 #ifdef NO_OFFSETOF
 #define LOCI_INSERT_TYPE(ct,type,variable) \
 { type X ; size_t offset = reinterpret_cast<char *>(&(X.variable)) - reinterpret_cast<char *>(&X) ;\
@@ -392,9 +396,6 @@ namespace Loci {
     }
   } ;
 
-  template<class T> inline DatatypeP getLociType(const T &in) {
-    return data_schema_traits<T>::get_type() ;
-  }
     
 }
 
