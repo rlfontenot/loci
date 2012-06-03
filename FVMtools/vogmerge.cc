@@ -19,6 +19,7 @@
 //#
 //#############################################################################
 #include <stdio.h>
+#include <unistd.h>
 #include <strings.h>
 #include <Loci>
 #include <iostream>
