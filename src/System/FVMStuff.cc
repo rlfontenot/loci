@@ -1077,6 +1077,7 @@ namespace Loci{
     
     vector<periodic_info> periodic_data ;
 
+    bool fail = false ;
     for(entitySet::const_iterator ei=dom.begin();ei!=dom.end();++ei) {
       Entity bc = *ei ;
       entitySet bcset = interval(bc,bc) ;
@@ -1124,9 +1125,8 @@ namespace Loci{
         }
         break ;
       default:
-        cerr << "setup_bc can not interpret value assigned to " << bname 
-             << " in boundary_conditions" << endl ;
-        exit(-1) ;
+	cerr << "Boundary tag '" << bname << "' exists in VOG file without boundary_condition entry!  Please add boundary condition specification for this boundary face!" << endl ;
+	fail = true ;
       }
       if(name == "symmetry") {
         symmetry += bfaces ;
@@ -1161,7 +1161,10 @@ namespace Loci{
         
         periodic_data.push_back(pi) ;
       }
-    } 
+    }
+    if(fail) {
+      Loci::Abort() ;
+    }
 
     
     {
