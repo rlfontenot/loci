@@ -84,6 +84,7 @@ string get_string(istream &s) {
 bool is_comment(istream &s) {
   if(s.peek() != '/')
     return false ;
+
   s.get() ;
   char c = s.peek() ;
   s.unget() ;
@@ -96,8 +97,9 @@ istream &killComment(istream &s, int & lines) {
   s.get() ;
   char c = s.get()  ;
   if(c == '/') { // read to end of line
-    while(s.peek() != EOF && s.peek() !='\n')
+    while(s.peek() != EOF && s.peek() !='\n') {
       s.get() ;
+    }
     if(s.peek() == '\n') {
       lines++ ;
       s.get() ;
@@ -133,7 +135,8 @@ istream &killsp(istream &s, int &lines) {
     }
     if(is_comment(s)) {
       killComment(s,lines) ;
-      foundstuff = true ;    }
+      foundstuff = true ;
+    }
   } while(foundstuff) ;
   return s ;
 }
@@ -210,11 +213,7 @@ public:
   int lines ;
   parsebase() {lines = 0 ; }
   istream &killsp(istream &s) {
-    while(s.peek() == ' ' || s.peek() == '\t' || s.peek() == '\n'
-          || s.peek() == '\r') {
-      if(s.peek() == '\n') lines++ ;
-      s.get();
-    }
+    ::killsp(s,lines) ;
     return s ;
   }
 } ;
@@ -223,16 +222,16 @@ template<class T> class funclist : public parsebase {
 public:
   list<T> flist ;
   istream &get(istream &s) {
-    killsp(s) ;
+    parsebase::killsp(s) ;
     if(s.peek() != '(')
       return s ;
     char c = s.get();
-    killsp(s) ;
+    parsebase::killsp(s) ;
     for(;;) {
       T tmp ;
       tmp.get(s) ;
       flist.push_back(tmp) ;
-      killsp(s) ;
+      parsebase::killsp(s) ;
       if(s.peek() == ')') {
         c = s.get() ;
         return s ;
@@ -274,17 +273,17 @@ template<class T> class templlist : public parsebase {
 public:
   list<T> flist ;
   istream &get(istream &s) {
-    killsp(s) ;
+    parsebase::killsp(s) ;
     if(s.peek() != '<')
       return s ;
     char c ;
     s.get(c);
-    killsp(s) ;
+    parsebase::killsp(s) ;
     for(;;) {
       T tmp ;
       tmp.get(s) ;
       flist.push_back(tmp) ;
-      killsp(s) ;
+      parsebase::killsp(s) ;
       if(s.peek() == '>') {
         s.get() ;
         return s ;
@@ -326,7 +325,7 @@ public:
   string name ;
   templlist<typestuff> templ_args ;
   istream &get(istream &s) {
-    killsp(s) ;
+    parsebase::killsp(s) ;
     if(isalpha(s.peek()) || s.peek() == '_') {
       char c = s.peek() ;
       while(isalpha(c = s.peek()) || isdigit(c) || c == '_' ||  c == ':')
@@ -356,7 +355,7 @@ class bracestuff : public parsebase {
 public:
   string stuff ;
   istream &get(istream &s) {
-    killsp(s) ;
+    parsebase::killsp(s) ;
     if(s.peek() == '{') {
       char c = s.get() ;
       while(s.peek() != EOF && s.peek() != '}') {
@@ -364,10 +363,12 @@ public:
         if(c == '{')
           throw parseError("syntax error") ;
         stuff += c ;
+        parsebase::killsp(s) ;
       }
       if(s.peek() == EOF)
         throw parseError("unexpected EOF") ;
       c = s.get() ;
+      parsebase::killsp(s) ;
     }
     return s ;
   }
@@ -399,7 +400,7 @@ public:
   
   istream &get(istream &s) {
     isdollar = false ;
-    killsp(s) ;
+    parsebase::killsp(s) ;
     if(s.peek() == '$') {
       s.get() ;
       isdollar=true ;
@@ -407,19 +408,19 @@ public:
     if(!is_name(s))
       throw parseError("syntax error") ;
     name = get_name(s) ;
-    killsp(s) ;
+    parsebase::killsp(s) ;
     if(s.peek() == ':') {
       while(s.peek() == ':') {
         s.get() ;
         if(s.peek() != ':')
           throw parseError("syntax error") ;
         s.get() ;
-        killsp(s) ;
+        parsebase::killsp(s) ;
         prio_list.push_back(name);
         if(!is_name(s)) 
           throw parseError("syntax error") ;
         name = get_name(s) ;
-        killsp(s) ;
+        parsebase::killsp(s) ;
       }
     }
           
@@ -452,11 +453,12 @@ class nestedparenstuff : public parsebase {
 public:
   string paren_contents ;
   istream &get(istream &s) {
-    killsp(s) ;
+    parsebase::killsp(s) ;
     if(s.peek() != '(')
       throw parseError("syntax error, expecting '('") ;
     s.get() ;
     int open_parens = 0 ;
+    parsebase::killsp(s) ;
     while(s.peek() != ')' || open_parens != 0) {
       if(s.peek() == EOF)
         throw parseError("unexpected EOF") ;
@@ -470,8 +472,10 @@ public:
         continue ;
       }
       paren_contents += s.get() ;
+      parsebase::killsp(s) ;
     }
     s.get() ;
+    parsebase::killsp(s) ;
     return s ;
   }
   string str() {
@@ -486,10 +490,11 @@ class nestedbracketstuff : public parsebase {
 public:
   string bracket_contents ;
   istream &get(istream &s) {
-    killsp(s) ;
+    parsebase::killsp(s) ;
     if(s.peek() != '[')
       throw parseError("syntax error, expecting '['") ;
     s.get() ;
+    parsebase::killsp(s) ;
     int open_brackets = 0 ;
     while(s.peek() != ']' || open_brackets != 0) {
       if(s.peek() == EOF)
@@ -504,6 +509,7 @@ public:
         continue ;
       }
       bracket_contents += s.get() ;
+      parsebase::killsp(s) ;
     }
     s.get() ;
     return s ;
