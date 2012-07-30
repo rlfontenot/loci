@@ -26,6 +26,9 @@
 #include <petscvec.h>
 #include <petscksp.h>
 
+#if ((PETSC_VERSION_MAJOR > 3) || (PETSC_VERSION_MAJOR == 3) && (PETSC_VERSION_MINOR > 2))
+#define PETSC_33_API
+#endif
 
 // Force key petsc functions to load. (Helps when using static libraries)
 void dummyFunctionDependencies(int i) {
@@ -34,7 +37,11 @@ void dummyFunctionDependencies(int i) {
   struct _p_Mat *m=0 ;
   struct _p_KSP *ksp=0 ;
   int ierr = VecSetSizes(v,localSize,globalSize) ;
+#ifdef PETSC_33_API
+  ierr = MatCreateAIJ(MPI_COMM_WORLD,0,0,0,0,0,0,0,0,&m) ;
+#else
   ierr = MatCreateMPIAIJ(MPI_COMM_WORLD,0,0,0,0,0,0,0,0,&m) ;
+#endif
   ierr = KSPSetFromOptions(ksp) ;
   dummyFunctionDependencies(ierr) ;
 }
