@@ -127,19 +127,18 @@ debugging options.  A typical install for Loci might use the following
 configuration lines
 
 PETSC_DIR=`pwd`
-./configure --prefix=/opt/petsc-3.1-p4 --with-clanguage=C --with-precision=double --with-scalar-type=real --with-shared --with-debugging=no --with-x=no --with-x11=no --download-f-blas-lapack=ifneeded --with-log=no --COPTFLAGS="-O3" 
-
+./configure --prefix=/usr/local.petsc-3.3-p2 --with-clanguage=C --with-precision=double --with-scalar-type=real --with-debugging=no COPTFLAGS="-O3" --with-x=0
 
 This will configure PETSc to install into the directory
-'/opt/petsc-3.1-p4'.  You can change this target directory to a place
+'/opt/petsc-3.3-p2'.  You can change this target directory to a place
 that makes sense for your system setup by chainging the --prefix line
 appropriately.  The configure script will then inform you of the
 command needed to compile PETSc.  It is usually something such as:
 
-xxx=========================================================================xxx
+=========================================================================
    Configure stage complete. Now build PETSc libraries with:
-   make PETSC_DIR=/home/luke/Software/petsc-3.1-p4 PETSC_ARCH=linux-gnu-c-opt all
-xxx=========================================================================xxx
+   make PETSC_DIR=/home/luke/Software/petsc-3.3-p2 PETSC_ARCH=linux-gnu-c-opt all
+=========================================================================
 
 Once compiling PETSc you can then install the software in the
 specified directory by entering the command that the makefile
@@ -147,7 +146,7 @@ specifies.  Usually this command is something similar to:
 Completed building libraries
 =========================================
 Now to install the libraries do:
-make PETSC_DIR=/home/luke/Software/petsc-3.1-p4 PETSC_ARCH=linux-gnu-c-opt install
+make PETSC_DIR=/home/luke/Software/petsc-3.3-p2 PETSC_ARCH=linux-gnu-c-opt install
 =========================================
 
 
