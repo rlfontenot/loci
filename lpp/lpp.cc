@@ -460,6 +460,20 @@ public:
     int open_parens = 0 ;
     parsebase::killsp(s) ;
     while(s.peek() != ')' || open_parens != 0) {
+      if(s.peek() == '"') { // grab string
+	paren_contents += s.get() ;
+	while(s.peek() != '"') {
+	  if(s.peek() == EOF) {
+	    throw parseError("unexpected EOF parsing sting") ;
+	  }
+	  if(s.peek() == '\n' || s.peek() == '\r') {
+	    lines++ ;
+	  }
+	  paren_contents += s.get() ;
+	}
+	paren_contents += s.get() ;
+	continue ;
+      }
       if(s.peek() == EOF)
         throw parseError("unexpected EOF") ;
       if(s.peek() == '(')
