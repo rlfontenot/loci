@@ -208,6 +208,10 @@ void dump_pos(const sequence &seq,const_store<vector3d<double> > &pos,
   hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
                                         H5P_DEFAULT, H5P_DEFAULT) ;
 
+  if(file_id < 0) {
+    cerr << "unable to open file " << filename << endl ;
+    Loci::Abort() ;
+  }
   Loci::writeContainer(file_id,"pos",pos.Rep()) ;
 
   Loci::hdf5CloseFile(file_id) ;
