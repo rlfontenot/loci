@@ -1348,15 +1348,22 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
       bodys = sig.substr(i+2,sig.size()) ;
       head = expression::create(heads) ;
       body = expression::create(bodys) ;
+      if(rule_type == "optional" || rule_type == "default") {
+	throw parseError("'optional' or 'default' rules should not have a body (defined by '<-' operator)!") ;
+      }
     }
   }
   if(head == 0) {
     heads = sig ;
     head = expression::create(heads) ;
-    exprList tmp ;
-    tmp = collect_associative_op(head,OP_COMMA) ; 
-    if(tmp.size() > 1)
-      throw parseError("rule signature missing <- operator!") ;
+    if(rule_type == "optional" || rule_type == "default") {
+      if(constraint != "") 
+	throw parseError("'optional' or 'default' rules should not have a constraint!") ;      
+    } else {
+      if(constraint == "") {
+	throw parseError("rules without bodies should have a defined constraint as input!") ;
+      }
+    }
   }
   
   string class_name = "file_" ;
