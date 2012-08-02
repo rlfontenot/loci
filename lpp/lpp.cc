@@ -406,14 +406,16 @@ public:
       isdollar=true ;
     }
     if(!is_name(s))
-      throw parseError("syntax error") ;
+      throw parseError("syntax error: expecting name after '$'") ;
     name = get_name(s) ;
     parsebase::killsp(s) ;
     if(s.peek() == ':') {
       while(s.peek() == ':') {
         s.get() ;
-        if(s.peek() != ':')
-          throw parseError("syntax error") ;
+        if(s.peek() != ':') {
+	  string err = "syntax error, improper trailing colon, use parenthesis around variable '"+ name+"' to fix." ;
+	  throw parseError(err.c_str()) ; 
+	}
         s.get() ;
         parsebase::killsp(s) ;
         prio_list.push_back(name);
