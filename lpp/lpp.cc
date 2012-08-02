@@ -1866,13 +1866,22 @@ void parseFile::processFile(string file, ostream &outputFile) {
           is >> s ;
         }
       } else {
+	bool foundComment = false ;
         while(is.peek() != '\n' && is.peek() != EOF) {
+	  if(is_comment(is)) {
+	    killCommentOut(is,line_no,outputFile) ;
+	    foundComment = true ;
+	    break ;
+	  }
+
           is.get(c) ;
           outputFile << c ;
         }
-        is.get(c) ;
-        outputFile << endl ;
-        line_no++ ;
+	if(!foundComment) {
+	  is.get(c) ;
+	  outputFile << endl ;
+	  line_no++ ;
+	}
       }
       if(is.peek() == EOF)
         is.get(c) ;
