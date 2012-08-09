@@ -69,10 +69,13 @@ void Usage() {
   cout << "Utility for extracting surfaces from vog grids." << endl
        << endl ;
   cout << "Usage: " << endl
-       << "  vog2surf <grid>" << endl
-       << "    where <grid> is the input file name sans the '.vog' postfix"
+       << "  vog2surf <grid> [ -o <ofile>.surf ] [ -surface <ofile>.surface ]" << endl
+       << "    where <grid> is the input file name sans the '.vog' postfix" <<endl
+       << "    <ofile> is the output filename, can be .surf format or .surface format " << endl
+       << "    .surf is the solidMesh format, .surface will add the node index map from surface mesh " << endl
+       << "     to volume mesh at the end of surf file. " <<endl 
        <<  endl ;
-  cout << "  Outputs: <grid>.surf and <grid>.names" << endl ;
+  cout << "  Outputs: <grid>.surf/<ofile>.surf/<ofile>.surface  and <grid>.names" << endl ;
   exit(-1) ;
 }
 
@@ -794,6 +797,10 @@ int main(int ac, char *av[]) {
   Loci::Init(&ac, &av) ;
   if(Loci::MPI_processes > 1) {
     cerr << "vog2surf is not parallel! Run on only one processor!" << endl ;
+    Loci::Abort() ;
+  }
+  if(ac < 2){
+    Usage();
     Loci::Abort() ;
   }
   string surface_file = "";
