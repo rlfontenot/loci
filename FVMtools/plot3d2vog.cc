@@ -148,15 +148,35 @@ struct block_boundary_info {
   
   
 void usage() {
-  cout << "Plot3d to VOG file converter usage" << endl
-       << "This converter assumes that the grid file has a .grd postfix" << endl
-       << " If only a single argument is given, then this will be " << endl
-       << " grid file sans the .grd postfix, this will convert the" << endl
-       << " grid to an unstructured VOG format grid file.  If the" << endl
-       << " input file has more than one block, then the point matching" <<endl
-       << " faces will be glued, and the remaining faces will be tagged" <<endl
-       << " with a unique tag for each block and face. " << endl << endl ;
-
+  cout << "Parallel plot3d file to VOG file grid converter." << endl
+       << endl 
+       << "Input file is ascii unformatted multiblock plot3d file with postfix '.grd'" << endl
+       << "or binary unformatted multiblock plot3d file with postfix '.grd.b8'" << endl
+       << endl << endl ;
+  cout << "Usage:" << endl
+       << endl 
+       << "plot3d2vog <options> <basename>" << endl
+       << endl
+       << "where <basename> is the root name of the file (sans the '.grd' postfix)." << endl
+       << " and options must include one of the following grid units specifications:" << endl 
+       << "   -m  - grid is in meters" << endl
+       << "   -cm - grid is in centimeters" << endl
+       << "   -mm - grid is in millimeters" << endl
+       << "   -in - grid is in inches" << endl
+       << "   -ft - grid is in feet" << endl 
+       << "   -Lref \"1.5 ft\" - grid has specified reference length" << endl
+       << endl<<endl ;
+  cout << "Other useful options:" << endl
+       << endl
+       << "   -tol <float> :gluing tolerance (as percentage of min edge length)" << endl
+       << "   -maxAspect <float> :maximum face aspect ratio on boundaries for gluing" << endl
+       << "   -lefthanded :set this if grid not in right handed coordinates" << endl
+       << "   -creaseAngle <float> :used to combine neighboring bc faces" << endl
+       << "                         set to -1 to disable feature" << endl 
+       << "   -bc <filename> :Use this file to specify boundary surfaces" << endl 
+       << "   -o :disable mesh optimization that reorders nodes in the vog file" << endl ;
+  cout << endl ;
+    
   cout << "If you want to control how tags are assigned to boundary" <<endl
        << " faces, then you can do so by providing a supplemental" << endl
        << " boundary specification file with the flag -bc" << endl << endl
@@ -174,19 +194,6 @@ void usage() {
        << " <faceid> is one of six strings: [IJ1,IJN,JK1,JKN,IK1,IKN]" << endl
        << " indices are given in the order indicated by the faceid string." 
        << endl <<endl;
-  cout << "Use option -tol to control glue tolerance (default 0.01), the glue tolerance"
-       << endl
-       << "is based on a fraction of the estimated edge length and should not exceed 1.0"
-       << endl<< endl
-       << "Use option -maxAspect to control maximum aspect ratio of face, default 1e6." 
-       << endl<< endl 
-
-       << "Use option -lefthanded to correct for meshes that contain lefthanded blocks." 
-       << endl<< endl
-       << "Use option -o to disable mesh optimization step." 
-       << endl<< endl ;
-
-  cout << "Use options -in, -ft, -cm, -m, or -Lref to set grid units."<<endl<<endl<<endl;
     
 }
 
@@ -775,12 +782,241 @@ void setupGlueFaces(vector<Loci::Array<int,4> > &glueFaces,
   glueBC = cr ;
 }
 
+///  creaseGroup(noglueFaces,noglueBC,positions,pos_sizes,creaseThreshold) ;
+
+void creaseGroup(const vector<Loci::Array<int,4> > &glueFaces,
+		 vector<int> &glueBC,
+		 const vector<vect3d> &positions,
+		 const vector<int> &pos_sizes,
+		 double creaseThreshold)  {
+  // compute face edges
+  vector<pair<int,int> > facepairs ; // faces that share an edge
+  map<pair<int,int>,double> eweight ; // weights between boundary creases
+  vector<int> nodeSet ; // nodes needed to compute edge normals
+  if(Loci::MPI_rank == 0) {
+    vector<pair<pair<int,int>,int> > edge_list ;
+    int nfaces = glueFaces.size() ;
+    for(int i=0;i<nfaces;++i) {
+      if(glueFaces[i][3] == -1) {
+	pair<int,int> e1(min(glueFaces[i][0],glueFaces[i][1]),
+			 max(glueFaces[i][0],glueFaces[i][1])) ;
+	pair<int,int> e2(min(glueFaces[i][1],glueFaces[i][2]),
+			 max(glueFaces[i][1],glueFaces[i][2])) ;
+	pair<int,int> e3(min(glueFaces[i][2],glueFaces[i][0]),
+			 max(glueFaces[i][2],glueFaces[i][0])) ;
+	edge_list.push_back(pair<pair<int,int>,int>(e1,i)) ;
+	edge_list.push_back(pair<pair<int,int>,int>(e2,i)) ;
+	edge_list.push_back(pair<pair<int,int>,int>(e3,i)) ;
+      } else {
+	pair<int,int> e1(min(glueFaces[i][0],glueFaces[i][1]),
+			 max(glueFaces[i][0],glueFaces[i][1])) ;
+	pair<int,int> e2(min(glueFaces[i][1],glueFaces[i][2]),
+			 max(glueFaces[i][1],glueFaces[i][2])) ;
+	pair<int,int> e3(min(glueFaces[i][2],glueFaces[i][3]),
+			 max(glueFaces[i][2],glueFaces[i][3])) ;
+	pair<int,int> e4(min(glueFaces[i][3],glueFaces[i][0]),
+			 max(glueFaces[i][3],glueFaces[i][0])) ;
+	edge_list.push_back(pair<pair<int,int>,int>(e1,i)) ;
+	edge_list.push_back(pair<pair<int,int>,int>(e2,i)) ;
+	edge_list.push_back(pair<pair<int,int>,int>(e3,i)) ;
+	edge_list.push_back(pair<pair<int,int>,int>(e4,i)) ;
+      }
+    }
+    sort(edge_list.begin(),edge_list.end()) ;
+    int esz = edge_list.size() ;
+    for(int i=0;i<esz-1;++i) {
+      if(edge_list[i].first == edge_list[i+1].first) {
+	int f1 = edge_list[i].second ;
+	int f2 = edge_list[i+1].second ;
+	int bc1 = glueBC[f1] ;
+	int bc2 = glueBC[f2] ;
+	if(bc1 != bc2) {
+	  facepairs.push_back(pair<int,int>(f1,f2)) ;
+	  pair<int,int> ebc(min(bc1,bc2),max(bc1,bc2)) ;
+	  eweight[ebc] = 1.0 ;
+	}
+	++i ;
+      }
+    }
+   
+    for(size_t i=0;i<facepairs.size();++i) {
+      int f1 = facepairs[i].first ;
+      int f2 = facepairs[i].second ;
+    
+      nodeSet.push_back(glueFaces[f1][0]) ;
+      nodeSet.push_back(glueFaces[f1][1]) ;
+      nodeSet.push_back(glueFaces[f1][2]) ;
+      if(glueFaces[f1][3] >= 0)
+	nodeSet.push_back(glueFaces[f1][3]) ;
+      nodeSet.push_back(glueFaces[f2][0]) ;
+      nodeSet.push_back(glueFaces[f2][1]) ;
+      nodeSet.push_back(glueFaces[f2][2]) ;
+      if(glueFaces[f2][3] >= 0)
+	nodeSet.push_back(glueFaces[f2][3]) ;
+    }
+    sort(nodeSet.begin(),nodeSet.end()) ;
+    vector<int>::iterator it ;
+    it = unique(nodeSet.begin(),nodeSet.end()) ;
+    nodeSet.resize(it-nodeSet.begin()) ;
+  }  
+
+  // Now send glue node positions to processor 0
+  int gsize = nodeSet.size() ;
+  vector<vect3d> gluePos(gsize) ;
+  MPI_Bcast(&gsize,1,MPI_INT,0,MPI_COMM_WORLD) ;
+  if(Loci::MPI_rank != 0) {
+    nodeSet = vector<int>(gsize) ;
+  }
+  MPI_Bcast(&nodeSet[0],gsize,MPI_INT,0,MPI_COMM_WORLD) ;
+  if(Loci::MPI_processes == 1) {
+    for(int i=0;i<gsize;++i)
+      gluePos[i] = positions[nodeSet[i]] ;
+  } else  {
+    int possz = positions.size() ;
+    vector<int> dist(Loci::MPI_processes,0) ;
+    MPI_Allgather(&possz,1,MPI_INT,&dist[0],1,MPI_INT,MPI_COMM_WORLD) ;
+    if(Loci::MPI_rank == 0) {
+      int cnt = 0 ;
+      int psz = positions.size() ;
+      for(size_t i=0;i<nodeSet.size() && nodeSet[i] < psz;++i) {
+	gluePos[cnt] = positions[nodeSet[i]] ;
+	cnt++ ;
+      }
+      for(int i=1;i<Loci::MPI_processes;++i) {
+	MPI_Send(&cnt,1,MPI_INT,i,0,MPI_COMM_WORLD) ;
+	int sz = 0 ;
+	MPI_Status stat ;
+	MPI_Recv(&sz,1,MPI_INT,i,0,MPI_COMM_WORLD,&stat) ;
+	MPI_Recv(&gluePos[cnt],sz*3,MPI_DOUBLE,i,0,MPI_COMM_WORLD,&stat) ;
+	cnt += sz ;
+      }
+      if(cnt != int(gluePos.size())) {
+	cerr << "problem gathering positions for glue" << endl ;
+      }
+    } else {
+      MPI_Status stat ;
+      int nstrt = 0 ;
+      for(int i=0;i<Loci::MPI_rank;++i)
+	nstrt += dist[i] ;
+      int nend = nstrt+dist[Loci::MPI_rank] ;
+      int fn = -1,ln = -1 ;
+      for(int i=0;i<gsize;++i) {
+	if(nodeSet[i] < nstrt)
+	  continue ;
+	if(nodeSet[i] >= nend) {
+	  ln = i ;
+	  break ;
+	}
+	if(fn == -1)
+	  fn = i ;
+      }
+      if(ln == -1)
+	ln = nodeSet.size() ;
+      int size = 0 ;
+      if(fn >= 0)
+	size = ln-fn ;
+      vector<vect3d> sendPos(size) ;
+      for(int i=0;i<size;++i)
+	sendPos[i] = positions[nodeSet[fn+i]-nstrt] ;
+
+      int flag = 0;
+      MPI_Recv(&flag,1,MPI_INT,0,0,MPI_COMM_WORLD,&stat) ;
+      MPI_Send(&size,1,MPI_INT,0,0,MPI_COMM_WORLD) ;
+      MPI_Send(&sendPos[0],size*3,MPI_DOUBLE,0,0,MPI_COMM_WORLD) ;
+    }
+  }
+
+  if(Loci::MPI_rank == 0) {
+    map<int,int> g2l ;
+    for(int i=0;i<gsize;++i)
+      g2l[nodeSet[i]] = i ;
+
+    int maxbc = 0 ;
+    for(size_t i=0;i<facepairs.size();++i) {
+      int f1 = facepairs[i].first ;
+      int f2 = facepairs[i].second ;
+      vect3d p10 = gluePos[g2l[glueFaces[f1][0]]] ;
+      vect3d p11 = gluePos[g2l[glueFaces[f1][1]]] ;
+      vect3d p12 = gluePos[g2l[glueFaces[f1][2]]] ;
+      bool t1 = (glueFaces[f1][3] == -1) ;
+      vect3d p13 = p10 ;
+      if(!t1)
+	p13 = gluePos[g2l[glueFaces[f1][3]]] ;
+      vect3d n1 = cross(p12-p10,p11-p13) ;
+      n1 *= 1./max(norm(n1),1e-30) ;
+
+      vect3d p20 = gluePos[g2l[glueFaces[f2][0]]] ;
+      vect3d p21 = gluePos[g2l[glueFaces[f2][1]]] ;
+      vect3d p22 = gluePos[g2l[glueFaces[f2][2]]] ;
+      bool t2 = (glueFaces[f2][3] == -1) ;
+      vect3d p23 = p10 ;
+      if(!t2)
+	p23 = gluePos[g2l[glueFaces[f2][3]]] ;
+      vect3d n2 = cross(p22-p20,p21-p23) ;
+      n2 *= 1./max(norm(n2),1e-30) ;
+      int bc1 = glueBC[f1] ;
+      int bc2 = glueBC[f2] ;
+      maxbc = max(maxbc,max(bc1,bc2)) ;
+
+      pair<int,int> ebc(min(bc1,bc2),max(bc1,bc2)) ;
+      eweight[ebc] = min(eweight[ebc],dot(n1,n2)) ;
+    }
+
+    double th = cos(creaseThreshold*0.0174532927778) ;
+    vector<entitySet> equal(maxbc+1) ;
+      
+    map<pair<int,int>,double>::const_iterator mi ;
+    
+    for(mi=eweight.begin();mi!=eweight.end();++mi) {
+      if(mi->second > th) {
+	equal[mi->first.first] += mi->first.first ;
+	equal[mi->first.first] += mi->first.second ;
+	equal[mi->first.second] += mi->first.first ;
+	equal[mi->first.second] += mi->first.second ;
+      }
+    }
+        // now perform transitive closure of equivalence sets
+    bool finished = true ;
+    do {
+      finished = true ;
+      for(int i=0;i<maxbc+1;++i) {
+	if(equal[i] != EMPTY) {
+	  entitySet tmp = equal[i] ;
+	  tmp += i ; // Add self
+	  entitySet all = tmp ; // Gather all equivalences
+	  FORALL(tmp,j) {
+	    all += equal[j] ;
+	  } ENDFORALL ;
+	  FORALL(all,j) { // Check to see if we converged
+	    if(equal[j] != all)
+	      finished = false ;
+	    equal[j] += all ;
+	  } ENDFORALL ;
+	}
+      }
+    } while(!finished) ;
+    vector<int> map_bc(maxbc+1) ;
+    for(int i=0;i<maxbc+1;++i) {
+      if(equal[i] == EMPTY)
+	map_bc[i] = i ;
+      else {
+	map_bc[i] = equal[i].Min() ;
+      }
+    }
+    for(size_t i=0;i<glueBC.size();++i)
+      glueBC[i] = map_bc[glueBC[i]] ;
+  }
+  
+  
+}
+
 int main(int ac, char* av[]) {
   using namespace Loci ;
   using namespace VOG ;
 
   bool optimize = true ;
   bool lefthanded = false ;
+  double creaseThreshold = 5 ;
   Loci::Init(&ac,&av) ;
 
   if(ac == 1) {
@@ -791,7 +1027,6 @@ int main(int ac, char* av[]) {
   bool boundary_file = false ;
   string boundary_filename ;
   
-  vector<string> combine_bc ;
   double tol = 1e-2 ;
   string Lref = "NOSCALE" ;
   double max_aspect = 1e6 ;
@@ -812,6 +1047,10 @@ int main(int ac, char* av[]) {
       av += 2 ;
     } else if(ac >= 3 && !strcmp(av[1],"-maxAspect")) {
       max_aspect = atof(av[2]) ;
+      ac -= 2 ;
+      av += 2 ;
+    } else if(ac >= 3 && !strcmp(av[1],"-creaseAngle")) {
+      creaseThreshold = atof(av[2]) ;
       ac -= 2 ;
       av += 2 ;
     } else if(ac >= 2 && !strcmp(av[1],"-v")) {
@@ -846,10 +1085,6 @@ int main(int ac, char* av[]) {
       Lref = "1 millimeter" ;
       ac-- ;
       av++ ;
-    }else if(ac >= 2 && !strcmp(av[1],"-c")) {
-      combine_bc.push_back(string(av[2])) ;
-      ac -= 2 ;
-      av += 2 ;
     } else if (ac >= 2 && !strcmp(av[1],"-bc")) {
       boundary_file = true ;
       boundary_filename = string(av[2]) ;
@@ -1191,7 +1426,7 @@ if(Lref == "")
       int nstrt = 0 ;
       for(int i=1;i<Loci::MPI_rank;++i)
 	nstrt += dist[i] ;
-      int nend = nstrt+dist[MPI_rank] ;
+      int nend = nstrt+dist[Loci::MPI_rank] ;
       int fn = -1,ln = -1 ;
       for(int i=0;i<gsize;++i) {
 	if(glueNodes[i] < nstrt)
@@ -1222,7 +1457,7 @@ if(Lref == "")
   map<int,int> glue2local ;
   for(int i=0;i<gsize;++i)
     glue2local[glueNodes[i]] = i ;
-
+  
   vector<pair<int,int> > glueSet ;
   if(Loci::MPI_rank == 0) {
     // Compute glue length
@@ -1391,9 +1626,14 @@ if(Lref == "")
   compressGluedNodesFaces(noglueFaces,glueSet) ;
   compressPositions(positions,pos_sizes,glueSet,MPI_COMM_WORLD) ;
 
-  if(Loci::MPI_rank == 0)
+  if(Loci::MPI_rank == 0) {
     setupGlueFaces(glueFaces,glueBC,glueCell,noglueFaces,noglueBC,noglueCell) ;
-  
+  }
+
+  MPI_Bcast(&creaseThreshold,1,MPI_DOUBLE,0,MPI_COMM_WORLD) ;
+  if(!boundary_file && creaseThreshold > 0.0)
+    creaseGroup(noglueFaces,noglueBC,positions,pos_sizes,creaseThreshold) ;
+
   // Now create pos store
   int r = Loci::MPI_rank ;
   int p = Loci::MPI_processes ;
