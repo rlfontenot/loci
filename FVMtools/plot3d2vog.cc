@@ -130,13 +130,15 @@ block_topo::block_topo(int NI, int NJ, int NK) {
   nodes_base = -1 ;
 }
 
-const double Axx = sqrt(2.0) ;
-const double Ayy = sqrt(3.1415927) ;
-const double Azz = exp(1.0) ;
+// Compute a normalized irrational direction vector (one which 
+// it is unlikely that grid lines will align with)
+const double Axx = sqrt(3.0) ;
+const double Ayy = 1./sqrt(3.1415927) ;
+const double Azz = exp(1.0);
 
-const double Ax = Axx/(Axx+Ayy+Azz) ;
-const double Ay = Ayy/(Axx+Ayy+Azz) ;
-const double Az = Azz/(Axx+Ayy+Azz) ;
+const double Ax = Axx/sqrt(Axx*Axx+Ayy*Ayy+Azz*Azz) ;
+const double Ay = Ayy/sqrt(Axx*Axx+Ayy*Ayy+Azz*Azz) ;
+const double Az = Azz/sqrt(Axx*Axx+Ayy*Ayy+Azz*Azz) ;
 
 struct block_face_info {
   int is,ie,js,je, tag ;
@@ -1027,7 +1029,7 @@ int main(int ac, char* av[]) {
   bool boundary_file = false ;
   string boundary_filename ;
   
-  double tol = 1e-2 ;
+  double tol = 1e-3 ;
   string Lref = "NOSCALE" ;
   double max_aspect = 1e6 ;
   while(ac>=2 && av[1][0] == '-') {
@@ -1043,6 +1045,10 @@ int main(int ac, char* av[]) {
       ac++ ;
     } else if(ac >= 3 && !strcmp(av[1],"-tol")) {
       tol = atof(av[2]) ;
+      if(tol >= 1.0) {
+	cerr << "tolerance cannot be greater than 1" << endl ;
+	tol = 0.9; 
+      }
       ac -= 2 ;
       av += 2 ;
     } else if(ac >= 3 && !strcmp(av[1],"-maxAspect")) {
@@ -1125,20 +1131,31 @@ if(Lref == "")
   sprintf(buf,"%s.grd",av[1]) ;
   string file = string(buf) ;
   if(Loci::MPI_rank == 0) {
+    bool found_ascii=false ;
+    bool found_binary = false ;
     struct stat finfo ;
     if(stat(buf,&finfo)==0 && (S_ISREG(finfo.st_mode))) {
+      found_ascii = true ;
       found_file = true ;
-    } else {
-      sprintf(buf,"%s.grd.b8",av[1]) ;
+    } 
+    sprintf(buf,"%s.grd.b8",av[1]) ;
+    if(stat(buf,&finfo)==0 && (S_ISREG(finfo.st_mode))) {
+      found_binary = true ;
+      found_file = true ;
+    } 
+    if(found_binary && found_ascii) {
+      cerr << "both ascii file, '" << file << "' and binary file, '" << buf
+	   << "', found.  Remove one file to disambiguate." << endl ;
+      Loci::Abort() ;
+    }
+    if(found_binary) {
       file = string(buf) ;
-      if(stat(buf,&finfo)==0 && (S_ISREG(finfo.st_mode))) {
-        found_file = true ;
-        read_type = 1 ;
-      } else {
-        cerr << "unable to find file '"<< file << "'" << endl ;
-        Loci::Abort() ;
-      }
-    }  
+      read_type = 1 ;
+    }
+    if(!found_file) {
+      cerr << "unable to find file '"<< file << "' or '" << buf << "'" << endl ;
+      Loci::Abort() ;
+    }
   }
 
   vector<block_topo> blockInfo ;
@@ -1483,11 +1500,27 @@ if(Lref == "")
       double lenmn = min(l1,l2) ;
       // Aspect ratio control, no aspect ratio face over max_aspect
       double len = (lenmx> max_aspect*lenmn)?lenmx:lenmn ;
+      if(lenmx > max_aspect*lenmn && lenmn != 0) {
+
+	cerr << "max aspect tripped, "<< lenmn << "," << lenmx << endl ;
+      }
 
       gluelen[n1] = min(gluelen[n1],len) ;
       gluelen[n2] = min(gluelen[n2],len) ;
       gluelen[n3] = min(gluelen[n3],len) ;
       gluelen[n4] = min(gluelen[n4],len) ;
+    }
+
+    // Limit tolerance to reasonable limits for double precision arithmetic
+    // and use this to compute the distance needed before a node is glued to
+    // another node
+    const double EPS = 1e-12 ;
+    tol = max(tol,EPS) ;
+    for(int i=0;i<gsize;++i) {
+      double eps = EPS*max(fabs(gluePos[i].x),
+			   max(fabs(gluePos[i].y),fabs(gluePos[i].z))) ;
+      
+      gluelen[i] = max(tol*gluelen[i],eps) ;
     }
 
     vector<pair<double,int> > nodeSort(gsize) ;
@@ -1501,14 +1534,14 @@ if(Lref == "")
     vector<entitySet> equal(gluePos.size()) ;
     for(int i=0;i<gsize;++i) {
       int ti = nodeSort[i].second ;
-      double del = tol*gluelen[ti] ;
-      double del2 = del*del ;
+      double del = gluelen[ti] ;
       vect3d p1 = gluePos[ti] ;
       for(int j=i+1;j<gsize;++j) {
 	if((nodeSort[j].first-nodeSort[i].first) > del)
 	  break ;
+	double mindel = min(del,gluelen[nodeSort[j].second]) ;
 	vect3d dv = p1-gluePos[nodeSort[j].second] ;
-	if(dot(dv,dv) < del2)
+	if(dot(dv,dv) < mindel*mindel)
 	  equal[ti] += nodeSort[j].second ;
       }
     }
