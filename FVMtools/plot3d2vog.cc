@@ -45,14 +45,10 @@ using Loci::component_sort ;
 
 static char bcnames[6][4] = {"IJ1","IJN","IK1","IKN","JK1","JKN"} ;
 
-
 struct block_topo {
   int ni,nj,nk ;
   int nodes_base ;
   int faces_base ;
-  int ewfaces_base ;
-  int nsfaces_base ;
-  int tbfaces_base ;
   int cells_base ;
   block_topo() { ni=0,nj=0,nk=0,nodes_base=-1 ;}
   block_topo(int ni,int nj,int nk) ;
@@ -113,12 +109,6 @@ struct block_topo {
   }
     
 
-  int ewaddr(int i,int j,int k) 
-  { return i+(j-1)*(ni)+(k-1)*(ni)*(nj-1)+ewfaces_base ; }
-  int nsaddr(int i,int j,int k) 
-  { return (i-1)+j*(ni-1)+(k-1)*(ni-1)*(nj)+nsfaces_base ; }
-  int tbaddr(int i,int j,int k) 
-  { return (i-1)+(j-1)*(ni-1)+k*(ni-1)*(nj-1)+tbfaces_base; }
 } ;
 
 block_topo::block_topo(int NI, int NJ, int NK) {
@@ -199,6 +189,43 @@ void usage() {
     
 }
 
+int fscanread(double *entries, int nentries, FILE *fp) {
+  static double rval = 0.0;
+  static int nvals = 0 ;
+  int nr = 0 ;
+  for(int i=0;i<nentries;++i) {
+    int cnt = 1 ;
+    if(nvals  > 0) {
+      entries[i] = rval ;
+      nvals-- ;
+    } else {
+      cnt = fscanf(fp,"%*[, \n\r\t]%lf",&entries[i]) ;
+      char buf[512] ;
+      if(cnt == 1 && fscanf(fp,"%[*]",buf)) {
+	nvals = int(entries[i]) ;
+	cnt = fscanf(fp,"%lf",&rval) ;
+	if(cnt != 1) 
+	  return nr ;
+	entries[i] = rval ;
+	nvals-- ;
+      }
+      if(cnt != 1)
+	return nr ;
+    }
+
+    if(cnt == 1)
+      nr++ ;
+    else {
+      char buf[512] ;
+      fscanf(fp,"%s",buf) ;
+      cerr << "failure reading grid near " << buf << endl ;
+      return nr ;
+    }
+  }
+  return nr ;
+}
+
+
 bool readP3DGrid(string filename,vector<block_topo> &blockInfo, vector<vect3d> &positions, vector<int>&pos_sizes, int read_type, MPI_Comm Comm) {
 
   bool binary_mode = false ;
@@ -247,7 +274,7 @@ bool readP3DGrid(string filename,vector<block_topo> &blockInfo, vector<vect3d> &
 	      fail = 1 ;
 	    }
 	  } else {
-	    int nr = fscanf(fp,"%d%d%d",&ni,&nj,&nk) ;
+	    int nr = fscanf(fp,"%*[, \n\r]%d%*[, \n\r]%d%*[, \n\r]%d",&ni,&nj,&nk) ;
 	    if(nr != 3) {
 	      cerr << "failed in reading block sizes" << endl ;
 	      fail = 1 ;
@@ -274,13 +301,7 @@ bool readP3DGrid(string filename,vector<block_topo> &blockInfo, vector<vect3d> &
 	}
 	base = 0 ;
 	for(int b=0;b<num_blocks;++b) {
-	  const int ni = blockInfo[b].ni ;
-	  const int nj = blockInfo[b].nj ;
-	  const int nk = blockInfo[b].nk ;
 	  blockInfo[b].faces_base = base ;
-	  blockInfo[b].ewfaces_base = blockInfo[b].faces_base ;
-	  blockInfo[b].nsfaces_base = blockInfo[b].faces_base + ni*(nj-1)*(nk-1) ;
-	  blockInfo[b].tbfaces_base = blockInfo[b].nsfaces_base + (ni-1)*(nj)*(nk-1) ;
 	  base += blockInfo[b].num_faces() ;
 	}
       }
@@ -338,14 +359,16 @@ bool readP3DGrid(string filename,vector<block_topo> &blockInfo, vector<vect3d> &
       //read in x coordinates from block b
       if(binary_mode) {
 	int nr = fread(&scratch[0],sizeof(double),sz,fp) ;
-	if(nr != sz) 
+	if(nr != sz) {
 	  cerr << "read failed reading mesh positions" << endl ;
+	  fail = 1 ;
+	}
       } else {
-	int nr = 0 ;
-	for(int i=0;i<sz;++i)
-	  nr += fscanf(fp,"%lf",&scratch[i]) ;
-	if(nr != sz)
+	int nr = fscanread(&scratch[0],sz,fp) ;
+	if(nr != sz) {
 	  cerr << "read failed reading mesh positions" << endl ;
+	  fail = 1 ;
+	}
       }
       for(int i=0;i<sz;++i)
 	positions[o+i].x = scratch[i] ;
@@ -353,14 +376,16 @@ bool readP3DGrid(string filename,vector<block_topo> &blockInfo, vector<vect3d> &
       //read in y coordinates from block b
       if(binary_mode) {
 	int nr = fread(&scratch[0],sizeof(double),sz,fp) ;
-	if(nr != sz)
+	if(nr != sz) {
 	  cerr << "read failed reading mesh positions" << endl ;
+	  fail = 1 ;
+	}
       } else {
-	int nr = 0;
-	for(int i=0;i<sz;++i)
-	  nr += fscanf(fp,"%lf",&scratch[i]) ;
-	if(nr != sz)
+	int nr = fscanread(&scratch[0],sz,fp) ;
+	if(nr != sz) {
 	  cerr << "read failed reading mesh positions" << endl ;
+	  fail = 1 ;
+	}
       }
       for(int i=0;i<sz;++i)
 	positions[o+i].y = scratch[i] ;
@@ -368,14 +393,16 @@ bool readP3DGrid(string filename,vector<block_topo> &blockInfo, vector<vect3d> &
       // read in z coordinates from block b
       if(binary_mode) {
 	int nr = fread(&scratch[0],sizeof(double),sz,fp) ;
-	if(nr != sz)
+	if(nr != sz) {
 	  cerr << "read failed reading mesh positions" << endl ;
+	  fail = 1 ;
+	}
       } else {
-	int nr = 0 ;
-	for(int i=0;i<sz;++i)
-	  nr += fscanf(fp,"%lf",&scratch[i]) ;
-	if(nr != sz)
+	int nr = fscanread(&scratch[0],sz,fp) ;
+	if(nr != sz) {
 	  cerr << "read failed reading mesh positions" << endl ;
+	  fail = 1 ;
+	}
       }
       for(int i=0;i<sz;++i)
 	positions[o+i].z = scratch[i] ;
@@ -415,13 +442,13 @@ bool readP3DGrid(string filename,vector<block_topo> &blockInfo, vector<vect3d> &
 	      int nr = fread(&scratch[0],sizeof(double),sendsz,fp) ;
 	      if(nr != sendsz) {
 		cerr << "read failed reading in mesh positions" << endl ;
+		fail = 1 ;
 	      }
 	    } else {
-	      int nr = 0 ;
-	      for(int i=0;i<sendsz;++i)
-		nr += fscanf(fp,"%lf",&scratch[i]) ;
+	      int nr = fscanread(&scratch[0],sendsz,fp) ;
 	      if(nr != sendsz) {
 		cerr << "read failed reading in mesh positions" << endl ;
+		fail = 1 ;
 	      }
 	    }
 	    MPI_Send(&scratch[0],sendsz,MPI_DOUBLE,i,0,Comm) ;
@@ -437,13 +464,13 @@ bool readP3DGrid(string filename,vector<block_topo> &blockInfo, vector<vect3d> &
 	      int nr = fread(&scratch[0],sizeof(double),sendsz,fp) ;
 	      if(nr != sendsz) {
 		cerr << "read failed reading in mesh positions" << endl ;
+		fail = 1 ;
 	      }
 	    } else {
-	      int nr = 0 ;
-	      for(int i=0;i<sendsz;++i)
-		nr += fscanf(fp,"%lf",&scratch[i]) ;
+	      int nr = fscanread(&scratch[0],sendsz,fp) ;
 	      if(nr != sendsz) {
 		cerr << "read failed reading in mesh positions" << endl ;
+		fail = 1 ;
 	      }
 	    }
 	    MPI_Send(&scratch[0],sendsz,MPI_DOUBLE,i,0,Comm) ;
@@ -459,13 +486,13 @@ bool readP3DGrid(string filename,vector<block_topo> &blockInfo, vector<vect3d> &
 	      int nr = fread(&scratch[0],sizeof(double),sendsz,fp) ;
 	      if(nr != sendsz) {
 		cerr << "read failed reading in mesh positions" << endl ;
+		fail = 1 ;
 	      }
 	    } else {
-	      int nr = 0 ;
-	      for(int i=0;i<sendsz;++i)
-		nr += fscanf(fp,"%lf",&scratch[i]) ;
+	      int nr = fscanread(&scratch[0],sendsz,fp) ;
 	      if(nr != sendsz) {
 		cerr << "read failed reading in mesh positions" << endl ;
+		fail = 1 ;
 	      }
 	    }
 	    MPI_Send(&scratch[0],sendsz,MPI_DOUBLE,i,0,Comm) ;
@@ -512,6 +539,9 @@ bool readP3DGrid(string filename,vector<block_topo> &blockInfo, vector<vect3d> &
     }
   }
 
+  MPI_Bcast(&fail, 1, MPI_INT,0,Comm) ;
+  if(fail == 1)
+    return false ;
   return true ;
 }
 
@@ -582,9 +612,11 @@ inline int findOffset(const vector<pair<int,int> > &glueSet,
     }
     if(i> glueSet[split].first) {
       low = split ;
-    } else
+      split = (low+hi+1)/2 ;
+    } else {
       hi = split ;
-    split = (low+hi+1)/2 ;
+      split = (low+hi)/2 ;
+    }
   }
 }
 
@@ -1042,7 +1074,7 @@ int main(int ac, char* av[]) {
     } else if(ac >= 2 && !strcmp(av[1],"-lefthanded")) {
       lefthanded = true ;
       ac-- ;
-      ac++ ;
+      av++ ;
     } else if(ac >= 3 && !strcmp(av[1],"-tol")) {
       tol = atof(av[2]) ;
       if(tol >= 1.0) {
@@ -1166,6 +1198,68 @@ if(Lref == "")
     Loci::Abort() ;
   }
   
+  if(blockInfo.size() == 0) {
+    cerr << "error reading grid '" << file << "'" << endl ;
+    Loci::Abort() ;
+  }
+  // Check ni,nj,nk 
+  int minni=blockInfo[0].ni ;
+  int minnj=blockInfo[0].nj ;
+  int minnk=blockInfo[0].nk ;
+
+  for(size_t b = 1 ; b!= blockInfo.size();++b) {
+    minni = min(minni,blockInfo[b].ni) ;
+    minnj = min(minni,blockInfo[b].nj) ;
+    minnk = min(minni,blockInfo[b].nk) ;
+  }
+  if(minni == 1 || minnj == 1)  {
+    cerr << "unable to process plot3d file with only ni==1 or nj == 1" << endl ;
+  }
+  if(minnk == 1) {
+    cout << "NOTE:  Extruding grid in z direction to have at least two planes" << endl ;
+    if(Loci::MPI_processes > 1) {
+      cerr << "extruding only supported in serial mode!" << endl ;
+      Loci::Abort() ;
+    }
+    vector<vect3d> pos2(positions.size()*2) ;
+    pos_sizes[0] *= 2 ;
+    int noffset = 0 ;
+    int noffset2 = 0 ;
+    for(size_t b = 0 ; b!= blockInfo.size();++b) {
+      int nnodes = blockInfo[b].num_nodes() ;
+      for(int i=0;i<nnodes;++i)
+	pos2[noffset2+i] = positions[noffset+i] ;
+      vect3d delta(0.,0.,0.01) ;
+      for(int i=0;i<nnodes;++i)
+	pos2[noffset2+i+nnodes] = positions[noffset+i]+delta ;
+      noffset2 += nnodes*2 ;
+      noffset += nnodes ;
+      if(blockInfo[b].nk != 1) {
+	cerr << "all blocks must have nk=1 for the extrusion to work!" << endl ;
+	Loci::Abort() ;
+      }
+      blockInfo[b].nk = 2 ;
+    }
+    positions.swap(pos2) ;
+    // Now update block offsets
+    int ntot = 0 ;
+    for(size_t b = 0 ; b!= blockInfo.size();++b) {
+      blockInfo[b].nodes_base = ntot ;
+      ntot += blockInfo[b].num_nodes() ;
+    }
+    int ctot = 0 ;
+    for(size_t b = 0 ; b!= blockInfo.size();++b) {
+      blockInfo[b].cells_base = ctot ;
+      ctot += blockInfo[b].num_cells() ;
+    }
+    int ftot = 0 ;
+    for(size_t b = 0 ; b!= blockInfo.size();++b) {
+      blockInfo[b].faces_base = ftot ;
+      ftot += blockInfo[b].num_faces() ;
+    }
+  }
+    
+
   // Scale the grid
   for(size_t i=0;i<positions.size();++i) 
     positions[i] *= posScale ;
