@@ -378,6 +378,7 @@ void ensight_topo_handler::output_nodal_scalar(float val[], int npnts,
   fwrite(tmp_buf, sizeof(char), 80, FP) ;
   fwrite(val,sizeof(float),npnts,FP) ;
   for(size_t i=0;i<part_nodes.size();++i) {
+    memset(tmp_buf, '\0', 80) ;
     sprintf(tmp_buf, "part") ;
     fwrite(tmp_buf, sizeof(char), 80, FP) ;
     int tmp = i+2 ;
@@ -431,6 +432,7 @@ void ensight_topo_handler::output_nodal_vector(vector3d<float> val[],
   }
     
   for(size_t i=0;i<part_nodes.size();++i) {
+    memset(tmp_buf, '\0', 80) ;
     sprintf(tmp_buf, "part") ;
     fwrite(tmp_buf, sizeof(char), 80, FP) ;
     int tmp = i+2 ;
@@ -522,6 +524,7 @@ void ensight_topo_handler::output_boundary_scalar(float val[], int node_set[],
       }
     }
     if(part_nside_ids[i].size() > 0) {
+      memset(tmp_buf, '\0', 80) ;
       sprintf(tmp_buf,"nsided") ;
       fwrite(tmp_buf, sizeof(char), 80, FP) ;
       for(size_t j=0;j!=part_nside_ids[i].size();++j) {
@@ -632,6 +635,7 @@ void ensight_topo_handler::output_boundary_vector(vector3d<float> val[],
 
     }
     if(part_nside_ids[i].size() > 0) {
+      memset(tmp_buf, '\0', 80) ;
       sprintf(tmp_buf,"nsided") ;
       fwrite(tmp_buf, sizeof(char), 80, FP) ;
       for(size_t j=0;j!=part_nside_ids[i].size();++j) {
