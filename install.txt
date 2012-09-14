@@ -19,7 +19,7 @@ Optional packages:
 
 PETSc: A package that allows Loci to use preconditioned Krylov
        subspace solvers for solving large sparse linear systems.  
-       Available from http://www-unix.mcs.anl.gov/petsc/petsc-2/
+       Available from http://www-unix.mcs.anl.gov/petsc/
 
 libxml2: A library for parsing XML formatted input files.  This
          library is used to define geometric region adaptation 
@@ -127,7 +127,7 @@ debugging options.  A typical install for Loci might use the following
 configuration lines
 
 PETSC_DIR=`pwd`
-./configure --prefix=/usr/local.petsc-3.3-p2 --with-clanguage=C --with-precision=double --with-scalar-type=real --with-debugging=no COPTFLAGS="-O3" --with-x=0
+./configure --prefix=/usr/local/petsc-3.3-p2 --with-clanguage=C --with-precision=double --with-scalar-type=real --with-debugging=no COPTFLAGS="-O3" --with-x=0 --with-shared-libraries=1
 
 This will configure PETSc to install into the directory
 '/opt/petsc-3.3-p2'.  You can change this target directory to a place
