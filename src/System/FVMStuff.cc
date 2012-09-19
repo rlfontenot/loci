@@ -283,7 +283,13 @@ namespace Loci{
     
     return retval ;
   }
-  
+//node_id range is 1~numNodes
+//face_id range is numNodes~numNodes+numFaces
+//cell_id range is 1~numCells
+//Reason: in FVMstuff.cc, parallelWriteGridTopo(),
+//get_node_remap is used to get the file number of nodes and cells, which set the start index to 1
+//however, g2f(l2g(ff)) is used to get the file number of faces.
+//Since boundary variables also use the face_id, to avoid changing too many places, we keep the face_id this way.
   void parallelWriteGridTopology(const char *filename,
                                  storeRepP upperRep,
                                  storeRepP lowerRep,
@@ -343,6 +349,12 @@ namespace Loci{
     vector<Array<int,6> > prsm(nprsm) ;
     vector<Array<int,8> > hexs(nhexs) ;
 
+    //for ids
+    vector<int> tets_ids(ntets) ;
+    vector<int> pyrm_ids(npyrm) ;
+    vector<int> prsm_ids(nprsm) ;
+    vector<int> hexs_ids(nhexs) ;
+    vector<int> generalCell_ids;
     int tet_no = 0 ;
     int hex_no = 0 ;
     int pyramid_no = 0 ;
@@ -350,6 +362,9 @@ namespace Loci{
 
     Map node_remap ;
     node_remap = get_node_remap(facts,posRep->domain()) ;
+
+    Map cell_remap;
+    cell_remap = get_node_remap(facts,localCells) ;
 
     vector<int> generalCellNfaces ;
     vector<int> generalCellNsides ;
@@ -431,19 +446,25 @@ namespace Loci{
 
       switch(elem_type[cc]) {
       case 0:
+        tets_ids[tet_no] = cell_remap[cc];
         fillTet(tets[tet_no++],tri_faces) ;
         break ;
       case 1:
+        hexs_ids[hex_no] = cell_remap[cc];
         fillHex(hexs[hex_no++],quad_faces) ;
         break ;
       case 2:
+        prsm_ids[prism_no] = cell_remap[cc];
         fillPrism(prsm[prism_no++],tri_faces,quad_faces) ;
         break ;
       case 3:
+        pyrm_ids[pyramid_no] = cell_remap[cc];
         fillPyramid(pyrm[pyramid_no++],tri_faces,quad_faces) ;
         break ;
       default:
         generalCellNfaces.push_back(nfaces) ;
+        generalCell_ids.push_back(cell_remap[cc]);
+        
         for(int i =0;i<nfaces;++i) {
           int fc = faces[i] ;
           int fsz = face2node[fc].size() ;
@@ -468,13 +489,22 @@ namespace Loci{
     }
 
     writeUnorderedVector(group_id, "tetrahedra",tets) ;
+    writeUnorderedVector(group_id, "tetrahedra_ids",tets_ids) ;
+    
     writeUnorderedVector(group_id, "hexahedra",hexs) ;
+    writeUnorderedVector(group_id, "hexahedra_ids",hexs_ids) ;
+    
     writeUnorderedVector(group_id, "prism",prsm) ;
+    writeUnorderedVector(group_id, "prism_ids",prsm_ids) ;
+    
     writeUnorderedVector(group_id, "pyramid",pyrm) ;
+    writeUnorderedVector(group_id, "pyramid_ids",pyrm_ids) ;
+    
     writeUnorderedVector(group_id, "GeneralCellNfaces",generalCellNfaces) ;
     writeUnorderedVector(group_id, "GeneralCellNsides",generalCellNsides) ;
     writeUnorderedVector(group_id, "GeneralCellNodes", generalCellNodes) ;
-
+    writeUnorderedVector(group_id, "GeneralCell_ids", generalCell_ids) ;
+    
     if(MPI_rank == 0) {
       H5Gclose(group_id) ;
       group_id = H5Gcreate(file_id,"boundaries",0) ;
@@ -548,7 +578,7 @@ namespace Loci{
       if(MPI_processes > 1) {
         fact_db::distribute_infoP df = facts.get_distribute_info() ;
         l2g = df->l2g.Rep() ;
-        g2f = df->g2f.Rep() ;
+        g2f = df->g2f.Rep() ;//why no map expanding? 
       } else {
         l2g.allocate(bfaces) ;
         FORALL(bfaces,fc) {
