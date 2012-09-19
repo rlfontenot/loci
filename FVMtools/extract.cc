@@ -59,6 +59,7 @@ void Usage(int ac, char *av[]) {
        << "-2d :  extract for the 2dgv plotting package" << endl
        << "-fv :  extract for the FieldView post-processing package" << endl
        << "-en :  extract for the Ensight post-processing package" << endl
+       << "-en_with_id :  extract for the Ensight post-processing package with node id and element id" << endl
        << "-tec:  extract for the TecPlot post-procesing package" << endl
        << "-vtk:  extract for the Paraview post-procesing package" << endl
        << "-vtk_surf:  extract boundary surface mesh for the Paraview post-procesing package" << endl
@@ -404,13 +405,14 @@ void setup_grid_topology(string casename, string iteration) {
 
 }
 
-
+//read volume element ids only for ensight output
 void extract_grid(string casename, string iteration,
                   grid_topo_handler *topo,
                   vector<string> variables,
                   vector<int> variable_types,
                   vector<string> variable_filenames,
-                  int max_particles) {
+                  int max_particles, bool id_required) {
+  
   
   vector<string> bnd_scalar_vars,bnd_scalar_filenames ;
   vector<string> bnd_vector_vars,bnd_vector_filenames ;
@@ -746,6 +748,42 @@ void extract_grid(string casename, string iteration,
       break ;
     case GRID_VOLUME_ELEMENTS:
       topo->create_mesh_elements() ;
+
+      if(id_required && ntets > 0){
+        int nblocks = (ntets-1)/block_size+1 ;
+        int remain = ntets ;
+        int start = 0 ;
+        for(int b=0;b<nblocks;++b) {
+          int size = min(block_size,remain) ;
+          vector<int> tets_ids(size) ;
+          vector<Array<int,4> > tets(size) ;
+          readElementTypeBlock(elg,"tetrahedra_ids",tets_ids,start,size) ;
+          readElementTypeBlock(elg,"tetrahedra",tets,start,size) ;
+          remain -= size ;
+          start += size ;
+          int cnt = 0 ;
+          if(has_iblank) {
+            for(int i=0;i<size;++i) {
+              bool blank = true ;
+              for(int j=0;j<4;++j)
+                if(iblank[tets[i][j]] < 2)
+                  blank = false ;
+              if(blank)
+                cnt++ ;
+              else 
+                if(cnt != 0) // If there are some blanked copy into place
+                  {
+                    tets[i-cnt]=tets[i] ;
+                    tets_ids[i-cnt] = tets_ids[i];
+                  }
+              
+            }
+          }
+          topo->write_tets_ids(&tets_ids[0],size-cnt,b,nblocks,ntets_b) ;
+        }
+      }
+
+
       if(ntets > 0) {
         int nblocks = (ntets-1)/block_size+1 ;
         int remain = ntets ;
@@ -773,6 +811,44 @@ void extract_grid(string casename, string iteration,
           topo->write_tets(&tets[0],size-cnt,b,nblocks,ntets_b) ;
         }
       }
+
+      if(id_required && npyrm > 0){
+
+        
+        int nblocks = (npyrm-1)/block_size+1 ;
+        int remain = npyrm ;
+        int start = 0 ;
+        for(int b=0;b<nblocks;++b) {
+          int size = min(block_size,remain) ;
+          vector<Array<int,5> > pyrm(size) ;
+          vector<int > pyrm_ids(size) ;
+          readElementTypeBlock(elg,"pyramid",pyrm,start,size) ;
+          readElementTypeBlock(elg,"pyramid_ids",pyrm_ids,start,size) ;
+          remain -= size ;
+          start += size ;
+          int cnt = 0 ;
+          if(has_iblank) {
+            for(int i=0;i<size;++i) {
+              bool blank = true ;
+              for(int j=0;j<5;++j)
+                if(iblank[pyrm[i][j]] < 2)
+                  blank = false ;
+              if(blank)
+                cnt++ ;
+              else 
+                if(cnt != 0) // If there are some blanked copy into place
+                  { pyrm[i-cnt]=pyrm[i] ;
+                    pyrm_ids[i-cnt]=pyrm_ids[i] ;
+                  }
+            }
+          }
+          topo->write_pyrm_ids(&pyrm_ids[0],size-cnt,b,nblocks,npyrm_b) ;
+        }
+
+      }
+
+
+        
       if(npyrm > 0) {
         int nblocks = (npyrm-1)/block_size+1 ;
         int remain = npyrm ;
@@ -800,6 +876,43 @@ void extract_grid(string casename, string iteration,
           topo->write_pyrm(&pyrm[0],size-cnt,b,nblocks,npyrm_b) ;
         }
       }
+
+
+      if(id_required && nprsm > 0) {
+        int nblocks = (nprsm-1)/block_size+1 ;
+        int remain = nprsm ;
+        int start = 0 ;
+        for(int b=0;b<nblocks;++b) {
+          int size = min(block_size,remain) ;
+          vector<Array<int,6> > prsm(size) ;
+          vector<int> prsm_ids(size);
+          readElementTypeBlock(elg,"prism",prsm,start,size) ;
+          readElementTypeBlock(elg,"prism_ids",prsm_ids,start,size) ;
+          remain -= size ;
+          start += size ;
+          int cnt = 0 ;
+          if(has_iblank) {
+            for(int i=0;i<size;++i) {
+              bool blank = true ;
+              for(int j=0;j<6;++j)
+                if(iblank[prsm[i][j]] < 2)
+                  blank = false ;
+              if(blank)
+                cnt++ ;
+              else 
+                if(cnt != 0) // If there are some blanked copy into place
+                  {
+                    prsm[i-cnt]=prsm[i] ;
+                    prsm_ids[i-cnt]=prsm_ids[i] ;
+                  }
+            }
+          }
+          topo->write_prsm_ids(&prsm_ids[0],size-cnt,b,nblocks,nprsm_b) ;
+          for(int k= 0; k < size-cnt; k++)cout<< prsm_ids[k] << " " ;
+          cout<< endl;
+        }
+      }
+      
       if(nprsm > 0) {
         int nblocks = (nprsm-1)/block_size+1 ;
         int remain = nprsm ;
@@ -827,6 +940,40 @@ void extract_grid(string casename, string iteration,
           topo->write_prsm(&prsm[0],size-cnt,b,nblocks,nprsm_b) ;
         }
       }
+      if(id_required && nhexs > 0) {
+        int nblocks = (nhexs-1)/block_size+1 ;
+        int remain = nhexs ;
+        int start = 0 ;
+        for(int b=0;b<nblocks;++b) {
+          int size = min(block_size,remain) ;
+          
+          vector<Array<int,8> > hexs(size) ;
+          vector<int> hexs_ids(size) ;
+          readElementTypeBlock(elg,"hexahedra",hexs,start,size) ;
+          readElementTypeBlock(elg,"hexahedra_ids",hexs_ids,start,size) ;
+          remain -= size ;
+          start += size ;
+          int cnt = 0 ;
+          if(has_iblank) {
+            for(int i=0;i<size;++i) {
+              bool blank = true ;
+              for(int j=0;j<8;++j)
+                if(iblank[hexs[i][j]] < 2)
+                  blank = false ;
+              if(blank)
+                cnt++ ;
+              else 
+                if(cnt != 0) // If there are some blanked copy into place
+                  {
+                    hexs[i-cnt]=hexs[i] ;
+                     hexs_ids[i-cnt]=hexs_ids[i] ;
+                  }
+            }
+          }
+          topo->write_hexs_ids(&hexs_ids[0],size-cnt,b,nblocks,nhexs_b) ;
+        }
+      }
+      
       if(nhexs > 0) {
         int nblocks = (nhexs-1)/block_size+1 ;
         int remain = nhexs ;
@@ -854,6 +1001,63 @@ void extract_grid(string casename, string iteration,
           }
           topo->write_hexs(&hexs[0],size-cnt,b,nblocks,nhexs_b) ;
         }
+      }
+      if(id_required && ngenc > 0) {
+
+        // still need to do general cell iblanking
+        vector<int> GeneralCellNfaces(ngenc) ;
+        readElementType(elg,"GeneralCellNfaces",GeneralCellNfaces) ;
+        int nside = sizeElementType(elg,"GeneralCellNsides") ;
+        vector<int> GeneralCellNsides(nside) ;
+        readElementType(elg,"GeneralCellNsides",GeneralCellNsides) ;
+        int nnodes = sizeElementType(elg,"GeneralCellNodes") ;
+        vector<int> GeneralCellNodes(nnodes) ;
+        readElementType(elg,"GeneralCellNodes",GeneralCellNodes) ;
+        vector<int> GeneralCell_ids(ngenc);
+        readElementType(elg,"GeneralCell_ids",GeneralCell_ids) ;
+        
+        if(has_iblank) {
+          int cnt1 = 0 ;
+          int cnt2 = 0 ;
+          int skip_cells = 0;
+          int skip_faces = 0 ;
+          int skip_nodes = 0 ;
+          for(int i=0;i<ngenc;++i) {
+            bool blank = true ;
+            int nf = GeneralCellNfaces[i] ;
+            int cnt1s = cnt1 ;
+            int cnt2s = cnt2 ;
+            for(int f=0;f<nf;++f) {
+              int fs = GeneralCellNsides[cnt1++] ;
+              for(int n=0;n<fs;++n) {
+                int nd = GeneralCellNodes[cnt2++] ;
+                if(iblank[nd] < 2)
+                  blank = false ;
+              }
+            }
+            if(blank) {
+              skip_cells += 1 ;
+              skip_faces += cnt1-cnt1s ;
+              skip_nodes += cnt2-cnt2s ;
+            } else {
+              if(skip_cells > 0) {
+                GeneralCellNfaces[i-skip_cells] = GeneralCellNfaces[i] ;
+                GeneralCell_ids[i-skip_cells] = GeneralCell_ids[i] ;
+                for(int j=0;j<cnt1-cnt1s;++j)
+                  GeneralCellNsides[cnt1s+j-skip_faces] =
+                    GeneralCellNsides[cnt1s+j] ;
+                for(int j=0;j<cnt2-cnt2s;++j)
+                  GeneralCellNodes[cnt2s+j-skip_nodes] =
+                    GeneralCellNodes[cnt2s+j] ;
+              }
+            }
+            
+          }
+          ngenc -= skip_cells ;
+          nside -= skip_faces ;
+          nnodes -= skip_nodes ;
+        }
+        topo->write_general_cell_ids(&GeneralCell_ids[0],ngenc) ;
       }
 
       if(ngenc > 0) {
@@ -1292,6 +1496,8 @@ int main(int ac, char *av[]) {
 
   int end_iter = -1 ;
   int inc_iter = -1 ;
+  bool id_required = false;//ensight has the option to display node and element ids
+
   
   for(int i=1;i<ac;++i) {
     if(av[i][0] == '-') {
@@ -1305,6 +1511,11 @@ int main(int ac, char *av[]) {
         plot_type = TWODGV ;
       else if(!strcmp(av[i],"-en"))
         plot_type = ENSIGHT ;
+      else if(!strcmp(av[i],"-en_with_id"))
+        {
+          plot_type = ENSIGHT ;
+          id_required = true;
+        }
       else if(!strcmp(av[i],"-fv"))
         plot_type = FIELDVIEW ;
       else if(!strcmp(av[i],"-tec")) {
@@ -1730,9 +1941,10 @@ int main(int ac, char *av[]) {
   
   // process grid topology
   grid_topo_handler *topo_out = 0 ;
+ 
   switch(plot_type) {
   case ENSIGHT:
-    topo_out = new ensight_topo_handler ;
+    topo_out = new ensight_topo_handler( id_required);
     break ;
   case FIELDVIEW:
     topo_out = new fv_topo_handler ;
@@ -1757,7 +1969,7 @@ int main(int ac, char *av[]) {
   if(topo_out != 0) {
     extract_grid(casename,iteration,
                  topo_out,variables,
-                 variable_type,variable_file,max_particles) ;
+                 variable_type,variable_file,max_particles, id_required) ;//read volume element  only for ensight output  
   }
   Loci::Finalize() ;
 }

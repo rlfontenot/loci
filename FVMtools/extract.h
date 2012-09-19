@@ -86,13 +86,21 @@ public:
   virtual void close() = 0 ;
   virtual void create_mesh_positions(vector3d<float> pos[], int npnts) = 0 ;
   virtual void create_mesh_elements() = 0 ;
-  virtual void write_tets(Array<int,4> tets[], int ntets,int block, int numblocks,int tottets) = 0 ;
-  virtual void write_pyrm(Array<int,5> pyrm[], int npyrm,int block, int numblocks,int totpyrm) = 0 ;
+  
+  virtual void write_tets_ids(int tets_ids[], int ntets,int block, int numblocks,int tottets){} 
+  virtual void write_pyrm_ids(int pyrm_ids[],int npyrm,int block, int numblocks,int totpyrm){}
+  virtual void write_prsm_ids(int prsm_ids[],int nprsm,int block, int numblocks,int totprsm){}
+  virtual void write_hexs_ids(int hex_ids[], int nhexs,int block, int numblocks,int tothexs){}
+  virtual void write_general_cell_ids(int nfaces_ids[],int nnfaces){}
+  
+  virtual void write_tets(Array<int,4> tets[],  int ntets,int block, int numblocks,int tottets) = 0 ;
+  virtual void write_pyrm(Array<int,5> pyrm[],int npyrm,int block, int numblocks,int totpyrm) = 0 ;
   virtual void write_prsm(Array<int,6> prsm[], int nprsm,int block, int numblocks,int totprsm) = 0 ;
-  virtual void write_hexs(Array<int,8> hexs[], int nhexs,int block, int numblocks,int tothexs) = 0 ;
+  virtual void write_hexs(Array<int,8> hexs[],  int nhexs,int block, int numblocks,int tothexs) = 0 ;
   virtual void write_general_cell(int nfaces[], int nnfaces,
                                   int nsides[], int nnsides,
                                   int nodes[], int nnodes) = 0 ;
+  
   virtual void close_mesh_elements() = 0 ;
 
   virtual void create_boundary_part(string name,int node_set[],int npnts) = 0 ;
@@ -137,8 +145,23 @@ class ensight_topo_handler : public grid_topo_handler {
 
   bool particle_output ;
   string particle_geo_filename ;
+  enum id_option {OFF, GIVEN, ASSIGN, IGNORE}; 
+  id_option node_id_opt;
+  id_option element_id_opt;
 public:
-  ensight_topo_handler(){OFP=0;particle_output=false;}
+  ensight_topo_handler(){  OFP=0;particle_output=false;node_id_opt = OFF; element_id_opt = OFF;}
+  //constructor to set the node_id_opt and element_id_opt
+  ensight_topo_handler(bool id_required){
+    OFP=0;
+    particle_output=false;
+    if(id_required){
+      node_id_opt = GIVEN;
+      element_id_opt = GIVEN;
+    }else{
+      node_id_opt = OFF;
+      element_id_opt = OFF;
+    }
+  }
   virtual ~ensight_topo_handler() {}
   virtual void open(string casename, string iteration ,int npnts,
                     int ntets, int nprsm, int npyrm, int nhexs, int ngen,
@@ -149,6 +172,7 @@ public:
   virtual void close() ;
   virtual void create_mesh_positions(vector3d<float> pos[], int npnts) ;
   virtual void create_mesh_elements() {}
+
   virtual void write_tets(Array<int,4> tets[], int ntets,int block, int numblocks,int tottets) ;
   virtual void write_pyrm(Array<int,5> prsm[], int npyrm,int block, int numblocks,int totprym) ;
   virtual void write_prsm(Array<int,6> prsm[], int nprsm,int block, int numblocks,int totprsm)  ;
@@ -156,6 +180,14 @@ public:
   virtual void write_general_cell(int nfaces[], int nnfaces,
                                   int nsides[], int nnsides,
                                   int nodes[], int nnodes) ;
+
+  virtual void write_tets_ids(int tets_ids[], int ntets,int block, int numblocks,int tottets) ;
+  virtual void write_pyrm_ids(int pyrm_ids[],int npyrm,int block, int numblocks,int totpyrm) ;
+  virtual void write_prsm_ids(int prsm_ids[],int nprsm,int block, int numblocks,int totprsm)  ;
+  virtual void write_hexs_ids(int hex_ids[], int nhexs,int block, int numblocks,int tothexs)  ;
+  virtual void write_general_cell_ids(int nfaces_ids[],int nnfaces) ;
+
+  
   virtual void close_mesh_elements() {}
   virtual void create_boundary_part(string name,int node_set[], int npnts) ;
   virtual void write_quads(Array<int,4> quads[], int quad_ids[],
@@ -221,6 +253,11 @@ public:
   virtual void write_general_cell(int nfaces[], int nnfaces,
                                   int nsides[], int nnsides,
                                   int nodes[], int nnodes) ;
+
+
+  
+
+  
   virtual void close_mesh_elements() ;
   virtual void create_boundary_part(string name,int node_set[], int npnts) ;
   virtual void write_quads(Array<int,4> quads[], int quad_ids[],
@@ -468,6 +505,7 @@ public:
   virtual void close() ;
   virtual void create_mesh_positions(vector3d<float> pos[], int npnts) ;
   virtual void create_mesh_elements() ;
+  
   virtual void write_tets(Array<int,4> tets[], int ntets,int block, int numblocks,int tottets) ;
   virtual void write_pyrm(Array<int,5> prsm[], int npyrm,int block, int numblocks,int totprym) ;
   virtual void write_prsm(Array<int,6> prsm[], int nprsm,int block, int numblocks,int totprsm)  ;
@@ -475,6 +513,8 @@ public:
   virtual void write_general_cell(int nfaces[], int nnfaces,
                                   int nsides[], int nnsides,
                                   int nodes[], int nnodes) ;
+
+
   virtual void close_mesh_elements() ;
   virtual void create_boundary_part(string name,int node_set[], int npnts) ;
   virtual void write_quads(Array<int,4> quads[], int quad_ids[],
@@ -555,6 +595,7 @@ public:
   virtual void close() ;
   virtual void create_mesh_positions(vector3d<float> pos[], int npnts) ;
   virtual void create_mesh_elements() ;
+  
   virtual void write_tets(Array<int,4> tets[], int ntets,int block, int numblocks,int tottets) ;
   virtual void write_pyrm(Array<int,5> pyrm[], int npyrm,int block, int numblocks,int totpyrm) ;
   virtual void write_prsm(Array<int,6> prsm[], int nprsm,int block, int numblocks,int totprsm) ;
@@ -562,6 +603,13 @@ public:
   virtual void write_general_cell(int nfaces[], int nnfaces,
                                   int nsides[], int nnsides,
                                   int nodes[], int nnodes) ;
+
+
+
+
+
+
+
   virtual void close_mesh_elements() ;
 
   virtual void create_boundary_part(string name,int node_set[],int npnts) ;
