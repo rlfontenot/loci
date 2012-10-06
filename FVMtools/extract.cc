@@ -908,8 +908,7 @@ void extract_grid(string casename, string iteration,
             }
           }
           topo->write_prsm_ids(&prsm_ids[0],size-cnt,b,nblocks,nprsm_b) ;
-          for(int k= 0; k < size-cnt; k++)cout<< prsm_ids[k] << " " ;
-          cout<< endl;
+          
         }
       }
       
