@@ -1218,7 +1218,7 @@ int main(int ac, char* av[]) {
          << "  -in : input grid is in inches" << endl
          << "  -ft : input grid is in feet" << endl
          << "  -cm : input grid is in centimeters" << endl
-         << "  -cm : input grid is in meters" << endl
+         << "  -m  : input grid is in meters" << endl
          << "  -Lref <units> : 1 unit in input grid is <units> long" << endl
          << endl ;
       exit(-1) ;
