@@ -425,7 +425,7 @@ namespace Loci {
           for(int i=k+1;i<j;++i)
             Aj[i] -= Ak[i]*Ajk ;
         }
-        Ak = (T * restrict) ptr ;
+        Ak = ptr ;
         for(int k=0;k<j;++k,Ak += size) {
           const T Ajk = Aj[k] ;
 #ifdef HAVE_IVDEP
@@ -463,7 +463,7 @@ namespace Loci {
           for(int i=k+1;i<j;++i)
             Aj[i] -= Ak[i]*Ajk ;
         }
-        Ak = (T * restrict) ptr ;
+        Ak = ptr ;
         for(int k=0;k<j;++k,Ak += size) {
           const T Ajk = Aj[k] ;
 #ifdef HAVE_IVDEP
@@ -479,7 +479,7 @@ namespace Loci {
         piv[j] = mu ;
         if(j!= mu)
           std::swap(pivot[j],pivot[mu]) ;
-        Ak = (T * restrict) ptr ;
+        Ak = ptr ;
         for(int k=0;k<j+1;++k,Ak += size)
           if(j != piv[j])
             std::swap(Ak[j],Ak[piv[j]]) ;
