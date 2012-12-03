@@ -36,6 +36,7 @@
 //#define EXT_HASH_MAP
 //#define EXT_NAMESPACE std
 #define HAVE_IVDEP
+#define NO_SIGNBIT
 
 #define restrict __restrict
 #else
