@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <strings.h>
 #include <iostream>
 #include <cstdio>
 #include <stdlib.h>	
@@ -413,11 +415,13 @@ void readMesh(  double topoID,
     ADF_Get_Name(topoID, nodeName, &err);
     checkError(err, topoID, "Error getting node name");
     int index = atoi(string(nodeName).substr(18).c_str());
-    sprintf(nodeName, "/Meshes/Vertices-%d/MapId", index);
+    bzero(nodeName,ADF_NAME_LENGTH) ;
+    snprintf(nodeName,ADF_NAME_LENGTH, "/Meshes/Vertices-%d/MapId", index);
     int mapIndex = readNodei32(root, nodeName);
     
     //read vertices map data, assume FaceBasedTopology-i and  Vertices-i share the same vertex map
-    sprintf(nodeName, "/Maps/Map-%d/IdMap", mapIndex);
+    bzero(nodeName,ADF_NAME_LENGTH) ;
+    snprintf(nodeName,ADF_NAME_LENGTH, "/Maps/Map-%d/IdMap", mapIndex);
    
     int localNumNode = readNodeis(root, nodeName, &vertexMapData);
     if(vertexMapData==0){
@@ -438,10 +442,12 @@ void readMesh(  double topoID,
   if(!isLocal){
     int32* cellMapData = 0;
     char nodeName[ADF_NAME_LENGTH]={'\0'};  
-    sprintf(nodeName, "Cells/MapId");
+    bzero(nodeName,ADF_NAME_LENGTH) ;
+    snprintf(nodeName,ADF_NAME_LENGTH, "Cells/MapId");
     int mapIndex = readNodei32(topoID, nodeName);
     
-    sprintf(nodeName, "/Maps/Map-%d/IdMap", mapIndex);
+    bzero(nodeName,ADF_NAME_LENGTH) ;
+    snprintf(nodeName,ADF_NAME_LENGTH, "/Maps/Map-%d/IdMap", mapIndex);
     int localNumCells = readNodeis(root, nodeName, &cellMapData);
     
     if(cellMapData==0){
@@ -543,11 +549,12 @@ void readMesh(  double topoID,
       
       //      string bcstr = readNodestr(bfaceID, "Label");
       //if(bcstr.size()==0){
-      char bcname[512];
+      char bcname[128];
+      bzero(bcname,128) ;
       if(btype >= 0)
-        sprintf(bcname,"BC_%d",btype) ;
+        snprintf(bcname,127,"BC_%d",btype) ;
       else
-        sprintf(bcname,"BC_m%d",-btype) ;
+        snprintf(bcname,127,"BC_m%d",-btype) ;
       
       string bcstr=string(bcname);
       // }
@@ -589,7 +596,8 @@ void getMeshID(double processorID, double* verticesID, double* topoID){
     int verticesIndex = readNodei32(processorID, "VerticesId"); 
 
     char nodeName[ADF_NAME_LENGTH]={'\0'};
-    sprintf(nodeName, "/Meshes/Vertices-%d", verticesIndex);
+    bzero(nodeName,ADF_NAME_LENGTH) ;
+    snprintf(nodeName,ADF_NAME_LENGTH, "/Meshes/Vertices-%d", verticesIndex);
 
     ADF_Get_Node_ID(root, nodeName, verticesID, &err);
     checkError(err, root, string("Error getting node ID ")+string(nodeName));
@@ -611,7 +619,8 @@ void getMeshID(double processorID, double* verticesID, double* topoID){
     int topoIndex = readNodei32(processorID, "TopologyId"); 
   
     char nodeName[ADF_NAME_LENGTH]={'\0'};
-    sprintf(nodeName, "/Meshes/FaceBasedTopology-%d", topoIndex);
+    bzero(nodeName,ADF_NAME_LENGTH) ;
+    snprintf(nodeName, ADF_NAME_LENGTH, "/Meshes/FaceBasedTopology-%d", topoIndex);
     
     ADF_Get_Node_ID(root, nodeName, topoID, &err);
     checkError(err, root, string("Error getting node ID ")+ string(nodeName));

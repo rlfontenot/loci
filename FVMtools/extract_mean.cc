@@ -20,6 +20,7 @@
 //#############################################################################
 #include <Loci.h> 
 #include <stdio.h>
+#include <strings.h>
 #include <stdlib.h>
 #include <math.h>
 #include <string>
@@ -72,8 +73,9 @@ void process_mean(string casename, string iteration,
         store<double> M2 ;
         double n = 0;
         for(int it = start_iter;it<=end_iter;it+=inc_iter) {
-          char buf[512] ;
-          sprintf(buf,"%d",it) ;
+          char buf[128] ;
+	  bzero(buf,128) ;
+          snprintf(buf,127,"%d",it) ;
           cout << "iteration: " << buf << postfix << '\r' ;
 	  cout.flush() ;
           n = n + 1.0 ;
@@ -166,8 +168,9 @@ void process_mean(string casename, string iteration,
         store<double> M2 ;
         double n = 0;
         for(int it = start_iter;it<=end_iter;it+=inc_iter) {
-          char buf[512] ;
-          sprintf(buf,"%d",it) ;
+          char buf[128] ;
+	  bzero(buf,128) ;
+          snprintf(buf,127,"%d",it) ;
           cout << "iteration: " << buf << postfix << '\r' ;
 	  cout.flush() ;
           
@@ -233,8 +236,9 @@ void process_mean(string casename, string iteration,
 
         double n = 0;
         for(int it = start_iter;it<=end_iter;it+=inc_iter) {
-          char buf[512] ;
-          sprintf(buf,"%d",it) ;
+          char buf[128] ;
+	  bzero(buf,128) ;
+          snprintf(buf,127,"%d",it) ;
           cout << "iteration: " << buf << postfix << '\r' ;
 	  cout.flush() ;
           
@@ -373,8 +377,9 @@ void process_mean(string casename, string iteration,
         store<double> M2 ;
         double n = 0;
         for(int it = start_iter;it<=end_iter;it+=inc_iter) {
-          char buf[512] ;
-          sprintf(buf,"%d",it) ;
+          char buf[128] ;
+	  bzero(buf,128) ;
+          snprintf(buf,127,"%d",it) ;
           cout << "iteration: " << buf << postfix << '\r' ;
 	  cout.flush() ;
           
@@ -477,8 +482,9 @@ void process_mean(string casename, string iteration,
         map<int,int> id2local ;
         double n = 0;
         for(int it = start_iter;it<=end_iter;it+=inc_iter) {
-          char buf[512] ;
-          sprintf(buf,"%d",it) ;
+          char buf[128] ;
+	  bzero(buf,128) ;
+          snprintf(buf,127,"%d",it) ;
           cout << "iteration: " << buf << postfix << '\r' ;
 	  cout.flush() ;
           
@@ -569,8 +575,9 @@ void process_mean(string casename, string iteration,
         map<int,int> id2local ;
         double n = 0;
         for(int it = start_iter;it<=end_iter;it+=inc_iter) {
-          char buf[512] ;
-          sprintf(buf,"%d",it) ;
+          char buf[128] ;
+	  bzero(buf,128) ;
+          snprintf(buf,127,"%d",it) ;
           cout << "iteration: " << buf << postfix << '\r' ;
 	  cout.flush() ;
           

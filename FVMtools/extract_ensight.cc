@@ -18,24 +18,9 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
-
-
-
-
-//node_id_opt and element_id_opt is added.
-//node_id range is 1~numNodes
-//face_id range is numNodes~numNodes+numFaces
-//cell_id range is 1~numCells
-//Reason: in FVMstuff.cc, parallelWriteGridTopo(),
-//get_node_remap is used to get the file number of nodes and cells, which set the start index to 1
-//however, g2f(l2g(ff)) is used to get the file number of faces.
-//Since boundary variables also use the face_id, to avoid changing too many places, we keep the face_id this way.
-
-
-
-
-#include <Loci.h> 
 #include <stdio.h>
+#include <strings.h> 
+#include <Loci.h> 
 #include <stdlib.h>
 #include <math.h>
 #include <string>
@@ -149,24 +134,24 @@ void ensight_topo_handler::open(string casename, string iteration ,int inpnts,
   char tmp_buf[80] ;
   
   memset(tmp_buf, '\0', 80) ; 
-  sprintf(tmp_buf, "C Binary") ;
+  snprintf(tmp_buf,80, "C Binary") ;
   fwrite(tmp_buf, sizeof(char), 80, OFP) ;
   memset(tmp_buf, '\0', 80) ;
-  sprintf(tmp_buf, "Ensight model geometry description") ;
+  snprintf(tmp_buf,80, "Ensight model geometry description") ;
   fwrite(tmp_buf, sizeof(char), 80, OFP) ;
   memset(tmp_buf, '\0', 80) ;
-  sprintf(tmp_buf, "Grid file used is %s", casename.c_str()) ;
+  snprintf(tmp_buf, 80, "Grid file used is %s", casename.c_str()) ;
   fwrite(tmp_buf, sizeof(char), 80, OFP) ;
   memset(tmp_buf, '\0', 80) ;
   
-  if(node_id_opt == GIVEN) sprintf(tmp_buf, "node id given") ;
-  else sprintf(tmp_buf, "node id off") ;
+  if(node_id_opt == GIVEN) snprintf(tmp_buf, 80, "node id given") ;
+  else snprintf(tmp_buf, 80, "node id off") ;
   fwrite(tmp_buf, sizeof(char), 80, OFP) ;
   
   memset(tmp_buf, '\0', 80) ;
   
-  if(element_id_opt == GIVEN)  sprintf(tmp_buf, "element id given") ;
-  else sprintf(tmp_buf, "element id off") ;
+  if(element_id_opt == GIVEN)  snprintf(tmp_buf,80, "element id given") ;
+  else snprintf(tmp_buf, 80,"element id off") ;
   fwrite(tmp_buf, sizeof(char), 80, OFP) ;
   
 }
@@ -180,15 +165,15 @@ void ensight_topo_handler::create_mesh_positions(vector3d<float> pos[], int pts)
   
   char tmp_buf[80] ;
   memset(tmp_buf, '\0', 80) ;
-  sprintf(tmp_buf, "part") ;
+  snprintf(tmp_buf, 80,"part") ;
   fwrite(tmp_buf, sizeof(char), 80, OFP) ;
   fwrite(&part_id, sizeof(int), 1, OFP) ;
   part_id++ ;
   memset(tmp_buf, '\0', 80) ;
-  sprintf(tmp_buf, "Entire") ;
+  snprintf(tmp_buf,80, "Entire") ;
   fwrite(tmp_buf, sizeof(char), 80, OFP) ;
   memset(tmp_buf, '\0', 80) ;
-  sprintf(tmp_buf, "coordinates") ;
+  snprintf(tmp_buf, 80, "coordinates") ;
   fwrite(tmp_buf, sizeof(char), 80, OFP) ;
   fwrite(&pts, sizeof(int), 1, OFP) ;
 
@@ -218,7 +203,7 @@ void ensight_topo_handler::write_tets(Array<int,4> tets[], int ntets, int block,
     if(block == 0 && (element_id_opt != GIVEN && element_id_opt != IGNORE)) {
       char tmp_buf[80] ;
       memset(tmp_buf, '\0', 80) ;
-      sprintf(tmp_buf, "tetra4") ;
+      snprintf(tmp_buf, 80, "tetra4") ;
       fwrite(tmp_buf, sizeof(char), 80, OFP) ;
       fwrite(&tottets, sizeof(int), 1, OFP) ;
     }
@@ -233,7 +218,7 @@ void ensight_topo_handler::write_tets_ids( int tets_ids[], int ntets, int block,
       if(block == 0) {
         char tmp_buf[80] ;
         memset(tmp_buf, '\0', 80) ;
-        sprintf(tmp_buf, "tetra4") ;
+        snprintf(tmp_buf, 80, "tetra4") ;
         fwrite(tmp_buf, sizeof(char), 80, OFP) ;
         fwrite(&tottets, sizeof(int), 1, OFP) ;
       }
@@ -249,7 +234,7 @@ void ensight_topo_handler::write_pyrm(Array<int,5> pyrm[], int npyrm,int block, 
     if(block==0&& (element_id_opt != GIVEN && element_id_opt != IGNORE) ) {
       char tmp_buf[80] ;
       memset(tmp_buf, '\0', 80) ;
-      sprintf(tmp_buf, "pyramid5") ;
+      snprintf(tmp_buf, 80, "pyramid5") ;
       fwrite(tmp_buf, sizeof(char), 80, OFP) ;
       fwrite(&totpyrm, sizeof(int), 1, OFP) ;
     }
@@ -264,7 +249,7 @@ void ensight_topo_handler::write_pyrm_ids(int pyrm_ids[], int npyrm,int block, i
     if(block==0) {
       char tmp_buf[80] ;
       memset(tmp_buf, '\0', 80) ;
-      sprintf(tmp_buf, "pyramid5") ;
+      snprintf(tmp_buf,80, "pyramid5") ;
       fwrite(tmp_buf, sizeof(char), 80, OFP) ;
       fwrite(&totpyrm, sizeof(int), 1, OFP) ;
     }
@@ -280,7 +265,7 @@ void ensight_topo_handler::write_prsm(Array<int,6> prsm[], int nprsm,int block, 
     if(block==0 && (element_id_opt != GIVEN && element_id_opt != IGNORE) ) {
       char tmp_buf[80] ;
       memset(tmp_buf, '\0', 80) ;
-      sprintf(tmp_buf, "penta6") ;
+      snprintf(tmp_buf, 80, "penta6") ;
       fwrite(tmp_buf, sizeof(char), 80, OFP) ;
       fwrite(&totprsm, sizeof(int), 1, OFP) ;
     }
@@ -295,7 +280,7 @@ void ensight_topo_handler::write_prsm_ids(int prsm_ids[], int nprsm,int block, i
       if(block==0) {
         char tmp_buf[80] ;
         memset(tmp_buf, '\0', 80) ;
-        sprintf(tmp_buf, "penta6") ;
+        snprintf(tmp_buf, 80, "penta6") ;
         fwrite(tmp_buf, sizeof(char), 80, OFP) ;
         fwrite(&totprsm, sizeof(int), 1, OFP) ;
       }
@@ -311,7 +296,7 @@ void ensight_topo_handler::write_hexs(Array<int,8> hexs[], int nhexs, int block,
     if(block == 0 &&(element_id_opt != GIVEN && element_id_opt != IGNORE)) {
       char tmp_buf[80] ;
       memset(tmp_buf, '\0', 80) ;
-      sprintf(tmp_buf, "hexa8") ;
+      snprintf(tmp_buf,80, "hexa8") ;
       fwrite(tmp_buf, sizeof(char), 80, OFP) ;
       fwrite(&tothexs, sizeof(int), 1, OFP) ;
     }
@@ -326,7 +311,7 @@ void ensight_topo_handler::write_hexs_ids( int hexs_ids[], int nhexs, int block,
       if(block == 0) {
         char tmp_buf[80] ;
         memset(tmp_buf, '\0', 80) ;
-        sprintf(tmp_buf, "hexa8") ;
+        snprintf(tmp_buf,80, "hexa8") ;
         fwrite(tmp_buf, sizeof(char), 80, OFP) ;
         fwrite(&tothexs, sizeof(int), 1, OFP) ;
       }
@@ -345,7 +330,7 @@ void ensight_topo_handler::write_general_cell(int nfaces[],int nnfaces,
     if(element_id_opt != GIVEN && element_id_opt != IGNORE){
       char tmp_buf[80] ;
       memset(tmp_buf, '\0', 80) ;
-      sprintf(tmp_buf, "nfaced") ;
+      snprintf(tmp_buf, 80, "nfaced") ;
       fwrite(tmp_buf, sizeof(char), 80, OFP) ;
       fwrite(&nnfaces, sizeof(int), 1, OFP) ;
     }
@@ -360,7 +345,7 @@ void ensight_topo_handler::write_general_cell_ids(int nfaces_ids[], int nnfaces)
     if(nnfaces > 0) {
       char tmp_buf[80] ;
       memset(tmp_buf, '\0', 80) ;
-      sprintf(tmp_buf, "nfaced") ;
+      snprintf(tmp_buf,80, "nfaced") ;
       fwrite(tmp_buf, sizeof(char), 80, OFP) ;
       fwrite(&nnfaces, sizeof(int), 1, OFP) ;
       fwrite(nfaces_ids, sizeof(int), nnfaces, OFP) ;
@@ -380,14 +365,14 @@ void ensight_topo_handler::create_boundary_part(string name,int node_set[],
 
   char tmp_buf[80] ;
   memset(tmp_buf, '\0', 80) ;
-  sprintf(tmp_buf, "part") ;
+  snprintf(tmp_buf,80, "part") ;
   fwrite(tmp_buf, sizeof(char), 80, OFP) ;
   fwrite(&part_id, sizeof(int), 1, OFP) ;
   memset(tmp_buf, '\0', 80) ;
-  sprintf(tmp_buf, "%s", name.c_str()) ;
+  snprintf(tmp_buf,80, "%s", name.c_str()) ;
   fwrite(tmp_buf, sizeof(char), 80, OFP) ;
   memset(tmp_buf, '\0', 80) ;
-  sprintf(tmp_buf, "coordinates") ;
+  snprintf(tmp_buf,80, "coordinates") ;
   fwrite(tmp_buf, sizeof(char), 80, OFP) ;
   fwrite(&npnts, sizeof(int), 1, OFP) ;
 
@@ -414,7 +399,7 @@ void ensight_topo_handler::write_quads(Array<int,4> quads[],
   if(nquads > 0) {
     char tmp_buf[80] ;
     memset(tmp_buf, '\0', 80) ;
-    sprintf(tmp_buf, "quad4") ;
+    snprintf(tmp_buf, 80, "quad4") ;
     fwrite(tmp_buf, sizeof(char), 80, OFP) ;
     fwrite(&nquads, sizeof(int),1,OFP) ;
     if(element_id_opt == GIVEN || element_id_opt == IGNORE ){
@@ -432,7 +417,7 @@ void ensight_topo_handler::write_trias(Array<int,3> trias[],
   if(ntrias > 0) {
     char tmp_buf[80] ;
     memset(tmp_buf, '\0', 80) ;
-    sprintf(tmp_buf, "tria3") ;
+    snprintf(tmp_buf, 80, "tria3") ;
     fwrite(tmp_buf, sizeof(char), 80, OFP) ;
     fwrite(&ntrias, sizeof(int),1,OFP) ;
     if(element_id_opt == GIVEN || element_id_opt == IGNORE){
@@ -453,7 +438,7 @@ void ensight_topo_handler::write_general_face(int nside_sizes[],
   if(ngeneral > 0) {
     char tmp_buf[80] ;
     memset(tmp_buf, '\0', 80) ;
-    sprintf(tmp_buf, "nsided") ;
+    snprintf(tmp_buf, 80, "nsided") ;
     fwrite(tmp_buf, sizeof(char), 80, OFP) ;
     fwrite(&ngeneral, sizeof(int),1,OFP) ;
     if(element_id_opt == GIVEN ||element_id_opt == IGNORE ){
@@ -492,25 +477,25 @@ void ensight_topo_handler::output_nodal_scalar(float val[], int npnts,
   }
   char tmp_buf[80] ;
   memset(tmp_buf, '\0', 80) ;
-  sprintf(tmp_buf,"variable : %s",varname.c_str()) ;
+  snprintf(tmp_buf,80,"variable : %s",varname.c_str()) ;
   fwrite(tmp_buf, sizeof(char), 80, FP) ;
   memset(tmp_buf, '\0', 80) ;
-  sprintf(tmp_buf, "part") ;
+  snprintf(tmp_buf,80, "part") ;
   fwrite(tmp_buf, sizeof(char), 80, FP) ;
   int tmp = 1 ;
   fwrite(&tmp, sizeof(int), 1, FP) ;
   memset(tmp_buf, '\0', 80) ;
-  sprintf(tmp_buf, "coordinates") ;
+  snprintf(tmp_buf,80, "coordinates") ;
   fwrite(tmp_buf, sizeof(char), 80, FP) ;
   fwrite(val,sizeof(float),npnts,FP) ;
   for(size_t i=0;i<part_nodes.size();++i) {
     memset(tmp_buf, '\0', 80) ;
-    sprintf(tmp_buf, "part") ;
+    snprintf(tmp_buf,80, "part") ;
     fwrite(tmp_buf, sizeof(char), 80, FP) ;
     int tmp = i+2 ;
     fwrite(&tmp, sizeof(int), 1, FP) ;
     memset(tmp_buf, '\0', 80) ;
-    sprintf(tmp_buf, "coordinates") ;
+    snprintf(tmp_buf,80, "coordinates") ;
     fwrite(tmp_buf, sizeof(char), 80, FP) ;
     for(size_t j=0;j<part_nodes[i].size();++j) {
       int nd = part_nodes[i][j]-1 ;
@@ -534,15 +519,15 @@ void ensight_topo_handler::output_nodal_vector(vector3d<float> val[],
   }
   char tmp_buf[80] ;
   memset(tmp_buf, '\0', 80) ;
-  sprintf(tmp_buf,"variable : %s",varname.c_str()) ;
+  snprintf(tmp_buf,80,"variable : %s",varname.c_str()) ;
   fwrite(tmp_buf, sizeof(char), 80, FP) ;
   memset(tmp_buf, '\0', 80) ;
-  sprintf(tmp_buf, "part") ;
+  snprintf(tmp_buf, 80, "part") ;
   fwrite(tmp_buf, sizeof(char), 80, FP) ;
   int tmp = 1 ;
   fwrite(&tmp, sizeof(int), 1, FP) ;
   memset(tmp_buf, '\0', 80) ;
-  sprintf(tmp_buf, "coordinates") ;
+  snprintf(tmp_buf, 80, "coordinates") ;
   fwrite(tmp_buf, sizeof(char), 80, FP) ;
   for(int i=0;i<npnts;++i) {
     float d = val[i].x ;
@@ -559,12 +544,12 @@ void ensight_topo_handler::output_nodal_vector(vector3d<float> val[],
     
   for(size_t i=0;i<part_nodes.size();++i) {
     memset(tmp_buf, '\0', 80) ;
-    sprintf(tmp_buf, "part") ;
+    snprintf(tmp_buf,80, "part") ;
     fwrite(tmp_buf, sizeof(char), 80, FP) ;
     int tmp = i+2 ;
     fwrite(&tmp, sizeof(int), 1, FP) ;
     memset(tmp_buf, '\0', 80) ;
-    sprintf(tmp_buf, "coordinates") ;
+    snprintf(tmp_buf,80, "coordinates") ;
     fwrite(tmp_buf, sizeof(char), 80, FP) ;
     for(size_t j=0;j<part_nodes[i].size();++j) {
       int nd = part_nodes[i][j]-1 ;
@@ -603,7 +588,7 @@ void ensight_topo_handler::output_boundary_scalar(float val[], int node_set[],
   }
   char tmp_buf[80] ;
   memset(tmp_buf, '\0', 80) ;
-  sprintf(tmp_buf,"variable : %s",varname.c_str()) ;
+  snprintf(tmp_buf,80 ,"variable : %s",varname.c_str()) ;
   fwrite(tmp_buf, sizeof(char), 80, FP) ;
 
 
@@ -621,13 +606,13 @@ void ensight_topo_handler::output_boundary_scalar(float val[], int node_set[],
       continue ;
     }
     memset(tmp_buf, '\0', 80) ;
-    sprintf(tmp_buf, "part") ;
+    snprintf(tmp_buf,80, "part") ;
     fwrite(tmp_buf, sizeof(char), 80, FP) ;
     int partid = i+2 ;
     fwrite(&partid,sizeof(int),1,FP) ;
     if(part_tria_ids[i].size() > 0 ) {
       memset(tmp_buf, '\0', 80) ;
-      sprintf(tmp_buf,"tria3") ;
+      snprintf(tmp_buf,80,"tria3") ;
       fwrite(tmp_buf, sizeof(char), 80, FP) ;
       for(size_t j=0;j!=part_tria_ids[i].size();++j) {
         mi = nmap.find(part_tria_ids[i][j]) ;
@@ -639,7 +624,7 @@ void ensight_topo_handler::output_boundary_scalar(float val[], int node_set[],
     }
     if(part_quad_ids[i].size() > 0) {
       memset(tmp_buf, '\0', 80) ;
-      sprintf(tmp_buf,"quad4") ;
+      snprintf(tmp_buf,80,"quad4") ;
       fwrite(tmp_buf, sizeof(char), 80, FP) ;
       for(size_t j=0;j!=part_quad_ids[i].size();++j) {
         mi = nmap.find(part_quad_ids[i][j]) ;
@@ -651,7 +636,7 @@ void ensight_topo_handler::output_boundary_scalar(float val[], int node_set[],
     }
     if(part_nside_ids[i].size() > 0) {
       memset(tmp_buf, '\0', 80) ;
-      sprintf(tmp_buf,"nsided") ;
+      snprintf(tmp_buf,80,"nsided") ;
       fwrite(tmp_buf, sizeof(char), 80, FP) ;
       for(size_t j=0;j!=part_nside_ids[i].size();++j) {
         mi = nmap.find(part_nside_ids[i][j]) ;
@@ -685,7 +670,7 @@ void ensight_topo_handler::output_boundary_vector(vector3d<float> val[],
   }
   char tmp_buf[80] ;
   memset(tmp_buf, '\0', 80) ;
-  sprintf(tmp_buf,"variable : %s",varname.c_str()) ;
+  snprintf(tmp_buf,80,"variable : %s",varname.c_str()) ;
   fwrite(tmp_buf, sizeof(char), 80, FP) ;
 
 
@@ -703,13 +688,13 @@ void ensight_topo_handler::output_boundary_vector(vector3d<float> val[],
       continue ;
     }
     memset(tmp_buf, '\0', 80) ;
-    sprintf(tmp_buf, "part") ;
+    snprintf(tmp_buf,80, "part") ;
     fwrite(tmp_buf, sizeof(char), 80, FP) ;
     int partid = i+2 ;
     fwrite(&partid,sizeof(int),1,FP) ;
     if(part_tria_ids[i].size() > 0 ) {
       memset(tmp_buf, '\0', 80) ;
-      sprintf(tmp_buf,"tria3") ;
+      snprintf(tmp_buf,80,"tria3") ;
       fwrite(tmp_buf, sizeof(char), 80, FP) ;
       for(size_t j=0;j!=part_tria_ids[i].size();++j) {
         mi = nmap.find(part_tria_ids[i][j]) ;
@@ -735,7 +720,7 @@ void ensight_topo_handler::output_boundary_vector(vector3d<float> val[],
     }
     if(part_quad_ids[i].size() > 0) {
       memset(tmp_buf, '\0', 80) ;
-      sprintf(tmp_buf,"quad4") ;
+      snprintf(tmp_buf,80,"quad4") ;
       fwrite(tmp_buf, sizeof(char), 80, FP) ;
       for(size_t j=0;j!=part_quad_ids[i].size();++j) {
         mi = nmap.find(part_quad_ids[i][j]) ;
@@ -762,7 +747,7 @@ void ensight_topo_handler::output_boundary_vector(vector3d<float> val[],
     }
     if(part_nside_ids[i].size() > 0) {
       memset(tmp_buf, '\0', 80) ;
-      sprintf(tmp_buf,"nsided") ;
+      snprintf(tmp_buf,80,"nsided") ;
       fwrite(tmp_buf, sizeof(char), 80, FP) ;
       for(size_t j=0;j!=part_nside_ids[i].size();++j) {
         mi = nmap.find(part_nside_ids[i][j]) ;
@@ -815,15 +800,15 @@ ensight_topo_handler::create_particle_positions
   char tmp_buf[80] ;
 
   memset(tmp_buf, '\0', 80) ;
-  sprintf(tmp_buf,"C Binary") ;
+  snprintf(tmp_buf,80,"C Binary") ;
   fwrite(tmp_buf, sizeof(char), 80, FP) ;
   
   memset(tmp_buf, '\0', 80) ;
-  sprintf(tmp_buf, "particle positions") ;
+  snprintf(tmp_buf,80, "particle positions") ;
   fwrite(tmp_buf, sizeof(char), 80, FP) ;
 
   memset(tmp_buf, '\0', 80) ;
-  sprintf(tmp_buf, "particle coordinates") ;
+  snprintf(tmp_buf,80, "particle coordinates") ;
   fwrite(tmp_buf, sizeof(char), 80, FP) ;
 
   // number of points
@@ -870,7 +855,7 @@ ensight_topo_handler::output_particle_scalar(float val[], int np,
   char tmp_buf[80] ;
 
   memset(tmp_buf, '\0', 80) ;
-  sprintf(tmp_buf, "Per particle scalar: %s", valname.c_str()) ;
+  snprintf(tmp_buf, 80, "Per particle scalar: %s", valname.c_str()) ;
   fwrite(tmp_buf, sizeof(char), 80, FP) ;
 
   int k = 0 ;
@@ -905,7 +890,7 @@ ensight_topo_handler::output_particle_vector(vector3d<float> val[], int np,
   char tmp_buf[80] ;
 
   memset(tmp_buf, '\0', 80) ;
-  sprintf(tmp_buf, "Per particle vector: %s", valname.c_str()) ;
+  snprintf(tmp_buf, 80, "Per particle vector: %s", valname.c_str()) ;
   fwrite(tmp_buf, sizeof(char), 80, FP) ;
 
   int k = 0 ;

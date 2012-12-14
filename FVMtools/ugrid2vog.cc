@@ -18,6 +18,8 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
+#include <stdio.h>
+#include <strings.h>
 #include <Loci.h>
 #include "vogtools.h"
 #include <sys/stat.h>
@@ -1251,18 +1253,19 @@ int main(int ac, char* av[]) {
   std::string new_str = tmp_str.substr(0, loc) ;
   filename = new_str.c_str() ;
   char buf[512] ;
+  bzero(buf,512) ;
   if(!binary) {
     struct stat fstat ;
-    sprintf(buf,"%s.ugrid",filename) ;
+    snprintf(buf,511,"%s.ugrid",filename) ;
     if(stat(buf,&fstat)<0) {
       binary = true ;
     }
   }
 
   if(!binary)
-    sprintf(buf,"%s.ugrid",filename) ;
+    snprintf(buf,511,"%s.ugrid",filename) ;
   else
-    sprintf(buf,"%s.b8.ugrid",filename) ;
+    snprintf(buf,511,"%s.b8.ugrid",filename) ;
   string infile = buf ;
 
   string outfile = string(filename) + string(".vog") ;

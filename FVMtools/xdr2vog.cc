@@ -883,7 +883,8 @@ namespace VOG {
       Loci::debugout << " boundaries identified as:" ;
       FORALL(global_boundary_cells, bc) {
         char buf[512] ;
-        sprintf(buf,"BC_%d",-bc) ;
+	bzero(buf,512) ;
+        snprintf(buf,511,"BC_%d",-bc) ;
         boundary_names[bc] = string(buf) ;
 	debugout << " " << boundary_names[bc] ;
       } ENDFORALL ;
@@ -1002,7 +1003,8 @@ namespace VOG {
 
     FORALL(boundary_cells, bc) {
       char buf[512] ;
-      sprintf(buf,"BC_%d",-bc) ;
+      bzero(buf,512) ;
+      snprintf(buf,511,"BC_%d",-bc) ;
       boundary_names[bc] = string(buf) ;
       if(Loci::MPI_rank == 0 )
 	Loci::debugout << " " << boundary_names[bc] ;

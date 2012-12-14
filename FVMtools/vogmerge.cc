@@ -18,6 +18,7 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
+#include <string.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <strings.h>
@@ -45,7 +46,8 @@ FILE *mytmpfile() {
   char filename[128] ;
   pid_t pid = getpid() ;
   
-  sprintf(filename,"vogmerge.tmp.%d",pid) ;
+  bzero(filename,128) ;
+  snprintf(filename,127,"vogmerge.tmp.%d",pid) ;
   file = fopen(filename,"w+") ;
   if(!file) {
     return file ;
@@ -1724,8 +1726,9 @@ int main(int ac, char *av[]) {
 		  act_cr[*f] = mi->second ;
 		} else{
 		  int id = -act_cr[*f] ;
-		  char bcname[512] ;
-		  sprintf(bcname,"BC_%d",id) ;
+		  char bcname[128] ;
+		  bzero(bcname,128) ;
+		  snprintf(bcname,127,"BC_%d",id) ;
 		  string bcstr(bcname) ;
               
 		  map<string,string>::const_iterator mis ;
@@ -1755,8 +1758,9 @@ int main(int ac, char *av[]) {
 		  act_cr[*f] = mi->second ;
 		} else {
 		  int id = -cr[*f] ;
-		  char bcname[512] ;
-		  sprintf(bcname,"BC_%d",id) ;
+		  char bcname[128] ;
+		  bzero(bcname,128) ;
+		  snprintf(bcname,127,"BC_%d",id) ;
 		  string bcstr(bcname) ;
 
 		  map<string,string>::const_iterator mis ;
@@ -1877,8 +1881,9 @@ int main(int ac, char *av[]) {
 		cr[f] = mi->second ;
 	      } else {
 		int id = -cr[f] ;
-		char bcname[512] ;
-		sprintf(bcname,"BC_%d",id) ;
+		char bcname[128] ;
+		bzero(bcname,128) ;
+		snprintf(bcname,127,"BC_%d",id) ;
 		string bcstr(bcname) ;
 
 		map<string,string>::const_iterator mis ;

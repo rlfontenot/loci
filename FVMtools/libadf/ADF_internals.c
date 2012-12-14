@@ -69,7 +69,7 @@ File: ADF_internals.c
 			BOEING
   ----------------------------------------------------------------------
 	Project: CGNS
-	Author: Tom Dickens   234-1024    tpd6908@yak.ca.boeing.com
+	Author: Tom Dickens   234-1024	  tpd6908@yak.ca.boeing.com
 	Date: 3/2/1995
 	Purpose: Provide the underlying support for the ADF-Core.
   ----------------------------------------------------------------------
@@ -101,55 +101,55 @@ This gives a maximum file size of 17,592,186,048,512 bytes (17.5 Tera bytes).
 	and also to ensure data integrity.
   ----------------------------------------------------------------------
       186   Physical disk-First block
-bytes   start   end   description      range / format
- 32    0   31   "what" description      "@(#)ADF Database Version AXXxxx>"
-  4   32   35   "AdF0" boundary tag      Tag
- 28   36   63   Creation date/time       "Wed Apr 19 09:33:25 1995    "
-  4   64   67   "AdF1" boundary tag      Tag
- 28   68   95   Modification date/time   "Wed Apr 19 09:33:29 1995   "
-  4   96   99   "AdF2" boundary tag      Tag
-  1  100  100   Numeric format           ['B', 'L', 'C', 'N']
-  1  101  101   Duplicate of numeric format      ['B', 'L', 'C', 'N']
-  4  102  105   "AdF3" boundary tag      Tag
-  2  106  107   sizeof( char )           0 to 255
-  2  108  109   sizeof( short )          0 to 255
-  2  110  111   sizeof( int )            0 to 255
-  2  112  113   sizeof( long )           0 to 255
-  2  114  115   sizeof( float )          0 to 255
-  2  116  117   sizeof( double )         0 to 255
-  2  118  119   sizeof( char * )         0 to 255
-  2  120  121   sizeof( short * )        0 to 255
-  2  122  123   sizeof( int  *)          0 to 255
-  2  124  125   sizeof( long * )         0 to 255
-  2  126  127   sizeof( float  *)        0 to 255
-  2  128  129   sizeof( double  *)       0 to 255
-  4  130  133   "AdF4" boundary tag      Tag
- 12  134  145   Root-node header pointer Disk chunk, chunk offset.
- 12  146  157   End-of-File pointer      Disk chunk, chunk offset.
- 12  158  169   Free-Chunk table pointer Disk chunk, chunk offset.
- 12  170  181   Extra pointer            Disk chunk, chunk offset.
-  4  182  185   "AdF5" boundary tag      Tag
+bytes	start	end   description      range / format
+ 32    0   31	"what" description	"@(#)ADF Database Version AXXxxx>"
+  4   32   35	"AdF0" boundary tag	 Tag
+ 28   36   63	Creation date/time	 "Wed Apr 19 09:33:25 1995    "
+  4   64   67	"AdF1" boundary tag	 Tag
+ 28   68   95	Modification date/time	 "Wed Apr 19 09:33:29 1995   "
+  4   96   99	"AdF2" boundary tag	 Tag
+  1  100  100	Numeric format		 ['B', 'L', 'C', 'N']
+  1  101  101	Duplicate of numeric format	 ['B', 'L', 'C', 'N']
+  4  102  105	"AdF3" boundary tag	 Tag
+  2  106  107	sizeof( char )		 0 to 255
+  2  108  109	sizeof( short ) 	 0 to 255
+  2  110  111	sizeof( int )		 0 to 255
+  2  112  113	sizeof( long )		 0 to 255
+  2  114  115	sizeof( float ) 	 0 to 255
+  2  116  117	sizeof( double )	 0 to 255
+  2  118  119	sizeof( char * )	 0 to 255
+  2  120  121	sizeof( short * )	 0 to 255
+  2  122  123	sizeof( int  *) 	 0 to 255
+  2  124  125	sizeof( long * )	 0 to 255
+  2  126  127	sizeof( float  *)	 0 to 255
+  2  128  129	sizeof( double	*)	 0 to 255
+  4  130  133	"AdF4" boundary tag	 Tag
+ 12  134  145	Root-node header pointer Disk chunk, chunk offset.
+ 12  146  157	End-of-File pointer	 Disk chunk, chunk offset.
+ 12  158  169	Free-Chunk table pointer Disk chunk, chunk offset.
+ 12  170  181	Extra pointer		 Disk chunk, chunk offset.
+  4  182  185	"AdF5" boundary tag	 Tag
 
 
        80   Free-Chunk table
-bytes   start   end   description      range / format
-  4    0    3   "fCbt" boundary tag      Tag
- 12    4   15   First small block pointer  Disk chunk, chunk offset.
- 12   16   27   Last small block pointer   Disk chunk, chunk offset.
- 12   28   39   First medium block pointer Disk chunk, chunk offset.
- 12   40   51   Last medium block pointer  Disk chunk, chunk offset.
- 12   52   63   First large block pointer  Disk chunk, chunk offset.
- 12   64   75   Last large block pointer   Disk chunk, chunk offset.
-  4   76   79   "fcte" boundarg tag      Tag
+bytes	start	end   description      range / format
+  4    0    3	"fCbt" boundary tag	 Tag
+ 12    4   15	First small block pointer  Disk chunk, chunk offset.
+ 12   16   27	Last small block pointer   Disk chunk, chunk offset.
+ 12   28   39	First medium block pointer Disk chunk, chunk offset.
+ 12   40   51	Last medium block pointer  Disk chunk, chunk offset.
+ 12   52   63	First large block pointer  Disk chunk, chunk offset.
+ 12   64   75	Last large block pointer   Disk chunk, chunk offset.
+  4   76   79	"fcte" boundarg tag	 Tag
 
 
-   Variable: min   32   Free Chunk
-bytes   start   end   description      range / format
-  4    0    3   "FreE" boundary tag      Tag
- 12    4   15   Pointer to End-of-Chunk-Tag
- 12   16   27   Pointer to Next-Chunk in list
-  0   28    -   more free space
-  4   28   31   "EndC" boundarg tag      Tag
+   Variable: min   32	Free Chunk
+bytes	start	end   description      range / format
+  4    0    3	"FreE" boundary tag	 Tag
+ 12    4   15	Pointer to End-of-Chunk-Tag
+ 12   16   27	Pointer to Next-Chunk in list
+  0   28    -	more free space
+  4   28   31	"EndC" boundarg tag	 Tag
 
 Note:  There can occur other free space "gas" in the file which are smaller
        than the 32-bytes needed to have tags and pointers.  The convention
@@ -157,77 +157,77 @@ Note:  There can occur other free space "gas" in the file which are smaller
        z, lower-case.
 
       246   Node header
-bytes   start   end   description      range / format
-  4    0    3   "NoDe" boundary tag      Tag
- 32    4   35   Name                     Text:  Blank filled
- 32   36   67   Label                    Text:  Blank filled
-  8   68   75   Number of sub-nodes      0 to 4,294,967,295
-  8   76   83   Entries for sub-nodes    0 to 4,294,967,295
- 12   84   95   Pointer to sub-node table      Disk chunk, chunk offset.
- 32   96  127   Data-type                Text:  Blank filled
-  2  128  129   Number of dimensions      0 to 12
-  8  130  137   Dimension value 0         0 to 4,294,967,295
-  8  138  145   Dimension value 1         0 to 4,294,967,295
-  8  146  153   Dimension value 2         0 to 4,294,967,295
-  8  154  161   Dimension value 3         0 to 4,294,967,295
-  8  162  169   Dimension value 4         0 to 4,294,967,295
-  8  170  177   Dimension value 5         0 to 4,294,967,295
-  8  178  185   Dimension value 6         0 to 4,294,967,295
-  8  186  193   Dimension value 7         0 to 4,294,967,295
-  8  194  201   Dimension value 8         0 to 4,294,967,295
-  8  202  209   Dimension value 9         0 to 4,294,967,295
-  8  210  217   Dimension value 10        0 to 4,294,967,295
-  8  218  225   Dimension value 11        0 to 4,294,967,295
-  4  226  229   Number of data chunks     0 to 65,535
- 12  230  241   Pointer to data chunk (or table)      Disk chunk, chunk offset.
-  4  242  245   "TaiL" boundary tag      Tag
+bytes	start	end   description      range / format
+  4    0    3	"NoDe" boundary tag	 Tag
+ 32    4   35	Name			 Text:	Blank filled
+ 32   36   67	Label			 Text:	Blank filled
+  8   68   75	Number of sub-nodes	 0 to 4,294,967,295
+  8   76   83	Entries for sub-nodes	 0 to 4,294,967,295
+ 12   84   95	Pointer to sub-node table      Disk chunk, chunk offset.
+ 32   96  127	Data-type		 Text:	Blank filled
+  2  128  129	Number of dimensions	  0 to 12
+  8  130  137	Dimension value 0	  0 to 4,294,967,295
+  8  138  145	Dimension value 1	  0 to 4,294,967,295
+  8  146  153	Dimension value 2	  0 to 4,294,967,295
+  8  154  161	Dimension value 3	  0 to 4,294,967,295
+  8  162  169	Dimension value 4	  0 to 4,294,967,295
+  8  170  177	Dimension value 5	  0 to 4,294,967,295
+  8  178  185	Dimension value 6	  0 to 4,294,967,295
+  8  186  193	Dimension value 7	  0 to 4,294,967,295
+  8  194  201	Dimension value 8	  0 to 4,294,967,295
+  8  202  209	Dimension value 9	  0 to 4,294,967,295
+  8  210  217	Dimension value 10	  0 to 4,294,967,295
+  8  218  225	Dimension value 11	  0 to 4,294,967,295
+  4  226  229	Number of data chunks	  0 to 65,535
+ 12  230  241	Pointer to data chunk (or table)      Disk chunk, chunk offset.
+  4  242  245	"TaiL" boundary tag	 Tag
 
 
-   Variable: min   64   Sub-node table
-bytes   start   end   description      range / format
-  4    0    3   "SNTb" boundary tag      Tag
- 12    4   15   Pointer to End-of-Table-Tag
- 32   16   47   Child's name             Text:  Blank filled
- 12   48   59   Pointer to child         Disk chunk, chunk offset.
- 32    -    -   Child's name             Text:  Blank filled
- 12    -    -   Pointer to child         Disk chunk, chunk offset.
- 32    -    -   Child's name             Text:  Blank filled
- 12    -    -   Pointer to child         Disk chunk, chunk offset.
- 32    -    -   Child's name             Text:  Blank filled
- 12    -    -   Pointer to child         Disk chunk, chunk offset.
- 32    -    -   Child's name             Text:  Blank filled
- 12    -    -   Pointer to child         Disk chunk, chunk offset.
- 32    -    -   Child's name             Text:  Blank filled
- 12    -    -   Pointer to child         Disk chunk, chunk offset.
-  4   60   63   "snTE" boundary tag      Tag
+   Variable: min   64	Sub-node table
+bytes	start	end   description      range / format
+  4    0    3	"SNTb" boundary tag	 Tag
+ 12    4   15	Pointer to End-of-Table-Tag
+ 32   16   47	Child's name		 Text:	Blank filled
+ 12   48   59	Pointer to child	 Disk chunk, chunk offset.
+ 32    -    -	Child's name		 Text:	Blank filled
+ 12    -    -	Pointer to child	 Disk chunk, chunk offset.
+ 32    -    -	Child's name		 Text:	Blank filled
+ 12    -    -	Pointer to child	 Disk chunk, chunk offset.
+ 32    -    -	Child's name		 Text:	Blank filled
+ 12    -    -	Pointer to child	 Disk chunk, chunk offset.
+ 32    -    -	Child's name		 Text:	Blank filled
+ 12    -    -	Pointer to child	 Disk chunk, chunk offset.
+ 32    -    -	Child's name		 Text:	Blank filled
+ 12    -    -	Pointer to child	 Disk chunk, chunk offset.
+  4   60   63	"snTE" boundary tag	 Tag
 
 
-   Variable: min   44   Data-chunk table
-bytes   start   end   description      range / format
-  4    0    3   "DCtb" boundary tag      Tag
- 12    4   15   Pointer to End-of-Table-Tag
- 12   16   27   Pointer to data start    Disk chunk, chunk offset.
- 12   28   39   Pointer to data end      Disk chunk, chunk offset.
- 12    -    -   Pointer to data start    Disk chunk, chunk offset.
- 12    -    -   Pointer to data end      Disk chunk, chunk offset.
- 12    -    -   Pointer to data start    Disk chunk, chunk offset.
- 12    -    -   Pointer to data end      Disk chunk, chunk offset.
- 12    -    -   Pointer to data start    Disk chunk, chunk offset.
- 12    -    -   Pointer to data end      Disk chunk, chunk offset.
-  4   40   43   "dcTE" boundarg tag      Tag
+   Variable: min   44	Data-chunk table
+bytes	start	end   description      range / format
+  4    0    3	"DCtb" boundary tag	 Tag
+ 12    4   15	Pointer to End-of-Table-Tag
+ 12   16   27	Pointer to data start	 Disk chunk, chunk offset.
+ 12   28   39	Pointer to data end	 Disk chunk, chunk offset.
+ 12    -    -	Pointer to data start	 Disk chunk, chunk offset.
+ 12    -    -	Pointer to data end	 Disk chunk, chunk offset.
+ 12    -    -	Pointer to data start	 Disk chunk, chunk offset.
+ 12    -    -	Pointer to data end	 Disk chunk, chunk offset.
+ 12    -    -	Pointer to data start	 Disk chunk, chunk offset.
+ 12    -    -	Pointer to data end	 Disk chunk, chunk offset.
+  4   40   43	"dcTE" boundarg tag	 Tag
 
 
-   Variable: min   32   Data-chunks
+   Variable: min   32	Data-chunks
 (Minimum is 32 bytes, which cooresponds to the size required for a free-chunk)
-bytes   start   end   description      range / format
-  4    0    3   "DaTa" boundary tag      Tag
- 12    4   15   Pointer to End-of-Data-Tag
- 16   16   27   The data
-  4   28   31   "dEnD" boundarg tag      Tag
+bytes	start	end   description      range / format
+  4    0    3	"DaTa" boundary tag	 Tag
+ 12    4   15	Pointer to End-of-Data-Tag
+ 16   16   27	The data
+  4   28   31	"dEnD" boundarg tag	 Tag
 
 **/
 /***********************************************************************
- 	Includes
+	Includes
 ***********************************************************************/
 #ifndef MAKEDEPEND
 #include <sys/types.h>
@@ -261,26 +261,26 @@ typedef off_t file_offset_t;
    and leaving them here gives warning messages when the other .c files
    are compiled.  WRO 2005-Jan-11 */
 static char const    *file_header_tags[] = {
-        "AdF0", "AdF1", "AdF2", "AdF3", "AdF4", "AdF5" } ;
+	"AdF0", "AdF1", "AdF2", "AdF3", "AdF4", "AdF5" } ;
 static char node_start_tag[] = "NoDe" ;
 static char node_end_tag[]   = "TaiL" ;
 static char free_chunk_table_start_tag[] = "fCbt" ;
-static char free_chunk_table_end_tag[]   = "Fcte" ;
+static char free_chunk_table_end_tag[]	 = "Fcte" ;
 
 static char free_chunk_start_tag[] = "FreE" ;
 static char free_chunk_end_tag[]   = "EndC" ;
 static char sub_node_start_tag[] = "SNTb" ;
-static char sub_node_end_tag[]   = "snTE" ;
+static char sub_node_end_tag[]	 = "snTE" ;
 static char data_chunk_table_start_tag[] = "DCtb" ;
-static char data_chunk_table_end_tag[]   = "dcTE" ;
+static char data_chunk_table_end_tag[]	 = "dcTE" ;
 static char data_chunk_start_tag[] = "DaTa" ;
 static char data_chunk_end_tag[]   = "dEnD" ;
 
 /***********************************************************************
    Global variables:
     file_in_use:  Used to track the files currently in use.
-        0 if file is NOT in use.
-        1 if file IS in use.
+	0 if file is NOT in use.
+	1 if file IS in use.
     first_file_in_system:  If a file is opened which is a sub-tree
        of a parent ADF structure, first_file_in_system is the index
        of the top parent file.
@@ -307,11 +307,11 @@ static	unsigned char	file_in_use[ MAXIMUM_FILES] = {
    /**	We need to track the top file in a system so that when the
 	system is closed, all files associated with it can also be closed.
    **/
-static  int    first_file_in_system[MAXIMUM_FILES] ;
-static  FILE   *ADF_file[MAXIMUM_FILES] ;
-static  char   names_of_files[MAXIMUM_FILES][ADF_FILENAME_LENGTH] ;
-static  char   file_open_mode[MAXIMUM_FILES][10] ;
-static  char   file_version_update[MAXIMUM_FILES][WHAT_STRING_SIZE+1];
+static	int    first_file_in_system[MAXIMUM_FILES] ;
+static	FILE   *ADF_file[MAXIMUM_FILES] ;
+static	char   names_of_files[MAXIMUM_FILES][ADF_FILENAME_LENGTH] ;
+static	char   file_open_mode[MAXIMUM_FILES][10] ;
+static	char   file_version_update[MAXIMUM_FILES][WHAT_STRING_SIZE+1];
 
 #if CACHEWRITES
    /** Stores the information required to determine if two FILE* pointers
@@ -355,20 +355,20 @@ static struct FILE_PATH_INFO ADF_file_paths[ MAXIMUM_FILES ] = {
        writing numeric data associated with the nodes, which may
        include numeric-format translations.
    **/
-static  char   ADF_file_format[MAXIMUM_FILES] ;
-static  char   ADF_file_os_size[MAXIMUM_FILES] ;
-static  char   ADF_this_machine_format = UNDEFINED_FORMAT_CHAR ;
-static  char   ADF_this_machine_os_size = UNDEFINED_FORMAT_CHAR ;
+static	char   ADF_file_format[MAXIMUM_FILES] ;
+static	char   ADF_file_os_size[MAXIMUM_FILES] ;
+static	char   ADF_this_machine_format = UNDEFINED_FORMAT_CHAR ;
+static	char   ADF_this_machine_os_size = UNDEFINED_FORMAT_CHAR ;
 
    /** we need a block of "zz"-bytes for dead-space **/
-static  char   block_of_ZZ[ SMALLEST_CHUNK_SIZE ] ;
-static  int    block_of_ZZ_initialized = FALSE ;
+static	char   block_of_ZZ[ SMALLEST_CHUNK_SIZE ] ;
+static	int    block_of_ZZ_initialized = FALSE ;
    /** we need a block of "xx"-bytes for free-blocks **/
-static  char   block_of_XX[ DISK_BLOCK_SIZE ] ;
-static  int    block_of_XX_initialized = FALSE ;
+static	char   block_of_XX[ DISK_BLOCK_SIZE ] ;
+static	int    block_of_XX_initialized = FALSE ;
    /** we need a block of null-bytes for disk conditioning **/
-static  char   block_of_00[ DISK_BLOCK_SIZE ] ;
-static  int    block_of_00_initialized = FALSE ;
+static	char   block_of_00[ DISK_BLOCK_SIZE ] ;
+static	int    block_of_00_initialized = FALSE ;
 
     /** read/write conversion buffer **/
 #define CONVERSION_BUFF_SIZE 100000
@@ -388,20 +388,20 @@ static double  last_link_LID = 0.0;
 enum { FLUSH, FLUSH_CLOSE };
 
     /** Assumed machine variable sizes for the currently supported
-        machines. For ordering of data see the Figure_Machine_Format
+	machines. For ordering of data see the Figure_Machine_Format
 	function.  Note that when openning a new file not in the machine
 	format these are the sizes used!! **/
 enum { TO_FILE_FORMAT, FROM_FILE_FORMAT } ;
 #define NUMBER_KNOWN_MACHINES 5
 static	size_t machine_sizes[NUMBER_KNOWN_MACHINES][16] = {
-/*                        char     short    uint     float
-                             uchar    ushort   long     double
-                                schar    int      ulong                   */
+/*			  char	   short    uint     float
+			     uchar    ushort   long	double
+				schar	 int	  ulong 		  */
      /* IEEE BIG 32 */	{ 1, 1, 1, 2, 2, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4 },
      /* IEEE SML 32 */	{ 1, 1, 1, 2, 2, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4 },
      /* IEEE BIG 64 */	{ 1, 1, 1, 2, 2, 4, 4, 8, 8, 4, 8, 8, 8, 8, 8, 8 },
      /* IEEE SML 64 */	{ 1, 1, 1, 2, 2, 4, 4, 8, 8, 4, 8, 8, 8, 8, 8, 8 },
-     /* CRAY     64 */	{ 1, 1, 1, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8 } } ;
+     /* CRAY	 64 */	{ 1, 1, 1, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8 } } ;
 
 /* Hack so Windows 64 is treated the same as win32. Don't actually use this
    macro for anything other than comparing machine types. I don't know why
@@ -423,7 +423,7 @@ static const char ASCII_Hex[16] = {
 		'8', '9', 'A', 'B', 'C', 'D', 'E', 'F' } ;
 
 /***********************************************************************
-        Priority Stack Buffer is used to buffer some of the overhead of
+	Priority Stack Buffer is used to buffer some of the overhead of
 	reading small blocks of file control information like the node
 	header by saving the data into a memory buffer. The buffer has
 	a priority value associated with it and is used to determine
@@ -448,13 +448,13 @@ enum { INIT_STK, CLEAR_STK, CLEAR_STK_TYPE, DEL_STK_ENTRY, GET_STK, SET_STK };
 /***********************************************************************
 	Defined macros
 ***********************************************************************/
-#define	EVAL_2_BYTES( C0, C1 )  (((C0)<<8)+((C1)))
-#define	EVAL_4_BYTES( C0, C1, C2, C3 ) (((C0)<<24)+((C1)<<16)+((C2)<<8)+((C3)))
+#define EVAL_2_BYTES( C0, C1 )	(((C0)<<8)+((C1)))
+#define EVAL_4_BYTES( C0, C1, C2, C3 ) (((C0)<<24)+((C1)<<16)+((C2)<<8)+((C3)))
 /* end of file ADFI_AAA_var.c */
 
 
 
-/** Write data with work around for Windows fwrite bug  **/
+/** Write data with work around for Windows fwrite bug	**/
 /** Fwite function cannot write a buffer that is larger than **/
 /** 64 MB to a network drive see MSDN KB899149 for more info **/
 /** No cost in implementing genericaly for all platforms **/
@@ -488,7 +488,7 @@ size_t wrapFWrite(void const * ptr, size_t size, size_t nmemb, FILE *stream)
 /***********************************************************************
 	Disk cache
 ***********************************************************************/
-#define DISK_CACHE_SIZE		50
+#define DISK_CACHE_SIZE 	50
 struct DISK_CACHE_NODE {
     char data[DISK_BLOCK_SIZE];
     unsigned int index;
@@ -530,7 +530,7 @@ input:	unsigned long block		The block to add
 input:	int is_write			0 if this is caching an fread(),
 					1 if this is caching an fwrite()
 input:	const char *data		The block's data
-output:	int *error_return		Error return
+output: int *error_return		Error return
 
    Possible errors:
 NO_ERROR
@@ -580,7 +580,7 @@ void DC_add_block(
 		ADFI_fseek_file(index, block, 0, error_return);
 	    if (*error_return == NO_ERROR) {
 		if (wrapFWrite(data, 1, DISK_BLOCK_SIZE,
-                               ADF_file[index]) < DISK_BLOCK_SIZE)
+			       ADF_file[index]) < DISK_BLOCK_SIZE)
 		    *error_return = FWRITE_ERROR;
 	    }
 	    is_write = 0;
@@ -688,7 +688,7 @@ int DC_flush()
 			0, &error);
 	if (error == NO_ERROR &&
 	    (size = wrapFWrite(dirty_buffers[i]->data, 1, DISK_BLOCK_SIZE,
-                               ADF_file[dirty_buffers[i]->index]))
+			       ADF_file[dirty_buffers[i]->index]))
 							   < DISK_BLOCK_SIZE) {
 	    error = FWRITE_ERROR;
 	}
@@ -743,7 +743,7 @@ DC flush range
 
 input:	unsigned int index			The input file
 input:	unsigned long start_block		The start of the range
-input:	unsigned long end_block			The end of the range
+input:	unsigned long end_block 		The end of the range
 ***********************************************************************/
 void DC_flush_range(
 		unsigned int index,
@@ -771,12 +771,12 @@ void DC_flush_range(
 ADFI ASCII Hex to unsigned int:
 	Convert a number of ASCII-HEX into an unsigned integer.
 
-input:  const unsigned int minimum	Expected minimum number.
-input:  const unsigned int maximum	Expected maximum number.
-input:  const unsigned int string_length Length (bytes) of the input string.
-input:  const char string[]		The input string.
+input:	const unsigned int minimum	Expected minimum number.
+input:	const unsigned int maximum	Expected maximum number.
+input:	const unsigned int string_length Length (bytes) of the input string.
+input:	const char string[]		The input string.
 output: unsigned int *number		The resulting number.
-output:	int *error_return		Error return.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
@@ -911,10 +911,10 @@ if( num > maximum ) {
 ADFI Abort:
 	Do any cleanup and then shut the application down.
 
-input:  const int error_code	Error which caused the Abort.
+input:	const int error_code	Error which caused the Abort.
 output: -none-			Hey, we ain't coming back...
 ***********************************************************************/
-void    ADFI_Abort(
+void	ADFI_Abort(
 		const int error_code )
 {
 fprintf(stderr,"ADF Aborted:  Exiting\n" ) ;
@@ -932,11 +932,11 @@ ADFI ID to file block and offset:
    block pointer is a 32-bit unsigned int.
    block offset is a 16-bit unsigned int.
 
-input:  const double ID			Given ADF ID.
+input:	const double ID 		Given ADF ID.
 output: unsigned int *file_index	File index from the ID.
 output: unsigned long *file_block	File block from the ID.
 output: unsigned long *block_offset	Block offset from the ID.
-output:	int *error_return		Error return.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
@@ -968,26 +968,26 @@ cc = (unsigned char *) &ID;
 #ifdef PRINT_STUFF
 printf("In ADFI_ID_2_file_block_offset: ID=%lf\n",ID);
 printf("cc[0-7] = %02X %02X %02X %02X %02X %02X %02X %02X \n",
-        cc[0], cc[1], cc[2], cc[3],
-        cc[4], cc[5], cc[6], cc[7] ) ;
+	cc[0], cc[1], cc[2], cc[3],
+	cc[4], cc[5], cc[6], cc[7] ) ;
 #endif
 	/** Unmap the bytes from the character **/
 if ( ADF_this_machine_format == IEEE_BIG_FORMAT_CHAR ) {
    *file_index = cc[1] + ((cc[0]<<8) & 0x003f) ;
    *file_block = cc[2] + (cc[3]<<8) +
-                 (cc[4]<<16) + (cc[5]<<24) ;
+		 (cc[4]<<16) + (cc[5]<<24) ;
    *block_offset = cc[6] + (cc[7]<<8) ;
    } /* end if */
 else if ( ADF_this_machine_format == IEEE_LITTLE_FORMAT_CHAR ) {
    *file_index = cc[6] + ((cc[7]<<8) & 0x003f) ;
    *file_block = cc[2] + (cc[3]<<8) +
-                 (cc[4]<<16) + (cc[5]<<24) ;
+		 (cc[4]<<16) + (cc[5]<<24) ;
    *block_offset = cc[0] + (cc[1]<<8) ;
    } /* end else if */
 else {
    *file_index = cc[0] + (cc[1]<<8) ;
    *file_block = cc[2] + (cc[3]<<8) +
-                 (cc[4]<<16) + (cc[5]<<24) ;
+		 (cc[4]<<16) + (cc[5]<<24) ;
    *block_offset = cc[6] + (cc[7]<<8) ;
    } /* end else */
 
@@ -1012,10 +1012,10 @@ if( *block_offset >= DISK_BLOCK_SIZE ) {
 ADFI add 2 sub node table:
 	Add a child to a parent's sub-node table.
 
-input:  const int file_index		Index of ADF file.
-input:  const struct DISK_POINTER *parent Location of the parent
-input:  const struct DISK_POINTER *child Location of the child.
-output:	int *error_return		Error return.
+input:	const int file_index		Index of ADF file.
+input:	const struct DISK_POINTER *parent Location of the parent
+input:	const struct DISK_POINTER *child Location of the child.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
@@ -1024,7 +1024,7 @@ ADF_FILE_NOT_OPENED
 SUB_NODE_TABLE_ENTRIES_BAD
 MEMORY_ALLOCATION_FAILED
 ***********************************************************************/
-void    ADFI_add_2_sub_node_table(
+void	ADFI_add_2_sub_node_table(
 		const int file_index,
 		const struct DISK_POINTER *parent,
 		const struct DISK_POINTER *child,
@@ -1076,8 +1076,8 @@ if( parent_node.entries_for_sub_nodes <= parent_node.num_sub_nodes ) {
 
 	/** Allocate memory for the required table space in memory **/
    sub_node_table = (struct SUB_NODE_TABLE_ENTRY *)
-                    malloc( parent_node.entries_for_sub_nodes *
-                    sizeof( *sub_node_table ) ) ;
+		    malloc( parent_node.entries_for_sub_nodes *
+		    sizeof( *sub_node_table ) ) ;
    if( sub_node_table == NULL ) {
       *error_return = MEMORY_ALLOCATION_FAILED ;
       return ;
@@ -1088,14 +1088,14 @@ if( parent_node.entries_for_sub_nodes <= parent_node.num_sub_nodes ) {
       ADFI_read_sub_node_table( file_index, &parent_node.sub_node_table,
 	   sub_node_table, error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
       } /* end if */
 
 	/** Blank out the new part of the sub-node_table **/
    for( i=parent_node.num_sub_nodes; i<(int) parent_node.entries_for_sub_nodes;
 		i++ ) {
       strncpy( sub_node_table[i].child_name,
-	/* "                                   ", ADF_NAME_LENGTH ) ; */
+	/* "				       ", ADF_NAME_LENGTH ) ; */
 	"unused entry in sub-node-table     ", ADF_NAME_LENGTH ) ;
       sub_node_table[i].child_location.block = 0 ;
       sub_node_table[i].child_location.offset = DISK_BLOCK_SIZE ;
@@ -1104,9 +1104,9 @@ if( parent_node.entries_for_sub_nodes <= parent_node.num_sub_nodes ) {
 	/** Allocate memory for the required table space on disk **/
    if( parent_node.num_sub_nodes > 0 ) { /* delete old table from file */
       ADFI_delete_sub_node_table( file_index, &parent_node.sub_node_table,
-                                  old_num_entries, error_return ) ;
+				  old_num_entries, error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
       } /* end if */
 
   ADFI_file_malloc( file_index, TAG_SIZE + DISK_POINTER_SIZE + TAG_SIZE +
@@ -1120,7 +1120,7 @@ if( parent_node.entries_for_sub_nodes <= parent_node.num_sub_nodes ) {
 
 	/** Write out modified sub_node_table **/
    ADFI_write_sub_node_table( file_index, &parent_node.sub_node_table,
-        parent_node.entries_for_sub_nodes,
+	parent_node.entries_for_sub_nodes,
 	(struct SUB_NODE_TABLE_ENTRY *)sub_node_table, error_return ) ;
    free( sub_node_table ) ;
    if( *error_return != NO_ERROR )
@@ -1168,15 +1168,15 @@ ADFI adjust disk pointer:
 	Adjust the disk pointer so that the offset is in a legal
 	range; from 0 and < DISK_BLOCK_SIZE.
 
-input:  const struct DISK_POINTER *block_offset
-output:	int *error_return		Error return.
+input:	const struct DISK_POINTER *block_offset
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
 NULL_POINTER
 BLOCK_OFFSET_OUT_OF_RANGE
 ***********************************************************************/
-void    ADFI_adjust_disk_pointer(
+void	ADFI_adjust_disk_pointer(
 		struct DISK_POINTER *block_offset,
 		int *error_return )
 {
@@ -1192,7 +1192,7 @@ if( block_offset == NULL ) {
 
 if ( block_offset->offset < DISK_BLOCK_SIZE ) return ;
 
-        /** Calculate the number of blocks in the current offset **/
+	/** Calculate the number of blocks in the current offset **/
 nblock = (unsigned long) (block_offset->offset / DISK_BLOCK_SIZE) ;
 
 	/** Adjust block/offset checking for block roll-over **/
@@ -1210,33 +1210,33 @@ if ( block_offset->block < oblock ) {
 /***********************************************************************
 ADFI big endian 32 swap 64:
 
-input:  const char from_format		Format to convert from. 'B','L','C','N'
-input:  const char from_os_size		Format to convert from. 'B','L'
-input:  const char to_format		Format to convert to.
-input:  const char to_os_size		Format to convert to. 'B','L'
-input:  const char data_type[2]		The type of data to convert.
+input:	const char from_format		Format to convert from. 'B','L','C','N'
+input:	const char from_os_size 	Format to convert from. 'B','L'
+input:	const char to_format		Format to convert to.
+input:	const char to_os_size		Format to convert to. 'B','L'
+input:	const char data_type[2] 	The type of data to convert.
 					   MT I4 I8 U4 U8 R4 R8 X4 X8 C1 B1
-input:  const unsigned long delta_from_bytes Number of from_bytes used.
-input:  const unsigned long delta_to_bytes	Number of to_bytes used.
-input:  const char *from_data		The data to convert from.
+input:	const unsigned long delta_from_bytes Number of from_bytes used.
+input:	const unsigned long delta_to_bytes	Number of to_bytes used.
+input:	const char *from_data		The data to convert from.
 output: char *to_data			The resulting data.
-output:	int *error_return		Error return.
+output: int *error_return		Error return.
 
   Recognized data types:
 					Machine representations
-        Type		  Notation     IEEE_BIG	  IEEE_LITTLE   Cray
-	                               32    64   32    64
-  No data                   MT
-  Integer 32                I4         I4    I4    I4   I4       I8
-  Integer 64                I8         --    I8    --   I8       I8
-  Unsigned 32               U4         I4    I4    I4   I4       I8
-  Unsigned 64               U8         --    I8    --   I8       I8
-  Real 32                   R4         R4    R4    R4   R4       R8
-  Real 64                   R8         R8    R8    R8   R8       R8
-  Complex 64                X4         R4R4  R4R4  R4R4 R4R4     R8R8
-  Complex 128               X8         R8R8  R8R8  R8R8 R8R8     R8R8
-  Character (unsigned byte) C1         C1    C1    C1   C1       C1
-  Byte (unsigned byte)      B1         C1    C1    C1   C1       C1
+	Type		  Notation     IEEE_BIG   IEEE_LITTLE	Cray
+				       32    64   32	64
+  No data		    MT
+  Integer 32		    I4	       I4    I4    I4	I4	 I8
+  Integer 64		    I8	       --    I8    --	I8	 I8
+  Unsigned 32		    U4	       I4    I4    I4	I4	 I8
+  Unsigned 64		    U8	       --    I8    --	I8	 I8
+  Real 32		    R4	       R4    R4    R4	R4	 R8
+  Real 64		    R8	       R8    R8    R8	R8	 R8
+  Complex 64		    X4	       R4R4  R4R4  R4R4 R4R4	 R8R8
+  Complex 128		    X8	       R8R8  R8R8  R8R8 R8R8	 R8R8
+  Character (unsigned byte) C1	       C1    C1    C1	C1	 C1
+  Byte (unsigned byte)	    B1	       C1    C1    C1	C1	 C1
 
 Machine Numeric Formats:
 ***IEEE_BIG (SGI-Iris Assembly Language Programmer's Guide, pages 1-2, 6-3)
@@ -1274,7 +1274,7 @@ NO_ERROR
 NULL_STRING_POINTER
 NULL_POINTER
 ***********************************************************************/
-void    ADFI_big_endian_32_swap_64(
+void	ADFI_big_endian_32_swap_64(
 		const char from_format,
 		const char from_os_size,
 		const char to_format,
@@ -1311,16 +1311,16 @@ else if ( delta_from_bytes < delta_to_bytes ) {
   switch( EVAL_2_BYTES( data_type[0], data_type[1] ) ) {
     case EVAL_2_BYTES( 'I', '8' ):
       if( (from_data[0] & 0x80) == 0x80 ) { /* Negative number */
-         to_data[0] = 0xff ;
-         to_data[1] = 0xff ;
-         to_data[2] = 0xff ;
-         to_data[3] = 0xff ;
+	 to_data[0] = 0xff ;
+	 to_data[1] = 0xff ;
+	 to_data[2] = 0xff ;
+	 to_data[3] = 0xff ;
       } /* end if */
       else {
-         to_data[0] = 0x00 ;
-         to_data[1] = 0x00 ;
-         to_data[2] = 0x00 ;
-         to_data[3] = 0x00 ;
+	 to_data[0] = 0x00 ;
+	 to_data[1] = 0x00 ;
+	 to_data[2] = 0x00 ;
+	 to_data[3] = 0x00 ;
       } /* end else */
       to_data[4] = from_data[0] ;
       to_data[5] = from_data[1] ;
@@ -1352,33 +1352,33 @@ else {
 /***********************************************************************
 ADFI big endian to cray:
 
-input:  const char from_format		Format to convert from. 'B','L','C','N'
-input:  const char from_os_size		Format to convert from. 'B','L'
-input:  const char to_format		Format to convert to.
-input:  const char to_os_size		Format to convert to. 'B','L'
-input:  const char data_type[2]		The type of data to convert.
+input:	const char from_format		Format to convert from. 'B','L','C','N'
+input:	const char from_os_size 	Format to convert from. 'B','L'
+input:	const char to_format		Format to convert to.
+input:	const char to_os_size		Format to convert to. 'B','L'
+input:	const char data_type[2] 	The type of data to convert.
 					   MT I4 I8 U4 U8 R4 R8 X4 X8 C1 B1
-input:  const unsigned long delta_from_bytes Number of from_bytes used.
-input:  const unsigned long delta_to_bytes	Number of to_bytes used.
-input:  const char *from_data		The data to convert from.
+input:	const unsigned long delta_from_bytes Number of from_bytes used.
+input:	const unsigned long delta_to_bytes	Number of to_bytes used.
+input:	const char *from_data		The data to convert from.
 output: char *to_data			The resulting data.
-output:	int *error_return		Error return.
+output: int *error_return		Error return.
 
   Recognized data types:
 					Machine representations
-        Type		  Notation     IEEE_BIG	  IEEE_LITTLE   Cray
-	                               32    64   32    64
-  No data                   MT
-  Integer 32                I4         I4    I4    I4   I4       I8
-  Integer 64                I8         --    I8    --   I8       I8
-  Unsigned 32               U4         I4    I4    I4   I4       I8
-  Unsigned 64               U8         --    I8    --   I8       I8
-  Real 32                   R4         R4    R4    R4   R4       R8
-  Real 64                   R8         R8    R8    R8   R8       R8
-  Complex 64                X4         R4R4  R4R4  R4R4 R4R4     R8R8
-  Complex 128               X8         R8R8  R8R8  R8R8 R8R8     R8R8
-  Character (unsigned byte) C1         C1    C1    C1   C1       C1
-  Byte (unsigned byte)      B1         C1    C1    C1   C1       C1
+	Type		  Notation     IEEE_BIG   IEEE_LITTLE	Cray
+				       32    64   32	64
+  No data		    MT
+  Integer 32		    I4	       I4    I4    I4	I4	 I8
+  Integer 64		    I8	       --    I8    --	I8	 I8
+  Unsigned 32		    U4	       I4    I4    I4	I4	 I8
+  Unsigned 64		    U8	       --    I8    --	I8	 I8
+  Real 32		    R4	       R4    R4    R4	R4	 R8
+  Real 64		    R8	       R8    R8    R8	R8	 R8
+  Complex 64		    X4	       R4R4  R4R4  R4R4 R4R4	 R8R8
+  Complex 128		    X8	       R8R8  R8R8  R8R8 R8R8	 R8R8
+  Character (unsigned byte) C1	       C1    C1    C1	C1	 C1
+  Byte (unsigned byte)	    B1	       C1    C1    C1	C1	 C1
 
 Machine Numeric Formats:
 ***IEEE_BIG (SGI-Iris Assembly Language Programmer's Guide, pages 1-2, 6-3)
@@ -1413,7 +1413,7 @@ NO_ERROR
 NULL_STRING_POINTER
 NULL_POINTER
 ***********************************************************************/
-void    ADFI_big_endian_to_cray(
+void	ADFI_big_endian_to_cray(
 		const char from_format,
 		const char from_os_size,
 		const char to_format,
@@ -1457,16 +1457,16 @@ switch( EVAL_2_BYTES( data_type[0], data_type[1] ) ) {
 
    case EVAL_2_BYTES( 'I', '4' ):
       if( (from_data[0] & 0x80) == 0x80 ) { /* Negative number */
-         to_data[0] = 0xff ;
-         to_data[1] = 0xff ;
-         to_data[2] = 0xff ;
-         to_data[3] = 0xff ;
+	 to_data[0] = 0xff ;
+	 to_data[1] = 0xff ;
+	 to_data[2] = 0xff ;
+	 to_data[3] = 0xff ;
       } /* end if */
       else {
-         to_data[0] = 0x00 ;
-         to_data[1] = 0x00 ;
-         to_data[2] = 0x00 ;
-         to_data[3] = 0x00 ;
+	 to_data[0] = 0x00 ;
+	 to_data[1] = 0x00 ;
+	 to_data[2] = 0x00 ;
+	 to_data[3] = 0x00 ;
       } /* end else */
       to_data[4] = from_data[0] ;
       to_data[5] = from_data[1] ;
@@ -1487,19 +1487,19 @@ switch( EVAL_2_BYTES( data_type[0], data_type[1] ) ) {
 
    case EVAL_2_BYTES( 'I', '8' ):
       if( (from_data[0] & 0x80) == 0x80 ) { /* Negative number */
-         to_data[0] = 0xff ;
-         to_data[1] = 0xff ;
-         to_data[2] = 0xff ;
-         to_data[3] = 0xff ;
+	 to_data[0] = 0xff ;
+	 to_data[1] = 0xff ;
+	 to_data[2] = 0xff ;
+	 to_data[3] = 0xff ;
       } /* end if */
       else {
-         to_data[0] = 0x00 ;
-         to_data[1] = 0x00 ;
-         to_data[2] = 0x00 ;
-         to_data[3] = 0x00 ;
+	 to_data[0] = 0x00 ;
+	 to_data[1] = 0x00 ;
+	 to_data[2] = 0x00 ;
+	 to_data[3] = 0x00 ;
       } /* end else */
       for( i=0; i<(int)delta_from_bytes; i++ )
-         to_data[8-delta_from_bytes+i] = from_data[i] ;
+	 to_data[8-delta_from_bytes+i] = from_data[i] ;
       break ;
 
    case EVAL_2_BYTES( 'U', '8' ):
@@ -1508,16 +1508,16 @@ switch( EVAL_2_BYTES( data_type[0], data_type[1] ) ) {
       to_data[2] = 0x00 ;
       to_data[3] = 0x00 ;
       for( i=0; i<(int)delta_from_bytes; i++ )
-         to_data[8-delta_from_bytes+i] = from_data[i] ;
+	 to_data[8-delta_from_bytes+i] = from_data[i] ;
       break ;
 
    case EVAL_2_BYTES( 'R', '4' ):
       for( i=0; i<8; i++ )
-         to_data[i] = 0x00 ;
+	 to_data[i] = 0x00 ;
 
    /** Check for zero: a special case on the Cray (exponent sign) **/
       if( (from_data[0] == 0x00) && (from_data[1] == 0x00) &&
-          (from_data[2] == 0x00) && (from_data[3] == 0x00) )
+	  (from_data[2] == 0x00) && (from_data[3] == 0x00) )
       break ;
 
    /** Convert the sign **/
@@ -1528,16 +1528,16 @@ switch( EVAL_2_BYTES( data_type[0], data_type[1] ) ) {
    /** Cray exponent is 2 greater than the Iris **/
       exp = (from_data[0] & 0x3f) << 1 ;
       if( (from_data[1] & 0x80) == 0x80 )
-         exp += 1 ;
+	 exp += 1 ;
       if( (from_data[0] & 0x40) == 0x00 ) /* set sign */
-         exp -= 128 ;
+	 exp -= 128 ;
       exp += 2 ;
 
       to_data[1] = exp & 0xff ;
       if( exp < 0 )
-         to_data[0] |= 0x3f ; /* exponent sign 0, sign extend exponent */
+	 to_data[0] |= 0x3f ; /* exponent sign 0, sign extend exponent */
       else
-         to_data[0] |= 0x40 ; /* exponent sign 1 */
+	 to_data[0] |= 0x40 ; /* exponent sign 1 */
 
    /** Convert the mantissia **/
    /** 23 bits to 48 bits.  Left shift 25 bits, zero fill **/
@@ -1548,11 +1548,11 @@ switch( EVAL_2_BYTES( data_type[0], data_type[1] ) ) {
 
    case EVAL_2_BYTES( 'R', '8' ):
       for( i=0; i<8; i++ )
-         to_data[i] = 0x00 ;
+	 to_data[i] = 0x00 ;
 
    /** Check for zero: a special case on the Cray (exponent sign) **/
       if( (from_data[0] == 0x00) && (from_data[1] == 0x00) &&
-          (from_data[2] == 0x00) && (from_data[3] == 0x00) )
+	  (from_data[2] == 0x00) && (from_data[3] == 0x00) )
       break ;
 
    /** Convert the sign **/
@@ -1564,23 +1564,23 @@ switch( EVAL_2_BYTES( data_type[0], data_type[1] ) ) {
       exp = ((from_data[0] & 0x3f) << 4) + ((from_data[1]>>4)&0x0f) ;
 
       if( (from_data[0] & 0x40) == 0x00 ) /* set sign */
-         exp -= 1024 ;
+	 exp -= 1024 ;
       exp += 2 ;
 
       to_data[1] = (unsigned int)(exp & 0xff) ;
       to_data[0] |= ((exp>>8) & 0x03) ;
       if( exp < 0 )
-         to_data[0] |= 0x3c ; /* exponent sign 0, sign extend exponent */
+	 to_data[0] |= 0x3c ; /* exponent sign 0, sign extend exponent */
       else
-         to_data[0] |= 0x40 ; /* exponent sign 1 */
+	 to_data[0] |= 0x40 ; /* exponent sign 1 */
 
    /** Convert the mantissia **/
    /** 52 bits to 48 bits.  Use 48, drop last 4 bits **/
       to_data[2] = 0x80 | ((from_data[1]<<3)&0x78) |
-                          ((from_data[2]>>5)&0x07) ;
+			  ((from_data[2]>>5)&0x07) ;
       for( i=3; i<8; i++ )
-         to_data[i] = ((from_data[i-1]<<3)&0xF8) |
-                      ((from_data[i]>>5)&0x07) ;
+	 to_data[i] = ((from_data[i-1]<<3)&0xF8) |
+		      ((from_data[i]>>5)&0x07) ;
 #ifdef PRINT_STUFF
 printf("from:" ) ;
 for( i=0; i<8; i++ )
@@ -1597,13 +1597,13 @@ printf("\n" ) ;
 	 to_format, to_os_size, "R4", delta_from_bytes,
 	 delta_to_bytes, from_data, to_data, error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
 
       ADFI_big_endian_to_cray( from_format, from_os_size,
 	 to_format, to_os_size, "R4", delta_from_bytes,
 	 delta_to_bytes, &from_data[4], &to_data[8], error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
       break ;
 
    case EVAL_2_BYTES( 'X', '8' ):
@@ -1611,13 +1611,13 @@ printf("\n" ) ;
 	 to_format, to_os_size, "R8", delta_from_bytes,
 	 delta_to_bytes, from_data, to_data, error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
 
       ADFI_big_endian_to_cray( from_format, from_os_size,
 	 to_format, to_os_size, "R8", delta_from_bytes,
 	 delta_to_bytes, &from_data[8], &to_data[8], error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
       break ;
 
    default:
@@ -1630,33 +1630,33 @@ printf("\n" ) ;
 /***********************************************************************
 ADFI big little endian swap:
 
-input:  const char from_format		Format to convert from. 'B','L','C','N'
-input:  const char from_os_size		Format to convert from. 'B','L'
-input:  const char to_format		Format to convert to.
-input:  const char to_os_size		Format to convert to. 'B','L'
-input:  const char data_type[2]		The type of data to convert.
+input:	const char from_format		Format to convert from. 'B','L','C','N'
+input:	const char from_os_size 	Format to convert from. 'B','L'
+input:	const char to_format		Format to convert to.
+input:	const char to_os_size		Format to convert to. 'B','L'
+input:	const char data_type[2] 	The type of data to convert.
 					   MT I4 I8 U4 U8 R4 R8 X4 X8 C1 B1
-input:  const unsigned long delta_from_bytes Number of from_bytes used.
-input:  const unsigned long delta_to_bytes	Number of to_bytes used.
-input:  const char *from_data		The data to convert from.
+input:	const unsigned long delta_from_bytes Number of from_bytes used.
+input:	const unsigned long delta_to_bytes	Number of to_bytes used.
+input:	const char *from_data		The data to convert from.
 output: char *to_data			The resulting data.
-output:	int *error_return		Error return.
+output: int *error_return		Error return.
 
   Recognized data types:
 					Machine representations
-        Type		  Notation     IEEE_BIG	  IEEE_LITTLE   Cray
-	                               32    64   32    64
-  No data                   MT
-  Integer 32                I4         I4    I4    I4   I4       I8
-  Integer 64                I8         --    I8    --   I8       I8
-  Unsigned 32               U4         I4    I4    I4   I4       I8
-  Unsigned 64               U8         --    I8    --   I8       I8
-  Real 32                   R4         R4    R4    R4   R4       R8
-  Real 64                   R8         R8    R8    R8   R8       R8
-  Complex 64                X4         R4R4  R4R4  R4R4 R4R4     R8R8
-  Complex 128               X8         R8R8  R8R8  R8R8 R8R8     R8R8
-  Character (unsigned byte) C1         C1    C1    C1   C1       C1
-  Byte (unsigned byte)      B1         C1    C1    C1   C1       C1
+	Type		  Notation     IEEE_BIG   IEEE_LITTLE	Cray
+				       32    64   32	64
+  No data		    MT
+  Integer 32		    I4	       I4    I4    I4	I4	 I8
+  Integer 64		    I8	       --    I8    --	I8	 I8
+  Unsigned 32		    U4	       I4    I4    I4	I4	 I8
+  Unsigned 64		    U8	       --    I8    --	I8	 I8
+  Real 32		    R4	       R4    R4    R4	R4	 R8
+  Real 64		    R8	       R8    R8    R8	R8	 R8
+  Complex 64		    X4	       R4R4  R4R4  R4R4 R4R4	 R8R8
+  Complex 128		    X8	       R8R8  R8R8  R8R8 R8R8	 R8R8
+  Character (unsigned byte) C1	       C1    C1    C1	C1	 C1
+  Byte (unsigned byte)	    B1	       C1    C1    C1	C1	 C1
 
 Machine Numeric Formats:
 ***IEEE_BIG (SGI-Iris Assembly Language Programmer's Guide, pages 1-2, 6-3)
@@ -1694,7 +1694,7 @@ NO_ERROR
 NULL_STRING_POINTER
 NULL_POINTER
 ***********************************************************************/
-void    ADFI_big_little_endian_swap(
+void	ADFI_big_little_endian_swap(
 		const char from_format,
 		const char from_os_size,
 		const char to_format,
@@ -1739,14 +1739,14 @@ for ( i=0; i<(int)delta_from_bytes; i++ )
 /***********************************************************************
 ADFI blank fill string:
 
-input/output: char *str		The string to fill with blanks.
-input:  const int length	The total length of the string to fill.
+input/output: char *str 	The string to fill with blanks.
+input:	const int length	The total length of the string to fill.
 ***********************************************************************/
 void ADFI_blank_fill_string(
 		char *str,
 		const int length )
 {
-int     i ;
+int	i ;
 for( i=strlen( str ); i<length; i++ )
    str[ i ] = ' ' ;
 }
@@ -1758,29 +1758,29 @@ ADFI chase link:
     of the node.  If the ID is a link, traverse the link(s) until a
     non-link node is found.  This is the data returned.
 
-input:  const double ID         ID of the node.
-output: double *LID             ID of the non-link node (may == ID)
-output: unsigned int *file_index           File-index for LID.
+input:	const double ID 	ID of the node.
+output: double *LID		ID of the non-link node (may == ID)
+output: unsigned int *file_index	   File-index for LID.
 output: struct DISK_POINTER *block_offset  Block/offset for LID.
 output: struct NODE_HEADER *node_header    The node header for LID.
-output: int *error_return       Error return.
+output: int *error_return	Error return.
 ***********************************************************************/
-void    ADFI_chase_link(
-        const double ID,
-        double *LID,
-        unsigned int *file_index,
-        struct DISK_POINTER *block_offset,
-        struct NODE_HEADER *node_header,
-        int *error_return )
+void	ADFI_chase_link(
+	const double ID,
+	double *LID,
+	unsigned int *file_index,
+	struct DISK_POINTER *block_offset,
+	struct NODE_HEADER *node_header,
+	int *error_return )
 {
-double        Link_ID, temp_ID ;
-int           done = FALSE ;
-int           link_depth = 0 ;
-int           found ;
+double	      Link_ID, temp_ID ;
+int	      done = FALSE ;
+int	      link_depth = 0 ;
+int	      found ;
 unsigned int  link_file_index ;
 char const    *status ;
-char          link_file[ADF_FILENAME_LENGTH+1],
-              link_path[ADF_MAX_LINK_DATA_SIZE+1] ;
+char	      link_file[ADF_FILENAME_LENGTH+1],
+	      link_path[ADF_MAX_LINK_DATA_SIZE+1] ;
 
 if( (LID == NULL) || (file_index == NULL) || (block_offset == NULL) ||
    (node_header == NULL ) ) {
@@ -1791,11 +1791,11 @@ if( (LID == NULL) || (file_index == NULL) || (block_offset == NULL) ||
 if (ID == last_link_ID) {
    *LID = last_link_LID;
    ADFI_ID_2_file_block_offset( last_link_LID, file_index, &block_offset->block,
-                &block_offset->offset, error_return ) ;
+		&block_offset->offset, error_return ) ;
    if( *error_return != NO_ERROR )
       return ;
    ADFI_read_node_header( *file_index, block_offset, node_header,
-                error_return ) ;
+		error_return ) ;
    return ;
 }
 
@@ -1803,13 +1803,13 @@ Link_ID = ID ;
 while( done == FALSE ) {
     /** Get the file, block, and offset numbers from the ID **/
    ADFI_ID_2_file_block_offset( Link_ID, file_index, &block_offset->block,
-                &block_offset->offset, error_return ) ;
+		&block_offset->offset, error_return ) ;
    if( *error_return != NO_ERROR )
       return ;
 
-        /** Get node_header for the node **/
+	/** Get node_header for the node **/
    ADFI_read_node_header( *file_index, block_offset, node_header,
-                error_return ) ;
+		error_return ) ;
    if( *error_return != NO_ERROR )
       return ;
 
@@ -1823,47 +1823,47 @@ while( done == FALSE ) {
 
       if( link_file[0] != '\0' ) { /* A filename is specified, open it. **/
 
-         /** Link_ID = root-node of the new file.
-             note:  the file could already be opened, and may be the
+	 /** Link_ID = root-node of the new file.
+	     note:  the file could already be opened, and may be the
 	     current file! **/
 
-         ADFI_get_file_index_from_name( link_file, &found, &link_file_index,
-                                        &Link_ID, error_return ) ;
-         if( ! found ) { /** Not found; try to open it **/
-            if (access(link_file,2)) /* check for read-only mode */
-               status = "READ_ONLY";
-            else /* open in same mode as current file */
-               status = file_open_mode[*file_index] ;
-            if ( ADFI_stridx_c(status, "READ_ONLY" ) != 0 ) status="OLD" ;
-            ADF_Database_Open( link_file, status, "", &Link_ID,
-                               error_return ) ;
-            if( *error_return != NO_ERROR ) {
-                *error_return = LINKED_TO_FILE_NOT_THERE ;
-                return ;
-                } /* end if */
-            } /* end else */
-         } /* end if */
+	 ADFI_get_file_index_from_name( link_file, &found, &link_file_index,
+					&Link_ID, error_return ) ;
+	 if( ! found ) { /** Not found; try to open it **/
+	    if (access(link_file,2)) /* check for read-only mode */
+	       status = "READ_ONLY";
+	    else /* open in same mode as current file */
+	       status = file_open_mode[*file_index] ;
+	    if ( ADFI_stridx_c(status, "READ_ONLY" ) != 0 ) status="OLD" ;
+	    ADF_Database_Open( link_file, status, "", &Link_ID,
+			       error_return ) ;
+	    if( *error_return != NO_ERROR ) {
+		*error_return = LINKED_TO_FILE_NOT_THERE ;
+		return ;
+		} /* end if */
+	    } /* end else */
+	 } /* end if */
       else {  /* filename NOT specified, file must be root of link */
-         ADF_Get_Node_ID( Link_ID, "/", &temp_ID, error_return ) ;
-         if( *error_return != NO_ERROR ) {
-             *error_return = LINKED_TO_FILE_NOT_THERE ;
-             return ;
-             } /* end if */
-         Link_ID = temp_ID ;
-         } /* end else */
+	 ADF_Get_Node_ID( Link_ID, "/", &temp_ID, error_return ) ;
+	 if( *error_return != NO_ERROR ) {
+	     *error_return = LINKED_TO_FILE_NOT_THERE ;
+	     return ;
+	     } /* end if */
+	 Link_ID = temp_ID ;
+	 } /* end else */
 
-        /** Get the node ID of the link to node (may be other links) **/
+	/** Get the node ID of the link to node (may be other links) **/
       ADF_Get_Node_ID( Link_ID, link_path, &temp_ID, error_return ) ;
       if( *error_return == CHILD_NOT_OF_GIVEN_PARENT )
-         *error_return = LINK_TARGET_NOT_THERE ; /* A better error message */
+	 *error_return = LINK_TARGET_NOT_THERE ; /* A better error message */
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
 
       Link_ID = temp_ID ;
       if( ++link_depth > ADF_MAXIMUM_LINK_DEPTH ) {
-         *error_return = LINKS_TOO_DEEP ;
-         return ;
-         } /* end if */
+	 *error_return = LINKS_TOO_DEEP ;
+	 return ;
+	 } /* end if */
       } /* end if */
    else { /** node is NOT a link **/
       done = TRUE ;
@@ -1882,13 +1882,13 @@ if (Link_ID != ID) {
 /***********************************************************************
 ADFI check 4 child name:
 
-input:  const int file_index		Index of ADF file.
-input:  const struct DISK_POINTER *parent Location of the parent
-input:  const char *name		The name of the new child.
+input:	const int file_index		Index of ADF file.
+input:	const struct DISK_POINTER *parent Location of the parent
+input:	const char *name		The name of the new child.
 output: int *found			0 if NOT found, else 1.
 output: struct DISK_POINTER *sub_node_entry_location
 output: struct SUB_NODE_TABLE_ENTRY *sub_node_entry
-output:	int *error_return		Error return.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
@@ -1897,7 +1897,7 @@ NULL_STRING_POINTER
 ADF_FILE_NOT_OPENED
 MEMORY_ALLOCATION_FAILED
 ***********************************************************************/
-void    ADFI_check_4_child_name(
+void	ADFI_check_4_child_name(
 		const int file_index,
 		const struct DISK_POINTER *parent,
 		const char *name,
@@ -1944,8 +1944,8 @@ if( parent_node.num_sub_nodes == 0 ) {
 
 	/** Allocate memory for the required table space in memory **/
 sub_node_table = (struct SUB_NODE_TABLE_ENTRY *)
-                 malloc( parent_node.entries_for_sub_nodes *
-	         sizeof( *sub_node_table ) ) ;
+		 malloc( parent_node.entries_for_sub_nodes *
+		 sizeof( *sub_node_table ) ) ;
 if( sub_node_table == NULL ) {
    *error_return = MEMORY_ALLOCATION_FAILED ;
    return ;
@@ -1972,7 +1972,7 @@ for( i=0; i<(int)parent_node.num_sub_nodes; i++ ) {
 
       ADFI_adjust_disk_pointer( sub_node_entry_location, error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
 
 	/** Also save off the child's name **/
       strncpy( sub_node_entry->child_name, sub_node_table[i].child_name,
@@ -1998,9 +1998,9 @@ ADFI check string length:
 	   being too long,
 	   being zero length.
 
-input:  const char *str			The input string.
-input:  const int max_length		Maximum allowable length of the string.
-output:	int *error_return		Error return.
+input:	const char *str 		The input string.
+input:	const int max_length		Maximum allowable length of the string.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
@@ -2008,7 +2008,7 @@ NULL_STRING_POINTER
 STRING_LENGTH_ZERO
 STRING_LENGTH_TOO_BIG
 ***********************************************************************/
-void    ADFI_check_string_length(
+void	ADFI_check_string_length(
 		const char *str,
 		const int max_length,
 		int *error_return )
@@ -2047,14 +2047,14 @@ ADFI close file:
 	Close the indicated ADF file, and also all files with this file's
 	index as their top index.
 
-input:  const int top_file_index	Index of top ADF file.
-output:	int *error_return		Error return.
+input:	const int top_file_index	Index of top ADF file.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
 ADF_FILE_NOT_OPENED
 ***********************************************************************/
-void    ADFI_close_file(
+void	ADFI_close_file(
 		const int top_file_index,
 		int *error_return )
 {
@@ -2100,7 +2100,7 @@ file_version_update[ top_file_index ][ 0 ] = '\0' ;
 for( index=0; index < MAXIMUM_FILES; index++ ) {
    if( first_file_in_system[ index ] == top_file_index ) {
       if( ADF_file[ index ] != 0 ) {
-         ADFI_flush_buffers( index, FLUSH_CLOSE, error_return );
+	 ADFI_flush_buffers( index, FLUSH_CLOSE, error_return );
 	 ADFI_flush_caches( index, error_return );
 #if CACHEWRITES
 #if kUsePathsForUniqueness
@@ -2115,8 +2115,8 @@ for( index=0; index < MAXIMUM_FILES; index++ ) {
 	 ADF_file_info[ index ].device = 0;
 	 ADF_file_info[ index ].inode = 0;
 #endif /* CACHEWRITES */
-         if( fclose( ADF_file[ index ] ) != 0 )
-            *error_return = FILE_CLOSE_ERROR ;
+	 if( fclose( ADF_file[ index ] ) != 0 )
+	    *error_return = FILE_CLOSE_ERROR ;
 	 } /* end if */
       ADFI_stack_control(index,0,0,CLEAR_STK,0,0,NULL);
       file_in_use[ index ] = 0 ;
@@ -2132,17 +2132,17 @@ for( index=0; index < MAXIMUM_FILES; index++ ) {
 /***********************************************************************
 ADFI compare node names:
 
-input:  const char *name	Existing node name.
-input:  const char *new_name	New node name.
+input:	const char *name	Existing node name.
+input:	const char *new_name	New node name.
 output: int *names_match	0 if name do NOT match, else 1.
-output:	int *error_return	Error return.
+output: int *error_return	Error return.
 
    Possible errors:
 NO_ERROR
 NULL_STRING_POINTER
 NULL_POINTER
 ***********************************************************************/
-void    ADFI_compare_node_names(
+void	ADFI_compare_node_names(
 		const char *name,
 		const char *new_name,
 		int *names_match,
@@ -2188,33 +2188,33 @@ for( ; i<ADF_NAME_LENGTH; i++ ) {
 /***********************************************************************
 ADFI convert number format:
 
-input:  const char from_format		Format to convert from. 'B','L','C','N'
-input:  const char from_os_size		os size to convert from. 'B','L'
-input:  const char to_format		Format to convert to.
-input:  const char to_os_size		os size to convert to. 'B','L'
-input:  const int  convert_dir          Convert direction from/to file format
-input:  const struct TOKENIZED_DATA_TYPE *tokenized_data_type Array.
+input:	const char from_format		Format to convert from. 'B','L','C','N'
+input:	const char from_os_size 	os size to convert from. 'B','L'
+input:	const char to_format		Format to convert to.
+input:	const char to_os_size		os size to convert to. 'B','L'
+input:	const int  convert_dir		Convert direction from/to file format
+input:	const struct TOKENIZED_DATA_TYPE *tokenized_data_type Array.
 					   MT I4 I8 U4 U8 R4 R8 X4 X8 C1 B1
-input:  const unsigned int length	The number of tokens to convert.
-input:  const char *from_data		The data to convert from.
+input:	const unsigned int length	The number of tokens to convert.
+input:	const char *from_data		The data to convert from.
 output: char *to_data			The resulting data.
-output:	int *error_return		Error return.
+output: int *error_return		Error return.
 
   Recognized data types:
 					Machine representations
-        Type		  Notation     IEEE_BIG	  IEEE_LITTLE   Cray
-	                               32    64   32    64
-  No data                   MT
-  Integer 32                I4         I4    I4    I4   I4       I8
-  Integer 64                I8         --    I8    --   I8       I8
-  Unsigned 32               U4         I4    I4    I4   I4       I8
-  Unsigned 64               U8         --    I8    --   I8       I8
-  Real 32                   R4         R4    R4    R4   R4       R8
-  Real 64                   R8         R8    R8    R8   R8       R8
-  Complex 64                X4         R4R4  R4R4  R4R4 R4R4     R8R8
-  Complex 128               X8         R8R8  R8R8  R8R8 R8R8     R8R8
-  Character (unsigned byte) C1         C1    C1    C1   C1       C1
-  Byte (unsigned byte)      B1         C1    C1    C1   C1       C1
+	Type		  Notation     IEEE_BIG   IEEE_LITTLE	Cray
+				       32    64   32	64
+  No data		    MT
+  Integer 32		    I4	       I4    I4    I4	I4	 I8
+  Integer 64		    I8	       --    I8    --	I8	 I8
+  Unsigned 32		    U4	       I4    I4    I4	I4	 I8
+  Unsigned 64		    U8	       --    I8    --	I8	 I8
+  Real 32		    R4	       R4    R4    R4	R4	 R8
+  Real 64		    R8	       R8    R8    R8	R8	 R8
+  Complex 64		    X4	       R4R4  R4R4  R4R4 R4R4	 R8R8
+  Complex 128		    X8	       R8R8  R8R8  R8R8 R8R8	 R8R8
+  Character (unsigned byte) C1	       C1    C1    C1	C1	 C1
+  Byte (unsigned byte)	    B1	       C1    C1    C1	C1	 C1
 
 Machine Numeric Formats:
 ***IEEE_BIG (SGI-Iris Assembly Language Programmer's Guide, pages 1-2, 6-3)
@@ -2262,7 +2262,7 @@ NO_ERROR
 NULL_STRING_POINTER
 NULL_POINTER
 ***********************************************************************/
-void    ADFI_convert_number_format(
+void	ADFI_convert_number_format(
 		const char from_format,
 		const char from_os_size,
 		const char to_format,
@@ -2275,11 +2275,11 @@ void    ADFI_convert_number_format(
 		int *error_return )
 {
 char wk_to_os_size;
-unsigned char   temp_data[16] ;
-char            data_type[2] ;
+unsigned char	temp_data[16] ;
+char		data_type[2] ;
 int		current_token ;
-int             array_size ;
-int             l, s ;
+int		array_size ;
+int		l, s ;
 unsigned long	delta_from_bytes, delta_to_bytes ;
 
 if( (from_data == NULL) || (to_data == NULL) ) {
@@ -2325,7 +2325,7 @@ for ( l=0; l<(int)length; l++ ) {
   while( tokenized_data_type[ ++current_token ].type[0] != 0 ) {
     data_type[0] = tokenized_data_type[ current_token ].type[0] ;
     data_type[1] = tokenized_data_type[ current_token ].type[1] ;
-    array_size   = tokenized_data_type[ current_token ].length ;
+    array_size	 = tokenized_data_type[ current_token ].length ;
     if ( convert_dir == FROM_FILE_FORMAT ) {
       delta_from_bytes=tokenized_data_type[ current_token ].file_type_size ;
       delta_to_bytes  =tokenized_data_type[ current_token ].machine_type_size ;
@@ -2340,94 +2340,94 @@ for ( l=0; l<(int)length; l++ ) {
 
        case EVAL_4_BYTES( 'B', 'B', 'L', 'B' ):
        case EVAL_4_BYTES( 'B', 'B', 'B', 'L' ):
-         ADFI_big_endian_32_swap_64( from_format, from_os_size,
+	 ADFI_big_endian_32_swap_64( from_format, from_os_size,
 				     to_format, wk_to_os_size, data_type,
-                                     delta_from_bytes, delta_to_bytes,
+				     delta_from_bytes, delta_to_bytes,
 				     from_data, to_data, error_return );
-          break ;
+	  break ;
 
        case EVAL_4_BYTES( 'L', 'L', 'L', 'B' ):
        case EVAL_4_BYTES( 'L', 'L', 'B', 'L' ):
-         ADFI_little_endian_32_swap_64( from_format, from_os_size,
-			     	        to_format, wk_to_os_size, data_type,
-                                        delta_from_bytes, delta_to_bytes,
-				        from_data, to_data, error_return );
-          break ;
+	 ADFI_little_endian_32_swap_64( from_format, from_os_size,
+					to_format, wk_to_os_size, data_type,
+					delta_from_bytes, delta_to_bytes,
+					from_data, to_data, error_return );
+	  break ;
 
        case EVAL_4_BYTES( 'B', 'C', 'L', 'B' ):
        case EVAL_4_BYTES( 'B', 'C', 'B', 'B' ):
-         ADFI_big_endian_to_cray( from_format, from_os_size,
+	 ADFI_big_endian_to_cray( from_format, from_os_size,
 				  to_format, wk_to_os_size, data_type,
-                                  delta_from_bytes, delta_to_bytes,
+				  delta_from_bytes, delta_to_bytes,
 				  from_data, to_data, error_return );
-          break ;
+	  break ;
 
        case EVAL_4_BYTES( 'C', 'B', 'B', 'L' ):
        case EVAL_4_BYTES( 'C', 'B', 'B', 'B' ):
-         ADFI_cray_to_big_endian( from_format, from_os_size,
+	 ADFI_cray_to_big_endian( from_format, from_os_size,
 				  to_format, wk_to_os_size, data_type,
-                                  delta_from_bytes, delta_to_bytes,
+				  delta_from_bytes, delta_to_bytes,
 				  from_data, to_data, error_return );
-        break ;
+	break ;
 
        case EVAL_4_BYTES( 'B', 'L', 'B', 'L' ):
        case EVAL_4_BYTES( 'B', 'L', 'L', 'B' ):
-         ADFI_big_endian_32_swap_64( from_format, from_os_size,
+	 ADFI_big_endian_32_swap_64( from_format, from_os_size,
 				     from_format, wk_to_os_size, data_type,
-                                     delta_from_bytes, delta_to_bytes,
+				     delta_from_bytes, delta_to_bytes,
 				     from_data, temp_data, error_return );
-         ADFI_big_little_endian_swap( from_format, wk_to_os_size,
+	 ADFI_big_little_endian_swap( from_format, wk_to_os_size,
 				      to_format, wk_to_os_size, data_type,
-                                      delta_to_bytes, delta_to_bytes,
-			              temp_data, to_data, error_return );
-         break ;
+				      delta_to_bytes, delta_to_bytes,
+				      temp_data, to_data, error_return );
+	 break ;
 
        case EVAL_4_BYTES( 'L', 'B', 'B', 'L' ):
        case EVAL_4_BYTES( 'L', 'B', 'L', 'B' ):
-         ADFI_little_endian_32_swap_64( from_format, from_os_size,
-			  	        from_format, wk_to_os_size, data_type,
-                                        delta_from_bytes, delta_to_bytes,
-				        from_data, temp_data, error_return );
-         ADFI_big_little_endian_swap( from_format, wk_to_os_size,
+	 ADFI_little_endian_32_swap_64( from_format, from_os_size,
+					from_format, wk_to_os_size, data_type,
+					delta_from_bytes, delta_to_bytes,
+					from_data, temp_data, error_return );
+	 ADFI_big_little_endian_swap( from_format, wk_to_os_size,
 				      to_format, wk_to_os_size, data_type,
-                                      delta_to_bytes, delta_to_bytes,
-			              temp_data, to_data, error_return );
-         break ;
+				      delta_to_bytes, delta_to_bytes,
+				      temp_data, to_data, error_return );
+	 break ;
 
        case EVAL_4_BYTES( 'B', 'L', 'L', 'L' ):
        case EVAL_4_BYTES( 'L', 'B', 'L', 'L' ):
        case EVAL_4_BYTES( 'B', 'L', 'B', 'B' ):
        case EVAL_4_BYTES( 'L', 'B', 'B', 'B' ):
-         ADFI_big_little_endian_swap( from_format, from_os_size,
+	 ADFI_big_little_endian_swap( from_format, from_os_size,
 				      to_format, wk_to_os_size, data_type,
-                                      delta_from_bytes, delta_to_bytes,
-			              from_data, to_data, error_return );
-         break ;
+				      delta_from_bytes, delta_to_bytes,
+				      from_data, to_data, error_return );
+	 break ;
 
        case EVAL_4_BYTES( 'C', 'L', 'B', 'L' ):
        case EVAL_4_BYTES( 'C', 'L', 'B', 'B' ):
-         ADFI_cray_to_little_endian( from_format, from_os_size,
+	 ADFI_cray_to_little_endian( from_format, from_os_size,
 				     to_format, wk_to_os_size, data_type,
-                                     delta_from_bytes, delta_to_bytes,
+				     delta_from_bytes, delta_to_bytes,
 				     from_data, to_data, error_return );
-         break ;
+	 break ;
 
        case EVAL_4_BYTES( 'L', 'C', 'L', 'B' ):
        case EVAL_4_BYTES( 'L', 'C', 'B', 'B' ):
-         ADFI_little_endian_to_cray( from_format, from_os_size,
+	 ADFI_little_endian_to_cray( from_format, from_os_size,
 				  to_format, wk_to_os_size, data_type,
-                                  delta_from_bytes, delta_to_bytes,
+				  delta_from_bytes, delta_to_bytes,
 				  from_data, to_data, error_return );
-         break ;
+	 break ;
 
        default:
-         *error_return = MACHINE_FORMAT_NOT_RECOGNIZED ;
-         return ;
+	 *error_return = MACHINE_FORMAT_NOT_RECOGNIZED ;
+	 return ;
       } /* end switch */
       if ( *error_return != NO_ERROR )
- 	 return ;
-         /** Increment the data pointers **/
-       to_data   += delta_to_bytes ;
+	 return ;
+	 /** Increment the data pointers **/
+       to_data	 += delta_to_bytes ;
        from_data += delta_from_bytes ;
     } /* end for */
   } /* end while */
@@ -2439,13 +2439,13 @@ for ( l=0; l<(int)length; l++ ) {
 /***********************************************************************
 ADFI count total array points:
 
-input:  const unsigned int ndim	The number of dimensions to use (1 to 12)
-input:  const unsigned int dims[]The dimensional space
-input:  const int dim_start[]	The starting dimension of our sub-space
+input:	const unsigned int ndim The number of dimensions to use (1 to 12)
+input:	const unsigned int dims[]The dimensional space
+input:	const int dim_start[]	The starting dimension of our sub-space
 				first = 1
-input:  const int dim_end[]	The ending dimension of our sub-space
+input:	const int dim_end[]	The ending dimension of our sub-space
 				last[n] = dims[n]
-input:  const int dim_stride[]	The stride to take in our sub-space
+input:	const int dim_stride[]	The stride to take in our sub-space
 				(every Nth element)
 output: ulong *total_points	Total points defined in our sub-space.
 output: ulong *starting_offset	Number of elements skipped before first element
@@ -2537,32 +2537,32 @@ for( i=0; i<ndim; i++ ) {
 /***********************************************************************
 ADFI cray to big endian:
 
-input:  const char from_format		Format to convert from. 'B','L','C','N'
-input:  const char from_os_size		Format to convert from. 'B','L'
-input:  const char to_format		Format to convert to.
-input:  const char to_os_size		Format to convert to. 'B','L'
-input:  const char data_type[2]		The type of data to convert.
+input:	const char from_format		Format to convert from. 'B','L','C','N'
+input:	const char from_os_size 	Format to convert from. 'B','L'
+input:	const char to_format		Format to convert to.
+input:	const char to_os_size		Format to convert to. 'B','L'
+input:	const char data_type[2] 	The type of data to convert.
 					   MT I4 I8 U4 U8 R4 R8 X4 X8 C1 B1
-input:  const unsigned long delta_from_bytes Number of from_bytes used.
-input:  const unsigned long delta_to_bytes	Number of to_bytes used.
-input:  const char *from_data		The data to convert from.
+input:	const unsigned long delta_from_bytes Number of from_bytes used.
+input:	const unsigned long delta_to_bytes	Number of to_bytes used.
+input:	const char *from_data		The data to convert from.
 output: char *to_data			The resulting data.
-output:	int *error_return		Error return.
+output: int *error_return		Error return.
 
   Recognized data types:
 					Machine representations
 	Type		     Notation	IEEE_BIG	IEEE_L	Cray
-  No data                   MT
-  Integer 32                I4         I4    I4    I4   I4       I8
-  Integer 64                I8         --    I8    --   I8       I8
-  Unsigned 32               U4         I4    I4    I4   I4       I8
-  Unsigned 64               U8         --    I8    --   I8       I8
-  Real 32                   R4         R4    R4    R4   R4       R8
-  Real 64                   R8         R8    R8    R8   R8       R8
-  Complex 64                X4         R4R4  R4R4  R4R4 R4R4     R8R8
-  Complex 128               X8         R8R8  R8R8  R8R8 R8R8     R8R8
-  Character (unsigned byte) C1         C1    C1    C1   C1       C1
-  Byte (unsigned byte)      B1         C1    C1    C1   C1       C1
+  No data		    MT
+  Integer 32		    I4	       I4    I4    I4	I4	 I8
+  Integer 64		    I8	       --    I8    --	I8	 I8
+  Unsigned 32		    U4	       I4    I4    I4	I4	 I8
+  Unsigned 64		    U8	       --    I8    --	I8	 I8
+  Real 32		    R4	       R4    R4    R4	R4	 R8
+  Real 64		    R8	       R8    R8    R8	R8	 R8
+  Complex 64		    X4	       R4R4  R4R4  R4R4 R4R4	 R8R8
+  Complex 128		    X8	       R8R8  R8R8  R8R8 R8R8	 R8R8
+  Character (unsigned byte) C1	       C1    C1    C1	C1	 C1
+  Byte (unsigned byte)	    B1	       C1    C1    C1	C1	 C1
 
 Machine Numeric Formats:
 ***IEEE_BIG (SGI-Iris Assembly Language Programmer's Guide, pages 1-2, 6-3)
@@ -2597,7 +2597,7 @@ NO_ERROR
 NULL_STRING_POINTER
 NULL_POINTER
 ***********************************************************************/
-void    ADFI_cray_to_big_endian(
+void	ADFI_cray_to_big_endian(
 		const char from_format,
 		const char from_os_size,
 		const char to_format,
@@ -2607,7 +2607,7 @@ void    ADFI_cray_to_big_endian(
 		const unsigned long delta_to_bytes,
 		const unsigned char *from_data,
 		unsigned char *to_data,
-                int *error_return )
+		int *error_return )
 {
 int		i, exp ;
 
@@ -2649,19 +2649,19 @@ switch( EVAL_2_BYTES( data_type[0], data_type[1] ) ) {
    case EVAL_2_BYTES( 'I', '8' ):
    case EVAL_2_BYTES( 'U', '8' ):
       for( i=0; i<(int) delta_to_bytes; i++ )
-         to_data[i] = from_data[8-delta_to_bytes+i] ;
+	 to_data[i] = from_data[8-delta_to_bytes+i] ;
       break ;
 
    case EVAL_2_BYTES( 'R', '4' ):
       for( i=0; i<4; i++ )
-         to_data[i] = 0x00 ;
+	 to_data[i] = 0x00 ;
 
    /** Check for zero: a special case on the Cray (exponent sign) **/
       if( (from_data[0] == 0x00) && (from_data[1] == 0x00) &&
-          (from_data[2] == 0x00) && (from_data[3] == 0x00) &&
-          (from_data[4] == 0x00) && (from_data[5] == 0x00) &&
-          (from_data[6] == 0x00) && (from_data[7] == 0x00) )
-         break ;
+	  (from_data[2] == 0x00) && (from_data[3] == 0x00) &&
+	  (from_data[4] == 0x00) && (from_data[5] == 0x00) &&
+	  (from_data[6] == 0x00) && (from_data[7] == 0x00) )
+	 break ;
 
    /** Convert the sign **/
       to_data[0] = from_data[0] & 0x80 ;
@@ -2671,24 +2671,24 @@ switch( EVAL_2_BYTES( data_type[0], data_type[1] ) ) {
    /** Cray exponent is 2 greater than the Iris **/
       exp = from_data[1] + ((from_data[0]&0x3f)<<8) ;
       if( (from_data[0] & 0x40) == 0x00 ) /* set sign */
-         exp -= 16384 ;
+	 exp -= 16384 ;
       exp -= 2 ;
 
       if( exp >= 128 ) {
-          *error_return = NUMERIC_OVERFLOW ;
-          return ;
-        } /* end if */
+	  *error_return = NUMERIC_OVERFLOW ;
+	  return ;
+	} /* end if */
       else if ( exp < -128 ) {
-          for( i=0; i<4; i++ ) to_data[i] = 0x00 ; /* underflow set to 0 */
-          break;
-        } /* end else */
+	  for( i=0; i<4; i++ ) to_data[i] = 0x00 ; /* underflow set to 0 */
+	  break;
+	} /* end else */
 
       to_data[0] |= ((exp&0x7F) >> 1) ;
       if( (exp & 0x01) == 0x01 )	/* LSBit of the exponent */
-         to_data[1] |= 0x80 ;
+	 to_data[1] |= 0x80 ;
 
       if( exp >= 0 )	/* Set exponent sign */
-         to_data[0] |= 0x40 ;
+	 to_data[0] |= 0x40 ;
 
    /** Convert the mantissia **/
    /** 48 bits to 23 bits, skip the first '1' (2.fract) **/
@@ -2699,12 +2699,12 @@ switch( EVAL_2_BYTES( data_type[0], data_type[1] ) ) {
 
    case EVAL_2_BYTES( 'R', '8' ):
       for( i=0; i<8; i++ )
-         to_data[i] = 0x00 ;
+	 to_data[i] = 0x00 ;
 
    /** Check for zero: a special case on the Cray (exponent sign) **/
       if( (from_data[0] == 0x00) && (from_data[1] == 0x00) &&
-          (from_data[2] == 0x00) && (from_data[3] == 0x00) )
-         break ;
+	  (from_data[2] == 0x00) && (from_data[3] == 0x00) )
+	 break ;
 
    /** Convert the sign **/
       to_data[0] = from_data[0] & 0x80 ;
@@ -2713,32 +2713,32 @@ switch( EVAL_2_BYTES( data_type[0], data_type[1] ) ) {
    /** 14 bits to  11 bits **/
    /** Cray exponent is 2 greater than the Iris **/
        exp = from_data[1] + ((from_data[0]&0x3f)<<8) ;
-         /* set sign if exponent is non-zero */
+	 /* set sign if exponent is non-zero */
        if( (exp != 0) && ((from_data[0] & 0x40) == 0x00) )
-          exp -= 16384 ;
+	  exp -= 16384 ;
        exp -= 2 ;
 
        if( exp >= 1024 ) {
-           *error_return = NUMERIC_OVERFLOW ;
-           return ;
-         } /* end if */
+	   *error_return = NUMERIC_OVERFLOW ;
+	   return ;
+	 } /* end if */
        else if ( exp < -1024 ) {
-           for( i=0; i<4; i++ ) to_data[i] = 0x00 ; /* underflow set to 0 */
-           break;
-         } /* end else */
+	   for( i=0; i<4; i++ ) to_data[i] = 0x00 ; /* underflow set to 0 */
+	   break;
+	 } /* end else */
 
        to_data[0] |= ((exp & 0x03F0) >> 4) ;
        to_data[1] |= ((exp & 0x000F) << 4) ;
 
-       if( exp >= 0 )   /* Set exponent sign */
-          to_data[0] |= 0x40 ;
+       if( exp >= 0 )	/* Set exponent sign */
+	  to_data[0] |= 0x40 ;
 
    /** Convert the mantissia **/
    /** 48 bits to 52 bits, skip the first '1' (2.fract) **/
        to_data[1] |= ((from_data[2] & 0x78) >> 3) ;
        for( i=2; i<7; i++ )
-          to_data[i] = ((from_data[i] & 0x07) << 5) |
-                       ((from_data[i+1] & 0xf8) >> 3) ;
+	  to_data[i] = ((from_data[i] & 0x07) << 5) |
+		       ((from_data[i+1] & 0xf8) >> 3) ;
        to_data[7] = ((from_data[7] & 0x07) << 5) ;
 
 #ifdef PRINT_STUFF
@@ -2757,13 +2757,13 @@ printf("\n" ) ;
 	 to_format, to_os_size, "R4", delta_from_bytes,
 	 delta_to_bytes, from_data, to_data, error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
 
       ADFI_cray_to_big_endian( from_format, from_os_size,
 	 to_format, to_os_size, "R4", delta_from_bytes,
 	 delta_to_bytes, &from_data[8], &to_data[4], error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
       break ;
 
    case EVAL_2_BYTES( 'X', '8' ):
@@ -2771,13 +2771,13 @@ printf("\n" ) ;
 	 to_format, to_os_size, "R8", delta_from_bytes,
 	 delta_to_bytes, from_data, to_data, error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
 
       ADFI_cray_to_big_endian( from_format, from_os_size,
 	 to_format, to_os_size, "R8", delta_from_bytes,
 	 delta_to_bytes, &from_data[8], &to_data[8], error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
       break ;
 
    default:
@@ -2791,32 +2791,32 @@ printf("\n" ) ;
 /***********************************************************************
 ADFI cray to little endian:
 
-input:  const char from_format		Format to convert from. 'B','L','C','N'
-input:  const char from_os_size		Format to convert from. 'B','L'
-input:  const char to_format		Format to convert to.
-input:  const char to_os_size		Format to convert to. 'B','L'
-input:  const char data_type[2]		The type of data to convert.
+input:	const char from_format		Format to convert from. 'B','L','C','N'
+input:	const char from_os_size 	Format to convert from. 'B','L'
+input:	const char to_format		Format to convert to.
+input:	const char to_os_size		Format to convert to. 'B','L'
+input:	const char data_type[2] 	The type of data to convert.
 					   MT I4 I8 U4 U8 R4 R8 X4 X8 C1 B1
-input:  const unsigned long delta_from_bytes Number of from_bytes used.
-input:  const unsigned long delta_to_bytes	Number of to_bytes used.
-input:  const char *from_data		The data to convert from.
+input:	const unsigned long delta_from_bytes Number of from_bytes used.
+input:	const unsigned long delta_to_bytes	Number of to_bytes used.
+input:	const char *from_data		The data to convert from.
 output: char *to_data			The resulting data.
-output:	int *error_return		Error return.
+output: int *error_return		Error return.
 
   Recognized data types:
 					Machine representations
 	Type		     Notation	IEEE_BIG	IEEE_L	Cray
-  No data                   MT
-  Integer 32                I4         I4    I4    I4   I4       I8
-  Integer 64                I8         --    I8    --   I8       I8
-  Unsigned 32               U4         I4    I4    I4   I4       I8
-  Unsigned 64               U8         --    I8    --   I8       I8
-  Real 32                   R4         R4    R4    R4   R4       R8
-  Real 64                   R8         R8    R8    R8   R8       R8
-  Complex 64                X4         R4R4  R4R4  R4R4 R4R4     R8R8
-  Complex 128               X8         R8R8  R8R8  R8R8 R8R8     R8R8
-  Character (unsigned byte) C1         C1    C1    C1   C1       C1
-  Byte (unsigned byte)      B1         C1    C1    C1   C1       C1
+  No data		    MT
+  Integer 32		    I4	       I4    I4    I4	I4	 I8
+  Integer 64		    I8	       --    I8    --	I8	 I8
+  Unsigned 32		    U4	       I4    I4    I4	I4	 I8
+  Unsigned 64		    U8	       --    I8    --	I8	 I8
+  Real 32		    R4	       R4    R4    R4	R4	 R8
+  Real 64		    R8	       R8    R8    R8	R8	 R8
+  Complex 64		    X4	       R4R4  R4R4  R4R4 R4R4	 R8R8
+  Complex 128		    X8	       R8R8  R8R8  R8R8 R8R8	 R8R8
+  Character (unsigned byte) C1	       C1    C1    C1	C1	 C1
+  Byte (unsigned byte)	    B1	       C1    C1    C1	C1	 C1
 
 Machine Numeric Formats:
 ***IEEE_BIG (SGI-Iris Assembly Language Programmer's Guide, pages 1-2, 6-3)
@@ -2851,7 +2851,7 @@ NO_ERROR
 NULL_STRING_POINTER
 NULL_POINTER
 ***********************************************************************/
-void    ADFI_cray_to_little_endian(
+void	ADFI_cray_to_little_endian(
 		const char from_format,
 		const char from_os_size,
 		const char to_format,
@@ -2861,7 +2861,7 @@ void    ADFI_cray_to_little_endian(
 		const unsigned long delta_to_bytes,
 		const unsigned char *from_data,
 		unsigned char *to_data,
-                int *error_return )
+		int *error_return )
 {
 int		i, exp ;
 
@@ -2903,19 +2903,19 @@ switch( EVAL_2_BYTES( data_type[0], data_type[1] ) ) {
    case EVAL_2_BYTES( 'I', '8' ):
    case EVAL_2_BYTES( 'U', '8' ):
       for( i=0; i<(int) delta_to_bytes; i++ )
-         to_data[delta_to_bytes-1-i] = from_data[8-delta_to_bytes+i] ;
+	 to_data[delta_to_bytes-1-i] = from_data[8-delta_to_bytes+i] ;
       break ;
 
    case EVAL_2_BYTES( 'R', '4' ):
       for( i=0; i<4; i++ )
-         to_data[i] = 0x00 ;
+	 to_data[i] = 0x00 ;
 
    /** Check for zero: a special case on the Cray (exponent sign) **/
       if( (from_data[0] == 0x00) && (from_data[1] == 0x00) &&
-          (from_data[2] == 0x00) && (from_data[3] == 0x00) &&
-          (from_data[4] == 0x00) && (from_data[5] == 0x00) &&
-          (from_data[6] == 0x00) && (from_data[7] == 0x00) )
-         break ;
+	  (from_data[2] == 0x00) && (from_data[3] == 0x00) &&
+	  (from_data[4] == 0x00) && (from_data[5] == 0x00) &&
+	  (from_data[6] == 0x00) && (from_data[7] == 0x00) )
+	 break ;
 
    /** Convert the sign **/
       to_data[3] = from_data[0] & 0x80 ;
@@ -2925,24 +2925,24 @@ switch( EVAL_2_BYTES( data_type[0], data_type[1] ) ) {
    /** Cray exponent is 2 greater than the Iris **/
       exp = from_data[1] + ((from_data[0]&0x3f)<<8) ;
       if( (from_data[0] & 0x40) == 0x00 ) /* set sign */
-         exp -= 16384 ;
+	 exp -= 16384 ;
       exp -= 2 ;
 
       if( exp >= 128 ) {
-          *error_return = NUMERIC_OVERFLOW ;
-          return ;
-        } /* end if */
+	  *error_return = NUMERIC_OVERFLOW ;
+	  return ;
+	} /* end if */
       else if ( exp < -128 ) {
-          for( i=0; i<4; i++ ) to_data[i] = 0x00 ; /* underflow set to 0 */
-          break;
-        } /* end else */
+	  for( i=0; i<4; i++ ) to_data[i] = 0x00 ; /* underflow set to 0 */
+	  break;
+	} /* end else */
 
       to_data[3] |= ((exp&0x7F) >> 1) ;
       if( (exp & 0x01) == 0x01 )	/* LSBit of the exponent */
-         to_data[2] |= 0x80 ;
+	 to_data[2] |= 0x80 ;
 
       if( exp >= 0 )	/* Set exponent sign */
-         to_data[3] |= 0x40 ;
+	 to_data[3] |= 0x40 ;
 
    /** Convert the mantissia **/
    /** 48 bits to 23 bits, skip the first '1' (2.fract) **/
@@ -2953,12 +2953,12 @@ switch( EVAL_2_BYTES( data_type[0], data_type[1] ) ) {
 
    case EVAL_2_BYTES( 'R', '8' ):
       for( i=0; i<8; i++ )
-         to_data[i] = 0x00 ;
+	 to_data[i] = 0x00 ;
 
    /** Check for zero: a special case on the Cray (exponent sign) **/
       if( (from_data[0] == 0x00) && (from_data[1] == 0x00) &&
-          (from_data[2] == 0x00) && (from_data[3] == 0x00) )
-         break ;
+	  (from_data[2] == 0x00) && (from_data[3] == 0x00) )
+	 break ;
 
    /** Convert the sign **/
       to_data[7] = from_data[0] & 0x80 ;
@@ -2967,32 +2967,32 @@ switch( EVAL_2_BYTES( data_type[0], data_type[1] ) ) {
    /** 14 bits to  11 bits **/
    /** Cray exponent is 2 greater than the Iris **/
        exp = from_data[1] + ((from_data[0]&0x3f)<<8) ;
-         /* set sign if exponent is non-zero */
+	 /* set sign if exponent is non-zero */
        if( (exp != 0) && ((from_data[0] & 0x40) == 0x00) )
-          exp -= 16384 ;
+	  exp -= 16384 ;
        exp -= 2 ;
 
        if( exp >= 1024 ) {
-           *error_return = NUMERIC_OVERFLOW ;
-           return ;
-         } /* end if */
+	   *error_return = NUMERIC_OVERFLOW ;
+	   return ;
+	 } /* end if */
        else if ( exp < -1024 ) {
-           for( i=0; i<4; i++ ) to_data[i] = 0x00 ; /* underflow set to 0 */
-           break;
-         } /* end else */
+	   for( i=0; i<4; i++ ) to_data[i] = 0x00 ; /* underflow set to 0 */
+	   break;
+	 } /* end else */
 
        to_data[7] |= ((exp & 0x03F0) >> 4) ;
        to_data[6] |= ((exp & 0x000F) << 4) ;
 
-       if( exp >= 0 )   /* Set exponent sign */
-          to_data[7] |= 0x40 ;
+       if( exp >= 0 )	/* Set exponent sign */
+	  to_data[7] |= 0x40 ;
 
    /** Convert the mantissia **/
    /** 48 bits to 52 bits, skip the first '1' (2.fract) **/
        to_data[6] |= ((from_data[2] & 0x78) >> 3) ;
        for( i=2; i<7; i++ )
-          to_data[7-i] = ((from_data[i] & 0x07) << 5) |
-                         ((from_data[i+1] & 0xf8) >> 3) ;
+	  to_data[7-i] = ((from_data[i] & 0x07) << 5) |
+			 ((from_data[i+1] & 0xf8) >> 3) ;
        to_data[0] = ((from_data[7] & 0x07) << 5) ;
 
 #ifdef PRINT_STUFF
@@ -3011,13 +3011,13 @@ printf("\n" ) ;
 	 to_format, to_os_size, "R4", delta_from_bytes,
 	 delta_to_bytes, from_data, to_data, error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
 
       ADFI_cray_to_little_endian( from_format, from_os_size,
 	 to_format, to_os_size, "R4", delta_from_bytes,
 	 delta_to_bytes, &from_data[8], &to_data[4], error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
       break ;
 
    case EVAL_2_BYTES( 'X', '8' ):
@@ -3025,13 +3025,13 @@ printf("\n" ) ;
 	 to_format, to_os_size, "R8", delta_from_bytes,
 	 delta_to_bytes, from_data, to_data, error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
 
       ADFI_cray_to_little_endian( from_format, from_os_size,
 	 to_format, to_os_size, "R8", delta_from_bytes,
 	 delta_to_bytes, &from_data[8], &to_data[8], error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
       break ;
 
    default:
@@ -3047,17 +3047,17 @@ ADFI delete data:
 
 Deletes all data from the file for a node.
 
-input:  const int  file_index      The file index.
-input:  const struct NODE_HEADER   Node header information.
-output: int *error_return          Error return.
+input:	const int  file_index	   The file index.
+input:	const struct NODE_HEADER   Node header information.
+output: int *error_return	   Error return.
 ***********************************************************************/
-void    ADFI_delete_data(
-        const int file_index,
-        const struct NODE_HEADER  *node_header,
-        int *error_return )
+void	ADFI_delete_data(
+	const int file_index,
+	const struct NODE_HEADER  *node_header,
+	int *error_return )
 {
-struct  DATA_CHUNK_TABLE_ENTRY	*data_chunk_table ;
-int     i ;
+struct	DATA_CHUNK_TABLE_ENTRY	*data_chunk_table ;
+int	i ;
 
 *error_return = NO_ERROR ;
 
@@ -3082,8 +3082,8 @@ case 1 : /** A single data-chunk to free, so free it **/
    break ;
 
 default : /** Multiple data-chunks to free.  Free them,
-              and also the data_chunk table **/
-          /** Allocate memory for the required table space in memory **/
+	      and also the data_chunk table **/
+	  /** Allocate memory for the required table space in memory **/
    data_chunk_table = (struct  DATA_CHUNK_TABLE_ENTRY *)
        malloc( node_header->number_of_data_chunks * sizeof( *data_chunk_table ) ) ;
    if( data_chunk_table == NULL ) {
@@ -3093,16 +3093,16 @@ default : /** Multiple data-chunks to free.  Free them,
 
     /** Read in the table **/
    ADFI_read_data_chunk_table( file_index, &node_header->data_chunks,
-                               data_chunk_table, error_return ) ;
+			       data_chunk_table, error_return ) ;
    if( *error_return != NO_ERROR )
       return ;
 
     /** Free each entry in the table **/
    for( i=0; i<(int)node_header->number_of_data_chunks; i++ ) {
       ADFI_file_free( file_index, &data_chunk_table[i].start,
-                      0, error_return ) ;
+		      0, error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
       } /* end for */
    free( data_chunk_table ) ;
    ADFI_file_free( file_index, &node_header->data_chunks, 0, error_return ) ;
@@ -3122,17 +3122,17 @@ ADFI_stack_control(file_index, 0, 0, CLEAR_STK_TYPE, DISK_PTR_STK,
 ADFI delete from sub node table:
 	Delete a child from a parent's sub-node table.
 
-input:  const int file_index	Index of ADF file.
-input:  const struct DISK_POINTER *parent Location of the parent
-input:  const struct DISK_POINTER *child Location of the child.
-output:	int *error_return		Error return.
+input:	const int file_index	Index of ADF file.
+input:	const struct DISK_POINTER *parent Location of the parent
+input:	const struct DISK_POINTER *child Location of the child.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
 NULL_POINTER
 ADF_FILE_NOT_OPENED
 ***********************************************************************/
-void    ADFI_delete_from_sub_node_table(
+void	ADFI_delete_from_sub_node_table(
 		const int file_index,
 		const struct DISK_POINTER *parent,
 		const struct DISK_POINTER *child,
@@ -3160,21 +3160,21 @@ if( *error_return != NO_ERROR )
    return ;
 
 sub_node_table = (struct SUB_NODE_TABLE_ENTRY *)
-                  malloc( parent_node.entries_for_sub_nodes *
-                          sizeof( struct SUB_NODE_TABLE_ENTRY ) ) ;
+		  malloc( parent_node.entries_for_sub_nodes *
+			  sizeof( struct SUB_NODE_TABLE_ENTRY ) ) ;
 if( sub_node_table == NULL ) {
    *error_return = MEMORY_ALLOCATION_FAILED ;
    return ;
    } /* end if */
 
 ADFI_read_sub_node_table( file_index, &parent_node.sub_node_table,
-                          sub_node_table, error_return ) ;
+			  sub_node_table, error_return ) ;
 if( *error_return != NO_ERROR )
    return ;
 
     /** Find the child in the parent's sub-node table **/
 for( i=0, found = -1 ; i<(int)parent_node.num_sub_nodes ; i++ ) {
-   if( child->block  == sub_node_table[i].child_location.block  &&
+   if( child->block  == sub_node_table[i].child_location.block	&&
        child->offset == sub_node_table[i].child_location.offset ) {
       found = i ;
       break ;
@@ -3189,24 +3189,24 @@ if( found == -1 ) {
     /** Move the rest of the table up to fill the hole **/
 for( i=found ; i<(int) (parent_node.num_sub_nodes-1) ; i++ ) {
    sub_node_table[i].child_location.block =
-                                sub_node_table[i+1].child_location.block ;
+				sub_node_table[i+1].child_location.block ;
    sub_node_table[i].child_location.offset =
-                                sub_node_table[i+1].child_location.offset ;
+				sub_node_table[i+1].child_location.offset ;
    strncpy ( sub_node_table[i].child_name, sub_node_table[i+1].child_name,
-             ADF_NAME_LENGTH ) ;
+	     ADF_NAME_LENGTH ) ;
    } /* end for */
 
 i = parent_node.num_sub_nodes - 1 ;
 sub_node_table[i].child_location.block = 0 ;
 sub_node_table[i].child_location.offset = 0 ;
 strncpy ( sub_node_table[i].child_name,
-          "unused entry in sub-node-table     ", ADF_NAME_LENGTH ) ;
+	  "unused entry in sub-node-table     ", ADF_NAME_LENGTH ) ;
 
     /** Re-write the parent's sub-node table **/
 
 ADFI_write_sub_node_table( file_index, &parent_node.sub_node_table,
-                           parent_node.entries_for_sub_nodes,
-                           sub_node_table, error_return ) ;
+			   parent_node.entries_for_sub_nodes,
+			   sub_node_table, error_return ) ;
 if( *error_return != NO_ERROR )
    return ;
 
@@ -3231,13 +3231,13 @@ free(sub_node_table);
 ADFI delete sub node table:
     Deletes a sub-node table from the file.
 
-input:  const int file_index                      Index of ADF file.
-input:  const struct DISK_POINTER  *block_offset  The block & offset of
-                                                  the sub node table.
-input:  const unsigned int size_sub_node_table    Current size of the sub
-                  node table (usually node_header.entries_for_sub_nodes).
-                  If zero, then no action performed.
-output:	int *error_return                         Error return.
+input:	const int file_index			  Index of ADF file.
+input:	const struct DISK_POINTER  *block_offset  The block & offset of
+						  the sub node table.
+input:	const unsigned int size_sub_node_table	  Current size of the sub
+		  node table (usually node_header.entries_for_sub_nodes).
+		  If zero, then no action performed.
+output: int *error_return			  Error return.
 
    Possible errors:
 NO_ERROR
@@ -3247,11 +3247,11 @@ FREE_OF_ROOT_NODE
 ADF_DISK_TAG_ERROR
 FREE_OF_FREE_CHUNK_TABLE
 ***********************************************************************/
-void    ADFI_delete_sub_node_table(
-        const int  file_index,
-        const struct DISK_POINTER  *block_offset,
-        const unsigned int  size_sub_node_table,
-        int *error_return )
+void	ADFI_delete_sub_node_table(
+	const int  file_index,
+	const struct DISK_POINTER  *block_offset,
+	const unsigned int  size_sub_node_table,
+	int *error_return )
 {
 unsigned int  num_bytes ;
 
@@ -3292,7 +3292,7 @@ ADFI_stack_control(file_index, 0, 0, CLEAR_STK_TYPE, DISK_PTR_STK,
 ADFI disk pointer to ASCII Hex:
 	Convert a disk pointer into an ASCII-Hex representation (for disk).
 
-input:  const struct DISK_POINTER *block_offset	Disk-pointer struct.
+input:	const struct DISK_POINTER *block_offset Disk-pointer struct.
 output: char block[8]		ASCII block number.
 output: char offset[4]		ASCII offset number.
 output: int *error_return		Error return.
@@ -3302,7 +3302,7 @@ NO_ERROR
 NULL_POINTER
 NULL_STRING_POINTER
 ***********************************************************************/
-void    ADFI_disk_pointer_2_ASCII_Hex(
+void	ADFI_disk_pointer_2_ASCII_Hex(
 		const struct DISK_POINTER *block_offset,
 		char block[8],
 		char offset[4],
@@ -3339,8 +3339,8 @@ if( *error_return != NO_ERROR )
 ADFI disk pointer from ASCII Hex:
 	Convert an ASCII-Hex representation into a disk-pointer (for memory).
 
-input:  const char block[8]		ASCII block number.
-input:  const char offset[4]		ASCII offset number.
+input:	const char block[8]		ASCII block number.
+input:	const char offset[4]		ASCII offset number.
 output: struct DISK_POINTER *block_offset	Disk-pointer struct.
 output: int *error_return		Error return.
 
@@ -3349,7 +3349,7 @@ NO_ERROR
 NULL_POINTER
 NULL_STRING_POINTER
 ***********************************************************************/
-void    ADFI_disk_pointer_from_ASCII_Hex(
+void	ADFI_disk_pointer_from_ASCII_Hex(
 		const char block[8],
 		const char offset[4],
 		struct DISK_POINTER *block_offset,
@@ -3388,8 +3388,8 @@ block_offset->offset = tmp ;
 /***********************************************************************
 ADFI evaluate datatype:
 
-input:  const int file_index	The file index (0 to MAXIMUM_FILES).
-input:  const char *data_type.	Data-type string.
+input:	const int file_index	The file index (0 to MAXIMUM_FILES).
+input:	const char *data_type.	Data-type string.
 output: int *file_bytes.	Number of bytes used by the data type.
 output: int *machine_ bytes.	Number of bytes used by the data type.
 output: struct TOKENIZED_DATA_TYPE *tokenized_data_type Array.
@@ -3399,17 +3399,17 @@ output: int error_return.	Error return.
 
   Recognized data types:
 	Type				Notation
-	No data				MT
+	No data 			MT
 	Integer 32			I4
 	Integer 64			I8
 	Unsigned 32			U4
 	Unsigned 64			U8
-	Real 32				R4
-	Real 64				R8
+	Real 32 			R4
+	Real 64 			R8
 	Complex 64			X4
 	Complex 128			X8
 	Character (unsigned byte)	C1
-	Link (same as C1)       	LK
+	Link (same as C1)		LK
 	Byte (unsigned byte)		B1
    A structure is represented as the string "I4,I4,R8".
    An array of 25 integers is "I4[25]".
@@ -3488,11 +3488,11 @@ while( data_type_string[ str_position ] != '\0' ) {
    switch( EVAL_2_BYTES( data_type_string[str_position],
 			 data_type_string[str_position+1])) {
       case EVAL_2_BYTES( 'M', 'T' ) :
-         tokenized_data_type[ current_token ].type[0] = 'M' ;
-         tokenized_data_type[ current_token ].type[1] = 'T' ;
+	 tokenized_data_type[ current_token ].type[0] = 'M' ;
+	 tokenized_data_type[ current_token ].type[1] = 'T' ;
 	 if( (str_position == 0) && (data_type_string[ 2 ] == '\0') )
 	    return ;
-	 else {	/* ERROR, cannot have 'MT' with any other definition */
+	 else { /* ERROR, cannot have 'MT' with any other definition */
 	    *error_return = INVALID_DATA_TYPE ;
 	    return ;
 	    } /* end else */
@@ -3500,8 +3500,8 @@ while( data_type_string[ str_position ] != '\0' ) {
       case EVAL_2_BYTES( 'I', '4' ) :
 	 size_file = file_header.sizeof_int ;
 	 size_machine = sizeof( int ) ;
-         tokenized_data_type[ current_token ].type[0] = 'I' ;
-         tokenized_data_type[ current_token ].type[1] = '4' ;
+	 tokenized_data_type[ current_token ].type[0] = 'I' ;
+	 tokenized_data_type[ current_token ].type[1] = '4' ;
 	 break ;
 
       case EVAL_2_BYTES( 'I', '8' ) :
@@ -3510,71 +3510,71 @@ while( data_type_string[ str_position ] != '\0' ) {
 
 /*<<<wro>>>*/
       /* size_machine = sizeof( long ) ; */
-         size_machine = sizeof( long long ) ;
+	 size_machine = sizeof( long long ) ;
 
 
-         tokenized_data_type[ current_token ].type[0] = 'I' ;
-         tokenized_data_type[ current_token ].type[1] = '8' ;
+	 tokenized_data_type[ current_token ].type[0] = 'I' ;
+	 tokenized_data_type[ current_token ].type[1] = '8' ;
 	 break ;
 
       case EVAL_2_BYTES( 'U', '4' ) :
 	 size_file = file_header.sizeof_int ;
 	 size_machine = sizeof( int ) ;
-         tokenized_data_type[ current_token ].type[0] = 'U' ;
-         tokenized_data_type[ current_token ].type[1] = '4' ;
+	 tokenized_data_type[ current_token ].type[0] = 'U' ;
+	 tokenized_data_type[ current_token ].type[1] = '4' ;
 	 break ;
 
       case EVAL_2_BYTES( 'U', '8' ) :
 	 size_file = file_header.sizeof_long ;
 	 size_machine = sizeof( long ) ;
-         tokenized_data_type[ current_token ].type[0] = 'U' ;
-         tokenized_data_type[ current_token ].type[1] = '8' ;
+	 tokenized_data_type[ current_token ].type[0] = 'U' ;
+	 tokenized_data_type[ current_token ].type[1] = '8' ;
 	 break ;
 
       case EVAL_2_BYTES( 'R', '4' ) :
 	 size_file = file_header.sizeof_float ;
 	 size_machine = sizeof( float ) ;
-         tokenized_data_type[ current_token ].type[0] = 'R' ;
-         tokenized_data_type[ current_token ].type[1] = '4' ;
+	 tokenized_data_type[ current_token ].type[0] = 'R' ;
+	 tokenized_data_type[ current_token ].type[1] = '4' ;
 	 break ;
 
       case EVAL_2_BYTES( 'R', '8' ) :
 	 size_file = file_header.sizeof_double ;
 	 size_machine = sizeof( double ) ;
-         tokenized_data_type[ current_token ].type[0] = 'R' ;
-         tokenized_data_type[ current_token ].type[1] = '8' ;
+	 tokenized_data_type[ current_token ].type[0] = 'R' ;
+	 tokenized_data_type[ current_token ].type[1] = '8' ;
 	 break ;
 
       case EVAL_2_BYTES( 'X', '4' ) :
 	 size_file = 2 * file_header.sizeof_float ;
 	 size_machine = 2 * sizeof( float ) ;
-         tokenized_data_type[ current_token ].type[0] = 'X' ;
-         tokenized_data_type[ current_token ].type[1] = '4' ;
+	 tokenized_data_type[ current_token ].type[0] = 'X' ;
+	 tokenized_data_type[ current_token ].type[1] = '4' ;
 	 break ;
 
       case EVAL_2_BYTES( 'X', '8' ) :
 	 size_file = 2 * file_header.sizeof_double ;
 	 size_machine = 2 * sizeof( double ) ;
-         tokenized_data_type[ current_token ].type[0] = 'X' ;
-         tokenized_data_type[ current_token ].type[1] = '8' ;
+	 tokenized_data_type[ current_token ].type[0] = 'X' ;
+	 tokenized_data_type[ current_token ].type[1] = '8' ;
 	 break ;
 
       case EVAL_2_BYTES( 'B', '1' ) :
 	 size_file = 1 ;
 	 size_machine = 1 ;
-         tokenized_data_type[ current_token ].type[0] = 'B' ;
-         tokenized_data_type[ current_token ].type[1] = '1' ;
+	 tokenized_data_type[ current_token ].type[0] = 'B' ;
+	 tokenized_data_type[ current_token ].type[1] = '1' ;
 	 break ;
 
       case EVAL_2_BYTES( 'C', '1' ) :
       case EVAL_2_BYTES( 'L', 'K' ) :
 	 size_file = file_header.sizeof_char ;
 	 size_machine = sizeof( char ) ;
-         tokenized_data_type[ current_token ].type[0] = 'C' ;
-         tokenized_data_type[ current_token ].type[1] = '1' ;
+	 tokenized_data_type[ current_token ].type[0] = 'C' ;
+	 tokenized_data_type[ current_token ].type[1] = '1' ;
 	 break ;
 
-      default :	/** Error condition **/
+      default : /** Error condition **/
 	 *error_return = INVALID_DATA_TYPE ;
 	 return ;
       } /* end switch */
@@ -3588,7 +3588,7 @@ while( data_type_string[ str_position ] != '\0' ) {
       case '\0' :
 	 *file_bytes = *file_bytes + size_file ;
 	 *machine_bytes = *machine_bytes + size_machine ;
-         tokenized_data_type[ current_token++ ].length = 1 ;
+	 tokenized_data_type[ current_token++ ].length = 1 ;
 	 break ;
 
       case '[' :
@@ -3612,7 +3612,7 @@ while( data_type_string[ str_position ] != '\0' ) {
 	    } /* end if */
 	 *file_bytes = *file_bytes + size_file * array_size ;
 	 *machine_bytes = *machine_bytes + size_machine * array_size ;
-         tokenized_data_type[ current_token++ ].length = array_size ;
+	 tokenized_data_type[ current_token++ ].length = array_size ;
 	 }
 	 break ;
 
@@ -3622,7 +3622,7 @@ while( data_type_string[ str_position ] != '\0' ) {
 	 *machine_bytes = *machine_bytes + size_machine ;
 	 break ;
 
-      default :	/** Error condition **/
+      default : /** Error condition **/
 	 *error_return = INVALID_DATA_TYPE ;
 	 return ;
       } /* end switch */
@@ -3638,17 +3638,17 @@ tokenized_data_type[ current_token ].machine_type_size = *machine_bytes ;
 ADFI fflush file:
     To flush the file output stream.
 
-input:  const unsigned int file_index   File to use.
-output: int *error_return               Error return.
+input:	const unsigned int file_index	File to use.
+output: int *error_return		Error return.
 
     Possible errors:
 NO_ERROR
 ADF_FILE_NOT_OPENED
 FFLUSH_ERROR
 ***********************************************************************/
-void    ADFI_fflush_file(
-        const unsigned int file_index,
-        int *error_return )
+void	ADFI_fflush_file(
+	const unsigned int file_index,
+	int *error_return )
 {
 
 
@@ -3677,11 +3677,11 @@ ADFI figure machine format:
 	look at the requested format.  If NATIVE, use this machines
 	format, otherwise use the requested format.
 
-input:  const char *format		IEEE_BIG, IEEE_LITTLE, CRAY, or NATIVE.
+input:	const char *format		IEEE_BIG, IEEE_LITTLE, CRAY, or NATIVE.
 output: const char *machine_format	'B', 'L', 'C', 'N'
 output: const char *format_to_use	'B', 'L', 'C', 'N'
-output: const char *os_to_use    	'B', 'L'
-output:	int *error_return		Error return.
+output: const char *os_to_use		'B', 'L'
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
@@ -3690,57 +3690,57 @@ NULL_STRING_POINTER
 
 static unsigned char	bits[NUMBER_KNOWN_MACHINES][8][8] = {
        /* IEEE BIG 32 */
- /* u.i =  123456789:   */	{ { 0x07, 0x5B, 0xCD, 0x15, 0x00, 0x00, 0x00, 0x00 },
- /* u.i = -123456789:   */	  { 0xF8, 0xA4, 0x32, 0xEB, 0x00, 0x00, 0x00, 0x00 },
+ /* u.i =  123456789:	*/	{ { 0x07, 0x5B, 0xCD, 0x15, 0x00, 0x00, 0x00, 0x00 },
+ /* u.i = -123456789:	*/	  { 0xF8, 0xA4, 0x32, 0xEB, 0x00, 0x00, 0x00, 0x00 },
  /* u.l =  1234567890L: */	  { 0x49, 0x96, 0x02, 0xD2, 0x00, 0x00, 0x00, 0x00 },
  /* u.l = -1234567890L: */	  { 0xB6, 0x69, 0xFD, 0x2E, 0x00, 0x00, 0x00, 0x00 },
- /* u.f =  12345.6789:  */	  { 0x46, 0x40, 0xE6, 0xB7, 0x00, 0x00, 0x00, 0x00 },
- /* u.f = -12345.6789:  */	  { 0xC6, 0x40, 0xE6, 0xB7, 0x00, 0x00, 0x00, 0x00 },
- /* u.d =  12345.6789:  */	  { 0x40, 0xC8, 0x1C, 0xD6, 0xE6, 0x31, 0xF8, 0xA1 },
- /* u.d = -12345.6789:  */	  { 0xC0, 0xC8, 0x1C, 0xD6, 0xE6, 0x31, 0xF8, 0xA1 } },
+ /* u.f =  12345.6789:	*/	  { 0x46, 0x40, 0xE6, 0xB7, 0x00, 0x00, 0x00, 0x00 },
+ /* u.f = -12345.6789:	*/	  { 0xC6, 0x40, 0xE6, 0xB7, 0x00, 0x00, 0x00, 0x00 },
+ /* u.d =  12345.6789:	*/	  { 0x40, 0xC8, 0x1C, 0xD6, 0xE6, 0x31, 0xF8, 0xA1 },
+ /* u.d = -12345.6789:	*/	  { 0xC0, 0xC8, 0x1C, 0xD6, 0xE6, 0x31, 0xF8, 0xA1 } },
 
        /* IEEE LITTLE 32 */
- /* u.i =  123456789:   */	{ { 0x15, 0xCD, 0x5B, 0x07, 0x00, 0x00, 0x00, 0x00 },
- /* u.i = -123456789:   */	  { 0xEB, 0x32, 0xA4, 0xF8, 0x00, 0x00, 0x00, 0x00 },
+ /* u.i =  123456789:	*/	{ { 0x15, 0xCD, 0x5B, 0x07, 0x00, 0x00, 0x00, 0x00 },
+ /* u.i = -123456789:	*/	  { 0xEB, 0x32, 0xA4, 0xF8, 0x00, 0x00, 0x00, 0x00 },
  /* u.l =  1234567890L: */	  { 0xD2, 0x02, 0x96, 0x49, 0x00, 0x00, 0x00, 0x00 },
  /* u.l = -1234567890L: */	  { 0x2E, 0xFD, 0x69, 0xB6, 0x00, 0x00, 0x00, 0x00 },
- /* u.f =  12345.6789:  */	  { 0xB7, 0xE6, 0x40, 0x46, 0x00, 0x00, 0x00, 0x00 },
- /* u.f = -12345.6789:  */	  { 0xB7, 0xE6, 0x40, 0xC6, 0x00, 0x00, 0x00, 0x00 },
- /* u.d =  12345.6789:  */	  { 0xA1, 0xF8, 0x31, 0xE6, 0xD6, 0x1C, 0xC8, 0x40 },
- /* u.d = -12345.6789:  */	  { 0xA1, 0xF8, 0x31, 0xE6, 0xD6, 0x1C, 0xC8, 0xC0 } },
+ /* u.f =  12345.6789:	*/	  { 0xB7, 0xE6, 0x40, 0x46, 0x00, 0x00, 0x00, 0x00 },
+ /* u.f = -12345.6789:	*/	  { 0xB7, 0xE6, 0x40, 0xC6, 0x00, 0x00, 0x00, 0x00 },
+ /* u.d =  12345.6789:	*/	  { 0xA1, 0xF8, 0x31, 0xE6, 0xD6, 0x1C, 0xC8, 0x40 },
+ /* u.d = -12345.6789:	*/	  { 0xA1, 0xF8, 0x31, 0xE6, 0xD6, 0x1C, 0xC8, 0xC0 } },
 
        /* IEEE BIG 64 */
- /* u.i =  123456789:   */	{ { 0x07, 0x5B, 0xCD, 0x15, 0x00, 0x00, 0x00, 0x00 },
- /* u.i = -123456789:   */	  { 0xF8, 0xA4, 0x32, 0xEB, 0x00, 0x00, 0x00, 0x00 },
+ /* u.i =  123456789:	*/	{ { 0x07, 0x5B, 0xCD, 0x15, 0x00, 0x00, 0x00, 0x00 },
+ /* u.i = -123456789:	*/	  { 0xF8, 0xA4, 0x32, 0xEB, 0x00, 0x00, 0x00, 0x00 },
  /* u.l =  1234567890L: */	  { 0x00, 0x00, 0x00, 0x00, 0x49, 0x96, 0x02, 0xD2 },
  /* u.l = -1234567890L: */	  { 0xFF, 0xFF, 0xFF, 0xFF, 0xB6, 0x69, 0xFD, 0x2E },
- /* u.f =  12345.6789:  */	  { 0x46, 0x40, 0xE6, 0xB7, 0x00, 0x00, 0x00, 0x00 },
- /* u.f = -12345.6789:  */	  { 0xC6, 0x40, 0xE6, 0xB7, 0x00, 0x00, 0x00, 0x00 },
- /* u.d =  12345.6789:  */	  { 0x40, 0xC8, 0x1C, 0xD6, 0xE6, 0x31, 0xF8, 0xA1 },
- /* u.d = -12345.6789:  */	  { 0xC0, 0xC8, 0x1C, 0xD6, 0xE6, 0x31, 0xF8, 0xA1 } },
+ /* u.f =  12345.6789:	*/	  { 0x46, 0x40, 0xE6, 0xB7, 0x00, 0x00, 0x00, 0x00 },
+ /* u.f = -12345.6789:	*/	  { 0xC6, 0x40, 0xE6, 0xB7, 0x00, 0x00, 0x00, 0x00 },
+ /* u.d =  12345.6789:	*/	  { 0x40, 0xC8, 0x1C, 0xD6, 0xE6, 0x31, 0xF8, 0xA1 },
+ /* u.d = -12345.6789:	*/	  { 0xC0, 0xC8, 0x1C, 0xD6, 0xE6, 0x31, 0xF8, 0xA1 } },
 
        /* IEEE LITTLE 64 */
- /* u.i =  123456789:   */	{ { 0x15, 0xCD, 0x5B, 0x07, 0x00, 0x00, 0x00, 0x00 },
- /* u.i = -123456789:   */	  { 0xEB, 0x32, 0xA4, 0xF8, 0x00, 0x00, 0x00, 0x00 },
+ /* u.i =  123456789:	*/	{ { 0x15, 0xCD, 0x5B, 0x07, 0x00, 0x00, 0x00, 0x00 },
+ /* u.i = -123456789:	*/	  { 0xEB, 0x32, 0xA4, 0xF8, 0x00, 0x00, 0x00, 0x00 },
  /* u.l =  1234567890L: */	  { 0xD2, 0x02, 0x96, 0x49, 0x00, 0x00, 0x00, 0x00 },
  /* u.l = -1234567890L: */	  { 0x2E, 0xFD, 0x69, 0xB6, 0xFF, 0xFF, 0xFF, 0xFF },
- /* u.f =  12345.6789:  */	  { 0xB7, 0xE6, 0x40, 0x46, 0x00, 0x00, 0x00, 0x00 },
- /* u.f = -12345.6789:  */	  { 0xB7, 0xE6, 0x40, 0xC6, 0x00, 0x00, 0x00, 0x00 },
- /* u.d =  12345.6789:  */	  { 0xA1, 0xF8, 0x31, 0xE6, 0xD6, 0x1C, 0xC8, 0x40 },
- /* u.d = -12345.6789:  */	  { 0xA1, 0xF8, 0x31, 0xE6, 0xD6, 0x1C, 0xC8, 0xC0 } },
+ /* u.f =  12345.6789:	*/	  { 0xB7, 0xE6, 0x40, 0x46, 0x00, 0x00, 0x00, 0x00 },
+ /* u.f = -12345.6789:	*/	  { 0xB7, 0xE6, 0x40, 0xC6, 0x00, 0x00, 0x00, 0x00 },
+ /* u.d =  12345.6789:	*/	  { 0xA1, 0xF8, 0x31, 0xE6, 0xD6, 0x1C, 0xC8, 0x40 },
+ /* u.d = -12345.6789:	*/	  { 0xA1, 0xF8, 0x31, 0xE6, 0xD6, 0x1C, 0xC8, 0xC0 } },
 
 	/* CRAY     */
- /* u.i =  123456789:   */	{ { 0x00, 0x00, 0x00, 0x00, 0x07, 0x5B, 0xCD, 0x15 },
- /* u.i = -123456789:   */	  { 0xFF, 0xFF, 0xFF, 0xFF, 0xF8, 0xA4, 0x32, 0xEB },
+ /* u.i =  123456789:	*/	{ { 0x00, 0x00, 0x00, 0x00, 0x07, 0x5B, 0xCD, 0x15 },
+ /* u.i = -123456789:	*/	  { 0xFF, 0xFF, 0xFF, 0xFF, 0xF8, 0xA4, 0x32, 0xEB },
  /* u.l =  1234567890L: */	  { 0x00, 0x00, 0x00, 0x00, 0x49, 0x96, 0x02, 0xD2 },
  /* u.l = -1234567890L: */	  { 0xFF, 0xFF, 0xFF, 0xFF, 0xB6, 0x69, 0xFD, 0x2E },
- /* u.f =  12345.6789:  */	  { 0x40, 0x0E, 0xC0, 0xE6, 0xB7, 0x31, 0x8F, 0xC5 },
- /* u.f = -12345.6789:  */	  { 0xC0, 0x0E, 0xC0, 0xE6, 0xB7, 0x31, 0x8F, 0xC5 },
- /* u.d =  12345.6789:  */	  { 0x40, 0x0E, 0xC0, 0xE6, 0xB7, 0x31, 0x8F, 0xC5 },
- /* u.d = -12345.6789:  */	  { 0xC0, 0x0E, 0xC0, 0xE6, 0xB7, 0x31, 0x8F, 0xC5 } }
+ /* u.f =  12345.6789:	*/	  { 0x40, 0x0E, 0xC0, 0xE6, 0xB7, 0x31, 0x8F, 0xC5 },
+ /* u.f = -12345.6789:	*/	  { 0xC0, 0x0E, 0xC0, 0xE6, 0xB7, 0x31, 0x8F, 0xC5 },
+ /* u.d =  12345.6789:	*/	  { 0x40, 0x0E, 0xC0, 0xE6, 0xB7, 0x31, 0x8F, 0xC5 },
+ /* u.d = -12345.6789:	*/	  { 0xC0, 0x0E, 0xC0, 0xE6, 0xB7, 0x31, 0x8F, 0xC5 } }
 	} ;
 
-void    ADFI_figure_machine_format(
+void	ADFI_figure_machine_format(
 		const char *format,
 		char *machine_format,
 		char *format_to_use,
@@ -3799,10 +3799,10 @@ else {
 
 	/***** Determine this machine's numeric format *****/
 	/** Check for numeric bit patterns **/
-#define	ZERO_UNION()						\
+#define ZERO_UNION()						\
 	for( k=0; k<8; k++ )					\
 	   u.bytes[k] = '\0' ;
-#define	CHECK_UNION(B)						\
+#define CHECK_UNION(B)						\
    if( (u.bytes[0] != B[0]) || (u.bytes[1] != B[1]) ||		\
        (u.bytes[2] != B[2]) || (u.bytes[3] != B[3]) ||		\
        (u.bytes[4] != B[4]) || (u.bytes[5] != B[5]) ||		\
@@ -3884,13 +3884,13 @@ if( OK == TRUE ) {
    if( sizeof( unsigned char )	!= machine_sizes[i][ 1] ) OK = FALSE ;
    if( sizeof( signed char )	!= machine_sizes[i][ 2] ) OK = FALSE ;
    if( sizeof( short )		!= machine_sizes[i][ 3] ) OK = FALSE ;
-   if( sizeof( unsigned short )	!= machine_sizes[i][ 4] ) OK = FALSE ;
+   if( sizeof( unsigned short ) != machine_sizes[i][ 4] ) OK = FALSE ;
    if( sizeof( int )		!= machine_sizes[i][ 5] ) OK = FALSE ;
    if( sizeof( unsigned int )	!= machine_sizes[i][ 6] ) OK = FALSE ;
    if( sizeof( long )		!= machine_sizes[i][ 7] ) OK = FALSE ;
    if( sizeof( unsigned long )	!= machine_sizes[i][ 8] ) OK = FALSE ;
    if( sizeof( float )		!= machine_sizes[i][ 9] ) OK = FALSE ;
-   if( sizeof( double )		!= machine_sizes[i][10] ) OK = FALSE ;
+   if( sizeof( double ) 	!= machine_sizes[i][10] ) OK = FALSE ;
    if( POINTER_SIZE( char ) != machine_sizes[i][11] ) OK = FALSE ;
    if( POINTER_SIZE( int )		!= machine_sizes[i][12] ) OK = FALSE ;
    if( POINTER_SIZE( long )		!= machine_sizes[i][13] ) OK = FALSE ;
@@ -3915,7 +3915,7 @@ if( requested_format == NATIVE_FORMAT_CHAR ) {
    } /* end if */
 else {
    *format_to_use = requested_format ;
-   *os_to_use     = requested_os ;
+   *os_to_use	  = requested_os ;
    } /* end if */
 
 if( *machine_format == NATIVE_FORMAT_CHAR )
@@ -3929,18 +3929,18 @@ if( *machine_format == NATIVE_FORMAT_CHAR )
 ADFI file and machine compare:
    Compares file and machine formats.
 
-input:  const int file_index      The file index (0 to MAXIMUM_FILES).
-output: int  *compare             1 = formats compare, 0 = do not
-output: int  *error_return        Error return
+input:	const int file_index	  The file index (0 to MAXIMUM_FILES).
+output: int  *compare		  1 = formats compare, 0 = do not
+output: int  *error_return	  Error return
 
    Possible errors:
 FILE_INDEX_OUT_OF_RANGE
 ***********************************************************************/
 void  ADFI_file_and_machine_compare(
-         const int file_index,
+	 const int file_index,
 	 const struct TOKENIZED_DATA_TYPE *tokenized_data_type,
-         int   *compare,
-         int   *error_return )
+	 int   *compare,
+	 int   *error_return )
 {
    int machine_size, file_size, token ;
    char wk_this_machine_os_size;
@@ -3958,24 +3958,24 @@ void  ADFI_file_and_machine_compare(
 	/** Get file_header for the file variable sizes **/
       ADFI_read_file_header( file_index, &file_header, error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
-        /** Make sure the sizes are the same or we are cooked!! **/
+	 return ;
+	/** Make sure the sizes are the same or we are cooked!! **/
       if ( ADF_file_format[file_index] !=  NATIVE_FORMAT_CHAR  ||
-           file_header.sizeof_char !=	  sizeof( char )    ||
-           file_header.sizeof_short !=	  sizeof( short )   ||
-           file_header.sizeof_int !=	  sizeof( int )     ||
-           file_header.sizeof_long !=	  sizeof( long )    ||
-           file_header.sizeof_float !=	  sizeof( float )   ||
-           file_header.sizeof_double !=   sizeof( double )  ||
-           file_header.sizeof_char_p !=   POINTER_SIZE( char )  ||
-           file_header.sizeof_short_p !=  POINTER_SIZE( short ) ||
-           file_header.sizeof_int_p !=	  POINTER_SIZE( int )   ||
-           file_header.sizeof_long_p !=   POINTER_SIZE( long )  ||
-           file_header.sizeof_float_p !=  POINTER_SIZE( float ) ||
-           file_header.sizeof_double_p != POINTER_SIZE( double )
+	   file_header.sizeof_char !=	  sizeof( char )    ||
+	   file_header.sizeof_short !=	  sizeof( short )   ||
+	   file_header.sizeof_int !=	  sizeof( int )     ||
+	   file_header.sizeof_long !=	  sizeof( long )    ||
+	   file_header.sizeof_float !=	  sizeof( float )   ||
+	   file_header.sizeof_double !=   sizeof( double )  ||
+	   file_header.sizeof_char_p !=   POINTER_SIZE( char )	||
+	   file_header.sizeof_short_p !=  POINTER_SIZE( short ) ||
+	   file_header.sizeof_int_p !=	  POINTER_SIZE( int )	||
+	   file_header.sizeof_long_p !=   POINTER_SIZE( long )	||
+	   file_header.sizeof_float_p !=  POINTER_SIZE( float ) ||
+	   file_header.sizeof_double_p != POINTER_SIZE( double )
 		   ) {
-         *error_return = MACHINE_FILE_INCOMPATABLE ;
-         return ;
+	 *error_return = MACHINE_FILE_INCOMPATABLE ;
+	 return ;
       } /** end if **/
    } /** end if **/
 
@@ -4016,11 +4016,11 @@ void  ADFI_file_and_machine_compare(
 ADFI file block and offset to ID:
 	Convert an ADF file, block, and offset to an ADF ID.
 
-input:  const int file_index		The file index (0 to MAXIMUM_FILES).
-input:  const unsigned long file_block	The block within the file.
-input:  const unsigned long block_offset The offset within the block.
+input:	const int file_index		The file index (0 to MAXIMUM_FILES).
+input:	const unsigned long file_block	The block within the file.
+input:	const unsigned long block_offset The offset within the block.
 output: double *ID			The resulting ADF ID.
-output:	int *error_return		Error return.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
@@ -4028,7 +4028,7 @@ NULL_POINTER
 FILE_INDEX_OUT_OF_RANGE
 BLOCK_OFFSET_OUT_OF_RANGE
 ***********************************************************************/
-void    ADFI_file_block_offset_2_ID(
+void	ADFI_file_block_offset_2_ID(
 		const int file_index,
 		const unsigned long file_block,
 		const unsigned long block_offset,
@@ -4118,11 +4118,11 @@ printf("In ADFI_file_block_offset_2_ID: ID=%lf\n",*ID);
 ADFI file free:
      To free-up a chunk of file space.
 
-input:  const int file_index		The file index (0 to MAXIMUM_FILES).
-input:  const struct DISK_POINTER *block_offset  Block & offset in the file.
-input:  const long number_of_bytes	Number of bytes to free.  If 0,
+input:	const int file_index		The file index (0 to MAXIMUM_FILES).
+input:	const struct DISK_POINTER *block_offset  Block & offset in the file.
+input:	const long number_of_bytes	Number of bytes to free.  If 0,
 					then look at type of chunk to get size.
-output:	int *error_return		Error return.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
@@ -4133,18 +4133,18 @@ ADF_DISK_TAG_ERROR
 FREE_OF_FREE_CHUNK_TABLE
 ***********************************************************************/
 void	ADFI_file_free(
-        const int file_index,
-        const struct DISK_POINTER *block_offset,
-        const long in_number_of_bytes,
-        int *error_return )
+	const int file_index,
+	const struct DISK_POINTER *block_offset,
+	const long in_number_of_bytes,
+	int *error_return )
 {
-char                        tag[TAG_SIZE + 1] ;
-struct	DISK_POINTER        end_of_chunk_tag ;
-struct  DISK_POINTER        tmp_blk_ofst ;
+char			    tag[TAG_SIZE + 1] ;
+struct	DISK_POINTER	    end_of_chunk_tag ;
+struct	DISK_POINTER	    tmp_blk_ofst ;
 struct	FREE_CHUNK_TABLE    free_chunk_table ;
-struct	FREE_CHUNK          free_chunk ;
-int     i ;
-long    number_of_bytes = in_number_of_bytes ;
+struct	FREE_CHUNK	    free_chunk ;
+int	i ;
+long	number_of_bytes = in_number_of_bytes ;
 
 if( block_offset == NULL ) {
    *error_return = NULL_POINTER ;
@@ -4171,28 +4171,28 @@ if( number_of_bytes == 0 ) {
    end_of_chunk_tag.offset = 0 ;
    if( ADFI_stridx_c( tag, node_start_tag ) == 0 ) {	/** This is a node **/
       if( (block_offset->block == ROOT_NODE_BLOCK) &&
-          (block_offset->offset == ROOT_NODE_OFFSET) ) {
-         *error_return = FREE_OF_ROOT_NODE ;
-         return ;
-         } /* end if */
+	  (block_offset->offset == ROOT_NODE_OFFSET) ) {
+	 *error_return = FREE_OF_ROOT_NODE ;
+	 return ;
+	 } /* end if */
       end_of_chunk_tag.block = block_offset->block ;
       end_of_chunk_tag.offset = block_offset->offset + NODE_HEADER_SIZE -
-	                        TAG_SIZE ;
+				TAG_SIZE ;
       if ( end_of_chunk_tag.offset > DISK_BLOCK_SIZE ) {
-         ADFI_adjust_disk_pointer( &end_of_chunk_tag, error_return ) ;
-         if( *error_return != NO_ERROR )
-            return ;
+	 ADFI_adjust_disk_pointer( &end_of_chunk_tag, error_return ) ;
+	 if( *error_return != NO_ERROR )
+	    return ;
       }
 
       /** Check disk boundary-tag **/
       ADFI_read_file( file_index, end_of_chunk_tag.block,
 	   end_of_chunk_tag.offset, TAG_SIZE, tag, error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
       if( ADFI_stridx_c( tag, node_end_tag ) != 0 ) {
-         *error_return = ADF_DISK_TAG_ERROR ;
-         return ;
-         } /* end if */
+	 *error_return = ADF_DISK_TAG_ERROR ;
+	 return ;
+	 } /* end if */
       } /* end if */
    else if( ADFI_stridx_c( tag, free_chunk_table_start_tag ) == 0 ) {
 	   /** Trying to free the free-chunk-table.  This is BAD. **/
@@ -4201,110 +4201,110 @@ if( number_of_bytes == 0 ) {
       } /* end else if */
    else if( ADFI_stridx_c( tag, free_chunk_start_tag ) == 0 ) {
 
-           /** Set a temporary block/offset to read disk pointer **/
+	   /** Set a temporary block/offset to read disk pointer **/
       tmp_blk_ofst.block = block_offset->block ;
       tmp_blk_ofst.offset = block_offset->offset + TAG_SIZE ;
       if ( tmp_blk_ofst.offset > DISK_BLOCK_SIZE ) {
-         ADFI_adjust_disk_pointer( &tmp_blk_ofst, error_return ) ;
-         if( *error_return != NO_ERROR )
-            return ;
+	 ADFI_adjust_disk_pointer( &tmp_blk_ofst, error_return ) ;
+	 if( *error_return != NO_ERROR )
+	    return ;
       }
 	   /** Get the end_of_chunk-tag block/offset from disk **/
       ADFI_read_disk_pointer_from_disk( file_index, tmp_blk_ofst.block,
-           tmp_blk_ofst.offset, &end_of_chunk_tag, error_return ) ;
+	   tmp_blk_ofst.offset, &end_of_chunk_tag, error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
 
-         /** Check disk boundary-tag **/
+	 /** Check disk boundary-tag **/
       ADFI_read_file( file_index, end_of_chunk_tag.block,
 	   end_of_chunk_tag.offset, TAG_SIZE, tag, error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
       if( ADFI_stridx_c( tag, free_chunk_end_tag ) != 0 ) {
-         *error_return = ADF_DISK_TAG_ERROR ;
-         return ;
-         } /* end if */
+	 *error_return = ADF_DISK_TAG_ERROR ;
+	 return ;
+	 } /* end if */
       } /* end else if */
    else if( ADFI_stridx_c( tag, sub_node_start_tag ) == 0 ) {
 
-           /** Set a temporary block/offset to read disk pointer **/
+	   /** Set a temporary block/offset to read disk pointer **/
       tmp_blk_ofst.block = block_offset->block ;
       tmp_blk_ofst.offset = block_offset->offset + TAG_SIZE ;
       if ( tmp_blk_ofst.offset > DISK_BLOCK_SIZE ) {
-         ADFI_adjust_disk_pointer( &tmp_blk_ofst, error_return ) ;
-         if( *error_return != NO_ERROR )
-            return ;
+	 ADFI_adjust_disk_pointer( &tmp_blk_ofst, error_return ) ;
+	 if( *error_return != NO_ERROR )
+	    return ;
       }
 
-         /** Get the end_of_chunk-tag block/offset from disk **/
+	 /** Get the end_of_chunk-tag block/offset from disk **/
       ADFI_read_disk_pointer_from_disk( file_index, tmp_blk_ofst.block,
-           tmp_blk_ofst.offset, &end_of_chunk_tag, error_return ) ;
+	   tmp_blk_ofst.offset, &end_of_chunk_tag, error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
 
-         /** Check disk boundary-tag **/
+	 /** Check disk boundary-tag **/
       ADFI_read_file( file_index, end_of_chunk_tag.block,
 	   end_of_chunk_tag.offset, TAG_SIZE, tag, error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
       if( ADFI_stridx_c( tag, sub_node_end_tag ) != 0 ) {
-         *error_return = ADF_DISK_TAG_ERROR ;
-         return ;
-         } /* end if */
+	 *error_return = ADF_DISK_TAG_ERROR ;
+	 return ;
+	 } /* end if */
       } /* end else if */
    else if( ADFI_stridx_c( tag, data_chunk_table_start_tag ) == 0 ) {
 
-           /** Set a temporary block/offset to read disk pointer **/
+	   /** Set a temporary block/offset to read disk pointer **/
       tmp_blk_ofst.block = block_offset->block ;
       tmp_blk_ofst.offset = block_offset->offset + TAG_SIZE ;
       if ( tmp_blk_ofst.offset > DISK_BLOCK_SIZE ) {
-         ADFI_adjust_disk_pointer( &tmp_blk_ofst, error_return ) ;
-         if( *error_return != NO_ERROR )
-            return ;
+	 ADFI_adjust_disk_pointer( &tmp_blk_ofst, error_return ) ;
+	 if( *error_return != NO_ERROR )
+	    return ;
       }
 
 	   /** Get the end_of_chunk-tag block/offset from disk **/
       ADFI_read_disk_pointer_from_disk( file_index, tmp_blk_ofst.block,
-           tmp_blk_ofst.offset, &end_of_chunk_tag, error_return ) ;
+	   tmp_blk_ofst.offset, &end_of_chunk_tag, error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
 
-         /** Check disk boundary-tag **/
+	 /** Check disk boundary-tag **/
       ADFI_read_file( file_index, end_of_chunk_tag.block,
 	   end_of_chunk_tag.offset, TAG_SIZE, tag, error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
       if( ADFI_stridx_c( tag, data_chunk_table_end_tag ) != 0 ) {
-         *error_return = ADF_DISK_TAG_ERROR ;
-         return ;
-         } /* end if */
+	 *error_return = ADF_DISK_TAG_ERROR ;
+	 return ;
+	 } /* end if */
       } /* end else if */
    else if( ADFI_stridx_c( tag, data_chunk_start_tag ) == 0 ) {
 
-           /** Set a temporary block/offset to read disk pointer **/
+	   /** Set a temporary block/offset to read disk pointer **/
       tmp_blk_ofst.block = block_offset->block ;
       tmp_blk_ofst.offset = block_offset->offset + TAG_SIZE ;
       if ( tmp_blk_ofst.offset > DISK_BLOCK_SIZE ) {
-         ADFI_adjust_disk_pointer( &tmp_blk_ofst, error_return ) ;
-         if( *error_return != NO_ERROR )
-            return ;
+	 ADFI_adjust_disk_pointer( &tmp_blk_ofst, error_return ) ;
+	 if( *error_return != NO_ERROR )
+	    return ;
       }
 
-           /** Get the end_of_chunk-tag block/offset from disk **/
+	   /** Get the end_of_chunk-tag block/offset from disk **/
       ADFI_read_disk_pointer_from_disk( file_index, tmp_blk_ofst.block,
-           tmp_blk_ofst.offset, &end_of_chunk_tag, error_return ) ;
+	   tmp_blk_ofst.offset, &end_of_chunk_tag, error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
 
-         /** Check disk boundary-tag **/
+	 /** Check disk boundary-tag **/
       ADFI_read_file( file_index, end_of_chunk_tag.block,
 	   end_of_chunk_tag.offset, TAG_SIZE, tag, error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
       if( ADFI_stridx_c( tag, data_chunk_end_tag ) != 0 ) {
-         *error_return = ADF_DISK_TAG_ERROR ;
-         return ;
-         } /* end if */
+	 *error_return = ADF_DISK_TAG_ERROR ;
+	 return ;
+	 } /* end if */
       } /* end else if */
    else {
       *error_return = ADF_DISK_TAG_ERROR ;
@@ -4326,14 +4326,14 @@ if( number_of_bytes <= SMALLEST_CHUNK_SIZE ) { /** Too small, z-gas **/
 	/** Initialize the block of 'Z's **/
    if( block_of_ZZ_initialized == FALSE ) {
       for( i=0; i<SMALLEST_CHUNK_SIZE; i++ )
-         block_of_ZZ[ i ] = 'z' ;
+	 block_of_ZZ[ i ] = 'z' ;
       block_of_ZZ_initialized = TRUE ;
       } /* end if */
 
       ADFI_write_file( file_index, block_offset->block, block_offset->offset,
 	number_of_bytes, block_of_ZZ, error_return ) ;
       if( *error_return != NO_ERROR )
-        return ;
+	return ;
    } /* end if */
 else {	/** Add this chunk to the free table **/
 	/** Get the free-chunk-table **/
@@ -4343,54 +4343,54 @@ else {	/** Add this chunk to the free table **/
 
    if( block_offset->block == end_of_chunk_tag.block ) { /* small or medium */
       if( (end_of_chunk_tag.offset + TAG_SIZE - block_offset->offset) <=
-		SMALL_CHUNK_MAXIMUM ) {	/** SMALL chunk **/
-         free_chunk.end_of_chunk_tag.block = end_of_chunk_tag.block ;
-         free_chunk.end_of_chunk_tag.offset = end_of_chunk_tag.offset ;
-         free_chunk.next_chunk.block = free_chunk_table.small_first_block.block;
-         free_chunk.next_chunk.offset =
+		SMALL_CHUNK_MAXIMUM ) { /** SMALL chunk **/
+	 free_chunk.end_of_chunk_tag.block = end_of_chunk_tag.block ;
+	 free_chunk.end_of_chunk_tag.offset = end_of_chunk_tag.offset ;
+	 free_chunk.next_chunk.block = free_chunk_table.small_first_block.block;
+	 free_chunk.next_chunk.offset =
 		free_chunk_table.small_first_block.offset ;
 
-         free_chunk_table.small_first_block.block = block_offset->block ;
-         free_chunk_table.small_first_block.offset = block_offset->offset ;
+	 free_chunk_table.small_first_block.block = block_offset->block ;
+	 free_chunk_table.small_first_block.offset = block_offset->offset ;
 
 	/** If linked-list was empty, also point to this as the last. **/
-         if( free_chunk.next_chunk.offset == BLANK_BLOCK_OFFSET ) {
-            free_chunk_table.small_last_block.block = block_offset->block ;
-            free_chunk_table.small_last_block.offset = block_offset->offset ;
+	 if( free_chunk.next_chunk.offset == BLANK_BLOCK_OFFSET ) {
+	    free_chunk_table.small_last_block.block = block_offset->block ;
+	    free_chunk_table.small_last_block.offset = block_offset->offset ;
 	    } /* end if */
-         } /* end if */
+	 } /* end if */
       else {				/** MEDIUM chunk **/
-         free_chunk.end_of_chunk_tag.block = end_of_chunk_tag.block ;
-         free_chunk.end_of_chunk_tag.offset = end_of_chunk_tag.offset ;
-         free_chunk.next_chunk.block =
+	 free_chunk.end_of_chunk_tag.block = end_of_chunk_tag.block ;
+	 free_chunk.end_of_chunk_tag.offset = end_of_chunk_tag.offset ;
+	 free_chunk.next_chunk.block =
 		free_chunk_table.medium_first_block.block ;
-         free_chunk.next_chunk.offset =
+	 free_chunk.next_chunk.offset =
 		free_chunk_table.medium_first_block.offset;
 
-         free_chunk_table.medium_first_block.block = block_offset->block ;
-         free_chunk_table.medium_first_block.offset = block_offset->offset ;
+	 free_chunk_table.medium_first_block.block = block_offset->block ;
+	 free_chunk_table.medium_first_block.offset = block_offset->offset ;
 
 	/** If linked-list was empty, also point to this as the last. **/
-         if( free_chunk.next_chunk.offset == BLANK_BLOCK_OFFSET ) {
-            free_chunk_table.medium_last_block.block = block_offset->block ;
-            free_chunk_table.medium_last_block.offset = block_offset->offset ;
+	 if( free_chunk.next_chunk.offset == BLANK_BLOCK_OFFSET ) {
+	    free_chunk_table.medium_last_block.block = block_offset->block ;
+	    free_chunk_table.medium_last_block.offset = block_offset->offset ;
 	    } /* end if */
-         } /* end else */
+	 } /* end else */
       } /* end if */
    else {					/** LARGE chunk **/
-         free_chunk.end_of_chunk_tag.block = end_of_chunk_tag.block ;
-         free_chunk.end_of_chunk_tag.offset = end_of_chunk_tag.offset ;
-         free_chunk.next_chunk.block = free_chunk_table.large_first_block.block;
-         free_chunk.next_chunk.offset =
+	 free_chunk.end_of_chunk_tag.block = end_of_chunk_tag.block ;
+	 free_chunk.end_of_chunk_tag.offset = end_of_chunk_tag.offset ;
+	 free_chunk.next_chunk.block = free_chunk_table.large_first_block.block;
+	 free_chunk.next_chunk.offset =
 		free_chunk_table.large_first_block.offset ;
 
-         free_chunk_table.large_first_block.block = block_offset->block ;
-         free_chunk_table.large_first_block.offset = block_offset->offset ;
+	 free_chunk_table.large_first_block.block = block_offset->block ;
+	 free_chunk_table.large_first_block.offset = block_offset->offset ;
 
 	/** If linked-list was empty, also point to this as the last. **/
-         if( free_chunk.next_chunk.offset == BLANK_BLOCK_OFFSET ) {
-            free_chunk_table.large_last_block.block = block_offset->block ;
-            free_chunk_table.large_last_block.offset = block_offset->offset ;
+	 if( free_chunk.next_chunk.offset == BLANK_BLOCK_OFFSET ) {
+	    free_chunk_table.large_last_block.block = block_offset->block ;
+	    free_chunk_table.large_last_block.offset = block_offset->offset ;
 	    } /* end if */
       } /* end else */
 
@@ -4408,9 +4408,9 @@ else {	/** Add this chunk to the free table **/
       return ;
    } /* end else */
 
-        /** Delete the block/offset off the stack **/
+	/** Delete the block/offset off the stack **/
    ADFI_stack_control(file_index, block_offset->block, block_offset->offset,
-	  	      DEL_STK_ENTRY, 0, 0, NULL ) ;
+		      DEL_STK_ENTRY, 0, 0, NULL ) ;
 
 } /* end of ADFI_file_free */
 /* end of file ADFI_file_free.c */
@@ -4419,10 +4419,10 @@ else {	/** Add this chunk to the free table **/
 ADFI file malloc:
 	To allocate a chunk of disk space.
 
-input:  const int file_index		The file index (0 to MAXIMUM_FILES).
-input:  size_bytes			The size in bytes to allocate.
+input:	const int file_index		The file index (0 to MAXIMUM_FILES).
+input:	size_bytes			The size in bytes to allocate.
 output: const struct DISK_POINTER *block_offset  Block & offset in the file.
-output:	int *error_return		Error return.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
@@ -4463,10 +4463,10 @@ if( *error_return != NO_ERROR )
 
 #if !PreferSpeed
 	/** Look for the needed space in the 3 free lists.
-            Note that all file control headers are smaller than
-            the SMALLEST_CHUNK_SIZE and so will be fit later into
-            a block at the end of the file.  This greatly improves
-            node creation efficiency. **/
+	    Note that all file control headers are smaller than
+	    the SMALLEST_CHUNK_SIZE and so will be fit later into
+	    a block at the end of the file.  This greatly improves
+	    node creation efficiency. **/
 for( i=0; i<3; i++ ) {
    if( memory_found == TRUE || size_bytes <= SMALLEST_CHUNK_SIZE )
       break ;
@@ -4497,10 +4497,10 @@ for( i=0; i<3; i++ ) {
       ADFI_read_free_chunk( file_index, &disk_pointer, &free_chunk,
 		error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
       size = (free_chunk.end_of_chunk_tag.block - disk_pointer.block) *
-	  	DISK_BLOCK_SIZE +
-             (free_chunk.end_of_chunk_tag.offset - disk_pointer.offset) +
+		DISK_BLOCK_SIZE +
+	     (free_chunk.end_of_chunk_tag.offset - disk_pointer.offset) +
 		TAG_SIZE ;
       if( (long int) size >= size_bytes ) {
 	 *block_offset = disk_pointer ;
@@ -4510,15 +4510,15 @@ for( i=0; i<3; i++ ) {
 		/** Link previous free-chunk to the next free-chunk,
 		    removing this free-chunk from the list
 		**/
-            ADFI_read_free_chunk( file_index, &previous_disk_pointer,
+	    ADFI_read_free_chunk( file_index, &previous_disk_pointer,
 		&previous_free_chunk, error_return ) ;
-            if( *error_return != NO_ERROR )
-               return ;
+	    if( *error_return != NO_ERROR )
+	       return ;
 	    previous_free_chunk.next_chunk = free_chunk.next_chunk ;
-            ADFI_write_free_chunk( file_index, &previous_disk_pointer,
+	    ADFI_write_free_chunk( file_index, &previous_disk_pointer,
 		&previous_free_chunk, error_return ) ;
-            if( *error_return != NO_ERROR )
-               return ;
+	    if( *error_return != NO_ERROR )
+	       return ;
 	    } /* end if */
 	 else {
 
@@ -4533,7 +4533,7 @@ for( i=0; i<3; i++ ) {
 	 if((last_free_block->block == disk_pointer.block) &&
 	    (last_free_block->offset == disk_pointer.offset)){
 	    if( (previous_disk_pointer.block != BLANK_FILE_BLOCK) ||
-	        (previous_disk_pointer.offset != BLANK_BLOCK_OFFSET) ) {
+		(previous_disk_pointer.offset != BLANK_BLOCK_OFFSET) ) {
 	       *last_free_block = previous_disk_pointer ;
 	       } /* end if */
 	    else {
@@ -4576,30 +4576,30 @@ if( memory_found != TRUE ) { /* Append memory at end of file **/
 	see if the new allocated chunk will span a block boundary.
 	If it will, then start at the new block if it will fit within
 	the block. This helps efficiency to have file control headers
-        located within a block boundry.
+	located within a block boundry.
 	**/
    if( file_header.end_of_file.offset != DISK_BLOCK_SIZE - 1 ) {
       if( (file_header.end_of_file.offset+size_bytes) >= DISK_BLOCK_SIZE  &&
 	  size_bytes <= DISK_BLOCK_SIZE ) {
 		/** Free rest of block, allocate from next block **/
-         file_header.end_of_file.offset++ ;
+	 file_header.end_of_file.offset++ ;
 	 ADFI_file_free( file_index, &file_header.end_of_file,
 	     DISK_BLOCK_SIZE - file_header.end_of_file.offset, error_return ) ;
 	 if( *error_return != NO_ERROR )
 	    return ;
-         block_offset->block = file_header.end_of_file.block + 1 ;
-         block_offset->offset = 0 ;
-         file_header.end_of_file.block++ ;
-         file_header.end_of_file.offset = size_bytes - 1 ;
+	 block_offset->block = file_header.end_of_file.block + 1 ;
+	 block_offset->offset = 0 ;
+	 file_header.end_of_file.block++ ;
+	 file_header.end_of_file.offset = size_bytes - 1 ;
 	 ADFI_adjust_disk_pointer( &file_header.end_of_file, error_return ) ;
 	 if( *error_return != NO_ERROR )
 	    return ;
 
 	 } /* end if */
       else {	/** Use the remaining block **/
-         block_offset->block = file_header.end_of_file.block ;
-         block_offset->offset = file_header.end_of_file.offset + 1 ;
-         file_header.end_of_file.offset += size_bytes ;
+	 block_offset->block = file_header.end_of_file.block ;
+	 block_offset->offset = file_header.end_of_file.offset + 1 ;
+	 file_header.end_of_file.offset += size_bytes ;
 	 ADFI_adjust_disk_pointer( &file_header.end_of_file, error_return ) ;
 	 if( *error_return != NO_ERROR )
 	    return ;
@@ -4612,7 +4612,7 @@ if( memory_found != TRUE ) { /* Append memory at end of file **/
       file_header.end_of_file.offset = size_bytes - 1 ;
       ADFI_adjust_disk_pointer( &file_header.end_of_file, error_return ) ;
       if( *error_return != NO_ERROR )
-            return ;
+	    return ;
       } /* end else */
 
 
@@ -4629,11 +4629,11 @@ if( memory_found != TRUE ) { /* Append memory at end of file **/
 ADFI fill initial file header:
 	To determine the file header information...
 
-input:  const char format		'B', 'L', 'C', 'N'
-input:  const char os_size		'B', 'L'
-input:  const char *what_string		UNIX "what" identifier.
-output: struct FILE_HEADER *file_header	The resulting file header information.
-output:	int *error_return		Error return.
+input:	const char format		'B', 'L', 'C', 'N'
+input:	const char os_size		'B', 'L'
+input:	const char *what_string 	UNIX "what" identifier.
+output: struct FILE_HEADER *file_header The resulting file header information.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
@@ -4641,12 +4641,12 @@ NULL_POINTER
 NULL_STRING_POINTER
 ADF_FILE_FORMAT_NOT_RECOGNIZED
 ***********************************************************************/
-void    ADFI_fill_initial_file_header(
-        const char format,
-        const char os_size,
-        const char *what_string,
-        struct FILE_HEADER *file_header,
-        int *error_return )
+void	ADFI_fill_initial_file_header(
+	const char format,
+	const char os_size,
+	const char *what_string,
+	struct FILE_HEADER *file_header,
+	int *error_return )
 {
 int i ;
 
@@ -4686,7 +4686,7 @@ ADFI_get_current_date( file_header->creation_date ) ;
 
 	/** File modification date/time - same as creation time **/
 strncpy( file_header->modification_date, file_header->creation_date,
-         DATE_TIME_SIZE ) ;
+	 DATE_TIME_SIZE ) ;
 
 file_header->numeric_format = format ;
 file_header->os_size = os_size ;
@@ -4702,10 +4702,10 @@ if( (format==ADF_this_machine_format && os_size==ADF_this_machine_os_size) ||
   file_header->sizeof_float =	 sizeof( float ) ;
   file_header->sizeof_double =	 sizeof( double ) ;
   file_header->sizeof_char_p =	 POINTER_SIZE(char);
-  file_header->sizeof_short_p =	 POINTER_SIZE( short ) ;
+  file_header->sizeof_short_p =  POINTER_SIZE( short ) ;
   file_header->sizeof_int_p =	 POINTER_SIZE( int ) ;
   file_header->sizeof_long_p =	 POINTER_SIZE( long ) ;
-  file_header->sizeof_float_p =	 POINTER_SIZE( float ) ;
+  file_header->sizeof_float_p =  POINTER_SIZE( float ) ;
   file_header->sizeof_double_p = POINTER_SIZE( double ) ;
 } /** end if **/
 else
@@ -4738,10 +4738,10 @@ else
   file_header->sizeof_float =	 machine_sizes[i][ 9] ;
   file_header->sizeof_double =	 machine_sizes[i][10] ;
   file_header->sizeof_char_p =	 machine_sizes[i][11] ;
-  file_header->sizeof_short_p =	 machine_sizes[i][12] ;
+  file_header->sizeof_short_p =  machine_sizes[i][12] ;
   file_header->sizeof_int_p =	 machine_sizes[i][12] ;
   file_header->sizeof_long_p =	 machine_sizes[i][13] ;
-  file_header->sizeof_float_p =	 machine_sizes[i][14] ;
+  file_header->sizeof_float_p =  machine_sizes[i][14] ;
   file_header->sizeof_double_p = machine_sizes[i][15] ;
 } /** end else **/
 
@@ -4762,7 +4762,7 @@ ADFI fill initial free chunk header:
 	To fill out a new free chunk header.
 
 output: struct FREE_CHUNK_TABLE *free_chunk_table	Resulting header info.
-output:	int *error_return		Error return.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
@@ -4799,8 +4799,8 @@ ADFI_set_blank_disk_pointer( &free_chunk_table->large_last_block ) ;
 ADFI fill initial node header:
 	To fill out a new node header.
 
-output: struct NODE_HEADER *node_header	The resulting node header information.
-output:	int *error_return		Error return.
+output: struct NODE_HEADER *node_header The resulting node header information.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
@@ -4854,16 +4854,16 @@ ADFI_set_blank_disk_pointer( &node_header->data_chunks ) ;
 /***********************************************************************
 ADFI Flush buffers:
 
-input:  const unsigned int file_index	The file index.
-output:	int *error_return		Error return.
+input:	const unsigned int file_index	The file index.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
 ADF_FILE_NOT_OPENED
 FWRITE_ERROR
 ***********************************************************************/
-void    ADFI_flush_buffers(
-	        const unsigned int file_index,
+void	ADFI_flush_buffers(
+		const unsigned int file_index,
 		int flush_mode,
 		int *error_return )
 {
@@ -4878,7 +4878,7 @@ if( file_in_use[ file_index ] == 0 ) {
 
 if ( (long int) file_index == last_wr_file ) {
       /** Flush any active write buffer, file block is set to a nonsense
-          value so that the buffer flags are not reset **/
+	  value so that the buffer flags are not reset **/
   ADFI_write_file ( file_index, MAXIMUM_32_BITS, 0, 0, &data, error_return ) ;
       /** Reset control flags **/
   if ( flush_mode == FLUSH_CLOSE )
@@ -4898,7 +4898,7 @@ ADFI flush caches
 	Flushes any dirty write buffers to disk and removes buffers
 	from the specified file from the cache.
 
-input:  const unsigned int file_index	File to use.
+input:	const unsigned int file_index	File to use.
 input:	int *error_return		Error return
 
    Possible errors:
@@ -4931,7 +4931,7 @@ ADFI_fseek_file:
 input:	const unsigned int file_index	File to use.
 input:	const unsigned long file_block	Block within the file.
 input:	const unsigned long block_offset Offset within the block.
-output:	int *error_return		Error return.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
@@ -4973,17 +4973,17 @@ if( iret != 0 ) {
 ADFI get current date:
     Returns the current date and time in a blank-filled character array.
 
-output:	char  date[]        Current date/time in an array blank-filled
-                            to DATE_TIME_SIZE.  Array must be allocated
-                            to at least DATE_TIME_SIZE.  No null added.
+output: char  date[]	    Current date/time in an array blank-filled
+			    to DATE_TIME_SIZE.	Array must be allocated
+			    to at least DATE_TIME_SIZE.  No null added.
 
 ***********************************************************************/
 void	ADFI_get_current_date(
-        char  date[] )
+	char  date[] )
 {
-time_t  ct ;
+time_t	ct ;
 int	    i_len ;
-char    *current_time_p ;
+char	*current_time_p ;
 
 
      /** get the current time **/
@@ -5005,7 +5005,7 @@ ADFI_blank_fill_string ( date, DATE_TIME_SIZE ) ;
 ADFI get direct children ids:
 
 Get Children ids of a Node.  Return the ids of children nodes directly
-associated with a parent node (no links are followed).  The ids of the
+associated with a parent node (no links are followed).	The ids of the
 children are NOT guaranteed to be returned in any particular order.
 If it is desired to follow potential links for the node ID, then
 call ADFI_chase_link() and pass the resultant link ID to this function.
@@ -5013,10 +5013,10 @@ NOTE:  link nodes do not have direct children.
 
 
 ADFI_get_direct_children_ids( ID, num_ids, ids, error_return )
-input:  const unsigned int file_index     The file index.
-input:  const struct DISK_POINTER *node_block_offset   Block & offset in file.
-output: int *num_ids        The number of ids returned.
-output: double **ids        An allocated array of ids (free this space).
+input:	const unsigned int file_index	  The file index.
+input:	const struct DISK_POINTER *node_block_offset   Block & offset in file.
+output: int *num_ids	    The number of ids returned.
+output: double **ids	    An allocated array of ids (free this space).
 output: int *error_return   Error return.
 
    Possible errors:
@@ -5029,16 +5029,16 @@ ADF_FILE_NOT_OPENED
 ADF_DISK_TAG_ERROR
 ADF_MEMORY_TAG_ERROR
 ***********************************************************************/
-void    ADFI_get_direct_children_ids(
-        const unsigned int  file_index,
-        const struct DISK_POINTER *node_block_offset,
-        int *num_ids,
-        double **ids,
-        int *error_return )
+void	ADFI_get_direct_children_ids(
+	const unsigned int  file_index,
+	const struct DISK_POINTER *node_block_offset,
+	int *num_ids,
+	double **ids,
+	int *error_return )
 {
-int                     i ;
-struct DISK_POINTER     sub_node_block_offset ;
-struct NODE_HEADER      node ;
+int			i ;
+struct DISK_POINTER	sub_node_block_offset ;
+struct NODE_HEADER	node ;
 struct SUB_NODE_TABLE_ENTRY	sub_node_table_entry ;
 
 *error_return = NO_ERROR ;
@@ -5080,15 +5080,15 @@ for( i=0; i< *num_ids; i++ ) {
 
     /** Read one sub-node table entry **/
    ADFI_read_sub_node_table_entry( file_index, &sub_node_block_offset,
-                &sub_node_table_entry, error_return ) ;
+		&sub_node_table_entry, error_return ) ;
    if( *error_return != NO_ERROR )
       return ;
 
     /** Get the ID from the sub-node table **/
    ADFI_file_block_offset_2_ID( file_index,
-                sub_node_table_entry.child_location.block,
-                sub_node_table_entry.child_location.offset, &(*ids)[i],
-                error_return ) ;
+		sub_node_table_entry.child_location.block,
+		sub_node_table_entry.child_location.offset, &(*ids)[i],
+		error_return ) ;
    if( *error_return != NO_ERROR )
       return ;
 
@@ -5104,21 +5104,21 @@ ADFI get file index from name:
 Searches file list for given name.  Returns file index and Root ID
 if name is found in list.
 
-input:  const char *file_name     Name of file
-output: int *found                1 = name found, 0 = not found
+input:	const char *file_name	  Name of file
+output: int *found		  1 = name found, 0 = not found
 output: unsigned int *file_index  File-index
-output: double *ID                ID of files root node
-output: int  *error_return        Error return
+output: double *ID		  ID of files root node
+output: int  *error_return	  Error return
 ***********************************************************************/
-void    ADFI_get_file_index_from_name(
-        const char *file_name,
-        int  *found,
-        unsigned int *file_index,
-        double *ID,
-        int *error_return )
+void	ADFI_get_file_index_from_name(
+	const char *file_name,
+	int  *found,
+	unsigned int *file_index,
+	double *ID,
+	int *error_return )
 {
-double     root_ID ;
-int        i ;
+double	   root_ID ;
+int	   i ;
 
 
 *error_return = NO_ERROR ;
@@ -5137,14 +5137,14 @@ if( file_name == NULL ) {
 for( i=0; i<MAXIMUM_FILES; i++ ) {
    if( file_in_use[ i ] == 1 ) {
       if( strcmp( file_name, names_of_files[i] ) == 0 ) {
-           /** A Match!!! **/
-         ADFI_file_block_offset_2_ID( i, ROOT_NODE_BLOCK, ROOT_NODE_OFFSET,
-                                      &root_ID, error_return ) ;
-         *ID = root_ID ;
-         *file_index = i ;
-         *found = 1 ;
-         return ; /* done */
-         } /* end if */
+	   /** A Match!!! **/
+	 ADFI_file_block_offset_2_ID( i, ROOT_NODE_BLOCK, ROOT_NODE_OFFSET,
+				      &root_ID, error_return ) ;
+	 *ID = root_ID ;
+	 *file_index = i ;
+	 *found = 1 ;
+	 return ; /* done */
+	 } /* end if */
       } /* end if */
    } /* end for */
 } /* end of ADFI_get_file_index_from_name */
@@ -5153,19 +5153,19 @@ for( i=0; i<MAXIMUM_FILES; i++ ) {
 /***********************************************************************
 ADFI increment array:
 
-input:  const unsigned int ndim	The number of dimensions to use (1 to 12)
-input:  const unsigned int dims[]The dimensional space
-input:  const int dim_start[]	The starting dimension of our sub-space
+input:	const unsigned int ndim The number of dimensions to use (1 to 12)
+input:	const unsigned int dims[]The dimensional space
+input:	const int dim_start[]	The starting dimension of our sub-space
 				first = 1
-input:  const int dim_end[]	The ending dimension of our sub-space
+input:	const int dim_end[]	The ending dimension of our sub-space
 				last[n] = dims[n]
-input:  const int dim_stride[]	The stride to take in our sub-space
+input:	const int dim_stride[]	The stride to take in our sub-space
 				(every Nth element)
 in/out: int current_position	The position in the N-D space.
 output: ulong *element_offset	Number of elements to jump to next (1 to N)
 output: int *error_return	Error return.
 
-possible errors: Note:  Extensive error check is NOT done...
+possible errors: Note:	Extensive error check is NOT done...
 NO_ERROR
 NULL_POINTER
 BAD_NUMBER_OF_DIMENSIONS
@@ -5181,7 +5181,7 @@ void	ADFI_increment_array(
 		int *error_return )
 {
 int		i ;
-unsigned long   offset, accumlated_size ;
+unsigned long	offset, accumlated_size ;
 
 if( (dims == NULL) || (dim_start == NULL) || (dim_end == NULL) ||
     (dim_stride == NULL) || (current_position == NULL) ||
@@ -5257,33 +5257,33 @@ int	ADFI_is_same_file( int index1, int index2 )
 /***********************************************************************
 ADFI little endian 32 swap 64:
 
-input:  const char from_format		Format to convert from. 'B','L','C','N'
-input:  const char from_os_size		Format to convert from. 'B','L'
-input:  const char to_format		Format to convert to.
-input:  const char to_os_size		Format to convert to. 'B','L'
-input:  const char data_type[2]		The type of data to convert.
+input:	const char from_format		Format to convert from. 'B','L','C','N'
+input:	const char from_os_size 	Format to convert from. 'B','L'
+input:	const char to_format		Format to convert to.
+input:	const char to_os_size		Format to convert to. 'B','L'
+input:	const char data_type[2] 	The type of data to convert.
 					   MT I4 I8 U4 U8 R4 R8 X4 X8 C1 B1
-input:  const unsigned long delta_from_bytes Number of from_bytes used.
-input:  const unsigned long delta_to_bytes	Number of to_bytes used.
-input:  const char *from_data		The data to convert from.
+input:	const unsigned long delta_from_bytes Number of from_bytes used.
+input:	const unsigned long delta_to_bytes	Number of to_bytes used.
+input:	const char *from_data		The data to convert from.
 output: char *to_data			The resulting data.
-output:	int *error_return		Error return.
+output: int *error_return		Error return.
 
   Recognized data types:
 					Machine representations
-        Type		  Notation     IEEE_BIG	  IEEE_LITTLE   Cray
-	                               32    64   32    64
-  No data                   MT
-  Integer 32                I4         I4    I4    I4   I4       I8
-  Integer 64                I8         --    I8    --   I8       I8
-  Unsigned 32               U4         I4    I4    I4   I4       I8
-  Unsigned 64               U8         --    I8    --   I8       I8
-  Real 32                   R4         R4    R4    R4   R4       R8
-  Real 64                   R8         R8    R8    R8   R8       R8
-  Complex 64                X4         R4R4  R4R4  R4R4 R4R4     R8R8
-  Complex 128               X8         R8R8  R8R8  R8R8 R8R8     R8R8
-  Character (unsigned byte) C1         C1    C1    C1   C1       C1
-  Byte (unsigned byte)      B1         C1    C1    C1   C1       C1
+	Type		  Notation     IEEE_BIG   IEEE_LITTLE	Cray
+				       32    64   32	64
+  No data		    MT
+  Integer 32		    I4	       I4    I4    I4	I4	 I8
+  Integer 64		    I8	       --    I8    --	I8	 I8
+  Unsigned 32		    U4	       I4    I4    I4	I4	 I8
+  Unsigned 64		    U8	       --    I8    --	I8	 I8
+  Real 32		    R4	       R4    R4    R4	R4	 R8
+  Real 64		    R8	       R8    R8    R8	R8	 R8
+  Complex 64		    X4	       R4R4  R4R4  R4R4 R4R4	 R8R8
+  Complex 128		    X8	       R8R8  R8R8  R8R8 R8R8	 R8R8
+  Character (unsigned byte) C1	       C1    C1    C1	C1	 C1
+  Byte (unsigned byte)	    B1	       C1    C1    C1	C1	 C1
 
 Machine Numeric Formats:
 ***IEEE_BIG (SGI-Iris Assembly Language Programmer's Guide, pages 1-2, 6-3)
@@ -5321,7 +5321,7 @@ NO_ERROR
 NULL_STRING_POINTER
 NULL_POINTER
 ***********************************************************************/
-void    ADFI_little_endian_32_swap_64(
+void	ADFI_little_endian_32_swap_64(
 		const char from_format,
 		const char from_os_size,
 		const char to_format,
@@ -5358,16 +5358,16 @@ else if ( delta_from_bytes < delta_to_bytes ) {
   switch( EVAL_2_BYTES( data_type[0], data_type[1] ) ) {
     case EVAL_2_BYTES( 'I', '8' ):
       if( (from_data[3] & 0x80) == 0x80 ) { /* Negative number */
-         to_data[7] = 0xff ;
-         to_data[6] = 0xff ;
-         to_data[5] = 0xff ;
-         to_data[4] = 0xff ;
+	 to_data[7] = 0xff ;
+	 to_data[6] = 0xff ;
+	 to_data[5] = 0xff ;
+	 to_data[4] = 0xff ;
       } /* end if */
       else {
-         to_data[7] = 0x00 ;
-         to_data[6] = 0x00 ;
-         to_data[5] = 0x00 ;
-         to_data[4] = 0x00 ;
+	 to_data[7] = 0x00 ;
+	 to_data[6] = 0x00 ;
+	 to_data[5] = 0x00 ;
+	 to_data[4] = 0x00 ;
       } /* end else */
       to_data[3] = from_data[3] ;
       to_data[2] = from_data[2] ;
@@ -5399,33 +5399,33 @@ else {
 /***********************************************************************
 ADFI little endian to cray:
 
-input:  const char from_format		Format to convert from. 'B','L','C','N'
-input:  const char from_os_size		Format to convert from. 'B','L'
-input:  const char to_format		Format to convert to.
-input:  const char to_os_size		Format to convert to. 'B','L'
-input:  const char data_type[2]		The type of data to convert.
+input:	const char from_format		Format to convert from. 'B','L','C','N'
+input:	const char from_os_size 	Format to convert from. 'B','L'
+input:	const char to_format		Format to convert to.
+input:	const char to_os_size		Format to convert to. 'B','L'
+input:	const char data_type[2] 	The type of data to convert.
 					   MT I4 I8 U4 U8 R4 R8 X4 X8 C1 B1
-input:  const unsigned long delta_from_bytes Number of from_bytes used.
-input:  const unsigned long delta_to_bytes	Number of to_bytes used.
-input:  const char *from_data		The data to convert from.
+input:	const unsigned long delta_from_bytes Number of from_bytes used.
+input:	const unsigned long delta_to_bytes	Number of to_bytes used.
+input:	const char *from_data		The data to convert from.
 output: char *to_data			The resulting data.
-output:	int *error_return		Error return.
+output: int *error_return		Error return.
 
   Recognized data types:
 					Machine representations
-        Type		  Notation     IEEE_BIG	  IEEE_LITTLE   Cray
-	                               32    64   32    64
-  No data                   MT
-  Integer 32                I4         I4    I4    I4   I4       I8
-  Integer 64                I8         --    I8    --   I8       I8
-  Unsigned 32               U4         I4    I4    I4   I4       I8
-  Unsigned 64               U8         --    I8    --   I8       I8
-  Real 32                   R4         R4    R4    R4   R4       R8
-  Real 64                   R8         R8    R8    R8   R8       R8
-  Complex 64                X4         R4R4  R4R4  R4R4 R4R4     R8R8
-  Complex 128               X8         R8R8  R8R8  R8R8 R8R8     R8R8
-  Character (unsigned byte) C1         C1    C1    C1   C1       C1
-  Byte (unsigned byte)      B1         C1    C1    C1   C1       C1
+	Type		  Notation     IEEE_BIG   IEEE_LITTLE	Cray
+				       32    64   32	64
+  No data		    MT
+  Integer 32		    I4	       I4    I4    I4	I4	 I8
+  Integer 64		    I8	       --    I8    --	I8	 I8
+  Unsigned 32		    U4	       I4    I4    I4	I4	 I8
+  Unsigned 64		    U8	       --    I8    --	I8	 I8
+  Real 32		    R4	       R4    R4    R4	R4	 R8
+  Real 64		    R8	       R8    R8    R8	R8	 R8
+  Complex 64		    X4	       R4R4  R4R4  R4R4 R4R4	 R8R8
+  Complex 128		    X8	       R8R8  R8R8  R8R8 R8R8	 R8R8
+  Character (unsigned byte) C1	       C1    C1    C1	C1	 C1
+  Byte (unsigned byte)	    B1	       C1    C1    C1	C1	 C1
 
 Machine Numeric Formats:
 ***IEEE_BIG (SGI-Iris Assembly Language Programmer's Guide, pages 1-2, 6-3)
@@ -5460,7 +5460,7 @@ NO_ERROR
 NULL_STRING_POINTER
 NULL_POINTER
 ***********************************************************************/
-void    ADFI_little_endian_to_cray(
+void	ADFI_little_endian_to_cray(
 		const char from_format,
 		const char from_os_size,
 		const char to_format,
@@ -5504,16 +5504,16 @@ switch( EVAL_2_BYTES( data_type[0], data_type[1] ) ) {
 
    case EVAL_2_BYTES( 'I', '4' ):
       if( (from_data[3] & 0x80) == 0x80 ) { /* Negative number */
-         to_data[0] = 0xff ;
-         to_data[1] = 0xff ;
-         to_data[2] = 0xff ;
-         to_data[3] = 0xff ;
+	 to_data[0] = 0xff ;
+	 to_data[1] = 0xff ;
+	 to_data[2] = 0xff ;
+	 to_data[3] = 0xff ;
       } /* end if */
       else {
-         to_data[0] = 0x00 ;
-         to_data[1] = 0x00 ;
-         to_data[2] = 0x00 ;
-         to_data[3] = 0x00 ;
+	 to_data[0] = 0x00 ;
+	 to_data[1] = 0x00 ;
+	 to_data[2] = 0x00 ;
+	 to_data[3] = 0x00 ;
       } /* end else */
       to_data[4] = from_data[3] ;
       to_data[5] = from_data[2] ;
@@ -5534,19 +5534,19 @@ switch( EVAL_2_BYTES( data_type[0], data_type[1] ) ) {
 
    case EVAL_2_BYTES( 'I', '8' ):
       if( (from_data[3] & 0x80) == 0x80 ) { /* Negative number */
-         to_data[0] = 0xff ;
-         to_data[1] = 0xff ;
-         to_data[2] = 0xff ;
-         to_data[3] = 0xff ;
+	 to_data[0] = 0xff ;
+	 to_data[1] = 0xff ;
+	 to_data[2] = 0xff ;
+	 to_data[3] = 0xff ;
       } /* end if */
       else {
-         to_data[0] = 0x00 ;
-         to_data[1] = 0x00 ;
-         to_data[2] = 0x00 ;
-         to_data[3] = 0x00 ;
+	 to_data[0] = 0x00 ;
+	 to_data[1] = 0x00 ;
+	 to_data[2] = 0x00 ;
+	 to_data[3] = 0x00 ;
       } /* end else */
       for( i=0; i<(int)delta_from_bytes; i++ )
-         to_data[8-delta_from_bytes+i] = from_data[delta_from_bytes-1-i] ;
+	 to_data[8-delta_from_bytes+i] = from_data[delta_from_bytes-1-i] ;
       break ;
 
    case EVAL_2_BYTES( 'U', '8' ):
@@ -5555,16 +5555,16 @@ switch( EVAL_2_BYTES( data_type[0], data_type[1] ) ) {
       to_data[2] = 0x00 ;
       to_data[3] = 0x00 ;
       for( i=0; i<(int)delta_from_bytes; i++ )
-         to_data[8-delta_from_bytes+i] = from_data[delta_from_bytes-1-i] ;
+	 to_data[8-delta_from_bytes+i] = from_data[delta_from_bytes-1-i] ;
       break ;
 
    case EVAL_2_BYTES( 'R', '4' ):
       for( i=0; i<8; i++ )
-         to_data[i] = 0x00 ;
+	 to_data[i] = 0x00 ;
 
    /** Check for zero: a special case on the Cray (exponent sign) **/
       if( (from_data[3] == 0x00) && (from_data[2] == 0x00) &&
-          (from_data[1] == 0x00) && (from_data[0] == 0x00) )
+	  (from_data[1] == 0x00) && (from_data[0] == 0x00) )
       break ;
 
    /** Convert the sign **/
@@ -5575,16 +5575,16 @@ switch( EVAL_2_BYTES( data_type[0], data_type[1] ) ) {
    /** Cray exponent is 2 greater than the Iris **/
       exp = (from_data[3] & 0x3f) << 1 ;
       if( (from_data[2] & 0x80) == 0x80 )
-         exp += 1 ;
+	 exp += 1 ;
       if( (from_data[3] & 0x40) == 0x00 ) /* set sign */
-         exp -= 128 ;
+	 exp -= 128 ;
       exp += 2 ;
 
       to_data[1] = exp & 0xff ;
       if( exp < 0 )
-         to_data[0] |= 0x3f ; /* exponent sign 0, sign extend exponent */
+	 to_data[0] |= 0x3f ; /* exponent sign 0, sign extend exponent */
       else
-         to_data[0] |= 0x40 ; /* exponent sign 1 */
+	 to_data[0] |= 0x40 ; /* exponent sign 1 */
 
    /** Convert the mantissia **/
    /** 23 bits to 48 bits.  Left shift 25 bits, zero fill **/
@@ -5595,11 +5595,11 @@ switch( EVAL_2_BYTES( data_type[0], data_type[1] ) ) {
 
    case EVAL_2_BYTES( 'R', '8' ):
       for( i=0; i<8; i++ )
-         to_data[i] = 0x00 ;
+	 to_data[i] = 0x00 ;
 
    /** Check for zero: a special case on the Cray (exponent sign) **/
       if( (from_data[7] == 0x00) && (from_data[6] == 0x00) &&
-          (from_data[5] == 0x00) && (from_data[4] == 0x00) )
+	  (from_data[5] == 0x00) && (from_data[4] == 0x00) )
       break ;
 
    /** Convert the sign **/
@@ -5611,23 +5611,23 @@ switch( EVAL_2_BYTES( data_type[0], data_type[1] ) ) {
       exp = ((from_data[7] & 0x3f) << 4) + ((from_data[6]>>4)&0x0f) ;
 
       if( (from_data[7] & 0x40) == 0x00 ) /* set sign */
-         exp -= 1024 ;
+	 exp -= 1024 ;
       exp += 2 ;
 
       to_data[1] = (unsigned int)(exp & 0xff) ;
       to_data[0] |= ((exp>>8) & 0x03) ;
       if( exp < 0 )
-         to_data[0] |= 0x3c ; /* exponent sign 0, sign extend exponent */
+	 to_data[0] |= 0x3c ; /* exponent sign 0, sign extend exponent */
       else
-         to_data[0] |= 0x40 ; /* exponent sign 1 */
+	 to_data[0] |= 0x40 ; /* exponent sign 1 */
 
    /** Convert the mantissia **/
    /** 52 bits to 48 bits.  Use 48, drop last 4 bits **/
       to_data[2] = 0x80 | ((from_data[6]<<3)&0x78) |
-                          ((from_data[5]>>5)&0x07) ;
+			  ((from_data[5]>>5)&0x07) ;
       for( i=3; i<8; i++ )
-         to_data[i] = ((from_data[7-i+1]<<3)&0xF8) |
-                      ((from_data[7-i]>>5)&0x07) ;
+	 to_data[i] = ((from_data[7-i+1]<<3)&0xF8) |
+		      ((from_data[7-i]>>5)&0x07) ;
 #ifdef PRINT_STUFF
 printf("from:" ) ;
 for( i=0; i<8; i++ )
@@ -5644,13 +5644,13 @@ printf("\n" ) ;
 	 to_format, to_os_size, "R4", delta_from_bytes,
 	 delta_to_bytes, from_data, to_data, error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
 
       ADFI_little_endian_to_cray( from_format, from_os_size,
 	 to_format, to_os_size, "R4", delta_from_bytes,
 	 delta_to_bytes, &from_data[4], &to_data[8], error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
       break ;
 
    case EVAL_2_BYTES( 'X', '8' ):
@@ -5658,13 +5658,13 @@ printf("\n" ) ;
 	 to_format, to_os_size, "R8", delta_from_bytes,
 	 delta_to_bytes, from_data, to_data, error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
 
       ADFI_little_endian_to_cray( from_format, from_os_size,
 	 to_format, to_os_size, "R8", delta_from_bytes,
 	 delta_to_bytes, &from_data[8], &to_data[8], error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
       break ;
 
    default:
@@ -5681,15 +5681,15 @@ ADFI open file:
     Also track which files are within a given system so a close for
     the system can close all related files.
 
-input:  const char *file    The filename to open.
-input:  const char *status  The status in which to open the file.
-        Allowable values are:
-                READ_ONLY - File must exist.  Writing NOT allowed.
-                OLD - File must exist.  Reading and writing allowed.
-                NEW - File must not exist.
-                SCRATCH - New file.  Filename is ignored.
-                UNKNOWN - OLD if file exists, else NEW is used.
-input:  const int top_file_index  -1 if this is the top file.
+input:	const char *file    The filename to open.
+input:	const char *status  The status in which to open the file.
+	Allowable values are:
+		READ_ONLY - File must exist.  Writing NOT allowed.
+		OLD - File must exist.	Reading and writing allowed.
+		NEW - File must not exist.
+		SCRATCH - New file.  Filename is ignored.
+		UNKNOWN - OLD if file exists, else NEW is used.
+input:	const int top_file_index  -1 if this is the top file.
 output: unsigned int *file_index  Returned index of the file.
 output: int *error_return   Error return.
 
@@ -5701,12 +5701,12 @@ TOO_MANY_ADF_FILES_OPENED
 ADF_FILE_STATUS_NOT_RECOGNIZED
 FILE_OPEN_ERROR
 ***********************************************************************/
-void    ADFI_open_file(
-        const char *file,
-        const char *status,
-        const int top_file_index,
-        unsigned int *file_index,
-        int *error_return )
+void	ADFI_open_file(
+	const char *file,
+	const char *status,
+	const int top_file_index,
+	unsigned int *file_index,
+	int *error_return )
 {
 int index ;
 FILE *f_ret ;
@@ -5755,15 +5755,15 @@ if( index >= MAXIMUM_FILES ) {
    return ;
    } /* end if */
 
-ADF_file_format[index]  = UNDEFINED_FORMAT ;
+ADF_file_format[index]	= UNDEFINED_FORMAT ;
 ADF_file_os_size[index] = UNDEFINED_FORMAT ;
 
 /***
-                READ_ONLY - File must exist.  Writing NOT allowed.
-                OLD - File must exist.  Reading and writing allowed.
-                NEW - File must not exist.
-                SCRATCH - New file.  Filename is ignored.
-                UNKNOWN - OLD if file exists, else NEW is used.
+		READ_ONLY - File must exist.  Writing NOT allowed.
+		OLD - File must exist.	Reading and writing allowed.
+		NEW - File must not exist.
+		SCRATCH - New file.  Filename is ignored.
+		UNKNOWN - OLD if file exists, else NEW is used.
 ***/
 #if defined(_WIN32) && !defined(__WIN32_BINARY__)
    _fmode = O_BINARY ;
@@ -5814,12 +5814,12 @@ first_file_in_system[ index ] = top_file_index ;
 ADF_file[ index ] = f_ret ;
 file_version_update[ index ][ 0 ] = '\0' ;
 *file_index = index ;
-sprintf( file_open_mode[index], "%s", status ) ;
+ snprintf( file_open_mode[index],10, "%s", status ) ;
 if( ADFI_stridx_c( status, "SCRATCH" ) == 0 ) {
    names_of_files[index][0] = '\0' ;
    } /* end if */
 else {
-   sprintf( names_of_files[index], "%s", file ) ;
+  snprintf( names_of_files[index],ADF_FILENAME_LENGTH, "%s", file ) ;
    } /* end else */
 
 #if CACHEWRITES
@@ -5845,7 +5845,7 @@ else {
    free(short_path);
 }
 #else
-/* A Unix implementation is included for completeness.  However, Unix should
+/* A Unix implementation is included for completeness.	However, Unix should
    really have kUsePathsForUniqueness defined to 0, so that the stat() command
    is used, particularly since realpath() has a potential buffer overflow. */
    char *dir = "", *tmppath, real_path[16000];
@@ -5860,8 +5860,9 @@ else {
 	   size += 4096;
 	   dir = (char *)malloc(size * sizeof(char));
        }
-       tmppath = (char *)malloc((strlen(dir) + strlen(file) + 3) * sizeof(char));
-       sprintf(tmppath, "%s/%s", dir, file);
+       int tmppathsize = strlen(dir)+strlen(file)+3 ;
+       tmppath = (char *)malloc((tmppathsize) * sizeof(char));
+       snprintf(tmppath,tmppathsize, "%s/%s", dir, file);
        free(dir);
    }
 
@@ -5873,7 +5874,7 @@ else {
    }
 #endif /* WIN32 */
 
-   for (i = 0;  i < MAXIMUM_FILES;  ++i) {
+   for (i = 0;	i < MAXIMUM_FILES;  ++i) {
        if (first_free == -1 && ADF_file_paths[i].count == 0)
 	   first_free = i;
        if (ADF_file_paths[i].count > 0 &&
@@ -5917,12 +5918,12 @@ file_version_update[ index ][ 0 ] = '\0' ;
 
 #if defined(USE_WCHAR_FILENAME)
 
-void    ADFI_open_fileW(
-        const wchar_t *file,
-        const char *status,
-        const int top_file_index,
-        unsigned int *file_index,
-        int *error_return )
+void	ADFI_open_fileW(
+	const wchar_t *file,
+	const char *status,
+	const int top_file_index,
+	unsigned int *file_index,
+	int *error_return )
 {
 int index ;
 FILE *f_ret ;
@@ -5944,9 +5945,9 @@ if( file_index == NULL ) {
 *error_return = NO_ERROR ;
 
 /* Flush buffers just in case we are open the same file again and
-   any of the buffers contain information without which we could not 
+   any of the buffers contain information without which we could not
    successfully open the file again. */
-if (last_wr_file >= 0) 
+if (last_wr_file >= 0)
    ADFI_flush_buffers(last_wr_file, FLUSH_CLOSE, error_return);
 DC_flush();
 
@@ -5963,15 +5964,15 @@ if( index >= MAXIMUM_FILES ) {
    return ;
    } /* end if */
 
-ADF_file_format[index]  = UNDEFINED_FORMAT ;
+ADF_file_format[index]	= UNDEFINED_FORMAT ;
 ADF_file_os_size[index] = UNDEFINED_FORMAT ;
 
 /***
-                READ_ONLY - File must exist.  Writing NOT allowed.
-                OLD - File must exist.  Reading and writing allowed.
-                NEW - File must not exist.
-                SCRATCH - New file.  Filename is ignored.
-                UNKNOWN - OLD if file exists, else NEW is used.
+		READ_ONLY - File must exist.  Writing NOT allowed.
+		OLD - File must exist.	Reading and writing allowed.
+		NEW - File must not exist.
+		SCRATCH - New file.  Filename is ignored.
+		UNKNOWN - OLD if file exists, else NEW is used.
 ***/
 #if defined(_WIN32) && !defined(__WIN32_BINARY__)
    _fmode = O_BINARY ;
@@ -6022,12 +6023,12 @@ first_file_in_system[ index ] = top_file_index ;
 ADF_file[ index ] = f_ret ;
 file_version_update[ index ][ 0 ] = '\0' ;
 *file_index = index ;
-sprintf( file_open_mode[index], "%s", status ) ;
+ snprintf( file_open_mode[index],10, "%s", status ) ;
 if( ADFI_stridx_c( status, "SCRATCH" ) == 0 ) {
    names_of_files[index][0] = '\0' ;
    } /* end if */
 else {
-   sprintf( names_of_files[index], "%s", (char*)file ) ;
+  snprintf( names_of_files[index],ADF_FILENAME_LENGTH, "%s", (char*)file ) ;
    } /* end else */
 
 #if CACHEWRITES
@@ -6040,10 +6041,10 @@ else {
   ...
 }
 #else
-/* A Unix implementation is included for completeness.  However, Unix should
+/* A Unix implementation is included for completeness.	However, Unix should
    really have kUsePathsForUniqueness defined to 0, so that the stat() command
-   is used, particularly since realpath() has a potential buffer overflow. */ 
-   char *dir = "", *tmppath, real_path[16000]; 
+   is used, particularly since realpath() has a potential buffer overflow. */
+   char *dir = "", *tmppath, real_path[16000];
 
    if (file[0] == '/')
        tmppath = strdup(file);
@@ -6055,11 +6056,12 @@ else {
 	   size += 4096;
 	   dir = (char *)malloc(size * sizeof(char));
        }
-       tmppath = (char *)malloc((strlen(dir) + strlen(file) + 3) * sizeof(char));
-       sprintf(tmppath, "%s/%s", dir, file);
+       const int tmppathsize = (strlen(dir) + strlen(file) + 3)
+       tmppath = (char *)malloc(tmppathsize * sizeof(char));
+       snprintf(tmppath,tmppathsize, "%s/%s", dir, file);
        free(dir);
    }
-   
+
    if (!realpath(tmppath, real_path))
        path = tmppath;
    else {
@@ -6067,8 +6069,8 @@ else {
        free(tmppath);
    }
 #endif /* WIN32 */
-   
-   for (i = 0;  i < MAXIMUM_FILES;  ++i) {
+
+   for (i = 0;	i < MAXIMUM_FILES;  ++i) {
        if (first_free == -1 && ADF_file_paths[i].count == 0)
 	   first_free = i;
        if (ADF_file_paths[i].count > 0 &&
@@ -6124,11 +6126,11 @@ ADFI read chunk length:
 	If the incomming pointers are 0 0, then we are looking
 	at the file header.
 
-input:  const unsigned int file_index	The file index.
-input:  const struct DISK_POINTER *block_offset  Block & offset in the file.
+input:	const unsigned int file_index	The file index.
+input:	const struct DISK_POINTER *block_offset  Block & offset in the file.
 output: char tag[TAG_SIZE]			The tag from the chunk.
 output: struct DISK_POINTER *end_of_chunk_tag End of chunk.
-output:	int *error_return		Error return.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
@@ -6137,7 +6139,7 @@ NULL_STRING_POINTER
 ADF_FILE_NOT_OPENED
 ***********************************************************************/
 
-void    ADFI_read_chunk_length(
+void	ADFI_read_chunk_length(
 		const unsigned int file_index,
 		const struct DISK_POINTER *block_offset,
 		char tag[TAG_SIZE+1],
@@ -6205,34 +6207,34 @@ else {
       current_block_offset.block = block_offset->block ;
       current_block_offset.offset = block_offset->offset ;
       while( info[0] == 'z' ) {
-         count++ ;
-         current_block_offset.offset++ ;
+	 count++ ;
+	 current_block_offset.offset++ ;
 	 ADFI_adjust_disk_pointer( &current_block_offset, error_return ) ;
-         if( *error_return != NO_ERROR )
-            return ;
+	 if( *error_return != NO_ERROR )
+	    return ;
 
 	 info[0] = '\0' ;
-         ADFI_read_file( file_index, current_block_offset.block,
+	 ADFI_read_file( file_index, current_block_offset.block,
 		current_block_offset.offset, 1, info, error_return ) ;
 	 if( (*error_return == FSEEK_ERROR) || (*error_return == FREAD_ERROR)){
 	    break ;
 	    } /* end if */
-         if( *error_return != NO_ERROR )
-            return ;
+	 if( *error_return != NO_ERROR )
+	    return ;
 	 } /* end while */
       end_of_chunk_tag->block = block_offset->block ;
       end_of_chunk_tag->offset = block_offset->offset + count - TAG_SIZE ;
       ADFI_adjust_disk_pointer( end_of_chunk_tag, error_return ) ;
       tag[0] = tag[1] = tag[2] = tag[3] = 'z' ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
       } /* end if */
    else {
 	/** Read TAG and disk_pointer **/
       ADFI_read_file( file_index, block_offset->block, block_offset->offset,
 	   TAG_SIZE + DISK_POINTER_SIZE, info, error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
 
 	/* Copy the tag **/
       tag[0] = info[0] ;
@@ -6243,21 +6245,21 @@ else {
 
 	/** Check for known tags **/
       if( ADFI_stridx_c( tag, node_start_tag ) == 0 ) { /** Node **/
-         end_of_chunk_tag->block = block_offset->block ;
-         end_of_chunk_tag->offset = block_offset->offset +
+	 end_of_chunk_tag->block = block_offset->block ;
+	 end_of_chunk_tag->offset = block_offset->offset +
 		NODE_HEADER_SIZE - TAG_SIZE ;
-         ADFI_adjust_disk_pointer( end_of_chunk_tag, error_return ) ;
-         if( *error_return != NO_ERROR )
-            return ;
-         } /* end if */
+	 ADFI_adjust_disk_pointer( end_of_chunk_tag, error_return ) ;
+	 if( *error_return != NO_ERROR )
+	    return ;
+	 } /* end if */
       else {
 
 	/** Convert pointers into numeric form **/
-         ADFI_disk_pointer_from_ASCII_Hex( &info[TAG_SIZE],
+	 ADFI_disk_pointer_from_ASCII_Hex( &info[TAG_SIZE],
 		&info[DISK_POINTER_SIZE], end_of_chunk_tag, error_return ) ;
-         if( *error_return != NO_ERROR )
-            return ;
-         } /* end else */
+	 if( *error_return != NO_ERROR )
+	    return ;
+	 } /* end else */
       } /* end else */
    } /* end else */
 
@@ -6267,15 +6269,15 @@ else {
 /***********************************************************************
 ADFI read data chunk:
 
-input:  const unsigned int file_index	The file index.
-input:  const struct DISK_POINTER *block_offset  Block & offset in the file.
-input:  const char *data_type		The defined datatype.
-input:  const int data_size		Size of data entity in bytes.
-input:  const long chunk_bytes		Number of bytes in data chunk.
-input:  const long start_offset		Starting offset into the data chunk
-input:  const long total_bytes		Number of bytes to read in data chunk.
+input:	const unsigned int file_index	The file index.
+input:	const struct DISK_POINTER *block_offset  Block & offset in the file.
+input:	const char *data_type		The defined datatype.
+input:	const int data_size		Size of data entity in bytes.
+input:	const long chunk_bytes		Number of bytes in data chunk.
+input:	const long start_offset 	Starting offset into the data chunk
+input:	const long total_bytes		Number of bytes to read in data chunk.
 output: char *data			Pointer to the resulting data.
-output:	int *error_return		Error return.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
@@ -6284,12 +6286,12 @@ ADF_FILE_NOT_OPENED
 ADF_DISK_TAG_ERROR
 REQUESTED_DATA_TOO_LONG
 ***********************************************************************/
-void    ADFI_read_data_chunk(
+void	ADFI_read_data_chunk(
 		const unsigned int file_index,
 		const struct DISK_POINTER *block_offset,
 		struct TOKENIZED_DATA_TYPE *tokenized_data_type,
 		const int data_size,
-                const long chunk_bytes,
+		const long chunk_bytes,
 		const long start_offset,
 		const long total_bytes,
 		char *data,
@@ -6350,7 +6352,7 @@ if( ADFI_stridx_c( tag, data_chunk_end_tag ) != 0 ) {
 	/** Point to the start of the data **/
 data_start.block = block_offset->block ;
 data_start.offset = block_offset->offset + start_offset +
-                    DISK_POINTER_SIZE + TAG_SIZE ;
+		    DISK_POINTER_SIZE + TAG_SIZE ;
 ADFI_adjust_disk_pointer( &data_start, error_return ) ;
 if( *error_return != NO_ERROR )
    return ;
@@ -6376,14 +6378,14 @@ else {
       ADFI_read_file( file_index, data_start.block, data_start.offset,
 		   total_bytes, data, error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
       } /* end if */
    else {
       ADFI_read_data_translated( file_index, data_start.block,
 		data_start.offset, tokenized_data_type, data_size,
 		total_bytes, data, error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
       } /* end else */
    } /* end else */
 
@@ -6393,17 +6395,17 @@ else {
 /***********************************************************************
 ADFI read data chunk table:
 
-input:  const unsigned int file_index	The file index.
-input:  const struct DISK_POINTER *block_offset  Block & offset in the file.
+input:	const unsigned int file_index	The file index.
+input:	const struct DISK_POINTER *block_offset  Block & offset in the file.
 output: struct DATA_CHUNK_TABLE_ENTRY data_chunk_table[] Array of DC entries.
-output:	int *error_return		Error return.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
 NULL_POINTER
 ADF_FILE_NOT_OPENED
 ***********************************************************************/
-void    ADFI_read_data_chunk_table(
+void	ADFI_read_data_chunk_table(
 		const unsigned int file_index,
 		const struct DISK_POINTER *block_offset,
 		struct DATA_CHUNK_TABLE_ENTRY data_chunk_table[],
@@ -6484,20 +6486,20 @@ if( ADFI_stridx_c( tag, data_chunk_table_end_tag ) != 0 ) {
 /***********************************************************************
 ADFI read data translated:
 
-input:  const unsigned int file_index	The file index.
+input:	const unsigned int file_index	The file index.
 input:	const unsigned long file_block	Block within the file.
 input:	const unsigned long block_offset Offset within the block.
-input:  const char *data_type		The defined datatype.
-input:  const struct TOKENIZED_DATA_TYPE *tokenized_data_type Array.
-input:  const int data_size		Size of data entity in bytes.
-input:  const long total_bytes		Number of bytes expected.
+input:	const char *data_type		The defined datatype.
+input:	const struct TOKENIZED_DATA_TYPE *tokenized_data_type Array.
+input:	const int data_size		Size of data entity in bytes.
+input:	const long total_bytes		Number of bytes expected.
 output: char *data			Pointer to the data.
-output:	int *error_return		Error return.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
 ***********************************************************************/
-void    ADFI_read_data_translated(
+void	ADFI_read_data_translated(
 		const unsigned int file_index,
 		const unsigned long file_block,
 		const unsigned long block_offset,
@@ -6508,11 +6510,11 @@ void    ADFI_read_data_translated(
 		int *error_return )
 {
 struct	DISK_POINTER	disk_pointer ;
-int	                current_token = -1 ;
-int                     machine_size ;
+int			current_token = -1 ;
+int			machine_size ;
 unsigned char		*to_data = (unsigned char *)data ;
 unsigned char		*from_data = from_to_data ;
-unsigned long           chunk_size ;
+unsigned long		chunk_size ;
 unsigned long		number_of_data_elements, number_of_elements_read ;
 unsigned long		delta_from_bytes, delta_to_bytes ;
 
@@ -6593,14 +6595,14 @@ input:	const unsigned int file_index	File to read from.
 input:	const unsigned long file_block	Block within the file.
 input:	const unsigned long block_offset Offset within the block.
 output: struct DISK_POINTER *block_and_offset Resulting disk pointer.
-output:	int *error_return		Error return.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
 NULL_POINTER
 ADF_FILE_NOT_OPENED
 ***********************************************************************/
-void    ADFI_read_disk_pointer_from_disk(
+void	ADFI_read_disk_pointer_from_disk(
 		const unsigned int file_index,
 		const unsigned long file_block,
 		const unsigned long block_offset,
@@ -6627,11 +6629,11 @@ if( file_in_use[ file_index ] == 0 ) {
 
 *error_return = NO_ERROR ;
 
-        /** Check the stack for block/offset **/
+	/** Check the stack for block/offset **/
 #if 0
 if ( ADFI_stack_control(file_index, file_block, block_offset,
-		        GET_STK, DISK_PTR_STK,
-		        DISK_POINTER_SIZE, disk_block_offset ) != NO_ERROR ) {
+			GET_STK, DISK_PTR_STK,
+			DISK_POINTER_SIZE, disk_block_offset ) != NO_ERROR ) {
 #endif
 
 	/** Get the block/offset from disk **/
@@ -6640,7 +6642,7 @@ if ( ADFI_stack_control(file_index, file_block, block_offset,
   if( *error_return != NO_ERROR )
      return ;
 
-         /** Set the block/offset onto the stack **/
+	 /** Set the block/offset onto the stack **/
 #if 0
   ADFI_stack_control(file_index, file_block, block_offset,
 		     SET_STK, DISK_PTR_STK,
@@ -6665,12 +6667,12 @@ ADFI read file:
     contiguous data.  Note:  read buffering also affects the
     write function, i.e, all writes must reset the read buffer.
 
-input:  const unsigned int file_index    File to read from.
-input:  const unsigned long file_block   Block within the file.
-input:  const unsigned long block_offset Offset within the block.
-input:  const unsigned int data_length   Length of the data to read.
-input:  char *data                       Address of the data.
-output: int *error_return                Error return.
+input:	const unsigned int file_index	 File to read from.
+input:	const unsigned long file_block	 Block within the file.
+input:	const unsigned long block_offset Offset within the block.
+input:	const unsigned int data_length	 Length of the data to read.
+input:	char *data			 Address of the data.
+output: int *error_return		 Error return.
 
     Possible errors:
 NO_ERROR
@@ -6678,13 +6680,13 @@ NULL_STRING_POINTER
 ADF_FILE_NOT_OPENED
 FREAD_ERROR
 ***********************************************************************/
-void    ADFI_read_file(
-        const unsigned int file_index,
-        const unsigned long file_block,
-        const unsigned long block_offset,
-        const unsigned int data_length,
-        char *data,
-        int *error_return )
+void	ADFI_read_file(
+	const unsigned int file_index,
+	const unsigned long file_block,
+	const unsigned long block_offset,
+	const unsigned int data_length,
+	char *data,
+	int *error_return )
 {
 int	iret ;
 
@@ -6702,7 +6704,7 @@ if( file_in_use[ file_index ] == 0 ) {
 *error_return = NO_ERROR ;
 
     /** No need to buffer large pieces of data or to take special
-        measures to cross block boundaries **/
+	measures to cross block boundaries **/
 
 if( data_length + block_offset > DISK_BLOCK_SIZE ) {
 
@@ -6727,18 +6729,18 @@ if( data_length + block_offset > DISK_BLOCK_SIZE ) {
 } /* end if */
 
     /** For smaller pieces of data, read a block at a time.  This will improve
-        performance if neighboring data is requested a small piece at a time
-        (strided reads, file overhead).
+	performance if neighboring data is requested a small piece at a time
+	(strided reads, file overhead).
 
-        Some assumptions apply to the block size.  With some experimenting,
-        1K blocks do not offer much improvement.  4K blocks (4096 bytes)
-        do improve performance remarkably. This is due to the fact that the
+	Some assumptions apply to the block size.  With some experimenting,
+	1K blocks do not offer much improvement.  4K blocks (4096 bytes)
+	do improve performance remarkably. This is due to the fact that the
 	file structure is based of 4K blocks with offsets.
     **/
 
 if( num_in_rd_block < DISK_BLOCK_SIZE ||  /*- buffer is not full -*/
-    (long int) file_block != last_rd_block       ||  /*- a different block -*/
-    (long int) file_index != last_rd_file ) {        /*- entirely different file -*/
+    (long int) file_block != last_rd_block	 ||  /*- a different block -*/
+    (long int) file_index != last_rd_file ) {	     /*- entirely different file -*/
 
     /** buffer is not current, re-read **/
 
@@ -6776,7 +6778,7 @@ if( num_in_rd_block < DISK_BLOCK_SIZE ||  /*- buffer is not full -*/
 
   /** Remember buffer information **/
   last_rd_block   = file_block ;
-  last_rd_file    = file_index ;
+  last_rd_file	  = file_index ;
   num_in_rd_block = iret ;
 
 } /* end if */
@@ -6790,9 +6792,9 @@ memcpy( data, &rd_block_buffer[block_offset], data_length );
 /***********************************************************************
 ADFI read file header:
 
-input:  const unsigned int file_index	The file index.
-output: struct FILE_HEADER *file_header	Pointer to a file-header struct.
-output:	int *error_return		Error return.
+input:	const unsigned int file_index	The file index.
+output: struct FILE_HEADER *file_header Pointer to a file-header struct.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
@@ -6819,13 +6821,13 @@ if( file_in_use[ file_index ] == 0 ) {
 
 *error_return = NO_ERROR ;
 
-        /** Check the stack for header **/
+	/** Check the stack for header **/
 if ( ADFI_stack_control(file_index, 0, 0, GET_STK, FILE_STK,
 			FILE_HEADER_SIZE, disk_header ) != NO_ERROR ) {
 
 	/** Read in the header into memory **/
   ADFI_read_file( file_index, 0, 0, FILE_HEADER_SIZE, disk_header,
-	 	  error_return ) ;
+		  error_return ) ;
   if( *error_return != NO_ERROR )
     return ;
 
@@ -6860,7 +6862,7 @@ if ( ADFI_stack_control(file_index, 0, 0, GET_STK, FILE_STK,
      return ;
    } /* end if */
 
-         /** Set the header onto the stack **/
+	 /** Set the header onto the stack **/
   ADFI_stack_control(file_index, 0, 0, SET_STK, FILE_STK,
 		     FILE_HEADER_SIZE, disk_header );
 } /* end if */
@@ -6875,7 +6877,7 @@ strncpy( (char *)file_header->modification_date, &disk_header[ 68],
 							DATE_TIME_SIZE ) ;
 strncpy( (char *)file_header->tag2, &disk_header[ 96], TAG_SIZE ) ;
 file_header->numeric_format = disk_header[100] ;
-file_header->os_size        = disk_header[101] ;
+file_header->os_size	    = disk_header[101] ;
 strncpy( (char *)file_header->tag3, &disk_header[102], TAG_SIZE ) ;
 
 ADFI_ASCII_Hex_2_unsigned_int( 0, 255, 2, &disk_header[106],
@@ -7000,11 +7002,11 @@ if( strncmp( file_header->tag5, file_header_tags[5], TAG_SIZE )!= 0 ) {
 /***********************************************************************
 ADFI read free chunk:
 
-input:  const unsigned int file_index	The file index.
-input:  const struct DISK_POINTER *block_offset	Block & offset in the file.
+input:	const unsigned int file_index	The file index.
+input:	const struct DISK_POINTER *block_offset Block & offset in the file.
 output: struct DISK_POINTER *end_of_chunk_tag	End of free chunk tag.
-output: struct DISK_POINTER *next_chunk	Next free chunk in list.
-output:	int *error_return		Error return.
+output: struct DISK_POINTER *next_chunk Next free chunk in list.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
@@ -7012,7 +7014,7 @@ NULL_POINTER
 ADF_FILE_NOT_OPENED
 ADF_DISK_TAG_ERROR
 ***********************************************************************/
-void    ADFI_read_free_chunk(
+void	ADFI_read_free_chunk(
 		const unsigned int file_index,
 		const struct DISK_POINTER *block_offset,
 		struct FREE_CHUNK *free_chunk,
@@ -7080,9 +7082,9 @@ strncpy( free_chunk->end_tag, free_chunk_end_tag, 4 ) ;
 /***********************************************************************
 ADFI read free chunk table:
 
-input:  const unsigned int file_index	The file index.
+input:	const unsigned int file_index	The file index.
 output: struct FREE_CHUNK_TABLE *free_chunk_table Pointer to table.
-output:	int *error_return		Error return.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
@@ -7091,7 +7093,7 @@ ADF_FILE_NOT_OPENED
 ADF_DISK_TAG_ERROR
 ADF_MEMORY_TAG_ERROR
 ***********************************************************************/
-void    ADFI_read_free_chunk_table(
+void	ADFI_read_free_chunk_table(
 		const unsigned int file_index,
 		struct FREE_CHUNK_TABLE *free_chunk_table,
 		int *error_return )
@@ -7110,10 +7112,10 @@ if( file_in_use[ file_index ] == 0 ) {
 
 *error_return = NO_ERROR ;
 
-        /** Check the stack for free chunk **/
+	/** Check the stack for free chunk **/
 if ( ADFI_stack_control(file_index, FREE_CHUNKS_BLOCK, FREE_CHUNKS_OFFSET,
-	                GET_STK, FREE_CHUNK_STK, FREE_CHUNK_TABLE_SIZE,
-	                disk_free_chunk_data ) != NO_ERROR ) {
+			GET_STK, FREE_CHUNK_STK, FREE_CHUNK_TABLE_SIZE,
+			disk_free_chunk_data ) != NO_ERROR ) {
 
 	/** Read the free-chunk table off of disk **/
   ADFI_read_file( file_index, FREE_CHUNKS_BLOCK, FREE_CHUNKS_OFFSET,
@@ -7129,12 +7131,12 @@ if ( ADFI_stack_control(file_index, FREE_CHUNKS_BLOCK, FREE_CHUNKS_OFFSET,
    } /* end of */
 
   if( ADFI_stridx_c( &disk_free_chunk_data[FREE_CHUNK_TABLE_SIZE - TAG_SIZE],
-	 	     free_chunk_table_end_tag ) != 0 ) {
+		     free_chunk_table_end_tag ) != 0 ) {
      *error_return = ADF_DISK_TAG_ERROR ;
      return ;
    } /* end of */
 
-         /** Set the free chunk onto the stack **/
+	 /** Set the free chunk onto the stack **/
   ADFI_stack_control(file_index, FREE_CHUNKS_BLOCK, FREE_CHUNKS_OFFSET,
 		     SET_STK, FREE_CHUNK_STK, FREE_CHUNK_TABLE_SIZE,
 		     disk_free_chunk_data );
@@ -7201,10 +7203,10 @@ if( ADFI_stridx_c( free_chunk_table->end_tag, free_chunk_table_end_tag )
 /***********************************************************************
 ADFI read node header:
 
-input:  const unsigned int file_index	The file index.
-input:  const struct DISK_POINTER *block_offset  Block & offset in the file.
-output: struct NODE_HEADER *node_header	Pointer to node header.
-output:	int *error_return		Error return.
+input:	const unsigned int file_index	The file index.
+input:	const struct DISK_POINTER *block_offset  Block & offset in the file.
+output: struct NODE_HEADER *node_header Pointer to node header.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
@@ -7234,14 +7236,14 @@ if( file_in_use[ file_index ] == 0 ) {
 
 *error_return = NO_ERROR ;
 
-        /** Check the stack for header **/
+	/** Check the stack for header **/
 if ( ADFI_stack_control(file_index, block_offset->block, block_offset->offset,
 			GET_STK, NODE_STK, NODE_HEADER_SIZE,
 			disk_node_data ) != NO_ERROR ) {
 
 	/** Get the node header from disk **/
   ADFI_read_file( file_index, block_offset->block, block_offset->offset,
-  	NODE_HEADER_SIZE, disk_node_data, error_return ) ;
+	NODE_HEADER_SIZE, disk_node_data, error_return ) ;
   if( *error_return != NO_ERROR )
      return ;
 
@@ -7257,7 +7259,7 @@ if ( ADFI_stack_control(file_index, block_offset->block, block_offset->offset,
      return ;
    } /* end if */
 
-         /** Set the header onto the stack **/
+	 /** Set the header onto the stack **/
   ADFI_stack_control(file_index, block_offset->block, block_offset->offset,
 		     SET_STK, NODE_STK,  NODE_HEADER_SIZE, disk_node_data );
 } /* end if */
@@ -7331,17 +7333,17 @@ ADFI read sub node table:
 
 	At this point, reading of the ENTIRE table is required.
 
-input:  const unsigned int file_index	The file index.
-input:  const struct DISK_POINTER *block_offset  Block & offset in the file.
+input:	const unsigned int file_index	The file index.
+input:	const struct DISK_POINTER *block_offset  Block & offset in the file.
 output: struct SUB_NODE_TABLE_ENTRY sub_node_table[] Array of SN entries.
-output:	int *error_return		Error return.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
 NULL_POINTER
 ADF_FILE_NOT_OPENED
 ***********************************************************************/
-void    ADFI_read_sub_node_table(
+void	ADFI_read_sub_node_table(
 		const unsigned int file_index,
 		const struct DISK_POINTER *block_offset,
 		struct SUB_NODE_TABLE_ENTRY sub_node_table[],
@@ -7365,7 +7367,7 @@ if( file_in_use[ file_index ] == 0 ) {
 
 	/** Get tag and length **/
 ADFI_read_chunk_length( file_index, block_offset, tag,
-                        &end_of_chunk_tag, error_return ) ;
+			&end_of_chunk_tag, error_return ) ;
 if( *error_return != NO_ERROR )
    return ;
 tag[TAG_SIZE] = '\0' ;
@@ -7416,17 +7418,17 @@ ADFI read sub node table entry:
 	Read a single sub-node-table entry.
 	No boundary checking is possible!
 
-input:  const unsigned int file_index	The file index.
-input:  const struct DISK_POINTER *block_offset  Block & offset in the file.
+input:	const unsigned int file_index	The file index.
+input:	const struct DISK_POINTER *block_offset  Block & offset in the file.
 output: struct SUB_NODE_TABLE_ENTRY *sub_node_table_entry The result.
-output:	int *error_return		Error return.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
 NULL_POINTER
 ADF_FILE_NOT_OPENED
 ***********************************************************************/
-void    ADFI_read_sub_node_table_entry(
+void	ADFI_read_sub_node_table_entry(
 		const unsigned int file_index,
 		const struct DISK_POINTER *block_offset,
 		struct SUB_NODE_TABLE_ENTRY *sub_node_table_entry,
@@ -7446,9 +7448,9 @@ if( file_in_use[ file_index ] == 0 ) {
 
 *error_return = NO_ERROR ;
 
-        /** Check the stack for subnode **/
+	/** Check the stack for subnode **/
 if ( ADFI_stack_control(file_index, block_offset->block, block_offset->offset,
-	            GET_STK, SUBNODE_STK, ADF_NAME_LENGTH + DISK_POINTER_SIZE,
+		    GET_STK, SUBNODE_STK, ADF_NAME_LENGTH + DISK_POINTER_SIZE,
 		    sub_node_entry_disk_data ) != NO_ERROR ) {
 
 	/** Read the entry from disk **/
@@ -7458,7 +7460,7 @@ if ( ADFI_stack_control(file_index, block_offset->block, block_offset->offset,
   if( *error_return != NO_ERROR )
      return ;
 
-         /** Set the subnode onto the stack **/
+	 /** Set the subnode onto the stack **/
   ADFI_stack_control(file_index, block_offset->block, block_offset->offset,
 		     SET_STK, SUBNODE_STK, ADF_NAME_LENGTH + DISK_POINTER_SIZE,
 		     sub_node_entry_disk_data );
@@ -7481,16 +7483,16 @@ if( *error_return != NO_ERROR )
 ADFI remember file format:
 	Track the file format used:
 
-input:  const int file_index		Index for the file.
-input:  const char numeric_format	Format for the file.
-input:  const char os_size	        operating system size for the file.
+input:	const int file_index		Index for the file.
+input:	const char numeric_format	Format for the file.
+input:	const char os_size		operating system size for the file.
 output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
 FILE_INDEX_OUT_OF_RANGE
 **********************************************************************/
-void    ADFI_remember_file_format(
+void	ADFI_remember_file_format(
 		const int file_index,
 		const char numeric_format,
 		const char os_size,
@@ -7513,9 +7515,9 @@ ADFI remember version update:
     that it can be written after the first successful update.  After the
     file has been updated once, the remembered what-string is "forgotten".
 
-input:  const int  file_index    File index to write to.
-input:  const char *what_string  What string to remember (contains version)
-output:	int *error_return        Error return.
+input:	const int  file_index	 File index to write to.
+input:	const char *what_string  What string to remember (contains version)
+output: int *error_return	 Error return.
 
    Possible errors:
 FILE_INDEX_OUT_OF_RANGE
@@ -7523,9 +7525,9 @@ NULL_STRING_POINTER
 STRING_LENGTH_ZERO
 ***********************************************************************/
 void	ADFI_remember_version_update(
-        const int  file_index,
-        const char *what_string,
-        int *error_return )
+	const int  file_index,
+	const char *what_string,
+	int *error_return )
 {
 
 *error_return = NO_ERROR ;
@@ -7575,14 +7577,14 @@ block_offset->offset = BLANK_BLOCK_OFFSET ;
 /***********************************************************************
 ADFI stack control:
 
-input:  const unsigned int file_index	The file index.
+input:	const unsigned int file_index	The file index.
 input:	const unsigned long file_block	Block within the file.
 input:	const unsigned long block_offset Offset within the block.
-input:  const int stack_mode  Control mode: INIT, GET or SET
-input;  const int stack_type  Type of stack entry to process: FILE, NODE, etc..
+input:	const int stack_mode  Control mode: INIT, GET or SET
+input;	const int stack_type  Type of stack entry to process: FILE, NODE, etc..
 input:	const unsigned int data_length	Length of the data to buffer.
-input/output: char *stack_data  The character string buffered, is input for
-                                mode SET and output for mode GET.
+input/output: char *stack_data	The character string buffered, is input for
+				mode SET and output for mode GET.
 
    Possible errors:
 NO_ERROR
@@ -7593,12 +7595,12 @@ PRISTK_NOT_FOUND
    and read the data fom the file. The stack is only meant to speed things
    up, not stop the process !!!
 ***********************************************************************/
-int     ADFI_stack_control( const unsigned int file_index,
-		            const unsigned long file_block,
-		            const unsigned long block_offset,
+int	ADFI_stack_control( const unsigned int file_index,
+			    const unsigned long file_block,
+			    const unsigned long block_offset,
 			    const int stack_mode,
 			    const int stack_type,
-		            const unsigned long data_length,
+			    const unsigned long data_length,
 			    char *stack_data )
 {
 int i;
@@ -7638,8 +7640,8 @@ if( file_in_use[ file_index ] == 0 && stack_mode != INIT_STK ) {
 	   PRISTK[i].priority_level = -1;
 	 } /* end for */
 	 if ( stack_mode == INIT_STK ) STACK_INIT = 1;
-         /* just in case link or linked-to node deleted */
-         last_link_ID = 0.0;
+	 /* just in case link or linked-to node deleted */
+	 last_link_ID = 0.0;
 	 break ;
       case GET_STK:
 	/* Try and find the entry in the current stack by matching the
@@ -7651,7 +7653,7 @@ if( file_in_use[ file_index ] == 0 && stack_mode != INIT_STK ) {
 		PRISTK[i].file_block   != file_block ||
 		PRISTK[i].block_offset != block_offset ) continue;
 	   if ( PRISTK[i].stack_type == stack_type ) {
-  	     /* Found the entry so copy it into return string */
+	     /* Found the entry so copy it into return string */
 	     strncpy ( stack_data, PRISTK[i].stack_data, data_length );
 	     /* Up its priority to number one */
 	     PRISTK[i].priority_level = 1;
@@ -7676,10 +7678,10 @@ if( file_in_use[ file_index ] == 0 && stack_mode != INIT_STK ) {
 		PRISTK[i].file_block   == file_block &&
 		PRISTK[i].block_offset == block_offset ) {
 		 free(PRISTK[i].stack_data);
-		 PRISTK[i].file_index     = -1;
-		 PRISTK[i].file_block     = 0;
+		 PRISTK[i].file_index	  = -1;
+		 PRISTK[i].file_block	  = 0;
 		 PRISTK[i].block_offset   = 0;
-		 PRISTK[i].stack_type     = -1;
+		 PRISTK[i].stack_type	  = -1;
 		 PRISTK[i].priority_level = -1;
 		 return NO_ERROR ;
 	     } /* end if */
@@ -7691,7 +7693,7 @@ if( file_in_use[ file_index ] == 0 && stack_mode != INIT_STK ) {
 	 found = 'f';
 	 low_priority = -1;
 	 for (i=0; i<MAX_STACK; i++) {
-         /* Very time consuming task */
+	 /* Very time consuming task */
 	   if (ADFI_is_same_file(file_index, PRISTK[i].file_index) &&
 		PRISTK[i].file_block   == file_block &&
 		PRISTK[i].block_offset == block_offset ) {
@@ -7722,7 +7724,7 @@ if( file_in_use[ file_index ] == 0 && stack_mode != INIT_STK ) {
 	 /* Insert the data onto the stack at the index_insert location. */
 	 i = insert_index;
 	 if ( PRISTK[i].priority_level > 0 ) free(PRISTK[i].stack_data);
-   	 PRISTK[i].stack_data = ( char * ) malloc(data_length*sizeof(char));
+	 PRISTK[i].stack_data = ( char * ) malloc(data_length*sizeof(char));
 	 if ( PRISTK[i].stack_data == NULL ) {
 	   /* Error allocating memory buffer so clear stack and punt */
 	   PRISTK[i].file_index     = -1;
@@ -7730,13 +7732,13 @@ if( file_in_use[ file_index ] == 0 && stack_mode != INIT_STK ) {
 	   PRISTK[i].block_offset   = 0;
 	   PRISTK[i].stack_type     = -1;
 	   PRISTK[i].priority_level = -1;
-           return NO_ERROR;
+	   return NO_ERROR;
 	 } /* end if */
 	 strncpy( PRISTK[i].stack_data, stack_data, data_length );
-	 PRISTK[i].file_index     = file_index;
-	 PRISTK[i].file_block     = file_block;
+	 PRISTK[i].file_index	  = file_index;
+	 PRISTK[i].file_block	  = file_block;
 	 PRISTK[i].block_offset   = block_offset;
-	 PRISTK[i].stack_type     = stack_type;
+	 PRISTK[i].stack_type	  = stack_type;
 	 PRISTK[i].priority_level = 1;
 	 break ;
       } /* end switch */
@@ -7748,13 +7750,13 @@ if( file_in_use[ file_index ] == 0 && stack_mode != INIT_STK ) {
 /* file ADFI_stridx_c.c */
 /**********************************************************************
 ADFI stridx c:
-        To find the location of a substring within a string.  This
-        routine is case InSeNsItIvE!!!
+	To find the location of a substring within a string.  This
+	routine is case InSeNsItIvE!!!
 
-        It is NOT assumed that the substring is already upper-case!!!
+	It is NOT assumed that the substring is already upper-case!!!
 
-input:  const char *str		The string to search in.
-input:  const char *substr	The substring to search for.
+input:	const char *str 	The string to search in.
+input:	const char *substr	The substring to search for.
 output: int return-value	The position in str where substr was found.
 				-1 if substr was not found.
 
@@ -7762,19 +7764,19 @@ output: int return-value	The position in str where substr was found.
 none:  Errors are not allowed.
 ***********************************************************************/
 int   ADFI_stridx_c(
-            const char *str,
-            const char *substr )
+	    const char *str,
+	    const char *substr )
 {
-int     i, j, k ;
+int	i, j, k ;
 
 if( str == NULL || substr == NULL || substr[0] == '\0' ) {
-   return -1 ;  /* not found - nothing to check */
+   return -1 ;	/* not found - nothing to check */
 }
 
 for( i=0; str[i] != '\0'; i++ ) {
    for( j=i, k=0; TO_UPPER( str[j] ) == TO_UPPER( substr[k] ); j++ ) {
       if( substr[++k] == '\0' )
-         return i  ; /* the substring was found */
+	 return i  ; /* the substring was found */
       } /* end for */
    } /* end for */
 return -1  ; /* the substring was not found */
@@ -7786,8 +7788,8 @@ ADFI string to C string:
 	Create a C string of the maximum length (+1 for null) which is
 	null terminated and has no trailing blanks.
 
-input:  const char *string		Input string.
-input:  const int string_length		Length of input string to use.
+input:	const char *string		Input string.
+input:	const int string_length 	Length of input string to use.
 output: char *c_string			Returned C string.
 output: int *error_return		Error return.
 
@@ -7795,7 +7797,7 @@ output: int *error_return		Error return.
 NO_ERROR
 NULL_STRING_POINTER
 **********************************************************************/
-void    ADFI_string_2_C_string(
+void	ADFI_string_2_C_string(
 		const char *string,
 		const int string_length,
 		char *c_string,
@@ -7902,15 +7904,15 @@ for( i=0, ir=string_length - 1; i<string_length; i++, ir-- ) {
 /***********************************************************************
 ADFI write data chunk:
 
-input:  const unsigned int file_index	The file index.
-input:  const struct DISK_POINTER *block_offset  Block & offset in the file.
-input:  const struct TOKENIZED_DATA_TYPE *tokenized_data_type Array.
-input:  const int data_size		Size of data entity in bytes.
-input:  const long chunk_bytes		Number of bytes in data chunk.
-input:  const long start_offset		Starting offset into the data chunk
-input:  const long total_bytes		Number of bytes to write in data chunk.
-input:  const char *data		Pointer to the data. If 0, zero data.
-output:	int *error_return		Error return.
+input:	const unsigned int file_index	The file index.
+input:	const struct DISK_POINTER *block_offset  Block & offset in the file.
+input:	const struct TOKENIZED_DATA_TYPE *tokenized_data_type Array.
+input:	const int data_size		Size of data entity in bytes.
+input:	const long chunk_bytes		Number of bytes in data chunk.
+input:	const long start_offset 	Starting offset into the data chunk
+input:	const long total_bytes		Number of bytes to write in data chunk.
+input:	const char *data		Pointer to the data. If 0, zero data.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
@@ -7918,16 +7920,16 @@ NULL_POINTER
 NULL_STRING_POINTER
 ADF_FILE_NOT_OPENED
 ***********************************************************************/
-void    ADFI_write_data_chunk(
-              const unsigned int file_index,
-              const struct DISK_POINTER *block_offset,
-              const struct TOKENIZED_DATA_TYPE *tokenized_data_type,
-              const int data_size,
-              const long chunk_bytes,
-              const long start_offset,
-              const long total_bytes,
-              const char *data,
-              int *error_return )
+void	ADFI_write_data_chunk(
+	      const unsigned int file_index,
+	      const struct DISK_POINTER *block_offset,
+	      const struct TOKENIZED_DATA_TYPE *tokenized_data_type,
+	      const int data_size,
+	      const long chunk_bytes,
+	      const long start_offset,
+	      const long total_bytes,
+	      const char *data,
+	      int *error_return )
 {
 int format_compare ;
 struct DISK_POINTER	current_location, end_of_chunk_tag ;
@@ -7992,7 +7994,7 @@ if( data == NULL ) { /** Zero out the file data **/
    if( block_of_00_initialized == FALSE ) {
       int i ;
       for( i=0; i<DISK_BLOCK_SIZE; i++ )
-         block_of_00[ i ] = '\0' ;
+	 block_of_00[ i ] = '\0' ;
       block_of_00_initialized = TRUE ;
       } /* end if */
 
@@ -8008,7 +8010,7 @@ if( data == NULL ) { /** Zero out the file data **/
 	current_location.offset, DISK_BLOCK_SIZE - current_location.offset + 1,
 	block_of_00, error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
 
       current_location.block++ ;
       current_location.offset = 0 ;
@@ -8016,13 +8018,13 @@ if( data == NULL ) { /** Zero out the file data **/
 
 	/** Write blocks of zeros, then a partial block **/
       while( t_bytes > 0 ) {
-         ADFI_write_file( file_index, current_location.block,
+	 ADFI_write_file( file_index, current_location.block,
 		current_location.offset, MIN( DISK_BLOCK_SIZE, t_bytes),
 		block_of_00, error_return ) ;
-         if( *error_return != NO_ERROR )
-            return ;
-         t_bytes -= (MIN( DISK_BLOCK_SIZE, t_bytes)) ;
-         } /* end while */
+	 if( *error_return != NO_ERROR )
+	    return ;
+	 t_bytes -= (MIN( DISK_BLOCK_SIZE, t_bytes)) ;
+	 } /* end while */
 
       } /* end if */
    else {
@@ -8031,7 +8033,7 @@ if( data == NULL ) { /** Zero out the file data **/
       ADFI_write_file( file_index, current_location.block,
 	current_location.offset, total_bytes, block_of_00, error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
       } /* end else */
    } /* end if */
 else {
@@ -8046,14 +8048,14 @@ else {
       ADFI_write_file( file_index, current_location.block,
 		current_location.offset, total_bytes, data, error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
       } /* end if */
    else {
       ADFI_write_data_translated( file_index, current_location.block,
 		current_location.offset, tokenized_data_type, data_size,
 		total_bytes, data, error_return ) ;
       if( *error_return != NO_ERROR )
-         return ;
+	 return ;
       } /* end else */
    } /* end else */
 
@@ -8069,18 +8071,18 @@ if( *error_return != NO_ERROR )
 /***********************************************************************
 ADFI write data chunk table:
 
-input:  const unsigned int file_index	The file index.
-input:  const struct DISK_POINTER *block_offset  Block & offset in the file.
-input:  const int number_of_data_chunks	Number of entries to write.
+input:	const unsigned int file_index	The file index.
+input:	const struct DISK_POINTER *block_offset  Block & offset in the file.
+input:	const int number_of_data_chunks Number of entries to write.
 output: struct DATA_CHUNK_TABLE_ENTRY data_chunk_table[] Array of entries.
-output:	int *error_return		Error return.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
 NULL_POINTER
 ADF_FILE_NOT_OPENED
 ***********************************************************************/
-void    ADFI_write_data_chunk_table(
+void	ADFI_write_data_chunk_table(
 		const unsigned int file_index,
 		const struct DISK_POINTER *block_offset,
 		const int number_of_data_chunks,
@@ -8158,19 +8160,19 @@ if( *error_return != NO_ERROR )
 /***********************************************************************
 ADFI write data translated:
 
-input:  const unsigned int file_index	The file index.
+input:	const unsigned int file_index	The file index.
 input:	const unsigned long file_block	Block within the file.
 input:	const unsigned long block_offset Offset within the block.
-input:  const struct TOKENIZED_DATA_TYPE *tokenized_data_type Array.
-input:  const int data_size		Size of data entity in bytes.
-input:  const long total_bytes		Number of bytes expected.
-input:  const char *data		Pointer to the data.
-output:	int *error_return		Error return.
+input:	const struct TOKENIZED_DATA_TYPE *tokenized_data_type Array.
+input:	const int data_size		Size of data entity in bytes.
+input:	const long total_bytes		Number of bytes expected.
+input:	const char *data		Pointer to the data.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
 ***********************************************************************/
-void    ADFI_write_data_translated(
+void	ADFI_write_data_translated(
 		const unsigned int file_index,
 		const unsigned long file_block,
 		const unsigned long block_offset,
@@ -8181,11 +8183,11 @@ void    ADFI_write_data_translated(
 		int *error_return )
 {
 struct	DISK_POINTER	disk_pointer ;
-int	                current_token = -1 ;
-int                     machine_size ;
+int			current_token = -1 ;
+int			machine_size ;
 unsigned char		*from_data = (unsigned char *)data ;
 unsigned char		*to_data = from_to_data ;
-unsigned long           chunk_size ;
+unsigned long		chunk_size ;
 unsigned long		number_of_data_elements, number_of_elements_written ;
 unsigned long		delta_from_bytes, delta_to_bytes ;
 
@@ -8230,7 +8232,7 @@ while( number_of_elements_written < number_of_data_elements ) {
    if( *error_return != NO_ERROR )
       return ;
    ADFI_write_file( file_index, disk_pointer.block, disk_pointer.offset,
-	  	    delta_to_bytes, (char *)to_data, error_return ) ;
+		    delta_to_bytes, (char *)to_data, error_return ) ;
    if( *error_return != NO_ERROR )
       return ;
    from_data += delta_from_bytes ;
@@ -8238,7 +8240,7 @@ while( number_of_elements_written < number_of_data_elements ) {
    if ( disk_pointer.offset > DISK_BLOCK_SIZE ) {
      ADFI_adjust_disk_pointer( &disk_pointer, error_return ) ;
      if( *error_return != NO_ERROR )
-        return ;
+	return ;
      } /* end if */
    } /* end while */
 
@@ -8262,15 +8264,15 @@ ADFI write disk pointer 2 disk:
 input:	const unsigned int file_index	File to write to.
 input:	const unsigned long file_block	Block within the file.
 input:	const unsigned long block_offset Offset within the block.
-input:  const struct DISK_POINTER *block_and_offset Disk pointer.
-output:	int *error_return		Error return.
+input:	const struct DISK_POINTER *block_and_offset Disk pointer.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
 NULL_POINTER
 ADF_FILE_NOT_OPENED
 ***********************************************************************/
-void    ADFI_write_disk_pointer_2_disk(
+void	ADFI_write_disk_pointer_2_disk(
 		const unsigned int file_index,
 		const unsigned long file_block,
 		const unsigned long block_offset,
@@ -8323,7 +8325,7 @@ input:	const unsigned long file_block	Block within the file.
 input:	const unsigned long block_offset Offset within the block.
 input:	const unsigned int data_length	Length of the data to write.
 input:	const char *data		Address of the data.
-output:	int *error_return		Error return.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
@@ -8355,7 +8357,7 @@ if( file_in_use[ file_index ] == 0 ) {
 *error_return = NO_ERROR ;
 
      /** If the read buffer overlaps the buffer then reset it to make
-         sure its currrent **/
+	 sure its currrent **/
 
 end_block = file_block+(block_offset+data_length)/DISK_BLOCK_SIZE+1;
 if ( last_rd_file == (long int) file_index && last_rd_block >= (long int) file_block &&
@@ -8363,7 +8365,7 @@ if ( last_rd_file == (long int) file_index && last_rd_block >= (long int) file_b
   last_rd_block = last_rd_file = num_in_rd_block = -1 ;
 
     /** Check to see if we need to flush the write buffer. this happens if we
-        are writing a large chunk or the write moves out of the current block.
+	are writing a large chunk or the write moves out of the current block.
 	If the data length is zero then just flush the buffer and return.
 	Note that the ADF_modification_date routine will flush the buffer
 	after any write operations !! **/
@@ -8376,7 +8378,7 @@ if( ( (unsigned long int) data_length + block_offset > DISK_BLOCK_SIZE ||
 #if CACHEWRITES
    DC_add_block(last_wr_file, last_wr_block, 1, wr_block_buffer, error_return);
 #else
-        /** Position the file **/
+	/** Position the file **/
    ADFI_fseek_file( last_wr_file, last_wr_block, 0, error_return ) ;
    if( *error_return != NO_ERROR ) {
       return ;
@@ -8396,7 +8398,7 @@ if( ( (unsigned long int) data_length + block_offset > DISK_BLOCK_SIZE ||
 #endif
 
      /** If the write buffer overlaps the buffer then reset it to make
-         sure its currrent, set flush buffer flag to false. **/
+	 sure its currrent, set flush buffer flag to false. **/
    if ( last_wr_file == (long int) file_index && last_wr_block >= (long int) file_block &&
 	last_wr_block <= (long int) end_block )
      last_wr_block = last_wr_file = -2 ;
@@ -8405,7 +8407,7 @@ if( ( (unsigned long int) data_length + block_offset > DISK_BLOCK_SIZE ||
 if ( data_length == 0 ) return; /** Just a buffer flush **/
 
     /** No need to buffer large pieces of data or to take special
-        measures to cross block boundaries **/
+	measures to cross block boundaries **/
 
 if( data_length + block_offset > DISK_BLOCK_SIZE ) {
 
@@ -8454,18 +8456,18 @@ if( data_length + block_offset > DISK_BLOCK_SIZE ) {
 } /* end if */
 
     /** For smaller pieces of data, write a block at a time.  This will improve
-        performance if neighboring data is writen a small piece at a time
-        (strided reads, file overhead).
+	performance if neighboring data is writen a small piece at a time
+	(strided reads, file overhead).
 
-        Some assumptions apply to the block size.  With some experimenting,
-        1K blocks do not offer much improvement.  4K blocks (4096 bytes)
-        do improve performance remarkably. This is due to the fact that the
+	Some assumptions apply to the block size.  With some experimenting,
+	1K blocks do not offer much improvement.  4K blocks (4096 bytes)
+	do improve performance remarkably. This is due to the fact that the
 	file structure is based of 4K blocks with offsets. Also the CRAY
 	loves 4K block writes!!
     **/
 
-if( (long int) file_block != last_wr_block       ||  /*- a different block -*/
-    (long int) file_index != last_wr_file ) {        /*- entirely different file -*/
+if( (long int) file_block != last_wr_block	 ||  /*- a different block -*/
+    (long int) file_index != last_wr_file ) {	     /*- entirely different file -*/
 
     /** buffer is not current, re-read **/
 
@@ -8487,7 +8489,7 @@ if( (long int) file_block != last_wr_block       ||  /*- a different block -*/
 	/** Read the data from disk **/
 	iret=fread( wr_block_buffer, 1, DISK_BLOCK_SIZE, ADF_file[file_index] ) ;
 	if( (long int)iret == EOF || iret < DISK_BLOCK_SIZE ) {
-            if ( (long int)iret < 0 ) iret = 0;
+	    if ( (long int)iret < 0 ) iret = 0;
 	    memset(&wr_block_buffer[iret], (size_t) ' ', DISK_BLOCK_SIZE-iret);
 	} /* end if */
 /* For some reason the Sun gets occasial corruptions unless the block is
@@ -8497,7 +8499,7 @@ if( (long int) file_block != last_wr_block       ||  /*- a different block -*/
    because it is late in the beta for StarCCM+ I am leaving the other platforms
    unchanged (although it should be safe for the other platforms, too)
    Geoff P 2/06  */
-#ifndef __sun 	/* This is defined in both GCC and the Sun compiler */
+#ifndef __sun	/* This is defined in both GCC and the Sun compiler */
 	else
 #endif
 	    DC_add_block( file_index, file_block, 0, wr_block_buffer, error_return);
@@ -8505,7 +8507,7 @@ if( (long int) file_block != last_wr_block       ||  /*- a different block -*/
 
    /** Remember buffer information **/
   last_wr_block  = file_block ;
-  last_wr_file   = file_index ;
+  last_wr_file	 = file_index ;
   }
 
 } /* end if */
@@ -8521,8 +8523,8 @@ flush_wr_block = 1 ;
 ADFI write file header:
 	To take information in the FILE_HEADER structure and format it
 	for disk, and write it out.
-input:  const int file_index		File index to write to.
-input:  const FILE_HEADER *file_header	The file header structure.
+input:	const int file_index		File index to write to.
+input:	const FILE_HEADER *file_header	The file header structure.
 output: int *error_return		Error return.
 
    Possible errors:
@@ -8532,12 +8534,12 @@ ADF_FILE_NOT_OPENED
 ADF_MEMORY_TAG_ERROR
 ADF_DISK_TAG_ERROR
 ***********************************************************************/
-void    ADFI_write_file_header(
-        const int file_index,
-        const struct FILE_HEADER *file_header,
-        int *error_return )
+void	ADFI_write_file_header(
+	const int file_index,
+	const struct FILE_HEADER *file_header,
+	int *error_return )
 {
-char    disk_header[ FILE_HEADER_SIZE ] ;
+char	disk_header[ FILE_HEADER_SIZE ] ;
 
 if( file_header == NULL ) {
    *error_return = NULL_POINTER ;
@@ -8585,13 +8587,13 @@ if( strncmp( file_header->tag5, file_header_tags[5], TAG_SIZE )!= 0 ) {
 /** OK the memory tags look good, let's format the file header information
     into the disk format and write it out.
 **/
-strncpy( &disk_header[  0], (char *)file_header->what,  WHAT_STRING_SIZE ) ;
-strncpy( &disk_header[ 32], (char *)file_header->tag0,  TAG_SIZE ) ;
+strncpy( &disk_header[	0], (char *)file_header->what,	WHAT_STRING_SIZE ) ;
+strncpy( &disk_header[ 32], (char *)file_header->tag0,	TAG_SIZE ) ;
 strncpy( &disk_header[ 36], (char *)file_header->creation_date, DATE_TIME_SIZE);
-strncpy( &disk_header[ 64], (char *)file_header->tag1,  TAG_SIZE ) ;
+strncpy( &disk_header[ 64], (char *)file_header->tag1,	TAG_SIZE ) ;
 strncpy( &disk_header[ 68], (char *)file_header->modification_date,
 							DATE_TIME_SIZE ) ;
-strncpy( &disk_header[ 96], (char *)file_header->tag2,  TAG_SIZE ) ;
+strncpy( &disk_header[ 96], (char *)file_header->tag2,	TAG_SIZE ) ;
 disk_header[100] = file_header->numeric_format ;
 disk_header[101] = file_header->os_size ;
 strncpy( &disk_header[102], (char *)file_header->tag3,	TAG_SIZE ) ;
@@ -8681,10 +8683,10 @@ ADFI_stack_control(file_index, 0, 0, SET_STK, FILE_STK,
 /***********************************************************************
 ADFI write free chunk:
 
-input:  const unsigned int file_index	The file index.
-input:  const struct DISK_POINTER *block_offset  Block & offset in the file.
-input:  const struct FREE_CHUNK *free_chunk Pointer to free-chunk.
-output:	int *error_return		Error return.
+input:	const unsigned int file_index	The file index.
+input:	const struct DISK_POINTER *block_offset  Block & offset in the file.
+input:	const struct FREE_CHUNK *free_chunk Pointer to free-chunk.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
@@ -8692,7 +8694,7 @@ NULL_POINTER
 ADF_FILE_NOT_OPENED
 ADF_MEMORY_TAG_ERROR
 ***********************************************************************/
-void    ADFI_write_free_chunk(
+void	ADFI_write_free_chunk(
 		const int file_index,
 		const struct DISK_POINTER *block_offset,
 		const struct FREE_CHUNK *free_chunk,
@@ -8763,7 +8765,7 @@ ADFI_write_disk_pointer_2_disk( file_index, current_location.block,
 if( *error_return != NO_ERROR )
    return ;
 
-        /** Write out a bunch of 'x's in the free chunk's empty space **/
+	/** Write out a bunch of 'x's in the free chunk's empty space **/
 current_location.offset += DISK_POINTER_SIZE ;
 ADFI_adjust_disk_pointer( &current_location, error_return ) ;
 if( *error_return != NO_ERROR )
@@ -8814,8 +8816,8 @@ if( *error_return != NO_ERROR )
 ADFI write free chunk table:
 	To take information in the FREE_CHUNK_TABLE structure and format it
 	for disk, and write it out.
-input:  const int file_index		File index to write to.
-input:  const FREE_CHUNK_TABLE *free_chunk_table  The free_chunk header struct.
+input:	const int file_index		File index to write to.
+input:	const FREE_CHUNK_TABLE *free_chunk_table  The free_chunk header struct.
 output: int *error_return		Error return.
 
    Possible errors:
@@ -8914,8 +8916,8 @@ ADFI write modification date:
     after writing, file version global variable is unset so that it is
     only written once.
 
-input:  const int  file_index    File index to write to.
-output:	int *error_return        Error return.
+input:	const int  file_index	 File index to write to.
+output: int *error_return	 Error return.
 
    Possible errors:
 NO_ERROR
@@ -8924,11 +8926,11 @@ ADF_FILE_NOT_OPENED
 FWRITE_ERROR
 ***********************************************************************/
 void	ADFI_write_modification_date(
-        const int  file_index,
-        int *error_return )
+	const int  file_index,
+	int *error_return )
 {
 int	    i_block_offset ;
-char    mod_date[DATE_TIME_SIZE] ;
+char	mod_date[DATE_TIME_SIZE] ;
 
 
 *error_return = NO_ERROR ;
@@ -8936,10 +8938,10 @@ char    mod_date[DATE_TIME_SIZE] ;
 ADFI_get_current_date( mod_date ) ;
 
      /** block offset depends on the location the of modification date
-         in the FILE_HEADER structure **/
+	 in the FILE_HEADER structure **/
 i_block_offset = WHAT_STRING_SIZE + TAG_SIZE + DATE_TIME_SIZE + TAG_SIZE ;
 ADFI_write_file( file_index, 0, i_block_offset, DATE_TIME_SIZE, mod_date,
-                 error_return ) ;
+		 error_return ) ;
 if( *error_return != NO_ERROR ) {
    return;
    } /* end if */
@@ -8954,7 +8956,7 @@ if( file_version_update[ file_index ][ 0 ] != '\0' )
 {
    i_block_offset = 0 ;   /* what-string is first field in header */
    ADFI_write_file( file_index, 0, i_block_offset, WHAT_STRING_SIZE,
-                    file_version_update[ file_index ], error_return ) ;
+		    file_version_update[ file_index ], error_return ) ;
 
 /** reset the version to default so that it only gets updated once **/
    file_version_update[ file_index ][ 0 ] = '\0' ;
@@ -8970,9 +8972,9 @@ if( file_version_update[ file_index ][ 0 ] != '\0' )
 ADFI write node header:
 	To take information in the NODE_HEADER structure and format it
 	for disk, and write it out.
-input:  const int file_index		File index to write to.
-input:  const struct DISK_POINTER *block_offset  Block & offset in the file.
-input:  const NODE_HEADER *node_header	The node header structure.
+input:	const int file_index		File index to write to.
+input:	const struct DISK_POINTER *block_offset  Block & offset in the file.
+input:	const NODE_HEADER *node_header	The node header structure.
 output: int *error_return		Error return.
 
    Possible errors:
@@ -9075,18 +9077,18 @@ ADFI_stack_control(file_index, block_offset->block, block_offset->offset,
 /***********************************************************************
 ADFI write sub node table:
 
-input:  const unsigned int file_index	The file index.
-input:  const struct DISK_POINTER *block_offset  Block & offset in the file.
-input:  const int number_of_sub_nodes	Number of sub-node entries.
-input:  struct SUB_NODE_TABLE_ENTRY sub_node_table[] Array of sub-node entries.
-output:	int *error_return		Error return.
+input:	const unsigned int file_index	The file index.
+input:	const struct DISK_POINTER *block_offset  Block & offset in the file.
+input:	const int number_of_sub_nodes	Number of sub-node entries.
+input:	struct SUB_NODE_TABLE_ENTRY sub_node_table[] Array of sub-node entries.
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
 NULL_POINTER
 ADF_FILE_NOT_OPENED
 ***********************************************************************/
-void    ADFI_write_sub_node_table(
+void	ADFI_write_sub_node_table(
 		const unsigned int file_index,
 		const struct DISK_POINTER *block_offset,
 		const int number_of_sub_nodes,
@@ -9153,8 +9155,8 @@ for( i=0; i<number_of_sub_nodes; i++ ) {
       return ;
 
    ADFI_write_disk_pointer_2_disk( file_index, current_child.block,
-        current_child.offset, &sub_node_table[i].child_location,
-        error_return ) ;
+	current_child.offset, &sub_node_table[i].child_location,
+	error_return ) ;
    if( *error_return != NO_ERROR )
       return ;
 
@@ -9173,17 +9175,17 @@ if( *error_return != NO_ERROR )
 /***********************************************************************
 ADFI write sub node table entry:
 
-input:  const unsigned int file_index	The file index.
-input:  const struct DISK_POINTER *block_offset  Block & offset in the file.
-input:  struct SUB_NODE_TABLE_ENTRY *sub_node_table_entry
-output:	int *error_return		Error return.
+input:	const unsigned int file_index	The file index.
+input:	const struct DISK_POINTER *block_offset  Block & offset in the file.
+input:	struct SUB_NODE_TABLE_ENTRY *sub_node_table_entry
+output: int *error_return		Error return.
 
    Possible errors:
 NO_ERROR
 NULL_POINTER
 ADF_FILE_NOT_OPENED
 ***********************************************************************/
-void    ADFI_write_sub_node_table_entry(
+void	ADFI_write_sub_node_table_entry(
 		const unsigned int file_index,
 		const struct DISK_POINTER *block_offset,
 		struct SUB_NODE_TABLE_ENTRY *sub_node_table_entry,
@@ -9219,7 +9221,7 @@ ADFI_write_file( file_index, block_offset->block, block_offset->offset,
 if( *error_return != NO_ERROR )
    return ;
 
-        /** Set the subnode onto the stack **/
+	/** Set the subnode onto the stack **/
 ADFI_stack_control(file_index, block_offset->block, block_offset->offset,
 		   SET_STK, SUBNODE_STK, ADF_NAME_LENGTH + DISK_POINTER_SIZE,
 		   sub_node_entry_disk_data );
@@ -9232,25 +9234,25 @@ ADFI get string token: This routine simulates strtok except it returns the
 current postion in the string tobe used later. Thas avoids the problem of
 trying using strtok in a recrusive subroutine call which does not work!
 
-input/output:  *string     - the string to parse tokens from.
-                             returns string with token replaced by nil.
+input/output:  *string	   - the string to parse tokens from.
+			     returns string with token replaced by nil.
 input/output:  *string_pos - the string position to begin parsing should
-                             be placed at the beginning of the string.
-                             returns postion after last token to continue
+			     be placed at the beginning of the string.
+			     returns postion after last token to continue
 			     string parsing. Token may change from last call.
-input:         *token      - The token to search for.
-function return:           - a pointer to the desired substring.
-                             A NULL returns indicates the end of the string.
+input:	       *token	   - The token to search for.
+function return:	   - a pointer to the desired substring.
+			     A NULL returns indicates the end of the string.
 
 ***********************************************************************/
 char   *ADFI_strtok(
-	        char *string,
+		char *string,
 		char **string_pos,
 		char const *token )
 {
   char	*tmp_ptr ;
   char	*sub_string ;
-  int   string_len ;
+  int	string_len ;
 
   if ( string_pos == NULL ) return NULL ;
   if( token == NULL || string == NULL || *string_pos == NULL ) return NULL ;
@@ -9264,12 +9266,12 @@ char   *ADFI_strtok(
   tmp_ptr = *string_pos ;
   while ( string_len > 0 ) {
      if ( tmp_ptr[0] == token[0] ) {
-        tmp_ptr++ ;
-        string_len-- ;
-        }
+	tmp_ptr++ ;
+	string_len-- ;
+	}
      else {
-        break ;
-        } /* end if */
+	break ;
+	} /* end if */
      } /* end while */
   if ( string_len == 0 ) return NULL ;
 
@@ -9280,13 +9282,13 @@ char   *ADFI_strtok(
 
   while ( string_len > 0 ) {
      if ( tmp_ptr[0] != token[0] ) {
-        tmp_ptr++ ;
-        string_len-- ;
-        }
+	tmp_ptr++ ;
+	string_len-- ;
+	}
      else {
-        tmp_ptr[0] = '\0' ;
+	tmp_ptr[0] = '\0' ;
 	break ;
-        } /* end if */
+	} /* end if */
      } /* end while */
 
   /* Set location for the next search */

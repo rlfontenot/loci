@@ -20,6 +20,7 @@
 //#############################################################################
 #include <Loci.h> 
 #include <stdio.h>
+#include <strings.h>
 #include <stdlib.h>
 #include <math.h>
 #include <string>
@@ -201,7 +202,7 @@ void fv_topo_handler::open(string casename, string iteration ,int inpnts,
   ibuf[0] = FV_MAGIC ;
   fwrite(ibuf, sizeof(int), 1, OFP) ;
   memset(fv,'\0',80) ;
-  sprintf(fv, "FIELDVIEW") ;
+  snprintf(fv,80, "FIELDVIEW") ;
   fwrite(&fv, sizeof(char), 80, OFP) ;
   ibuf[0] = 3 ;
   ibuf[1] = 0 ;
@@ -261,7 +262,7 @@ void fv_topo_handler::open(string casename, string iteration ,int inpnts,
     ibuf[1] = 1 ; // Normals should be consistent
     fwrite(ibuf,sizeof(int),2,OFP) ;
     memset(fv,'\0',80) ;
-    sprintf(fv, "%s",bc_names[i].c_str()) ;
+    snprintf(fv,80, "%s",bc_names[i].c_str()) ;
     fwrite(&fv, sizeof(char), 80, OFP) ;
   }
 
@@ -270,7 +271,7 @@ void fv_topo_handler::open(string casename, string iteration ,int inpnts,
   fwrite(ibuf,sizeof(int),1,OFP) ;
   for(size_t i=0;i<nlist.size();++i) {
     memset(fv,'\0',80) ;
-    sprintf(fv, "%s",nlist[i].c_str()) ;
+    snprintf(fv,80, "%s",nlist[i].c_str()) ;
     fwrite(&fv, sizeof(char), 80, OFP) ;
   }
   // boundary variables 
@@ -278,7 +279,7 @@ void fv_topo_handler::open(string casename, string iteration ,int inpnts,
   fwrite(ibuf,sizeof(int),1,OFP) ;
   for(size_t i=0;i<blist.size();++i) {
     memset(fv,'\0',80) ;
-    sprintf(fv, "%s",blist[i].c_str()) ;
+    snprintf(fv,80, "%s",blist[i].c_str()) ;
     fwrite(&fv, sizeof(char), 80, OFP) ;
   }
 }

@@ -18,6 +18,8 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
+#include <stdio.h>
+#include <strings.h>
 #include <Loci.h>
 #include "vogtools.h"
 #include <Tools/stream.h>
@@ -1159,8 +1161,9 @@ if(Lref == "")
   int read_type = 0 ;
   bool found_file = false ;
   char* filename = av[1] ;
-  char buf[1024] ;
-  sprintf(buf,"%s.grd",av[1]) ;
+  char buf[512] ;
+  bzero(buf,512) ;
+  snprintf(buf,511,"%s.grd",av[1]) ;
   string file = string(buf) ;
   if(Loci::MPI_rank == 0) {
     bool found_ascii=false ;
@@ -1170,7 +1173,7 @@ if(Lref == "")
       found_ascii = true ;
       found_file = true ;
     } 
-    sprintf(buf,"%s.grd.b8",av[1]) ;
+    snprintf(buf,511,"%s.grd.b8",av[1]) ;
     if(stat(buf,&finfo)==0 && (S_ISREG(finfo.st_mode))) {
       found_binary = true ;
       found_file = true ;
@@ -1891,7 +1894,8 @@ if(Lref == "")
       surf_ids.push_back(pair<int,string>(bc,mi->second)) ;
     } else {
       char buf[512] ;
-      sprintf(buf,"BC_%d",bc) ; 
+      bzero(buf,512) ;
+      snprintf(buf,511,"BC_%d",bc) ; 
       surf_ids.push_back(pair<int,string>(bc, string(buf))) ;
     }
   } ENDFORALL ;

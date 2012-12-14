@@ -20,6 +20,7 @@
 //#############################################################################
 #include <stdio.h>
 #include <strings.h>
+#include <strings.h>
 #include <Loci.h>
 #include "vogtools.h"
 #include <iostream>
@@ -688,15 +689,17 @@ int main(int ac, char *av[]) {
           
         }else{
           int id = *ei ;
-          char bcname[512] ;
-          sprintf(bcname,"BC_%d",id) ;
+          char bcname[128] ;
+	  bzero(bcname,128) ;
+          snprintf(bcname,127,"BC_%d",id) ;
           string bcstr(bcname) ;
           surf_ids.push_back(pair<int,string>(*ei,bcstr)) ;
         }
       }else{
         int id = *ei ;
-        char bcname[512] ;
-        sprintf(bcname,"BC_%d",id) ;
+        char bcname[128] ;
+	bzero(bcname,128) ;
+        snprintf(bcname,127,"BC_%d",id) ;
         string bcstr(bcname) ;
         surf_ids.push_back(pair<int,string>(*ei,bcstr)) ;
       }
@@ -704,8 +707,9 @@ int main(int ac, char *av[]) {
   }
  
   if(new_bc_id_used){     
-    char bcname[512] ;
-    sprintf(bcname,"BC_%d",new_bc_id) ;
+    char bcname[128] ;
+    bzero(bcname,128) ;
+    snprintf(bcname,127,"BC_%d",new_bc_id) ;
     string bcstr(bcname) ;
     surf_ids.push_back(pair<int,string>(new_bc_id, bcstr)) ; 
   }

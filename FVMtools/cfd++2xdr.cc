@@ -18,6 +18,8 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
+#include <stdio.h>
+#include <strings.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <iostream>
@@ -455,7 +457,8 @@ int main(int ac, char* av[]) {
 
   char filename[] = "grid" ;
   char out_buf[512] ;
-  sprintf(out_buf,"%s.xdr",filename) ;
+  bzero(out_buf,512) ;
+  snprintf(out_buf,511,"%s.xdr",filename) ;
   FILE *FP = fopen(out_buf, "w") ;
   if(FP == NULL) {
     cerr << "can't open " << out_buf <<  endl ;
@@ -690,7 +693,8 @@ int main(int ac, char* av[]) {
     max_fpc = 6 ;
   
   char out_buf[512] ;
-  sprintf(out_buf,"%s.xdr",filename) ;
+  bzero(out_buf,512) ;
+  snprintf(out_buf,511,"%s.xdr",filename) ;
   FILE *FP = fopen(out_buf, "w") ;
   if(FP == NULL) {
     cerr << "can't open " << out_buf <<  endl ;
