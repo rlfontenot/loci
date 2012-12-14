@@ -37,7 +37,7 @@ fortran_binary_file::fortran_binary_file(const char *filename)
     record_size = 0 ;
     if((fd = open(filename,O_RDONLY,0666)) < 0) {
         char *nerror = new char[512] ;
-        sprintf(nerror,"can't open '%s'",filename) ;
+        snprintf(nerror,512,"can't open '%s'",filename) ;
         error = nerror ;
     }
 }

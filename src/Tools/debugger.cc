@@ -126,11 +126,11 @@ namespace Loci {
     exit(-1) ;
 #else
 #ifndef SGI
-    sprintf(buf,"%s  -display %s -e %s %s %d &",
+    snprintf(buf,512,"%s  -display %s -e %s %s %d &",
             xtermpath,
             debug_hostname,debug_program,debug_execname,pid) ;
 #else
-    sprintf(buf,"%s  -display %s -e %s -p %d %s &",
+    snprintf(buf,512,"%s  -display %s -e %s -p %d %s &",
             xtermpath,
             debug_hostname,debug_program,pid,debug_execname) ;
 #endif

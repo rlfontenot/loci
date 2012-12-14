@@ -58,6 +58,8 @@ using std::istringstream ;
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <stdio.h>
+#include <strings.h>
 
 extern "C" {
   typedef int idxtype ;
@@ -1927,8 +1929,9 @@ namespace Loci {
       
       
       FORALL(global_boundary_cells, bc) {
-        char buf[512] ;
-        sprintf(buf,"BC_%d",-bc) ;
+        char buf[128] ;
+	bzero(buf,128) ;
+        snprintf(buf,127,"BC_%d",-bc) ;
         boundary_tags[bc] = string(buf) ;
         boundary_names[bc] = string(buf) ;
 	debugout << " " << boundary_names[bc] ;
@@ -2075,8 +2078,9 @@ namespace Loci {
     
 
     FORALL(boundary_cells, bc) {
-      char buf[512] ;
-      sprintf(buf,"BC_%d",-bc) ;
+      char buf[128] ;
+      bzero(buf,128) ;
+      snprintf(buf,127,"BC_%d",-bc) ;
       boundary_names[bc] = string(buf) ;
       boundary_tags[bc] = string(buf) ;
     } ENDFORALL ;

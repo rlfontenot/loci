@@ -527,7 +527,7 @@ namespace Loci {
     for(size_t i=0;i<cs.size();++i)
       if(cs[i].size() > 1) {
         char buf[512] ;
-        sprintf(buf,"__internal__@Vertex_%d",nid) ;
+        snprintf(buf,512,"__internal__@Vertex_%d",nid) ;
         nid++ ;
         variable tmp(buf) ;
         int new_vertex = tmp.ident() ; //tmpgr.max_vertex()+1 ;
@@ -577,7 +577,7 @@ namespace Loci {
         prio_cluster += tr[vi->ident()] ;
       }
       char buf[512] ;
-      sprintf(buf,"__internal_prio__@Vertex_%d",nid) ;
+      snprintf(buf,512,"__internal_prio__@Vertex_%d",nid) ;
       nid++ ;
       variable tmp(buf) ;
       int new_vertex = tmp.ident() ; //tmpgr.max_vertex()+1 ;

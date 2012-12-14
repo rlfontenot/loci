@@ -1682,7 +1682,7 @@ namespace Loci {
         string level_name = iter.level_name() ;
         char buf[512] ;
         int ii = i ;
-        sprintf(buf,"_%s_%d_",level_name.c_str(),ii) ;
+        snprintf(buf,512,"_%s_%d_",level_name.c_str(),ii) ;
         string new_level = string(buf) ;
         time_ident ntime = time_ident(iter.parent(),new_level) ;
         map<variable,variable> rvm ;

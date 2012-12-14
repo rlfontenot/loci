@@ -184,8 +184,8 @@ namespace Loci {
       Loci::debugout << "crash occured in rule " << r << endl ;
 
       if(verbose && exec_current_fact_db != 0) {
-        char buf[512] ;
-        sprintf(buf,"crash_dump.%d",MPI_rank) ;
+        char buf[128] ;
+        snprintf(buf,128,"crash_dump.%d",MPI_rank) ;
         ofstream cfile(buf,ios::out) ;
         cfile << "rule: " << r << endl ;
 
