@@ -107,7 +107,8 @@ void drawfigure::drawcontours()
   for(size_t i=0;i<figure.contour_values.size();++i) {
     if(figure.contour_values[i].mingrad < 100.0) {
       char buf[256] ;
-      sprintf(buf,"%s",fourSigDigs(figure.contour_values[i].value)) ;
+      bzero(buf,256) ;
+      snprintf(buf,255,"%s",fourSigDigs(figure.contour_values[i].value)) ;
       DrawLabel(buf,figure.contour_values[i].mingradpos,0,10,0) ;
     }
   }
@@ -136,19 +137,19 @@ void drawfigure::drawtitle() {
   time_t tloc ;
 
   time(&tloc) ;
-  strcpy(buf,ctime(&tloc)) ;
+  strncpy(buf,ctime(&tloc),4) ;
   strncpy(date,buf+4,12) ;
   strncpy(date+12,buf+19,5) ;
   date[17]='\0' ;
 
   if(!figure.valid) {
-    sprintf(buf,"No grid available") ;
+    snprintf(buf,512,"No grid available") ;
   } else if(figure.has_values) {
-    sprintf(val,"%s",fourSigDigs(figure.contour_spacing)) ;
-    sprintf(buf,"%s contour spacing = %s [Function: max=%4g min=%4g] Date: %s",
+    snprintf(val,256,"%s",fourSigDigs(figure.contour_spacing)) ;
+    snprintf(buf,512,"%s contour spacing = %s [Function: max=%4g min=%4g] Date: %s",
             figure.filename.c_str(),val,figure.max_val,figure.min_val,date) ;
   } else {
-    sprintf(buf,"Grid filename: %s        Date: %s",figure.filename.c_str(),date) ;
+    snprintf(buf,512,"Grid filename: %s        Date: %s",figure.filename.c_str(),date) ;
   }
   currdev->DrawLabel(buf,titlepos,3,10,0) ;
 }
@@ -181,7 +182,7 @@ void drawfigure::drawlegend()
     SelectPen(int(1+s*double(MAXPENS-1.01))) ;
     currdev->DrawLine(p1,p2) ;
     char buf[256] ;
-    sprintf(buf,"%s",fourSigDigs(figure.contour_values[i].value)) ;
+    snprintf(buf,256,"%s",fourSigDigs(figure.contour_values[i].value)) ;
     currdev->DrawLabel(buf,p3,0,10,0) ;
   }
   
@@ -222,7 +223,7 @@ void drawfigure::drawrulers()
           p1.x = 0.;
         positions p3 = positions(p1.x,p1.y-ticksize/yscale) ;
         DrawLine(p1,p3) ;
-        sprintf(buf,"%s",fourSigDigs(p1.x)) ;
+        snprintf(buf,256,"%s",fourSigDigs(p1.x)) ;
         DrawLabel(buf,positions(p1.x,p1.y-4.*ticksize/yscale),5,10,0) ;
         p1.x += incx ;
       }
@@ -237,7 +238,7 @@ void drawfigure::drawrulers()
           p1.y = 0. ;
         positions p3 = positions(p1.x+ticksize/xscale,p1.y) ;
         DrawLine(p1,p3) ;
-        sprintf(buf,"%s",fourSigDigs(p1.y)) ;
+        snprintf(buf,256,"%s",fourSigDigs(p1.y)) ;
         DrawLabel(buf,positions(p1.x+2.*ticksize/xscale,p1.y),5,10,0) ;
         p1.y += incy ;
       }

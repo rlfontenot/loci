@@ -58,16 +58,16 @@ char * fourSigDigs(double num)
     static char buf[256] ;
     
     if(num == 0.0)
-      sprintf(buf,"0.0") ;
+      snprintf(buf,256,"0.0") ;
     else if(fabs(num) < 1.0|| fabs(num)> 99999.9) {
         if(fabs(num) > 0.009 && fabs(num)<1.0)
-          sprintf(buf,"%3.3f",num) ;
+          snprintf(buf,256,"%3.3f",num) ;
         else
-          sprintf(buf,"%3.2e",num) ;
+          snprintf(buf,256,"%3.2e",num) ;
     } else if(fabs(num) > 999.9)
-      sprintf(buf,"%g",num) ;
+      snprintf(buf,256,"%g",num) ;
     else
-      sprintf(buf,"%3.1f",num) ;
+      snprintf(buf,256,"%3.1f",num) ;
     return buf ;
 
 }

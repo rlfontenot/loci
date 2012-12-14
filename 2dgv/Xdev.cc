@@ -5,6 +5,7 @@
 #include "debug.h"
 
 #include <stdio.h>
+#include <strings.h>
 #include <stdlib.h>
 #include <math.h>
 #include "tools.h"
@@ -939,7 +940,8 @@ Ctrl<Key>J:         ContourEnter() \n\
     return ;
   XtSetArg(pargs[2],XtNtranslations,XtParseTranslationTable(texttrans)) ;
   static char defbuf[512] ;
-  sprintf(defbuf,"%s",fourSigDigs(grids.front().contour_spacing)) ;
+  bzero(defbuf,512) ;
+  snprintf(defbuf,511,"%s",fourSigDigs(grids.front().contour_spacing)) ;
   XtSetArg(dargs[1],XtNvalue,defbuf) ;
   lpop = XtCreatePopupShell("Popup",transientShellWidgetClass, toplevel,
                             pargs, XtNumber(pargs)) ;
@@ -985,7 +987,8 @@ Ctrl<Key>J:         MaxContourEnter() \n\
     return ;
   XtSetArg(pargs[2],XtNtranslations,XtParseTranslationTable(texttrans)) ;
   static char defbuf[512] ;
-  sprintf(defbuf,"%s",fourSigDigs(grids.front().max_val)) ;
+  bzero(defbuf,512) ;
+  snprintf(defbuf,511,"%s",fourSigDigs(grids.front().max_val)) ;
   XtSetArg(dargs[1],XtNvalue,defbuf) ;
   lpop = XtCreatePopupShell("Popup",transientShellWidgetClass, toplevel,
                             pargs, XtNumber(pargs)) ;
@@ -1030,7 +1033,8 @@ Ctrl<Key>J:         MinContourEnter() \n\
     return ;
   XtSetArg(pargs[2],XtNtranslations,XtParseTranslationTable(texttrans)) ;
   static char defbuf[512] ;
-  sprintf(defbuf,"%s",fourSigDigs(grids.front().min_val)) ;
+  bzero(defbuf,512) ;
+  snprintf(defbuf,511,"%s",fourSigDigs(grids.front().min_val)) ;
   XtSetArg(dargs[1],XtNvalue,defbuf) ;
   lpop = XtCreatePopupShell("Popup",transientShellWidgetClass, toplevel,
                             pargs, XtNumber(pargs)) ;
@@ -1119,7 +1123,8 @@ Ctrl<Key>J:         PrintEnter() \n\
 
   //    if (outPrinterSet) strcpy (pipedev,outPrinter);
 
-  sprintf(defbuf,"%s",pipedev) ;
+  bzero(defbuf,512) ;
+  snprintf(defbuf,511,"%s",pipedev) ;
   XtSetArg(pargs[2],XtNtranslations,XtParseTranslationTable(texttrans)) ;
   XtSetArg(dargs[1],XtNvalue,defbuf) ;
   lpop = XtCreatePopupShell("Popup",transientShellWidgetClass, toplevel,
