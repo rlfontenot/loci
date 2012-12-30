@@ -1758,11 +1758,12 @@ namespace Loci {
 	} else
 	  num.push_back(e) ;
       }
-      if(denom.empty())
+      if(denom.empty()) {
 	if(num.empty())
 	  return e_int(1) ;
 	else
 	  return exprP(new expression(OP_TIMES,"",num,1)) ;
+      }
 
       exprList divList ;
       if(num.empty())
@@ -2596,7 +2597,7 @@ namespace Loci {
 
       for(;i!=expr_list.end();++i) {
         s += oper ;
-        if (poChar != '\0' && (*i)->expr_list.size() > 1 || poChar == '{')
+        if ((poChar != '\0' && (*i)->expr_list.size() > 1) || poChar == '{')
           {
             s += poChar;
             par++;
