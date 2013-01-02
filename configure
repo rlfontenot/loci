@@ -76,6 +76,7 @@ case "$ARCH" in
 esac
 
 NO_MPI=0
+NO_MPI_DRIVER=0
 
 PREFIX=/usr/local
 if [ $# -eq 0 ]; then
@@ -149,6 +150,9 @@ while [ $# -ne 0 ]; do
 	    tmp=$1
 	    MPI_BASE=${tmp#--with-mpi\=}
 	    ;;
+        --no-mpi-driver)
+	    NO_MPI_DRIVER=1
+	    ;;
 	--compiler)
 	    shift
 	    COMPILER=$1
@@ -218,23 +222,26 @@ if [ $MPI_BASE == "/notselected" ]; then
     MPI_CPP_COMPILER=none
     MPI_F90_COMPILER=none
     
-    if [ -e $MPI_PATH/mpicc ]; then
-	MPI_C_COMPILER=mpicc
-    fi
-    if [ -e $MPI_PATH/mpif90 ]; then
-	MPI_F90_COMPILER=mpif90
-    fi
-    if [ -e $MPI_PATH/mpic++ ]; then
-	MPI_CPP_COMPILER=mpic++
-    else
-	if [ -e $MPI_PATH/mpicxx ]; then
-	    MPI_CPP_COMPILER=mpicxx
+    if [ $NO_MPI_DRIVER == 0 ]; then
+	if [ -e $MPI_PATH/mpicc ]; then
+	    MPI_C_COMPILER=mpicc
+	fi
+	if [ -e $MPI_PATH/mpif90 ]; then
+	    MPI_F90_COMPILER=mpif90
+	fi
+	if [ -e $MPI_PATH/mpic++ ]; then
+	    MPI_CPP_COMPILER=mpic++
 	else
-	    if [ -e $MPI_PATH/mpiCC ]; then
-		MPI_CPP_COMPILER=mpiCC
+	    if [ -e $MPI_PATH/mpicxx ]; then
+		MPI_CPP_COMPILER=mpicxx
+	    else
+		if [ -e $MPI_PATH/mpiCC ]; then
+		    MPI_CPP_COMPILER=mpiCC
+		fi
 	    fi
 	fi
     fi
+
     MPI_BASE=`echo $MPI_PATH | sed "s/\/.[a-zA-Z0-9]*$//"`
 else
     MPI_PATH=$MPI_BASE/bin
