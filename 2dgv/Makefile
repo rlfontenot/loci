@@ -3,13 +3,18 @@
 # all files in this directory into a single executable)
 OBJS = $(AUTOMATIC_OBJS) 
 
+#Base directory where X11 include files and libraries are located
+X11BASE=/usr/X11R6
+
 # Put the executable name here
 TARGET = 2dgv
+# Put linker flags here (such as any libraries to link)
+LIBRARIES = -lm -L$(X11BASE)/lib -lXt -lXaw -lX11 
 
-X11BASE=/usr/X11
-
+# Include search directories
 INCLUDES = -I. -I$(X11BASE)/include
 
+# Compiler flags
 # C Compiler
 #CC = gcc
 # Put C compiler flags here (default debugging options, basic optimization)
@@ -21,8 +26,6 @@ CFLAGS= -O1 $(INCLUDES)
 CXXFLAGS= -O1 $(INCLUDES)
 
 
-# Put linker flags here (such as any libraries to link)
-LIBRARIES = -lm -L$(X11BASE)/lib -lXt -lSM -lICE -lXaw -lXext -lX11
 
 #############################################################################
 # No need to change rules below this line
