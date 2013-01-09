@@ -101,13 +101,8 @@ std::vector<int32> get_c1_prism(const std::vector<char>& cellPlan,
                                 char orientCode, int dd){
 
   std::vector<int32> c1;
-
-
-  
-  
-  
+ 
   Prism *aCell = new Prism(); // the root, nfold = 3
-  aCell->setNfold(3);
   aCell->empty_resplit(cellPlan); //only nfold and childCell is defined
 
   

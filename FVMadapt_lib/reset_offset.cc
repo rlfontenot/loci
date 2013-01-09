@@ -29,12 +29,19 @@
 #include <stdio.h>
 #include "mpi.h"
 #include "defines.h"
-using Loci::storeRepP;
-
+// #include <iostream>
+// #include <fstream>
+ using Loci::storeRepP;
+// using std::vector;
+// using std::cerr;
+// using std::cout;
+// using std::endl;
+// using std::string;
+// using std::ofstream;
 typedef Loci::vector3d<double> vect3d;
 namespace Loci{
   std::vector<int> all_collect_sizes(int size);
-// Convert container from local numbering to file numbering
+  // Convert container from local numbering to file numbering
   // pass in store rep pointer: sp
   // entitySet to write: dom
   // return offset in file numbering (each processor will allocate from zero,
@@ -44,10 +51,10 @@ namespace Loci{
   storeRepP Local2FileOrder(storeRepP sp, entitySet dom, int &offset,
                             fact_db::distribute_infoP dist, MPI_Comm comm);
 
-   void File2LocalOrder(storeRepP &result, entitySet resultSet,
+  void File2LocalOrder(storeRepP &result, entitySet resultSet,
                        storeRepP input, int offset,
                        fact_db::distribute_infoP dist,
-                        MPI_Comm comm);
+                       MPI_Comm comm);
   
 }
 
@@ -117,7 +124,7 @@ public:
     local_faces = (*my_entities) & (*faces);
     local_geom_cells = (*my_entities)&(*geom_cells);
 
-     //each process computes its node  offset
+    //each process computes its node  offset
 
     int noffset = *num_original_nodes ;
 
@@ -147,9 +154,9 @@ public:
         noffset += edge_num_inner_nodes[ei];
       }ENDFORALL;
       Loci::File2LocalOrder(localVar, local_edges,
-                      edge_file_offset.Rep(), offset,
-                      dist,
-                      MPI_COMM_WORLD);
+                            edge_file_offset.Rep(), offset,
+                            dist,
+                            MPI_COMM_WORLD);
       
     }
     //finish with edge nodes
@@ -194,9 +201,9 @@ public:
       }ENDFORALL;
       //File2Local use the offset value set by Local2File    
       Loci::File2LocalOrder(localVar, local_geom_cells,
-                      cell_file_offset.Rep(), offset,
-                      dist,
-                      MPI_COMM_WORLD);
+                            cell_file_offset.Rep(), offset,
+                            dist,
+                            MPI_COMM_WORLD);
       //finish with cell nodes
     }
     //update noffset
@@ -237,9 +244,9 @@ public:
       }ENDFORALL;
       
       Loci::File2LocalOrder(localVar, local_faces,
-                    face_file_offset.Rep(), offset,
-                      dist,
-                      MPI_COMM_WORLD);
+                            face_file_offset.Rep(), offset,
+                            dist,
+                            MPI_COMM_WORLD);
       
     } 
   }
@@ -311,123 +318,4 @@ register_rule<get_balanced_cell_offset> register_get_balanced_cell_offset;
 
 
 
-
-// class init_npnts : public unit_rule{
-//   param<int> npnts;
-// public:
-//   init_npnts(){
-//     name_store("npnts", npnts);
-//     output("npnts");
-//     constraint("UNIVERSE");
-  
-//   }
-//   //parameter, no loop, 
-//   virtual void compute(const sequence &seq){
-
-
-//     *npnts = 0;
-//   }
-// }; 
-// register_rule<init_npnts> register_init_npnts;
-
-// class apply_npnts : public apply_rule<param<int>, Loci::Summation<int> >{
-//   param<int> npnts;
-//   const_store<int> num_inner_nodes;
-// public:
-//   apply_npnts(){
-//     name_store("npnts", npnts);
-//     name_store("balanced_num_inner_nodes", num_inner_nodes);
-//     input("balanced_num_inner_nodes");
-//     input("npnts");
-//     output("npnts");
-   
-//   }
-//   virtual void compute(const sequence &seq){
-//     do_loop(seq, this);
-//   }
-//   void calculate(Entity cc){
-//     *npnts += num_inner_nodes[cc];
-//   }
-// }; 
-// register_rule<apply_npnts> register_apply_npnts;
-
-
-
-
-
-
-
-// class init_ncells : public unit_rule{
-//   param<int> ncells;
-// public:
-//   init_ncells(){
-//     name_store("ncells", ncells);
-//     output("ncells");
-//     constraint("UNIVERSE");
-    
-//   }
-//   //parameter, no loop
-//   virtual void compute(const sequence &seq){
-//     *ncells = 0;
-//   }
-// }; 
-// register_rule<init_ncells> register_init_ncells;
-
-// class apply_ncells : public apply_rule<param<int>, Loci::Summation<int> >{
-//   param<int> ncells;
-//   const_store<int> num_fine_cells;
-// public:
-//   apply_ncells(){
-//     name_store("ncells", ncells);
-//     name_store("num_fine_cells", num_fine_cells);
-//     input("ncells");
-//     input("num_fine_cells");
-//     output("ncells");
-//     constraint("geom_cells");
-//   }
-//   virtual void compute(const sequence &seq){
-//      do_loop(seq, this);
-//   }
-//   void calculate(Entity cc){
-//     join(*ncells, num_fine_cells[cc]);
-//   }
-// }; 
-// register_rule<apply_ncells> register_apply_ncells;
-
-
-// class init_nfaces : public unit_rule{
-//   param<int> nfaces;
-  
-// public:
-//   init_nfaces(){
-//     name_store("nfaces", nfaces);
-//     output("nfaces");
-//     constraint("UNIVERSE");
-//   }
-//   //parameter, no loop
-//   virtual void compute(const sequence &seq){
-//     *nfaces = 0;
-//   }
-// }; 
-// register_rule<init_nfaces> register_init_nfaces;
-
-// class apply_nfaces : public apply_rule<param<int>, Loci::Summation<int> >{
-//   param<int> nfaces;
-//   const_store<Loci::FineFaces> fine_faces;
-// public:
-//   apply_nfaces(){
-//     name_store("nfaces", nfaces);
-//     name_store("fine_faces", fine_faces);
-//     input("nfaces");
-//     input("fine_faces");
-//     output("nfaces");
-//   }
-//   virtual void compute(const sequence &seq){
-//     do_loop(seq, this);
-//   }
-//   void calculate(Entity cc){
-//     join(*nfaces, fine_faces[cc].size());
-//   }
-// }; 
-// register_rule<apply_nfaces> register_apply_nfaces;
 

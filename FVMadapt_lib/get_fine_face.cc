@@ -80,7 +80,7 @@ public:
     input("(lower, upper, boundary_map)->face2edge->edge2node->pos");
   
     output("fine_faces");
-     constraint("gnrlcells");
+    constraint("gnrlcells");
   }
   virtual void compute(const sequence &seq){
     if(seq.size()!=0){
@@ -93,7 +93,7 @@ public:
     // if(cell_offset[cc] > 44671 && cell_offset[cc] < 44735 ) cerr << "gnrl cell : " << cc << " offset: " << cell_offset[cc] << endl;
     
     if(cellPlan[cc].size() == 0){
-           vector<vector<int> >().swap(fine_faces[cc]);
+      vector<vector<int> >().swap(fine_faces[cc]);
       return;
     }
     
@@ -215,7 +215,7 @@ public:
     name_store("boundary_map", boundary_map);
     name_store("face2node", face2node);
     name_store("face2edge", face2edge);
-     name_store("edge2node", edge2node);
+    name_store("edge2node", edge2node);
     name_store("pos", pos);
     name_store("cl", cl);
     name_store("cr", cr);
@@ -471,7 +471,7 @@ public:
       //num of fine faces is 1. 
       vector< std::vector<int> >(1).swap(fine_faces[f]);
 
-       aFace->set_f2n(faceVertex);
+      aFace->set_f2n(faceVertex);
       int vec_size = faceVertex.size()+2;
       std::vector<int>(vec_size).swap(fine_faces[f][0]);
 
@@ -487,7 +487,7 @@ public:
       }
       
 
-       //clean up
+      //clean up
       if(aFace != 0){
         delete aFace;
         aFace = 0;

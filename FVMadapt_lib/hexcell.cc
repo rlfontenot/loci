@@ -132,11 +132,11 @@ void HexCell::resplit(int level,
   } 
 }
 
-
-void HexCell::empty_resplit( const std::vector<char>& cellPlan){
+//this function will return num_fine_cells
+int HexCell::empty_resplit( const std::vector<char>& cellPlan){
   if(cellPlan.size() == 0){
     this->cellIndex = 1;
-    return;
+    return 1;
   }
   
   queue<HexCell*> Q;
@@ -169,11 +169,43 @@ void HexCell::empty_resplit( const std::vector<char>& cellPlan){
     }
     
     Q.pop();
-  } 
+  }
+  return cIndex;
 }
 
 
 
+int32 HexCell::num_fine_cells( const std::vector<char>& cellPlan)const{
+  if(cellPlan.size() == 0){
+    // this->cellIndex = 1;
+    return 1;
+  }
+  
+  queue<char> Q;
+  unsigned int index =0;
+  int32 cIndex = 0;
+  Q.push(cellPlan[0]);
+  char current;
+  
+  while(!Q.empty()){
+    current = Q.front();
+    if(current==0){
+      cIndex++;
+    }else{
+      for(int i = 0; i <numChildren(current); i++){
+        index++;
+        if(index >= cellPlan.size()){
+          Q.push(0);
+        }else{
+          Q.push(cellPlan[index]);
+        }
+      }
+    }
+    
+    Q.pop();
+  }
+  return cIndex++;
+}
 
 
 
@@ -416,7 +448,7 @@ void HexCell::empty_split(){
   switch(mySplitCode)
     {
       
-      //000 no split,this is a leaf, compare and set the maxLevels, output cells
+      //000 no split,this is a leaf
     case 0:
       break;
       
@@ -1584,5 +1616,55 @@ void HexCell::rebalance_cells(int split_mode,
   while(need_balance_more){
     need_balance_more = balance_cell(split_mode, node_list, edge_list, face_list); 
   }
+}
+
+int32 HexCell::traverse(const std::vector<char>& parentPlan,  vector<pair<int32, int32> >& indexMap){
+  indexMap.clear();
+  if(parentPlan.size() == 0){
+    if(numChildren()!=0){
+      list<HexCell*> leaves;
+      sort_leaves(leaves); 
+      for(std::list<HexCell*>::const_iterator p = leaves.begin(); p != leaves.end(); p++)
+        indexMap.push_back(make_pair((*p)->cellIndex, 1));
+      return 1;
+    }else{
+      indexMap.push_back(make_pair(1,1));
+      return 1;
+    }
+  }
+  std::queue<HexCell*> Q;
+  Q.push(this);
+  HexCell* current;
+  unsigned int index =0;
+  int32 cIndex = 0;
+  char currentCode;
+  while(!Q.empty()){
+    current = Q.front();
+    if(index >= parentPlan.size()){
+      currentCode = 0;
+    }
+    else{ 
+      //take a code from splitcode
+      currentCode = parentPlan[index];
+      index++;  
+    }
+    list<HexCell*> leaves;
+    switch(currentCode){
+      //0 no split,this is a leaf, output cells
+    case 0:
+      ++cIndex;
+      current->sort_leaves(leaves);
+      for(std::list<HexCell*>::const_iterator p = leaves.begin(); p != leaves.end(); p++)
+        indexMap.push_back(make_pair((*p)->cellIndex, cIndex));
+      break;
+    default:   
+      for(int i = 0; i <current->numChildren(); i++){
+        Q.push(current->childCell[i]);
+      }
+    }
+    
+    Q.pop();
+  }
+  return cIndex;
 }
 

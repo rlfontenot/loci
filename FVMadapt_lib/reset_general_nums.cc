@@ -87,12 +87,12 @@ public:
   
     output("balanced_num_inner_nodes");
 
-     constraint("gnrlcells");
+    constraint("gnrlcells");
   }
   virtual void compute(const sequence &seq){
     if(seq.size()!=0){
   
-    do_loop(seq, this);
+      do_loop(seq, this);
     }
 
   }
@@ -129,10 +129,10 @@ public:
   
     std::vector<DiamondCell*> cells;
     aCell->resplit( cellPlan[cc], 
-                     node_list,
+                    node_list,
                     edge_list,
-                     face_list,
-                     cells);
+                    face_list,
+                    cells);
   
   
   
@@ -143,7 +143,7 @@ public:
     if(aCell != 0){
       delete aCell;
       aCell = 0;
-  }
+    }
     
     //aCell will clean up these
     cleanup_list(node_list, edge_list, face_list);
@@ -154,108 +154,70 @@ register_rule<reset_general_cell_num_nodes> register_reset_general_cell_num_node
 
 class reset_general_cell_num_cells : public pointwise_rule{
   const_store<std::vector<char> > cellPlan;
-  const_store<std::vector<char> > facePlan;
-  const_store<std::vector<char> > edgePlan;
-  const_store<bool> is_quadface;
   const_multiMap lower;
   const_multiMap upper;
   const_multiMap boundary_map;
   const_multiMap face2node;
   const_multiMap face2edge;
   const_MapVec<2> edge2node;
-  const_store<vect3d> pos;
-
-
   store<int> num_fine_cells;
- 
   const_store<int> node_l2f;
 public:
   reset_general_cell_num_cells(){
     name_store("balancedCellPlan", cellPlan);
-    name_store("balancedFacePlan", facePlan);
-    name_store("balancedEdgePlan", edgePlan);
     name_store("lower", lower);
     name_store("upper", upper);
     name_store("boundary_map", boundary_map);
     name_store("face2node", face2node);
     name_store("face2edge", face2edge);
     name_store("edge2node", edge2node);
-    name_store("pos", pos);
     name_store("fileNumber(pos)", node_l2f);
-   
     name_store("balanced_num_fine_cells", num_fine_cells);
-    name_store("is_quadface", is_quadface);
     input("balancedCellPlan");
-   
-    input("(lower, upper, boundary_map)->( is_quadface,balancedFacePlan)");
-    input("(lower, upper, boundary_map)->face2edge->balancedEdgePlan");
-    input("(lower, upper, boundary_map)->face2node->(pos,fileNumber(pos))");
-    input("(lower, upper, boundary_map)->face2edge->edge2node->pos");
-    
-  
-   
+    input("(lower, upper, boundary_map)->face2node->fileNumber(pos)");
+    input("(lower, upper, boundary_map)->face2edge->edge2node->fileNumber(pos)");
+       
     output("balanced_num_fine_cells");
-     constraint("gnrlcells");
+    constraint("gnrlcells");
   }
   virtual void compute(const sequence &seq){
     if(seq.size()!=0){
-  
-    do_loop(seq, this);
+      do_loop(seq, this);
     }
 
   }
   void calculate(Entity cc){
-   
-    
-    
     if(cellPlan[cc].size() == 0){
-   
       num_fine_cells[cc] = 1;
       return;
     }
 
-    std::list<Node*> bnode_list; //boundary node
-    std::list<Node*> node_list; //inner node
+    std::list<Node*> node_list;
     std::list<Edge*> edge_list;
     std::list<Face*> face_list;
     
     Cell* aCell = build_general_cell(lower[cc].begin(), lower.num_elems(cc),
                                      upper[cc].begin(), upper.num_elems(cc),
                                      boundary_map[cc].begin(), boundary_map.num_elems(cc),
-                                     is_quadface,
                                      face2node,
                                      face2edge,
                                      edge2node,
-                                     pos,
-                                     edgePlan,
-                                     facePlan,
-                                     bnode_list,
+                                     node_list,
                                      edge_list,
                                      face_list,
                                      node_l2f);
     
-  
-    std::vector<DiamondCell*> cells;
-    aCell->resplit( cellPlan[cc], 
-                     node_list,
-                    edge_list,
-                     face_list,
-                     cells);
-  
-  
-  
-   
-    num_fine_cells[cc] = cells.size();
+        
+    num_fine_cells[cc] =  aCell->empty_resplit(cellPlan[cc]);
     
     //clean up
     if(aCell != 0){
       delete aCell;
       aCell = 0;
-  }
+    }
     
     //aCell will clean up these
-    cleanup_list(node_list, edge_list, face_list);
-    cleanup_list(bnode_list);
+    cleanup_list(node_list, edge_list, face_list);   
   }
 };
 register_rule<reset_general_cell_num_cells> register_reset_general_cell_num_cells;  
@@ -330,7 +292,7 @@ public:
       aFace = 0;
     }
    
-     cleanup_list(node_list, edge_list);
+    cleanup_list(node_list, edge_list);
     cleanup_list(bnode_list);
     
   }

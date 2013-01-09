@@ -44,7 +44,10 @@
 using std::cerr;
 using std::endl;
 using std::vector;
-
+using std::stack;
+using std::queue;
+using std::cout;
+using std::list;
 std::vector<int32> get_c1_prism(const std::vector<char>& cellPlan,
                                 const std::vector<char>& facePlan,
                                 char orientCode,
@@ -57,9 +60,8 @@ public:
   
   //constructor; 
 
-  //this construct is used when gnrlface and quadface don't need to be defined.
-  //it doesn't set nfold, usually after this constructor, setNfold() will be called
-  Prism():nfold(0),mySplitCode(0),gnrlface(0),quadface(0), parentCell(0),
+  //this constructor is used when faces and nodes are not actually built
+  Prism():nfold(3),mySplitCode(0),gnrlface(0),quadface(0), parentCell(0),
           childCell(0){faceOrient.reset();}
   
   Prism(int n):nfold(n),mySplitCode(0),gnrlface(new Face*[2]), quadface(new QuadFace*[n]), parentCell(0), childCell(0){
@@ -111,10 +113,7 @@ public:
   }
   
   
-  inline void setNfold(int d){
-    nfold = d;
-  }
-
+  
   inline int getNfold() const{
     return nfold;
   }
@@ -125,7 +124,7 @@ public:
     return childCell[i];
   }
   
-  inline int numChildren(){
+  inline int numChildren()const{
     switch(mySplitCode){
     case 0:
       return 0;
@@ -141,7 +140,7 @@ public:
     }
     return -1;
   }
-  
+   
   //used in build_prismcell.cc
   inline void setFace(int faceID, Face* aFace){
     gnrlface[faceID] = aFace;
@@ -155,8 +154,10 @@ public:
   //define if this is tagged for refinement
   bool get_tagged();
   int get_num_fine_faces();//for mxfpc
-  //  void setParentCell( Prism* parent){parentCell = parent;};
   
+
+  
+
   inline int whichChild(){
     if(parentCell == 0) return -1;
     for(int i = 0; i < parentCell->numChildren(); i++){
@@ -190,8 +191,9 @@ public:
                 std::list<Face*>& face_list);
  
   void empty_split();
-  void empty_resplit(const std::vector<char>& cellPlan);
-  
+  int empty_resplit(const std::vector<char>& cellPlan);
+   //after the cell is split into a tree, get the indexMap from current index to parent index
+  int32 traverse(const std::vector<char>& parentPlan,  vector<pair<int32, int32> >& indexMap);
   
  
   

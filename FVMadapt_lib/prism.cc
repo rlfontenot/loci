@@ -35,18 +35,12 @@
 #include "prism.h"
 #include "globals.h"
 
-using std::stack;
-using std::queue;
-using std::cerr;
-using std::endl;
-using std::cout;
-using std::vector;
 
 //in each cell, only childCell, mySplitCode, and cellIndex is defined
-void Prism::empty_resplit( const std::vector<char>& cellPlan){
+int Prism::empty_resplit( const std::vector<char>& cellPlan){
   if(cellPlan.size() == 0){
     this->cellIndex = 1;
-    return;
+    return 1;
   }
   
   queue<Prism*> Q;
@@ -69,7 +63,6 @@ void Prism::empty_resplit( const std::vector<char>& cellPlan){
     
     if(current->mySplitCode ==0){
       current->cellIndex = ++cIndex;
-      //cells.push_back(current);
     }
     else{
       current->empty_split();
@@ -80,7 +73,8 @@ void Prism::empty_resplit( const std::vector<char>& cellPlan){
     }
     
     Q.pop();
-  } 
+  }
+  return cIndex;
 }
 
 
@@ -616,61 +610,42 @@ void set_prism_faces(const std::vector<Prism*>& cells,
 
 
 void Prism::empty_split(){
-  
-  switch(mySplitCode)
+   switch(mySplitCode)
     {
-      
-      //000 no split,this is a leaf, compare and set the maxLevels, output cells
+       //000 no split,this is a leaf, compare and set the maxLevels, output cells
     case 0:
       break;
-      
-      //100  x direction is splitted 
+       //100  x direction is splitted 
     case 1:
-
       childCell = new Prism*[2];
-      
       for(int i = 0; i <2; i++){
         childCell[i] = new Prism();
         childCell[i] ->nfold = nfold;
-        //	childCell[i]->whichChild = i;
-        // childCell[i]->parentCell = this;
       }
-      
-      
       break;
       
       //010  y direction is splitted 
     case 2:
-
       childCell = new Prism*[nfold];
-      
       for(int i = 0; i < nfold; i++){
         childCell[i] = new Prism();
         childCell[i]->nfold = 4;
-        //childCell[i]->whichChild = i;
-        // childCell[i]->parentCell = this;
       }
       break;
-      
-      
       //001  z direction is splitted 
     case 3:
-      
       childCell = new Prism*[2*nfold];
-      
       for(int i = 0; i <2*nfold; i++){
         childCell[i] = new Prism();
         childCell[i]->nfold = 4;
-        //	childCell[i]->whichChild = i;
-        //childCell[i]->parentCell = this;
-        }
+      }
       break;
-      
     default:
       cerr <<"WARNING: illegal splitcode in function Prism::reSplit()" << endl;
       break;
     }
 }
+
 
 
   
@@ -1295,3 +1270,52 @@ void Prism::rebalance_cells(int split_mode,
   }
 }
 
+int32 Prism::traverse(const std::vector<char>& parentPlan,  vector<pair<int32, int32> >& indexMap){
+  indexMap.clear();
+  if(parentPlan.size() == 0){
+    if(numChildren()!=0){
+      list<Prism*> leaves;
+      sort_leaves(leaves); 
+      for(std::list<Prism*>::const_iterator p = leaves.begin(); p != leaves.end(); p++)
+        indexMap.push_back(make_pair((*p)->cellIndex, 1));
+      return 1;
+    }else{
+      indexMap.push_back(make_pair(1,1));
+      return 1;
+    }
+  }
+  std::queue<Prism*> Q;
+  Q.push(this);
+  Prism* current;
+  unsigned int index =0;
+  int32 cIndex = 0;
+  char currentCode;
+  while(!Q.empty()){
+    current = Q.front();
+    if(index >= parentPlan.size()){
+      currentCode = 0;
+    }
+    else{ 
+      //take a code from splitcode
+      currentCode = parentPlan[index];
+      index++;  
+    }
+    list<Prism*> leaves;
+    switch(currentCode){
+      //0 no split,this is a leaf, output cells
+    case 0:
+      ++cIndex;
+      current->sort_leaves(leaves);
+      for(std::list<Prism*>::const_iterator p = leaves.begin(); p != leaves.end(); p++)
+        indexMap.push_back(make_pair((*p)->cellIndex, cIndex));
+      break;
+    default:   
+      for(int i = 0; i <current->numChildren(); i++){
+        Q.push(current->childCell[i]);
+      }
+    }
+    
+    Q.pop();
+  }
+  return cIndex;
+}
