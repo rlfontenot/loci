@@ -382,13 +382,6 @@ public:
 register_rule<get_parent_cell_offset> register_get_parent_cell_offset;
 
 
-
-
-
-
-
-
-
 class init_num_original_faces : public unit_rule{
   param<int> num_original_faces;
 public:
@@ -437,15 +430,15 @@ class get_cell_parent : public pointwise_rule {
   
 public:
   get_cell_parent(){
-    name_store("num_fine_cells", num_fine_cells);
-    name_store("cell_offset", cell_offset);
+    name_store("balanced_num_fine_cells", num_fine_cells);
+    name_store("balanced_cell_offset", cell_offset);
     name_store("fileNumber(geom_cells)", cell_l2f);
     name_store("cell2parent", cell2parent);
     name_store("num_original_nodes", num_original_nodes);
     name_store("num_original_faces", num_original_faces);
    
-    input("num_fine_cells");
-    input("cell_offset");
+    input("balanced_num_fine_cells");
+    input("balanced_cell_offset");
     input("fileNumber(geom_cells)");
     input("num_original_nodes");
     input("num_original_faces");
@@ -476,47 +469,40 @@ public:
 } ;
 register_rule<get_cell_parent> register_get_cell_parent;
 
-
-
-
-class init_npnts : public unit_rule{
-  param<int> npnts;
+class get_cell2parent : public pointwise_rule {
+  const_store<int> cell_offset;
+  const_store<int> parent_cell_offset;
+  const_store<vector<pair<int32, int32> > > indexMap;
+  store<vector<pair<int32, int32> > > cell2parent;
 public:
-  init_npnts(){
-    name_store("npnts", npnts);
-    output("npnts");
-    constraint("UNIVERSE");
-  
+  get_cell2parent(){
+    name_store("balanced_cell_offset", cell_offset);
+    name_store("parent_cell_offset", parent_cell_offset);
+    name_store("indexMap", indexMap);
+    name_store("priority::restart::cell2parent", cell2parent);
+    input("balanced_cell_offset");
+    input("parent_cell_offset");
+    input("indexMap");
+    output("priority::restart::cell2parent");
+    constraint("geom_cells");
   }
-  //parameter, no loop, 
-  virtual void compute(const sequence &seq){
-
-
-    *npnts = 0;
-  }
-}; 
-register_rule<init_npnts> register_init_npnts;
-
-class apply_npnts : public apply_rule<param<int>, Loci::Summation<int> >{
-  param<int> npnts;
-  const_store<int> num_inner_nodes;
-public:
-  apply_npnts(){
-    name_store("npnts", npnts);
-    name_store("num_inner_nodes", num_inner_nodes);
-    input("num_inner_nodes");
-    input("npnts");
-    output("npnts");
-   
-  }
-  virtual void compute(const sequence &seq){
-    do_loop(seq, this);
+  virtual void compute(const sequence &seq) {
+    
+    if(seq.size()!=0){
+      do_loop(seq, this);
+    }
   }
   void calculate(Entity cc){
-    *npnts += num_inner_nodes[cc];
+    vector<pair<int32, int32> > c2p(indexMap[cc].size());
+
+    for(unsigned int i = 0; i < indexMap[cc].size(); i++){
+      c2p[i]=  make_pair(indexMap[cc][i].first+cell_offset[cc],
+                         indexMap[cc][i].second+parent_cell_offset[cc]);
+    }
+    c2p.swap(cell2parent[cc]);
   }
-}; 
-register_rule<apply_npnts> register_apply_npnts;
+} ;
+register_rule<get_cell2parent> register_get_cell2parent;
 
 
 class write_cell2parent : public pointwise_rule{
@@ -634,40 +620,6 @@ public:
 register_rule<write_cell2parent> register_write_cell2parent;
   
 
-class get_cell2parent : public pointwise_rule {
-  const_store<int> cell_offset;
-  const_store<int> parent_cell_offset;
-  const_store<vector<pair<int32, int32> > > indexMap;
-  store<vector<pair<int32, int32> > > cell2parent;
-public:
-  get_cell2parent(){
-    name_store("cell_offset", cell_offset);
-    name_store("parent_cell_offset", parent_cell_offset);
-    name_store("indexMap", indexMap);
-    name_store("priority::restart::cell2parent", cell2parent);
-    input("cell_offset");
-    input("parent_cell_offset");
-    input("indexMap");
-    output("priority::restart::cell2parent");
-    constraint("geom_cells");
-  }
-  virtual void compute(const sequence &seq) {
-    
-    if(seq.size()!=0){
-      do_loop(seq, this);
-    }
-  }
-  void calculate(Entity cc){
-    vector<pair<int32, int32> > c2p(indexMap[cc].size());
-
-    for(unsigned int i = 0; i < indexMap[cc].size(); i++){
-      c2p[i]=  make_pair(indexMap[cc][i].first+cell_offset[cc],
-                         indexMap[cc][i].second+parent_cell_offset[cc]);
-    }
-    c2p.swap(cell2parent[cc]);
-  }
-} ;
-register_rule<get_cell2parent> register_get_cell2parent;
 
 
 
