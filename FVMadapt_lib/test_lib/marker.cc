@@ -18,6 +18,16 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+//                                                        test8.cc
+//
+//   this file read in a coarse grid file, a refinement plan file(based on the coarse grid),
+//and a tag file(if input refinement file is provided, the tag file is for new grid generated using the input
+//refinement plan, otherwise, the tag file is for the coarse grid file),
+//and then write out a new  refinement plan file(the plan also based on the coarse grid).
+//
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 
 #include <iostream>
@@ -51,20 +61,19 @@ int main(int argc, char ** argv) {
   
   
   // This is the name of the mesh file that you want to read in.
-  string meshFile ;
-
+  // This may be overridden by the command line argument "-g file.xdr"
+  //  string meshfile = "testGrid.xdr";
+  string meshfile ;
   //This is the name of the input refinement plan file
   string planFile = "out1.plan"; //default file can be empty file
- 
+  //This is the name of the output refinement file
+  string outFile  = "out.plan";
   //this is the name of the tag file
   string tagFile ;
-  
-  // a parameter file
+  //this is the name of the tolerance file, this option allows
+  //each marked node has a unique tolerance value
   string parFile;
-  //output file for refined grid 
-  string outFile;
-  //output  plan file(optional)
-  string outPlanFile;
+
   //this is the name of xml file
   string xmlFile;
   // Here's where we parse out the command line arguments that are
@@ -80,7 +89,6 @@ int main(int argc, char ** argv) {
   bool tol_input = false;
   bool tag_input = false;
   bool par_input = false;
-  bool plan_output = false;
   bool levels_input = false;
   int split_mode = 0;//default mode, hexcells and prisms split according to edge length
   //print out help info
@@ -110,8 +118,7 @@ int main(int argc, char ** argv) {
       cout << "              -xml option and -tag option and --par can not be selected at the same time" <<endl;
       cout<< "               and one of them must be selected"<<endl;
       
-      cout <<"-o <file> -- output file of refined grid" << endl;
-      cout <<"-oplan <file> -- output plan file" << endl;
+      cout <<"-o <file> -- output refinement plan file" << endl;
       cout <<"-tol <double> -- tolerance, minimum grid spacing allowed(default value: 1e-10), need to be specified for -xml option" << endl;
       cout <<"-fold <double> -- twist value, maximum face folding allowed(default value: 1.5708)" << endl;
       cout <<"-levels <int> --  levels of refinement(default value: 1), for anisotropic refinement, levels can only be 1" << endl;
@@ -135,15 +142,11 @@ int main(int argc, char ** argv) {
 
     if (arg == "-g" && (i+1) < argc) {
       // Replace the mesh filename with the next argument
-      meshFile =  argv[++i];      
+      meshfile =  argv[++i];      
     }
     else if(arg == "-o" && (i+1) < argc){
       //replace the output filename with the next argument
       outFile =  argv[++i];
-    } else if(arg == "-oplan" && (i+1) < argc){
-      //replace the output plan filename with the next argument
-      outPlanFile =  argv[++i];
-      plan_output = true;
     }
     
     else if(arg == "-r" && (i+1) < argc){
@@ -211,7 +214,7 @@ int main(int argc, char ** argv) {
   // we put back in argv.
   argc = j;
   
-  meshFile = pathname + meshFile;
+  meshfile = pathname + meshfile;
   outFile = pathname + outFile;
   planFile = pathname + planFile;
   tagFile = pathname + tagFile;
@@ -219,7 +222,7 @@ int main(int argc, char ** argv) {
   parFile = pathname + parFile;
   
   if(Loci::MPI_rank == 0){
-    cout <<"Refine running" <<endl;
+    cout <<"Marker running" <<endl;
     cout << "fold: " << Globals::fold << endl;
     cout << "tolerance: "<<Globals::tolerance <<endl;
     cout << "levels: " <<Globals::levels << endl;
@@ -289,7 +292,7 @@ int main(int argc, char ** argv) {
   // Setup the rule database.
   // Add all registered rules.  
   rule_db rules;
-  rules.add_rules(global_rule_list);
+   rules.add_rules(global_rule_list);
   
   // Setup the fact database.
   fact_db facts;
@@ -297,8 +300,8 @@ int main(int argc, char ** argv) {
   if(Loci::MPI_rank == 0) cout <<"reading in meshfile" << std::endl;
 
   // Read in the mesh file.  
-  if(!Loci::setupFVMGrid(facts,meshFile)) {
-    std::cerr << "unable to read grid file '" << meshFile << "'" << std::endl ;
+  if(!Loci::setupFVMGrid(facts,meshfile)) {
+    std::cerr << "unable to read grid file '" << meshfile << "'" << std::endl ;
     Loci::Abort() ;
   }
   
@@ -306,27 +309,16 @@ int main(int argc, char ** argv) {
   Loci::createLowerUpper(facts) ;
   Loci::createEdgesPar(facts) ;
   Loci:: parallelClassifyCell(facts);
-
- 
+  
   //this is a dummy parameter to trick Loci scheduler
   param<bool> beginWithMarker;
   *beginWithMarker = true;
   facts.create_fact("beginWithMarker",beginWithMarker) ; 
   
-  param<std::string> meshfile_par ;
-  *meshfile_par = meshFile;
-  facts.create_fact("meshfile_par",meshfile_par) ; 
-
   param<std::string> outfile_par ;
   *outfile_par = outFile;
-  facts.create_fact("outfile_par",outfile_par) ; 
-
-  if(plan_output){ 
-    param<std::string> plan_outfile_par ;
-    *plan_outfile_par = outPlanFile;
-    facts.create_fact("plan_outfile_par",plan_outfile_par) ;
-  }
-  
+  facts.create_fact("plan_outfile_par",outfile_par) ; 
+ 
   if(tag_input){
     param<std::string> tagfile_par ;
     *tagfile_par = tagFile;
@@ -386,7 +378,7 @@ int main(int argc, char ** argv) {
   facts.create_fact("split_mode_par", split_mode_par);
 
   Loci::load_module("fvmadapt", rules);
- //  if(Loci::MPI_rank==0){
+  //  if(Loci::MPI_rank==0){
 //     Loci::ruleSet all_rules = rules.all_rules();
 //     for(Loci::ruleSet::const_iterator ri = all_rules.begin();
 //         ri != all_rules.end(); ri++){
@@ -395,23 +387,11 @@ int main(int argc, char ** argv) {
 //     cout<< endl;
 //   }
   
-  
-  
-  if(!Loci::makeQuery(rules, facts,"node_output")) {
+  if(!Loci::makeQuery(rules, facts, "cellplan_output")) {
     std::cerr << "query failed!" << std::endl;
     Loci::Abort();
   }
   
-  if(!Loci::makeQuery(rules, facts, "face_output")) {
-    std::cerr << "query failed!" << std::endl;
-    Loci::Abort();
-  }
-  if(plan_output){
-    if(!Loci::makeQuery(rules, facts, "cellplan_output")) {
-      std::cerr << "query failed!" << std::endl;
-      Loci::Abort();
-    }
-  }
   // Tell Loci to cleanup after itself and exit gracefully.
   Loci::Finalize();
 }
