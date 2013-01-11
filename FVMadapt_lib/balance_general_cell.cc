@@ -250,12 +250,12 @@ public:
   finish_balancing(){
     name_store("finishBalancing{n}", finishBalancing);
     name_store("tmpCellPlan{n}", tmpCellPlan);
-    name_store("balancedCellPlan", balancedCellPlan);
+    name_store("balancedCellPlan1", balancedCellPlan);
 
     conditional("finishBalancing{n}");
     
     input("tmpCellPlan{n}, finishBalancing{n}");
-    output("balancedCellPlan");
+    output("balancedCellPlan1");
     constraint("geom_cells");
   }
   virtual void compute(const sequence &seq){

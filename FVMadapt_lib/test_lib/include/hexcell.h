@@ -41,7 +41,7 @@
 #include "read_par.h"
 using std::cerr;
 using std::endl;
-
+using std::list;
 std::vector<int32> get_c1_hex(const std::vector<char>& cellPlan,
                               const std::vector<char>& facePlan,
                               char orientCode,
@@ -150,9 +150,30 @@ public:
     }
     return -1;
   }
+  //find numChildren without actually building the cell   
+  inline int numChildren(char splitCode)const{
+    switch(splitCode){
+    case 0:
+      return 0;
+    case 1:
+    case 2:
+    case 4:
+      return 2;
+    case 3:
+    case 5:
+    case 6:
+      return 4;
+    case 7:
+      return 8;
+    default:
+      cerr<< "WARNING: illegal split code" << endl;
+      break;
+    }
+    return -1;
+  }
+  //find num_fine_cells without  actually building the tree
+  int32 num_fine_cells( const std::vector<char>& cellPlan)const;
   
-
-
   int get_num_fine_faces()const;//for mxfpc
   double get_min_edge_length();   
  
@@ -163,7 +184,11 @@ public:
  
   //only define childCell
   void empty_split();
-  void empty_resplit(const std::vector<char>& cellPlan);
+  //return num_fine_cells
+  int empty_resplit(const std::vector<char>& cellPlan);
+  
+  //after the cell is split into a tree, get the indexMap from current index to parent index
+  int32 traverse(const std::vector<char>& parentPlan,  vector<pair<int32, int32> >& indexMap);
 
   void resplit(const std::vector<char>& cellPlan,
                std::list<Node*>& node_list,
@@ -265,8 +290,8 @@ private:
   HexCell(const HexCell&);
   
 private:
-  //get all the leaves
-  void get_leaves(std::vector<HexCell*>& leaf_cell);
+  // //get all the leaves
+//   void get_leaves(std::vector<HexCell*>& leaf_cell);
 
   //get 8 nodes
   inline void get_nodes(Node** node){

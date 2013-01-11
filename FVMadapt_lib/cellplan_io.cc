@@ -58,7 +58,6 @@ register_rule<apply_num_original_nodes> register_apply_num_original_nodes;
 
 class get_cellPlan : public pointwise_rule{
   const_param<std::string> planfile_par;
-  const_param<std::string> original;
   store<std::vector<char> > cellPlan;
   
   public:
@@ -89,6 +88,51 @@ class get_cellPlan : public pointwise_rule{
   } 
 };
 register_rule<get_cellPlan> register_get_cellPlan;
+
+
+
+
+
+class get_balanced_cellPlan : public pointwise_rule{
+  const_param<std::string> planfile_par;
+  store<std::vector<char> > cellPlan;
+  
+  public:
+  get_balanced_cellPlan(){
+    name_store("balanced_planfile_par", planfile_par);
+    name_store("priority::refmesh::balancedCellPlan", cellPlan);
+    input("balanced_planfile_par");
+    output("priority::refmesh::balancedCellPlan");
+    constraint("geom_cells");
+    disable_threading();
+  }
+  virtual void compute(const sequence &seq){
+   
+   
+    
+       hid_t file_id;
+       entitySet dom = entitySet(seq);
+       file_id = H5Fopen((*planfile_par).c_str(), H5F_ACC_RDONLY,
+                         H5P_DEFAULT);
+       
+       Loci::readContainer(file_id,"cellPlan",cellPlan.Rep(),dom) ;
+       H5Fclose(file_id);
+       do_loop(seq, this); 
+      
+  }
+  void calculate(Entity cc){
+    if(cellPlan[cc].size() == 1 && cellPlan[cc][0] == 'C') cellPlan[cc].resize(0);
+  } 
+};
+register_rule<get_balanced_cellPlan> register_get_balanced_cellPlan;
+
+
+
+
+
+
+
+
 //read in plan from former cycle
 class get_parentPlan : public pointwise_rule{
   const_param<std::string> parent_planfile_par;
@@ -124,6 +168,31 @@ class get_parentPlan : public pointwise_rule{
 };
 register_rule<get_parentPlan> register_get_parentPlan;
 
+
+class reprocess_plan : public pointwise_rule {
+  const_store<std::vector<char> > balancedCellPlan1 ;
+  const_param<bool> beginWithMarker; //dummy parameter to trick Loci scheduler
+  store<std::vector<char> > balancedCellPlan;
+ public: 
+  reprocess_plan(){
+    name_store("balancedCellPlan1", balancedCellPlan1);
+    name_store("balancedCellPlan", balancedCellPlan);
+    name_store("beginWithMarker", beginWithMarker); 
+    input("balancedCellPlan1");
+    input("beginWithMarker");
+    output("balancedCellPlan");
+  }
+  virtual void compute(const sequence &seq) {
+    do_loop(seq, this);
+  }
+  
+  void calculate(Entity cc){
+       balancedCellPlan[cc] = balancedCellPlan1[cc];
+  }
+    
+
+};
+register_rule<reprocess_plan> register_reprocess_plan;
 
 
 class process_plan : public pointwise_rule {

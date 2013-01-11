@@ -21,6 +21,9 @@
 include $(LOCI_BASE)/Loci.conf
 
 OBJS = refine.o globals.o classify_cell.o
+MARKEROBJS = marker.o globals.o classify_cell.o
+REFMESHOBJS = refmesh.o globals.o classify_cell.o
+
 LIBXML2_LIBS ?= -lxml2
 LIBXML2_DEFINE ?= -DUSE_LIBXML2
 LIBXML2_INCLUDE ?= -I/usr/include/libxml2
@@ -36,10 +39,16 @@ JUNK =		*~ \
 INCLUDES=	-I./include $(LIBXML2_INCLUDE) $(LIBXML2_DEFINE)
 
 
-default: refine
+default: refine marker refmesh
+
 refine: $(OBJS) $(MODULES)
 	$(LD) -o  refine  $(OBJS) $(MODULES) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
+marker: $(MARKEROBJS) $(MODULES)
+	$(LD) -o  marker  $(MARKEROBJS) $(MODULES) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+
+refmesh: $(REFMESHOBJS) $(MODULES)
+	$(LD) -o  refmesh  $(REFMESHOBJS) $(MODULES) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
 FRC :
 
