@@ -41,6 +41,14 @@ using std::ifstream;
 using namespace Loci;
 int currentMem(void);
 
+inline char tag_f2c(float f){
+  if(f==0) return 0;
+  if(f==1) return 1;
+  else return 2;
+}
+
+
+
 //functions from distribute_io
 namespace Loci{
 
@@ -113,7 +121,8 @@ public:
       
         int ptr = 0;
         FORALL(dom, cc){
-          posTag[cc] = buf[ptr++]==1?1:0;
+          //posTag[cc] = buf[ptr++]==1?1:0;
+          posTag[cc] = tag_f2c(buf[ptr++]);
         }ENDFORALL;  
       
         H5Dclose(dataset) ;
@@ -174,7 +183,8 @@ public:
         start += count;
         int ptr = 0;
         FORALL(temp_posTag.domain(), cc){
-          temp_posTag[cc] = (buf[ptr++]==1?1:0);
+          // temp_posTag[cc] = (buf[ptr++]==1?1:0);
+          temp_posTag[cc] = tag_f2c(buf[ptr++]);
         }ENDFORALL;
       
         //process 0 read the tags of other processes into a buf and then send the buf
@@ -203,7 +213,8 @@ public:
         MPI_Recv(buf, buf_size, MPI_FLOAT, 0, 20, MPI_COMM_WORLD, &status);
         int ptr = 0;
         FORALL(temp_posTag.domain(), cc){
-          temp_posTag[cc] = (buf[ptr++]==1?1:0);
+          //temp_posTag[cc] = (buf[ptr++]==1?1:0);
+          temp_posTag[cc] = tag_f2c(buf[ptr++]);
         }ENDFORALL;
       }
     
@@ -226,100 +237,100 @@ public:
     
     }else{//read txt file
 
-    ifstream inFile;
-    int nprocs = Loci::MPI_processes;
+      ifstream inFile;
+      int nprocs = Loci::MPI_processes;
     
-    //process 0 open tagFile
-    if(Loci::MPI_rank == 0){
-      inFile.open((*tagfile_par).c_str());
-      if(!inFile){
-        cerr <<"can not open " << *tagfile_par << " for input" << endl;
-        Loci::Abort();
+      //process 0 open tagFile
+      if(Loci::MPI_rank == 0){
+        inFile.open((*tagfile_par).c_str());
+        if(!inFile){
+          cerr <<"can not open " << *tagfile_par << " for input" << endl;
+          Loci::Abort();
+        }
       }
-    }
     
-    entitySet dom = entitySet(seq);
+      entitySet dom = entitySet(seq);
     
-    //serial version
-    if(nprocs == 1){
-      char tag; 
-      FORALL(dom, cc){
-        if(inFile >> tag) posTag[cc] = char(tag - '0');
-        else posTag[cc] = 0;
+      //serial version
+      if(nprocs == 1){
+        char tag; 
+        FORALL(dom, cc){
+          if(inFile >> tag) posTag[cc] = char(tag - '0');
+          else posTag[cc] = 0;
       
-      }ENDFORALL;
-      //close tagfile
-      inFile.close();
-      return;
-    }
-    //parallel version
+        }ENDFORALL;
+        //close tagfile
+        inFile.close();
+        return;
+      }
+      //parallel version
     
-    fact_db::distribute_infoP dist = (Loci::exec_current_fact_db)->get_distribute_info() ;
-    //first create store in the order of file numbering      
-    int offset = 0;
-    store<char> temp_posTag;
-    temp_posTag = Local2FileOrder(posTag.Rep(),dom,offset,dist,MPI_COMM_WORLD) ;;
-    int num_nodes = temp_posTag.domain().size();
+      fact_db::distribute_infoP dist = (Loci::exec_current_fact_db)->get_distribute_info() ;
+      //first create store in the order of file numbering      
+      int offset = 0;
+      store<char> temp_posTag;
+      temp_posTag = Local2FileOrder(posTag.Rep(),dom,offset,dist,MPI_COMM_WORLD) ;;
+      int num_nodes = temp_posTag.domain().size();
     
-    int* size_buf = new int[nprocs];
+      int* size_buf = new int[nprocs];
     
-    //compute buf_size on each process
-    unsigned int  buf_size = 0;
-    MPI_Allreduce(&num_nodes, &buf_size, 1, MPI_INT,
-                  MPI_MAX, MPI_COMM_WORLD);
-    //process 0 find out size of buffer for each process
+      //compute buf_size on each process
+      unsigned int  buf_size = 0;
+      MPI_Allreduce(&num_nodes, &buf_size, 1, MPI_INT,
+                    MPI_MAX, MPI_COMM_WORLD);
+      //process 0 find out size of buffer for each process
      
-    MPI_Gather(&num_nodes, 1, MPI_INT, size_buf, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Gather(&num_nodes, 1, MPI_INT, size_buf, 1, MPI_INT, 0, MPI_COMM_WORLD);
       
-    char *buf = new char[buf_size]; //posTag buf
+      char *buf = new char[buf_size]; //posTag buf
     
-    if(Loci::MPI_rank == 0){
-      char tag;
-      //process 0 read in its local tag 
-      FORALL(temp_posTag.domain(), cc){
-        if(inFile >> tag) temp_posTag[cc] = char(tag - '0');
-        else temp_posTag[cc] = 0; 
-      }ENDFORALL;
+      if(Loci::MPI_rank == 0){
+        char tag;
+        //process 0 read in its local tag 
+        FORALL(temp_posTag.domain(), cc){
+          if(inFile >> tag) temp_posTag[cc] = char(tag - '0');
+          else temp_posTag[cc] = 0; 
+        }ENDFORALL;
       
-      //process 0 read the tags of other processes into a buf and then send the buf
-      for(int i = 1; i < nprocs; i++){
-        int send_size = size_buf[i];
-        for(int j = 0; j < send_size; j++)  
-          {
-            if(inFile >> tag) buf[j] = char(tag - '0');
-            else buf[j] = 0; 
-          }
-        MPI_Send(buf, send_size, MPI_CHAR, i, 20, MPI_COMM_WORLD);
-      }          
-    }else{ //other processes recv the buf and unpack it
+        //process 0 read the tags of other processes into a buf and then send the buf
+        for(int i = 1; i < nprocs; i++){
+          int send_size = size_buf[i];
+          for(int j = 0; j < send_size; j++)  
+            {
+              if(inFile >> tag) buf[j] = char(tag - '0');
+              else buf[j] = 0; 
+            }
+          MPI_Send(buf, send_size, MPI_CHAR, i, 20, MPI_COMM_WORLD);
+        }          
+      }else{ //other processes recv the buf and unpack it
    
     
-      MPI_Status status;
-      MPI_Recv(buf, buf_size, MPI_CHAR, 0, 20, MPI_COMM_WORLD, &status);
-      int ptr = 0;
-      FORALL(temp_posTag.domain(), cc){
-        temp_posTag[cc] = buf[ptr++];
-      }ENDFORALL;
-    }
+        MPI_Status status;
+        MPI_Recv(buf, buf_size, MPI_CHAR, 0, 20, MPI_COMM_WORLD, &status);
+        int ptr = 0;
+        FORALL(temp_posTag.domain(), cc){
+          temp_posTag[cc] = buf[ptr++];
+        }ENDFORALL;
+      }
     
-    //finish read in temp_posTag;
+      //finish read in temp_posTag;
 
         
-    //redistribute temp_posTag to local node dom
-    storeRepP localVar=posTag.Rep();
-    File2LocalOrder(localVar, dom,
-                    temp_posTag.Rep(), offset,
-                    dist,
-                    MPI_COMM_WORLD);
+      //redistribute temp_posTag to local node dom
+      storeRepP localVar=posTag.Rep();
+      File2LocalOrder(localVar, dom,
+                      temp_posTag.Rep(), offset,
+                      dist,
+                      MPI_COMM_WORLD);
   
                
-    delete [] buf;
-    delete [] size_buf;
-    //process 0 close file
-    if(Loci::MPI_rank == 0){
-      inFile.close();
-      //  cout << "Finish reading  posTag " << endl;
-    }
+      delete [] buf;
+      delete [] size_buf;
+      //process 0 close file
+      if(Loci::MPI_rank == 0){
+        inFile.close();
+        //  cout << "Finish reading  posTag " << endl;
+      }
     
     }
 
@@ -404,7 +415,8 @@ public:
           if(num_inner_nodes[cc] != 0){
             std::vector<char>(int(num_inner_nodes[cc])).swap(nodeTag[cc]);
             for(int i = 0; i < num_inner_nodes[cc]; i++){
-              nodeTag[cc][i] = (buf[ptr++]==1?1:0);
+              // nodeTag[cc][i] = (buf[ptr++]==1?1:0);
+              nodeTag[cc][i] = tag_f2c(buf[ptr++]);
             }
           }else{
             std::vector<char>(1).swap(nodeTag[cc]);//to avoid default allocated size for vector
@@ -419,7 +431,8 @@ public:
           if(num_inner_nodes[cc] != 0){
             std::vector<char>(int(num_inner_nodes[cc])).swap(nodeTag[cc]);
             for(int i = 0; i < num_inner_nodes[cc]; i++){
-              nodeTag[cc][i] = (buf[ptr++]==1?1:0);
+              nodeTag[cc][i] = tag_f2c(buf[ptr++]);
+              //  nodeTag[cc][i] = (buf[ptr++]==1?1:0);
             }
           }else{
             std::vector<char>(1).swap(nodeTag[cc]);
@@ -431,7 +444,8 @@ public:
           if(num_inner_nodes[cc] != 0){
             std::vector<char>(int(num_inner_nodes[cc])).swap(nodeTag[cc]);
             for(int i = 0; i < num_inner_nodes[cc]; i++){
-              nodeTag[cc][i] = (buf[ptr++]==1?1:0);
+              // nodeTag[cc][i] = (buf[ptr++]==1?1:0);
+              nodeTag[cc][i] = tag_f2c(buf[ptr++]);
             }
           }else{
             std::vector<char>(1).swap(nodeTag[cc]);
@@ -546,7 +560,8 @@ public:
               if(edge_num_inner_nodes[cc] != 0){
                 std::vector<char>(int(edge_num_inner_nodes[cc])).swap(edge_nodeTag[cc]);
                 for(int i = 0; i < edge_num_inner_nodes[cc]; i++){
-                  edge_nodeTag[cc][i] = (nbuf[ptr++]==1?1:0);
+                  // edge_nodeTag[cc][i] = (nbuf[ptr++]==1?1:0);
+                  edge_nodeTag[cc][i] = tag_f2c(nbuf[ptr++]);
                 }
               }else{
                 std::vector<char>(1).swap(edge_nodeTag[cc]);
@@ -580,7 +595,8 @@ public:
               
                 std::vector<char>(int(edge_num_inner_nodes[cc])).swap(edge_nodeTag[cc]);
                 for(int i = 0; i < edge_num_inner_nodes[cc]; i++){
-                  edge_nodeTag[cc][i] = (nbuf[ptr++]==1?1:0);
+                  // edge_nodeTag[cc][i] = (nbuf[ptr++]==1?1:0);
+                  edge_nodeTag[cc][i] = tag_f2c(nbuf[ptr++]);
                 }
               }else{
                 std::vector<char>(1).swap(edge_nodeTag[cc]);
@@ -651,7 +667,8 @@ public:
               if(cell_num_inner_nodes[cc] != 0){
                 std::vector<char>(int(cell_num_inner_nodes[cc])).swap(cell_nodeTag[cc]);
                 for(int i = 0; i < cell_num_inner_nodes[cc]; i++){
-                  cell_nodeTag[cc][i] = (nbuf[ptr++]==1?1:0);
+                  // cell_nodeTag[cc][i] = (nbuf[ptr++]==1?1:0);
+                  cell_nodeTag[cc][i] = tag_f2c(nbuf[ptr++]);
                 }
               }else{
                 std::vector<char>(1).swap(cell_nodeTag[cc]);
@@ -686,7 +703,8 @@ public:
             
                 std::vector<char>(int(cell_num_inner_nodes[cc])).swap(cell_nodeTag[cc]);
                 for(int i = 0; i < cell_num_inner_nodes[cc]; i++){
-                  cell_nodeTag[cc][i] = (nbuf[ptr++]==1?1:0);
+                  // cell_nodeTag[cc][i] = (nbuf[ptr++]==1?1:0);
+                  cell_nodeTag[cc][i] = tag_f2c(nbuf[ptr++]);
                 }
               }else{
                 std::vector<char>(1).swap(cell_nodeTag[cc]);
@@ -758,7 +776,8 @@ public:
               if(face_num_inner_nodes[cc] != 0){
                 std::vector<char>(int(face_num_inner_nodes[cc])).swap(face_nodeTag[cc]);
                 for(int i = 0; i < face_num_inner_nodes[cc]; i++){
-                  face_nodeTag[cc][i] = (nbuf[ptr++]==1?1:0);
+                  // face_nodeTag[cc][i] = (nbuf[ptr++]==1?1:0);
+                  face_nodeTag[cc][i] = tag_f2c(nbuf[ptr++]);
               
                 }
               }else{
@@ -793,7 +812,8 @@ public:
                
                 std::vector<char>(int(face_num_inner_nodes[cc])).swap(face_nodeTag[cc]);
                 for(int i = 0; i < face_num_inner_nodes[cc]; i++){
-                  face_nodeTag[cc][i] = (nbuf[ptr++]==1?1:0);
+                  //face_nodeTag[cc][i] = (nbuf[ptr++]==1?1:0);
+                  face_nodeTag[cc][i] = tag_f2c(nbuf[ptr++]);
                 }
               }else{
                 std::vector<char>(1).swap(face_nodeTag[cc]);

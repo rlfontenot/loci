@@ -115,7 +115,7 @@ void HexCell::resplit(int level,
   while(!Q.empty()){
     current = Q.front();
     
-     if(currentLevel > 0){
+    if(currentLevel > 0){
       current-> mySplitCode = 7;
       current->split(node_list, edge_list, face_list);
       
@@ -123,9 +123,9 @@ void HexCell::resplit(int level,
         Q.push(current->childCell[i]);
       }
       currentLevel--;
-     }
+    }
     else{
-    current-> mySplitCode = 0;
+      current-> mySplitCode = 0;
     }
     
     Q.pop();
@@ -251,8 +251,8 @@ HexCell* HexCell::findNeighbor(DIRECTION dd)
       for(int i = 0; i<parentCell->numChildren(); i++){
         if(isSiblingNeighbor(parentCell->childCell[i], dd))
           return parentCell->childCell[i];
-        }
       }
+    }
     
     break;
     
@@ -461,7 +461,7 @@ void HexCell::empty_split(){
       
       break;
         
-        //010  y direction is splitted 
+      //010  y direction is splitted 
     case 2:
       childCell = new HexCell*[2];
       for(int i = 0; i < 2; i++){
@@ -527,71 +527,71 @@ void HexCell::split( std::list<Node*>& node_list,
   Edge* newedge[6];
   Node* ccenter = 0;
 
- switch(mySplitCode)
-   {
+  switch(mySplitCode)
+    {
      
-     //000
+      //000
     case 0:
       break;
       
       //100  x direction is splitted 
-   case 4:
+    case 4:
     
-     childCell = new HexCell*[2];
-     for(int i = 0; i <2; i++){
-       childCell[i] = new HexCell();
-       childCell[i]->face = new QuadFace*[6];
+      childCell = new HexCell*[2];
+      for(int i = 0; i <2; i++){
+        childCell[i] = new HexCell();
+        childCell[i]->face = new QuadFace*[6];
         
         //	childCell[i]->whichChild = i;
-       childCell[i]->parentCell = this;
+        childCell[i]->parentCell = this;
       }
       
       //face 2-5 split in x direction
-     for(int i = 2; i < 6; i++){
-       face[i]->split(char(2),char(0), node_list, edge_list);
-     }
+      for(int i = 2; i < 6; i++){
+        face[i]->split(char(2),char(0), node_list, edge_list);
+      }
       
       
       //define new face
-     newFace = new QuadFace(4);
-     face_list.push_back(newFace);
+      newFace = new QuadFace(4);
+      face_list.push_back(newFace);
           
-     newFace->edge[0] = face[5]->childx[0]->edge[1];
-     childCell[0]->face[5] = face[5]->childx[0];
-     childCell[1]->face[5] = face[5]->childx[1];
+      newFace->edge[0] = face[5]->childx[0]->edge[1];
+      childCell[0]->face[5] = face[5]->childx[0];
+      childCell[1]->face[5] = face[5]->childx[1];
           
-     newFace->edge[1] = face[2]->childx[0]->edge[1];
-     childCell[0]->face[2] = face[2]->childx[0];
-     childCell[1]->face[2] = face[2]->childx[1];
+      newFace->edge[1] = face[2]->childx[0]->edge[1];
+      childCell[0]->face[2] = face[2]->childx[0];
+      childCell[1]->face[2] = face[2]->childx[1];
           
-     newFace->edge[2] = face[4]->childx[0]->edge[1];
-     childCell[0]->face[4] = face[4]->childx[0];
-     childCell[1]->face[4] = face[4]->childx[1];
+      newFace->edge[2] = face[4]->childx[0]->edge[1];
+      childCell[0]->face[4] = face[4]->childx[0];
+      childCell[1]->face[4] = face[4]->childx[1];
            
-     newFace->edge[3] = face[3]->childx[0]->edge[1];
-     childCell[0]->face[3] = face[3]->childx[0];
-     childCell[1]->face[3] = face[3]->childx[1];
+      newFace->edge[3] = face[3]->childx[0]->edge[1];
+      childCell[0]->face[3] = face[3]->childx[0];
+      childCell[1]->face[3] = face[3]->childx[1];
      
-     childCell[0]->face[0] = newFace;
-     childCell[0]->face[1] = face[1];
-     childCell[1]->face[0] = face[0];
-     childCell[1]->face[1] = newFace;
+      childCell[0]->face[0] = newFace;
+      childCell[0]->face[1] = face[1];
+      childCell[1]->face[0] = face[0];
+      childCell[1]->face[1] = newFace;
      
-     break;
+      break;
      
         
-     //010  y direction is splitted 
-   case 2:
+      //010  y direction is splitted 
+    case 2:
      
-     childCell = new HexCell*[2];
+      childCell = new HexCell*[2];
      
-     for(int i = 0; i < 2; i++){
-       childCell[i] = new HexCell();
-       childCell[i]->face = new QuadFace*[6];
+      for(int i = 0; i < 2; i++){
+        childCell[i] = new HexCell();
+        childCell[i]->face = new QuadFace*[6];
        
-       //childCell[i]->whichChild = i;
-       childCell[i]->parentCell = this;
-     }
+        //childCell[i]->whichChild = i;
+        childCell[i]->parentCell = this;
+      }
      
       //face 2-5 split 
      
@@ -682,21 +682,21 @@ void HexCell::split( std::list<Node*>& node_list,
       
       
       //011  y and z directions are splitted 
-   case 3:
+    case 3:
      
-     childCell = new HexCell*[4];
+      childCell = new HexCell*[4];
      
-     for(int i = 0; i < 4; i++){
+      for(int i = 0; i < 4; i++){
         childCell[i] = new HexCell();
         childCell[i]->face = new QuadFace*[6];
         
         //	childCell[i]->whichChild = i;
         childCell[i]->parentCell = this;
-     }
+      }
 
-     //face split 
+      //face split 
      
-     face[0]->split(char(3),char(0), node_list, edge_list);
+      face[0]->split(char(3),char(0), node_list, edge_list);
       face[1]->split(char(3),char(0), node_list, edge_list);
       face[2]->split(char(1),char(0), node_list, edge_list);
       face[3]->split(char(1),char(0), node_list, edge_list);
@@ -767,313 +767,313 @@ void HexCell::split( std::list<Node*>& node_list,
       
       
       //101  x and z directions are splitted 
-      case 5:
+    case 5:
         
-        childCell = new HexCell*[4];
+      childCell = new HexCell*[4];
         
-        for(int i = 0; i < 4; i++){
-          childCell[i] = new HexCell();
-          childCell[i]->face = new QuadFace*[6];
+      for(int i = 0; i < 4; i++){
+        childCell[i] = new HexCell();
+        childCell[i]->face = new QuadFace*[6];
           
-          //	childCell[i]->whichChild = i;
-          childCell[i]->parentCell = this;
-        }
+        //	childCell[i]->whichChild = i;
+        childCell[i]->parentCell = this;
+      }
 
-        //face split 
-        face[2]->split(char(3),char(0), node_list, edge_list);
-        face[3]->split(char(3),char(0), node_list, edge_list);
-        face[0]->split(char(1),char(0), node_list, edge_list);
-        face[1]->split(char(1),char(0), node_list, edge_list);
-        face[4]->split(char(2),char(0), node_list, edge_list);
-        face[5]->split(char(2),char(0), node_list, edge_list);
+      //face split 
+      face[2]->split(char(3),char(0), node_list, edge_list);
+      face[3]->split(char(3),char(0), node_list, edge_list);
+      face[0]->split(char(1),char(0), node_list, edge_list);
+      face[1]->split(char(1),char(0), node_list, edge_list);
+      face[4]->split(char(2),char(0), node_list, edge_list);
+      face[5]->split(char(2),char(0), node_list, edge_list);
       
       
       //define new face
      
-        for(int i = 0; i < 4; i++){
-          newface[i] = new QuadFace(4);
-          face_list.push_back(newface[i]);
-        }
+      for(int i = 0; i < 4; i++){
+        newface[i] = new QuadFace(4);
+        face_list.push_back(newface[i]);
+      }
         
-        //define new edge
-        newedge[0] = new Edge(face[3]->getCenter(), face[2]->getCenter(), face[0]->edge[0]->level);
-        edge_list.push_back(newedge[0]);
+      //define new edge
+      newedge[0] = new Edge(face[3]->getCenter(), face[2]->getCenter(), face[0]->edge[0]->level);
+      edge_list.push_back(newedge[0]);
 
-        //connect newedge
-        newface[0]->edge[2] = newface[1]->edge[3] = newface[2]->edge[0] = newface[3]->edge[1]  = newedge[0];
-        //connect short edges
-        newface[0]->edge[1] = face[2]->child[0]->edge[1];
-        newface[1]->edge[2] = face[2]->child[3]->edge[0];
-        newface[2]->edge[1] = face[2]->child[3]->edge[3];
-        newface[3]->edge[2] = face[2]->child[0]->edge[2];
+      //connect newedge
+      newface[0]->edge[2] = newface[1]->edge[3] = newface[2]->edge[0] = newface[3]->edge[1]  = newedge[0];
+      //connect short edges
+      newface[0]->edge[1] = face[2]->child[0]->edge[1];
+      newface[1]->edge[2] = face[2]->child[3]->edge[0];
+      newface[2]->edge[1] = face[2]->child[3]->edge[3];
+      newface[3]->edge[2] = face[2]->child[0]->edge[2];
 
-        newface[0]->edge[3] = face[3]->child[0]->edge[1];
-        newface[1]->edge[0] = face[3]->child[3]->edge[0];
-        newface[2]->edge[3] = face[3]->child[3]->edge[3];
-        newface[3]->edge[0] = face[3]->child[0]->edge[2];
+      newface[0]->edge[3] = face[3]->child[0]->edge[1];
+      newface[1]->edge[0] = face[3]->child[3]->edge[0];
+      newface[2]->edge[3] = face[3]->child[3]->edge[3];
+      newface[3]->edge[0] = face[3]->child[0]->edge[2];
 
-        //connect square face
-        for(int i = 0; i < 4; i++){
+      //connect square face
+      for(int i = 0; i < 4; i++){
         childCell[i]->face[2] = face[2]->child[i];
         childCell[i]->face[3] = face[3]->child[i];
-        }
+      }
 
-        //connect newface
-        childCell[0]->face[0] = childCell[2]->face[1] = newface[0];
-        childCell[2]->face[4] = childCell[3]->face[5] = newface[1];
-        childCell[1]->face[0] = childCell[3]->face[1] = newface[2];
-        childCell[0]->face[4] = childCell[1]->face[5] = newface[3];
+      //connect newface
+      childCell[0]->face[0] = childCell[2]->face[1] = newface[0];
+      childCell[2]->face[4] = childCell[3]->face[5] = newface[1];
+      childCell[1]->face[0] = childCell[3]->face[1] = newface[2];
+      childCell[0]->face[4] = childCell[1]->face[5] = newface[3];
 
       //create and connect rectangle faces
        
-        newface[0]->edge[0] = face[5]->childx[0]->edge[1];
-        childCell[0]->face[5] = face[5]->childx[0];
-        childCell[2]->face[5] = face[5]->childx[1];
+      newface[0]->edge[0] = face[5]->childx[0]->edge[1];
+      childCell[0]->face[5] = face[5]->childx[0];
+      childCell[2]->face[5] = face[5]->childx[1];
        
-        newface[1]->edge[1] = face[0]->childy[1]->edge[0];
-        childCell[2]->face[0] = face[0]->childy[0];
-        childCell[3]->face[0] = face[0]->childy[1];
+      newface[1]->edge[1] = face[0]->childy[1]->edge[0];
+      childCell[2]->face[0] = face[0]->childy[0];
+      childCell[3]->face[0] = face[0]->childy[1];
      
-        newface[2]->edge[2] = face[4]->childx[0]->edge[1];
-        childCell[1]->face[4] = face[4]->childx[0];
-        childCell[3]->face[4] = face[4]->childx[1];
+      newface[2]->edge[2] = face[4]->childx[0]->edge[1];
+      childCell[1]->face[4] = face[4]->childx[0];
+      childCell[3]->face[4] = face[4]->childx[1];
               
-        newface[3]->edge[3] = face[1]->childy[1]->edge[0];
-        childCell[0]->face[1] = face[1]->childy[0];
-        childCell[1]->face[1] = face[1]->childy[1];
+      newface[3]->edge[3] = face[1]->childy[1]->edge[0];
+      childCell[0]->face[1] = face[1]->childy[0];
+      childCell[1]->face[1] = face[1]->childy[1];
        
         
-        break;
+      break;
         
-        //110  y and z directions are splitted 
-      case 6:
+      //110  y and z directions are splitted 
+    case 6:
 
-        childCell = new HexCell*[4];
+      childCell = new HexCell*[4];
         
-        for(int i = 0; i < 4; i++){
-          childCell[i] = new HexCell();
-          childCell[i]->face = new QuadFace*[6];
+      for(int i = 0; i < 4; i++){
+        childCell[i] = new HexCell();
+        childCell[i]->face = new QuadFace*[6];
    
-          //	childCell[i]->whichChild = i;
-          childCell[i]->parentCell = this;
-        }
-          //face split 
-        face[4]->split(char(3),char(0), node_list, edge_list);
-        face[5]->split(char(3),char(0), node_list, edge_list);
-        face[0]->split(char(2),char(0), node_list, edge_list);
-        face[1]->split(char(2),char(0), node_list, edge_list);
-        face[2]->split(char(2),char(0), node_list, edge_list);
-        face[3]->split(char(2),char(0), node_list, edge_list);
+        //	childCell[i]->whichChild = i;
+        childCell[i]->parentCell = this;
+      }
+      //face split 
+      face[4]->split(char(3),char(0), node_list, edge_list);
+      face[5]->split(char(3),char(0), node_list, edge_list);
+      face[0]->split(char(2),char(0), node_list, edge_list);
+      face[1]->split(char(2),char(0), node_list, edge_list);
+      face[2]->split(char(2),char(0), node_list, edge_list);
+      face[3]->split(char(2),char(0), node_list, edge_list);
       
       
       //define new face
      
-        for(int i = 0; i < 4; i++){
-          newface[i] = new QuadFace(4);
-          face_list.push_back(newface[i]);
-        }
+      for(int i = 0; i < 4; i++){
+        newface[i] = new QuadFace(4);
+        face_list.push_back(newface[i]);
+      }
         
-        //define new edge
-        newedge[0] = new Edge(face[5]->getCenter(), face[4]->getCenter(), face[0]->edge[1]->level);
-        edge_list.push_back(newedge[0]);
+      //define new edge
+      newedge[0] = new Edge(face[5]->getCenter(), face[4]->getCenter(), face[0]->edge[1]->level);
+      edge_list.push_back(newedge[0]);
         
-        //connect newedge
-        newface[0]->edge[1] = newface[1]->edge[3] = newface[2]->edge[3] = newface[3]->edge[1]  = newedge[0];
-        //connect short edges
-        newface[0]->edge[2] = face[4]->child[0]->edge[1];
-        newface[1]->edge[2] = face[4]->child[3]->edge[0];
-        newface[2]->edge[2] = face[4]->child[3]->edge[3];
-        newface[3]->edge[2] = face[4]->child[0]->edge[2];
+      //connect newedge
+      newface[0]->edge[1] = newface[1]->edge[3] = newface[2]->edge[3] = newface[3]->edge[1]  = newedge[0];
+      //connect short edges
+      newface[0]->edge[2] = face[4]->child[0]->edge[1];
+      newface[1]->edge[2] = face[4]->child[3]->edge[0];
+      newface[2]->edge[2] = face[4]->child[3]->edge[3];
+      newface[3]->edge[2] = face[4]->child[0]->edge[2];
 
-        newface[0]->edge[0] = face[5]->child[0]->edge[1];
-        newface[1]->edge[0] = face[5]->child[3]->edge[0];
-        newface[2]->edge[0] = face[5]->child[3]->edge[3];
-        newface[3]->edge[0] = face[5]->child[0]->edge[2];
+      newface[0]->edge[0] = face[5]->child[0]->edge[1];
+      newface[1]->edge[0] = face[5]->child[3]->edge[0];
+      newface[2]->edge[0] = face[5]->child[3]->edge[3];
+      newface[3]->edge[0] = face[5]->child[0]->edge[2];
 
-        //connect square face
-        for(int i = 0; i < 4; i++){
+      //connect square face
+      for(int i = 0; i < 4; i++){
         childCell[i]->face[4] = face[4]->child[i];
         childCell[i]->face[5] = face[5]->child[i];
-        }
+      }
 
-        //connect newface
-        childCell[0]->face[0] = childCell[2]->face[1] = newface[0];
-        childCell[2]->face[2] = childCell[3]->face[3] = newface[1];
-        childCell[1]->face[0] = childCell[3]->face[1] = newface[2];
-        childCell[0]->face[2] = childCell[1]->face[3] = newface[3];
+      //connect newface
+      childCell[0]->face[0] = childCell[2]->face[1] = newface[0];
+      childCell[2]->face[2] = childCell[3]->face[3] = newface[1];
+      childCell[1]->face[0] = childCell[3]->face[1] = newface[2];
+      childCell[0]->face[2] = childCell[1]->face[3] = newface[3];
 
-        //create and connect rectangle faces
+      //create and connect rectangle faces
     
-        newface[0]->edge[3] = face[3]->childx[0]->edge[1];
-        childCell[0]->face[3] = face[3]->childx[0];
-        childCell[2]->face[3] = face[3]->childx[1];
+      newface[0]->edge[3] = face[3]->childx[0]->edge[1];
+      childCell[0]->face[3] = face[3]->childx[0];
+      childCell[2]->face[3] = face[3]->childx[1];
         
-        newface[1]->edge[1] = face[0]->childx[0]->edge[1];
-        childCell[2]->face[0] = face[0]->childx[0];
-        childCell[3]->face[0] = face[0]->childx[1];
-        
-        
-        newface[2]->edge[1] = face[2]->childx[0]->edge[1];
-        childCell[1]->face[2] = face[2]->childx[0];
-        childCell[3]->face[2] = face[2]->childx[1];
-        
-        newface[3]->edge[3] = face[1]->childx[0]->edge[1];
-        childCell[0]->face[1] = face[1]->childx[0];
-        childCell[1]->face[1] = face[1]->childx[1];
+      newface[1]->edge[1] = face[0]->childx[0]->edge[1];
+      childCell[2]->face[0] = face[0]->childx[0];
+      childCell[3]->face[0] = face[0]->childx[1];
         
         
-        break;
+      newface[2]->edge[1] = face[2]->childx[0]->edge[1];
+      childCell[1]->face[2] = face[2]->childx[0];
+      childCell[3]->face[2] = face[2]->childx[1];
         
-        //111  x, y and z directions are splitted 
-      case 7:
+      newface[3]->edge[3] = face[1]->childx[0]->edge[1];
+      childCell[0]->face[1] = face[1]->childx[0];
+      childCell[1]->face[1] = face[1]->childx[1];
+        
+        
+      break;
+        
+      //111  x, y and z directions are splitted 
+    case 7:
 
-        childCell = new HexCell*[8];
+      childCell = new HexCell*[8];
         
-        for(int i = 0; i < 8; i++){
-          childCell[i] = new HexCell();
-          childCell[i]->face = new QuadFace*[6];
+      for(int i = 0; i < 8; i++){
+        childCell[i] = new HexCell();
+        childCell[i]->face = new QuadFace*[6];
    
-          //	childCell[i]->whichChild = i;
-          childCell[i]->parentCell = this;
-        }
+        //	childCell[i]->whichChild = i;
+        childCell[i]->parentCell = this;
+      }
 
-        //face split 
-        for(int i = 0; i< 6; i++)face[i]->split(char(3), char(0), node_list, edge_list);
+      //face split 
+      for(int i = 0; i< 6; i++)face[i]->split(char(3), char(0), node_list, edge_list);
       
-        //define new node
-        ccenter = centroid();
-        node_list.push_back(ccenter);
+      //define new node
+      ccenter = centroid();
+      node_list.push_back(ccenter);
         
-        //define new face
+      //define new face
         
-        for(int i = 0; i < 12; i++){
-          newface[i] = new QuadFace(4);
-          face_list.push_back(newface[i]);
+      for(int i = 0; i < 12; i++){
+        newface[i] = new QuadFace(4);
+        face_list.push_back(newface[i]);
+      }
+        
+      //define new edge
+      for(int i =0; i<6; i++){
+        if(i%2==1){
+          newedge[i] = new Edge(face[i]->getCenter(), ccenter);
         }
-        
-        //define new edge
-        for(int i =0; i<6; i++){
-          if(i%2==1){
-            newedge[i] = new Edge(face[i]->getCenter(), ccenter);
-          }
-          else{
-            newedge[i] = new Edge(ccenter, face[i]->getCenter());
-          }
-          edge_list.push_back(newedge[i]);
+        else{
+          newedge[i] = new Edge(ccenter, face[i]->getCenter());
         }
-        newedge[0]->level = newedge[1]->level = face[2]->edge[0]->level+1;
-        newedge[2]->level = newedge[3]->level = face[0]->edge[0]->level+1; 
-        newedge[4]->level = newedge[5]->level = face[0]->edge[1]->level+1;
+        edge_list.push_back(newedge[i]);
+      }
+      newedge[0]->level = newedge[1]->level = face[2]->edge[0]->level+1;
+      newedge[2]->level = newedge[3]->level = face[0]->edge[0]->level+1; 
+      newedge[4]->level = newedge[5]->level = face[0]->edge[1]->level+1;
         
 
 
-        newface[0]->edge[0] = face[5]->child[0]->edge[1];
-        newface[0]->edge[1] = newedge[5];
-        newface[0]->edge[2] = newedge[3];
-        newface[0]->edge[3] = face[3]->child[0]->edge[1];
+      newface[0]->edge[0] = face[5]->child[0]->edge[1];
+      newface[0]->edge[1] = newedge[5];
+      newface[0]->edge[2] = newedge[3];
+      newface[0]->edge[3] = face[3]->child[0]->edge[1];
 
-        newface[1]->edge[0] = newedge[3];
-        newface[1]->edge[1] = newedge[4];
-        newface[1]->edge[2] = face[4]->child[0]->edge[1];
-        newface[1]->edge[3] = face[3]->child[1]->edge[1];
+      newface[1]->edge[0] = newedge[3];
+      newface[1]->edge[1] = newedge[4];
+      newface[1]->edge[2] = face[4]->child[0]->edge[1];
+      newface[1]->edge[3] = face[3]->child[1]->edge[1];
 
-        newface[2]->edge[0] = face[5]->child[1]->edge[1];
-        newface[2]->edge[1] = face[2]->child[0]->edge[1];
-        newface[2]->edge[2] = newedge[2];
-        newface[2]->edge[3] = newedge[5];
+      newface[2]->edge[0] = face[5]->child[1]->edge[1];
+      newface[2]->edge[1] = face[2]->child[0]->edge[1];
+      newface[2]->edge[2] = newedge[2];
+      newface[2]->edge[3] = newedge[5];
 
-        newface[3]->edge[0] = newedge[2];
-        newface[3]->edge[1] = face[2]->child[1]->edge[1];
-        newface[3]->edge[2] = face[4]->child[1]->edge[1];
-        newface[3]->edge[3] = newedge[4];
+      newface[3]->edge[0] = newedge[2];
+      newface[3]->edge[1] = face[2]->child[1]->edge[1];
+      newface[3]->edge[2] = face[4]->child[1]->edge[1];
+      newface[3]->edge[3] = newedge[4];
 
-        newface[4]->edge[0] = face[5]->child[0]->edge[2];
-        newface[4]->edge[1] = newedge[5];
-        newface[4]->edge[2] = newedge[1];
-        newface[4]->edge[3] = face[1]->child[0]->edge[1];
+      newface[4]->edge[0] = face[5]->child[0]->edge[2];
+      newface[4]->edge[1] = newedge[5];
+      newface[4]->edge[2] = newedge[1];
+      newface[4]->edge[3] = face[1]->child[0]->edge[1];
 
-        newface[5]->edge[0] = newedge[1];
-        newface[5]->edge[1] = newedge[4];
-        newface[5]->edge[2] = face[4]->child[0]->edge[2];
-        newface[5]->edge[3] = face[1]->child[1]->edge[1];
+      newface[5]->edge[0] = newedge[1];
+      newface[5]->edge[1] = newedge[4];
+      newface[5]->edge[2] = face[4]->child[0]->edge[2];
+      newface[5]->edge[3] = face[1]->child[1]->edge[1];
 
-        newface[6]->edge[0] = face[5]->child[2]->edge[2];
-        newface[6]->edge[1] = face[0]->child[0]->edge[1];
-        newface[6]->edge[2] = newedge[0];
-        newface[6]->edge[3] = newedge[5];
+      newface[6]->edge[0] = face[5]->child[2]->edge[2];
+      newface[6]->edge[1] = face[0]->child[0]->edge[1];
+      newface[6]->edge[2] = newedge[0];
+      newface[6]->edge[3] = newedge[5];
 
-        newface[7]->edge[0] = newedge[0];
-        newface[7]->edge[1] = face[0]->child[1]->edge[1];
-        newface[7]->edge[2] = face[4]->child[2]->edge[2];
-        newface[7]->edge[3] = newedge[4];
+      newface[7]->edge[0] = newedge[0];
+      newface[7]->edge[1] = face[0]->child[1]->edge[1];
+      newface[7]->edge[2] = face[4]->child[2]->edge[2];
+      newface[7]->edge[3] = newedge[4];
 
-        newface[8]->edge[0] = face[3]->child[0]->edge[2];
-        newface[8]->edge[1] = newedge[3];
-        newface[8]->edge[2] = newedge[1];
-        newface[8]->edge[3] = face[1]->child[0]->edge[2];
+      newface[8]->edge[0] = face[3]->child[0]->edge[2];
+      newface[8]->edge[1] = newedge[3];
+      newface[8]->edge[2] = newedge[1];
+      newface[8]->edge[3] = face[1]->child[0]->edge[2];
 
-        newface[9]->edge[0] = newedge[1];
-        newface[9]->edge[1] = newedge[2];
-        newface[9]->edge[2] = face[2]->child[0]->edge[2];
-        newface[9]->edge[3] = face[1]->child[2]->edge[2];
+      newface[9]->edge[0] = newedge[1];
+      newface[9]->edge[1] = newedge[2];
+      newface[9]->edge[2] = face[2]->child[0]->edge[2];
+      newface[9]->edge[3] = face[1]->child[2]->edge[2];
 
-        newface[10]->edge[0] = face[3]->child[2]->edge[2];
-        newface[10]->edge[1] = face[0]->child[0]->edge[2];
-        newface[10]->edge[2] = newedge[0];
-        newface[10]->edge[3] = newedge[3];
+      newface[10]->edge[0] = face[3]->child[2]->edge[2];
+      newface[10]->edge[1] = face[0]->child[0]->edge[2];
+      newface[10]->edge[2] = newedge[0];
+      newface[10]->edge[3] = newedge[3];
 
-        newface[11]->edge[0] = newedge[0];
-        newface[11]->edge[1] = face[0]->child[2]->edge[2];
-        newface[11]->edge[2] = face[2]->child[2]->edge[2];
-        newface[11]->edge[3] = newedge[2];
+      newface[11]->edge[0] = newedge[0];
+      newface[11]->edge[1] = face[0]->child[2]->edge[2];
+      newface[11]->edge[2] = face[2]->child[2]->edge[2];
+      newface[11]->edge[3] = newedge[2];
         
-        //connect square face
-        for(int i = 0; i < 4; i++){
-          childCell[i]->face[1] = face[1]->child[i];
-        }
-        for(int i = 4; i < 8; i++){
-          childCell[i]->face[0] = face[0]->child[i-4];
-        }
+      //connect square face
+      for(int i = 0; i < 4; i++){
+        childCell[i]->face[1] = face[1]->child[i];
+      }
+      for(int i = 4; i < 8; i++){
+        childCell[i]->face[0] = face[0]->child[i-4];
+      }
 
-        childCell[2]->face[2] = face[2]->child[0];
-        childCell[3]->face[2] = face[2]->child[1];
-        childCell[6]->face[2] = face[2]->child[2];
-        childCell[7]->face[2] = face[2]->child[3];
+      childCell[2]->face[2] = face[2]->child[0];
+      childCell[3]->face[2] = face[2]->child[1];
+      childCell[6]->face[2] = face[2]->child[2];
+      childCell[7]->face[2] = face[2]->child[3];
 
-        childCell[0]->face[3] = face[3]->child[0];
-        childCell[1]->face[3] = face[3]->child[1];
-        childCell[4]->face[3] = face[3]->child[2];
-        childCell[5]->face[3] = face[3]->child[3];
+      childCell[0]->face[3] = face[3]->child[0];
+      childCell[1]->face[3] = face[3]->child[1];
+      childCell[4]->face[3] = face[3]->child[2];
+      childCell[5]->face[3] = face[3]->child[3];
 
-        childCell[1]->face[4] = face[4]->child[0];
-        childCell[3]->face[4] = face[4]->child[1];
-        childCell[5]->face[4] = face[4]->child[2];
-        childCell[7]->face[4] = face[4]->child[3];
+      childCell[1]->face[4] = face[4]->child[0];
+      childCell[3]->face[4] = face[4]->child[1];
+      childCell[5]->face[4] = face[4]->child[2];
+      childCell[7]->face[4] = face[4]->child[3];
         
-        childCell[0]->face[5] = face[5]->child[0];
-        childCell[2]->face[5] = face[5]->child[1];
-        childCell[4]->face[5] = face[5]->child[2];
-        childCell[6]->face[5] = face[5]->child[3];
-
-        
-        //connect newface
-        childCell[0]->face[0] = childCell[4]->face[1] = newface[0];
-        childCell[1]->face[0] = childCell[5]->face[1] = newface[1];
-        childCell[2]->face[0] = childCell[6]->face[1] = newface[2];
-        childCell[3]->face[0] = childCell[7]->face[1] = newface[3];
-
-        childCell[0]->face[2] = childCell[2]->face[3] = newface[4];
-        childCell[1]->face[2] = childCell[3]->face[3] = newface[5];
-        childCell[4]->face[2] = childCell[6]->face[3] = newface[6];
-        childCell[5]->face[2] = childCell[7]->face[3] = newface[7];
-
-        childCell[0]->face[4] = childCell[1]->face[5] = newface[8];
-        childCell[2]->face[4] = childCell[3]->face[5] = newface[9];
-        childCell[4]->face[4] = childCell[5]->face[5] = newface[10];
-        childCell[6]->face[4] = childCell[7]->face[5] = newface[11];
+      childCell[0]->face[5] = face[5]->child[0];
+      childCell[2]->face[5] = face[5]->child[1];
+      childCell[4]->face[5] = face[5]->child[2];
+      childCell[6]->face[5] = face[5]->child[3];
 
         
-        break;
+      //connect newface
+      childCell[0]->face[0] = childCell[4]->face[1] = newface[0];
+      childCell[1]->face[0] = childCell[5]->face[1] = newface[1];
+      childCell[2]->face[0] = childCell[6]->face[1] = newface[2];
+      childCell[3]->face[0] = childCell[7]->face[1] = newface[3];
+
+      childCell[0]->face[2] = childCell[2]->face[3] = newface[4];
+      childCell[1]->face[2] = childCell[3]->face[3] = newface[5];
+      childCell[4]->face[2] = childCell[6]->face[3] = newface[6];
+      childCell[5]->face[2] = childCell[7]->face[3] = newface[7];
+
+      childCell[0]->face[4] = childCell[1]->face[5] = newface[8];
+      childCell[2]->face[4] = childCell[3]->face[5] = newface[9];
+      childCell[4]->face[4] = childCell[5]->face[5] = newface[10];
+      childCell[6]->face[4] = childCell[7]->face[5] = newface[11];
+
+        
+      break;
         
     default:
       cerr <<"WARNING: illegal splitcode in function split()" << endl;
@@ -1085,64 +1085,48 @@ int HexCell::get_num_fine_faces()const{
   int num_faces = 0;
  
   for(int i = 0; i < 6; i++){
-     num_faces += face[i]->get_num_leaves();
+    num_faces += face[i]->get_num_leaves();
   }
   return num_faces;
 }
 
-bool HexCell::getTagged(){
-  bool tagged = false;
-  std::vector<Node*> nodes(8);
-  //definition from build_hexcell.cc
-  // int node0[12] = {0, 1, 2, 3, 0, 1, 4, 5, 0, 2, 4, 6}; //head
-  // int node1[12] = {4, 5, 6, 7, 2, 3, 6, 7, 1, 3, 5, 7}; //tail
-  //  int f2e[6][4]= {{6, 11, 7, 10}, {4, 9, 5, 8}, {2, 11, 3, 9}, {0, 10, 1, 8},
-  //              {1, 7, 3, 5}, {0, 6, 2, 4}};
-  
-  nodes[0] = face[1]->edge[0]->head;
-  nodes[1] = face[1]->edge[2]->head;
-  nodes[2] = face[1]->edge[0]->tail;
-  nodes[3] = face[1]->edge[2]->tail;
-  nodes[4] = face[0]->edge[0]->head;
-  nodes[5] = face[0]->edge[2]->head;
-  nodes[6] = face[0]->edge[0]->tail;
-  nodes[7] = face[0]->edge[2]->tail;
-  for(int i = 0; i < 8; i++){
-    if(nodes[i]->tag != 0){
-      tagged = true;
-      return tagged;
+int HexCell::get_tagged(){
+  if(this !=0){ 
+    std::vector<Node*> nodes(8);
+    get_nodes(nodes);
+    //if all nodes get detagged, the cell is detagged
+    bool detagged = true;
+    for(std::vector<Node*>::const_iterator np = nodes.begin(); np != nodes.end(); np++){
+      if((*np)->tag != 2)detagged = false;
+    }
+    if(detagged) return 2;
+    for(std::vector<Node*>::const_iterator np = nodes.begin(); np != nodes.end(); np++){
+      if((*np)->tag == 1)return 1;
+      
     }
   }
-  return tagged;
+  
+  //otherwise, the cell remains unchanged
+  return 0;
 }
       
-bool HexCell::get_tagged(const vector<source_par>& sources){
-  std::vector<Node*> nodes(8);
-  //definition from build_hexcell.cc
-  // int node0[12] = {0, 1, 2, 3, 0, 1, 4, 5, 0, 2, 4, 6}; //head
-  // int node1[12] = {4, 5, 6, 7, 2, 3, 6, 7, 1, 3, 5, 7}; //tail
-  //  int f2e[6][4]= {{6, 11, 7, 10}, {4, 9, 5, 8}, {2, 11, 3, 9}, {0, 10, 1, 8},
-  //              {1, 7, 3, 5}, {0, 6, 2, 4}};
-  
-  nodes[0] = face[1]->edge[0]->head;
-  nodes[1] = face[1]->edge[2]->head;
-  nodes[2] = face[1]->edge[0]->tail;
-  nodes[3] = face[1]->edge[2]->tail;
-  nodes[4] = face[0]->edge[0]->head;
-  nodes[5] = face[0]->edge[2]->head;
-  nodes[6] = face[0]->edge[0]->tail;
-  nodes[7] = face[0]->edge[2]->tail;
+int HexCell::get_tagged(const vector<source_par>& sources){
+  if(this !=0){ 
+    std::vector<Node*> nodes(8);
+    get_nodes(nodes);
 
-  double min_len = get_min_edge_length();
-  if(tag_cell(nodes, sources, min_len)){
-    mySplitCode = 7;
-    return true;
-  }else{
-    mySplitCode = 0;
-    return false;
+    double min_len = get_min_edge_length();
+    if(tag_cell(nodes, sources, min_len)){
+      mySplitCode = 7;
+      return 1;
+    }else{
+      mySplitCode = 0;
+      return 0;
+    }
   }
+  return 0;
 } 
-   //find the minimum edge length in a cell(before split)
+//find the minimum edge length in a cell(before split)
 double HexCell::get_min_edge_length(){
   std::vector<Edge*> edges = get_edges();
   std::vector<double> edge_length(12);
@@ -1156,15 +1140,15 @@ double HexCell::get_min_edge_length(){
 } 
 
 
- //return a splitCode
-  //find   min_edge_length in XX , YY and ZZ directions
-  //find minimun_edge_length in all directions
+//return a splitCode
+//find   min_edge_length in XX , YY and ZZ directions
+//find minimun_edge_length in all directions
   
-  //if 
-  //if max_edge_length/min_edge_length > Globals::factor1 and they are in different direction
-  //split the max_length edge
+//if 
+//if max_edge_length/min_edge_length > Globals::factor1 and they are in different direction
+//split the max_length edge
 void HexCell::setSplitCode(int split_mode, double tol){
-  if(getTagged()){
+  if(get_tagged() == 1){
    
    
     //face2edge in build_hexcell
@@ -1210,11 +1194,11 @@ void HexCell::setSplitCode(int split_mode, double tol){
     average_length[1] /= 4.0;
     
     average_length[2] = 0.0;
-     min_length[2] = 1e10;
-     for(int i = 8; i <= 11; i++){
-       average_length[2] += edge_length[i];
-       min_length[2] = min(min_length[2], edge_length[i]);
-     }
+    min_length[2] = 1e10;
+    for(int i = 8; i <= 11; i++){
+      average_length[2] += edge_length[i];
+      min_length[2] = min(min_length[2], edge_length[i]);
+    }
     average_length[2] /= 4.0;
 
     bitset<3> tolerance_mask(7); //all 1s
@@ -1276,11 +1260,11 @@ void HexCell::setSplitCode(int split_mode, double tol){
                 && (average_length[0] > average_length[2])) ||
                ((average_length[1]/average_length[0] > Globals::factor)
                 && (average_length[2] > average_length[0]))){
-         bitset<3> oldCode(2);
-         oldCode = oldCode & tolerance_mask;
-         mySplitCode = char(oldCode.to_ulong());
-         // mySplitCode = 2;//y direction get split
-         return;
+        bitset<3> oldCode(2);
+        oldCode = oldCode & tolerance_mask;
+        mySplitCode = char(oldCode.to_ulong());
+        // mySplitCode = 2;//y direction get split
+        return;
       }
       
       else  if(((average_length[2]/average_length[0] > Globals::factor)
@@ -1296,7 +1280,7 @@ void HexCell::setSplitCode(int split_mode, double tol){
       else if(minimum_length > 2.0*tol){
         
         mySplitCode = 7;
-      return;
+        return;
       }
       else{
         mySplitCode = 0;
@@ -1361,10 +1345,10 @@ void HexCell::setSplitCode(int split_mode, double tol){
       }
       if(z_direction == -1) {
         cerr<< "WARNING: can not find z direction in hexcell.cc" << endl;
-      exit(0);
+        exit(0);
       }
 
-       bitset<3> oldCode(0);
+      bitset<3> oldCode(0);
       switch(z_direction){
       case 0:
         if(average_length[1]/average_length[2] > Globals::factor) oldCode.set(1);
@@ -1387,7 +1371,7 @@ void HexCell::setSplitCode(int split_mode, double tol){
         break;
       case 2:
 
-         if(average_length[0]/average_length[1] > Globals::factor) oldCode.set(2);
+        if(average_length[0]/average_length[1] > Globals::factor) oldCode.set(2);
         else if(average_length[1]/average_length[0] > Globals::factor) oldCode.set(1);
         else{
           oldCode.set(2);
@@ -1416,13 +1400,13 @@ void HexCell::setSplitCode(int split_mode, double tol){
       }
     }
     
-  }//end if(getTagged())
+  }//end if(get_tagged())
   else{
     mySplitCode =0;
   }
 }
 
-  //after a cell is split, compose the cell plan according to the tree structure      
+//after a cell is split, compose the cell plan according to the tree structure      
 std::vector<char> HexCell::make_cellplan(){
   
   std::vector<char> cellPlan;
@@ -1478,16 +1462,16 @@ bool HexCell::balance_cell(int split_mode,
 
  
   bool  needBalance = false;
- if(childCell != 0){
+  if(childCell != 0){
 
-   std::list<HexCell*> leaves;
-   sort_leaves(leaves);
-   needBalance = false;
-   for(std::list<HexCell*>::const_iterator p = leaves.begin(); p != leaves.end(); p++){
-     bool tmp =  (*p)->balance_cell(split_mode, node_list, edge_list, face_list);
-     needBalance = tmp||needBalance;
-   }
-   return needBalance;
+    std::list<HexCell*> leaves;
+    sort_leaves(leaves);
+    needBalance = false;
+    for(std::list<HexCell*>::const_iterator p = leaves.begin(); p != leaves.end(); p++){
+      bool tmp =  (*p)->balance_cell(split_mode, node_list, edge_list, face_list);
+      needBalance = tmp||needBalance;
+    }
+    return needBalance;
   }
   if(childCell == 0){
     std::vector<Edge*> edge = get_edges();
@@ -1506,7 +1490,7 @@ bool HexCell::balance_cell(int split_mode,
         }
         if(num_faces_split > 3){
           
-         mySplitCode = 7;
+          mySplitCode = 7;
         }
       }
 
@@ -1528,7 +1512,7 @@ bool HexCell::balance_cell(int split_mode,
       }
       for(int i = 4; i < 8; i++){
         if( edge[i]->depth_greater_than_1()){
-        code.set(1);
+          code.set(1);
         }
       }
       for(int i = 8; i < 12; i++){
@@ -1609,8 +1593,8 @@ void HexCell::sort_leaves(std::list<HexCell*>& leaves){
 
 void HexCell::rebalance_cells(int split_mode,
                               std::list<Node*>& node_list,
-                           std::list<Edge*>& edge_list,
-                           std::list<QuadFace*>& face_list){ 
+                              std::list<Edge*>& edge_list,
+                              std::list<QuadFace*>& face_list){ 
   bool need_balance_more = true;
 
   while(need_balance_more){
@@ -1668,3 +1652,25 @@ int32 HexCell::traverse(const std::vector<char>& parentPlan,  vector<pair<int32,
   return cIndex;
 }
 
+bool HexCell::derefine(){
+  if(this != 0 ){
+    if(childCell != 0){
+      bool derefine = true;
+      for(int i = 0; i < numChildren(); i++){
+        if( (childCell[i] ->get_tagged()) != 2)derefine = false;
+      }
+      if(derefine){
+        for(int i = 0; i < numChildren(); i++){
+          if(childCell[i] != 0){
+            delete  childCell[i];
+            childCell[i] = 0;
+          }
+        }
+        delete [] childCell;
+        childCell = 0;
+        return true;
+      }
+    }
+  }
+  return false;
+}

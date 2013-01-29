@@ -76,13 +76,12 @@ public:
   }
 
   inline Node* simple_center(){
-    vect3d* nodes = new vect3d[numEdge];
+    std::vector<vect3d> nodes(numEdge);
     for(int i = 0; i < numEdge; i++){
       nodes[i] =  edge[i]->head->p;
     }
     //calculate the mass center of the edge centers
-    vect3d p = point_center(nodes, numEdge);
-    delete [] nodes;
+    vect3d p = point_center(nodes);
     return new Node(p);
   }
     
@@ -112,8 +111,8 @@ public:
   inline Node* wireframe(){
     
     //allocate edgecenter
-    vect3d* edgecenter = new vect3d[numEdge];
-    double* len = new double[numEdge];
+    std::vector<vect3d> edgecenter(numEdge);
+    std::vector<double> len(numEdge);
     
     //get edge centers
     for(int i = 0; i < numEdge; i++){
@@ -122,12 +121,7 @@ public:
     }
    
     //calculate the mass center of the edge centers
-    vect3d p = weighted_center(edgecenter, len, numEdge);
-
-    //deallocate edgecenter
-    delete [] edgecenter;
-    delete [] len;
-    
+    vect3d p = weighted_center(edgecenter, len);
     return new Node(p);
   }
 

@@ -44,7 +44,7 @@ using Loci::storeRepP;
 
 #ifdef USE_LIBXML2
 bool mark_node( xmlNode* root_element,
-               std::list<Node*>::iterator begin_pnt,
+                std::list<Node*>::iterator begin_pnt,
                 std::list<Node*>::iterator end_pnt);
 #endif
 
@@ -88,7 +88,7 @@ public:
     name_store("cellPlan", cellPlan);
     name_store("facePlan", facePlan);
     name_store("edgePlan", edgePlan);
-     name_store("posTag", posTag);
+    name_store("posTag", posTag);
     name_store("nodeTag", nodeTag);
     name_store("isIndivisible", isIndivisible);
     name_store("newCellPlan", newCellPlan);
@@ -116,31 +116,31 @@ public:
   }
   void calculate(Entity cc){
     if(!isIndivisible[cc]){
-    std::list<Node*> node_list;
-    std::list<Edge*> edge_list;
-    std::list<QuadFace*> face_list;
-    std::list<Node*> bnode_list;
-    int nindex;
+      std::list<Node*> node_list;
+      std::list<Edge*> edge_list;
+      std::list<QuadFace*> face_list;
+      std::list<Node*> bnode_list;
+      int nindex;
 
                                                  
-    HexCell* aCell = build_hex_cell(lower[cc].begin(), lower.num_elems(cc),
-                                    upper[cc].begin(), upper.num_elems(cc),
-                                    boundary_map[cc].begin(), boundary_map.num_elems(cc),
-                                    hex2face[cc],
-                                    hex2node[cc],
-                                    orientCode[cc],
-                                    face2node,
-                                    face2edge,
-                                    edge2node,
-                                    pos,
-                                    edgePlan,
-                                    facePlan,
-                                    posTag,
-                                    nodeTag,
-                                    bnode_list,
-                                    edge_list,
-                                    face_list,
-                                    node_l2f);
+      HexCell* aCell = build_hex_cell(lower[cc].begin(), lower.num_elems(cc),
+                                      upper[cc].begin(), upper.num_elems(cc),
+                                      boundary_map[cc].begin(), boundary_map.num_elems(cc),
+                                      hex2face[cc],
+                                      hex2node[cc],
+                                      orientCode[cc],
+                                      face2node,
+                                      face2edge,
+                                      edge2node,
+                                      pos,
+                                      edgePlan,
+                                      facePlan,
+                                      posTag,
+                                      nodeTag,
+                                      bnode_list,
+                                      edge_list,
+                                      face_list,
+                                      node_l2f);
     
   
   
@@ -149,69 +149,76 @@ public:
  
     
    
-    std::vector<HexCell*> cells;
+      std::vector<HexCell*> cells;
     
-    aCell->resplit( cellPlan[cc], 
-                    node_list,
-                    edge_list,
-                    face_list,
-                    cells);
+      aCell->resplit( cellPlan[cc], 
+                      node_list,
+                      edge_list,
+                      face_list,
+                      cells);
     
-    nindex = 0;
-    for(std::list<Node*>::const_iterator np = node_list.begin(); np!= node_list.end(); np++){
-      (*np)->tag = nodeTag[cc][nindex++];
-    }
+      nindex = 0;
+      for(std::list<Node*>::const_iterator np = node_list.begin(); np!= node_list.end(); np++){
+        (*np)->tag = nodeTag[cc][nindex++];
+      }
     
-    int numCells = cells.size();
+      int numCells = cells.size();
    
-    if(numCells != 0){
-      bool cell_split = false; //if any cell split, the whole big cell rebalance
-      for(int i = 0; i < numCells; i++){
-       
-        cells[i]->setSplitCode(*split_mode_par, Globals::tolerance);
-        if(cells[i]->getMySplitCode()!=0) {
+      if(numCells != 0){//aCell is not a leaf
+        bool cell_split = false; //if any cell split, the whole big cell rebalance
+        for(int i = 0; i < numCells; i++){
+          if(cells[i] ==0)continue;
+        
+          if((cells[i]->get_tagged())==1) {
+            cells[i]->setSplitCode(*split_mode_par, Globals::tolerance);
+            if(cells[i]->getMySplitCode()!=0) {
+              if(*split_mode_par == 2){
+                double min_edge_length =cells[i]->get_min_edge_length();
+                int split_level = Globals::levels;
+                if(Globals::tolerance > 0.0) split_level = int(log(min_edge_length/Globals::tolerance)/log(2.0));  
+                cells[i]->resplit(min(Globals::levels,split_level),node_list, edge_list, face_list);
+                cell_split = true;
+              }
+              else{
+            
+                cell_split = true;
+                cells[i]->split(node_list, edge_list, face_list);
+              }
+            
+            }
+          }else if((cells[i]->get_tagged()) == 2){
+            HexCell* parent = cells[i]->getParentCell();
+            if(parent != 0){
+              if(parent->derefine()) cell_split = true;
+            }
+          }
+        }
+        if(cell_split)aCell->rebalance_cells(*split_mode_par,node_list, edge_list, face_list);
+      }else{//aCell is a leaf
+        aCell->setSplitCode(*split_mode_par, Globals::tolerance);
+        if(aCell->getMySplitCode() != 0 ){
           if(*split_mode_par == 2){
-            double min_edge_length =cells[i]->get_min_edge_length();
+            double min_edge_length =aCell->get_min_edge_length();
             int split_level = Globals::levels;
-            if(Globals::tolerance > 0.0) split_level = int(log(min_edge_length/Globals::tolerance)/log(2.0));  
-            cells[i]->resplit(min(Globals::levels,split_level),node_list, edge_list, face_list);
-            cell_split = true;
+            if(Globals::tolerance > 0.0) split_level = int(log(min_edge_length/Globals::tolerance)/log(2.0));
+            aCell->resplit(min(Globals::levels, split_level), node_list, edge_list, face_list); 
           }
           else{
-            
-            cell_split = true;
-            cells[i]->split(node_list, edge_list, face_list);
+            aCell->split(node_list, edge_list, face_list);
           }
         }
       }
-      if(cell_split)aCell->rebalance_cells(*split_mode_par,node_list, edge_list, face_list);
-      
-    }
-    else{
-      aCell->setSplitCode(*split_mode_par, Globals::tolerance);
-      if(aCell->getMySplitCode() != 0 ){
-        if(*split_mode_par == 2){
-          double min_edge_length =aCell->get_min_edge_length();
-          int split_level = Globals::levels;
-          if(Globals::tolerance > 0.0) split_level = int(log(min_edge_length/Globals::tolerance)/log(2.0));
-          aCell->resplit(min(Globals::levels, split_level), node_list, edge_list, face_list); 
-        }
-        else{
-          aCell->split(node_list, edge_list, face_list);
-        }
-      }
-    }
   
-    //write new cellPlan
-    newCellPlan[cc] = aCell->make_cellplan();
-    //clean up
-    if(aCell != 0){
-      delete aCell;
-      aCell = 0;
-    }
-    cleanup_list(node_list, edge_list, face_list);
-    cleanup_list(bnode_list);
-    reduce_vector(newCellPlan[cc]);
+      //write new cellPlan
+      newCellPlan[cc] = aCell->make_cellplan();
+      //clean up
+      if(aCell != 0){
+        delete aCell;
+        aCell = 0;
+      }
+      cleanup_list(node_list, edge_list, face_list);
+      cleanup_list(bnode_list);
+      reduce_vector(newCellPlan[cc]);
     }
   }
 };
@@ -229,7 +236,7 @@ class make_hex_cellplan_norestart:public pointwise_rule{
   const_MapVec<2> edge2node;
   const_multiMap face2edge;
   const_multiMap face2node;
-   const_store<char>  posTag;
+  const_store<char>  posTag;
   const_store<bool> isIndivisible;
   const_param<int> split_mode_par;
   const_param<int> norestart_tag_par;
@@ -249,76 +256,76 @@ public:
     name_store("face2edge", face2edge);
     name_store("edge2node", edge2node);
     name_store("isIndivisible", isIndivisible);
-     name_store("posTag", posTag);
+    name_store("posTag", posTag);
     name_store("newCellPlan", newCellPlan);
     name_store("split_mode_par", split_mode_par);
     name_store("norestart_tag_par", norestart_tag_par);
     
-   name_store("fileNumber(face2node)", node_l2f);
-   input("norestart_tag_par");
-   input("split_mode_par");
-   input("isIndivisible, hex2face, hex2node, hexOrientCode");
-   input("(lower, upper, boundary_map)->face2node->(posTag, pos)");
-   input("(lower, upper, boundary_map)->face2edge->edge2node->pos");
-   input("(lower, upper, boundary_map)->fileNumber(face2node)");
-   output("newCellPlan");
-   constraint("hexcells");
+    name_store("fileNumber(face2node)", node_l2f);
+    input("norestart_tag_par");
+    input("split_mode_par");
+    input("isIndivisible, hex2face, hex2node, hexOrientCode");
+    input("(lower, upper, boundary_map)->face2node->(posTag, pos)");
+    input("(lower, upper, boundary_map)->face2edge->edge2node->pos");
+    input("(lower, upper, boundary_map)->fileNumber(face2node)");
+    output("newCellPlan");
+    constraint("hexcells");
   }
   virtual void compute(const sequence &seq){
     if(seq.size()!=0){
    
-    do_loop(seq, this);
+      do_loop(seq, this);
     }
    
   
   }
   void calculate(Entity cc){
     if(!isIndivisible[cc]){
-    std::list<Node*> node_list;
-    std::list<Edge*> edge_list;
-    std::list<QuadFace*> face_list;
-    std::list<Node*> bnode_list;
+      std::list<Node*> node_list;
+      std::list<Edge*> edge_list;
+      std::list<QuadFace*> face_list;
+      std::list<Node*> bnode_list;
      
     
-    HexCell* aCell = build_hex_cell(lower[cc].begin(), lower.num_elems(cc),
-                                    upper[cc].begin(), upper.num_elems(cc),
-                                    boundary_map[cc].begin(), boundary_map.num_elems(cc),
-                                    hex2face[cc],
-                                    hex2node[cc],
-                                    orientCode[cc],
-                                    face2node,
-                                    face2edge,
-                                    edge2node,
-                                    pos,
-                                    posTag,
-                                    bnode_list,
-                                    edge_list,
-                                    face_list,
-                                    node_l2f);
+      HexCell* aCell = build_hex_cell(lower[cc].begin(), lower.num_elems(cc),
+                                      upper[cc].begin(), upper.num_elems(cc),
+                                      boundary_map[cc].begin(), boundary_map.num_elems(cc),
+                                      hex2face[cc],
+                                      hex2node[cc],
+                                      orientCode[cc],
+                                      face2node,
+                                      face2edge,
+                                      edge2node,
+                                      pos,
+                                      posTag,
+                                      bnode_list,
+                                      edge_list,
+                                      face_list,
+                                      node_l2f);
     
-    aCell->setSplitCode(*split_mode_par, Globals::tolerance);
+      aCell->setSplitCode(*split_mode_par, Globals::tolerance);
   
   
       
-    //write new cellPlan
+      //write new cellPlan
    
-    if(aCell->getMySplitCode() != 0   && *split_mode_par == 2){
-      double min_edge_length =aCell->get_min_edge_length();
-      int split_level =  Globals::levels;
-      if(Globals::tolerance > 0.0) split_level = int(log(min_edge_length/Globals::tolerance)/log(2.0));
-      newCellPlan[cc] =  aCell->make_cellplan(min(Globals::levels, split_level));
-    }
-    else if(aCell->getMySplitCode() != 0   && *split_mode_par != 2){
-      newCellPlan[cc].push_back(aCell->getMySplitCode());
-    }
+      if(aCell->getMySplitCode() != 0   && *split_mode_par == 2){
+        double min_edge_length =aCell->get_min_edge_length();
+        int split_level =  Globals::levels;
+        if(Globals::tolerance > 0.0) split_level = int(log(min_edge_length/Globals::tolerance)/log(2.0));
+        newCellPlan[cc] =  aCell->make_cellplan(min(Globals::levels, split_level));
+      }
+      else if(aCell->getMySplitCode() != 0   && *split_mode_par != 2){
+        newCellPlan[cc].push_back(aCell->getMySplitCode());
+      }
   
-    //clean up
-    if(aCell != 0){
-      delete aCell;
-      aCell = 0;
-    }
-    cleanup_list(bnode_list, edge_list, face_list);
-    reduce_vector(newCellPlan[cc]);
+      //clean up
+      if(aCell != 0){
+        delete aCell;
+        aCell = 0;
+      }
+      cleanup_list(bnode_list, edge_list, face_list);
+      reduce_vector(newCellPlan[cc]);
     }
   }
 };
@@ -340,7 +347,7 @@ class make_hex_cellplan_xml:public pointwise_rule{
   const_store<std::vector<char> > cellPlan;
   const_store<std::vector<char> > facePlan;
   const_store<std::vector<char> > edgePlan;
-   const_store<bool> isIndivisible;
+  const_store<bool> isIndivisible;
   const_param<int> split_mode_par;
   const_param<int> restart_xml_par;
   store<std::vector<char> > newCellPlan;
@@ -353,7 +360,7 @@ class make_hex_cellplan_xml:public pointwise_rule{
 public:
   make_hex_cellplan_xml(){
 
-     name_store("xmlfile_par", xmlfile_par);
+    name_store("xmlfile_par", xmlfile_par);
     name_store("pos", pos);
     name_store("lower", lower);
     name_store("upper", upper);
@@ -393,16 +400,16 @@ public:
         Loci::Abort();
       }
       root_element = xmlDocGetRootElement(doc);
-       if(root_element == NULL) {
-         cerr <<"fail to parse xml file" << endl;
-         Loci::Abort();
-       }
-       do_loop(seq, this);
-       xmlFreeDoc(doc);
-       xmlCleanupParser();
-       xmlMemoryDump();
+      if(root_element == NULL) {
+        cerr <<"fail to parse xml file" << endl;
+        Loci::Abort();
+      }
+      do_loop(seq, this);
+      xmlFreeDoc(doc);
+      xmlCleanupParser();
+      xmlMemoryDump();
 #else
-       cerr << "XML capabilities not compiled into adaption code!  Check libxml availability when compiling" << endl ;
+      cerr << "XML capabilities not compiled into adaption code!  Check libxml availability when compiling" << endl ;
 #endif
     }
   }
@@ -440,62 +447,62 @@ public:
       }
         
    
-    std::vector<HexCell*> cells;
-    std::list<Node*>::iterator former_pnt = bnode_list.end();
-    aCell->resplit( cellPlan[cc], 
-                    bnode_list,
-                    edge_list,
-                    face_list,
-                    cells);
-    former_pnt--;
-    if(!mark_node(root_element, bnode_list.begin(), bnode_list.end())){
-      cerr << "WARNING: fail to mark nodes, please check xml file" << endl;
-      Loci::Abort();
-    }
+      std::vector<HexCell*> cells;
+      std::list<Node*>::iterator former_pnt = bnode_list.end();
+      aCell->resplit( cellPlan[cc], 
+                      bnode_list,
+                      edge_list,
+                      face_list,
+                      cells);
+      former_pnt--;
+      if(!mark_node(root_element, bnode_list.begin(), bnode_list.end())){
+        cerr << "WARNING: fail to mark nodes, please check xml file" << endl;
+        Loci::Abort();
+      }
     
-    HexCell* current;
-    int numCells = cells.size();
+      HexCell* current;
+      int numCells = cells.size();
    
-    if(numCells != 0){
-      for(int i = 0; i < numCells; i++)Q.push(cells[i]);
-    }
-    else{
-      Q.push(aCell);
-    }
+      if(numCells != 0){
+        for(int i = 0; i < numCells; i++)Q.push(cells[i]);
+      }
+      else{
+        Q.push(aCell);
+      }
    
-   while(!Q.empty()){
-     current =Q.front();
-     current->setSplitCode(*split_mode_par, Globals::tolerance);
-     if(current->getMySplitCode() != 0){
-        former_pnt = bnode_list.end();
-        current->split(bnode_list, edge_list, face_list);
+      while(!Q.empty()){
+        current =Q.front();
+        current->setSplitCode(*split_mode_par, Globals::tolerance);
+        if(current->getMySplitCode() != 0){
+          former_pnt = bnode_list.end();
+          current->split(bnode_list, edge_list, face_list);
          
-        former_pnt--;
-        if(!mark_node(root_element, bnode_list.begin(), bnode_list.end())){
-          cerr << "WARNING: fail to mark nodes, please check xml file" << endl;
-          Loci::Abort();
-        }
+          former_pnt--;
+          if(!mark_node(root_element, bnode_list.begin(), bnode_list.end())){
+            cerr << "WARNING: fail to mark nodes, please check xml file" << endl;
+            Loci::Abort();
+          }
         
-        for(int i = 0; i < current->numChildren(); i++){
-          Q.push(current->getChildCell(i));
+          for(int i = 0; i < current->numChildren(); i++){
+            Q.push(current->getChildCell(i));
+          }
         }
-     }
      
-     Q.pop();
-   }
-  aCell->rebalance_cells(*split_mode_par, bnode_list, edge_list, face_list);
+        Q.pop();
+      }
+      aCell->rebalance_cells(*split_mode_par, bnode_list, edge_list, face_list);
    
       
-    //write new cellPlan
-    newCellPlan[cc] = aCell->make_cellplan();
-    //clean up
-    if(aCell != 0){
-      delete aCell;
-      aCell = 0;
-    }
-    cleanup_list(bnode_list, edge_list, face_list);
+      //write new cellPlan
+      newCellPlan[cc] = aCell->make_cellplan();
+      //clean up
+      if(aCell != 0){
+        delete aCell;
+        aCell = 0;
+      }
+      cleanup_list(bnode_list, edge_list, face_list);
 
-    reduce_vector(newCellPlan[cc]);
+      reduce_vector(newCellPlan[cc]);
     }
 #endif
   }
@@ -504,7 +511,7 @@ public:
 register_rule<make_hex_cellplan_xml> register_make_hex_cellplan_xml;
 
 class make_hex_cellplan_xml_norestart:public pointwise_rule{
-   const_param<std::string> xmlfile_par;
+  const_param<std::string> xmlfile_par;
   const_store<vect3d> pos;
   const_multiMap upper;
   const_multiMap lower;
@@ -542,9 +549,9 @@ public:
     name_store("isIndivisible", isIndivisible);
     name_store("norestart_xml_par", norestart_xml_par);
     name_store("newCellPlan", newCellPlan);
-     name_store("split_mode_par", split_mode_par);
-     name_store("fileNumber(face2node)", node_l2f);
-     input("norestart_xml_par");
+    name_store("split_mode_par", split_mode_par);
+    name_store("fileNumber(face2node)", node_l2f);
+    input("norestart_xml_par");
     input("split_mode_par, xmlfile_par");
     input("isIndivisible, hex2face, hex2node, hexOrientCode");
     input("(lower, upper, boundary_map)->face2node-> pos");
@@ -584,70 +591,70 @@ public:
 #ifdef USE_LIBXML2
     if(!isIndivisible[cc]){
       //std::list<Node*> node_list;
-    std::list<Edge*> edge_list;
-    std::list<QuadFace*> face_list;
-    std::list<Node*> bnode_list;
-    std::queue<HexCell*> Q;
+      std::list<Edge*> edge_list;
+      std::list<QuadFace*> face_list;
+      std::list<Node*> bnode_list;
+      std::queue<HexCell*> Q;
                                            
     
-    HexCell* aCell = build_hex_cell(lower[cc].begin(), lower.num_elems(cc),
-                                    upper[cc].begin(), upper.num_elems(cc),
-                                    boundary_map[cc].begin(), boundary_map.num_elems(cc),
-                                    hex2face[cc],
-                                    hex2node[cc],
-                                    orientCode[cc],
-                                    face2node,
-                                    face2edge,
-                                    edge2node,
-                                    pos,
-                                    bnode_list,
-                                    edge_list,
-                                    face_list,
-                                    node_l2f);
+      HexCell* aCell = build_hex_cell(lower[cc].begin(), lower.num_elems(cc),
+                                      upper[cc].begin(), upper.num_elems(cc),
+                                      boundary_map[cc].begin(), boundary_map.num_elems(cc),
+                                      hex2face[cc],
+                                      hex2node[cc],
+                                      orientCode[cc],
+                                      face2node,
+                                      face2edge,
+                                      edge2node,
+                                      pos,
+                                      bnode_list,
+                                      edge_list,
+                                      face_list,
+                                      node_l2f);
     
-    if(!mark_node(root_element, bnode_list.begin(), bnode_list.end())){
-      cerr<< "WARNING: fail to mark nodes, please check xml file" << endl;
-      Loci::Abort();
-    }
+      if(!mark_node(root_element, bnode_list.begin(), bnode_list.end())){
+        cerr<< "WARNING: fail to mark nodes, please check xml file" << endl;
+        Loci::Abort();
+      }
     
-    Q.push(aCell);
+      Q.push(aCell);
     
-    HexCell* current;
-    while(!Q.empty()){
-      current =Q.front();
-      current->setSplitCode(*split_mode_par, Globals::tolerance);
-      // if(current->getMySplitCode() != 0) cout << "mysplitCode " << char(current->getMySplitCode()+'0') << endl;
-      if(current->getMySplitCode()!=0){  
-        std::list<Node*>::iterator former_pnt = bnode_list.end();
-        current->split(bnode_list, edge_list, face_list);
+      HexCell* current;
+      while(!Q.empty()){
+        current =Q.front();
+        current->setSplitCode(*split_mode_par, Globals::tolerance);
+        // if(current->getMySplitCode() != 0) cout << "mysplitCode " << char(current->getMySplitCode()+'0') << endl;
+        if(current->getMySplitCode()!=0){  
+          std::list<Node*>::iterator former_pnt = bnode_list.end();
+          current->split(bnode_list, edge_list, face_list);
         
     
-        former_pnt--;
-        if(!mark_node(root_element, bnode_list.begin(), bnode_list.end())){
-          cerr<< "WARNING: fail to mark nodes, please check xml file" << endl;
-          Loci::Abort();
-        } 
+          former_pnt--;
+          if(!mark_node(root_element, bnode_list.begin(), bnode_list.end())){
+            cerr<< "WARNING: fail to mark nodes, please check xml file" << endl;
+            Loci::Abort();
+          } 
 
-        for(int i = 0; i < current->numChildren(); i++){
-          Q.push(current->getChildCell(i));
+          for(int i = 0; i < current->numChildren(); i++){
+            Q.push(current->getChildCell(i));
+          }
         }
+        Q.pop();
       }
-      Q.pop();
-    }
-    aCell->rebalance_cells(*split_mode_par, bnode_list, edge_list, face_list);
-    //write new cellPlan
+      aCell->rebalance_cells(*split_mode_par, bnode_list, edge_list, face_list);
+      //write new cellPlan
     
     
-    newCellPlan[cc] =  aCell->make_cellplan();
+      newCellPlan[cc] =  aCell->make_cellplan();
    
     
-    //clean up
-    if(aCell != 0){
-      delete aCell;
-      aCell = 0;
-    }
-    cleanup_list(bnode_list, edge_list, face_list);
-    reduce_vector(newCellPlan[cc]);
+      //clean up
+      if(aCell != 0){
+        delete aCell;
+        aCell = 0;
+      }
+      cleanup_list(bnode_list, edge_list, face_list);
+      reduce_vector(newCellPlan[cc]);
    
     
     }
@@ -672,17 +679,17 @@ class make_hex_cellplan_par:public pointwise_rule{
   const_store<std::vector<char> > cellPlan;
   const_store<std::vector<char> > facePlan;
   const_store<std::vector<char> > edgePlan;
-   const_store<bool> isIndivisible;
+  const_store<bool> isIndivisible;
   const_param<int> split_mode_par;
   const_param<int> restart_par_par;
   store<std::vector<char> > newCellPlan;
 
- vector<source_par> sources;
+  vector<source_par> sources;
   const_store<int> node_l2f;
 public:
   make_hex_cellplan_par(){
 
-     name_store("parfile_par", parfile_par);
+    name_store("parfile_par", parfile_par);
     name_store("pos", pos);
     name_store("lower", lower);
     name_store("upper", upper);
@@ -720,7 +727,7 @@ public:
         cerr << "WARNING: fail to read par file" << endl;
         Loci::Abort();
       }
-       do_loop(seq, this);
+      do_loop(seq, this);
     }
   }
   void calculate(Entity cc){
@@ -752,52 +759,52 @@ public:
     
       
    
-    std::vector<HexCell*> cells;
+      std::vector<HexCell*> cells;
    
-    aCell->resplit( cellPlan[cc], 
-                    bnode_list,
-                    edge_list,
-                    face_list,
-                    cells);
+      aCell->resplit( cellPlan[cc], 
+                      bnode_list,
+                      edge_list,
+                      face_list,
+                      cells);
        
-    HexCell* current;
-    int numCells = cells.size();
+      HexCell* current;
+      int numCells = cells.size();
    
-    if(numCells != 0){
-      for(int i = 0; i < numCells; i++)Q.push(cells[i]);
-    }
-    else{
-      Q.push(aCell);
-    }
+      if(numCells != 0){
+        for(int i = 0; i < numCells; i++)Q.push(cells[i]);
+      }
+      else{
+        Q.push(aCell);
+      }
    
-   while(!Q.empty()){
-     current =Q.front();
+      while(!Q.empty()){
+        current =Q.front();
    
-     if(current->get_tagged(sources)){
+        if(current->get_tagged(sources)){
         
-        current->split(bnode_list, edge_list, face_list);
+          current->split(bnode_list, edge_list, face_list);
          
                 
-        for(int i = 0; i < current->numChildren(); i++){
-          Q.push(current->getChildCell(i));
+          for(int i = 0; i < current->numChildren(); i++){
+            Q.push(current->getChildCell(i));
+          }
         }
-     }
      
-     Q.pop();
-   }
-  aCell->rebalance_cells(*split_mode_par, bnode_list, edge_list, face_list);
+        Q.pop();
+      }
+      aCell->rebalance_cells(*split_mode_par, bnode_list, edge_list, face_list);
    
       
-    //write new cellPlan
-    newCellPlan[cc] = aCell->make_cellplan();
-    //clean up
-    if(aCell != 0){
-      delete aCell;
-      aCell = 0;
-    }
-    cleanup_list(bnode_list, edge_list, face_list);
+      //write new cellPlan
+      newCellPlan[cc] = aCell->make_cellplan();
+      //clean up
+      if(aCell != 0){
+        delete aCell;
+        aCell = 0;
+      }
+      cleanup_list(bnode_list, edge_list, face_list);
 
-    reduce_vector(newCellPlan[cc]);
+      reduce_vector(newCellPlan[cc]);
     }
 
   }
@@ -806,7 +813,7 @@ public:
 register_rule<make_hex_cellplan_par> register_make_hex_cellplan_par;
 
 class make_hex_cellplan_par_norestart:public pointwise_rule{
-   const_param<std::string> parfile_par;
+  const_param<std::string> parfile_par;
   const_store<vect3d> pos;
   const_multiMap upper;
   const_multiMap lower;
@@ -823,7 +830,7 @@ class make_hex_cellplan_par_norestart:public pointwise_rule{
   const_param<int> norestart_par_par;
   store<std::vector<char> > newCellPlan;
 
- vector<source_par> sources;
+  vector<source_par> sources;
   const_store<int> node_l2f;
 public:
   make_hex_cellplan_par_norestart(){
@@ -841,9 +848,9 @@ public:
     name_store("isIndivisible", isIndivisible);
     name_store("norestart_par_par", norestart_par_par);
     name_store("newCellPlan", newCellPlan);
-     name_store("split_mode_par", split_mode_par);
-     name_store("fileNumber(face2node)", node_l2f);
-     input("norestart_par_par");
+    name_store("split_mode_par", split_mode_par);
+    name_store("fileNumber(face2node)", node_l2f);
+    input("norestart_par_par");
     input("split_mode_par, parfile_par");
     input("isIndivisible, hex2face, hex2node, hexOrientCode");
     input("(lower, upper, boundary_map)->face2node-> pos");
@@ -865,59 +872,59 @@ public:
     
   }
   void calculate(Entity cc){
-     if(!isIndivisible[cc]){
+    if(!isIndivisible[cc]){
     
-    std::list<Edge*> edge_list;
-    std::list<QuadFace*> face_list;
-    std::list<Node*> bnode_list;
-    std::queue<HexCell*> Q;
+      std::list<Edge*> edge_list;
+      std::list<QuadFace*> face_list;
+      std::list<Node*> bnode_list;
+      std::queue<HexCell*> Q;
                                            
     
-    HexCell* aCell = build_hex_cell(lower[cc].begin(), lower.num_elems(cc),
-                                    upper[cc].begin(), upper.num_elems(cc),
-                                    boundary_map[cc].begin(), boundary_map.num_elems(cc),
-                                    hex2face[cc],
-                                    hex2node[cc],
-                                    orientCode[cc],
-                                    face2node,
-                                    face2edge,
-                                    edge2node,
-                                    pos,
-                                    bnode_list,
-                                    edge_list,
-                                    face_list,
-                                    node_l2f);
+      HexCell* aCell = build_hex_cell(lower[cc].begin(), lower.num_elems(cc),
+                                      upper[cc].begin(), upper.num_elems(cc),
+                                      boundary_map[cc].begin(), boundary_map.num_elems(cc),
+                                      hex2face[cc],
+                                      hex2node[cc],
+                                      orientCode[cc],
+                                      face2node,
+                                      face2edge,
+                                      edge2node,
+                                      pos,
+                                      bnode_list,
+                                      edge_list,
+                                      face_list,
+                                      node_l2f);
     
    
     
-    Q.push(aCell);
+      Q.push(aCell);
     
-    HexCell* current;
-    while(!Q.empty()){
-      current =Q.front();
+      HexCell* current;
+      while(!Q.empty()){
+        current =Q.front();
      
-      if(current->get_tagged(sources)){  
+        if(current->get_tagged(sources)){  
           current->split(bnode_list, edge_list, face_list);
           for(int i = 0; i < current->numChildren(); i++){
             Q.push(current->getChildCell(i));
           }
+        }
+        Q.pop();
       }
-      Q.pop();
-    }
-    aCell->rebalance_cells(*split_mode_par, bnode_list, edge_list, face_list);
-    //write new cellPlan
+      aCell->rebalance_cells(*split_mode_par, bnode_list, edge_list, face_list);
+      //write new cellPlan
     
     
-    newCellPlan[cc] =  aCell->make_cellplan();
+      newCellPlan[cc] =  aCell->make_cellplan();
    
     
-    //clean up
-    if(aCell != 0){
-      delete aCell;
-      aCell = 0;
-    }
-    cleanup_list(bnode_list, edge_list, face_list);
-    reduce_vector(newCellPlan[cc]);
+      //clean up
+      if(aCell != 0){
+        delete aCell;
+        aCell = 0;
+      }
+      cleanup_list(bnode_list, edge_list, face_list);
+      reduce_vector(newCellPlan[cc]);
    
     
     }

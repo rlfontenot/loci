@@ -77,14 +77,17 @@ public:
       face = 0;
     }
   }
-  
+  //if all children are tagged as 2, remove all children
+  bool derefine();
   
   inline int32 getCellIndex() const {return cellIndex;}
   inline char getMySplitCode() const{return mySplitCode;}
   inline HexCell* getChildCell(int i)const{return childCell[i];}
+  inline HexCell* getParentCell(){return parentCell;}
 
-  bool getTagged();
-  bool get_tagged(const vector<source_par>& s);
+  //define if this is tagged for refinement, derefinement or unchanged
+  int get_tagged();
+  int get_tagged(const vector<source_par>& s);
   //return a splitCode
   //find   average_edge_length in XX , YY and ZZ directions
   //find min_edge_length in all directions
@@ -290,11 +293,9 @@ private:
   HexCell(const HexCell&);
   
 private:
-  // //get all the leaves
-//   void get_leaves(std::vector<HexCell*>& leaf_cell);
-
+  
   //get 8 nodes
-  inline void get_nodes(Node** node){
+  inline void get_nodes(std::vector<Node*>& node){
     for(int i = 0; i < 4; i++){
       node[i] = face[0]->getNode(i);
       node[i+4] = face[1]->getNode(i);
@@ -307,21 +308,21 @@ private:
   //the mean value of nodes
   inline Node* simple_center(){
     Node* cellcenter = new Node();
-    Node* vertices[8];
+    std::vector<Node*> vertices(8);
     get_nodes(vertices);
-    vect3d nodes[8];
+    std::vector<vect3d> nodes(8);
     for(int i = 0; i<8; i++){
       nodes[i] = vertices[i]->p;
     }
-    cellcenter->p = point_center(nodes, 8);
+    cellcenter->p = point_center(nodes);
     return cellcenter;
   }
 
   inline Node* wireframe(){
     
     //allocate edgecenter
-    vect3d* facecenter = new vect3d[6];
-    double* areas = new double[6];
+    std::vector<vect3d> facecenter(6);
+    std::vector<double> areas(6);
     
     //get edge centers
     for(int i = 0; i < 6; i++){
@@ -330,11 +331,7 @@ private:
     }
    
     //calculate the mass center of the edge centers
-    vect3d p = weighted_center(facecenter, areas, 6);
-
-    //deallocate edgecenter
-    delete [] facecenter;
-    delete [] areas;
+    vect3d p = weighted_center(facecenter, areas);
     return new Node(p);
   }
   //the center of the face, defined as the mass center of edge centers

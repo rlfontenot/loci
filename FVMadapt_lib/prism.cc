@@ -173,26 +173,26 @@ bool  Prism::isNeighbor(const Prism* aCell, int dd, int& nf)const{
   
   if(this->nfold == 3 || aCell->nfold == 3){
     
-   switch(dd){
-   case 0:
-     nf = 1;
-     return is_overlapped(gnrlface[0], aCell->gnrlface[1]);
-     break;
+    switch(dd){
+    case 0:
+      nf = 1;
+      return is_overlapped(gnrlface[0], aCell->gnrlface[1]);
+      break;
      
-   case 1:
-     nf = 0;
-     return is_overlapped(gnrlface[1], aCell->gnrlface[0]);
-     break;
+    case 1:
+      nf = 0;
+      return is_overlapped(gnrlface[1], aCell->gnrlface[0]);
+      break;
      
-   case 2:
-   case 3:
-   case 4:
-     return false;
-     break;
-   default:
-    cerr<<"WARNING: illegal direction/face ID" << endl;
-    break;
-   }
+    case 2:
+    case 3:
+    case 4:
+      return false;
+      break;
+    default:
+      cerr<<"WARNING: illegal direction/face ID" << endl;
+      break;
+    }
   }
   
   else{//nfold ==4
@@ -206,7 +206,7 @@ bool  Prism::isNeighbor(const Prism* aCell, int dd, int& nf)const{
     case 1:
       nf = 0;
       return is_overlapped(gnrlface[1], aCell->gnrlface[0]);
-     break;
+      break;
      
     case 2:
     case 3:
@@ -388,8 +388,8 @@ Prism* Prism::findNeighbor(int dd, int& nf)
       //if tempNeighbor is a leaf(whose face is greater than mine) , return
       if(tempNeighbor->mySplitCode == 0)return tempNeighbor; 
       
-    //if tempNeighbor is not a leaf, and her face still greater than mine, climb down
-    //caution: here if no child is neighbor, a dead loop will happen
+      //if tempNeighbor is not a leaf, and her face still greater than mine, climb down
+      //caution: here if no child is neighbor, a dead loop will happen
       int i;
       int nc = tempNeighbor->numChildren(); 
       for(i = 0; i < nc; i++){
@@ -525,9 +525,9 @@ void set_prism_faces(const std::vector<Prism*>& cells,
       int numFaces = (cells[i]->nfold == 3?5:6);
       for(int dd = 0; dd <numFaces; dd++){
         if(!((cells[i]->faceMarked).test(dd))){
-           cells[i]->faceMarked.set(dd);
-           tempNeib = cells[i]->findNeighbor(dd, nf);
-           //if no neib, don't output the face
+          cells[i]->faceMarked.set(dd);
+          tempNeib = cells[i]->findNeighbor(dd, nf);
+          //if no neib, don't output the face
           //there is a neib
           if(tempNeib != 0){
             int tempnf = -1;
@@ -610,12 +610,12 @@ void set_prism_faces(const std::vector<Prism*>& cells,
 
 
 void Prism::empty_split(){
-   switch(mySplitCode)
+  switch(mySplitCode)
     {
-       //000 no split,this is a leaf, compare and set the maxLevels, output cells
+      //000 no split,this is a leaf, compare and set the maxLevels, output cells
     case 0:
       break;
-       //100  x direction is splitted 
+      //100  x direction is splitted 
     case 1:
       childCell = new Prism*[2];
       for(int i = 0; i <2; i++){
@@ -681,7 +681,7 @@ void Prism::split( std::list<Node*>& node_list,
       }
       
       
-     //define new face
+      //define new face
       newFace = new Face(nfold);
       face_list.push_back(newFace);
       
@@ -706,62 +706,62 @@ void Prism::split( std::list<Node*>& node_list,
       //010  y direction is splitted 
     case 2:
       
-     childCell = new Prism*[nfold];
+      childCell = new Prism*[nfold];
      
-     for(int i = 0; i < nfold; i++){
-       childCell[i] = new Prism(4);
-       //childCell[i]->whichChild = i;
-       childCell[i]->parentCell = this;
-     }
+      for(int i = 0; i < nfold; i++){
+        childCell[i] = new Prism(4);
+        //childCell[i]->whichChild = i;
+        childCell[i]->parentCell = this;
+      }
      
-     //quadface split in x direction
-     for(int i = 0; i < nfold; i++){
-       quadface[i]->split(char(2),char(0), node_list, edge_list);
-     }
-     //gnrlface split
-     for(int i = 0; i < 2; i++){
-       if(gnrlface[i]->child == 0) gnrlface[i]->split( node_list, edge_list);
-     } 
+      //quadface split in x direction
+      for(int i = 0; i < nfold; i++){
+        quadface[i]->split(char(2),char(0), node_list, edge_list);
+      }
+      //gnrlface split
+      for(int i = 0; i < 2; i++){
+        if(gnrlface[i]->child == 0) gnrlface[i]->split( node_list, edge_list);
+      } 
 
-   //define new edge
-     newedge[0] = new Edge(getFaceCenter(0), getFaceCenter(1), quadface[0]->edge[1]->level);
-     edge_list.push_back(newedge[0]);
+      //define new edge
+      newedge[0] = new Edge(getFaceCenter(0), getFaceCenter(1), quadface[0]->edge[1]->level);
+      edge_list.push_back(newedge[0]);
      
      
      
-     //define new face
-     for(int i = 0; i < nfold; i++){
-       newface[i] = new QuadFace(4);
-       quadface_list.push_back(newface[i]);
-     }   
+      //define new face
+      for(int i = 0; i < nfold; i++){
+        newface[i] = new QuadFace(4);
+        quadface_list.push_back(newface[i]);
+      }   
      
   
  
      
-     //defines new face
-       for(int i = 0; i < nfold; i++){
-         newface[i]-> edge[0] = gnrlface[0]->child[i]->edge[1];
-         newface[i]->edge[1] = quadface[i]->childx[0]->edge[1];
-         newface[i]->edge[2] = gnrlface[1]->child[i]->edge[1];
-         newface[i]->edge[3] = newedge[0];
-         //default; no edge need reversed
-       }
+      //defines new face
+      for(int i = 0; i < nfold; i++){
+        newface[i]-> edge[0] = gnrlface[0]->child[i]->edge[1];
+        newface[i]->edge[1] = quadface[i]->childx[0]->edge[1];
+        newface[i]->edge[2] = gnrlface[1]->child[i]->edge[1];
+        newface[i]->edge[3] = newedge[0];
+        //default; no edge need reversed
+      }
        
        
-       //define childCell 
-       for(int i = 0; i < nfold; i++){
-         childCell[i]->gnrlface[0] = gnrlface[0]->child[i];
-         childCell[i]->gnrlface[1] = gnrlface[1]->child[i];
-         childCell[i]->quadface[0] = quadface[i]->childx[faceOrient.test(i)?1:0];
-         childCell[i]->faceOrient[0] = faceOrient[i];
-         childCell[i]->quadface[1] = newface[i];
-         childCell[i]->faceOrient[1]= 1;
-         childCell[i]->quadface[2] = newface[i==0? (nfold-1):(i-1)];
-         childCell[i]->quadface[3] = quadface[i==0?(nfold-1):(i-1)]->childx[faceOrient.test(i==0?(nfold-1):(i-1))?0:1];
-         childCell[i]->faceOrient[3] = faceOrient[i==0?(nfold-1):(i-1)];
-       }
+      //define childCell 
+      for(int i = 0; i < nfold; i++){
+        childCell[i]->gnrlface[0] = gnrlface[0]->child[i];
+        childCell[i]->gnrlface[1] = gnrlface[1]->child[i];
+        childCell[i]->quadface[0] = quadface[i]->childx[faceOrient.test(i)?1:0];
+        childCell[i]->faceOrient[0] = faceOrient[i];
+        childCell[i]->quadface[1] = newface[i];
+        childCell[i]->faceOrient[1]= 1;
+        childCell[i]->quadface[2] = newface[i==0? (nfold-1):(i-1)];
+        childCell[i]->quadface[3] = quadface[i==0?(nfold-1):(i-1)]->childx[faceOrient.test(i==0?(nfold-1):(i-1))?0:1];
+        childCell[i]->faceOrient[3] = faceOrient[i==0?(nfold-1):(i-1)];
+      }
              
-       break;
+      break;
              
     case 3:
       childCell = new Prism*[2*nfold];
@@ -814,33 +814,33 @@ void Prism::split( std::list<Node*>& node_list,
   
      
         
-        //build new quad face
-        for(int i = 0; i < nfold; i++){
-          newgface[i]->edge[0] = quadface[i]->child[faceOrient.test(i)?2:0]->edge[2];
-          newgface[i]->needReverse[0] = faceOrient.test(i);
-          newgface[i]->edge[1] = newedge[i+2];
-          newgface[i]->needReverse[1] = true;
-          newgface[i]->edge[2] = newedge[(i==0)?(nfold-1+2):(i-1+2)];
-          newgface[i]->needReverse[2] = false;
-          newgface[i]->edge[3] = quadface[i==0?(nfold-1):(i-1)]->child[faceOrient.test(i==0?(nfold-1):(i-1))?0:2]->edge[2];
-          newgface[i]->needReverse[3] = faceOrient.test(i==0?(nfold-1):(i-1));
-        }
+      //build new quad face
+      for(int i = 0; i < nfold; i++){
+        newgface[i]->edge[0] = quadface[i]->child[faceOrient.test(i)?2:0]->edge[2];
+        newgface[i]->needReverse[0] = faceOrient.test(i);
+        newgface[i]->edge[1] = newedge[i+2];
+        newgface[i]->needReverse[1] = true;
+        newgface[i]->edge[2] = newedge[(i==0)?(nfold-1+2):(i-1+2)];
+        newgface[i]->needReverse[2] = false;
+        newgface[i]->edge[3] = quadface[i==0?(nfold-1):(i-1)]->child[faceOrient.test(i==0?(nfold-1):(i-1))?0:2]->edge[2];
+        newgface[i]->needReverse[3] = faceOrient.test(i==0?(nfold-1):(i-1));
+      }
         
-        //build new quadface
-        for(int i = 0; i < nfold; i++){
-          newface[i]->edge[0] = gnrlface[0]->child[i]->edge[1]; 
-          newface[i]->edge[1] = quadface[i]->child[0]->edge[1]; 
-          newface[i]->edge[2] = newedge[i+2]; 
-          newface[i]->edge[3] = newedge[0];
-          //no edge need reverse
-        }
-       for(int i = 0; i < nfold; i++){
-         newface[i+nfold]->edge[0] = newedge[i+2];
-         newface[i+nfold]->edge[1] = quadface[i]->child[1]->edge[1];
-         newface[i+nfold]->edge[2] = gnrlface[1]->child[i]->edge[1];
-         newface[i+nfold]->edge[3] = newedge[1]; 
-         //no edge need reverse
-       }
+      //build new quadface
+      for(int i = 0; i < nfold; i++){
+        newface[i]->edge[0] = gnrlface[0]->child[i]->edge[1]; 
+        newface[i]->edge[1] = quadface[i]->child[0]->edge[1]; 
+        newface[i]->edge[2] = newedge[i+2]; 
+        newface[i]->edge[3] = newedge[0];
+        //no edge need reverse
+      }
+      for(int i = 0; i < nfold; i++){
+        newface[i+nfold]->edge[0] = newedge[i+2];
+        newface[i+nfold]->edge[1] = quadface[i]->child[1]->edge[1];
+        newface[i+nfold]->edge[2] = gnrlface[1]->child[i]->edge[1];
+        newface[i+nfold]->edge[3] = newedge[1]; 
+        //no edge need reverse
+      }
 
        
     
@@ -891,73 +891,45 @@ int Prism::get_num_fine_faces(){
 }
 
 
-bool Prism::getTagged(){
-  bool tagged = false;
-  std::vector<Node*> nodes(2*nfold);
-  
- 
-  for(int i = 0; i < nfold; i++){
-    if(gnrlface[0]->needReverse[i]){
-      nodes[i] = gnrlface[0]->edge[i]->tail;
+int Prism::get_tagged(){
+  if(this !=0){ 
+    std::vector<Node*> nodes(2*nfold);
+    get_nodes(nodes); 
+    
+    //if all nodes get detagged, the cell is detagged
+    bool detagged = true;
+    for(std::vector<Node*>::const_iterator np = nodes.begin(); np != nodes.end(); np++){
+      if((*np)->tag != 2)detagged = false;
     }
-    else{
-      nodes[i] = gnrlface[0]->edge[i]->head;
+    if(detagged) return 2;
+    for(std::vector<Node*>::const_iterator np = nodes.begin(); np != nodes.end(); np++){
+      if((*np)->tag == 1)return 1;
+      
     }
   }
+  
+  //otherwise, the cell remains unchanged
+  return 0;
+} 
+  
 
-  for(int i = nfold; i < 2*nfold; i++){
-    if(gnrlface[1]->needReverse[i%nfold]){
-      nodes[i] = gnrlface[1]->edge[i%nfold]-> tail;
-    }
-    else{
-      nodes[i] = gnrlface[1]->edge[i%nfold]-> head;
+int Prism::get_tagged(const vector<source_par>& sources){
+  if(this !=0){ 
+    std::vector<Node*> nodes(2*nfold);
+    get_nodes(nodes); 
+   
+    double min_len = get_min_edge_length();
+    if(tag_cell(nodes, sources, min_len)){
+      mySplitCode = 3;
+      return 1;
+    }else{
+      mySplitCode = 0;
+      return 0;
     }
   }
-  
-  for(int i = 0; i < 2*nfold; i++){
-    if(nodes[i]->tag != 0){
-      tagged = true;
-      return tagged;
-    }
-  } 
-  
-  
-  
-  return tagged;
+  return 0;
 }
-bool Prism::get_tagged(const vector<source_par>& sources){
- 
-  std::vector<Node*> nodes(2*nfold);
-  
- 
-  for(int i = 0; i < nfold; i++){
-    if(gnrlface[0]->needReverse[i]){
-      nodes[i] = gnrlface[0]->edge[i]->tail;
-    }
-    else{
-      nodes[i] = gnrlface[0]->edge[i]->head;
-    }
-  }
-
-  for(int i = nfold; i < 2*nfold; i++){
-    if(gnrlface[1]->needReverse[i%nfold]){
-      nodes[i] = gnrlface[1]->edge[i%nfold]-> tail;
-    }
-    else{
-      nodes[i] = gnrlface[1]->edge[i%nfold]-> head;
-    }
-  }
-  double min_len = get_min_edge_length();
-  if(tag_cell(nodes, sources, min_len)){
-    mySplitCode = 3;
-    return true;
-  }else{
-    mySplitCode = 0;
-    return false;
-  }
- 
-}
-  //find the minimum edge length in a cell(before split)
+//find the minimum edge length in a cell(before split)
 double Prism::get_min_edge_length(){
   std::vector<Edge*> edges = get_edges();
   std::vector<double> edge_length(3*nfold);
@@ -972,7 +944,7 @@ double Prism::get_min_edge_length(){
 
 
 void Prism::setSplitCode(int split_mode, double tol){
-  if( getTagged()){
+  if( get_tagged() == 1){
     
     if(mySplitCode != 0){
       
@@ -1009,10 +981,10 @@ void Prism::setSplitCode(int split_mode, double tol){
     if(split_mode == 0){
     
       if(average_length1/average_length0 > Globals::factor){
-          bitset<2> oldCode(1);
-          oldCode = oldCode & tolerance_mask;
-          mySplitCode = char(oldCode.to_ulong());
-          //mySplitCode = 1; //split in z direction
+        bitset<2> oldCode(1);
+        oldCode = oldCode & tolerance_mask;
+        mySplitCode = char(oldCode.to_ulong());
+        //mySplitCode = 1; //split in z direction
         return;
       }
       else if(average_length0/average_length1 > Globals::factor){
@@ -1064,7 +1036,7 @@ void Prism::setSplitCode(int split_mode, double tol){
     return;
   }
 }
-  //after a cell is split, compose the cell plan according to the tree structure      
+//after a cell is split, compose the cell plan according to the tree structure      
 std::vector<char> Prism::make_cellplan(){
   
   std::vector<char> cellPlan;
@@ -1199,15 +1171,15 @@ bool Prism::balance_cell(int split_mode,
         bitset<2> face_code;
         if(gnrlface[0]->child != 0 && gnrlface[1]->child!=0)face_code.set(1);
          
-         for(int i = 0; i < nfold; i++){
-           if(quadface[i]-> code != 0 ) num_faces_split++;
-         }
+        for(int i = 0; i < nfold; i++){
+          if(quadface[i]-> code != 0 ) num_faces_split++;
+        }
          
-         if(num_faces_split > (nfold/2)){
-           for(int i = 0; i< nfold; i++) face_code |= bitset<2>(quadface[i]->code);
+        if(num_faces_split > (nfold/2)){
+          for(int i = 0; i< nfold; i++) face_code |= bitset<2>(quadface[i]->code);
           
-         }
-         mySplitCode = char(face_code.to_ulong());
+        }
+        mySplitCode = char(face_code.to_ulong());
       }
 
       
@@ -1318,4 +1290,27 @@ int32 Prism::traverse(const std::vector<char>& parentPlan,  vector<pair<int32, i
     Q.pop();
   }
   return cIndex;
+}
+
+bool Prism::derefine(){
+  if(this != 0 ){
+    if(childCell != 0){
+      bool derefine = true;
+      for(int i = 0; i < numChildren(); i++){
+        if( (childCell[i] ->get_tagged()) != 2)derefine = false;
+      }
+      if(derefine){
+        for(int i = 0; i < numChildren(); i++){
+          if(childCell[i] != 0){
+            delete  childCell[i];
+            childCell[i] = 0;
+          }
+        }
+        delete [] childCell;
+        childCell = 0;
+        return true;
+      }
+    }
+  }
+  return false;
 }

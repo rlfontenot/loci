@@ -92,24 +92,30 @@ public:
       parentCell = 0;
     }
   }
+  //if all children are tagged as 2, remove all children
+  bool derefine();
+
+
+
+    
+  inline void setCellIndex(int32 cellID){cellIndex = cellID;}
   
-  void setCellIndex(int32 cellID){cellIndex = cellID;}
+  inline int32 getCellIndex() const {return cellIndex;}
   
-  int32 getCellIndex() const {return cellIndex;}
+  inline char getNfold() const{return nfold;}
   
-  char getNfold() const{return nfold;}
-  
-  int getLevel()const{return face[0]->edge[0]->level;} 
+  inline int getLevel()const{return face[0]->edge[0]->level;} 
  
-  //define if this is tagged for refinement
-  bool get_tagged();
-  bool get_tagged(const vector<source_par>& s);
+  //define if this is tagged for refinement, derefinement, or unchanged
+  int get_tagged();
+  int get_tagged(const vector<source_par>& s);
   int get_num_fine_faces();//for mxfpc
-  void setParentCell( DiamondCell* parent){parentCell = parent;}
+  inline void setParentCell( DiamondCell* parent){parentCell = parent;}
+  inline DiamondCell* getParentCell(){return parentCell;}
+    
+  inline DiamondCell* getChildCell(int i)const {return childCell[i];}
   
-  DiamondCell* getChildCell(int i)const {return childCell[i];}
-  
-  DiamondCell** getChildCell()const {return childCell;}
+  inline DiamondCell** getChildCell()const {return childCell;}
   
   //when faceID >= nfold, a cell will share the same face with its parentCell
   //this function find the faceID in parentCell
@@ -210,8 +216,8 @@ private:
   DiamondCell(const DiamondCell&);
   friend class Cell;
 private:
- //  //get all the leaves
-//   void get_leaves(std::vector<DiamondCell*>& leaf_cell);
+  //  //get all the leaves
+  //   void get_leaves(std::vector<DiamondCell*>& leaf_cell);
 
   //get all the 2*nfold+2 nodes
   void get_nodes(std::set<Node*>& node);
@@ -224,19 +230,19 @@ private:
   //precondition: all the faces have been splitted
   inline Node* simple_center(){
     Node* cellcenter = new Node();
-    vect3d* facecenter = new vect3d[2*nfold];
+    std::vector<vect3d> facecenter(2*nfold);
     for(int i = 0; i < 2*nfold ; i++){
       facecenter[i] = face[i]->child[0]->edge[2]->head->p;
     }
-    cellcenter->p = point_center(facecenter, 2*nfold);
-    delete [] facecenter;
+    cellcenter->p = point_center(facecenter);
+   
     return cellcenter;
   }
   inline Node* wireframe(){
     
     //allocate edgecenter
-    vect3d* facecenter = new vect3d[2*nfold];
-    double* areas = new double[2*nfold];
+    std::vector<vect3d> facecenter(2*nfold);
+    std::vector<double> areas(2*nfold);
     
     //get edge centers
     for(int i = 0; i < 2*nfold; i++){
@@ -245,11 +251,8 @@ private:
     }
    
     //calculate the mass center of the edge centers
-    vect3d p = weighted_center(facecenter, areas, 2*nfold);
+    vect3d p = weighted_center(facecenter, areas);
 
-    //deallocate edgecenter
-    delete [] facecenter;
-    delete [] areas;
     
     return new Node(p);
   }
@@ -352,24 +355,28 @@ public:
     
   }
 
+  //if all children are tagged as 2, remove all children
+  bool derefine();
+
+  
+
   //center of the cell, defined as the mean value of the facecenter
   //precondition: all the face and edge have been splitted
   inline Node* simple_center(){
     Node* center = new Node();
-    vect3d* facecenter = new vect3d[numFace];
+    std::vector<vect3d> facecenter(numFace);
     for(int i = 0; i < numFace; i++){
       facecenter[i] = face[i]->child[0]->edge[2]->head->p;
     }
-    center->p = point_center(facecenter, numFace);
-    delete [] facecenter;
+    center->p = point_center(facecenter);
     return center;
   }
 
   inline Node* wireframe(){
     
     //allocate edgecenter
-    vect3d* facecenter = new vect3d[numFace];
-    double* areas = new double[numFace];
+    std::vector<vect3d> facecenter(numFace);
+    std::vector<double> areas(numFace);
     
     //get edge centers
     for(int i = 0; i < numFace; i++){
@@ -378,12 +385,7 @@ public:
     }
    
     //calculate the mass center of the edge centers
-    vect3d p = weighted_center(facecenter, areas, numFace);
-
-    //deallocate edgecenter
-    delete [] facecenter;
-    delete [] areas;
-    
+    vect3d p = weighted_center(facecenter, areas);
     return new Node(p);
   }
 
@@ -444,10 +446,10 @@ public:
   //if j=rot[i] < 0, the orient of n2f[i] is -1, and  node[nindex] is (-j-1)th node of n2f[i] 
   void set_n2f_n2e(std::vector<Face*>& n2f, std::vector<Edge*>& n2e, std::vector<int>& rot, int nindex);
   
+  //check if the cell is tagged for refinement, derefinement, or unchanged
+  int get_tagged();
   //check if the cell is tagged for refinement
-  bool get_tagged();
-  //check if the cell is tagged for refinement
-  bool get_tagged(const vector<source_par>& s);
+  int get_tagged(const vector<source_par>& s);
   //if any edge is more than 1 levels down than my level, split myself, then balance each child 
   bool balance_cell(std::list<Node*>& node_list,
                     std::list<Edge*>& edge_list,

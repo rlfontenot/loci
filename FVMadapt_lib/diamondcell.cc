@@ -44,7 +44,7 @@ using std::cout;
 
 
 
- //this function splits diamondcell isotropially once
+//this function splits diamondcell isotropially once
 // newly created nodes, edges and faces are put into the lists
 void DiamondCell::split(std::list<Node*>& node_list,
                         std::list<Edge*>& edge_list,
@@ -134,7 +134,7 @@ void DiamondCell::split(std::list<Node*>& node_list,
     newFace[i] = new Face(4);
     face_list.push_back(newFace[i]);
     
-     //cellcenter->facecenter[i]->edgecenter[i]->facecenter[i+1]    
+    //cellcenter->facecenter[i]->edgecenter[i]->facecenter[i+1]    
     newFace[i]->edge[0] = newEdge[i];
     newFace[i]->needReverse[0] = false;
     if(faceOrient[i] == 1){
@@ -152,7 +152,7 @@ void DiamondCell::split(std::list<Node*>& node_list,
     else{
       newFace[i]->edge[2] = face[i==(2*nfold-1)?nfold:(i+1)]->child[0]->edge[1];
       newFace[i]->needReverse[2] = true;
-     }
+    }
     newFace[i]->edge[3] = newEdge[i==(2*nfold-1)? nfold:(i+1)];
     newFace[i]->needReverse[3] = true;
   
@@ -175,12 +175,12 @@ void DiamondCell::split(std::list<Node*>& node_list,
       newFace[i+2*nfold]->needReverse[1] = false;
     }
     if(faceOrient[i==nfold?(nfold-1):(i-nfold-1)]==1){
-    newFace[i+2*nfold]->edge[2] = face[i==nfold?(nfold-1):(i-nfold-1)]->child[2]->edge[1];
-    newFace[i+2*nfold]->needReverse[2] = true;
+      newFace[i+2*nfold]->edge[2] = face[i==nfold?(nfold-1):(i-nfold-1)]->child[2]->edge[1];
+      newFace[i+2*nfold]->needReverse[2] = true;
     }
     else{
-    newFace[i+2*nfold]->edge[2] = face[i==nfold?(nfold-1):(i-nfold-1)]->child[2]->edge[2];
-    newFace[i+2*nfold]->needReverse[2] = true;
+      newFace[i+2*nfold]->edge[2] = face[i==nfold?(nfold-1):(i-nfold-1)]->child[2]->edge[2];
+      newFace[i+2*nfold]->needReverse[2] = true;
     }
     newFace[i+2*nfold]->edge[3] = newEdge[i==nfold? (nfold-1):(i-nfold-1)];
     newFace[i+2*nfold]->needReverse[3] = true;
@@ -283,14 +283,14 @@ void DiamondCell::split(std::list<Node*>& node_list,
     delete [] edgecenter;
     edgecenter = 0;
   }
-   if(facecenter !=0){
+  if(facecenter !=0){
     delete [] facecenter;
     facecenter = 0;
   }
 }
   
 void DiamondCell::empty_split(){
-   //allocate childCell
+  //allocate childCell
   childCell = new DiamondCell*[2*nfold +2];
   
   //child 0 and 1 is n-fold
@@ -356,7 +356,7 @@ DiamondCell* DiamondCell::getSiblingNeib(const Cell* aCell,
       }
     }
     else if( whichChild >= (n+2) && whichChild < (2*n+2)){
-     switch(mf){
+      switch(mf){
       case 0:
         
         neibID = (whichChild==(2*n+1))?2:(whichChild-n+1);
@@ -425,7 +425,7 @@ DiamondCell* DiamondCell::getSiblingNeib(const Cell* aCell,
 
 
 int DiamondCell::parentFace( int faceID)const{
-   if(faceID < nfold || faceID >= 2*nfold){
+  if(faceID < nfold || faceID >= 2*nfold){
     cerr<<"WARNING: no parent faceID" << endl;
     return -1;
   }
@@ -525,7 +525,7 @@ DiamondCell*  DiamondCell::findNeighbor(const Cell* aCell,
         if(nf>=0){
           childFound = true;
           break;
-          }
+        }
       }
       if(!childFound){
         cerr <<"WARNING: get lost when climbing down the tree" << endl;
@@ -540,7 +540,7 @@ DiamondCell*  DiamondCell::findNeighbor(const Cell* aCell,
     if(this->getLevel() == pNeighbor->getLevel() && this->face[ff] != pNeighbor->face[nf]){
       cerr << " WARNING: get the wrong neighbor" << endl;
       Loci::Abort();
-      }
+    }
     return pNeighbor;
   }
   // return 0;
@@ -602,40 +602,45 @@ void DiamondCell::get_nodes(std::set<Node*>& nodes){
     Loci::Abort();
   }
 }
-//if more then half the nodes get tagged, the cell get tagged
-/*
-bool DiamondCell::get_tagged(){
-  std::set<Node*> nodes;
-  int num_nodes_tagged = 0;
-  get_nodes(nodes);
-  for(std::set<Node*>::const_iterator np = nodes.begin(); np != nodes.end(); np++){
-    if((*np)->tag == 1)num_nodes_tagged++;
+
+
+//if all nodes get detagged, the cell get detagged, return 2
+//if any node get tagged, the cell get tagged, return 1
+//other wise return 0
+int DiamondCell::get_tagged(){
+  if(this !=0){
+    std::set<Node*> nodes;
+    get_nodes(nodes);
+    //if all nodes get detagged, the cell is detagged
+    bool detagged = true;
+    for(std::set<Node*>::const_iterator np = nodes.begin(); np != nodes.end(); np++){
+      if((*np)->tag != 2)detagged = false;
+    }
+    if(detagged) return 2;
+    //if any node gets tagged, the cell is tagged
+    for(std::set<Node*>::const_iterator np = nodes.begin(); np != nodes.end(); np++){
+      if((*np)->tag == 1)return 1;
+    }
   }
-  if(num_nodes_tagged >= (nfold+1))return true;
-  else return false;
+  //otherwise, the cell remains unchanged
+  return 0;
 }
-*/
-//if any node get tagged, the cell get tagged
-bool DiamondCell::get_tagged(){
-  std::set<Node*> nodes;
-  get_nodes(nodes);
-  for(std::set<Node*>::const_iterator np = nodes.begin(); np != nodes.end(); np++){
-    if((*np)->tag == 1)return true;
-  }
-  return false;
-}
-bool DiamondCell::get_tagged(const vector<source_par>& sources){
-  std::set<Node*> node_set;
-  get_nodes(node_set);
-  
-  std::vector<Node*> nodes(node_set.size());
-  int vi = 0;
-  for(std::set<Node*>::const_iterator ni = node_set.begin(); ni != node_set.end();
-      ni++, vi++){
-    nodes[vi] = *ni;
-  }
-  double min_len = get_min_edge_length();
-  return tag_cell(nodes, sources, min_len);
+
+int DiamondCell::get_tagged(const vector<source_par>& sources){
+   if(this !=0){
+     std::set<Node*> node_set;
+     get_nodes(node_set);
+     
+     std::vector<Node*> nodes(node_set.size());
+     int vi = 0;
+     for(std::set<Node*>::const_iterator ni = node_set.begin(); ni != node_set.end();
+         ni++, vi++){
+       nodes[vi] = *ni;
+     }
+     double min_len = get_min_edge_length();
+     return tag_cell(nodes, sources, min_len);
+   }
+   return 0;
 }
 void Cell::resplit( const std::vector<char>& cellPlan,
                     std::list<Node*>& node_list,
@@ -676,10 +681,10 @@ void Cell::resplit( const std::vector<char>& cellPlan,
       {
         
         //0 no split,this is a leaf, output cells
-       case 0:
-         current->cellIndex = ++cellID;
-         cells.push_back(current);
-         break;
+      case 0:
+        current->cellIndex = ++cellID;
+        cells.push_back(current);
+        break;
          
       case 1:
          
@@ -765,29 +770,10 @@ void set_general_faces(const Cell* aCell,
     }
     
   }
- }
+}
  
  
-// void Cell:: get_leaves(std::vector<DiamondCell*>& leaf_cell){
-//   if(child==0) return;
-//   for(int i = 0; i < numNode; i++){
-//     child[i]->get_leaves(leaf_cell);
-//   }
-// }
 
-
-// void DiamondCell::get_leaves(std::vector<DiamondCell*>& leaf_cell){
-  
-//   if(childCell == 0){
-//     leaf_cell.push_back(this);
-//     return;
-//   }
-//   else{
-//     for(int i = 0; i < 2*nfold+2; i++){
-//       childCell[i]->get_leaves(leaf_cell);
-//     }
-//   }
-// }
 
 //this function balance a leaf cell current_cell
 
@@ -796,125 +782,125 @@ bool DiamondCell::balance_cell(std::list<Node*>& node_list,
                                std::list<Face*>& face_list){ 
   bool  needBalance = false;
   
- if(childCell!=0){
-   for(int i = 0; i < 2*nfold+2; i++){
-     bool tmp = childCell[i]->balance_cell(node_list, edge_list, face_list);
-     needBalance = needBalance ||tmp; 
-   }
-   return needBalance;
- }
- else{
+  if(childCell!=0){
+    for(int i = 0; i < 2*nfold+2; i++){
+      bool tmp = childCell[i]->balance_cell(node_list, edge_list, face_list);
+      needBalance = needBalance ||tmp; 
+    }
+    return needBalance;
+  }
+  else{
  
 
-   if(childCell ==0){  
-     //gather all the edges of this
-     std::set<Edge*> edges;
-     get_edges(edges);
-     needBalance = false;
-     for(std::set<Edge*>::const_iterator ep = edges.begin(); ep != edges.end(); ep++){
+    if(childCell ==0){  
+      //gather all the edges of this
+      std::set<Edge*> edges;
+      get_edges(edges);
+      needBalance = false;
+      for(std::set<Edge*>::const_iterator ep = edges.begin(); ep != edges.end(); ep++){
        
-       if( (*ep)->depth_greater_than_1()){
-         needBalance = true;
-         split(node_list, edge_list, face_list);
+        if( (*ep)->depth_greater_than_1()){
+          needBalance = true;
+          split(node_list, edge_list, face_list);
          
-         for(int i = 0; i < (2*nfold+2); i++){
-           childCell[i]->balance_cell(node_list, edge_list, face_list);
-         }
-         break;
-       }
-       
-     }
-   }
-   //if all the edges are balanced, check the faces
-   if(Globals::balance_option >=1 && childCell == 0){
-     int num_faces_split = 0;
-     for(int i = 0; i < 2*nfold; i++){
-       if(face[i]-> child != 0) num_faces_split++;
-     }
-     if(num_faces_split > nfold){
-       needBalance = true;
-       split(node_list, edge_list, face_list);
-       for(int i = 0; i < (2*nfold+2); i++){
-         childCell[i]->balance_cell(node_list, edge_list, face_list);
-       } 
-     }
-   }
-
-   if(Globals::balance_option >=2 && childCell == 0){
-     for(int i = 0; i < nfold; i++){
-       if(face[i]-> child != 0 && face[(i+2)%nfold+nfold]->child != 0){
-         needBalance = true;
-         split(node_list, edge_list, face_list);
-         for(int i = 0; i < (2*nfold+2); i++){
-           childCell[i]->balance_cell(node_list, edge_list, face_list);
-         }
-         break;
+          for(int i = 0; i < (2*nfold+2); i++){
+            childCell[i]->balance_cell(node_list, edge_list, face_list);
+          }
+          break;
         }
-     }
-   }
+       
+      }
+    }
+    //if all the edges are balanced, check the faces
+    if(Globals::balance_option >=1 && childCell == 0){
+      int num_faces_split = 0;
+      for(int i = 0; i < 2*nfold; i++){
+        if(face[i]-> child != 0) num_faces_split++;
+      }
+      if(num_faces_split > nfold){
+        needBalance = true;
+        split(node_list, edge_list, face_list);
+        for(int i = 0; i < (2*nfold+2); i++){
+          childCell[i]->balance_cell(node_list, edge_list, face_list);
+        } 
+      }
+    }
+
+    if(Globals::balance_option >=2 && childCell == 0){
+      for(int i = 0; i < nfold; i++){
+        if(face[i]-> child != 0 && face[(i+2)%nfold+nfold]->child != 0){
+          needBalance = true;
+          split(node_list, edge_list, face_list);
+          for(int i = 0; i < (2*nfold+2); i++){
+            childCell[i]->balance_cell(node_list, edge_list, face_list);
+          }
+          break;
+        }
+      }
+    }
    
-   return needBalance;
+    return needBalance;
   
- }
- }
+  }
+}
 
 bool Cell::balance_cell(std::list<Node*>& node_list,
                         std::list<Edge*>& edge_list,
                         std::list<Face*>& face_list){ 
   bool  needBalance = false;
- if(child != 0){
-   needBalance = false;
-   std::list<DiamondCell*> leaves;
-   for(int i = 0; i < numNode; i++){
-     child[i]->sort_leaves(leaves);
+  if(child != 0){
+    needBalance = false;
+    std::list<DiamondCell*> leaves;
+    for(int i = 0; i < numNode; i++){
+      child[i]->sort_leaves(leaves);
     }
-   for(std::list<DiamondCell*>::const_iterator p = leaves.begin(); p != leaves.end(); p++){
-     bool tmp =  (*p)->balance_cell( node_list, edge_list, face_list);
-     needBalance = tmp||needBalance;
-   }
-   return needBalance;  
- }
+    for(std::list<DiamondCell*>::const_iterator p = leaves.begin(); p != leaves.end(); p++){
+      bool tmp =  (*p)->balance_cell( node_list, edge_list, face_list);
+      needBalance = tmp||needBalance;
+    }
+    return needBalance;  
+  }
  
- if(child == 0){
+  if(child == 0){
    
-   needBalance = false;
-   for(int i = 0; i < numEdge; i++){
-     if( edge[i]->depth_greater_than_1()){
-       needBalance = true;
-       split(node_list, edge_list, face_list);
+    needBalance = false;
+    for(int i = 0; i < numEdge; i++){
+      if( edge[i]->depth_greater_than_1()){
+        needBalance = true;
+        split(node_list, edge_list, face_list);
         
-       for(int i = 0; i < numNode; i++){
-         child[i]->balance_cell(node_list, edge_list, face_list);
-       }
-       break;
-     }
-   }
+        for(int i = 0; i < numNode; i++){
+          child[i]->balance_cell(node_list, edge_list, face_list);
+        }
+        break;
+      }
+    }
    
- }
+  }
 
- //if all the edges are balanced, check the faces
- if(Globals::balance_option >=1){
-   if(child ==0){
-     int num_faces_split = 0;
-     for(int i = 0; i < numFace; i++){
-       if(face[i]-> child != 0) num_faces_split++;
-     }
-     if(num_faces_split > numFace/2){
-       needBalance = true;
-       split(node_list, edge_list, face_list);
+  //if all the edges are balanced, check the faces
+  if(Globals::balance_option >=1){
+    if(child ==0){
+      int num_faces_split = 0;
+      for(int i = 0; i < numFace; i++){
+        if(face[i]-> child != 0) num_faces_split++;
+      }
+      if(num_faces_split > numFace/2){
+        needBalance = true;
+        split(node_list, edge_list, face_list);
        
-       for(int i = 0; i < numNode; i++){
-         child[i]->balance_cell(node_list, edge_list, face_list);
-       } 
-     }
+        for(int i = 0; i < numNode; i++){
+          child[i]->balance_cell(node_list, edge_list, face_list);
+        } 
+      }
 
-   }
- }
+    }
+  }
 
   
 
  
- return needBalance;
+  return needBalance;
 }
 void DiamondCell::sort_leaves(std::list<DiamondCell*>& leaves){
   if(childCell != 0){
@@ -939,14 +925,24 @@ void Cell::rebalance_cells(std::list<Node*>& node_list,
 
 
 
-bool Cell::get_tagged(){
-  for(int i = 0; i<numNode; i++){
-    if(node[i]->tag ==1) return true;
+int Cell::get_tagged(){
+  if(this !=0){
+    //if all nodes get detagged, the cell is detagged
+    bool detagged = true;
+    for(int i = 0; i<numNode; i++){
+      if(node[i]->tag != 2)detagged = false;
+    }
+    if(detagged) return 2;
+    //if any node gets tagged, the cell is tagged
+    for(int i = 0; i<numNode; i++){
+      if(node[i]->tag ==1) return 1;
+    }
   }
-    return false;
+  //otherwise remain unchanged
+  return 0;
 }
 
-bool Cell::get_tagged(const vector<source_par>& sources){
+int Cell::get_tagged(const vector<source_par>& sources){
   vector<Node*> nodes(numNode);
   for(int i = 0; i<numNode; i++){
     nodes[i] = node[i];
@@ -996,15 +992,15 @@ void Cell::set_n2f_n2e(std::vector<Face*>& n2f, std::vector<Edge*>& n2e, std::ve
             break;
           }
           
-          }
-        if(e < n2f[f]->numEdge) break; 
         }
+        if(e < n2f[f]->numEdge) break; 
+      }
     }
   }
   
   if(n2f.size() != n2e.size()){
     cerr << " WARNING: numNodes and numEdges not equal in a face" << endl;
-     Loci::Abort();
+    Loci::Abort();
   }
  
 
@@ -1058,7 +1054,7 @@ std::vector<std::vector<Edge*> > Cell::set_n2e(){
     
     if(n2f.size() != n2e[nindex].size()){
       cerr << " WARNING: numFaces and numEdges not equal in a cell" << endl;
-        Loci::Abort();
+      Loci::Abort();
     }
    
     reduce_vector(n2e[nindex]);
@@ -1179,7 +1175,7 @@ void Cell:: split(std::list<Node*>& node_list, std::list<Edge*>& edge_list, std:
     for(unsigned int i = n2e.size(); i < 2*n2e.size(); i++){
       
       child[nindex]->face[i] = n2f[i-n2e.size()]->child[rot[i-n2e.size()]>=0?
-                                                rot[i-n2e.size()]:(-rot[i-n2e.size()]-1)];
+                                                        rot[i-n2e.size()]:(-rot[i-n2e.size()]-1)];
       child[nindex]->faceOrient[i] = rot[i-n2e.size()]>=0?0:1;
     }
   }
@@ -1234,59 +1230,59 @@ void Cell::empty_split(){
 int32 Cell::empty_resplit(const std::vector<char>& cellPlan){
   
                      
-    if(cellPlan.size() == 0){
-      return 1;
-    }
-    std::queue<DiamondCell*> Q;
-    //assume if cellPlan not empty, it always begin with 1
-    empty_split();
-  
-    for(int i = 0; i < numNode; i++){ 
-      Q.push(child[i]);
-    }
-  
-    //process the DiamondCells in the Q until Q is empty
-   int cIndex = 0;  
-    DiamondCell* current;
-    unsigned int index =1;
-    char currentCode;
-    while(!Q.empty()){
-      current = Q.front();
-      if(index >= cellPlan.size()){
-        currentCode = 0;
-      }
-      else{ 
-        //take a code from splitcode
-        currentCode = cellPlan[index];
-        index++;  
-      }
-      
-      switch(currentCode)
-        {
-          
-          //0 no split,this is a leaf, output cells
-        case 0:
-          current->cellIndex = ++cIndex;
-          break;
-         
-        case 1:
-          
-          current->empty_split();
-         
-          for(int i = 0; i < 2*(current->nfold) +2; i++){
-            Q.push(current->childCell[i]);
-          }
-         
-          break;
-          
-        default:
-          cerr <<"WARNING: illegal splitcode in function Cell::empty_resplit(): " << currentCode+'0'<< endl;
-         break;
-        }
-      
-      Q.pop();
+  if(cellPlan.size() == 0){
+    return 1;
   }
-    return cIndex;  
+  std::queue<DiamondCell*> Q;
+  //assume if cellPlan not empty, it always begin with 1
+  empty_split();
+  
+  for(int i = 0; i < numNode; i++){ 
+    Q.push(child[i]);
+  }
+  
+  //process the DiamondCells in the Q until Q is empty
+  int cIndex = 0;  
+  DiamondCell* current;
+  unsigned int index =1;
+  char currentCode;
+  while(!Q.empty()){
+    current = Q.front();
+    if(index >= cellPlan.size()){
+      currentCode = 0;
+    }
+    else{ 
+      //take a code from splitcode
+      currentCode = cellPlan[index];
+      index++;  
+    }
+      
+    switch(currentCode)
+      {
+          
+        //0 no split,this is a leaf, output cells
+      case 0:
+        current->cellIndex = ++cIndex;
+        break;
+         
+      case 1:
+          
+        current->empty_split();
+         
+        for(int i = 0; i < 2*(current->nfold) +2; i++){
+          Q.push(current->childCell[i]);
+        }
+         
+        break;
+          
+      default:
+        cerr <<"WARNING: illegal splitcode in function Cell::empty_resplit(): " << currentCode+'0'<< endl;
+        break;
+      }
+      
+    Q.pop();
+  }
+  return cIndex;  
 }
 
 
@@ -1326,14 +1322,14 @@ int32 Cell::traverse(const std::vector<char>& parentPlan,  vector<pair<int32, in
     current = Q.front();
     //take a code from splitcode
 
-     if(index >= parentPlan.size()){
-       currentCode = 0;
-     }
-     else{ 
-       //take a code from splitcode
-       currentCode = parentPlan[index];
-       index++;  
-     }
+    if(index >= parentPlan.size()){
+      currentCode = 0;
+    }
+    else{ 
+      //take a code from splitcode
+      currentCode = parentPlan[index];
+      index++;  
+    }
   
     list<DiamondCell*> leaves;
     switch(currentCode)
@@ -1361,9 +1357,54 @@ int32 Cell::traverse(const std::vector<char>& parentPlan,  vector<pair<int32, in
         break;
       }
       
-      Q.pop();
+    Q.pop();
   }
   
-    return cIndex;  
+  return cIndex;  
 }
 
+bool Cell::derefine(){
+  if(this != 0 ){  
+    if(child!= 0){
+      bool derefine = true;
+      for(int i = 0; i < numNode; i++){
+        if(child[i] != 0 && (child[i]->get_tagged())!=2) derefine = false;
+      }
+      if(derefine){
+        for(int i = 0; i < numNode; i++){
+          if(child[i] != 0){
+            delete child[i];
+            child[i] = 0;
+          }
+        }
+        delete [] child;
+        child = 0;
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+bool DiamondCell::derefine(){
+  if(this != 0 ){
+    if(childCell != 0){
+      bool derefine = true;
+      for(int i = 0; i < 2*nfold +2; i++){
+        if( (childCell[i] ->get_tagged()) != 2)derefine = false;
+      }
+      if(derefine){
+        for(int i = 0; i < 2*nfold +2; i++){
+          if(childCell[i] != 0){
+            delete  childCell[i];
+            childCell[i] = 0;
+          }
+        }
+        delete [] childCell;
+        childCell = 0;
+        return true;
+      }
+    }
+  }
+  return false;
+}

@@ -94,8 +94,10 @@ public:
     }
   }
   
+   //if all children are tagged as 2, remove all children
+  bool derefine();
   
-  int32 getCellIndex() const {return cellIndex;}
+  inline int32 getCellIndex() const {return cellIndex;}
   
   inline int getLevel(int d){
     switch(d){
@@ -123,6 +125,7 @@ public:
   inline Prism* getChildCell(int i) const{
     return childCell[i];
   }
+  inline Prism* getParentCell(){return parentCell;}
   
   inline int numChildren()const{
     switch(mySplitCode){
@@ -151,8 +154,7 @@ public:
   }
   
   double get_min_edge_length();
-  //define if this is tagged for refinement
-  bool get_tagged();
+ 
   int get_num_fine_faces();//for mxfpc
   
 
@@ -230,8 +232,9 @@ public:
   //nf: out, the faceID of neibCell 
   Prism*  findNeighbor(int d, int& nf);
 
-  bool getTagged();
-  bool get_tagged(const vector<source_par>& s);
+  //define if this is tagged for refinement, derefinement or unchanged
+  int get_tagged();
+  int get_tagged(const vector<source_par>& s);
   void setSplitCode(int split_mode, double tol);
   //after a cell is split, compose the cell plan according to the tree structure 
   std::vector<char> make_cellplan();
@@ -310,8 +313,8 @@ private:
   void get_leaves(std::vector<Prism*>& leaf_cell);
 
   //get 6 nodes
-  inline void get_nodes(Node** node){
-   
+  inline void get_nodes(std::vector<Node*>& node){
+    node.resize(2*nfold);
     for(int i = 0; i < nfold; i++){
       node[i] = (gnrlface[0]->needReverse[i])?(gnrlface[0]->edge[i]->tail):gnrlface[0]->edge[i]->head;
       node[i+nfold] = (gnrlface[1]->needReverse[i])?(gnrlface[1]->edge[i]->tail):gnrlface[1]->edge[i]->head;
@@ -328,15 +331,13 @@ private:
   inline Node* simple_center(){
    
     Node* cellcenter = new Node();
-    Node** vertices = new Node*[2*nfold];
+    std::vector<Node*> vertices(2*nfold);
     get_nodes(vertices);
-    vect3d* nodes = new vect3d[2*nfold];
+    std::vector<vect3d> nodes(2*nfold);
     for(int i = 0; i<2*nfold; i++){
       nodes[i] = vertices[i]->p;
     }
-    cellcenter->p = point_center(nodes, 2*nfold);
-    delete[] vertices;
-    delete[] nodes;
+    cellcenter->p = point_center(nodes);
     return cellcenter;
   }
 
@@ -357,8 +358,8 @@ private:
   inline Node* wireframe(){
     
     //allocate edgecenter
-    vect3d* facecenter = new vect3d[nfold+2];
-    double* areas = new double[nfold+2];
+    std::vector<vect3d> facecenter(nfold+2);
+    std::vector<double> areas(nfold+2);
     
     //get edge centers
     for(int i = 0; i < nfold+2; i++){
@@ -369,12 +370,7 @@ private:
     }
    
     //calculate the mass center of the edge centers
-    vect3d p = weighted_center(facecenter, areas, nfold+2);
-
-    //deallocate edgecenter
-    delete [] facecenter;
-    delete [] areas;
-    
+    vect3d p = weighted_center(facecenter, areas);
     return new Node(p);
   }
 

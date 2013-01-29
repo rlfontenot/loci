@@ -111,7 +111,7 @@ double get_min_spacing(const vector<Node*>& nodes, const vector<source_par>& ss)
 }
 
 
-bool tag_cell(const vector<Node*>& nodes, const vector<source_par>& sources, double min_edge_len){
+int tag_cell(const vector<Node*>& nodes, const vector<source_par>& sources, double min_edge_len){
 
 
   //get bounding box of the cell
@@ -141,7 +141,7 @@ bool tag_cell(const vector<Node*>& nodes, const vector<source_par>& sources, dou
             p2.y <= maxy && p2.y >= miny &&
             p2.z <= maxz && p2.z >= minz)){
       
-      if(min_edge_len>0.5*sources[i].r1)return true;
+      if(min_edge_len>0.5*sources[i].r1)return 1;
     }
     //if anyany feature sphere intersect with the cell, 
     //and min_edge_length of the cell is larger than 0.5r1,
@@ -149,12 +149,12 @@ bool tag_cell(const vector<Node*>& nodes, const vector<source_par>& sources, dou
     
     
     if((norm(center-0.5*(p1+p2))< (min_edge_len+sources[i].r1)) &&
-       (min_edge_len>0.5*sources[i].r1))return true;
+       (min_edge_len>0.5*sources[i].r1))return 1;
     
   }
       
   double min_spacing = get_min_spacing(nodes, sources);
-  if(min_edge_len>=2*min_spacing)return true;
-  else return false;
+  if(min_edge_len>=2*min_spacing)return 1;
+  else return 0;
   
 }

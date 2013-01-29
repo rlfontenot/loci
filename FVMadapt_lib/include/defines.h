@@ -80,7 +80,8 @@ template<class T> inline void reduce_vector(std::vector<T>& v1){
 }
 
 //calculate the unweighted mass center of a set of points
- inline vect3d point_center(const vect3d* fnodes, int numNodes){
+inline vect3d point_center(const std::vector<vect3d>& fnodes){
+  int numNodes = fnodes.size();
   vect3d center = vect3d(0.0, 0.0, 0.0);
   for(int i = 0; i<numNodes; i++){
     center += fnodes[i];
@@ -90,10 +91,10 @@ template<class T> inline void reduce_vector(std::vector<T>& v1){
  }
 
 
-inline vect3d weighted_center(const vect3d* fnodes, const double* weights, int numNodes){
+inline vect3d weighted_center(const std::vector<vect3d>& fnodes, const std::vector<double>& weights){
   vect3d nodesum = vect3d(0.0, 0.0, 0.0);
   double lensum = 0.0;
-  
+  int numNodes = fnodes.size();
   for(int i = 0; i<numNodes; i++){
     nodesum += weights[i]*fnodes[i];
     lensum += weights[i];

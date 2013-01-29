@@ -44,7 +44,7 @@ void readPar(string filename, vector<source_par>& source_pars);
 double get_spacing(const vect3d& p, const source_par& s);
 double get_min_spacing(const vector<Node*>& nodes, const vector<source_par>& ss);
 
-bool tag_cell(const vector<Node*>& nodes, const vector<source_par>& source_pars, double min_edge_len);
+int tag_cell(const vector<Node*>& nodes, const vector<source_par>& source_pars, double min_edge_len);
 
 #endif
 
