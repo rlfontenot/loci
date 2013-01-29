@@ -63,6 +63,8 @@ int main(int argc, char ** argv) {
   string parFile;
   //output file for refined grid 
   string outFile;
+  //the output file containing cell2parent map
+   string c2pFile;
   //output  plan file(optional)
   string outPlanFile;
   //this is the name of xml file
@@ -82,6 +84,7 @@ int main(int argc, char ** argv) {
   bool par_input = false;
   bool plan_output = false;
   bool levels_input = false;
+    bool cell2parent = false;
   int split_mode = 0;//default mode, hexcells and prisms split according to edge length
   //print out help info
   if( (argc == 1)||(argc==2) ){
@@ -111,6 +114,7 @@ int main(int argc, char ** argv) {
       cout<< "               and one of them must be selected"<<endl;
       
       cout <<"-o <file> -- output file of refined grid" << endl;
+      cout <<"-c2p <file> -- output cell2parent map file" << endl;
       cout <<"-oplan <file> -- output plan file" << endl;
       cout <<"-tol <double> -- tolerance, minimum grid spacing allowed(default value: 1e-10), need to be specified for -xml option" << endl;
       cout <<"-fold <double> -- twist value, maximum face folding allowed(default value: 1.5708)" << endl;
@@ -151,7 +155,11 @@ int main(int argc, char ** argv) {
       planFile =  argv[++i];
       restart = true;
     }
-    
+    else if(arg == "-c2p" && (i+1) < argc){
+      //replace the filename with the next argument
+      c2pFile =  argv[++i];
+      cell2parent = true;
+    }
     else if(arg == "-tag" && (i+1) < argc){
       //replace the tag filename with the next argument
       tagFile =  argv[++i];
@@ -217,7 +225,7 @@ int main(int argc, char ** argv) {
   tagFile = pathname + tagFile;
   xmlFile = pathname + xmlFile;
   parFile = pathname + parFile;
-  
+   if(cell2parent)c2pFile = pathname + c2pFile;
   if(Loci::MPI_rank == 0){
     cout <<"Refine running" <<endl;
     cout << "fold: " << Globals::fold << endl;
@@ -345,7 +353,16 @@ int main(int argc, char ** argv) {
     *xmlfile_par = xmlFile;
     facts.create_fact("xmlfile_par",xmlfile_par) ;
   }
-  
+   if(cell2parent){
+    param<std::string> c2pfile_par ;
+    *c2pfile_par = c2pFile;
+    facts.create_fact("cell2parent_file_par",c2pfile_par) ;
+    if(restart){
+      param<std::string> parent_planfile_par ;
+      *parent_planfile_par = planFile;
+      facts.create_fact("parent_planfile_par",parent_planfile_par) ;
+    }
+  }
   //parameters to identify different options
   if(restart){
     param<std::string> planfile_par ;
@@ -395,7 +412,14 @@ int main(int argc, char ** argv) {
 //     cout<< endl;
 //   }
   
-  
+   if(cell2parent){
+    if(!Loci::makeQuery(rules, facts, "cell2parent_output")) {
+      std::cerr << "query failed!" << std::endl;
+      Loci::Abort();
+    }
+    
+  }
+ 
   
   if(!Loci::makeQuery(rules, facts,"node_output")) {
     std::cerr << "query failed!" << std::endl;
