@@ -53,11 +53,11 @@ refmesh: $(REFMESHOBJS) $(MODULES)
 FRC :
 
 clean:
-	rm -fr $(OBJS)  $(TARGET) $(JUNK)
+	rm -fr $(OBJS) $(MARKEROBJS) $(REFMESHOBJS)  $(TARGET) $(JUNK)
 
 distclean: clean
-	rm -fr $(DEPEND_FILES) refine
+	rm -fr $(DEPEND_FILES) refine marker refmesh
 
-DEPEND_FILES=$(subst .o,.d,$(OBJS))
+DEPEND_FILES=$(subst .o,.d,$(OBJS) $(MARKEROBJS) $(REFMRSHOBJS))
 #include automatically generated dependencies
 -include $(DEPEND_FILES)
