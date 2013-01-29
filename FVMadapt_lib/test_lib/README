@@ -1,0 +1,16 @@
+Before make:
+
+rm -r include
+ln -s ../include ./
+ln -s classify_cell.cc ./
+ln -s globals.cc ./
+
+after make, the script example 1: marker and refmesh are separate 
+
+marker -g box.vog -r ref1.plan -tag refine1.dat -o ref2.plan
+refmesh  -g box.vog -pr ref1.plan -r ref2.plan -o box2.vog -c2p c2pbox2.txt
+
+
+script example 2: refine 
+
+refine -g box.vog -r ref1.plan -tag refine1.dat -o box2.vog -oplan ref2.plan -c2p c2pbox2.txt
