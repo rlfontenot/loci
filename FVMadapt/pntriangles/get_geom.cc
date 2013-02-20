@@ -13,6 +13,7 @@
 #include <sstream>
 #include <cmath>
 #include <stddef.h>
+#include <stdlib.h>
 using namespace std;
 
 //the definition of vector3d is copied from Loci Loci_Datatypes.h

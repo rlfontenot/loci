@@ -877,6 +877,11 @@ void outputGeomSurf(string geo_file,
   
   int ploc = 1 ;
   for(int i=0;i<ngt;++i) {
+    for(int j=0;j<15;++j) {
+      ofile << ploc+t1[j] << ' ' << ploc+t2[j] << ' ' << ploc+t3[j] << ' '
+	    << 1 << ' ' << 0 << ' ' << 0 << endl ;
+    }
+    ploc += 15 ;
   }
   
 }
@@ -993,7 +998,7 @@ int main(int ac, char *av[]) {
   // Write out a geometry file for adjustpos
   outputGeom(geo_file,pos,trias,trigeo) ;
 
-  outputGeomSurf(string("geom.vtk"),trigeo) ;
+  outputGeomSurf(string("geom_output.surf"),trigeo) ;
 
   Loci::Finalize() ;
 }
