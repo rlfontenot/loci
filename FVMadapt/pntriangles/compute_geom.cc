@@ -645,8 +645,21 @@ void edgeReconstruct(const vector<Edge> &edges,
       if(edges[e].f[0] >= 0 && edges[e].f[1] >=0) 
 	ndotn = dot(trias[edges[e].f[0]].normal,
 		    trias[edges[e].f[1]].normal) ;
-      if(ndotn < 0.95) { // yes it is a ridge
+      if(ndotn < 0.95) { // could be a ridge, check tangency
 	ridge[e] = true ;
+	vect3d dp = pos[n1]-pos[n0] ;
+	if(ninfo[n0].primary_k==2) {
+	  double angle = fabs(dot(dp,ninfo[n0].e[2])/
+			      max(norm(dp)*norm(ninfo[n0].e[2]),1e-30)) ;
+	  if(angle < .7)
+	    ridge[e] = false ;
+	}
+	if(ninfo[n1].primary_k==2) {
+	  double angle = fabs(dot(dp,ninfo[n1].e[2])/
+			      max(norm(dp)*norm(ninfo[n1].e[2]),1e-30)) ;
+	  if(angle < .7)
+	    ridge[e] = false ;
+	}
       }
     }
   }
