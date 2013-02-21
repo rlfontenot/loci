@@ -630,6 +630,44 @@ void edgeReconstruct(const vector<Edge> &edges,
 		     const vector<Tri> &trias,
 		     vector<edgeInfo> &edge_points) {
   int esz = edges.size() ;
+  int nsz = pos.size() ;
+  vector<bool> ridge(esz,false) ;
+  vector<int> pk(nsz) ;
+  for(int i=0;i<nsz;++i)
+    pk[i] = ninfo[i].primary_k ;
+
+  for(int e=0;e<esz;++e) {
+    int n0 = edges[e].e[0] ;
+    int n1 = edges[e].e[1] ;
+    if((ninfo[n0].primary_k==2 && ninfo[n1].primary_k > 1) ||
+       (ninfo[n1].primary_k==2 && ninfo[n0].primary_k > 1)) {
+      double ndotn = 1.0 ;
+      if(edges[e].f[0] >= 0 && edges[e].f[1] >=0) 
+	ndotn = dot(trias[edges[e].f[0]].normal,
+		    trias[edges[e].f[1]].normal) ;
+      if(ndotn < 0.95) { // yes it is a ridge
+	ridge[e] = true ;
+      }
+    }
+  }
+  vector<int> ncnt(nsz,0) ;
+  for(int e=0;e<esz;++e) {
+    int n0 = edges[e].e[0] ;
+    int n1 = edges[e].e[1] ;
+    if(ridge[e]) {
+      ncnt[n0] += 1 ;
+      ncnt[n1] += 1 ;
+    }
+  }
+  // Find spurious corners
+  for(int i=0;i<nsz;++i)
+    if(ncnt[i] > 2)
+      pk[i] = 3 ;
+  
+  
+    
+
+                        
   for(int e=0;e<esz;++e) {
     int n0 = edges[e].e[0] ;
     int n1 = edges[e].e[1] ;
@@ -639,90 +677,80 @@ void edgeReconstruct(const vector<Edge> &edges,
     vect3d norm1 = ninfo[n1].primary_d ;
     vect3d dp = p1-p0 ;
     // Now check for corner points
-    if(ninfo[n0].primary_k==3 && ninfo[n1].primary_k==3) {
+    if(pk[n0]==3 && pk[n1]==3) {
       norm0 = vect3d(0.,0.,0.) ;
       norm1 = vect3d(0.,0.,0.) ;
     }
-    // Determine if this edge is on a ridge
-    bool ridge = false ;
-    if((ninfo[n0].primary_k==2 && ninfo[n1].primary_k > 1) ||
-       (ninfo[n1].primary_k==2 && ninfo[n0].primary_k > 1)) {
-      double ndotn = 1.0 ;
-      if(edges[e].f[0] >= 0 && edges[e].f[1] >=0) 
-	ndotn = dot(trias[edges[e].f[0]].normal,
-		    trias[edges[e].f[1]].normal) ;
-      if(ndotn < 0.95) { // yes it is a ridge
-	ridge = true ;
-      }
-    }
+
 
 
     // If not a ridge and both sides of edge do not provide good
     // normal info, search triangles for good info
-    if(!ridge && ninfo[n0].primary_k!=1 && ninfo[n1].primary_k!=1) {
+    if(!ridge[e] && pk[n0]!=1 && pk[n1]!=1) {
       norm0 = vect3d(0.,0.,0.) ;
       norm1 = vect3d(0.,0.,0.) ;
+      
       int t1 = edges[e].f[0] ;
       int t2 = edges[e].f[1] ;
-      int nt1 = trias[t1].t[0] ;
-      if(trias[t1].t[1] != n0 && trias[t1].t[1] != n1)
-	nt1 = trias[t1].t[1] ;
-      if(trias[t1].t[2] != n0 && trias[t1].t[2] != n1)
-	nt1 = trias[t1].t[2] ;
-      int nt2 = trias[t2].t[0] ;
-      if(trias[t2].t[1] != n0 && trias[t2].t[1] != n1)
-	nt2 = trias[t2].t[1] ;
-      if(trias[t2].t[2] != n0 && trias[t2].t[2] != n1)
-	nt2 = trias[t2].t[2] ;
-      // Now average projected normals from good edges
-      double w1 = 0 ;
-      double w2 = 0 ;
-      if(ninfo[nt1].primary_k == 1)
-	w1 = 1.0 ;
-      if(ninfo[nt2].primary_k == 1)
-	w2 = 1.0 ;
-      // note, if search was not able to find a good candidate, then
-      // we just revert back to zero normals which gives a linear curve
-      // for the edge.  In this case we would really like to go to a more
-      // advanced algorithm.  For surfaces meshed for CFD applications, the
-      // present algorithm is usually more than sufficient
-      w1 *= 1./max(w1+w2,1e-30) ;
-      w2 *= 1./max(w1+w2,1e-30) ;
-      vect3d dp0 = pos[nt1]-p0 ;
-
-      vect3d n1 = ninfo[nt1].primary_d ;
-      vect3d n2 = ninfo[nt2].primary_d ;
-      n1 *= 1./max(norm(n1),1e-30) ;
-      n2 *= 1./max(norm(n2),1e-30) ;
-
-      norm0 += w1*(n1 - (2.*dot(dp0,n1)/dot(dp0,dp0))*dp0) ;
-      dp0 = pos[nt2]-p0 ;
-
-      norm0 += w2*(n2 - (2.*dot(dp0,n2)/dot(dp0,dp0))*dp0) ;
-      norm0 *= 1./max(norm(norm0),1e-30) ;
-      vect3d dp1 = pos[nt1]-p1 ;
-
-      norm1 += w1*(n1 - (2.*dot(dp1,n1)/dot(dp1,dp1))*dp1) ;
-      dp1 = pos[nt2]-p1 ;
-
-      norm1 += w2*(n2 - (2.*dot(dp1,n2)/dot(dp1,dp1))*dp1) ;
-      norm1 *= 1./max(norm(norm1),1e-30) ;
-
+      if(t1 >0 && t2 > 0) {
+        int nt1 = trias[t1].t[0] ;
+        if(trias[t1].t[1] != n0 && trias[t1].t[1] != n1)
+          nt1 = trias[t1].t[1] ;
+        if(trias[t1].t[2] != n0 && trias[t1].t[2] != n1)
+          nt1 = trias[t1].t[2] ;
+        int nt2 = trias[t2].t[0] ;
+        if(trias[t2].t[1] != n0 && trias[t2].t[1] != n1)
+          nt2 = trias[t2].t[1] ;
+        if(trias[t2].t[2] != n0 && trias[t2].t[2] != n1)
+          nt2 = trias[t2].t[2] ;
+        // Now average projected normals from good edges
+        double w1 = 0 ;
+        double w2 = 0 ;
+        if(pk[nt1] == 1)
+          w1 = 1.0 ;
+        if(pk[nt2] == 1)
+          w2 = 1.0 ;
+        // note, if search was not able to find a good candidate, then
+        // we just revert back to zero normals which gives a linear curve
+        // for the edge.  In this case we would really like to go to a more
+        // advanced algorithm.  For surfaces meshed for CFD applications, the
+        // present algorithm is usually more than sufficient
+        w1 *= 1./max(w1+w2,1e-30) ;
+        w2 *= 1./max(w1+w2,1e-30) ;
+        vect3d dp0 = pos[nt1]-p0 ;
+        
+        vect3d n1 = ninfo[nt1].primary_d ;
+        vect3d n2 = ninfo[nt2].primary_d ;
+        n1 *= 1./max(norm(n1),1e-30) ;
+        n2 *= 1./max(norm(n2),1e-30) ;
+        
+        norm0 += w1*(n1 - (2.*dot(dp0,n1)/dot(dp0,dp0))*dp0) ;
+        dp0 = pos[nt2]-p0 ;
+        
+        norm0 += w2*(n2 - (2.*dot(dp0,n2)/dot(dp0,dp0))*dp0) ;
+        norm0 *= 1./max(norm(norm0),1e-30) ;
+        vect3d dp1 = pos[nt1]-p1 ;
+        
+        norm1 += w1*(n1 - (2.*dot(dp1,n1)/dot(dp1,dp1))*dp1) ;
+        dp1 = pos[nt2]-p1 ;
+        
+        norm1 += w2*(n2 - (2.*dot(dp1,n2)/dot(dp1,dp1))*dp1) ;
+        norm1 *= 1./max(norm(norm1),1e-30) ;
+      }
     }
     // If node is connected connected to ridge or corner then extrapolate
     // normal to ridge/corner
-    if(ninfo[n0].primary_k!=1 && ninfo[n1].primary_k==1) {
+    if(pk[n0]!=1 && pk[n1]==1) {
       norm0 = norm1 - (2.*dot(dp,norm1)/dot(dp,dp))*dp ;
     }
-    if(ninfo[n0].primary_k==1 && ninfo[n1].primary_k!=1) {
+    if(pk[n0]==1 && pk[n1]!=1) {
       norm1 = norm0 - (2.*dot(dp,norm0)/dot(dp,dp))*dp ;
     }
-
-
+    
     edge_points[e].pmid[0] = (2.*p0 + p1 - dot(dp,norm0)*norm0)/3.0 ;
     edge_points[e].pmid[1] = (2.*p1 + p0 + dot(dp,norm1)*norm1)/3.0 ;
-
-    if(ridge) {
+    
+    if(ridge[e] && ! (pk[n0] == 3  && pk[n1]==3 ) ) {
       // Compute based on tangent lines
       vect3d tan0 = ninfo[n0].e[2] ;
       tan0 *= 1./max(norm(tan0),1e-30) ;
