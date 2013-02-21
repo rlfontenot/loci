@@ -851,7 +851,8 @@ void outputGeomSurf(string geo_file,
 		const vector<geomCoeff> &trigeo) {
   //output the geometry into .coeff file 
   std::ofstream ofile(geo_file.c_str()); 
-  ofile << trigeo.size()*16 << ' ' << 0 << ' ' << trigeo.size()*15 << endl ;
+  int ngt = trigeo.size() ;
+  ofile << ngt*16 << ' ' << 0 << ' ' << ngt*15 << endl ;
   ofile.precision(14) ;
   // Write out points
   static const double ulist[15] = {0.,0.,0.,0.,0.,
@@ -864,7 +865,7 @@ void outputGeomSurf(string geo_file,
 				   0.,.25,.5,
 				   0.,.25,
 				   0.} ;
-  int ngt = trigeo.size() ;
+
   for(int i=0;i<ngt;++i) {
     for(int j=0;j<15;++j) {
       vect3d p = trigeo[i].loc(ulist[j],vlist[j]) ;
@@ -877,9 +878,9 @@ void outputGeomSurf(string geo_file,
   
   int ploc = 1 ;
   for(int i=0;i<ngt;++i) {
-    for(int j=0;j<15;++j) {
+    for(int j=0;j<16;++j) {
       ofile << ploc+t1[j] << ' ' << ploc+t2[j] << ' ' << ploc+t3[j] << ' '
-	    << 1 << ' ' << 0 << ' ' << 0 << endl ;
+	    << 1 << ' ' << 0 << ' ' << 1 << endl ;
     }
     ploc += 15 ;
   }
@@ -895,8 +896,13 @@ int main(int ac, char *av[]) {
   double theta_r = 15 ; // ridge angle
   double theta_c = 42 ; // corner angle
   bool from_surf = false ;
+  bool output_geom = false ;
   while(ac > 2) {
-    if(ac > 2 && !strcmp(av[1],"-from_surf")) {
+    if(ac > 2 && !strcmp(av[1],"-geom_output")) {
+      output_geom = true ;
+      ac-- ;
+      av++ ;
+    } else if(ac > 2 && !strcmp(av[1],"-from_surf")) {
       from_surf = true ;
       ac-- ;
       av++ ;
@@ -998,7 +1004,10 @@ int main(int ac, char *av[]) {
   // Write out a geometry file for adjustpos
   outputGeom(geo_file,pos,trias,trigeo) ;
 
-  outputGeomSurf(string("geom_output.surf"),trigeo) ;
+  if(output_geom) {
+    string geom_out = string(av[1]) + "_ref.surf" ;
+    outputGeomSurf(geom_out,trigeo) ;
+  }
 
   Loci::Finalize() ;
 }
