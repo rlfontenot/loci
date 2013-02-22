@@ -25,7 +25,18 @@ using std::pair ;
 typedef  Loci::vector3d<double> vect3d;
 
 int Usage() {
-  cerr << "incorrect usage" << endl ;
+  cout << "incorrect command line arguments!" << endl
+       << "Usage:" << endl
+       << "computegeom <options> case" << endl
+       << "  where case is the casename and the <options> may be " << endl
+       << endl
+       << "  -theta_r <angle> : ridge angle threshold" << endl
+       << "  -theta_c <angle> : corner angle threshold" << endl
+       << "  -geom_output     : output refined surface using computed geometry" << endl
+       << "  -from_surf       : obtain input surface meshes from <case>.surf" 
+       << endl
+       << "                   : instead of <case>.vog" << endl 
+       << endl ;
   exit(-1) ;
 }
 
@@ -705,7 +716,31 @@ void edgeReconstruct(const vector<Edge> &edges,
       
       int t1 = edges[e].f[0] ;
       int t2 = edges[e].f[1] ;
+      vect3d nedge = vect3d(0.,0.,0.) ;
+      if(t1 >=0) {
+	nedge += trias[t1].normal ;
+      }
+      if(t2 >=0) {
+	nedge += trias[t2].normal ;
+      }
+      nedge *= 1./norm(nedge) ;
+
+      if(pk[n0] == 2) { 
+	// Adjust normal to be orthoganal to edge tangent
+	vect3d etan = ninfo[n0].e[2] ;
+	etan *= 1./max(norm(etan),1e-30) ;
+	norm0 = nedge - dot(nedge,etan)*etan ;
+      }
+      if(pk[n1] == 2) {
+	// Adjust normal to be orthoganal to edge tangent
+	vect3d etan = ninfo[n1].e[2] ;
+	etan *= 1./max(norm(etan),1e-30) ;
+	norm1 = nedge - dot(nedge,etan)*etan ;
+      }
+
+#ifdef OLDWAY
       if(t1 >0 && t2 > 0) {
+
         int nt1 = trias[t1].t[0] ;
         if(trias[t1].t[1] != n0 && trias[t1].t[1] != n1)
           nt1 = trias[t1].t[1] ;
@@ -750,6 +785,7 @@ void edgeReconstruct(const vector<Edge> &edges,
         norm1 += w2*(n2 - (2.*dot(dp1,n2)/dot(dp1,dp1))*dp1) ;
         norm1 *= 1./max(norm(norm1),1e-30) ;
       }
+#endif
     }
     // If node is connected connected to ridge or corner then extrapolate
     // normal to ridge/corner
@@ -955,10 +991,13 @@ int main(int ac, char *av[]) {
       theta_c = atof(av[2]) ;
       ac -= 2 ;
       av += 2 ;
+    } else {
+      cerr << "unrecognized argument " << av[1] << endl ;
+      Usage() ;
     }
   }
 
-  if(ac < 2) return Usage();
+  if(ac != 2) return Usage();
       
   string surf_file = av[1];
   string geo_file = av[1] ;
@@ -972,7 +1011,8 @@ int main(int ac, char *av[]) {
   Xc = tan((theta_c/2.0)*(M_PI/180.)) ;
   Xc = Xc*Xc ;
   Xc = Xc*2.0 ;
-  cout << "Xr = " << Xr << ", Xc = " << Xc << endl ;
+  cout << "theta_r = " << theta_r << ", theta_c = " << theta_c << endl ;
+  //  cout << "Xr = " << Xr << ", Xc = " << Xc << endl ;
 	   
   vector<vect3d> pos; //positions of nodes, change each iteration
   vector<Tri> trias;
