@@ -331,9 +331,11 @@ void readSurfaces(string filename,
 
 struct Tri {
   int t[3] ; // triangle nodes
+  int id ;
   vect3d normal ;
   double angle[3] ;
-  Tri(int p0, int p1, int p2) { t[0]=p0; t[1]=p1; t[2]= p2; } 
+  Tri(int p0, int p1, int p2, int ident) 
+  { t[0]=p0; t[1]=p1; t[2]= p2; id=ident; } 
   Tri() {}
 } ;
 
@@ -500,14 +502,14 @@ void read_surf(string filename,
     getline(fin, s);
     istringstream ins(s);
     ins >> p1 >> p2 >> p3 >> surf_id >> rec_flag >> bc_flag;
-    trias.push_back(Tri(p1-1,p2-1,p3-1)) ;
+    trias.push_back(Tri(p1-1,p2-1,p3-1,surf_id)) ;
   }
   for(int i = 0; i < nquads; i++){
     getline(fin, s);
     istringstream ins(s);
     ins >> p1 >> p2 >> p3 >>p4 >> surf_id >> rec_flag >> bc_flag;
-    trias.push_back(Tri(p1-1,p2-1,p3-1)) ;
-    trias.push_back(Tri(p1-1,p3-1,p4-1)) ;
+    trias.push_back(Tri(p1-1,p2-1,p3-1,surf_id)) ;
+    trias.push_back(Tri(p1-1,p3-1,p4-1,surf_id)) ;
   }
   fin.close();
 }
@@ -581,7 +583,7 @@ void eigenAnalysis(const vect3d N[],const double W[], int nn,
 // returns classification
 static double Xc = 0.2 ;
 static double Xr = 0.03 ;
-int classifyNode(vect3d N[], double A[], int m, 
+int classifyNode(vect3d N[], double A[], int m, bool possible_ridge, 
 		 vect3d e[3] , double lambda[3]) {
   double sumA = 0;
   for(int i=0;i<m;++i)
@@ -595,6 +597,10 @@ int classifyNode(vect3d N[], double A[], int m,
     if(dot(e[0],N[i]) <= 0)
       return 2 ;
   if(lambda[1] >= Xr*lambda[0])
+    return 2 ;
+  // If possible ridge, lower threshold to ~5 degrees
+  const double Xr5 = 4e-3 ;
+  if(possible_ridge && lambda[1] >= Xr5*lambda[0])
     return 2 ;
   return 1 ;
 }
@@ -610,14 +616,18 @@ void getNodeInfo(const vector<Tri> &trias,
   for(int i=0;i<nn;++i) {
     int m = node2face_offsets[i+1]-node2face_offsets[i] ;
     int o = node2face_offsets[i] ;
+    int id0 = trias[node2face[o].first].id ;
+    bool possible_ridge = false ;
     for(int j=0;j<m;++j) {
       int t = node2face[o+j].first ;
       int nd = node2face[o+j].second ;
       N[j] = trias[t].normal ;
       A[j] = trias[t].angle[nd] ;
+      if(trias[t].id != id0)
+	possible_ridge = true ;
     }
     eigenAnalysis(&N[0],&A[0],m,ninfo[i].e,ninfo[i].lambda) ;
-    int primary_k = classifyNode(&N[0],&A[0],m,
+    int primary_k = classifyNode(&N[0],&A[0],m,possible_ridge,
 				 ninfo[i].e,ninfo[i].lambda) ;
     ninfo[i].primary_k = primary_k ;
 
@@ -738,54 +748,6 @@ void edgeReconstruct(const vector<Edge> &edges,
 	norm1 = nedge - dot(nedge,etan)*etan ;
       }
 
-#ifdef OLDWAY
-      if(t1 >0 && t2 > 0) {
-
-        int nt1 = trias[t1].t[0] ;
-        if(trias[t1].t[1] != n0 && trias[t1].t[1] != n1)
-          nt1 = trias[t1].t[1] ;
-        if(trias[t1].t[2] != n0 && trias[t1].t[2] != n1)
-          nt1 = trias[t1].t[2] ;
-        int nt2 = trias[t2].t[0] ;
-        if(trias[t2].t[1] != n0 && trias[t2].t[1] != n1)
-          nt2 = trias[t2].t[1] ;
-        if(trias[t2].t[2] != n0 && trias[t2].t[2] != n1)
-          nt2 = trias[t2].t[2] ;
-        // Now average projected normals from good edges
-        double w1 = 0 ;
-        double w2 = 0 ;
-        if(pk[nt1] == 1)
-          w1 = 1.0 ;
-        if(pk[nt2] == 1)
-          w2 = 1.0 ;
-        // note, if search was not able to find a good candidate, then
-        // we just revert back to zero normals which gives a linear curve
-        // for the edge.  In this case we would really like to go to a more
-        // advanced algorithm.  For surfaces meshed for CFD applications, the
-        // present algorithm is usually more than sufficient
-        w1 *= 1./max(w1+w2,1e-30) ;
-        w2 *= 1./max(w1+w2,1e-30) ;
-        vect3d dp0 = pos[nt1]-p0 ;
-        
-        vect3d n1 = ninfo[nt1].primary_d ;
-        vect3d n2 = ninfo[nt2].primary_d ;
-        n1 *= 1./max(norm(n1),1e-30) ;
-        n2 *= 1./max(norm(n2),1e-30) ;
-        
-        norm0 += w1*(n1 - (2.*dot(dp0,n1)/dot(dp0,dp0))*dp0) ;
-        dp0 = pos[nt2]-p0 ;
-        
-        norm0 += w2*(n2 - (2.*dot(dp0,n2)/dot(dp0,dp0))*dp0) ;
-        norm0 *= 1./max(norm(norm0),1e-30) ;
-        vect3d dp1 = pos[nt1]-p1 ;
-        
-        norm1 += w1*(n1 - (2.*dot(dp1,n1)/dot(dp1,dp1))*dp1) ;
-        dp1 = pos[nt2]-p1 ;
-        
-        norm1 += w2*(n2 - (2.*dot(dp1,n2)/dot(dp1,dp1))*dp1) ;
-        norm1 *= 1./max(norm(norm1),1e-30) ;
-      }
-#endif
     }
     // If node is connected connected to ridge or corner then extrapolate
     // normal to ridge/corner
@@ -924,14 +886,17 @@ void outputGeom(string geo_file,
 }
 
 
+const double Axx = sqrt(3.0) ;
+const double Ayy = 1./sqrt(3.1415927) ;
+const double Azz = exp(1.0);
+
+const double Ax = Axx/sqrt(Axx*Axx+Ayy*Ayy+Azz*Azz) ;
+const double Ay = Ayy/sqrt(Axx*Axx+Ayy*Ayy+Azz*Azz) ;
+const double Az = Azz/sqrt(Axx*Axx+Ayy*Ayy+Azz*Azz) ;
+
+// Write out doubly refined surface to show how the geometry was computed
 void outputGeomSurf(string geo_file, 
 		const vector<geomCoeff> &trigeo) {
-  //output the geometry into .coeff file 
-  std::ofstream ofile(geo_file.c_str()); 
-  int ngt = trigeo.size() ;
-  ofile << ngt*16 << ' ' << 0 << ' ' << ngt*15 << endl ;
-  ofile.precision(14) ;
-  // Write out points
   static const double ulist[15] = {0.,0.,0.,0.,0.,
 				   .25,.25,.25,.25,
 				   .5,.5,.5,
@@ -942,21 +907,61 @@ void outputGeomSurf(string geo_file,
 				   0.,.25,.5,
 				   0.,.25,
 				   0.} ;
-
+  const int ngt = trigeo.size() ;
+  vector<vect3d> pnts(ngt*15) ;
+  vector<pair<double,int> > glue(ngt*15) ;
+  vector<int> pntid(ngt*15) ;
+  vect3d dir(Ax,Ay,Az) ;
   for(int i=0;i<ngt;++i) {
     for(int j=0;j<15;++j) {
-      vect3d p = trigeo[i].loc(ulist[j],vlist[j]) ;
-      ofile << p.x << ' ' << p.y << ' ' << p.z << ' ' << 0 << endl ;
+      pnts[i*15+j] = trigeo[i].loc(ulist[j],vlist[j]) ;
+      glue[i*15+j].first = dot(dir,pnts[i*15+j]) ;
+      glue[i*15+j].second = i*15+j ;
     }
   }
+
+  sort(glue.begin(),glue.end()) ;
+
+  int cnt = 0 ;
+  for(size_t i=0;i<glue.size();cnt++) {
+    pntid[glue[i].second] = cnt ;
+    size_t j = i+1 ;
+    while(j<glue.size()) {
+      double len = norm(pnts[glue[i].second]-pnts[glue[j].second]) ;
+
+      if(len > 1e-10)
+	break ;
+      pntid[glue[j].second] = cnt ;
+      j++ ;
+    }
+    i = j ;
+  }
+
+  vector<vect3d> loc(cnt) ;
+  for(size_t i=0;i<pntid.size();++i)
+    loc[pntid[i]] = pnts[i] ;
+  
+  //output the geometry into .coeff file 
+  std::ofstream ofile(geo_file.c_str()); 
+
+  ofile << ngt*16 << ' ' << 0 << ' ' << loc.size() << endl ;
+  ofile.precision(14) ;
+  // Write out points
+  
+  for(size_t i=0;i<loc.size();++i) {
+    vect3d p = loc[i] ;
+    ofile << p.x << ' ' << p.y << ' ' << p.z << ' ' << 0 << endl ;
+  }
+
   static const int t1[16] = { 0, 1, 1, 2, 2, 3, 3, 5, 6, 6, 7, 7, 9,10,10,12} ;
   static const int t2[16] = { 1, 6, 2, 7, 3, 8, 4, 6,10, 7,11, 8,10,13,11,13} ;
   static const int t3[16] = { 5, 5, 6, 6, 7, 7, 8, 9, 9,10,10,11,12,12,13,14} ;
   
-  int ploc = 1 ;
+  int ploc = 0 ;
   for(int i=0;i<ngt;++i) {
     for(int j=0;j<16;++j) {
-      ofile << ploc+t1[j] << ' ' << ploc+t2[j] << ' ' << ploc+t3[j] << ' '
+      ofile << pntid[ploc+t1[j]]+1 << ' ' << pntid[ploc+t2[j]]+1 
+	    << ' ' << pntid[ploc+t3[j]]+1 << ' '
 	    << 1 << ' ' << 0 << ' ' << 1 << endl ;
     }
     ploc += 15 ;
@@ -1037,20 +1042,21 @@ int main(int ac, char *av[]) {
     trias = vector<Tri>(ntri+nqua*2) ;
     int t= 0 ;
     for(int i=0;i<nsurf;++i) {
+      int surf_id = tmp_surf[i].id ;
       for(size_t f=0;f<tmp_surf[i].trias.size();++f) {
 	trias[t] = Tri(tmp_surf[i].trias[f][0]-1,
 		       tmp_surf[i].trias[f][1]-1,
-		       tmp_surf[i].trias[f][2]-1) ;
+		       tmp_surf[i].trias[f][2]-1,surf_id) ;
 	t++ ;
       }
       for(size_t f=0;f<tmp_surf[i].quads.size();++f) {
 	trias[t] = Tri(tmp_surf[i].quads[f][0]-1,
 		       tmp_surf[i].quads[f][1]-1,
-		       tmp_surf[i].quads[f][2]-1) ;
+		       tmp_surf[i].quads[f][2]-1,surf_id) ;
 	t++ ;
 	trias[t] = Tri(tmp_surf[i].quads[f][0]-1,
 		       tmp_surf[i].quads[f][2]-1,
-		       tmp_surf[i].quads[f][3]-1) ;
+		       tmp_surf[i].quads[f][3]-1,surf_id) ;
 	t++ ;
       }
     }
