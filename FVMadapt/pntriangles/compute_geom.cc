@@ -36,6 +36,7 @@ int Usage() {
        << "  -from_surf       : obtain input surface meshes from <case>.surf" 
        << endl
        << "                   : instead of <case>.vog" << endl 
+       << "  -ignore_bc <bc name> : ignore BC 'bc name' in vog file reader"
        << endl ;
   exit(-1) ;
 }
@@ -80,19 +81,28 @@ struct surface_info {
 void readSurfaces(string filename,
 		  vector<surface_info> &surf_list,
 		  vector<vect3d > &pos,
-                  vector<int>& node_map) {
+                  vector<int>& node_map,
+		  vector<string> &disable_bcs) {
 
   surf_list.clear() ;
   pos.clear() ;
 
   map<int,int> surf_lookup ;
-
+  map<int,string> surf_id ;
+  map<int,bool> surf_active ;
   // read in boundary names.
   vector<pair<int,string> > boundary_ids ;
   Loci::readBCfromVOG(filename,boundary_ids) ;
-  map<int,string> surf_id ;
-  for(size_t i=0;i<boundary_ids.size();++i)
-    surf_id[boundary_ids[i].first] = boundary_ids[i].second ;
+
+  for(size_t i=0;i<boundary_ids.size();++i) {
+    const int id = boundary_ids[i].first ;
+    const string name = boundary_ids[i].second ;
+    surf_id[id] = name ;
+    surf_active[id] = true ;
+    for(size_t j=0;j<disable_bcs.size();++j)
+      if(name == disable_bcs[j])
+	surf_active[id] = false ;
+  }
 
   hid_t input_fid ; 
   input_fid = H5Fopen(filename.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT);
@@ -161,49 +171,51 @@ void readSurfaces(string filename,
     // faces
     for(int f=0;f<nfaces;++f) {
       if(cr[f] < 0) { // boundary face 
-	// Now check to see if we have encountered it before
-	map<int,int>::const_iterator mi = surf_lookup.find(-cr[f]) ;
-	int bc ;
-	if(mi == surf_lookup.end() ) { // First time to see this boundary tag
-	  // Get name of boundary
-	  string bc_name ;
-	  map<int,string>::const_iterator si = surf_id.find(-cr[f]) ;
-	  if(si == surf_id.end()) {
-	    char buf[128] ;
-	    bzero(buf,128) ;
-	    snprintf(buf,127,"BC_%d",-cr[f]) ;
-	    bc_name = buf ;
+	if(surf_active[-cr[f]]) {
+	  // Now check to see if we have encountered it before
+	  map<int,int>::const_iterator mi = surf_lookup.find(-cr[f]) ;
+	  int bc ;
+	  if(mi == surf_lookup.end() ) { // First time to see this boundary tag
+	    // Get name of boundary
+	    string bc_name ;
+	    map<int,string>::const_iterator si = surf_id.find(-cr[f]) ;
+	    if(si == surf_id.end()) {
+	      char buf[128] ;
+	      bzero(buf,128) ;
+	      snprintf(buf,127,"BC_%d",-cr[f]) ;
+	      bc_name = buf ;
+	    } else {
+	      bc_name = si->second ;
+	    }
+	    int bc_id = surf_list.size() ;
+	    surf_list.push_back(surface_info()) ;
+	    surf_list[bc_id].name = bc_name ;
+	    surf_list[bc_id].id = -cr[f] ;
+	    surf_lookup[-cr[f]] = bc_id ;
+	    bc = bc_id ;
 	  } else {
-	    bc_name = si->second ;
+	    bc = mi->second ;
 	  }
-	  int bc_id = surf_list.size() ;
-	  surf_list.push_back(surface_info()) ;
-	  surf_list[bc_id].name = bc_name ;
-          surf_list[bc_id].id = -cr[f] ;
-	  surf_lookup[-cr[f]] = bc_id ;
-	  bc = bc_id ;
-	} else {
-	  bc = mi->second ;
-	}
-	int fsz = face2node[f].size() ;
-	if(fsz == 3) {
-	  Loci::Array<int,3> tri ;
-	  tri[0] = face2node[f][0] ;
-	  tri[1] = face2node[f][1] ;
-	  tri[2] = face2node[f][2] ;
-	  surf_list[bc].trias.push_back(tri) ;
-	} else if(fsz == 4) {
-	  Loci::Array<int,4> qua ;
-	  qua[0] = face2node[f][0] ;
-	  qua[1] = face2node[f][1] ;
-	  qua[2] = face2node[f][2] ;
-	  qua[3] = face2node[f][3] ;
-	  surf_list[bc].quads.push_back(qua) ;
-	} else {
-	  vector<int> tmp(fsz) ;
-	  for(int i=0;i<fsz;++i)
-	    tmp[i] = face2node[f][i] ;
-	  surf_list[bc].gen_faces.push_back(tmp) ;
+	  int fsz = face2node[f].size() ;
+	  if(fsz == 3) {
+	    Loci::Array<int,3> tri ;
+	    tri[0] = face2node[f][0] ;
+	    tri[1] = face2node[f][1] ;
+	    tri[2] = face2node[f][2] ;
+	    surf_list[bc].trias.push_back(tri) ;
+	  } else if(fsz == 4) {
+	    Loci::Array<int,4> qua ;
+	    qua[0] = face2node[f][0] ;
+	    qua[1] = face2node[f][1] ;
+	    qua[2] = face2node[f][2] ;
+	    qua[3] = face2node[f][3] ;
+	    surf_list[bc].quads.push_back(qua) ;
+	  } else {
+	    vector<int> tmp(fsz) ;
+	    for(int i=0;i<fsz;++i)
+	      tmp[i] = face2node[f][i] ;
+	    surf_list[bc].gen_faces.push_back(tmp) ;
+	  }
 	}
       }
     }
@@ -647,7 +659,8 @@ void getNodeInfo(const vector<Tri> &trias,
 }
 void edgeReconstruct(const vector<Edge> &edges,
 		     const vector<vect3d> &pos,
-		     const vector<nodeInfo> &ninfo,
+		     // Modifies ninfo for boundary edges
+		     vector<nodeInfo> &ninfo,
 		     const vector<Tri> &trias,
 		     vector<edgeInfo> &edge_points) {
   int esz = edges.size() ;
@@ -656,12 +669,25 @@ void edgeReconstruct(const vector<Edge> &edges,
   vector<int> pk(nsz) ;
   for(int i=0;i<nsz;++i)
     pk[i] = ninfo[i].primary_k ;
+  for(int e=0;e<esz;++e) {
+    int n0 = edges[e].e[0] ;
+    int n1 = edges[e].e[1] ;
+    // All edges at edge of surface are considered to be a ridge
+    if(edges[e].f[0] < 0 || edges[e].f[1] < 0) {
+      ridge[e] = true ; 
+      pk[n0] = max(pk[n0],2) ;
+      pk[n1] = max(pk[n1],2) ;
+    }
+  }
 
   for(int e=0;e<esz;++e) {
     int n0 = edges[e].e[0] ;
     int n1 = edges[e].e[1] ;
-    if((ninfo[n0].primary_k==2 && ninfo[n1].primary_k > 1) ||
-       (ninfo[n1].primary_k==2 && ninfo[n0].primary_k > 1)) {
+    // All edges at edge of surface are considered to be a ridge
+    if(edges[e].f[0] < 0 || edges[e].f[1] < 0) {
+      ridge[e] = true ; 
+    } else if((pk[n0]==2 && pk[n1] > 1) ||
+       (pk[n1]==2 && pk[n0] > 1)) {
       double ndotn = 1.0 ;
       if(edges[e].f[0] >= 0 && edges[e].f[1] >=0) 
 	ndotn = dot(trias[edges[e].f[0]].normal,
@@ -669,13 +695,13 @@ void edgeReconstruct(const vector<Edge> &edges,
       if(ndotn < 0.95) { // could be a ridge, check tangency
 	ridge[e] = true ;
 	vect3d dp = pos[n1]-pos[n0] ;
-	if(ninfo[n0].primary_k==2) {
+	if(pk[n0]==2) {
 	  double angle = fabs(dot(dp,ninfo[n0].e[2])/
 			      max(norm(dp)*norm(ninfo[n0].e[2]),1e-30)) ;
 	  if(angle < .7)
 	    ridge[e] = false ;
 	}
-	if(ninfo[n1].primary_k==2) {
+	if(pk[n1]==2) {
 	  double angle = fabs(dot(dp,ninfo[n1].e[2])/
 			      max(norm(dp)*norm(ninfo[n1].e[2]),1e-30)) ;
 	  if(angle < .7)
@@ -693,15 +719,50 @@ void edgeReconstruct(const vector<Edge> &edges,
       ncnt[n1] += 1 ;
     }
   }
+  // For edges at boundary of mesh, compute tangency vector
+  vector<pair<vect3d,vect3d> > tanvec(nsz) ;
+  vector<int> bnd_cnt(nsz,0) ;
+  for(int e=0;e<esz;++e) {
+    if(edges[e].f[0] < 0 || edges[e].f[1] < 0) {
+      int n0 = edges[e].e[0] ;
+      int n1 = edges[e].e[1] ;
+      vect3d dv = pos[n0]-pos[n1] ;
+      dv *= 1./max(norm(dv),1e-30) ;
+      if(bnd_cnt[n0] == 0) {
+	tanvec[n0].first = dv ;
+      } else if(bnd_cnt[n0] == 1) {
+	tanvec[n0].second = dv ;
+      }
+      bnd_cnt[n0] += 1 ;
+      if(bnd_cnt[n1] == 0) {
+	tanvec[n1].first = dv ;
+      } else if(bnd_cnt[n1] == 1) {
+	tanvec[n1].second = dv ;
+      }
+      bnd_cnt[n1] += 1 ;
+    }
+  }
   // Find spurious corners
   for(int i=0;i<nsz;++i)
     if(ncnt[i] > 2)
       pk[i] = 3 ;
   
-  
-    
+  // Now check boundary edges for tangency and corners
+  for(int i=0;i<nsz;++i) {
+    if(bnd_cnt[i] == 2 && pk[i] == 2) {
+      if(dot(tanvec[i].first,tanvec[i].second)< 0)
+	tanvec[i].second = -1.*tanvec[i].second ;
+      double angle = dot(tanvec[i].first,tanvec[i].second) ;
+      if(angle < .5) // more than 60 degree turn, then it is a corner
+	pk[i] = 3 ;
+      else {
+	// set tangent vector to average of edge vectors
+	ninfo[i].e[2] = tanvec[i].first + tanvec[i].second ;
+      }
+    }
+  }
 
-                        
+  
   for(int e=0;e<esz;++e) {
     int n0 = edges[e].e[0] ;
     int n1 = edges[e].e[1] ;
@@ -718,8 +779,8 @@ void edgeReconstruct(const vector<Edge> &edges,
 
 
 
-    // If not a ridge and both sides of edge do not provide good
-    // normal info, search triangles for good info
+    // If not a ridge but edge connects to ridges, compute normal vector
+    // from tangent information
     if(!ridge[e] && pk[n0]!=1 && pk[n1]!=1) {
       norm0 = vect3d(0.,0.,0.) ;
       norm1 = vect3d(0.,0.,0.) ;
@@ -736,7 +797,7 @@ void edgeReconstruct(const vector<Edge> &edges,
       nedge *= 1./norm(nedge) ;
 
       if(pk[n0] == 2) { 
-	// Adjust normal to be orthoganal to edge tangent
+	// Adjust normal to be orthogonal to edge tangent
 	vect3d etan = ninfo[n0].e[2] ;
 	etan *= 1./max(norm(etan),1e-30) ;
 	norm0 = nedge - dot(nedge,etan)*etan ;
@@ -979,6 +1040,7 @@ int main(int ac, char *av[]) {
   double theta_c = 42 ; // corner angle
   bool from_surf = false ;
   bool output_geom = false ;
+  vector<string> remove_bcs ;
   while(ac > 2) {
     if(ac > 2 && !strcmp(av[1],"-geom_output")) {
       output_geom = true ;
@@ -988,6 +1050,11 @@ int main(int ac, char *av[]) {
       from_surf = true ;
       ac-- ;
       av++ ;
+    } else if(ac > 3 && !strcmp(av[1],"-ignore_bc")) {
+      string name = string(av[2]) ;
+      remove_bcs.push_back(name) ;
+      ac -= 2 ;
+      av += 2 ;
     } else if(ac > 3 && !strcmp(av[1],"-theta_r")) {
       theta_r = atof(av[2]) ;
       ac -= 2 ;
@@ -1027,7 +1094,7 @@ int main(int ac, char *av[]) {
   } else {
     vector<surface_info> tmp_surf ;
     vector<int> tmp_map;
-    readSurfaces(vog_file,tmp_surf,pos,tmp_map) ;
+    readSurfaces(vog_file,tmp_surf,pos,tmp_map,remove_bcs) ;
     int nsurf = tmp_surf.size() ;
     int ntri=0,nqua=0,ngen=0 ;
     for(int i=0;i<nsurf;++i) {
@@ -1041,7 +1108,7 @@ int main(int ac, char *av[]) {
     // create triangle surface mesh
     trias = vector<Tri>(ntri+nqua*2) ;
     int t= 0 ;
-    for(int i=0;i<nsurf;++i) {
+    for(int i=0;i<nsurf;++i)  {
       int surf_id = tmp_surf[i].id ;
       for(size_t f=0;f<tmp_surf[i].trias.size();++f) {
 	trias[t] = Tri(tmp_surf[i].trias[f][0]-1,
