@@ -729,9 +729,9 @@ void edgeReconstruct(const vector<Edge> &edges,
       vect3d dv = pos[n0]-pos[n1] ;
       dv *= 1./max(norm(dv),1e-30) ;
       if(bnd_cnt[n0] == 0) {
-	tanvec[n0].first = dv ;
+	tanvec[n0].first = -1.*dv ;
       } else if(bnd_cnt[n0] == 1) {
-	tanvec[n0].second = dv ;
+	tanvec[n0].second = -1.*dv ;
       }
       bnd_cnt[n0] += 1 ;
       if(bnd_cnt[n1] == 0) {
@@ -743,21 +743,22 @@ void edgeReconstruct(const vector<Edge> &edges,
     }
   }
   // Find spurious corners
-  for(int i=0;i<nsz;++i)
+  for(int i=0;i<nsz;++i) {
+    if(bnd_cnt[i] == 2)
+      pk[i] = 2 ;
     if(ncnt[i] > 2)
       pk[i] = 3 ;
+  }
   
   // Now check boundary edges for tangency and corners
   for(int i=0;i<nsz;++i) {
     if(bnd_cnt[i] == 2 && pk[i] == 2) {
-      if(dot(tanvec[i].first,tanvec[i].second)< 0)
-	tanvec[i].second = -1.*tanvec[i].second ;
-      double angle = dot(tanvec[i].first,tanvec[i].second) ;
-      if(angle < .5) // more than 60 degree turn, then it is a corner
-	pk[i] = 3 ;
+      double angle = dot(-1.*tanvec[i].first,tanvec[i].second) ;
+      if(angle < .2) // more than ~40 degree turn, corner
+      	pk[i] = 3 ;
       else {
 	// set tangent vector to average of edge vectors
-	ninfo[i].e[2] = tanvec[i].first + tanvec[i].second ;
+	ninfo[i].e[2] = tanvec[i].first - tanvec[i].second ;
       }
     }
   }
