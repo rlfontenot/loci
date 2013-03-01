@@ -608,12 +608,16 @@ int classifyNode(vect3d N[], double A[], int m, bool possible_ridge,
   for(int i=0;i<m;++i)
     if(dot(e[0],N[i]) <= 0)
       return 2 ;
+
   if(lambda[1] >= Xr*lambda[0])
     return 2 ;
   // If possible ridge, lower threshold to ~5 degrees
-  const double Xr5 = 4e-3 ;
+  const double Xr5 = 4e-3 ; 
+
+
   if(possible_ridge && lambda[1] >= Xr5*lambda[0])
     return 2 ;
+
   return 1 ;
 }
 
@@ -625,6 +629,7 @@ void getNodeInfo(const vector<Tri> &trias,
   vector<vect3d> N(max_f2n) ;
   vector<double> A(max_f2n) ;
   int nn = ninfo.size() ;
+
   for(int i=0;i<nn;++i) {
     int m = node2face_offsets[i+1]-node2face_offsets[i] ;
     int o = node2face_offsets[i] ;
@@ -686,26 +691,31 @@ void edgeReconstruct(const vector<Edge> &edges,
     // All edges at edge of surface are considered to be a ridge
     if(edges[e].f[0] < 0 || edges[e].f[1] < 0) {
       ridge[e] = true ; 
+    } else if(pk[n0]==2 && pk[n1]==2 && 
+	      trias[edges[e].f[0]].id != trias[edges[e].f[1]].id) {
+      ridge[e] = true ;
     } else if((pk[n0]==2 && pk[n1] > 1) ||
        (pk[n1]==2 && pk[n0] > 1)) {
       double ndotn = 1.0 ;
       if(edges[e].f[0] >= 0 && edges[e].f[1] >=0) 
 	ndotn = dot(trias[edges[e].f[0]].normal,
 		    trias[edges[e].f[1]].normal) ;
-      if(ndotn < 0.95) { // could be a ridge, check tangency
+      if(ndotn < 0.98) { // could be a ridge, check tangency
 	ridge[e] = true ;
 	vect3d dp = pos[n1]-pos[n0] ;
 	if(pk[n0]==2) {
 	  double angle = fabs(dot(dp,ninfo[n0].e[2])/
 			      max(norm(dp)*norm(ninfo[n0].e[2]),1e-30)) ;
-	  if(angle < .7)
+	  if(angle < .7) {
 	    ridge[e] = false ;
+	  } 
 	}
 	if(pk[n1]==2) {
 	  double angle = fabs(dot(dp,ninfo[n1].e[2])/
 			      max(norm(dp)*norm(ninfo[n1].e[2]),1e-30)) ;
-	  if(angle < .7)
+	  if(angle < .7) {
 	    ridge[e] = false ;
+	  }
 	}
       }
     }
@@ -723,7 +733,7 @@ void edgeReconstruct(const vector<Edge> &edges,
   vector<pair<vect3d,vect3d> > tanvec(nsz) ;
   vector<int> bnd_cnt(nsz,0) ;
   for(int e=0;e<esz;++e) {
-    if(edges[e].f[0] < 0 || edges[e].f[1] < 0) {
+    if(ridge[e]) {
       int n0 = edges[e].e[0] ;
       int n1 = edges[e].e[1] ;
       vect3d dv = pos[n0]-pos[n1] ;
@@ -750,6 +760,8 @@ void edgeReconstruct(const vector<Edge> &edges,
       pk[i] = 3 ;
   }
   
+
+
   // Now check boundary edges for tangency and corners
   for(int i=0;i<nsz;++i) {
     if(bnd_cnt[i] == 2 && pk[i] == 2) {
@@ -763,7 +775,7 @@ void edgeReconstruct(const vector<Edge> &edges,
     }
   }
 
-  
+
   for(int e=0;e<esz;++e) {
     int n0 = edges[e].e[0] ;
     int n1 = edges[e].e[1] ;
@@ -843,6 +855,18 @@ void edgeReconstruct(const vector<Edge> &edges,
       edge_points[e].pmid[1] = p1-tan1*norm(dp)/3. ;
     }
   }
+  int rcnt = 0 ;
+  for(int e=0;e<esz;++e) {
+    if(ridge[e])
+      rcnt++ ;
+  }
+  int corner_count = 0 ;
+  for(int i=0;i<nsz;++i) {
+    if(pk[i] == 3)
+      corner_count++ ;
+  }
+  
+  cout << "identified " << rcnt << " ridge edges and " << corner_count << " corner points." << endl ;
 }
 void  geoReconstruct(const vector<Tri> &trias, const vector<Edge> &edges, 
 		     const vector<edgeInfo> &edge_points, 
