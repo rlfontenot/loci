@@ -20,14 +20,15 @@
 ##############################################################################
 include $(LOCI_BASE)/Loci.conf
 
-OBJS = refine.o globals.o classify_cell.o
-MARKEROBJS = marker.o globals.o classify_cell.o
-REFMESHOBJS = refmesh.o globals.o classify_cell.o
+OBJS = refine.o 
+MARKEROBJS = marker.o 
+REFMESHOBJS = refmesh.o
 
 LIBXML2_LIBS ?= -lxml2
 LIBXML2_DEFINE ?= -DUSE_LIBXML2
 LIBXML2_INCLUDE ?= -I/usr/include/libxml2
-LOCAL_LIBS      = $(LIBXML2_LIBS)
+LOCAL_LIBS      = $(LIBXML2_LIBS) -L$(LOCI_BASE)/lib -lfvmadaptfunc
+FVMADAPT_INCLUDE ?= -I$(LOCI_BASE)/FVMadapt_lib/include
 #LDFLAGS = -Wl -rpath /home/qxue/FVMadapt/
 
 JUNK =		*~ \
@@ -36,7 +37,7 @@ JUNK =		*~ \
 		ii_files \
 		rii_files
 
-INCLUDES=	-I./include $(LIBXML2_INCLUDE) $(LIBXML2_DEFINE)
+INCLUDES=	$(FVMADAPT_INCLUDE) $(LIBXML2_INCLUDE) $(LIBXML2_DEFINE)
 
 
 default: refine marker refmesh
