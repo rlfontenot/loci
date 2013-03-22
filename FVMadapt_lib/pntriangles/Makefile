@@ -1,5 +1,4 @@
 #include ../chem.conf
-#LOCI_BASE=/usr/tmp/qxue/Loci
 include $(LOCI_BASE)/Loci.conf
 
 #COPTLESS=-g

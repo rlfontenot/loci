@@ -22,7 +22,9 @@ include $(LOCI_BASE)/Loci.conf
 
 MODULE_NAME  = fvmadapt
 
-OBJS =		read_par.o \
+LIB_NAME = fvmadaptfunc
+
+MODULE_OBJS =	read_par.o \
 		transfer_fc.o \
 		quadface.o  \
 		face.o \
@@ -60,7 +62,6 @@ OBJS =		read_par.o \
 		reset_general_nums.o \
 		reset_prism_nums.o \
 		reset_offset.o \
-		globals.o \
 		node_edge.o \
 		make_general_cellplan.o \
 		make_hex_cellplan.o \
@@ -85,8 +86,10 @@ OBJS =		read_par.o \
 		get_prism_fine_face.o \
 		get_mixed_face_fine_grid.o \
 		write_vog.o  \
-		color_matrix.o \
-		classify_cell.o
+		color_matrix.o
+
+LIB_OBJS  = 	classify_cell.o globals.o 
+
 LIBXML2_LIBS ?= -lxml2
 LIBXML2_DEFINE ?= -DUSE_LIBXML2
 LIBXML2_INCLUDE ?= -I/usr/include/libxml2
@@ -99,25 +102,33 @@ JUNK =		*~ \
 		ii_files \
 		rii_files
 
-LIB_OBJS=$(OBJS:.o=_lo.o)
+LIB_OBJS1=$(MODULE_OBJS:.o=_lo.o)
+LIB_OBJS2=$(LIB_OBJS:.o=_lo.o)
 
 INCLUDES=	-I./include $(LIBXML2_INCLUDE) $(LIBXML2_DEFINE)
 
-all: $(MODULE_NAME)_m.so lib$(MODULE_NAME).so
+all: $(MODULE_NAME)_m.so lib$(MODULE_NAME).so $(LIB_NAME)_m.so lib$(LIB_NAME).so 
 
-lib$(MODULE_NAME).so: $(LIB_OBJS)
-	$(SHARED_LD) $(SHARED_LD_FLAGS) lib$(MODULE_NAME).so $(LIB_FLAGS) $(LIB_OBJS)
+lib$(MODULE_NAME).so: $(LIB_OBJS1)
+	$(SHARED_LD) $(SHARED_LD_FLAGS) lib$(MODULE_NAME).so $(LIB_FLAGS) $(LIB_OBJS1)
 
-$(MODULE_NAME)_m.so: $(LIB_OBJS)
-	$(SHARED_LD) $(SHARED_LD_FLAGS) $(MODULE_NAME)_m.so $(LIB_FLAGS) $(LIB_OBJS)
+$(MODULE_NAME)_m.so: $(LIB_OBJS1)
+	$(SHARED_LD) $(SHARED_LD_FLAGS) $(MODULE_NAME)_m.so $(LIB_FLAGS) $(LIB_OBJS1)
+
+lib$(LIB_NAME).so: $(LIB_OBJS2)
+	$(SHARED_LD) $(SHARED_LD_FLAGS) lib$(LIB_NAME).so $(LIB_FLAGS) $(LIB_OBJS2)
+
+$(LIB_NAME)_m.so: $(LIB_OBJS2)
+	$(SHARED_LD) $(SHARED_LD_FLAGS) $(LIB_NAME)_m.so $(LIB_FLAGS) $(LIB_OBJS2)
+
 FRC :
 
 clean:
-	rm -fr $(OBJS)  $(LIB_OBJS) lib$(MODULE_NAME).so $(MODULE_NAME)_m.so $(JUNK)
+	rm -fr $(MODULE_OBJS)  $(LIB_OBJS) $(LIB_OBJS1) $(LIB_OBJS2) lib$(MODULE_NAME).so $(MODULE_NAME)_m.so lib$(LIB_NAME).so $(LIB_NAME)_m.so $(JUNK)
 
 distclean: clean
 	rm -fr $(DEPEND_FILES)
 
-DEPEND_FILES=$(subst .o,.d,$(OBJS))
+DEPEND_FILES=$(subst .o,.d,$(MODULE_OBJS),$(LIB_OBJS))
 #include automatically generated dependencies
 -include $(DEPEND_FILES)
