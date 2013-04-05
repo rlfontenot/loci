@@ -174,9 +174,29 @@ public:
       
     
       int numCells = cells.size();
-   
+      bool cell_split = false; //if any cell split, the whole big cell rebalance
+      bool cell_merged = false;
       if(numCells != 0){//aCell is not a leaf
-        bool cell_split = false; //if any cell split, the whole big cell rebalance
+       
+        //first if any cell need derefine
+        std::set<Prism*> dparents;
+        //mark the cell that will be eliminated
+        for(int i = 0; i < numCells; i++){
+          if(cells[i]->get_tagged() ==2){
+            Prism* parent = cells[i]->getParentCell();
+            if(parent!=0 && parent->needDerefine()){
+              dparents.insert(parent);
+              cells[i] =0;
+            }
+          }
+        }
+        //derefine the cells
+        for(std::set<Prism*>::const_iterator si = dparents.begin(); si!= dparents.end(); si++){
+          (*si)->derefine();
+          cell_merged = true;
+        }
+      
+
         for(int i = 0; i < numCells; i++){
           if((cells[i]->get_tagged())==1) {
             cells[i]->setSplitCode(*split_mode_par, Globals::tolerance);
@@ -193,14 +213,10 @@ public:
                 cells[i]->split(node_list, edge_list, qface_list, gface_list);
               }
             }
-          }else if((cells[i]->get_tagged()) == 2){
-            Prism* parent = cells[i]->getParentCell();
-            if(parent != 0){
-              if(parent->derefine()) cell_split = true;
-            }
           }
         }
-        if(cell_split)aCell->rebalance_cells(*split_mode_par, node_list, edge_list, qface_list, gface_list);    }else{//aCell is a leaf
+        if(cell_split)aCell->rebalance_cells(*split_mode_par, node_list, edge_list, qface_list, gface_list);
+      }else{//aCell is a leaf
    
         aCell->setSplitCode(*split_mode_par, Globals::tolerance);
         if(aCell->getMySplitCode() != 0 ){
@@ -215,10 +231,50 @@ public:
           }
         }
       }
-  
-      //write new cellPlan
-      newCellPlan[cc] = aCell->make_cellplan();
-      //clean up
+      
+      //rebalance this cell
+      if(cell_merged){
+        //record current plan
+        vector<char> tmpPlan = aCell->make_cellplan();
+        //build a temp cell
+        Prism* tmpCell = build_prism_cell(lower[cc].begin(), lower.num_elems(cc),
+                                          upper[cc].begin(), upper.num_elems(cc),
+                                          boundary_map[cc].begin(), boundary_map.num_elems(cc),
+                                          prism2face[cc],
+                                          prism2node[cc],
+                                          orientCode[cc],
+                                          face2node,
+                                          face2edge,
+                                          edge2node,
+                                          pos,
+                                          bnode_list,
+                                          edge_list,
+                                          qface_list,
+                                          gface_list,
+                                          node_l2f);
+        
+        //resplit temp cell according to current plan 
+        tmpCell->resplit( tmpPlan, 
+                          node_list,
+                          edge_list,
+                          qface_list,
+                          gface_list,
+                          cells);
+        //rebalance temp cell
+        tmpCell->rebalance_cells(*split_mode_par,node_list, edge_list, qface_list, gface_list);
+        //record balanced plan
+        newCellPlan[cc] = tmpCell->make_cellplan();
+        //clean up 
+        delete tmpCell;
+        
+      }else if(cell_split){
+        aCell->rebalance_cells(*split_mode_par,node_list, edge_list, qface_list, gface_list);
+        newCellPlan[cc] = aCell->make_cellplan();
+      }else{
+        //write new cellPlan
+        newCellPlan[cc] = aCell->make_cellplan();
+      }
+      
       if(aCell != 0){
         delete aCell;
         aCell = 0;

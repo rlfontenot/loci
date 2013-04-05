@@ -93,8 +93,8 @@ public:
     }
   }
   //if all children are tagged as 2, remove all children
-  bool derefine();
-
+  void derefine();
+  bool needDerefine();
 
 
     
@@ -356,8 +356,8 @@ public:
   }
 
   //if all children are tagged as 2, remove all children
-  bool derefine();
-
+  bool needDerefine();
+  void derefine();
   
 
   //center of the cell, defined as the mean value of the facecenter

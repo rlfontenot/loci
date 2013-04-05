@@ -1292,25 +1292,33 @@ int32 Prism::traverse(const std::vector<char>& parentPlan,  vector<pair<int32, i
   return cIndex;
 }
 
-bool Prism::derefine(){
+bool Prism::needDerefine(){
   if(this != 0 ){
     if(childCell != 0){
       bool derefine = true;
       for(int i = 0; i < numChildren(); i++){
         if( (childCell[i] ->get_tagged()) != 2)derefine = false;
       }
-      if(derefine){
-        for(int i = 0; i < numChildren(); i++){
-          if(childCell[i] != 0){
-            delete  childCell[i];
-            childCell[i] = 0;
-          }
-        }
-        delete [] childCell;
-        childCell = 0;
-        return true;
-      }
+      if(derefine) return true;
     }
   }
   return false;
 }
+
+
+void Prism::derefine(){
+  if(this != 0 ){
+    if(childCell != 0){
+      for(int i = 0; i < numChildren(); i++){
+        if(childCell[i] != 0){
+          delete  childCell[i];
+          childCell[i] = 0;
+        }
+      }
+      delete [] childCell;
+      childCell = 0;
+      mySplitCode = 0;
+    }
+  }
+}
+

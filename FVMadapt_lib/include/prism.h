@@ -94,9 +94,9 @@ public:
     }
   }
   
-   //if all children are tagged as 2, remove all children
-  bool derefine();
-  
+  //if all children are tagged as 2, remove all children
+  bool needDerefine();
+  void derefine();
   inline int32 getCellIndex() const {return cellIndex;}
   
   inline int getLevel(int d){
@@ -194,7 +194,7 @@ public:
  
   void empty_split();
   int empty_resplit(const std::vector<char>& cellPlan);
-   //after the cell is split into a tree, get the indexMap from current index to parent index
+  //after the cell is split into a tree, get the indexMap from current index to parent index
   int32 traverse(const std::vector<char>& parentPlan,  vector<pair<int32, int32> >& indexMap);
   
  

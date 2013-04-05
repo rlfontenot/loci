@@ -627,20 +627,20 @@ int DiamondCell::get_tagged(){
 }
 
 int DiamondCell::get_tagged(const vector<source_par>& sources){
-   if(this !=0){
-     std::set<Node*> node_set;
-     get_nodes(node_set);
+  if(this !=0){
+    std::set<Node*> node_set;
+    get_nodes(node_set);
      
-     std::vector<Node*> nodes(node_set.size());
-     int vi = 0;
-     for(std::set<Node*>::const_iterator ni = node_set.begin(); ni != node_set.end();
-         ni++, vi++){
-       nodes[vi] = *ni;
-     }
-     double min_len = get_min_edge_length();
-     return tag_cell(nodes, sources, min_len);
-   }
-   return 0;
+    std::vector<Node*> nodes(node_set.size());
+    int vi = 0;
+    for(std::set<Node*>::const_iterator ni = node_set.begin(); ni != node_set.end();
+        ni++, vi++){
+      nodes[vi] = *ni;
+    }
+    double min_len = get_min_edge_length();
+    return tag_cell(nodes, sources, min_len);
+  }
+  return 0;
 }
 void Cell::resplit( const std::vector<char>& cellPlan,
                     std::list<Node*>& node_list,
@@ -1363,48 +1363,59 @@ int32 Cell::traverse(const std::vector<char>& parentPlan,  vector<pair<int32, in
   return cIndex;  
 }
 
-bool Cell::derefine(){
+bool Cell::needDerefine(){
   if(this != 0 ){  
     if(child!= 0){
       bool derefine = true;
       for(int i = 0; i < numNode; i++){
         if(child[i] != 0 && (child[i]->get_tagged())!=2) derefine = false;
       }
-      if(derefine){
-        for(int i = 0; i < numNode; i++){
-          if(child[i] != 0){
-            delete child[i];
-            child[i] = 0;
-          }
-        }
-        delete [] child;
-        child = 0;
-        return true;
-      }
+      if(derefine) return true;
     }
   }
   return false;
 }
+void Cell::derefine(){
+  if(this != 0 ){  
+    if(child!= 0){
+      for(int i = 0; i < numNode; i++){
+        if(child[i] != 0){
+          delete child[i];
+          child[i] = 0;
+        }
+      }
+      delete [] child;
+      child = 0;
+      
+    }
+  }
+}
 
-bool DiamondCell::derefine(){
+bool DiamondCell::needDerefine(){
   if(this != 0 ){
     if(childCell != 0){
       bool derefine = true;
       for(int i = 0; i < 2*nfold +2; i++){
         if( (childCell[i] ->get_tagged()) != 2)derefine = false;
       }
-      if(derefine){
-        for(int i = 0; i < 2*nfold +2; i++){
-          if(childCell[i] != 0){
-            delete  childCell[i];
-            childCell[i] = 0;
-          }
-        }
-        delete [] childCell;
-        childCell = 0;
-        return true;
-      }
+      if(derefine) return true;
     }
   }
   return false;
 }
+void DiamondCell::derefine(){
+  if(this != 0 ){
+    if(childCell != 0){                   
+      for(int i = 0; i < 2*nfold +2; i++){
+        if(childCell[i] != 0){
+          delete  childCell[i];
+          childCell[i] = 0;
+        }
+      }
+      delete [] childCell;
+      childCell = 0;
+      
+    }
+  }
+}
+ 

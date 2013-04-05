@@ -78,7 +78,8 @@ public:
     }
   }
   //if all children are tagged as 2, remove all children
-  bool derefine();
+  void derefine();
+  bool needDerefine();
   
   inline int32 getCellIndex() const {return cellIndex;}
   inline char getMySplitCode() const{return mySplitCode;}

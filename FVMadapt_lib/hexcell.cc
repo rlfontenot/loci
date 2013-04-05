@@ -1102,8 +1102,8 @@ int HexCell::get_tagged(){
     if(detagged) return 2;
     for(std::vector<Node*>::const_iterator np = nodes.begin(); np != nodes.end(); np++){
       if((*np)->tag == 1)return 1;
-      
     }
+    
   }
   
   //otherwise, the cell remains unchanged
@@ -1652,25 +1652,31 @@ int32 HexCell::traverse(const std::vector<char>& parentPlan,  vector<pair<int32,
   return cIndex;
 }
 
-bool HexCell::derefine(){
+bool HexCell::needDerefine(){
   if(this != 0 ){
     if(childCell != 0){
       bool derefine = true;
       for(int i = 0; i < numChildren(); i++){
         if( (childCell[i] ->get_tagged()) != 2)derefine = false;
       }
-      if(derefine){
-        for(int i = 0; i < numChildren(); i++){
-          if(childCell[i] != 0){
-            delete  childCell[i];
-            childCell[i] = 0;
-          }
-        }
-        delete [] childCell;
-        childCell = 0;
-        return true;
-      }
+      if(derefine)return true;
     }
   }
   return false;
+}
+      
+void HexCell::derefine(){
+  if(this != 0 ){
+    if(childCell != 0){
+      for(int i = 0; i < numChildren(); i++){
+        if(childCell[i] != 0){
+          delete  childCell[i];
+          childCell[i] = 0;
+        }
+      }
+      delete [] childCell;
+      childCell = 0;
+      mySplitCode = 0;
+    }
+  }
 }

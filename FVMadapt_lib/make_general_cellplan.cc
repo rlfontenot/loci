@@ -162,9 +162,39 @@ public:
     
       // split the cell Globals::levels times
       int numCells = cells.size();
+      bool cell_split = false;
+      bool cell_merged = false;
       
       if(numCells != 0){//aCell is not a leaf
-        bool cell_split = false;
+       
+        //first if any cell need derefine
+        std::set<DiamondCell*> dparents;
+        bool check_root = false;
+        //mark the cell that will be eliminated
+        for(int i = 0; i < numCells; i++){
+          if(cells[i]->get_tagged() ==2){
+            DiamondCell* parent = cells[i]->getParentCell();
+            if(parent==0)check_root = true;
+            if(parent!=0 && parent->needDerefine()){
+              dparents.insert(parent);
+              cells[i] =0;
+            }
+          }
+        }
+        //derefine the cells
+        for(std::set<DiamondCell*>::const_iterator si = dparents.begin(); si!= dparents.end(); si++){
+          (*si)->derefine();
+          cell_merged = true;
+        }
+        if(check_root){
+          if(aCell->needDerefine()){
+            aCell->derefine();
+            cell_merged = true;
+          }
+        }
+      
+
+
         for(int i = 0; i < numCells; i++){
 
           if(cells[i] ==0)continue;
@@ -181,17 +211,10 @@ public:
                 cell_split = true;
               }
             }
-          }else if((cells[i]->get_tagged()) == 2){
-            DiamondCell* parent = cells[i]->getParentCell();
-            if(parent != 0){
-              if(parent->derefine()) cell_split = true;
-            }else{
-              if(aCell->derefine())cell_split = true;
-            }
           }
                    
         }
-        if(cell_split)aCell->rebalance_cells(node_list, edge_list, face_list);
+      
       }else{//aCell is a leaf
         if(aCell->get_tagged()==1){
           int split_level = Globals::levels;
@@ -204,8 +227,46 @@ public:
           }
         }
       }
-      //write new cellPlan
-      newCellPlan[cc] = aCell->make_cellplan();
+
+      //rebalance this cell
+      if(cell_merged){
+        //record current plan
+        vector<char> tmpPlan = aCell->make_cellplan();
+        //build a temp cell
+        Cell* tmpCell = build_general_cell(lower[cc].begin(), lower.num_elems(cc),
+                                           upper[cc].begin(), upper.num_elems(cc),
+                                           boundary_map[cc].begin(), boundary_map.num_elems(cc),
+                                           face2node,
+                                           face2edge,
+                                           edge2node,
+                                           pos,
+                                           bnode_list,
+                                           edge_list,
+                                           face_list,
+                                           node_l2f);
+        
+        //resplit temp cell according to current plan 
+        tmpCell->resplit( tmpPlan, 
+                          node_list,
+                          edge_list,
+                          face_list,
+                          cells);
+        //rebalance temp cell
+        tmpCell->rebalance_cells(node_list, edge_list, face_list);
+        //record balanced plan
+        newCellPlan[cc] = tmpCell->make_cellplan();
+        //clean up 
+        delete tmpCell;
+        
+      }else if(cell_split){
+        aCell->rebalance_cells(node_list, edge_list, face_list);
+        newCellPlan[cc] = aCell->make_cellplan();
+      }else{
+        //write new cellPlan
+        newCellPlan[cc] = aCell->make_cellplan();
+      }
+      
+     
       //clean up
       if(aCell != 0){
         delete aCell;
