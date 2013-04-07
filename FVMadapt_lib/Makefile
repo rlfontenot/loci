@@ -18,6 +18,7 @@
 # along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 #
 ##############################################################################
+LOCI_BASE?=..
 include $(LOCI_BASE)/Loci.conf
 
 MODULE_NAME  = fvmadapt
@@ -90,10 +91,6 @@ MODULE_OBJS =	read_par.o \
 
 LIB_OBJS  = 	classify_cell.o globals.o 
 
-LIBXML2_LIBS ?= -lxml2
-LIBXML2_DEFINE ?= -DUSE_LIBXML2
-LIBXML2_INCLUDE ?= -I/usr/include/libxml2
-
 LOCAL_LIBS      = $(LIBXML2_LIBS)
 
 JUNK =		*~ \
@@ -105,12 +102,9 @@ JUNK =		*~ \
 LIB_OBJS1=$(MODULE_OBJS:.o=_lo.o)
 LIB_OBJS2=$(LIB_OBJS:.o=_lo.o)
 
-INCLUDES=	-I./include $(LIBXML2_INCLUDE) $(LIBXML2_DEFINE)
+INCLUDES=	-I$(LOCI_BASE)/include/FVMAdapt $(LIBXML2_INCLUDE) $(LIBXML2_DEFINE)
 
-all: $(MODULE_NAME)_m.so lib$(MODULE_NAME).so $(LIB_NAME)_m.so lib$(LIB_NAME).so 
-
-lib$(MODULE_NAME).so: $(LIB_OBJS1)
-	$(SHARED_LD) $(SHARED_LD_FLAGS) lib$(MODULE_NAME).so $(LIB_FLAGS) $(LIB_OBJS1)
+all: $(MODULE_NAME)_m.so lib$(LIB_NAME).so 
 
 $(MODULE_NAME)_m.so: $(LIB_OBJS1)
 	$(SHARED_LD) $(SHARED_LD_FLAGS) $(MODULE_NAME)_m.so $(LIB_FLAGS) $(LIB_OBJS1)
@@ -118,8 +112,6 @@ $(MODULE_NAME)_m.so: $(LIB_OBJS1)
 lib$(LIB_NAME).so: $(LIB_OBJS2)
 	$(SHARED_LD) $(SHARED_LD_FLAGS) lib$(LIB_NAME).so $(LIB_FLAGS) $(LIB_OBJS2)
 
-$(LIB_NAME)_m.so: $(LIB_OBJS2)
-	$(SHARED_LD) $(SHARED_LD_FLAGS) $(LIB_NAME)_m.so $(LIB_FLAGS) $(LIB_OBJS2)
 
 FRC :
 
