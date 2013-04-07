@@ -28,7 +28,7 @@ include Loci.conf
 
 DEFINES = $(DEBUG) $(SYSTEM_DEFINES) $(MACHINE_SPECIFIC) 
 
-default: library lpp FVMtools FVMMod FVMadapt
+default: library lpp FVMtools FVMMod FVMadapt FVMadapt_lib
 
 library: shared
 
@@ -72,6 +72,9 @@ FVMMod: library lpp
 
 FVMadapt: library
 	cd FVMadapt; $(MAKE) LOCI_BASE="$(LOCI_BASE)" default
+
+FVMadapt_lib: library
+	cd FVMadapt_lib; $(MAKE) LOCI_BASE="$(LOCI_BASE)" all
 
 JUNK =
 
