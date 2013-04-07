@@ -361,18 +361,20 @@ if [ ! -d $H5PATH ]; then
 fi
 
 H5SUPPORTLIBS=-lz
-
+H5SUPPORTLIBSPATHS=
+ 
 if [ -e $H5PATH/lib/libhdf5.settings ]; then
     H5SUPPORTLIBS=`grep "Extra libraries" $H5PATH/lib/libhdf5.settings | sed "s/.*://"`
+    H5SUPPORTLIBSPATHS=`grep "AM_LDFLAGS" $H5PATH/lib/libhdf5.settings | sed "s/.*://"`
 fi
-
+ 
 echo \# HDF5 File I/O Libraries Setup >> sys.conf
 echo HDF5_BASE = $H5PATH >> sys.conf
 echo Using HDF5 libraries in directory \"$H5PATH\".
 if [ -e $H5PATH/lib64/libhdf5.so ]; then
 echo HDF5_LIBS = -L\$\(HDF5_BASE\)/lib64 \$\(RPATH\)\$\(HDF5_BASE\)/lib64 -L\$\(HDF5_BASE\)/lib \$\(RPATH\)\$\(HDF5_BASE\)/lib -lhdf5 -lz >> sys.conf
 else
-echo HDF5_LIBS = -L\$\(HDF5_BASE\)/lib -lhdf5 \$\(RPATH\)\$\(HDF5_BASE\)/lib $H5SUPPORTLIBS >> sys.conf
+echo HDF5_LIBS = -L\$\(HDF5_BASE\)/lib -lhdf5 \$\(RPATH\)\$\(HDF5_BASE\)/lib $H5SUPPORTLIBSPATHS $H5SUPPORTLIBS >> sys.conf
 fi
 echo HDF5_INCLUDE = -I\$\(HDF5_BASE\)/include -DH5_USE_16_API >> sys.conf
 echo >> sys.conf
