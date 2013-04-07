@@ -25,21 +25,10 @@ MODULE_NAME  = fvmadapt
 
 LIB_NAME = fvmadaptfunc
 
-MODULE_OBJS =	read_par.o \
-		transfer_fc.o \
+MODULE_OBJS =	\
 		quadface.o  \
-		face.o \
-		build_prismcell.o \
-		build_hexcell.o \
-		build_general_cell.o \
 		create_prism_maps.o \
 		create_hexcell_maps.o \
-		extract_hex_edge.o \
-		extract_hex_face.o \
-		extract_prism_face.o \
-		diamondcell.o \
-		prism.o \
-		hexcell.o \
 		merge_general_face.o \
 		merge_general_edge.o \
 		merge_hex_face.o \
@@ -74,11 +63,7 @@ MODULE_OBJS =	read_par.o \
 		check_folded_face.o \
 		get_node_remap.o \
 		read_tag.o \
-		transfer_plan.o \
 		parse_tree.o \
-		get_c1_general.o \
-		get_c1_hex.o \
-		get_c1_prism.o \
 		get_fine_grid.o \
 		get_fine_face.o \
 		get_hex_fine_grid.o \
@@ -87,9 +72,25 @@ MODULE_OBJS =	read_par.o \
 		get_prism_fine_face.o \
 		get_mixed_face_fine_grid.o \
 		write_vog.o  \
-		color_matrix.o
 
-LIB_OBJS  = 	classify_cell.o globals.o 
+LIB_OBJS  = 	build_general_cell.o \
+		build_hexcell.o \
+		build_prismcell.o \
+		color_matrix.o \
+		diamondcell.o \
+		extract_hex_edge.o \
+		extract_hex_face.o \
+		extract_prism_face.o \
+		face.o \
+		hexcell.o \
+		prism.o \
+		get_c1_general.o \
+		get_c1_hex.o \
+		get_c1_prism.o \
+		read_par.o \
+		transfer_fc.o \
+		transfer_plan.o \
+		classify_cell.o globals.o 
 
 LOCAL_LIBS      = $(LIBXML2_LIBS)
 
