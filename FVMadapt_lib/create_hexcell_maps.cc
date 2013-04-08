@@ -11,30 +11,10 @@ using std::endl;
 using Loci::storeRepP;
 using std::vector;
 
-void reorder_faces(const const_store<int>& node_remap, std::vector<Entity>& lower){
-  
-  //reverse the map 
-  std::vector<pair<int, Entity> > node_f2l(lower.size());
-  for(unsigned int  index  = 0; index < lower.size(); index++){
-    node_f2l[index] = pair<int, Entity>(node_remap[lower[index]],lower[index]);
-  }
-  std::sort(node_f2l.begin(), node_f2l.end());
-  
-  for( unsigned int i= 0; i < lower.size(); i++){
-    lower[i] = node_f2l[i].second;
-  }
-  
-}
-
-
+void reorder_faces(const const_store<int>& node_remap, std::vector<Entity>& lower) ;
 void reorder_faces(const const_store<int>& node_remap, std::vector<Entity>& lower,
                    std::vector<Entity>& upper,
-                   std::vector<Entity>& boundary_map){
-  
-  reorder_faces(node_remap, lower);
-  reorder_faces(node_remap, upper);
-  reorder_faces(node_remap, boundary_map);
-}
+                   std::vector<Entity>& boundary_map);
 
 
 

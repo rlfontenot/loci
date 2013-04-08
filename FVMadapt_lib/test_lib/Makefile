@@ -24,11 +24,8 @@ OBJS = refine.o
 MARKEROBJS = marker.o 
 REFMESHOBJS = refmesh.o
 
-LIBXML2_LIBS ?= -lxml2
-LIBXML2_DEFINE ?= -DUSE_LIBXML2
-LIBXML2_INCLUDE ?= -I/usr/include/libxml2
 LOCAL_LIBS      = $(LIBXML2_LIBS) -L$(LOCI_BASE)/lib -lfvmadaptfunc
-FVMADAPT_INCLUDE ?= -I$(LOCI_BASE)/FVMadapt_lib/include
+FVMADAPT_INCLUDE = -I../FVMadapt_lib/include
 #LDFLAGS = -Wl -rpath /home/qxue/FVMadapt/
 
 JUNK =		*~ \

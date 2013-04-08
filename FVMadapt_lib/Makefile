@@ -26,7 +26,7 @@ MODULE_NAME  = fvmadapt
 LIB_NAME = fvmadaptfunc
 
 MODULE_OBJS =	\
-		quadface.o  \
+		quadface_rule.o  \
 		create_prism_maps.o \
 		create_hexcell_maps.o \
 		merge_general_face.o \
@@ -52,7 +52,6 @@ MODULE_OBJS =	\
 		reset_general_nums.o \
 		reset_prism_nums.o \
 		reset_offset.o \
-		node_edge.o \
 		make_general_cellplan.o \
 		make_hex_cellplan.o \
 		make_prism_cellplan.o \
@@ -81,6 +80,8 @@ LIB_OBJS  = 	build_general_cell.o \
 		extract_hex_edge.o \
 		extract_hex_face.o \
 		extract_prism_face.o \
+		node_edge.o \
+		quadface.o \
 		face.o \
 		hexcell.o \
 		prism.o \
