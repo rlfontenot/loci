@@ -61,10 +61,10 @@ public:
   //constructor; 
 
   //this constructor is used when faces and nodes are not actually built
-  Prism():nfold(3),mySplitCode(0),gnrlface(0),quadface(0), parentCell(0),
+  Prism():cellIndex(0), nfold(3),mySplitCode(0),gnrlface(0),quadface(0), parentCell(0),
           childCell(0){faceOrient.reset();}
   
-  Prism(int n):nfold(n),mySplitCode(0),gnrlface(new Face*[2]), quadface(new QuadFace*[n]), parentCell(0), childCell(0){
+  Prism(int n):cellIndex(0), nfold(n),mySplitCode(0),gnrlface(new Face*[2]), quadface(new QuadFace*[n]), parentCell(0), childCell(0){
     faceOrient.reset();
   }
   

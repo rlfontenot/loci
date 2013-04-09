@@ -1219,30 +1219,32 @@ void Cell::empty_split(){
   child = new DiamondCell*[numNode];
   for(int  nindex = 0; nindex < numNode; nindex++){
     //find all the faces that connected to the node, put them into n2f
-    std::vector<Face*> n2f;
-    std::vector<Edge*> n2e;
-    std::vector<int> rot;
-    set_n2f_n2e(n2f, n2e,rot, nindex);
-    //define the child cell
-    child[nindex] = new DiamondCell(n2e.size());
+      std::vector<Face*> n2f;
+      std::vector<Edge*> n2e;
+      std::vector<int> rot;
+      set_n2f_n2e(n2f, n2e,rot, nindex);
+      //define the child cell
+      child[nindex] = new DiamondCell(n2e.size());
   }
+ 
 }
 int32 Cell::empty_resplit(const std::vector<char>& cellPlan){
   
                      
   if(cellPlan.size() == 0){
+    
     return 1;
   }
   std::queue<DiamondCell*> Q;
   //assume if cellPlan not empty, it always begin with 1
-  empty_split();
+  if(child==0)empty_split();
   
   for(int i = 0; i < numNode; i++){ 
     Q.push(child[i]);
   }
   
   //process the DiamondCells in the Q until Q is empty
-  int cIndex = 0;  
+  int cIndex = 0; //the local index starts with 1 
   DiamondCell* current;
   unsigned int index =1;
   char currentCode;
@@ -1267,7 +1269,7 @@ int32 Cell::empty_resplit(const std::vector<char>& cellPlan){
          
       case 1:
           
-        current->empty_split();
+        if((current->childCell)==0)current->empty_split();
          
         for(int i = 0; i < 2*(current->nfold) +2; i++){
           Q.push(current->childCell[i]);
@@ -1335,17 +1337,28 @@ int32 Cell::traverse(const std::vector<char>& parentPlan,  vector<pair<int32, in
     switch(currentCode)
       {
         
-        //0 no split,this is a leaf, output cells
+        //0 no split,this is a leaf for parentPlan
       case 0:
         ++cIndex;
         current->sort_leaves(leaves);
-        for(std::list<DiamondCell*>::const_iterator p = leaves.begin(); p != leaves.end(); p++){
-          indexMap.push_back(make_pair((*p)->cellIndex, cIndex));
-          
+        if(leaves.front() != current){//current is not a leaf for cellPlan
+          for(std::list<DiamondCell*>::const_iterator p = leaves.begin(); p != leaves.end(); p++){
+            indexMap.push_back(make_pair((*p)->cellIndex, cIndex));
+          }
+        }else{
+          //current is a leaf for cellPlan and for parentPlan
+          if(current->cellIndex != 0) indexMap.push_back(make_pair(current->cellIndex, cIndex));  
         }
         break;
          
       case 1:
+        if(current->cellIndex !=0){//derefinement happen, current is a leaf for cellPlan
+          current->sort_leaves(leaves);
+          for(std::list<DiamondCell*>::const_iterator p = leaves.begin(); p != leaves.end(); p++){
+            indexMap.push_back(make_pair(current->cellIndex, (*p)->cellIndex));
+            (*p)->cellIndex = 0; //so that *p will not appear in indexMap when it is popped out of Q
+          }
+        }
         for(int i = 0; i < 2*(current->nfold) +2; i++){
           Q.push(current->childCell[i]);
         }

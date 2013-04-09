@@ -211,8 +211,8 @@ public:
   
   }
   void calculate(Entity cc){
-       
-    if(cellPlan[cc].size() == 0){
+     //both former cycle and current cycle didn't split this cell    
+    if(cellPlan[cc].size() == 0 && parentPlan[cc].size() == 0 ){
       num_fine_cells[cc] = 1;
       parent_num_fine_cells[cc]  = 1;
       indexMap[cc].push_back(make_pair(1,1));
@@ -220,8 +220,9 @@ public:
       return;
     }
     Prism* aCell = new Prism;
+    parent_num_fine_cells[cc]  = aCell->empty_resplit(parentPlan[cc]);
     num_fine_cells[cc] = aCell->empty_resplit(cellPlan[cc]);
-    parent_num_fine_cells[cc] = aCell->traverse(parentPlan[cc],indexMap[cc]);
+    aCell->traverse(parentPlan[cc],indexMap[cc]);
     reduce_vector(indexMap[cc]);
     //clean up
     if(aCell != 0){

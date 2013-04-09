@@ -133,6 +133,10 @@ void HexCell::resplit(int level,
 }
 
 //this function will return num_fine_cells
+//this function will not set mysplitcode unless the splitCode got from cellPlan
+//is nonzero, and the the current cell from Q is never split
+//
+// this function will not set cellIndex unless the splitCode got from cellPlan is zero
 int HexCell::empty_resplit( const std::vector<char>& cellPlan){
   if(cellPlan.size() == 0){
     this->cellIndex = 1;
@@ -144,25 +148,27 @@ int HexCell::empty_resplit( const std::vector<char>& cellPlan){
   HexCell* current;
   unsigned int index =0;
   int32 cIndex = 0;
- 
+  char currentCode=0;
   while(!Q.empty()){
     current = Q.front();
     
     if(index >= cellPlan.size()){
-      current-> mySplitCode = 0;
+      currentCode = 0;
     }
     else{ 
       //take a code from splitcode
-      current->mySplitCode = cellPlan[index];
+      currentCode = cellPlan[index];
       index++;  
     }
 
-    if(current->mySplitCode ==0){
+    if(currentCode ==0){
       current->cellIndex = ++cIndex;
     }
     else{
-      current->empty_split();
-      
+      if((current->childCell)==0){
+        current->mySplitCode = currentCode;
+        current->empty_split();
+      }
       for(int i = 0; i <current->numChildren(); i++){
         Q.push(current->childCell[i]);
       }
@@ -1634,14 +1640,27 @@ int32 HexCell::traverse(const std::vector<char>& parentPlan,  vector<pair<int32,
     }
     list<HexCell*> leaves;
     switch(currentCode){
-      //0 no split,this is a leaf, output cells
+      //0 no split,this is a leaf, this is a leaf for parentPlan
     case 0:
       ++cIndex;
       current->sort_leaves(leaves);
-      for(std::list<HexCell*>::const_iterator p = leaves.begin(); p != leaves.end(); p++)
-        indexMap.push_back(make_pair((*p)->cellIndex, cIndex));
-      break;
-    default:   
+       if(leaves.front() != current){//current is not a leaf for cellPlan
+         for(std::list<HexCell*>::const_iterator p = leaves.begin(); p != leaves.end(); p++){
+           indexMap.push_back(make_pair((*p)->cellIndex, cIndex));
+         }
+       }else{
+         //current is a leaf for cellPlan and for parentPlan
+         if(current->cellIndex != 0) indexMap.push_back(make_pair(current->cellIndex, cIndex));  
+       }
+       break;
+    default:
+      if(current->cellIndex !=0){//derefinement happen,current is a leaf for cellPlan
+        current->sort_leaves(leaves);
+        for(std::list<HexCell*>::const_iterator p = leaves.begin(); p != leaves.end(); p++){
+          indexMap.push_back(make_pair(current->cellIndex, (*p)->cellIndex));
+          (*p)->cellIndex = 0; //so that *p will not appear in indexMap when it is popped out of Q
+        }
+      }
       for(int i = 0; i <current->numChildren(); i++){
         Q.push(current->childCell[i]);
       }

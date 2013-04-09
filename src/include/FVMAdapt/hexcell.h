@@ -53,9 +53,9 @@ class HexCell
 public:
   
   //constructor; 
-  HexCell():mySplitCode(0), face(0), parentCell(0),
+  HexCell():cellIndex(0), mySplitCode(0), face(0), parentCell(0),
             childCell(0){}
-  HexCell(QuadFace** f):mySplitCode(0), face(f), parentCell(0),
+  HexCell(QuadFace** f):cellIndex(0), mySplitCode(0), face(f), parentCell(0),
                         childCell(0){}  
   //destructor
   ~HexCell(){
