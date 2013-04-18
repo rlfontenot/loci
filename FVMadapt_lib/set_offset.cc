@@ -29,6 +29,8 @@
 #include <stdio.h>
 #include "mpi.h"
 #include "defines.h"
+#include "dataxferDB.h"
+
 #include <iostream>
 #include <fstream>
 using Loci::storeRepP;
@@ -618,6 +620,43 @@ public:
 
 };
 register_rule<write_cell2parent> register_write_cell2parent;
+  
+
+class save_cell2parent : public pointwise_rule{
+  const_store<std::vector<pair<int32, int32> > > cell2parent;
+  store<bool> c2p_output;
+public:
+  save_cell2parent(){
+    name_store("cell2parent", cell2parent);
+    name_store("cell2parent_DB", c2p_output);
+    input("cell2parent");
+    output("cell2parent_DB");
+    constraint("geom_cells");
+    disable_threading();
+  }
+  virtual void compute(const sequence &seq){
+    entitySet dom = entitySet(seq);
+    int cnt = 0 ;
+    FORALL(dom, cc){
+      cnt += cell2parent[cc].size() ;
+    }ENDFORALL;
+    store<pair<int,int> > c2pset ;
+    entitySet domset = interval(0,cnt-1) ;
+    c2pset.allocate(domset) ;
+    
+    cnt = 0 ;
+    FORALL(dom, cc){
+      for(unsigned int i = 0; i < cell2parent[cc].size(); i++){
+	c2pset[cnt] = cell2parent[cc][i] ;
+	cnt++ ;
+      }
+    } ENDFORALL ;
+    
+    Loci::DataXFER_DB.insertItem("c2p",c2pset.Rep()) ;
+  } 
+
+};
+register_rule<save_cell2parent> register_save_cell2parent;
   
 
 
