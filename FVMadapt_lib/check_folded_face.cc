@@ -68,7 +68,7 @@ public:
       else{
         double dot_value = dot(edge[i]/norms[i], edge[i+1]/norms[i+1]);
         // if(abs(dot_value) <1.0e-8 ) dot_value = abs(dot_value);//prevent error cause folded face
-        maxAngle = max(acos(dot_value), maxAngle);
+        maxAngle = max(acos(min(dot_value,1.0)), maxAngle);
       }
     }
     isFolded[f] = (maxAngle > Globals::fold);
@@ -99,7 +99,7 @@ public:
       else{
         double dot_value = dot(edge[i]/norms[i], edge[i+1]/norms[i+1]);
         // if(abs(dot_value) <1.0e-8 ) dot_value = abs(dot_value);//prevent error cause folded face
-        maxAngle = max(acos(dot_value), maxAngle);
+        maxAngle = max(acos(min(dot_value,1.0)), maxAngle);
       }
     }
     isFolded[f] = (maxAngle > Globals::fold);
