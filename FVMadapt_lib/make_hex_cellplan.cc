@@ -167,9 +167,9 @@ public:
       bool cell_merged = false;
       
       if(numCells != 0){//aCell is not a leaf
-       
         //first if any cell need derefine
         std::set<HexCell*> dparents;
+
         //mark the cell that will be eliminated
         for(int i = 0; i < numCells; i++){
           if(cells[i]->get_tagged() ==2){
@@ -180,13 +180,7 @@ public:
             }
           }
         }
-        //derefine the cells
-        for(std::set<HexCell*>::const_iterator si = dparents.begin(); si!= dparents.end(); si++){
-          (*si)->derefine();
-          cell_merged = true;
-        }
-      
-        
+                
         //refine the other cells
         for(int i = 0; i < numCells; i++){
           if(cells[i] ==0) continue;//derefined cell
@@ -196,19 +190,20 @@ public:
               if(*split_mode_par == 2){
                 double min_edge_length =cells[i]->get_min_edge_length();
                 int split_level = Globals::levels;
-                if(Globals::tolerance > 0.0) split_level = int(log(min_edge_length/Globals::tolerance)/log(2.0));  
-                cells[i]->resplit(min(Globals::levels,split_level),node_list, edge_list, face_list);
+                if(Globals::tolerance > 0.0) split_level = int(log(min_edge_length/Globals::tolerance)/log(2.0));                  cells[i]->resplit(min(Globals::levels,split_level),node_list, edge_list, face_list);
                 cell_split = true;
               }else{
-                
                 cell_split = true;
                 cells[i]->split(node_list, edge_list, face_list);
               }
             }
           }
         }
-        
-      
+        //derefine the cells
+        for(std::set<HexCell*>::const_iterator si = dparents.begin(); si!= dparents.end(); si++){
+          (*si)->derefine();
+          cell_merged = true;
+        }
       }else{//aCell is a leaf
         aCell->setSplitCode(*split_mode_par, Globals::tolerance);
         if(aCell->getMySplitCode() != 0 ){
@@ -244,7 +239,6 @@ public:
                                           edge_list,
                                           face_list,
                                           node_l2f);
-        
         //resplit temp cell according to current plan 
         tmpCell->resplit( tmpPlan, 
                           node_list,

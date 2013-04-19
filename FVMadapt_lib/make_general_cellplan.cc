@@ -181,17 +181,7 @@ public:
             }
           }
         }
-        //derefine the cells
-        for(std::set<DiamondCell*>::const_iterator si = dparents.begin(); si!= dparents.end(); si++){
-          (*si)->derefine();
-          cell_merged = true;
-        }
-        if(check_root){
-          if(aCell->needDerefine()){
-            aCell->derefine();
-            cell_merged = true;
-          }
-        }
+       
       
 
 
@@ -214,7 +204,17 @@ public:
           }
                    
         }
-      
+        //derefine the cells
+        for(std::set<DiamondCell*>::const_iterator si = dparents.begin(); si!= dparents.end(); si++){
+          (*si)->derefine();
+          cell_merged = true;
+        }
+        if(check_root){
+          if(aCell->needDerefine()){
+            aCell->derefine();
+            cell_merged = true;
+          }
+        }
       }else{//aCell is a leaf
         if(aCell->get_tagged()==1){
           int split_level = Globals::levels;
