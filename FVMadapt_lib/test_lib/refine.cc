@@ -26,7 +26,7 @@
 #include <Loci.h>
 #include <stdlib.h>
 #include <limits>
-#include "globals.h"
+#include "./FVMAdapt/globals.h"
 #include <Loci>
 
 using std::cout ;

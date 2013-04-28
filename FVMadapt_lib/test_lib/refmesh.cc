@@ -22,7 +22,7 @@
 #include <iostream>
 #include <string>
 #include <Loci.h>
-#include "defines.h"
+#include "./FVMAdapt/defines.h"
 using std::string;
 using std::cout;
 using std::endl;
