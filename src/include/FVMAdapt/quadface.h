@@ -264,6 +264,7 @@ public:
              std::list<Node*>& node_list,
              std::list<Edge*>& edge_list);
 
+  //only used in transfer_plan_q2g
   void empty_split(char splitCode);
 
            
@@ -272,6 +273,7 @@ public:
   void resplit(const std::vector<char>& facePlan, char orientCode,
                std::list<Node*>& node_list,
                std::list<Edge*>& edge_list);
+ 
 
   //used in building cells, quadface is built as defined in cell, and split with orientCode
   //all new nodes and edges are put into node_list and edge_list 
@@ -279,9 +281,10 @@ public:
                std::list<Node*>& node_list,
                std::list<Edge*>& edge_list,
                std::vector<QuadFace*>& fine_faces);
-
+  
+  //only used in transfer_plan_q2g
   void empty_resplit(const std::vector<char>& facePlan, char orientCode,
-                     std::vector<QuadFace*>& fine_faces);
+                    std::vector<QuadFace*>& fine_faces);
   
 public:
   

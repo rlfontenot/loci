@@ -25,8 +25,7 @@ MODULE_NAME  = fvmadapt
 
 LIB_NAME = fvmadaptfunc
 
-MODULE_OBJS =	\
-		quadface_rule.o  \
+MODULE_OBJS =	quadface_rule.o  \
 		create_prism_maps.o \
 		create_hexcell_maps.o \
 		merge_general_face.o \
@@ -40,10 +39,15 @@ MODULE_OBJS =	\
 		update_prism_face.o \
 		update_mixed_face.o \
 		balance_general_face.o \
+		balance_general_face_derefine.o \
 		balance_general_edge.o \
+		balance_general_edge_derefine.o \
 		balance_quad_face.o \
+		balance_quad_face_derefine.o \
 		balance_prism_face.o \
+		balance_prism_face_derefine.o \
 		balance_mixed_face.o \
+		balance_mixed_face_derefine.o \
 		set_hex_nums.o \
 		set_general_nums.o \
 		set_prism_nums.o \

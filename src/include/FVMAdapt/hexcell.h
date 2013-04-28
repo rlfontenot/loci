@@ -402,6 +402,29 @@ HexCell* build_hex_cell(const Entity* lower, int lower_size,
                         std::list<QuadFace*>& face_list,
                         const const_store<int>& node_remap);
 
+//build a cell with edgePlan and facePlan, tag the nodes
+//then resplit the edges and faces with edgePlan1 and facePlan1
+HexCell* build_resplit_hex_cell(const Entity* lower, int lower_size,
+                                const Entity* upper, int upper_size,
+                                const Entity* boundary_map, int boundary_map_size,
+                                const Array<char,6>& hex2face,
+                                const Array<char,8>& hex2node,
+                                const Array<char,6>& orientCode,
+                                const const_multiMap& face2node,
+                                const const_multiMap& face2edge,
+                                const const_MapVec<2>& edge2node,
+                                const const_store<vect3d>& pos,
+                                const const_store<std::vector<char> >& edgePlan,
+                                const const_store<std::vector<char> >& facePlan,
+                                const const_store<std::vector<char> >& edgePlan1,
+                                const const_store<std::vector<char> >& facePlan1,     
+                                const const_store<char>& posTag,
+                                const const_store<std::vector<char> >& nodeTag,
+                                std::list<Node*>& bnode_list,
+                                std::list<Edge*>& edge_list,
+                                std::list<QuadFace*>& face_list,
+                                const const_store<int>& node_remap);
+
 
 //parallel version
 HexCell* build_hex_cell(const Entity* lower, int lower_size,

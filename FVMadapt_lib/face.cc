@@ -97,6 +97,7 @@ int general_childID_orient_f2c(int childID_f, char orientCode, int numEdge){
   
 
 void Face::split(std::list<Node*>& node_list, std::list<Edge*>& edge_list){
+  if(child != 0)return;
   //split edges
   for(int i = 0; i < numEdge; i++){
     if(edge[i]->child == 0) edge[i]->split(node_list);

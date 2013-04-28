@@ -521,6 +521,27 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
                          const const_store<int>& node_remap);
 
 
+//build a cell with edgePlan and facePlan, tag the nodes
+//then resplit the edges and faces with edgePlan1 and facePlan1
+Cell* build_resplit_general_cell(const Entity* lower, int lower_size,
+                                 const Entity* upper, int upper_size,
+                                 const Entity* boundary_map, int boundary_map_size,
+                                 const const_store<bool>& is_quadface,
+                                 const const_multiMap& face2node,
+                                 const const_multiMap& face2edge,
+                                 const const_MapVec<2>& edge2node,
+                                 const const_store<vect3d>& pos,
+                                 const const_store<std::vector<char> >& edgePlan,
+                                 const const_store<std::vector<char> >& facePlan,
+                                 const const_store<std::vector<char> >& edgePlan1,
+                                 const const_store<std::vector<char> >& facePlan1,    
+                                 const const_store<char>& posTag,
+                                 const const_store<std::vector<char> >& nodeTag,
+                                 std::list<Node*>& bnode_list,
+                                 std::list<Edge*>& edge_list,
+                                 std::list<Face*>& face_list,
+                                 const const_store<int>& node_remap);
+
 
 //build a Cell from Loci data structures, the locations of nodes are defined
 //and all boundary nodes are tagged

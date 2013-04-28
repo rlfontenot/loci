@@ -422,6 +422,29 @@ Prism* build_prism_cell(const Entity* lower, int lower_size,
                         std::list<QuadFace*>& qface_list,
                         std::list<Face*>& gface_list,
                         const const_store<int>& node_remap);
+//build a cell with edgePlan and facePlan, tag the nodes
+//then resplit the edges and faces with edgePlan1 and facePlan1
+Prism* build_resplit_prism_cell(const Entity* lower, int lower_size,
+                                const Entity* upper, int upper_size,
+                                const Entity* boundary_map, int boundary_map_size,
+                                const Array<char,5>& prism2face,
+                                const Array<char,6>& prism2node,
+                                const Array<char,5>& orientCode,
+                                const const_multiMap& face2node,
+                                const const_multiMap& face2edge,
+                                const const_MapVec<2>& edge2node,
+                                const const_store<vect3d>& pos,
+                                const const_store<std::vector<char> >& edgePlan,
+                                const const_store<std::vector<char> >& facePlan,
+                                const const_store<std::vector<char> >& edgePlan1,
+                                const const_store<std::vector<char> >& facePlan1,   
+                                const const_store<char>& posTag,
+                                const const_store<std::vector<char> >& nodeTag,
+                                std::list<Node*>& bnode_list,
+                                std::list<Edge*>& edge_list,
+                                std::list<QuadFace*>& qface_list,
+                                std::list<Face*>& gface_list,
+                                const const_store<int>& node_remap);
 
 // for no restart
 Prism* build_prism_cell(const Entity* lower, int lower_size,
