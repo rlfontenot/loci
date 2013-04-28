@@ -163,32 +163,8 @@ public:
       // split the cell Globals::levels times
       int numCells = cells.size();
       bool cell_split = false;
-      bool cell_merged = false;
-      
       if(numCells != 0){//aCell is not a leaf
-       
-        //first if any cell need derefine
-        std::set<DiamondCell*> dparents;
-        bool check_root = false;
-        //mark the cell that will be eliminated
         for(int i = 0; i < numCells; i++){
-          if(cells[i]->get_tagged() ==2){
-            DiamondCell* parent = cells[i]->getParentCell();
-            if(parent==0)check_root = true;
-            if(parent!=0 && parent->needDerefine()){
-              dparents.insert(parent);
-              cells[i] =0;
-            }
-          }
-        }
-       
-      
-
-
-        for(int i = 0; i < numCells; i++){
-
-          if(cells[i] ==0)continue;
-          
           if((cells[i]->get_tagged())==1) {
             if((min_edge_length/double(1<<(cells[i]->getLevel()+Globals::levels))) > Globals::tolerance){
               cells[i]->resplit(Globals::levels,node_list, edge_list, face_list);
@@ -204,17 +180,7 @@ public:
           }
                    
         }
-        //derefine the cells
-        for(std::set<DiamondCell*>::const_iterator si = dparents.begin(); si!= dparents.end(); si++){
-          (*si)->derefine();
-          cell_merged = true;
-        }
-        if(check_root){
-          if(aCell->needDerefine()){
-            aCell->derefine();
-            cell_merged = true;
-          }
-        }
+       
       }else{//aCell is a leaf
         if(aCell->get_tagged()==1){
           int split_level = Globals::levels;
@@ -229,36 +195,7 @@ public:
       }
 
       //rebalance this cell
-      if(cell_merged){
-        //record current plan
-        vector<char> tmpPlan = aCell->make_cellplan();
-        //build a temp cell
-        Cell* tmpCell = build_general_cell(lower[cc].begin(), lower.num_elems(cc),
-                                           upper[cc].begin(), upper.num_elems(cc),
-                                           boundary_map[cc].begin(), boundary_map.num_elems(cc),
-                                           face2node,
-                                           face2edge,
-                                           edge2node,
-                                           pos,
-                                           bnode_list,
-                                           edge_list,
-                                           face_list,
-                                           node_l2f);
-        
-        //resplit temp cell according to current plan 
-        tmpCell->resplit( tmpPlan, 
-                          node_list,
-                          edge_list,
-                          face_list,
-                          cells);
-        //rebalance temp cell
-        tmpCell->rebalance_cells(node_list, edge_list, face_list);
-        //record balanced plan
-        newCellPlan[cc] = tmpCell->make_cellplan();
-        //clean up 
-        delete tmpCell;
-        
-      }else if(cell_split){
+      if(cell_split){
         aCell->rebalance_cells(node_list, edge_list, face_list);
         newCellPlan[cc] = aCell->make_cellplan();
       }else{
@@ -990,3 +927,168 @@ register_rule<make_general_cellplan_par_norestart> register_make_general_cellpla
 
 
 
+class derefine_general_cellplan:public pointwise_rule{
+  const_store<vect3d> pos;
+  const_multiMap upper;
+  const_multiMap lower;
+  const_multiMap boundary_map;
+  const_store<bool> is_quadface;
+  const_MapVec<2> edge2node;
+  const_multiMap face2edge;
+  const_multiMap face2node;
+  const_store<std::vector<char> > cellPlan;
+  const_store<std::vector<char> > facePlan;
+  const_store<std::vector<char> > edgePlan;
+  const_store<std::vector<char> > cellPlan1;
+  const_store<std::vector<char> > facePlan1;
+  const_store<std::vector<char> > edgePlan1;
+  const_store<char>  posTag;
+  const_store<std::vector<char> > nodeTag;
+  const_store<bool> isIndivisible;
+  const_param<int> restart_tag_par;
+  store<std::vector<char> > newCellPlan;
+  const_param<bool> beginWithMarker; //dummy parameter to trick Loci scheduler
+  const_store<int> node_l2f;
+public:
+  derefine_general_cellplan(){
+    name_store("pos", pos);
+    name_store("lower", lower);
+    name_store("upper", upper);
+    name_store("boundary_map", boundary_map);
+    name_store("face2node", face2node);
+    name_store("face2edge", face2edge);
+    name_store("edge2node", edge2node);
+    name_store("cellPlan", cellPlan);
+    name_store("facePlan", facePlan);
+    name_store("edgePlan", edgePlan);
+    name_store("balancedCellPlan1", cellPlan1);
+    name_store("balancedFacePlan1", facePlan1);
+    name_store("balancedEdgePlan1", edgePlan1);
+    name_store("posTag", posTag);
+    name_store("nodeTag", nodeTag);
+    name_store("isIndivisible", isIndivisible);
+    name_store("priority::restart::balancedCellPlan", newCellPlan);
+    name_store("fileNumber(pos)", node_l2f);
+    name_store("is_quadface", is_quadface);
+    name_store("restart_tag_par", restart_tag_par);
+    name_store("beginWithMarker", beginWithMarker);
+    input("beginWithMarker");
+    input("restart_tag_par");
+    input("(cellPlan,balancedCellPlan1,nodeTag) ");
+    input("isIndivisible");
+    input("(lower, upper, boundary_map) -> (facePlan,balancedFacePlan1,is_quadface, nodeTag)"); 
+    input("(lower, upper, boundary_map)->face2node->(pos, posTag, fileNumber(pos))");
+    input("(lower, upper, boundary_map)->face2edge->edge2node->pos");
+    input("(lower, upper, boundary_map)->face2edge->(edgePlan,balancedEdgePlan1,nodeTag)");
+
+    output("priority::restart::balancedCellPlan");
+    constraint("gnrlcells");
+  }
+  virtual void compute(const sequence &seq){
+    if(seq.size()!=0){
+   
+      do_loop(seq, this);
+    }
+   
+  }
+  void calculate(Entity cc){
+
+    if(!isIndivisible[cc]){
+      std::list<Node*> node_list;
+      std::list<Edge*> edge_list;
+      std::list<Face*> face_list;
+      std::list<Node*> bnode_list;
+      int nindex;
+
+    
+ 
+
+                                                 
+      Cell* aCell = build_resplit_general_cell(lower[cc].begin(), lower.num_elems(cc),
+                                               upper[cc].begin(), upper.num_elems(cc),
+                                               boundary_map[cc].begin(), boundary_map.num_elems(cc),
+                                               is_quadface,
+                                               face2node,
+                                               face2edge,
+                                               edge2node,
+                                               pos,
+                                               edgePlan,
+                                               facePlan,
+                                               edgePlan1,
+                                               facePlan1,
+                                               posTag,
+                                               nodeTag,
+                                               bnode_list,
+                                               edge_list,
+                                               face_list,
+                                               node_l2f);
+      
+  
+  
+ 
+      
+      
+      std::vector<DiamondCell*> cells;
+      
+      aCell->resplit( cellPlan[cc], 
+                      node_list,
+                      edge_list,
+                      face_list,
+                      cells);
+      
+      
+      nindex = 0;
+      for(std::list<Node*>::const_iterator np = node_list.begin(); np!= node_list.end(); np++){
+        (*np)->tag = nodeTag[cc][nindex++];
+      }
+      
+      cells.clear();
+      aCell->resplit( cellPlan1[cc], 
+                      node_list,
+                      edge_list,
+                      face_list,
+                      cells);
+      
+    
+      // split the cell Globals::levels times
+      int numCells = cells.size();
+     
+      
+      if(numCells != 0){//aCell is not a leaf
+       
+        //first if any cell need derefine
+        std::set<DiamondCell*> dparents;
+        bool check_root = false;
+        //mark the cell that will be eliminated
+        for(int i = 0; i < numCells; i++){
+          if(cells[i]->get_tagged() ==2){
+            DiamondCell* parent = cells[i]->getParentCell();
+            if(parent==0)check_root = true;
+            if(parent!=0 && parent->needDerefine()){
+              dparents.insert(parent);
+            }
+          }
+        }
+               
+        //derefine the cells
+        for(std::set<DiamondCell*>::const_iterator si = dparents.begin(); si!= dparents.end(); si++){
+          (*si)->derefine();
+        }
+      }  
+      newCellPlan[cc] = aCell->make_cellplan();
+      
+      
+     
+      //clean up
+      if(aCell != 0){
+        delete aCell;
+        aCell = 0;
+      }
+      cleanup_list(node_list, edge_list, face_list);
+      cleanup_list(bnode_list);
+      reduce_vector(newCellPlan[cc]);
+    }
+  }
+};
+
+register_rule<derefine_general_cellplan> register_derefine_general_cellplan;
