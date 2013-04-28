@@ -49,7 +49,8 @@ using std::cout;
 void DiamondCell::split(std::list<Node*>& node_list,
                         std::list<Edge*>& edge_list,
                         std::list<Face*>& face_list){
-  
+
+  if(childCell!=0)return;
   //split each face
   for(int i = 0; i < 2*nfold; i++){
     if(face[i]->child ==0) face[i]->split(node_list,edge_list);
@@ -290,6 +291,7 @@ void DiamondCell::split(std::list<Node*>& node_list,
 }
   
 void DiamondCell::empty_split(){
+  if(childCell!=0)return;
   //allocate childCell
   childCell = new DiamondCell*[2*nfold +2];
   
@@ -1067,7 +1069,7 @@ std::vector<std::vector<Edge*> > Cell::set_n2e(){
 
 //this function split  a general cel,
 void Cell:: split(std::list<Node*>& node_list, std::list<Edge*>& edge_list, std::list<Face*>& face_list){
-  
+  if(child!=0)return;
   //split each face
   for(int i = 0; i <numFace; i++){
     if(face[i]->child==0)face[i]->split(node_list, edge_list);
@@ -1216,15 +1218,16 @@ std::vector<char> Cell::make_cellplan(){
 }
 
 void Cell::empty_split(){
+  if(child!=0)return;
   child = new DiamondCell*[numNode];
   for(int  nindex = 0; nindex < numNode; nindex++){
     //find all the faces that connected to the node, put them into n2f
-      std::vector<Face*> n2f;
-      std::vector<Edge*> n2e;
-      std::vector<int> rot;
-      set_n2f_n2e(n2f, n2e,rot, nindex);
-      //define the child cell
-      child[nindex] = new DiamondCell(n2e.size());
+    std::vector<Face*> n2f;
+    std::vector<Edge*> n2e;
+    std::vector<int> rot;
+    set_n2f_n2e(n2f, n2e,rot, nindex);
+    //define the child cell
+    child[nindex] = new DiamondCell(n2e.size());
   }
  
 }
@@ -1383,7 +1386,12 @@ bool Cell::needDerefine(){
       for(int i = 0; i < numNode; i++){
         if(child[i] != 0 && (child[i]->get_tagged())!=2) derefine = false;
       }
-      if(derefine) return true;
+      if(derefine){
+        for(int i = 0; i < numEdge; i++){
+          if( edge[i]->depth_greater_than_1())return false;
+        }
+        return true;
+      }
     }
   }
   return false;

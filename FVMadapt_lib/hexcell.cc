@@ -72,26 +72,29 @@ void HexCell::resplit( const std::vector<char>& cellPlan,
   HexCell* current;
   unsigned int index =0;
   int32 cIndex = 0;
- 
+  char currentCode;
+  
   while(!Q.empty()){
     current = Q.front();
     
     if(index >= cellPlan.size()){
-      current-> mySplitCode = 0;
-    }
-    else{ 
+      currentCode = 0;
+    }else{ 
       //take a code from splitcode
-      current->mySplitCode = cellPlan[index];
+      currentCode = cellPlan[index];
       index++;  
     }
+    
 
-    if(current->mySplitCode ==0){
+    if(currentCode ==0){
       current->cellIndex = ++cIndex;
       cells.push_back(current);
-    }
-    else{
+    }else if( (current->mySplitCode != 0)  && (currentCode != current->mySplitCode)){//consistency check
+      Loci::debugout << " nonconsistent split code in hexcell resplit" << endl;
+      Loci::Abort();
+    }else{
+      current->mySplitCode = currentCode;
       current->split(node_list, edge_list, face_list);
-      
       for(int i = 0; i <current->numChildren(); i++){
         Q.push(current->childCell[i]);
       }
@@ -132,6 +135,8 @@ void HexCell::resplit(int level,
   } 
 }
 
+
+
 //this function will return num_fine_cells
 //this function will not set mysplitcode unless the splitCode got from cellPlan
 //is nonzero, and the the current cell from Q is never split
@@ -160,11 +165,14 @@ int HexCell::empty_resplit( const std::vector<char>& cellPlan){
       currentCode = cellPlan[index];
       index++;  
     }
-
+    
     if(currentCode ==0){
       current->cellIndex = ++cIndex;
-    }
-    else{
+    }else if((current->mySplitCode)!=0 && currentCode != (current->mySplitCode)){
+      Loci::debugout << "WARNING: split code is not consistent" << endl;
+      Loci::debugout << int(currentCode) << " intree " << int( current->mySplitCode)<< endl; 
+      Loci::Abort();
+    }else{
       if((current->childCell)==0){
         current->mySplitCode = currentCode;
         current->empty_split();
@@ -450,7 +458,7 @@ void set_hex_faces(const std::vector<HexCell*>& cells,
        
 
 void HexCell::empty_split(){
-  
+  if(childCell!=0) return;
   switch(mySplitCode)
     {
       
@@ -528,11 +536,14 @@ void HexCell::empty_split(){
   
 void HexCell::split( std::list<Node*>& node_list,
                      std::list<Edge*>& edge_list, std::list<QuadFace*>& face_list){
+  
+  if(childCell != 0)return;
+  
   QuadFace* newFace = 0;
   QuadFace* newface[12];
   Edge* newedge[6];
   Node* ccenter = 0;
-
+  
   switch(mySplitCode)
     {
      
@@ -547,37 +558,37 @@ void HexCell::split( std::list<Node*>& node_list,
       for(int i = 0; i <2; i++){
         childCell[i] = new HexCell();
         childCell[i]->face = new QuadFace*[6];
-        
+          
         //	childCell[i]->whichChild = i;
         childCell[i]->parentCell = this;
       }
-      
+        
       //face 2-5 split in x direction
       for(int i = 2; i < 6; i++){
         face[i]->split(char(2),char(0), node_list, edge_list);
       }
-      
-      
+        
+        
       //define new face
       newFace = new QuadFace(4);
       face_list.push_back(newFace);
-          
+        
       newFace->edge[0] = face[5]->childx[0]->edge[1];
       childCell[0]->face[5] = face[5]->childx[0];
       childCell[1]->face[5] = face[5]->childx[1];
-          
+        
       newFace->edge[1] = face[2]->childx[0]->edge[1];
       childCell[0]->face[2] = face[2]->childx[0];
       childCell[1]->face[2] = face[2]->childx[1];
-          
+        
       newFace->edge[2] = face[4]->childx[0]->edge[1];
       childCell[0]->face[4] = face[4]->childx[0];
       childCell[1]->face[4] = face[4]->childx[1];
-           
+        
       newFace->edge[3] = face[3]->childx[0]->edge[1];
       childCell[0]->face[3] = face[3]->childx[0];
       childCell[1]->face[3] = face[3]->childx[1];
-     
+        
       childCell[0]->face[0] = newFace;
       childCell[0]->face[1] = face[1];
       childCell[1]->face[0] = face[0];
@@ -588,7 +599,7 @@ void HexCell::split( std::list<Node*>& node_list,
         
       //010  y direction is splitted 
     case 2:
-     
+      
       childCell = new HexCell*[2];
      
       for(int i = 0; i < 2; i++){
@@ -633,12 +644,13 @@ void HexCell::split( std::list<Node*>& node_list,
       childCell[0]->face[3] = face[3];
       childCell[1]->face[2] = face[2];
       childCell[1]->face[3] = newFace;
+      
       break;
         
         
       //001  z direction is splitted 
     case 1:
-
+      
       childCell = new HexCell*[2];
       
       for(int i = 0; i <2; i++){
@@ -1644,15 +1656,15 @@ int32 HexCell::traverse(const std::vector<char>& parentPlan,  vector<pair<int32,
     case 0:
       ++cIndex;
       current->sort_leaves(leaves);
-       if(leaves.front() != current){//current is not a leaf for cellPlan
-         for(std::list<HexCell*>::const_iterator p = leaves.begin(); p != leaves.end(); p++){
-           indexMap.push_back(make_pair((*p)->cellIndex, cIndex));
-         }
-       }else{
-         //current is a leaf for cellPlan and for parentPlan
-         if(current->cellIndex != 0) indexMap.push_back(make_pair(current->cellIndex, cIndex));  
-       }
-       break;
+      if(leaves.front() != current){//current is not a leaf for cellPlan
+        for(std::list<HexCell*>::const_iterator p = leaves.begin(); p != leaves.end(); p++){
+          indexMap.push_back(make_pair((*p)->cellIndex, cIndex));
+        }
+      }else{
+        //current is a leaf for cellPlan and for parentPlan
+        if(current->cellIndex != 0) indexMap.push_back(make_pair(current->cellIndex, cIndex));  
+      }
+      break;
     default:
       if(current->cellIndex !=0){//derefinement happen,current is a leaf for cellPlan
         current->sort_leaves(leaves);
@@ -1670,7 +1682,7 @@ int32 HexCell::traverse(const std::vector<char>& parentPlan,  vector<pair<int32,
   }
   return cIndex;
 }
-
+//assume with derefinement, the balance option is always no edge has levels greater than 1 
 bool HexCell::needDerefine(){
   if(this != 0 ){
     if(childCell != 0){
@@ -1678,7 +1690,13 @@ bool HexCell::needDerefine(){
       for(int i = 0; i < numChildren(); i++){
         if( (childCell[i] ->get_tagged()) != 2)derefine = false;
       }
-      if(derefine)return true;
+      if(derefine){
+        std::vector<Edge*> edge = get_edges();
+        for(int i = 0; i < 12; i++){
+          if( edge[i]->depth_greater_than_1())return false;
+        }
+        return true;
+      }
     }
   }
   return false;

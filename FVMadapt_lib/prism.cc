@@ -67,6 +67,10 @@ int Prism::empty_resplit( const std::vector<char>& cellPlan){
     
     if(currentCode ==0){
       current->cellIndex = ++cIndex;
+    }else if((current->mySplitCode)!=0 && currentCode != (current->mySplitCode)){
+      Loci::debugout << "WARNING: split code is not consistent" << endl;
+      Loci::debugout << int(currentCode) << " intree " << int( current->mySplitCode)<< endl; 
+      Loci::Abort();
     }else{
       if((current->childCell)==0){
         current->mySplitCode = currentCode;
@@ -102,26 +106,32 @@ void Prism::resplit( const std::vector<char>& cellPlan,
   Prism* current;
   unsigned int index =0;
   int32 cIndex = 0;
- 
+  char currentCode =0;
+  
   while(!Q.empty()){
     current = Q.front();
     
     if(index >= cellPlan.size()){
-      current-> mySplitCode = 0;
+      currentCode = 0;
     }
     else{ 
       //take a code from splitcode
-      current->mySplitCode = cellPlan[index];
+      currentCode = cellPlan[index];
       index++;  
     }
 
-    if(current->mySplitCode ==0){
+    if(currentCode ==0){
       current->cellIndex = ++cIndex;
       cells.push_back(current);
-    }
-    else{
-      current->split(node_list, edge_list, quadface_list, face_list);
-      
+    }else if((current->mySplitCode)!=0 && currentCode != (current->mySplitCode)){
+      Loci::debugout << "WARNING: split code is not consistent" << endl;
+      Loci::debugout << int(currentCode) << " intree " << int( current->mySplitCode)<< endl; 
+      Loci::Abort();
+    }else{
+      if((current->childCell)==0){
+        current->mySplitCode = currentCode;
+        current->split(node_list, edge_list, quadface_list, face_list);
+      }
       for(int i = 0; i <current->numChildren(); i++){
         Q.push(current->childCell[i]);
       }
@@ -615,6 +625,7 @@ void set_prism_faces(const std::vector<Prism*>& cells,
 
 
 void Prism::empty_split(){
+  if(childCell!=0)return;
   switch(mySplitCode)
     {
       //000 no split,this is a leaf, compare and set the maxLevels, output cells
@@ -658,6 +669,7 @@ void Prism::split( std::list<Node*>& node_list,
                    std::list<Edge*>& edge_list,
                    std::list<QuadFace*>& quadface_list,
                    std::list<Face*>& face_list){
+  if(childCell!=0)return;
   Face* newFace = 0;
   QuadFace* newface[8];
   Face* newgface[4];
@@ -1294,11 +1306,11 @@ int32 Prism::traverse(const std::vector<char>& parentPlan,  vector<pair<int32, i
       break;
     default:
       if(current->cellIndex !=0){//derefinement happen, current is a leaf for cellPlan
-          current->sort_leaves(leaves);
-          for(std::list<Prism*>::const_iterator p = leaves.begin(); p != leaves.end(); p++){
-            indexMap.push_back(make_pair(current->cellIndex, (*p)->cellIndex));
-            (*p)->cellIndex = 0; //so that *p will not appear in indexMap when it is popped out of Q
-          }
+        current->sort_leaves(leaves);
+        for(std::list<Prism*>::const_iterator p = leaves.begin(); p != leaves.end(); p++){
+          indexMap.push_back(make_pair(current->cellIndex, (*p)->cellIndex));
+          (*p)->cellIndex = 0; //so that *p will not appear in indexMap when it is popped out of Q
+        }
       }
       for(int i = 0; i <current->numChildren(); i++){
         Q.push(current->childCell[i]);
@@ -1317,7 +1329,13 @@ bool Prism::needDerefine(){
       for(int i = 0; i < numChildren(); i++){
         if( (childCell[i] ->get_tagged()) != 2)derefine = false;
       }
-      if(derefine) return true;
+      if(derefine){
+        std::vector<Edge*> edge= get_edges();
+        for(unsigned int i = 0; i < edge.size(); i++){
+          if(edge[i]->depth_greater_than_1())return false;
+        }
+        return true;
+      }
     }
   }
   return false;
