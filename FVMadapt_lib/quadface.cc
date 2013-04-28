@@ -103,7 +103,7 @@ char orient_childID_f2c(char childID, char orientCode, char splitCode){
     pf = transfer_f2c(p, Point2d(1,1),orientCode);
    
     return char(pf.x *2 + pf.y);
-     break;
+    break;
   case 2:
     switch(orientCode){
     case 0:
@@ -137,7 +137,7 @@ char orient_childID_f2c(char childID, char orientCode, char splitCode){
     }
     break;
   default:
-    cerr<< "WARNING: illegal splitcode,reach dummy code in orient_childID_f2c" <<endl;
+    cerr<< "WARNING: illegal splitcode, " << int(splitCode)<< " reach dummy code in orient_childID_f2c" <<endl;
     break;
   }
   cerr<<"WARNING: reach dummy code in orient_childID_f2c" << endl;
@@ -164,13 +164,13 @@ char orient_edgeID_f2c(char edgeID, char orientCode){
   }
   else{
    
-      return char((3-edgeID+orientCode)%4);
+    return char((3-edgeID+orientCode)%4);
   }
 }
 
 //used in building cells, quadface is built as defined in cell, and split with orientCode
 //all new nodes and edges are put into node_list and edge_list
- void QuadFace::split(char splitCode, char orientCode, 
+void QuadFace::split(char splitCode, char orientCode, 
                      std::list<Node*>& node_list,
                      std::list<Edge*>& edge_list
                      ){
@@ -202,40 +202,37 @@ char orient_edgeID_f2c(char edgeID, char orientCode){
       }
         
       //define newEdge
-       newEdge = new Edge(edge[3]->child[0]->tail,
-                          edge[1]->child[0]->tail,
-                          edge[0]->level);
-       edge_list.push_back(newEdge);
-       //define child
-       childy = new QuadFace*[2];
+      newEdge = new Edge(edge[3]->child[0]->tail,
+                         edge[1]->child[0]->tail,
+                         edge[0]->level);
+      edge_list.push_back(newEdge);
+      //define child
+      childy = new QuadFace*[2];
        
-       childy[0] = new QuadFace(4);
-       
-      
-       childy[0]->edge[0] = edge[0];
-       childy[0]->edge[1] = edge[1]->child[0];
-       childy[0]->edge[2] = newEdge;
-       childy[0]->edge[3] = edge[3]->child[0];
-      
-       
-       childy[1] = new QuadFace(4);
+      childy[0] = new QuadFace(4);
        
       
-       childy[1]->edge[0] = newEdge;
-       childy[1]->edge[1] = edge[1]->child[1];
-       childy[1]->edge[2] = edge[2];
-       childy[1]->edge[3] = edge[3]->child[1];
+      childy[0]->edge[0] = edge[0];
+      childy[0]->edge[1] = edge[1]->child[0];
+      childy[0]->edge[2] = newEdge;
+      childy[0]->edge[3] = edge[3]->child[0];
       
-       //define code
-       code = 1;
-       break;
+       
+      childy[1] = new QuadFace(4);
+       
+      
+      childy[1]->edge[0] = newEdge;
+      childy[1]->edge[1] = edge[1]->child[1];
+      childy[1]->edge[2] = edge[2];
+      childy[1]->edge[3] = edge[3]->child[1];
+      
+      //define code
+      code = 1;
+      break;
     case 1:
       
       break;
     case 2:
-      //  cout << "come cross 1->2" << endl;
-      //define formerChild
-       
       
       //split formerChild
       childx[0]->split(char(1),orientCode, node_list, edge_list);
@@ -246,11 +243,11 @@ char orient_edgeID_f2c(char edgeID, char orientCode){
       
       //define child
       if(child == 0){
-      child = new QuadFace*[4];
-      child[0] = childx[0]->childy[0];
-      child[1] = childx[0]->childy[1];
-      child[2] = childx[1]->childy[0];
-      child[3] = childx[1]->childy[1];
+        child = new QuadFace*[4];
+        child[0] = childx[0]->childy[0];
+        child[1] = childx[0]->childy[1];
+        child[2] = childx[1]->childy[0];
+        child[3] = childx[1]->childy[1];
       }
       //define childy
       if(childy == 0){
@@ -300,6 +297,7 @@ char orient_edgeID_f2c(char edgeID, char orientCode){
       code = 3;
       break;
     case 3:
+      
       break;
     default:
       cerr<<"WARNING: illegal face code " <<char(formercode + '0') << endl;
@@ -312,13 +310,13 @@ char orient_edgeID_f2c(char edgeID, char orientCode){
       
       //split edge[0] and edge[2]
       if(orient_edgeID_c2f(0, orientCode)< orient_edgeID_c2f(2,orientCode)){
-       edge[0]->split(node_list);
-       edge[2]->split(node_list);
+        edge[0]->split(node_list);
+        edge[2]->split(node_list);
        
       }
       else{
-       edge[2]->split(node_list);
-       edge[0]->split(node_list);
+        edge[2]->split(node_list);
+        edge[0]->split(node_list);
        
       }
       //define newEdge
@@ -410,7 +408,6 @@ char orient_edgeID_f2c(char edgeID, char orientCode){
       
       break;
     case 3:
-      
       break;
     default:
       cerr <<"WARNING: illegal face code  " <<char(formercode + '0') << endl; 
@@ -495,57 +492,57 @@ char orient_edgeID_f2c(char edgeID, char orientCode){
       //define childx
       childx = new QuadFace*[2];
       
-       for(int i = 0; i<2; i++){
-         childx[i] = new QuadFace(4);
-       }
+      for(int i = 0; i<2; i++){
+        childx[i] = new QuadFace(4);
+      }
 
-       childx[0]->edge[0] = child[0]->edge[0];
-       childx[0]->edge[1] = child[0]->edge[1]->parent;
-       childx[0]->edge[2] = child[1]->edge[2];
-       childx[0]->edge[3] = child[0]->edge[3]->parent;
+      childx[0]->edge[0] = child[0]->edge[0];
+      childx[0]->edge[1] = child[0]->edge[1]->parent;
+      childx[0]->edge[2] = child[1]->edge[2];
+      childx[0]->edge[3] = child[0]->edge[3]->parent;
        
       
-       childx[1]->edge[0] = child[2]->edge[0];
-       childx[1]->edge[1] = child[2]->edge[1]->parent;
-       childx[1]->edge[2] = child[3]->edge[2];
-       childx[1]->edge[3] = child[0]->edge[1]->parent;
+      childx[1]->edge[0] = child[2]->edge[0];
+      childx[1]->edge[1] = child[2]->edge[1]->parent;
+      childx[1]->edge[2] = child[3]->edge[2];
+      childx[1]->edge[3] = child[0]->edge[1]->parent;
        
       
-       childx[0]->code = childx[1]->code = 1;
-       childx[0]->childy = new QuadFace*[2];
-       childx[1]->childy = new QuadFace*[2];
-       childx[0]->childy[0] = child[0];
-       childx[0]->childy[1] = child[1];
-       childx[1]->childy[0] = child[2];
-       childx[1]->childy[1] = child[3];
+      childx[0]->code = childx[1]->code = 1;
+      childx[0]->childy = new QuadFace*[2];
+      childx[1]->childy = new QuadFace*[2];
+      childx[0]->childy[0] = child[0];
+      childx[0]->childy[1] = child[1];
+      childx[1]->childy[0] = child[2];
+      childx[1]->childy[1] = child[3];
 
-       childy = new QuadFace*[2];
-       childy[0] = new QuadFace(4);
-       childy[1] = new QuadFace(4);
+      childy = new QuadFace*[2];
+      childy[0] = new QuadFace(4);
+      childy[1] = new QuadFace(4);
        
        
-       childy[0]->edge[0] = childx[0]->edge[0]->parent;
-       childy[0]->edge[1] = child[2]->edge[1];
-       childy[0]->edge[2] = child[1]->edge[0]->parent;
-       childy[0]->edge[3] = child[0]->edge[3];
+      childy[0]->edge[0] = childx[0]->edge[0]->parent;
+      childy[0]->edge[1] = child[2]->edge[1];
+      childy[0]->edge[2] = child[1]->edge[0]->parent;
+      childy[0]->edge[3] = child[0]->edge[3];
        
        
-       childy[1]->edge[0] = child[1]->edge[0]->parent;
-       childy[1]->edge[1] = child[3]->edge[1];
-       childy[1]->edge[2] = child[1]->edge[2]->parent;
-       childy[1]->edge[3] = child[1]->edge[3];
+      childy[1]->edge[0] = child[1]->edge[0]->parent;
+      childy[1]->edge[1] = child[3]->edge[1];
+      childy[1]->edge[2] = child[1]->edge[2]->parent;
+      childy[1]->edge[3] = child[1]->edge[3];
        
        
-       childy[0]->code = childy[1]->code = 2;
-       childy[0]->childx = new QuadFace*[2];
-       childy[1]->childx = new QuadFace*[2];
-       childy[0]->childx[0] = child[0];
-       childy[0]->childx[1] = child[2];
-       childy[1]->childx[0] = child[1];
-       childy[1]->childx[1] = child[3];
-       //define code
-       code = 3;
-       break;
+      childy[0]->code = childy[1]->code = 2;
+      childy[0]->childx = new QuadFace*[2];
+      childy[1]->childx = new QuadFace*[2];
+      childy[0]->childx[0] = child[0];
+      childy[0]->childx[1] = child[2];
+      childy[1]->childx[0] = child[1];
+      childy[1]->childx[1] = child[3];
+      //define code
+      code = 3;
+      break;
     case 1:
       //split formerChild
       childy[0]->split(char(2),orientCode, node_list, edge_list);
@@ -568,7 +565,7 @@ char orient_edgeID_f2c(char edgeID, char orientCode){
           tempEdge->child[0] = child[0]->edge[1];
           tempEdge->child[1] = child[1]->edge[1];
           edge_list.remove(tempEdge->child[0]);
-           edge_list.remove(tempEdge->child[1]);
+          edge_list.remove(tempEdge->child[1]);
           child[0]->edge[1]->parent = child[1]->edge[1]->parent = tempEdge;
         }
         
@@ -607,11 +604,11 @@ char orient_edgeID_f2c(char edgeID, char orientCode){
       childx[1]->split(char(1),orientCode, node_list, edge_list);
       //define child
       if(child == 0){
-      child = new QuadFace*[4];
-      child[0] = childx[0]->childy[0];
-      child[1] = childx[0]->childy[1];
-      child[2] = childx[1]->childy[0];
-      child[3] = childx[1]->childy[1];
+        child = new QuadFace*[4];
+        child[0] = childx[0]->childy[0];
+        child[1] = childx[0]->childy[1];
+        child[2] = childx[1]->childy[0];
+        child[3] = childx[1]->childy[1];
       }
       //define childy
       if(childy == 0){
@@ -666,15 +663,14 @@ char orient_edgeID_f2c(char edgeID, char orientCode){
     cerr <<"WARNING: illegal split code " << char(splitCode +'0') <<endl;
     break;
   }
-    
-  // cout << "after: code: " << char(code +'0') <<endl<<endl;
-  if( code > 3)cerr<<"illegal after code: "<<char(code + '0') << endl;
-  
+   
 }
 
+//this function cannot apply to the same tree more than once
 void QuadFace::empty_split(char splitCode ){
+  if(code != 0) return;
   code = splitCode;
-  switch(splitCode){
+  switch(code){
   case 0:
     break;
   case 1:
@@ -733,108 +729,116 @@ void QuadFace::empty_split(char splitCode ){
 void QuadFace::resplit(const std::vector<char>& facePlan, char orientCode,
                        std::list<Node*>& node_list,
                        std::list<Edge*>& edge_list ){
+ 
   if(facePlan.size() == 0) return;
-  
   std::queue<QuadFace*> Q;
   Q.push(this);
   QuadFace* current;
   unsigned int index =0;
-  char mySplitCode;
+  char currentCode;
 
   while(!Q.empty()){
     current = Q.front();
     
     if(index >= facePlan.size()){
-      mySplitCode = 0;
+      currentCode = 0;
     }
     else{ 
       //take a code from splitcode
-      mySplitCode = facePlan[index];
+      currentCode = facePlan[index];
       index++;  
     }
     
-    current->split(orient_splitCode_f2c(mySplitCode, orientCode),orientCode, node_list, edge_list);
-    switch(current->code){
-    case 1:
-      for(int i = 0; i < 2; i++){
-        Q.push(current->childy[orient_childID_f2c(i, orientCode, mySplitCode)]);
+    if(currentCode !=0){
+      char tmpCode =orient_splitCode_f2c(currentCode, orientCode); 
+      current->split(orient_splitCode_f2c(currentCode, orientCode),orientCode, node_list, edge_list);
+     
+      switch(tmpCode){
+      case 1:
+        for(int i = 0; i < 2; i++){
+          Q.push(current->childy[orient_childID_f2c(i, orientCode, currentCode)]);
+        }
+        break;
+      case 2:
+        for(int i = 0; i < 2; i++){
+          Q.push(current->childx[orient_childID_f2c(i, orientCode, currentCode)]);
+        }
+        break;
+      case 3:
+        for(int i = 0; i < 4; i++){
+          Q.push(current->child[orient_childID_f2c(i, orientCode, currentCode)]);
+        }
+        break;
+      case 0:
+        break;
+      default:
+        cerr << "illegal face code in resplit(): " <<char(current->code + '0') << endl; 
+        break;
       }
-      break;
-    case 2:
-      for(int i = 0; i < 2; i++){
-        Q.push(current->childx[orient_childID_f2c(i, orientCode, mySplitCode)]);
-      }
-      break;
-    case 3:
-      for(int i = 0; i < 4; i++){
-        Q.push(current->child[orient_childID_f2c(i, orientCode, mySplitCode)]);
-      }
-      break;
-    case 0:
-      break;
-    default:
-      cerr << "illegal face code in resplit(): " <<char(current->code + '0') << endl; 
-      break;
     }
-         
     Q.pop();
   }
 }
+
+
 
 //this function split the local face of a cell according to global face(defined by face2node)'s plan
 void QuadFace::resplit(const std::vector<char>& facePlan, char orientCode,
                        std::list<Node*>& node_list,
                        std::list<Edge*>& edge_list,
                        std::vector<QuadFace*>& fine_faces ){
+ 
   if(facePlan.size() == 0) {
     fine_faces.push_back(this);
     reduce_vector(fine_faces);
     return;
   }
   
+  
   std::queue<QuadFace*> Q;
   Q.push(this);
   QuadFace* current;
   unsigned int index =0;
-  char mySplitCode;
+  char currentCode;
   
   while(!Q.empty()){
     current = Q.front();
     
     if(index >= facePlan.size()){
-      mySplitCode = 0;
+      currentCode = 0;
     }
     else{ 
       //take a code from splitcode
-      mySplitCode = facePlan[index];
+      currentCode = facePlan[index];
       index++;  
     }
 
-    if(mySplitCode == 0){
+    if(currentCode == 0){
       fine_faces.push_back(current);
-    }
-    else {
-      current->split(orient_splitCode_f2c(mySplitCode, orientCode),orientCode, node_list, edge_list);
-      switch(current->code){
+    }else{
+      char tmpCode =orient_splitCode_f2c(currentCode, orientCode); 
+      current->split(orient_splitCode_f2c(currentCode, orientCode),orientCode, node_list, edge_list);
+      
+      switch(tmpCode){
       case 1:
         for(int i = 0; i < 2; i++){
-          Q.push(current->childy[orient_childID_f2c(i, orientCode, mySplitCode)]);
+          Q.push(current->childy[orient_childID_f2c(i, orientCode, currentCode)]);
         }
         break;
       case 2:
         for(int i = 0; i < 2; i++){
-          Q.push(current->childx[orient_childID_f2c(i, orientCode, mySplitCode)]);
+          Q.push(current->childx[orient_childID_f2c(i, orientCode, currentCode)]);
         }
         break;
       case 3:
         for(int i = 0; i < 4; i++){
-          Q.push(current->child[orient_childID_f2c(i, orientCode, mySplitCode)]);
+          Q.push(current->child[orient_childID_f2c(i, orientCode, currentCode)]);
         }
         break;
       default:
         break;
       }
-      }
+    }
     Q.pop();
   }
 }
@@ -853,38 +857,38 @@ void QuadFace::get_leaves(const std::vector<char>& facePlan, char orientCode,
   Q.push(this);
   QuadFace* current;
   unsigned int index =0;
-  char mySplitCode;
+  char currentCode;
   
   while(!Q.empty()){
     current = Q.front();
     
     if(index >= facePlan.size()){
-      mySplitCode = 0;
+      currentCode = 0;
     }
     else{ 
       //take a code from splitcode
-      mySplitCode = facePlan[index];
+      currentCode = facePlan[index];
       index++;  
     }
     
-    if(mySplitCode == 0){
+    if(currentCode == 0){
       fine_faces.push_back(current);
     }
     else {
       switch(current->code){
       case 1:
         for(int i = 0; i < 2; i++){
-          Q.push(current->childy[orient_childID_f2c(i, orientCode, mySplitCode)]);
+          Q.push(current->childy[orient_childID_f2c(i, orientCode, currentCode)]);
         }
         break;
       case 2:
         for(int i = 0; i < 2; i++){
-          Q.push(current->childx[orient_childID_f2c(i, orientCode, mySplitCode)]);
+          Q.push(current->childx[orient_childID_f2c(i, orientCode, currentCode)]);
         }
         break;
       case 3:
         for(int i = 0; i < 4; i++){
-          Q.push(current->child[orient_childID_f2c(i, orientCode, mySplitCode)]);
+          Q.push(current->child[orient_childID_f2c(i, orientCode, currentCode)]);
         }
         break;
       default:
@@ -897,8 +901,10 @@ void QuadFace::get_leaves(const std::vector<char>& facePlan, char orientCode,
 
 //this function split the local face of a cell according to global face(define by face2node)'s plan
 //fine_faces is in the same order as global face's leaves
+//this function can not apply to the same tree more than once
 void QuadFace::empty_resplit(const std::vector<char>& facePlan, char orientCode,
                              std::vector<QuadFace*>& fine_faces ){
+  
   if(facePlan.size() == 0) {
     fine_faces.push_back(this);
     reduce_vector(fine_faces);
@@ -909,39 +915,44 @@ void QuadFace::empty_resplit(const std::vector<char>& facePlan, char orientCode,
   Q.push(this);
   QuadFace* current;
   unsigned int index =0;
-  char mySplitCode;
+  char currentCode;
   
   while(!Q.empty()){
     current = Q.front();
     
     if(index >= facePlan.size()){
-      mySplitCode = 0;
+      currentCode = 0;
     }
     else{ 
       //take a code from splitcode
-      mySplitCode = facePlan[index];
+      currentCode = facePlan[index];
       index++;  
     }
 
-    if(mySplitCode == 0){
+    if(currentCode == 0){
       fine_faces.push_back(current);
-    }
-    else {
-      current->empty_split(orient_splitCode_f2c(mySplitCode, orientCode));
+    }else if((current->code)!=0 && currentCode != (current->code)){
+      Loci::debugout << "WARNING: split code is not consistent" << endl;
+      Loci::debugout << int(currentCode) << " intree " << int( current->code)<< endl; 
+      Loci::Abort();
+    }else{
+      if((current->code)==0){
+        current->empty_split(orient_splitCode_f2c(currentCode, orientCode));
+      }
       switch(current->code){
       case 1:
         for(int i = 0; i < 2; i++){
-          Q.push(current->childy[orient_childID_f2c(i, orientCode, mySplitCode)]);
+          Q.push(current->childy[orient_childID_f2c(i, orientCode, currentCode)]);
         }
         break;
       case 2:
         for(int i = 0; i < 2; i++){
-          Q.push(current->childx[orient_childID_f2c(i, orientCode, mySplitCode)]);
+          Q.push(current->childx[orient_childID_f2c(i, orientCode, currentCode)]);
         }
         break;
       case 3:
         for(int i = 0; i < 4; i++){
-          Q.push(current->child[orient_childID_f2c(i, orientCode, mySplitCode)]);
+          Q.push(current->child[orient_childID_f2c(i, orientCode, currentCode)]);
         }
         break;
       default:
@@ -1027,10 +1038,10 @@ int QuadFace::get_num_leaves()const{
     }
     break;
   case 2:
-     for(int i = 0; i < 2; i++){
-       count += childx[i]->get_num_leaves();
-     }
-     break;
+    for(int i = 0; i < 2; i++){
+      count += childx[i]->get_num_leaves();
+    }
+    break;
   case 3:
     for(int i = 0; i < 4; i++){
       count += child[i]->get_num_leaves();
@@ -1041,7 +1052,7 @@ int QuadFace::get_num_leaves()const{
     break;
   }
   return count;
- }
+}
 
 //define face2node
 void QuadFace::set_f2n(std::list<int32>& f2n){
@@ -1096,17 +1107,17 @@ QuadFace* build_quad_face( const Entity* face2node,
    
   edge[0]->head = node[0];
   edge[0]->tail = node[1];
-   needReverse[0] = (edge2node[face2edge[0]][0] == face2node[1]);  
+  needReverse[0] = (edge2node[face2edge[0]][0] == face2node[1]);  
    
 
   edge[1]->head = node[1];
   edge[1]->tail = node[2];
-   needReverse[1] = (edge2node[face2edge[1]][0] == face2node[2]);
+  needReverse[1] = (edge2node[face2edge[1]][0] == face2node[2]);
 
   
   edge[2]->head = node[3];
   edge[2]->tail = node[2];
-   needReverse[2] = (edge2node[face2edge[2]][0] == face2node[2]);
+  needReverse[2] = (edge2node[face2edge[2]][0] == face2node[2]);
   
   
   edge[3]->head = node[0];
@@ -1114,7 +1125,7 @@ QuadFace* build_quad_face( const Entity* face2node,
   needReverse[3] = (edge2node[face2edge[3]][0] == face2node[3]);
   
   for(int eindex = 0; eindex < 4; eindex++){
-    //replit the edge
+    //resplit the edge
     edge[eindex]->resplit(edgePlan[face2edge[eindex]],needReverse[eindex],bnode_list);
     
   }
