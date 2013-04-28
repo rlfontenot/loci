@@ -32,7 +32,7 @@ Array<Entity, 6> collect_hex_faces( const Entity* lower, int lower_size,
   
   // Collect the entity designation of all faces of the cell cc in the all_faces array
 
- //first create vectors for reordering
+  //first create vectors for reordering
   vector<Entity> vlower(lower_size);
   vector<Entity> vupper(upper_size);
   vector<Entity> vboundary_map(boundary_map_size);
@@ -67,7 +67,7 @@ Array<Entity, 6> collect_hex_faces( const Entity* lower, int lower_size,
 
 //this function define the 8 vertices of hexcell from loci data structures
 Array<Entity, 8> collect_hex_vertices(const const_multiMap& face2node, const Array<Entity, 6>& faces,
-                                  const Array<char, 8>& hex2node){
+                                      const Array<char, 8>& hex2node){
   Array<Entity, 8>  hex_vertices;
   for(int i = 0; i < 4; i++){
     hex_vertices[i] = face2node[faces[DOWN]][hex2node[i]];
@@ -86,8 +86,8 @@ Array<Entity, 8> collect_hex_vertices(const const_multiMap& face2node, const Arr
 
 //collect the entity designation of all edges of the cell , and the direction of edges are stored in needReverse
 Array<Entity, 12> collect_hex_edges(const Array<Entity, 6>& faces, const Array<Entity,8>& hex_vertices,
-                                const const_multiMap& face2edge, const const_MapVec<2>& edge2node,
-                                Array<bool, 12>& needReverse){
+                                    const const_multiMap& face2edge, const const_MapVec<2>& edge2node,
+                                    Array<bool, 12>& needReverse){
   entitySet all_edges;
   Array<Entity, 12> hex_edges;
   for(int fID = 0; fID < 6; fID++){
@@ -159,17 +159,17 @@ HexCell* build_hex_cell(const Entity* lower, int lower_size,
                                                    node_remap);
   
   Array<Entity, 8> node_entity = collect_hex_vertices(face2node,
-                                                  face_entity,
-                                                  hex2node);
+                                                      face_entity,
+                                                      hex2node);
 
 
 
   Array<bool, 12> edge_reverse;
   Array<Entity, 12> edge_entity = collect_hex_edges( face_entity,
-                                                 node_entity,
-                                                 face2edge,
-                                                 edge2node,
-                                                 edge_reverse);
+                                                     node_entity,
+                                                     face2edge,
+                                                     edge2node,
+                                                     edge_reverse);
 
  
   //define each node and put it into node_list
@@ -227,12 +227,12 @@ HexCell* build_hex_cell(const Entity* lower, int lower_size,
                         const const_store<vect3d>& pos,
                         const const_store<std::vector<char> >& edgePlan,
                         const const_store<std::vector<char> >& facePlan,
-                         const const_store<char>& posTag,
+                        const const_store<char>& posTag,
                         const const_store<std::vector<char> >& nodeTag,
                         std::list<Node*>& bnode_list,
                         std::list<Edge*>& edge_list,
                         std::list<QuadFace*>& face_list,
-                         const const_store<int>& node_remap){
+                        const const_store<int>& node_remap){
 
   Array<Entity, 6> face_entity = collect_hex_faces(lower,lower_size,
                                                    upper,upper_size,
@@ -240,17 +240,17 @@ HexCell* build_hex_cell(const Entity* lower, int lower_size,
                                                    hex2face, node_remap);
   
   Array<Entity, 8> node_entity = collect_hex_vertices(face2node,
-                                                  face_entity,
-                                                  hex2node);
+                                                      face_entity,
+                                                      hex2node);
 
 
 
   Array<bool, 12> edge_reverse;
   Array<Entity, 12> edge_entity = collect_hex_edges( face_entity,
-                                                 node_entity,
-                                                 face2edge,
-                                                 edge2node,
-                                                 edge_reverse);
+                                                     node_entity,
+                                                     face2edge,
+                                                     edge2node,
+                                                     edge_reverse);
 
  
   //define each node and put it into node_list
@@ -308,6 +308,113 @@ HexCell* build_hex_cell(const Entity* lower, int lower_size,
     
   }
   
+  HexCell* aCell = new HexCell(face);
+  return aCell;
+}
+//build a cell with edgePlan and facePlan, tag the nodes
+//then resplit the edges and faces with edgePlan1 and facePlan1
+HexCell* build_resplit_hex_cell(const Entity* lower, int lower_size,
+                                const Entity* upper, int upper_size,
+                                const Entity* boundary_map, int boundary_map_size,
+                                const Array<char,6>& hex2face,
+                                const Array<char,8>& hex2node,
+                                const Array<char,6>& orientCode,
+                                const const_multiMap& face2node,
+                                const const_multiMap& face2edge,
+                                const const_MapVec<2>& edge2node,
+                                const const_store<vect3d>& pos,
+                                const const_store<std::vector<char> >& edgePlan,
+                                const const_store<std::vector<char> >& facePlan,
+                                const const_store<std::vector<char> >& edgePlan1,
+                                const const_store<std::vector<char> >& facePlan1,     
+                                const const_store<char>& posTag,
+                                const const_store<std::vector<char> >& nodeTag,
+                                std::list<Node*>& bnode_list,
+                                std::list<Edge*>& edge_list,
+                                std::list<QuadFace*>& face_list,
+                                const const_store<int>& node_remap){
+  
+  Array<Entity, 6> face_entity = collect_hex_faces(lower,lower_size,
+                                                   upper,upper_size,
+                                                   boundary_map,boundary_map_size,
+                                                   hex2face, node_remap);
+  
+  Array<Entity, 8> node_entity = collect_hex_vertices(face2node,
+                                                      face_entity,
+                                                      hex2node);
+
+
+
+  Array<bool, 12> edge_reverse;
+  Array<Entity, 12> edge_entity = collect_hex_edges( face_entity,
+                                                     node_entity,
+                                                     face2edge,
+                                                     edge2node,
+                                                     edge_reverse);
+
+ 
+  //define each node and put it into bnode_list
+  std::map<Entity, Node*> n2n;
+  for(int i = 0; i < 8; i++){
+    Node* aNode = new Node(pos[node_entity[i]]);
+    aNode->tag = posTag[node_entity[i]];
+    bnode_list.push_back(aNode);
+    n2n[node_entity[i]] = aNode;
+  }
+  
+  
+  std::map<Entity, Edge*> e2e;
+  std::list<Node*>::const_iterator bnode_begin = --(bnode_list.end());
+  
+  for(int i = 0; i < 12; i++){
+    Edge* anEdge = new Edge(n2n[edge2node[edge_entity[i]][edge_reverse[i]?1:0]],
+                            n2n[edge2node[edge_entity[i]][edge_reverse[i]?0:1]]);
+    edge_list.push_back(anEdge);
+    e2e[edge_entity[i]] = anEdge;
+
+
+    //resplit the edge
+    anEdge->resplit(edgePlan[edge_entity[i]],edge_reverse[i], bnode_list);
+    int nindex = 0;
+    for(std::list<Node*>::const_iterator np = ++bnode_begin; np!= bnode_list.end(); np++){
+      (*np)->tag =  nodeTag[edge_entity[i]][nindex++];
+      // checkNode(*np);
+    }
+    bnode_begin = --(bnode_list.end()); 
+  }
+  
+  int f2e[6][4]= {{6, 11, 7, 10}, {4, 9, 5, 8}, {2, 11, 3, 9}, {0, 10, 1, 8},
+                  {1, 7, 3, 5}, {0, 6, 2, 4}};
+  
+  //defines each face and put it into face_list
+  QuadFace** face = new QuadFace*[6];
+  for(int i  = 0; i < 6; i++){
+    face[i] = new QuadFace(4);
+    face_list.push_back(face[i]);
+    //define each edge
+    for(int j = 0; j < 4; j++){
+      face[i]->edge[j] = e2e[edge_entity[f2e[i][j]]];
+    }
+    //resplit each face
+    face[i]->resplit(facePlan[face_entity[i]],orientCode[i], bnode_list, edge_list);
+
+    int   nindex = 0;
+    for(std::list<Node*>::const_iterator np = ++bnode_begin; np!= bnode_list.end(); np++){
+      (*np)->tag = nodeTag[face_entity[i]][nindex++];
+      //  checkNode(*np);
+    } 
+    
+    bnode_begin= --(bnode_list.end());
+  }
+
+  //resplit the edges again without tagging the node
+  for(int i = 0; i < 12; i++){
+    e2e[edge_entity[i]]->resplit(edgePlan1[edge_entity[i]],edge_reverse[i], bnode_list);
+  }
+  //resplit the faces again without tagging the node
+  for(int i  = 0; i < 6; i++){
+    face[i]->resplit(facePlan1[face_entity[i]],orientCode[i], bnode_list, edge_list);
+  }
   HexCell* aCell = new HexCell(face);
   return aCell;
 }
@@ -372,7 +479,7 @@ HexCell* build_hex_cell(const Entity* lower, int lower_size,
     //resplit the edge
     anEdge->resplit(edgePlan[edge_entity[i]],edge_reverse[i], bnode_list);
 
-     //index the node
+    //index the node
     int nindex = node_offset[edge_entity[i]];
     for(std::list<Node*>::const_iterator np = ++bnode_begin; np!= bnode_list.end(); np++){
       (*np)->index =  nindex++;
@@ -395,7 +502,7 @@ HexCell* build_hex_cell(const Entity* lower, int lower_size,
     //resplit each face
     face[i]->resplit(facePlan[face_entity[i]],orientCode[i], bnode_list, edge_list);
 
-     //index the node
+    //index the node
     int nindex = node_offset[face_entity[i]];
     for(std::list<Node*>::const_iterator np = ++bnode_begin; np!= bnode_list.end(); np++){
       (*np)->index =  nindex++;
@@ -418,11 +525,11 @@ HexCell* build_hex_cell(const Entity* lower, int lower_size,
                         const const_multiMap& face2edge,
                         const const_MapVec<2>& edge2node,
                         const const_store<vect3d>& pos,
-                          const const_store<char>& posTag,
+                        const const_store<char>& posTag,
                         std::list<Node*>& bnode_list,
                         std::list<Edge*>& edge_list,
                         std::list<QuadFace*>& face_list,
-                         const const_store<int>& node_remap){
+                        const const_store<int>& node_remap){
 
   Array<Entity, 6> face_entity = collect_hex_faces(lower,lower_size,
                                                    upper,upper_size,
@@ -430,17 +537,17 @@ HexCell* build_hex_cell(const Entity* lower, int lower_size,
                                                    hex2face, node_remap);
   
   Array<Entity, 8> node_entity = collect_hex_vertices(face2node,
-                                                  face_entity,
-                                                  hex2node);
+                                                      face_entity,
+                                                      hex2node);
 
 
 
   Array<bool, 12> edge_reverse;
   Array<Entity, 12> edge_entity = collect_hex_edges( face_entity,
-                                                 node_entity,
-                                                 face2edge,
-                                                 edge2node,
-                                                 edge_reverse);
+                                                     node_entity,
+                                                     face2edge,
+                                                     edge2node,
+                                                     edge_reverse);
 
  
   //define each node and put it into node_list
@@ -494,7 +601,7 @@ HexCell* build_hex_cell(const Entity* lower, int lower_size,
                         std::list<Node*>& bnode_list,
                         std::list<Edge*>& edge_list,
                         std::list<QuadFace*>& face_list,
-                         const const_store<int>& node_remap){
+                        const const_store<int>& node_remap){
 
   Array<Entity, 6> face_entity = collect_hex_faces(lower, lower_size,
                                                    upper,upper_size,
@@ -502,17 +609,17 @@ HexCell* build_hex_cell(const Entity* lower, int lower_size,
                                                    hex2face, node_remap);
   
   Array<Entity, 8> node_entity = collect_hex_vertices(face2node,
-                                                  face_entity,
-                                                  hex2node);
+                                                      face_entity,
+                                                      hex2node);
 
 
 
   Array<bool, 12> edge_reverse;
   Array<Entity, 12> edge_entity = collect_hex_edges( face_entity,
-                                                 node_entity,
-                                                 face2edge,
-                                                 edge2node,
-                                                 edge_reverse);
+                                                     node_entity,
+                                                     face2edge,
+                                                     edge2node,
+                                                     edge_reverse);
 
  
   //define each node and put it into node_list
