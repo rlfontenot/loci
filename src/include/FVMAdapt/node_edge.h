@@ -37,11 +37,11 @@ using std::queue;
 class Node{
 public:
   //constructors
-  Node(){}
-  Node(vect3d& p0):p(p0){}
-  Node(const Loci::vector3d<Loci::real_t>& p0):p(p0){}
-  Node(vect3d& p0, int32 n):p(p0), index(n){}
-  Node(const Loci::vector3d<Loci::real_t>& p0, int32 n):p(p0), index(n){}
+  Node():index(0),tag(0){}
+  Node(vect3d& p0):p(p0), index(0), tag(0){}
+  Node(const Loci::vector3d<Loci::real_t>& p0):p(p0),index(0),tag(0){}
+  Node(vect3d& p0, int32 n):p(p0), index(n), tag(0){}
+  Node(const Loci::vector3d<Loci::real_t>& p0, int32 n):p(p0), index(n), tag(0){}
 public:
   vect3d p; //coordiantes
   int32 index;//the index of node in input or output grid file, start with 1
