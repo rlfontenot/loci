@@ -21,6 +21,9 @@
 LOCI_BASE?=..
 include $(LOCI_BASE)/Loci.conf
 
+#COPTLESS = -O0 -g
+#COPT = $(COPTLESS)
+
 MODULE_NAME  = fvmadapt
 
 LIB_NAME = fvmadaptfunc
@@ -74,7 +77,7 @@ MODULE_OBJS =	quadface_rule.o  \
 		get_prism_fine_grid.o \
 		get_prism_fine_face.o \
 		get_mixed_face_fine_grid.o \
-		write_vog.o  \
+		write_vog_module.o
 
 LIB_OBJS  = 	build_general_cell.o \
 		build_hexcell.o \
@@ -95,6 +98,7 @@ LIB_OBJS  = 	build_general_cell.o \
 		read_par.o \
 		transfer_fc.o \
 		transfer_plan.o \
+		write_vog.o  \
 		classify_cell.o globals.o 
 
 LOCAL_LIBS      = $(LIBXML2_LIBS)
