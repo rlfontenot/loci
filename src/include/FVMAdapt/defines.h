@@ -420,7 +420,27 @@ inline int currentMem(void){
   return 0 ;
 #endif
 }
+void colorMatrix(Map &cl, Map &cr, multiMap &face2node);
+void writeVOGNode(hid_t file_id,
+                Loci::storeRepP &pos,
+                  const_store<Loci::FineNodes> &inner_nodes);
+void writeVOGFace(hid_t file_id, Map &cl, Map &cr, multiMap &face2node) ;
 
-
+namespace Loci {
+  hid_t writeVOGOpen(string filename);
+  void writeVOGSurf(hid_t file_id, std::vector<pair<int,string> > surface_ids);
+  void writeVOGClose(hid_t file_id) ;
+  bool setupFVMGridFromContainer(fact_db &facts,
+                                 std::vector<entitySet>& local_nodes,
+                                 std::vector<entitySet>& local_faces,
+                                 std::vector<entitySet>& local_cells,
+                                 store<vector3d<double> >& t_pos,
+                                 Map& tmp_cl,
+                                 Map& tmp_cr,
+                                 multiMap& tmp_face2node,
+                                 std::vector<pair<int,string> >& boundary_ids,
+                                 std::vector<pair<string,entitySet> >& volTags ) ;
+  
+}
 
 #endif
