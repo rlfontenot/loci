@@ -116,6 +116,40 @@ a provided configure script, the typical install process will be
     need to log out and log back in before the libraries are available.
     Alternatively you can enter the above commands directly on the command
     line to temporarily enable access to the libraries.
+-------------------------------------------------------------------------------
+Notes on compiling on NAS Pleiades nodes (westmere and sandybridge compatible)
+
+Getting an interactive sandy bridge node to perform the compile:
+
+qsub -I -q debug -l select=1:ncpus=16:mpiprocs=16:model=san
+
+Next load the following modules: (Extra work needed for a PETSc install)
+
+module load nas mpi-sgi/mpt.2.06r6 comp-intel hdf5/1.8.3/intel/mpt
+setenv LD_LIBRARY_PATH /nasa/szip/2.1/lib/:$LD_LIBRARY_PATH
+
+Then configure Loci with the command:
+
+./configure --compiler=icc --no-mpi-driver --prefix=<install directory>
+cd OBJ
+make -j 16
+make install
+
+
+
+That should install this version of Loci compiled with the intel
+compiler.  The resulting executables should be compatible with both
+architectures.
+
+-------------------------------------------------------------------------------
+
+Compiling a mpi free version of Loci for use on head nodes.
+
+A version of Loci can be compiled that doesn't use MPI.  This can be useful 
+using utilities such as extract on head nodes.  To compile a mpi-free version
+you will need to compile a version of hdf5 that doesn't link to MPI.  Then you
+can configure Loci using the --nompi flag to setup a compile for Loci.
+
 
 -------------------------------------------------------------------------------
 Notes on installing the PETSC package
