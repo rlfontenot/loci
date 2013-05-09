@@ -593,9 +593,12 @@ Cell* build_resplit_general_cell(const Entity* lower, int lower_size,
                                  const const_store<char>& posTag,
                                  const const_store<std::vector<char> >& nodeTag,
                                  std::list<Node*>& bnode_list,
+                                 std::list<Node*>& node_list,
                                  std::list<Edge*>& edge_list,
                                  std::list<Face*>& face_list,
-                                 const const_store<int>& node_remap){
+                                 const const_store<int>& node_remap,
+                                 const std::vector<char>& cellPlan,
+                                 const  std::vector<char>& cellNodeTag ){
   int numFaces = lower_size + upper_size + boundary_map_size;
   std::vector<Entity> faces(numFaces);
   
@@ -785,7 +788,32 @@ Cell* build_resplit_general_cell(const Entity* lower, int lower_size,
         
   for(unsigned int eindex = 0; eindex < orderedEdges.size(); eindex++){
     edge[eindex] = e2e[orderedEdges[eindex]];
-  }   
+  }
+  Cell* aCell = new Cell(numNodes, numEdges, numFaces, node, edge, face,orient);
+  
+  //finish build
+  
+  //resplit cell
+  std::vector<DiamondCell*> cells;
+  aCell->resplit( cellPlan, 
+                  node_list,
+                  edge_list,
+                  face_list,
+                  cells);
+ #ifdef SIZE_DEBUG     
+  if(node_list.size()!= cellNodeTag.size()){
+    cerr<< " nodeTag size and node_list size mismatch(), nodeTag: " << cellNodeTag.size() << " node_list " << node_list.size() <<endl;
+    Loci::Abort();
+  }
+#endif
+  //tag nodes
+  int nindex = 0;
+  for(std::list<Node*>::const_iterator np = node_list.begin(); np!= node_list.end(); np++){
+    (*np)->tag = cellNodeTag[nindex++];
+  }
+  cells.clear();
+  
+  
   
   //resplit the edges again without tagging the node
   for(entitySet::const_iterator ep = edges.begin(); ep != edges.end(); ep++){
@@ -802,7 +830,7 @@ Cell* build_resplit_general_cell(const Entity* lower, int lower_size,
   }
 
   
-  return  new Cell(numNodes, numEdges, numFaces, node, edge, face,orient);
+  return aCell;  
         
         
 }

@@ -71,10 +71,11 @@ public:
         childCell = 0;
       }
       parentCell = 0;
-    }
+    
     if(face != 0){
       delete[] face;
       face = 0;
+    }
     }
   }
   //if all children are tagged as 2, remove all children
@@ -421,9 +422,13 @@ HexCell* build_resplit_hex_cell(const Entity* lower, int lower_size,
                                 const const_store<char>& posTag,
                                 const const_store<std::vector<char> >& nodeTag,
                                 std::list<Node*>& bnode_list,
+                                std::list<Node*>& node_list,
                                 std::list<Edge*>& edge_list,
                                 std::list<QuadFace*>& face_list,
-                                const const_store<int>& node_remap);
+                                const const_store<int>& node_remap,
+                                const std::vector<char>& cellPlan,
+                                const  std::vector<char>& cellNodeTag);
+ 
 
 
 //parallel version

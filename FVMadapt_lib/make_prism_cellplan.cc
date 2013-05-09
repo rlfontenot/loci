@@ -1000,6 +1000,7 @@ class derefine_prism_cellplan:public pointwise_rule{
   store<std::vector<char> > newCellPlan;
   const_param<bool> beginWithMarker; //dummy parameter to trick Loci scheduler
   const_store<int> node_l2f;
+
  
 public:
   derefine_prism_cellplan(){
@@ -1027,6 +1028,7 @@ public:
     name_store("beginWithMarker", beginWithMarker); 
     name_store("priority::restart::balancedCellPlan", newCellPlan);
     name_store("fileNumber(face2node)", node_l2f);
+
     input("beginWithMarker");
     input("split_mode_par");
     input("(cellPlan,balancedCellPlan1,nodeTag, prism2face, prism2node, prismOrientCode)");
@@ -1050,13 +1052,14 @@ public:
      
   }
   void calculate(Entity cc){
+   
     if(!isIndivisible[cc]){
       std::list<Node*> node_list;
       std::list<Edge*> edge_list;
       std::list<QuadFace*> qface_list;
       std::list<Face*> gface_list;
       std::list<Node*> bnode_list;
-      int nindex;
+     
 
     
   
@@ -1079,10 +1082,13 @@ public:
                                               posTag,
                                               nodeTag,
                                               bnode_list,
+                                              node_list,
                                               edge_list,
                                               qface_list,
                                               gface_list,
-                                              node_l2f
+                                              node_l2f,
+                                              cellPlan[cc],
+                                              nodeTag[cc]
                                               );
     
   
@@ -1092,47 +1098,32 @@ public:
  
     
    
-      std::vector<Prism*> cells;
-    
-      aCell->resplit( cellPlan[cc], 
-                      node_list,
-                      edge_list,
-                      qface_list,
-                      gface_list,
-                      cells);
-    
-      nindex = 0;
-      for(std::list<Node*>::const_iterator np = node_list.begin(); np!= node_list.end(); np++){
-        (*np)->tag = nodeTag[cc][nindex++];
-      }
-      cells.clear();
+     std::vector<Prism*> cells;
       aCell->resplit( cellPlan1[cc], 
                       node_list,
                       edge_list,
                       qface_list,
                       gface_list,
                       cells);
-    
-      int numCells = cells.size();
-      if(numCells != 0){//aCell is not a leaf
-       
-        //first if any cell need derefine
-        std::set<Prism*> dparents;
-        //mark the cell that will be eliminated
-        for(int i = 0; i < numCells; i++){
-          if(cells[i]->get_tagged() ==2){
-            Prism* parent = cells[i]->getParentCell();
-            if(parent!=0 && parent->needDerefine()){
-              dparents.insert(parent);
+
+      std::list<Prism*> leaves;
+      aCell->sort_leaves(leaves);
+      //first if any cell need derefine
+      std::set<Prism*> dparents;
+      for(std::list<Prism*>::const_iterator li = leaves.begin(); li != leaves.end(); li++){
+        if((*li)->get_tagged() ==2){
+          Prism* parent = (*li)->getParentCell();
+          if(parent!=0 && parent->needDerefine()){
+            dparents.insert(parent);
             }
-          }
         }
+      }
                
-        //derefine the cells
-        for(std::set<Prism*>::const_iterator si = dparents.begin(); si!= dparents.end(); si++){
-          (*si)->derefine();
-        }
-      }  
+      //derefine the cells
+      for(std::set<Prism*>::const_iterator si = dparents.begin(); si!= dparents.end(); si++){
+        (*si)->derefine();
+      }
+     
     
       newCellPlan[cc] = aCell->make_cellplan();
       

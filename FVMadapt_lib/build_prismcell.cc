@@ -388,10 +388,14 @@ Prism* build_resplit_prism_cell(const Entity* lower, int lower_size,
                                 const const_store<char>& posTag,
                                 const const_store<std::vector<char> >& nodeTag,
                                 std::list<Node*>& bnode_list,
+                                std::list<Node*>& node_list,
                                 std::list<Edge*>& edge_list,
                                 std::list<QuadFace*>& qface_list,
                                 std::list<Face*>& gface_list,
-                                const const_store<int>& node_remap){
+                                const const_store<int>& node_remap,
+                                const std::vector<char>& cellPlan,
+                                const  std::vector<char>& cellNodeTag
+                                ){
   
   Array<Entity, 5> face_entity = collect_prism_faces(lower, lower_size,
                                                      upper,upper_size,
@@ -500,6 +504,34 @@ Prism* build_resplit_prism_cell(const Entity* lower, int lower_size,
     bnode_begin= --(bnode_list.end());
     aCell->setFace(i, qface);
   }
+  //finish build
+  
+  //resplit cell
+  std::vector<Prism*> cells;
+  aCell->resplit( cellPlan, 
+                  node_list,
+                  edge_list,
+                  qface_list,
+                  gface_list,
+                  cells);
+ #ifdef SIZE_DEBUG     
+  if(node_list.size()!= cellNodeTag.size()){
+    cerr<< " nodeTag size and node_list size mismatch(), nodeTag: " << cellNodeTag.size() << " node_list " << node_list.size() <<endl;
+    Loci::Abort();
+  }
+#endif
+  //tag nodes
+  int nindex = 0;
+  for(std::list<Node*>::const_iterator np = node_list.begin(); np!= node_list.end(); np++){
+    (*np)->tag = cellNodeTag[nindex++];
+  }
+  cells.clear();
+  
+
+
+
+
+  
   //resplit the edges again without tagging the node 
   for(int i = 0; i < 9; i++){
     e2e[edge_entity[i]]->resplit(edgePlan1[edge_entity[i]],edge_reverse[i], bnode_list);

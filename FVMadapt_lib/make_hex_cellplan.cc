@@ -1001,12 +1001,13 @@ public:
     }
   }
   void calculate(Entity cc){
+   
     if(!isIndivisible[cc]){
       std::list<Node*> node_list;
       std::list<Edge*> edge_list;
       std::list<QuadFace*> face_list;
       std::list<Node*> bnode_list;
-      int nindex;
+     
 
                                                  
       HexCell* aCell = build_resplit_hex_cell(lower[cc].begin(), lower.num_elems(cc),
@@ -1026,9 +1027,12 @@ public:
                                               posTag,
                                               nodeTag,
                                               bnode_list,
+                                              node_list,
                                               edge_list,
                                               face_list,
-                                              node_l2f);
+                                              node_l2f,
+                                              cellPlan[cc],
+                                              nodeTag[cc]);
     
       
   
@@ -1038,50 +1042,35 @@ public:
     
    
       std::vector<HexCell*> cells;
-    
-      aCell->resplit( cellPlan[cc], 
-                      node_list,
-                      edge_list,
-                      face_list,
-                      cells);
-     
-
-      nindex = 0;
-      for(std::list<Node*>::const_iterator np = node_list.begin(); np!= node_list.end(); np++){
-        (*np)->tag = nodeTag[cc][nindex++];
-      }
-      
-      //resplit edges, faces and cells
-      cells.clear();
       aCell->resplit( cellPlan1[cc], 
                       node_list,
                       edge_list,
                       face_list,
                       cells);
       
-      int numCells = cells.size();
      
+     
+      std::list<HexCell*> leaves;
+      aCell->sort_leaves(leaves);
+     
+     
+      //first if any cell need derefine
+      std::set<HexCell*> dparents;
       
-      if(numCells != 0){//aCell is not a leaf
-        //first if any cell need derefine
-        std::set<HexCell*> dparents;
-
-        //mark the cell that will be eliminated
-        for(int i = 0; i < numCells; i++){
-          if(cells[i]->get_tagged() ==2){
-            HexCell* parent = cells[i]->getParentCell();
-            if(parent!=0 && parent->needDerefine()){
-              dparents.insert(parent);
-            }
+      for(std::list<HexCell*>::const_iterator li = leaves.begin(); li != leaves.end(); li++){
+        if((*li)->get_tagged() ==2){
+          HexCell* parent = (*li)->getParentCell();
+          if(parent!=0 && parent->needDerefine()){
+            dparents.insert(parent);
           }
         }
-                
-        //derefine the cells
-        for(std::set<HexCell*>::const_iterator si = dparents.begin(); si!= dparents.end(); si++){
-          (*si)->derefine();
-        }
-     
       }
+      //derefine the cells
+      for(std::set<HexCell*>::const_iterator si = dparents.begin(); si!= dparents.end(); si++){
+        (*si)->derefine();
+      }
+     
+      
       newCellPlan[cc] = aCell->make_cellplan();
       
       //clean up

@@ -924,9 +924,11 @@ void Cell::rebalance_cells(std::list<Node*>& node_list,
   }
 }
 
-
-
-
+void Cell::sort_leaves(std::list<DiamondCell*>& leaves){
+  if(child !=0){
+    for(int i = 0; i <numNode; i++)child[i]->sort_leaves(leaves);
+  }
+}
 int Cell::get_tagged(){
   if(this !=0){
     //if all nodes get detagged, the cell is detagged
@@ -1082,11 +1084,11 @@ void Cell:: split(std::list<Node*>& node_list, std::list<Edge*>& edge_list, std:
 
   
   //get facecenter
-  Node** facecenter = new Node*[numFace];
-  getFaceCenter(facecenter);
+  std::vector<Node*> facecenter(numFace);
+  getFaceCenter(&facecenter[0]);
   
   //define new edges , each edge points from cellcenter to facecenter
-  Edge** newEdges = new Edge*[numFace];
+  std::vector<Edge*> newEdges(numFace);
   for(int i = 0; i< numFace; i++){
     newEdges[i] = new Edge(cellcenter, facecenter[i], 1);
     edge_list.push_back(newEdges[i]);
@@ -1095,11 +1097,11 @@ void Cell:: split(std::list<Node*>& node_list, std::list<Edge*>& edge_list, std:
   //define new faces 
   //each edge generates a new quad face, 
   //for each new quad face, 
-  Face** newFaces = new Face*[numEdge];
+  std::vector<Face*> newFaces(numEdge);
   for(int i = 0; i < numEdge; i++){
     newFaces[i] = new Face(4);
    
-    face_list.push_back(newFaces[i]);
+   
     
     //find two faces that share the edge ,
     int findex1=0, findex2 = 0;
@@ -1132,6 +1134,7 @@ void Cell:: split(std::list<Node*>& node_list, std::list<Edge*>& edge_list, std:
     newFaces[i]->needReverse[1] = false;
     newFaces[i]->edge[2] = face[findex2]->child[edgeID2]->edge[1];
     newFaces[i]->needReverse[2] = true;
+    face_list.push_back(newFaces[i]); 
   }
     
   //for each node, define the child cell containing it
@@ -1181,9 +1184,7 @@ void Cell:: split(std::list<Node*>& node_list, std::list<Edge*>& edge_list, std:
       child[nindex]->faceOrient[i] = rot[i-n2e.size()]>=0?0:1;
     }
   }
-  delete [] newFaces;
-  delete [] newEdges;
-  delete [] facecenter;
+ 
 }
 
 std::vector<char> Cell::make_cellplan(){
@@ -1384,7 +1385,10 @@ bool Cell::needDerefine(){
     if(child!= 0){
       bool derefine = true;
       for(int i = 0; i < numNode; i++){
-        if(child[i] != 0 && (child[i]->get_tagged())!=2) derefine = false;
+        if(child[i] != 0){
+          if((child[i]->get_tagged())!=2) return false;
+          if(child[i]->childCell !=0) return false;
+        }
       }
       if(derefine){
         for(int i = 0; i < numEdge; i++){
@@ -1417,9 +1421,19 @@ bool DiamondCell::needDerefine(){
     if(childCell != 0){
       bool derefine = true;
       for(int i = 0; i < 2*nfold +2; i++){
-        if( (childCell[i] ->get_tagged()) != 2)derefine = false;
+        if(childCell[i]!=0){
+          if( (childCell[i] ->get_tagged()) != 2)return false;
+          if(childCell[i]->childCell !=0) return false;
+        }
       }
-      if(derefine) return true;
+      if(derefine){
+        std::set<Edge*> edges;
+        get_edges(edges);
+        for(std::set<Edge*>::const_iterator ei = edges.begin(); ei != edges.end(); ei++){
+          if((*ei)->depth_greater_than_1())return false;
+        }
+        return true;
+      }
     }
   }
   return false;

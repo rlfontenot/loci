@@ -330,9 +330,12 @@ HexCell* build_resplit_hex_cell(const Entity* lower, int lower_size,
                                 const const_store<char>& posTag,
                                 const const_store<std::vector<char> >& nodeTag,
                                 std::list<Node*>& bnode_list,
+                                std::list<Node*>& node_list,
                                 std::list<Edge*>& edge_list,
                                 std::list<QuadFace*>& face_list,
-                                const const_store<int>& node_remap){
+                                const const_store<int>& node_remap,
+                                const std::vector<char>& cellPlan,
+                                const  std::vector<char>& cellNodeTag ){
   
   Array<Entity, 6> face_entity = collect_hex_faces(lower,lower_size,
                                                    upper,upper_size,
@@ -406,7 +409,31 @@ HexCell* build_resplit_hex_cell(const Entity* lower, int lower_size,
     
     bnode_begin= --(bnode_list.end());
   }
-
+  HexCell* aCell = new HexCell(face);
+  
+   //finish build
+  
+  //resplit cell
+  std::vector<HexCell*> cells;
+  aCell->resplit( cellPlan, 
+                  node_list,
+                  edge_list,
+                  face_list,
+                  cells);
+ #ifdef SIZE_DEBUG     
+  if(node_list.size()!= cellNodeTag.size()){
+    cerr<< " nodeTag size and node_list size mismatch(), nodeTag: " << cellNodeTag.size() << " node_list " << node_list.size() <<endl;
+    Loci::Abort();
+  }
+#endif
+  //tag nodes
+  int nindex = 0;
+  for(std::list<Node*>::const_iterator np = node_list.begin(); np!= node_list.end(); np++){
+    (*np)->tag = cellNodeTag[nindex++];
+  }
+  cells.clear();
+  
+  
   //resplit the edges again without tagging the node
   for(int i = 0; i < 12; i++){
     e2e[edge_entity[i]]->resplit(edgePlan1[edge_entity[i]],edge_reverse[i], bnode_list);
@@ -415,7 +442,7 @@ HexCell* build_resplit_hex_cell(const Entity* lower, int lower_size,
   for(int i  = 0; i < 6; i++){
     face[i]->resplit(facePlan1[face_entity[i]],orientCode[i], bnode_list, edge_list);
   }
-  HexCell* aCell = new HexCell(face);
+
   return aCell;
 }
 

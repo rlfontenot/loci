@@ -70,7 +70,8 @@ int Prism::empty_resplit( const std::vector<char>& cellPlan){
     }else if((current->mySplitCode)!=0 && currentCode != (current->mySplitCode)){
       Loci::debugout << "WARNING: split code is not consistent" << endl;
       Loci::debugout << int(currentCode) << " intree " << int( current->mySplitCode)<< endl; 
-      Loci::Abort();
+       Loci::Abort();
+      
     }else{
       if((current->childCell)==0){
         current->mySplitCode = currentCode;
@@ -1327,7 +1328,8 @@ bool Prism::needDerefine(){
     if(childCell != 0){
       bool derefine = true;
       for(int i = 0; i < numChildren(); i++){
-        if( (childCell[i] ->get_tagged()) != 2)derefine = false;
+        if( (childCell[i] ->get_tagged()) != 2) return false;
+        if (childCell[i]->childCell !=0)return false;
       }
       if(derefine){
         std::vector<Edge*> edge= get_edges();
@@ -1345,7 +1347,8 @@ bool Prism::needDerefine(){
 void Prism::derefine(){
   if(this != 0 ){
     if(childCell != 0){
-      for(int i = 0; i < numChildren(); i++){
+      int nc = numChildren();
+      for(int i = 0; i < nc; i++){
         if(childCell[i] != 0){
           delete  childCell[i];
           childCell[i] = 0;

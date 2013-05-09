@@ -325,34 +325,35 @@ public:
 
   //destructor
   ~Cell(){
-    if(child!= 0){
-      for(int i = 0; i < numNode; i++){
-        if(child[i] != 0){
-          delete child[i];
-          child[i] = 0;
+    if(this !=0){
+      if(child!= 0){
+        for(int i = 0; i < numNode; i++){
+          if(child[i] != 0){
+            delete child[i];
+            child[i] = 0;
+          }
         }
+        delete [] child;
+        child = 0;
       }
-      delete [] child;
-      child = 0;
+      if(faceOrient !=0){
+        delete [] faceOrient;
+        faceOrient = 0;
+      }
+      if(face!=0){
+        delete [] face;
+        face = 0;
+      }
+      
+      if(edge !=0){
+        delete [] edge;
+        edge = 0;
+      }
+      if(node !=0){
+        delete [] node;
+        node = 0;
+      }
     }
-    if(faceOrient !=0){
-      delete [] faceOrient;
-      faceOrient = 0;
-    }
-    if(face!=0){
-      delete [] face;
-      face = 0;
-    }
-    
-    if(edge !=0){
-      delete [] edge;
-      edge = 0;
-    }
-    if(node !=0){
-      delete [] node;
-      node = 0;
-    }
-    
   }
 
   //if all children are tagged as 2, remove all children
@@ -410,6 +411,8 @@ public:
     }
   }
 
+  void sort_leaves(std::list<DiamondCell*>& v1);
+  
   //find the minimum edge length in a cell(before split)
   inline double get_min_edge_length(){
     double min_length = norm(edge[0]->head->p - edge[0]->tail->p);
@@ -538,9 +541,12 @@ Cell* build_resplit_general_cell(const Entity* lower, int lower_size,
                                  const const_store<char>& posTag,
                                  const const_store<std::vector<char> >& nodeTag,
                                  std::list<Node*>& bnode_list,
+                                  std::list<Node*>& node_list,
                                  std::list<Edge*>& edge_list,
                                  std::list<Face*>& face_list,
-                                 const const_store<int>& node_remap);
+                                 const const_store<int>& node_remap,
+                                 const std::vector<char>& cellPlan,
+                                 const  std::vector<char>& cellNodeTag);
 
 
 //build a Cell from Loci data structures, the locations of nodes are defined

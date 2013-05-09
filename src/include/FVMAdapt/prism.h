@@ -72,7 +72,8 @@ public:
   ~Prism(){
     if(this != 0 ){
       if(childCell != 0){
-        for(int i = 0; i < numChildren(); i++){
+        int nc =  numChildren();
+        for(int i = 0; i < nc; i++){
           if(childCell[i] != 0){
             delete  childCell[i];
             childCell[i] = 0;
@@ -82,15 +83,16 @@ public:
         childCell = 0;
       }
       parentCell = 0;
-    }
-    if(gnrlface != 0){
-      delete[] gnrlface;
-      gnrlface = 0;
-    }
-
-    if(quadface != 0){
-      delete[] quadface;
-      quadface = 0;
+    
+      if(gnrlface != 0){
+        delete[] gnrlface;
+        gnrlface = 0;
+      }
+      
+      if(quadface != 0){
+        delete[] quadface;
+        quadface = 0;
+      }
     }
   }
   
@@ -441,10 +443,13 @@ Prism* build_resplit_prism_cell(const Entity* lower, int lower_size,
                                 const const_store<char>& posTag,
                                 const const_store<std::vector<char> >& nodeTag,
                                 std::list<Node*>& bnode_list,
+                                std::list<Node*>& node_list,
                                 std::list<Edge*>& edge_list,
                                 std::list<QuadFace*>& qface_list,
                                 std::list<Face*>& gface_list,
-                                const const_store<int>& node_remap);
+                                const const_store<int>& node_remap,
+                                const std::vector<char>& cellPlan,
+                                const  std::vector<char>& cellNodeTag);
 
 // for no restart
 Prism* build_prism_cell(const Entity* lower, int lower_size,

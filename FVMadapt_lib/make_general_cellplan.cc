@@ -937,6 +937,7 @@ class derefine_general_cellplan:public pointwise_rule{
   const_multiMap face2edge;
   const_multiMap face2node;
   const_store<std::vector<char> > cellPlan;
+
   const_store<std::vector<char> > facePlan;
   const_store<std::vector<char> > edgePlan;
   const_store<std::vector<char> > cellPlan1;
@@ -972,6 +973,8 @@ public:
     name_store("is_quadface", is_quadface);
     name_store("restart_tag_par", restart_tag_par);
     name_store("beginWithMarker", beginWithMarker);
+
+    
     input("beginWithMarker");
     input("restart_tag_par");
     input("(cellPlan,balancedCellPlan1,nodeTag) ");
@@ -992,13 +995,13 @@ public:
    
   }
   void calculate(Entity cc){
-
+  
     if(!isIndivisible[cc]){
       std::list<Node*> node_list;
       std::list<Edge*> edge_list;
       std::list<Face*> face_list;
       std::list<Node*> bnode_list;
-      int nindex;
+     
 
     
  
@@ -1019,9 +1022,12 @@ public:
                                                posTag,
                                                nodeTag,
                                                bnode_list,
+                                               node_list,
                                                edge_list,
                                                face_list,
-                                               node_l2f);
+                                               node_l2f,
+                                               cellPlan[cc],
+                                               nodeTag[cc]);
       
   
   
@@ -1029,52 +1035,41 @@ public:
       
       
       std::vector<DiamondCell*> cells;
-      
-      aCell->resplit( cellPlan[cc], 
-                      node_list,
-                      edge_list,
-                      face_list,
-                      cells);
-      
-      
-      nindex = 0;
-      for(std::list<Node*>::const_iterator np = node_list.begin(); np!= node_list.end(); np++){
-        (*np)->tag = nodeTag[cc][nindex++];
-      }
-      
-      cells.clear();
       aCell->resplit( cellPlan1[cc], 
                       node_list,
                       edge_list,
                       face_list,
                       cells);
       
-    
-      // split the cell Globals::levels times
-      int numCells = cells.size();
-     
       
-      if(numCells != 0){//aCell is not a leaf
+      
+      
+      std::list<DiamondCell*> leaves;
+      aCell->sort_leaves(leaves);
+      
+      
        
-        //first if any cell need derefine
-        std::set<DiamondCell*> dparents;
-        bool check_root = false;
-        //mark the cell that will be eliminated
-        for(int i = 0; i < numCells; i++){
-          if(cells[i]->get_tagged() ==2){
-            DiamondCell* parent = cells[i]->getParentCell();
-            if(parent==0)check_root = true;
-            if(parent!=0 && parent->needDerefine()){
-              dparents.insert(parent);
-            }
+      //first if any cell need derefine
+      std::set<DiamondCell*> dparents;
+      bool check_root = false;
+      //mark the cell that will be eliminated
+      for(std::list<DiamondCell*>::const_iterator li = leaves.begin(); li != leaves.end(); li++){
+        if((*li)->get_tagged() ==2){
+          DiamondCell* parent = (*li)->getParentCell();
+          if(parent==0)check_root = true;
+          if(parent!=0 && parent->needDerefine()){
+            dparents.insert(parent);
           }
         }
-               
-        //derefine the cells
-        for(std::set<DiamondCell*>::const_iterator si = dparents.begin(); si!= dparents.end(); si++){
-          (*si)->derefine();
-        }
-      }  
+      }
+      //derefine the cells
+      for(std::set<DiamondCell*>::const_iterator si = dparents.begin(); si!= dparents.end(); si++){
+        (*si)->derefine();
+      }
+      if(check_root){
+        if(aCell->needDerefine()) aCell->derefine();
+      }
+      
       newCellPlan[cc] = aCell->make_cellplan();
       
       

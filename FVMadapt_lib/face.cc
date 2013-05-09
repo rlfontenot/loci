@@ -156,7 +156,7 @@ void Face::split(std::list<Node*>& node_list, std::list<Edge*>& edge_list){
 //for build prism, when built prism cell, triangle face is built as node 0->1->2->0 and
 //node 3->4->->5->3, and it will split with orientCode
 void Face::split(char orientCode, std::list<Node*>& node_list, std::list<Edge*>& edge_list){
-  
+  if(child!=0)return;
   //split edges
   for(int i = 0; i < numEdge; i++){
     //build as in cell, and split as in face, so f2c

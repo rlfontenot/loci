@@ -89,6 +89,22 @@ public:
         if(childx != 0){
           for(int i = 0; i < 2; i++){
             if(childx[i] != 0){
+              //first detangle the pointer, cut offset all the children,  prevent address alias
+              if(childx[i]->childy !=0){
+                childx[i]->childy[0] = 0;
+                childx[i]->childy[1] = 0;
+              }
+              if(childx[i]->childx !=0){
+                childx[i]->childx[0] = 0;
+                childx[i]->childx[1] = 0;
+              }
+               if(childx[i]->child !=0){
+                childx[i]->child[0] = 0;
+                childx[i]->child[1] = 0;
+                childx[i]->child[2] = 0;
+                childx[i]->child[3] = 0;
+               }
+               
               delete childx[i];
               childx[i] = 0;
             }
@@ -99,8 +115,21 @@ public:
         if(childy != 0){
           for(int i = 0; i < 2; i++){
             if(childy[i] != 0) {
-              delete[] childy[i]->childx;
-              childy[i]->childx = 0;
+              if(childy[i]->childx != 0){
+              childy[i]->childx[0] = 0;
+              childy[i]->childx[1] = 0;
+              }
+              if(childy[i]->childy != 0){
+              childy[i]->childy[0] = 0;
+              childy[i]->childy[1] = 0;
+              }
+              if(childy[i]->child != 0){
+              childy[i]->child[0] = 0;
+              childy[i]->child[1] = 0;
+              childy[i]->child[2] = 0;
+              childy[i]->child[3] = 0;
+              }
+              
               delete childy[i];
               childy[i] = 0;
             }
@@ -111,10 +140,15 @@ public:
 
 
         if(child!= 0){
+          for(int i = 0; i < 2; i++){
+            if(child[i] !=0)delete child[i];
+          }
           delete[] child;
           child = 0;
+          
         }
-        break;
+          break;
+          
       case 2:
         if(childx != 0){
           for(int i = 0; i < 2; i++){

@@ -90,7 +90,7 @@ public:
   }
   void calculate(Entity cc){
     
-    // if(cell_offset[cc] > 44671 && cell_offset[cc] < 44735 ) cerr << "gnrl cell : " << cc << " offset: " << cell_offset[cc] << endl;
+    
     
     if(cellPlan[cc].size() == 0){
       vector<vector<int> >().swap(fine_faces[cc]);

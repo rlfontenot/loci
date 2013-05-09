@@ -1682,13 +1682,22 @@ int32 HexCell::traverse(const std::vector<char>& parentPlan,  vector<pair<int32,
   }
   return cIndex;
 }
+
+
+
+
+
+
+
+  
 //assume with derefinement, the balance option is always no edge has levels greater than 1 
 bool HexCell::needDerefine(){
   if(this != 0 ){
     if(childCell != 0){
       bool derefine = true;
       for(int i = 0; i < numChildren(); i++){
-        if( (childCell[i] ->get_tagged()) != 2)derefine = false;
+        if( (childCell[i] ->get_tagged()) != 2)return false;
+        if(childCell[i]->childCell!=0) return false;
       }
       if(derefine){
         std::vector<Edge*> edge = get_edges();
