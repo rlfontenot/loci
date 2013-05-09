@@ -40,6 +40,7 @@ using std::ofstream ;
 using std::ios ;
 using std::sort ;
 using std::unique ;
+using std::ifstream ;
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -346,7 +347,8 @@ void setup_grid_topology(string casename, string iteration) {
   string file = casename + ".vog" ;
   struct stat tmpstat ;
   if(stat(file.c_str(),&tmpstat) != 0) {
-    file = casename + ".xdr" ;
+    cerr << "unable to find vog file = " << file << endl ;
+    Loci::Abort() ;
   }
 
   if(!Loci::setupFVMGrid(facts,file)) {
@@ -549,7 +551,16 @@ void extract_grid(string casename, string iteration,
   }
   
   string gridtopo = output_dir+"/" + casename +".topo" ;
-
+  string toponamefile = output_dir + "/topo_file." + iteration + "_" + casename ;
+  if(stat(toponamefile.c_str(),&tmpstat)== 0) {
+    ifstream tinput(toponamefile.c_str()) ;
+    string name  ;
+    tinput >> name ;
+    name = output_dir + "/" + name ;
+    if(stat(name.c_str(),&tmpstat)==0)
+      gridtopo=name ;
+  }
+  cout << "extracting topology from '" << gridtopo << "'" << endl;
 
   file_id = H5Fopen(gridtopo.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
 
