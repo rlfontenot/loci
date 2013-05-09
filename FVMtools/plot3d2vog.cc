@@ -1870,11 +1870,24 @@ if(Lref == "")
       cout << "orienting faces" << endl ;
     VOG::orientFaces(pos,cl,cr,face2node) ;
 
-    if(MPI_rank == 0)
-      cout << "coloring matrix" << endl ;
-    VOG::colorMatrix(pos,cl,cr,face2node) ;
   }
-
+  
+  // Establish face orientation to be consistent with matrix coloring
+  // color matrix according to the numbering of the cells
+  FORALL(fdom,fc) {
+    if(cl[fc] > 0 && cr[fc] > 0 && cl[fc] > cr[fc]) {
+      // change face orientation to match matrix coloring
+      std::swap(cl[fc],cr[fc]) ;
+      int i = 0 ;
+      int j = face2node[fc].size() - 1;
+      while(i < j) {
+        std::swap(face2node[fc][i],face2node[fc][j]) ;
+        i++ ;
+        j-- ;
+      }
+    }
+  }ENDFORALL ;
+  
   if(optimize) {
     if(MPI_rank == 0)
       cout << "optimizing mesh layout" << endl ;
