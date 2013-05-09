@@ -595,74 +595,64 @@ namespace Loci {
       entitySet max_set;
       if(max_eset_size > 0)
 	max_set = interval(0, max_eset_size-1) ;
-      storeRepP tmp_sp ;
-      if(fi.size)
-	tmp_sp = qrep->new_store(max_set) ;
-      for(int p = 0; p < np; ++p) {
-	entitySet local_set;
-	if(interval_sizes[p] > 0)
-	  local_set = entitySet(interval(curr_indx, interval_sizes[p]+curr_indx-1)) ;
-	curr_indx += interval_sizes[p] ;
-	hsize_t dimension = arr_sizes[p] ;
-	count = dimension ;
-	H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
-	entitySet tmp_set;
-	if(local_set.size())
-	  tmp_set = interval(0, local_set.size()-1) ;
-	if(p && tmp_sizes[p]) {
-	  MPI_Recv(tmp_int, tmp_sizes[p], MPI_INT, p, 10, comm, &status) ;
-	  std::vector<int> vint, fvint ;
-	  int t = 0 ;
-	  if(fi.size) {
-	    if(fi.is_stat) {
-	      for(int i = 0; i < tmp_sizes[p]; ++i)
-		vint.push_back(tmp_int[t++]) ;
-	      fi.second_level = vint ;
-	    }
-	  } else {
-	    for(int i = 0; i < local_set.size(); ++i)
-	      fvint.push_back(tmp_int[t++]) ;
-	    for(int i = 0; i < tmp_sizes[p]-local_set.size(); ++i)
-	      vint.push_back(tmp_int[t++]) ;
-	    fi.first_level = fvint ;
-	    fi.second_level = vint ;
-	  }
-	}
-	storeRepP t_sp ;
-	int t = 0 ;
-	if(p == 0)
-	  if(!fi.size)
-	    for(std::vector<int>::const_iterator vi = fi.first_level.begin(); vi != fi.first_level.end(); ++vi)
-	      tmp_int[t++] = *vi ;
-	if(fi.size) {
-	  tmp_sp->readhdf5(group_id, dataspace, dataset, dimension, "data", fi, tmp_set) ;
-	  tmp_total_size = tmp_sp->pack_size(tmp_set) ;
-	} else {
-	  t_sp = qrep->new_store(tmp_set, tmp_int) ;
-	  t_sp->readhdf5(group_id, dataspace, dataset, dimension, "data", fi, tmp_set) ;
-	  tmp_total_size = t_sp->pack_size(tmp_set) ;
-	}
-        if(np == 1) {
-          if(tmp_total_size > total_size) {
-            total_size = tmp_total_size ;
-            tmp_buf = new unsigned char[total_size] ;
+      if(np == 1) {
+        qrep->allocate(dom) ;
+        if(fi.size)
+          if(fi.size > 1)
+            qrep->set_elem_size(fi.size) ;
+        hsize_t dimension = arr_sizes[0] ;
+        count = dimension ;
+        H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
+        qrep->readhdf5(group_id, dataspace, dataset, dimension, "data", fi, dom) ;
+      } else {
+        storeRepP tmp_sp ;
+        if(fi.size)
+          tmp_sp = qrep->new_store(max_set) ;
+        for(int p = 0; p < np; ++p) {
+          entitySet local_set;
+          if(interval_sizes[p] > 0)
+            local_set = entitySet(interval(curr_indx, interval_sizes[p]+curr_indx-1)) ;
+          curr_indx += interval_sizes[p] ;
+          hsize_t dimension = arr_sizes[p] ;
+          count = dimension ;
+          H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
+          entitySet tmp_set;
+          if(local_set.size())
+            tmp_set = interval(0, local_set.size()-1) ;
+          if(p && tmp_sizes[p]) {
+            MPI_Recv(tmp_int, tmp_sizes[p], MPI_INT, p, 10, comm, &status) ;
+            std::vector<int> vint, fvint ;
+            int t = 0 ;
+            if(fi.size) {
+              if(fi.is_stat) {
+                for(int i = 0; i < tmp_sizes[p]; ++i)
+                  vint.push_back(tmp_int[t++]) ;
+                fi.second_level = vint ;
+              }
+            } else {
+              for(int i = 0; i < local_set.size(); ++i)
+                fvint.push_back(tmp_int[t++]) ;
+              for(int i = 0; i < tmp_sizes[p]-local_set.size(); ++i)
+                vint.push_back(tmp_int[t++]) ;
+              fi.first_level = fvint ;
+              fi.second_level = vint ;
+            }
           }
-          start += count ;
-          int loc = 0 ;
-          if(fi.size)
-            tmp_sp->pack(tmp_buf, loc, total_size, tmp_set) ;
-          else
-            t_sp->pack(tmp_buf, loc, total_size, tmp_set) ;
-          int loc_unpack = 0 ;
-          
-          if(fi.size)
-            if(fi.size > 1)
-              qrep->set_elem_size(fi.size) ;
+          storeRepP t_sp ;
+          int t = 0 ;
+          if(p == 0)
+            if(!fi.size)
+              for(std::vector<int>::const_iterator vi = fi.first_level.begin(); vi != fi.first_level.end(); ++vi)
+                tmp_int[t++] = *vi ;
+          if(fi.size) {
+            tmp_sp->readhdf5(group_id, dataspace, dataset, dimension, "data", fi, tmp_set) ;
+            tmp_total_size = tmp_sp->pack_size(tmp_set) ;
+          } else {
+            t_sp = qrep->new_store(tmp_set, tmp_int) ;
+            t_sp->readhdf5(group_id, dataspace, dataset, dimension, "data", fi, tmp_set) ;
+            tmp_total_size = t_sp->pack_size(tmp_set) ;
+          }
 
-          sequence tmp_seq = sequence(dom) ;
-          qrep->allocate(dom) ;
-          qrep->unpack(tmp_buf, loc_unpack, total_size, tmp_seq) ;
-        } else {
           if(tmp_total_size > total_size) {
             total_size = tmp_total_size ;
             if(p)
