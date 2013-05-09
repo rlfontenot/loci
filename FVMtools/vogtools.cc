@@ -47,6 +47,40 @@ namespace Loci {
                                      const std::vector<entitySet> &init_ptn) ;
 }
 namespace VOG {
+  
+  //#define MEMDIAG
+  
+#ifdef MEMDIAG
+  void *memtop =0;
+
+  class beginexec {
+  public:
+    beginexec() {
+      memtop = sbrk(0) ;
+    }
+  } ;
+
+  beginexec hackit;
+#endif
+  void memSpace(string s) {
+#ifdef MEMDIAG
+
+    unsigned long memsize = (char *)sbrk(0)-(char *)memtop ;
+    debugout << s << ": malloc = " << double(memsize)/(1024.*1024) << endl ;
+    //#define MEMINFO
+#ifdef MEMINFO
+    struct mallinfo info = mallinfo() ;
+    debugout << s << ": minfo, arena=" << info.arena
+             << ", ordblks=" << info.ordblks
+             << ", hblks="<< info.hblks
+             << ", hblkhd="<< info.hblkhd
+             << ", uordblks=" << info.uordblks
+             << ", fordblks="<<info.fordblks
+             << ", keepcost="<<info.keepcost << endl ;
+#endif
+    debugout.flush() ;
+#endif
+  }
 
   vector<BC_descriptor> readTags(string filename) {
     vector<BC_descriptor> bcs ;
@@ -789,7 +823,8 @@ namespace VOG {
   // Optimize indicies of mesh to increase locality
   void optimizeMesh(store<vector3d<double> > &pos,
                     Map &cl, Map &cr, multiMap &face2node) {
-
+    
+    memSpace("start optimizeMesh") ;
     // First establish current distribution of entities across processors
     vector<entitySet> ptn(MPI_processes) ; // entity Partition
 
@@ -826,12 +861,16 @@ namespace VOG {
       ptn[i] += interval(pl[i],pl[i+1]-1) ;
 
 
+    memSpace("collect partition Info") ;
     // Compute distribution of cells based on space filling curve
     store<vector3d<double> > cellcenter ;
     getCellCenters(cellcenter, pos, cl,  cr, face2node, ptn) ;
     vector3d<double> maxVec, minVec,tmaxVec, tminVec ;
-
+    
+    memSpace("get cell centers") ;
     loc_geom_cells = geom_cells & ptn[MPI_rank] ;
+
+    
     maxVec = cellcenter[loc_geom_cells.Min()] ;
     minVec = maxVec ;
     FORALL(loc_geom_cells,cc) {
@@ -867,7 +906,8 @@ namespace VOG {
     } ENDFORALL ;
 
     Loci::parSampleSort(keyList,MPI_COMM_WORLD) ;
-
+    
+    memSpace("sorted Keys") ;
     vector<int> keysizes(MPI_processes) ;
     size = keyList.size() ;
     MPI_Allgather(&size,1,MPI_INT,&keysizes[0],1,MPI_INT,MPI_COMM_WORLD) ;
@@ -884,7 +924,7 @@ namespace VOG {
     multiMap mapping ;
 
     Loci::distributed_inverseMap(mapping,keypair,geom_cells,geom_cells,ptn) ;
-
+    memSpace("inverseMap") ;
     // renumber cells 
     dMap cell2cell ;
     FORALL(loc_geom_cells,cc) {
@@ -896,7 +936,8 @@ namespace VOG {
     entitySet cimage = tmp_cells & interval(0,Loci::UNIVERSE_MAX) ;
 
     cell2cell.setRep(MapRepP(cell2cell.Rep())->expand(cimage,ptn)) ;
-
+    
+    memSpace("expand cell2cell map") ;
     FORALL(faces,fc) {
       cl[fc] = cell2cell[cl[fc]] ;
       if(cr[fc] >= 0)
@@ -970,7 +1011,8 @@ namespace VOG {
     ncl.allocate(newFaces) ;
     ncr.allocate(newFaces) ;
     count.allocate(newFaces) ;
-
+    
+    memSpace("allocate new faces") ;
     int off = face_off ;
     for(int i=0;i<p;++i) {
       int k = rdispls[i] ;
@@ -1030,7 +1072,7 @@ namespace VOG {
     cl = scl.Rep() ;
     cr = scr.Rep() ;
     face2node = sf2n.Rep() ;
-
+    memSpace("created new face ordering") ;
     // Now order nodes to match faces
     entitySet loc_faces = face2node.domain() ;
     entitySet node_access = MapRepP(face2node.Rep())->image(loc_faces)+pos.domain() ;
@@ -1068,6 +1110,8 @@ namespace VOG {
 
     Loci::parSampleSort(node_data,MPI_COMM_WORLD) ;
 
+    memSpace("ordering Nodes") ;
+
     size = node_data.size() ;
     MPI_Allgather(&size,1,MPI_INT,&keysizes[0],1,MPI_INT,MPI_COMM_WORLD) ;
     for(int i=1;i<MPI_processes;++i)
@@ -1093,7 +1137,7 @@ namespace VOG {
     multiMap nmapping ;
 
     Loci::distributed_inverseMap(nmapping,nodepair,allNodes,allNodes,ptn) ;
-
+    memSpace("inverseMap nmapping") ;
     // renumber nodes
     dMap node2node ;
     FORALL(nodes,nd) {
@@ -1101,9 +1145,9 @@ namespace VOG {
         cerr << "problem generating node2node map" << endl ;
       node2node[nd] = nmapping[nd][0] ;
     } ENDFORALL ;
-                               
-    node2node.setRep(MapRepP(node2node.Rep())->expand(node_access,ptn)) ;
 
+    node2node.setRep(MapRepP(node2node.Rep())->expand(node_access,ptn)) ;
+    memSpace("expanding node2node") ;
     FORALL(face2node.domain(),fc) {
       for(int i=0;i<face2node[fc].size();++i)
         face2node[fc][i] = node2node[face2node[fc][i]] ;
