@@ -120,9 +120,9 @@ REFOBJS =	read_par.o \
 
 #LOCAL_LIBS =	
 
-LIBXML2_LIBS ?= -lxml2
-LIBXML2_DEFINE ?= -DUSE_LIBXML2
-LIBXML2_INCLUDE ?= -I/usr/include/libxml2
+#LIBXML2_LIBS ?= -lxml2
+#LIBXML2_DEFINE ?= -DUSE_LIBXML2
+#LIBXML2_INCLUDE ?= -I/usr/include/libxml2
 
 LOCAL_LIBS      = $(LIBXML2_LIBS)
 
