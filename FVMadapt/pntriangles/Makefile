@@ -11,7 +11,7 @@ LOCAL_LIBS =
 
 JUNK = *~ core ti_files ii_files rii_files 
 
-GEOMOBJS = compute_geom.o coeff.o geom_output.o  set_bnodes_index.o
+GEOMOBJS = compute_geom.o svdcmp.o
 
 OBJS = adjust_pos.o surface_delta.o mesh_deform.o 
 

@@ -12,6 +12,18 @@ geometry created in a file called "sphere.geom" by executing:
 
 computegeom -o sphere.geom sphere
 
+The computegeom utilitity uses heuristics to detect creases in the geometry
+where the surface normals are allowed to abruptly change.  The threshold used 
+for the detection of creases can be set with the -theta_r (ridge theta) option.
+The default is 15 degrees, but for a low quality coarse surface mesh, this may
+need to be set to a much larger value (about 40-50).  For a good quality surface
+mesh with subtle ridges, a lower value might be helpful.  It is helpful to 
+remove the rebuild surfaces that have high aspect ratios (or other non-viscous
+surfaces such as farfield).  These surfaces can be removed from the
+reconstruction using the -ignore_bc option.  The -geom_output can be used to
+output a doubly refined surface mesh that can be used to visualize the
+reconstructed geometry using solidmesh.
+
 alternatively you can get a the geometry from exact normals by using
 the command getgeom.  For example if you have the files sphere.surf
 (surface mesh) and sphere.surfn (surface normals) then you can get the
