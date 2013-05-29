@@ -48,7 +48,8 @@
 #include "node_edge.h"
 using std::ofstream;
 using std::bitset;
-
+using std::cout;
+using std::endl;
 struct Range2d;
 
 //f2c orient functions are uesd when a quadface is built as in cell
@@ -80,7 +81,93 @@ public:
   QuadFace( Edge** e):edge(e),child(0), childx(0), childy(0),code(char(0)){}
  
 
-  //destructor, it works this way without memory leakage
+ //  //destructor, it works this way without memory leakage
+//   ~QuadFace(){
+  
+//     if(this != 0){
+//       switch(code){
+//       case 3:
+       
+//         if(childx != 0){
+//           for(int i = 0; i < 2; i++){
+//             if(childx[i] != 0){
+//               //first detangle the pointer, cut offset all the children,  prevent address alias
+//               if(childx[i]->childy !=0){
+//                 childx[i]->childy[0] = 0;
+//                 childx[i]->childy[1] = 0;
+//               }
+                            
+//                delete childx[i];
+//               childx[i] = 0;
+//             }
+//           }
+//           delete[] childx;
+//           childx = 0;
+//         }
+//         if(childy != 0){
+//           for(int i = 0; i < 2; i++){
+//             if(childy[i] != 0) {
+//               if(childy[i]->childx != 0){
+//                 childy[i]->childx[0] = 0;
+//                 childy[i]->childx[1] = 0;
+//               }
+              
+//               delete childy[i];
+//               childy[i] = 0;
+//             }
+//           }
+//           delete[] childy;
+//           childy = 0;
+//         }
+
+        
+//         if(child!= 0){
+//           for(int i = 0; i < 4; i++){
+//             if(child[i] !=0)delete child[i];
+//             child[i] = 0;
+//           }
+//           delete[] child;
+//           child = 0;
+//         }
+
+       
+//         break;
+          
+//       case 2:
+//         if(childx != 0){
+//           for(int i = 0; i < 2; i++){
+//             if(childx[i] != 0){
+//               delete childx[i];
+//               childx[i] = 0;
+//             }
+//           }
+//           delete[] childx;
+//           childx = 0;
+//         }
+//         break;
+//       case 1:
+//         if(childy != 0){
+//           for(int i = 0; i < 2; i++){
+//             if(childy[i] != 0){
+//               delete childy[i];
+//               childy[i] = 0;
+//             }
+//           }
+//           delete[] childy;
+//           childy = 0;
+//         }
+//         break;
+//       default:
+//         break;
+//       }
+      
+//       if(edge != 0){
+//         delete [] edge;
+//         edge = 0;
+//       }
+//     }
+//   }
+ //destructor, it works this way without memory leakage
   ~QuadFace(){
     if(this != 0){
       switch(code){
@@ -89,22 +176,6 @@ public:
         if(childx != 0){
           for(int i = 0; i < 2; i++){
             if(childx[i] != 0){
-              //first detangle the pointer, cut offset all the children,  prevent address alias
-              if(childx[i]->childy !=0){
-                childx[i]->childy[0] = 0;
-                childx[i]->childy[1] = 0;
-              }
-              if(childx[i]->childx !=0){
-                childx[i]->childx[0] = 0;
-                childx[i]->childx[1] = 0;
-              }
-               if(childx[i]->child !=0){
-                childx[i]->child[0] = 0;
-                childx[i]->child[1] = 0;
-                childx[i]->child[2] = 0;
-                childx[i]->child[3] = 0;
-               }
-               
               delete childx[i];
               childx[i] = 0;
             }
@@ -115,21 +186,8 @@ public:
         if(childy != 0){
           for(int i = 0; i < 2; i++){
             if(childy[i] != 0) {
-              if(childy[i]->childx != 0){
-              childy[i]->childx[0] = 0;
-              childy[i]->childx[1] = 0;
-              }
-              if(childy[i]->childy != 0){
-              childy[i]->childy[0] = 0;
-              childy[i]->childy[1] = 0;
-              }
-              if(childy[i]->child != 0){
-              childy[i]->child[0] = 0;
-              childy[i]->child[1] = 0;
-              childy[i]->child[2] = 0;
-              childy[i]->child[3] = 0;
-              }
-              
+              delete[] childy[i]->childx;
+              childy[i]->childx = 0;
               delete childy[i];
               childy[i] = 0;
             }
@@ -140,15 +198,10 @@ public:
 
 
         if(child!= 0){
-          for(int i = 0; i < 2; i++){
-            if(child[i] !=0)delete child[i];
-          }
           delete[] child;
           child = 0;
-          
         }
-          break;
-          
+        break;
       case 2:
         if(childx != 0){
           for(int i = 0; i < 2; i++){
@@ -184,8 +237,10 @@ public:
   }
 
  
+ 
   inline double area(){
-    vect3d tmp_center = simple_center()->p;
+    Node* c = simple_center();
+    vect3d tmp_center = c->p;
     vect3d sum = vect3d(0.0, 0.0, 0.0);
     for(int i = 0; i < 2; i++){
       sum += cross((edge[i]->tail->p - tmp_center), (edge[i]->head->p - tmp_center));
@@ -193,7 +248,7 @@ public:
     for(int i = 2; i < 4; i++){
       sum += cross((edge[i]->head->p - tmp_center), (edge[i]->tail->p - tmp_center));
     }
-    
+    if(c!=0)delete c;
     return 0.5*norm(sum);
   }
 
@@ -318,7 +373,7 @@ public:
   
   //only used in transfer_plan_q2g
   void empty_resplit(const std::vector<char>& facePlan, char orientCode,
-                    std::vector<QuadFace*>& fine_faces);
+                     std::vector<QuadFace*>& fine_faces);
   
 public:
   
@@ -375,6 +430,19 @@ std::vector<QuadFace*> overlap( QuadFace* f1,   QuadFace* f2);
 void  write_quad_inner_faces(const std::map<QuadFace*, NeibIndex>& faces,
                              int cell_offset, int& mxppf, ofstream& ofile);
 
+//when a quadface is resplit according to faceplan and its node need to be tagged according to faceplan1,
+//assume the node is stored in bnode_list that start at bnode_begin++ until the end of list,
+//build 2 temp quadface, resplit them according to faceplan and faceplan1,
+//find the node correspondence and tag the node in bnode_list. 
+void tag_quad_face( const Entity* face2node, 
+                    const Entity* face2edge,
+                    const const_MapVec<2>& edge2node,
+                    const const_store<std::vector<char> >& edgePlan,
+                    const std::vector<char>& facePlan, char orientCode,
+                    const std::vector<char>& nodeTag,//the tag for facePlan 
+                    const std::vector<char>& facePlan1,
+                    std::list<Node*>& bnode_list,//node list from facePlan1
+                    std::list<Node*>::const_iterator bnode_begin);//the ++bnode_begin is the start point 
 
 
 //compile the facePlan according the tree structure of aQuadFace

@@ -221,7 +221,7 @@ int  find_face_index(const Entity* lower, int lower_size,
   
   //orient value: upper and boundary_map: 1
   //              lower: -1
-  char* orient = new char[numFaces];
+  std::vector<char> orient(numFaces);
   
   int findex = 0;
   for(int i=0; i<lower_size; i++){
@@ -241,7 +241,7 @@ int  find_face_index(const Entity* lower, int lower_size,
   } 
   
   
-  reorder_faces(node_remap, face2node, faces, orient);
+  reorder_faces(node_remap, face2node, faces, &orient[0]);
 
   findex = -1;
   for( int i = 0; i < numFaces; i++){
@@ -251,7 +251,7 @@ int  find_face_index(const Entity* lower, int lower_size,
     }
   }
     
-  delete [] orient;
+  
   if(findex == -1){
     cerr << "WARNING: can not find the face" << endl;
     Loci::Abort();

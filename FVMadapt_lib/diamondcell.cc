@@ -61,25 +61,25 @@ void DiamondCell::split(std::list<Node*>& node_list,
   node_list.push_back(cellcenter);
   
   //get facecenter
-  Node** facecenter = new Node*[2*nfold];
-  getFaceCenter(facecenter);
+  vector<Node*> facecenter(2*nfold);
+  getFaceCenter(&facecenter[0]);
   
   //get edgecenter
-  Node** edgecenter = new Node*[4*nfold];
-  getEdgeCenter(edgecenter);
+  vector<Node*> edgecenter(4*nfold);
+  getEdgeCenter(&edgecenter[0]);
   
   //defines new edges
-  Edge** newEdge = new Edge*[2*nfold];
+  vector<Edge*> newEdge(2*nfold);
   for(int i = 0; i < 2*nfold; i++){
     newEdge[i] = new Edge(cellcenter, facecenter[i], getLevel()+1);
     edge_list.push_back(newEdge[i]);
   }
 
   //define new face
-  Face** newFace = new Face*[4*nfold];
+  vector<Face*> newFace(4*nfold);
   for(int i = 0; i< nfold; i++){
     newFace[i] = new Face(4);
-   
+    
     face_list.push_back(newFace[i]);
     
     //cellcenter->facecenter[i]->edgecenter[i]->facecenter[i-1]    
@@ -270,24 +270,7 @@ void DiamondCell::split(std::list<Node*>& node_list,
     childCell[childID]->face[5] = face[childID-2]->child[faceOrient[childID-2]==0?3:1];
     childCell[childID]->faceOrient[5] = faceOrient[childID-2]; 
   }//finish all faces
-
-  //clean up
-  if(newFace != 0){
-    delete [] newFace;
-    newFace = 0;
-  }
-  if(newEdge != 0 ){
-    delete [] newEdge;
-    newEdge = 0;
-  }
-  if(edgecenter !=0){
-    delete [] edgecenter;
-    edgecenter = 0;
-  }
-  if(facecenter !=0){
-    delete [] facecenter;
-    facecenter = 0;
-  }
+  
 }
   
 void DiamondCell::empty_split(){
@@ -655,9 +638,15 @@ void Cell::resplit( const std::vector<char>& cellPlan,
     reduce_vector(cells);
     return;
   }
+  char currentCode = cellPlan[0];
+  if(currentCode == 0){
+    reduce_vector(cells);
+    return;
+  }
+  
   std::queue<DiamondCell*> Q;
   //assume if cellPlan not empty, it always begin with 1
-  split(node_list, edge_list, face_list);
+  if(child ==0)split(node_list, edge_list, face_list);
   
   for(int i = 0; i < numNode; i++){ 
     Q.push(child[i]);
@@ -667,7 +656,7 @@ void Cell::resplit( const std::vector<char>& cellPlan,
   
   DiamondCell* current;
   unsigned int index =1;
-  char currentCode;
+ 
   while(!Q.empty()){
     current = Q.front();
     if(index >= cellPlan.size()){
@@ -690,7 +679,7 @@ void Cell::resplit( const std::vector<char>& cellPlan,
          
       case 1:
          
-        current->split(node_list, edge_list, face_list);
+        if(current->childCell==0)current->split(node_list, edge_list, face_list);
          
         for(int i = 0; i < 2*(current->nfold) +2; i++){
           Q.push(current->childCell[i]);
@@ -1070,7 +1059,7 @@ std::vector<std::vector<Edge*> > Cell::set_n2e(){
   
 
 //this function split  a general cel,
-void Cell:: split(std::list<Node*>& node_list, std::list<Edge*>& edge_list, std::list<Face*>& face_list){
+void Cell::split(std::list<Node*>& node_list, std::list<Edge*>& edge_list, std::list<Face*>& face_list){
   if(child!=0)return;
   //split each face
   for(int i = 0; i <numFace; i++){

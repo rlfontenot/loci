@@ -70,7 +70,7 @@ public:
   
   //destructor
   ~Prism(){
-    if(this != 0 ){
+      if(this != 0 ){
       if(childCell != 0){
         int nc =  numChildren();
         for(int i = 0; i < nc; i++){

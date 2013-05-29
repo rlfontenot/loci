@@ -385,6 +385,11 @@ HexCell* build_resplit_hex_cell(const Entity* lower, int lower_size,
     }
     bnode_begin = --(bnode_list.end()); 
   }
+  //resplit the edges again without tagging the node
+  for(int i = 0; i < 12; i++){
+    e2e[edge_entity[i]]->resplit(edgePlan1[edge_entity[i]],edge_reverse[i], bnode_list);
+  }
+  bnode_begin = --(bnode_list.end()); //set the start point for tag
   
   int f2e[6][4]= {{6, 11, 7, 10}, {4, 9, 5, 8}, {2, 11, 3, 9}, {0, 10, 1, 8},
                   {1, 7, 3, 5}, {0, 6, 2, 4}};
@@ -399,13 +404,17 @@ HexCell* build_resplit_hex_cell(const Entity* lower, int lower_size,
       face[i]->edge[j] = e2e[edge_entity[f2e[i][j]]];
     }
     //resplit each face
-    face[i]->resplit(facePlan[face_entity[i]],orientCode[i], bnode_list, edge_list);
-
-    int   nindex = 0;
-    for(std::list<Node*>::const_iterator np = ++bnode_begin; np!= bnode_list.end(); np++){
-      (*np)->tag = nodeTag[face_entity[i]][nindex++];
-      //  checkNode(*np);
-    } 
+    face[i]->resplit(facePlan1[face_entity[i]],orientCode[i], bnode_list, edge_list);
+    tag_quad_face(  face2node[face_entity[i]].begin(), 
+                    face2edge[face_entity[i]].begin(),
+                    edge2node,
+                    edgePlan,
+                    facePlan[face_entity[i]], orientCode[i],
+                    nodeTag[face_entity[i]],//the tag for facePlan 
+                    facePlan1[face_entity[i]],
+                    bnode_list,//node list from facePlan1
+                    bnode_begin);
+  
     
     bnode_begin= --(bnode_list.end());
   }
@@ -420,28 +429,13 @@ HexCell* build_resplit_hex_cell(const Entity* lower, int lower_size,
                   edge_list,
                   face_list,
                   cells);
- #ifdef SIZE_DEBUG     
-  if(node_list.size()!= cellNodeTag.size()){
-    cerr<< " nodeTag size and node_list size mismatch(), nodeTag: " << cellNodeTag.size() << " node_list " << node_list.size() <<endl;
-    Loci::Abort();
-  }
-#endif
+
   //tag nodes
   int nindex = 0;
   for(std::list<Node*>::const_iterator np = node_list.begin(); np!= node_list.end(); np++){
     (*np)->tag = cellNodeTag[nindex++];
   }
   cells.clear();
-  
-  
-  //resplit the edges again without tagging the node
-  for(int i = 0; i < 12; i++){
-    e2e[edge_entity[i]]->resplit(edgePlan1[edge_entity[i]],edge_reverse[i], bnode_list);
-  }
-  //resplit the faces again without tagging the node
-  for(int i  = 0; i < 6; i++){
-    face[i]->resplit(facePlan1[face_entity[i]],orientCode[i], bnode_list, edge_list);
-  }
 
   return aCell;
 }

@@ -71,7 +71,6 @@ public:
         delete[] child;
         child = 0;
       }
-      parent = 0;
     }
   }
   //calculate the middle point of the edge

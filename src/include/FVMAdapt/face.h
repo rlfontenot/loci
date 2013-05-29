@@ -88,11 +88,13 @@ public:
   }
     
   inline double area(){
-    vect3d tmp_center = simple_center()->p;
+    Node* c = simple_center();
+    vect3d tmp_center = c->p;
     vect3d sum = vect3d(0.0, 0.0, 0.0);
     for(int i = 0; i < numEdge; i++){
       sum += cross((edge[i]->tail->p - tmp_center), (edge[i]->head->p - tmp_center));
     }
+    if(c!=0)delete c;
     return 0.5*norm(sum);
   }
   
@@ -170,7 +172,7 @@ public:
   //return -1: theNode is not one of the vertexes
   //return i in range[0, numEdge): theNode is f2n[i]
   inline int containNode(const Node* theNode)const{
-    Node** f2n = new Node*[numEdge];
+    std::vector<Node*> f2n(numEdge);
     for(int i = 0; i < numEdge; i++){
       if(needReverse[i]) f2n[i] = edge[i]->tail;
       else f2n[i] = edge[i]->head;
@@ -182,15 +184,6 @@ public:
         break;
       }
     }
-    
-    delete [] f2n;
-    //   std::set<const Node*> f2n;
-    //     for(int i = 0; i < numEdge; i++){
-    //       f2n.insert(edge[i]->head);
-    //       f2n.insert(edge[i]->tail);
-    //     }
-    
-    //     if(f2n.find(theNode) != f2n.end()) return 1;    
     return nodeID;
   }
   

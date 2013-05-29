@@ -233,6 +233,10 @@ void QuadFace::split(char splitCode, char orientCode,
       
       break;
     case 2:
+     //  if(childx[0]->childx != 0) cerr<<"WARNING: 1->2 quadface split with deeper childx"<< endl;
+//       if(childx[0]->child != 0) cerr<<"WARNING: 1->2 quadface split with deeper child"<< endl;
+//       if(childx[1]->childx != 0) cerr<<"WARNING: 1->2 quadface split with deeper childx"<< endl;
+//       if(childx[1]->child != 0) cerr<<"WARNING: 1->2 quadface split with deeper child"<< endl<< endl;
       
       //split formerChild
       childx[0]->split(char(1),orientCode, node_list, edge_list);
@@ -349,6 +353,11 @@ void QuadFace::split(char splitCode, char orientCode,
       code = 2;
       break;
     case 1:
+      // if(childy[0]->childy != 0) cerr<<"WARNING: 2->1 quadface split with deeper childy"<< endl;
+//       if(childy[0]->child != 0) cerr<<"WARNING: 2->1 quadface split with deeper child"<< endl;
+//       if(childy[1]->childy != 0) cerr<<"WARNING: 2->1 quadface split with deeper childy"<< endl;
+//       if(childy[1]->child != 0) cerr<<"WARNING: 2->1 quadface split with deeper child"<< endl<< endl;
+
       //split formerChild
       childy[0]->split(char(2),orientCode, node_list, edge_list);
       childy[1]->split(char(2),orientCode, node_list, edge_list);
@@ -454,6 +463,7 @@ void QuadFace::split(char splitCode, char orientCode,
       
       
       //define child
+      if(child !=0)cerr<<"WARNING: error in quadface split" << endl;
       child = new QuadFace*[4];
       for(int i = 0; i<4; i++){
         child[i] = new QuadFace(4);
@@ -544,6 +554,11 @@ void QuadFace::split(char splitCode, char orientCode,
       code = 3;
       break;
     case 1:
+      // if(childy[0]->childy != 0) cerr<<"WARNING: 3->1 quadface split with deeper childy"<< endl;
+//       if(childy[0]->child != 0) cerr<<"WARNING: 3->1 quadface split with deeper child"<< endl;
+//       if(childy[1]->childy != 0) cerr<<"WARNING: 3->1 quadface split with deeper childy"<< endl;
+//       if(childy[1]->child != 0) cerr<<"WARNING: 3->1 quadface split with deeper child"<<endl <<endl;
+
       //split formerChild
       childy[0]->split(char(2),orientCode, node_list, edge_list);
       childy[1]->split(char(2),orientCode, node_list, edge_list);
@@ -599,6 +614,11 @@ void QuadFace::split(char splitCode, char orientCode,
       code = 3;
       break;
     case 2:
+     //  if(childx[0]->childx != 0) cerr<<"WARNING: 3->2 quadface split with deeper childx"<< endl;
+//       if(childx[0]->child != 0) cerr<<"WARNING: 3->2 quadface split with deeper child"<< endl;
+//       if(childx[1]->childx != 0) cerr<<"WARNING: 3->2 quadface split with deeper childx"<< endl;
+//       if(childx[1]->child != 0) cerr<<"WARNING: 3->2 quadface split with deeper child"<< endl<<endl;;
+
       //split formerChild
       childx[0]->split(char(1),orientCode, node_list, edge_list);
       childx[1]->split(char(1),orientCode, node_list, edge_list);
@@ -668,7 +688,10 @@ void QuadFace::split(char splitCode, char orientCode,
 
 //this function cannot apply to the same tree more than once
 void QuadFace::empty_split(char splitCode ){
-  if(code != 0) return;
+  if(code != 0){
+    Loci::debugout<< "WARNING: QuadFace::empty_split() is called on a face that code is nonzero." <<endl;
+    return;
+  }
   code = splitCode;
   switch(code){
   case 0:
@@ -685,6 +708,7 @@ void QuadFace::empty_split(char splitCode ){
     childx[1] = new QuadFace();
     break;
   case 3:
+    if(child!=0) cerr<<"WARNING: errro in empty_split " << endl;
     child = new QuadFace*[4];
     for(int i = 0; i<4; i++){
       child[i] = new QuadFace();
@@ -1087,7 +1111,7 @@ QuadFace* build_quad_face( const Entity* face2node,
                            std::list<Edge*>& edge_list){
   
 
-  Node** node = new Node*[4];
+  Node* node[4];
   
   for(int nindex = 0; nindex < 4; nindex++){
     node[nindex] = new Node(pos[face2node[nindex]]);
@@ -1097,7 +1121,7 @@ QuadFace* build_quad_face( const Entity* face2node,
   //define each edge and put it into edge_list
   
   Edge** edge = new Edge*[4];
-  bool* needReverse = new bool[4];
+  bool needReverse[4];
           
   for(int eindex = 0; eindex < 4; eindex++){
     //define the edge
@@ -1132,11 +1156,7 @@ QuadFace* build_quad_face( const Entity* face2node,
   
   //define the face
   QuadFace* aFace = new QuadFace(edge);
-  if(node != 0){
-    delete [] node;
-    node = 0;
-  }
-  delete[] needReverse;
+ 
   return aFace;
 }
 
@@ -1153,7 +1173,7 @@ QuadFace* build_quad_face( const Entity* face2node,
                            std::list<Edge*>& edge_list){
   
   
-  Node** node = new Node*[4];
+  Node* node[4];
   
   for(int nindex = 0; nindex < 4; nindex++){
     node[nindex] = new Node(pos[face2node[nindex]], node_l2f[face2node[nindex]]);
@@ -1162,7 +1182,7 @@ QuadFace* build_quad_face( const Entity* face2node,
   
   //define each edge and put it into edge_list
   Edge** edge = new Edge*[4];
-  bool* needReverse = new bool[4];
+  bool needReverse[4];
 
   //define edges and index its inner nodes
   std::list<Node*>::const_iterator bnode_begin = --(bnode_list.end());        
@@ -1205,11 +1225,7 @@ QuadFace* build_quad_face( const Entity* face2node,
   
   //define the face
   QuadFace* aFace = new QuadFace(edge);
-  if(node != 0){
-    delete [] node;
-    node = 0;
-  }
-  delete[] needReverse;
+ 
   return aFace;
 }
 //parallel version, this function is used in build_general_cell with quadface
@@ -1221,7 +1237,7 @@ QuadFace* build_tmp_quad_face( const Entity* face2node,
                                std::list<Edge*>& edge_list){
   
   
-  Node** node = new Node*[4];
+  Node* node[4];
   vect3d p[4];
   int64 maxX = int64(1) << MAXLEVEL;
   int64 maxY = int64(1) << MAXLEVEL;
@@ -1236,7 +1252,7 @@ QuadFace* build_tmp_quad_face( const Entity* face2node,
   
   //define each edge and put it into edge_list
   Edge** edge = new Edge*[4];
-  bool* needReverse = new bool[4];
+  bool needReverse[4];
 
   //define edges
   for(int eindex = 0; eindex < 4; eindex++){
@@ -1268,11 +1284,66 @@ QuadFace* build_tmp_quad_face( const Entity* face2node,
   
   //define the face
   QuadFace* aFace = new QuadFace(edge);
-  if(node != 0){
-    delete [] node;
-    node = 0;
-  }
-  delete[] needReverse;
   return aFace;
 }
 
+void tag_quad_face( const Entity* face2node, 
+                    const Entity* face2edge,
+                    const const_MapVec<2>& edge2node,
+                    const const_store<std::vector<char> >& edgePlan,
+                    const std::vector<char>& facePlan, char orientCode,
+                    const std::vector<char>& nodeTag,//the tag for facePlan 
+                    const std::vector<char>& facePlan1,
+                    std::list<Node*>& bnode_list,//node list from facePlan1
+                    std::list<Node*>::const_iterator bnode_begin){
+
+  std::list<Node*> tmp_bnode_list, tmp_node_list, tmp_node_list2;
+  std::list<Edge*> edge_list;
+  QuadFace* tmp_qface = build_tmp_quad_face(face2node,
+                                            face2edge,
+                                            edge2node,
+                                            edgePlan,
+                                            tmp_bnode_list,
+                                            edge_list);
+   //resplit the quadface to get node index
+  tmp_qface->resplit(facePlan,
+                     char(0),
+                     tmp_node_list,
+                     edge_list);
+
+
+  
+  int   nindex = 0;
+  for(std::list<Node*>::const_iterator np = tmp_node_list.begin(); np!= tmp_node_list.end(); np++){
+    (*np)->tag = nodeTag[nindex++];
+  }
+
+  
+  QuadFace* tmp_qface1 = build_tmp_quad_face(face2node,
+                                             face2edge,
+                                             edge2node,
+                                             edgePlan,
+                                             tmp_bnode_list,
+                                             edge_list);
+  tmp_qface1->resplit(facePlan1,
+                      char(0),
+                      tmp_node_list2,
+                      edge_list);
+
+  std::list<Node*>::const_iterator tmp_np2 = tmp_node_list2.begin();
+  for(std::list<Node*>::const_iterator np = ++bnode_begin; np!= bnode_list.end(); np++, tmp_np2++){
+    for(std::list<Node*>::const_iterator tmp_np = tmp_node_list.begin(); tmp_np!= tmp_node_list.end(); tmp_np++){
+      if(int_equal((*tmp_np)->p, (*tmp_np2)->p)){
+        (*np)->tag = (*tmp_np)->tag;
+        break;
+      }
+    }
+    //it's OK if node_found is false
+  }
+  //cleanup
+  delete tmp_qface;
+  delete tmp_qface1;
+  cleanup_list(tmp_node_list, edge_list);
+  cleanup_list(tmp_node_list2);
+  cleanup_list(tmp_bnode_list);
+}

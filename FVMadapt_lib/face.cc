@@ -109,12 +109,12 @@ void Face::split(std::list<Node*>& node_list, std::list<Edge*>& edge_list){
   node_list.push_back(facecenter);
   
   //get edgecenter
-  Node** edgecenter = new Node*[numEdge];
-  getEdgeCenter(edgecenter);
+  std::vector<Node*> edgecenter(numEdge);
+  getEdgeCenter(&edgecenter[0]);
   
   
   //define new edges(from facecenter to edgecenetr) and put them into edge_list
-  Edge** newEdges = new Edge*[numEdge];
+  std::vector<Edge*> newEdges(numEdge);
   for(int i = 0; i < numEdge; i++){
     newEdges[i] = new Edge(facecenter, edgecenter[i], this->getLevel()+1);
     edge_list.push_back(newEdges[i]);
@@ -149,8 +149,6 @@ void Face::split(std::list<Node*>& node_list, std::list<Edge*>& edge_list){
       child[i]->needReverse[3] = false;
     }
   }
-  delete [] newEdges;
-  delete [] edgecenter;
 }
 
 //for build prism, when built prism cell, triangle face is built as node 0->1->2->0 and
@@ -171,12 +169,12 @@ void Face::split(char orientCode, std::list<Node*>& node_list, std::list<Edge*>&
 
 
   //get edgecenter
-  Node** edgecenter = new Node*[numEdge];
-  getEdgeCenter(edgecenter);
+  std::vector<Node*> edgecenter(numEdge);
+  getEdgeCenter(&edgecenter[0]);
   
   
   //define new edges(from facecenter to edgecenetr) and put them into edge_list
-  Edge** newEdges = new Edge*[numEdge];
+  std::vector<Edge*> newEdges(numEdge);
   for(int i = 0; i < numEdge; i++){
     newEdges[i] = new Edge(facecenter, edgecenter[i], this->getLevel()+1);
     edge_list.push_back(newEdges[i]);
@@ -211,8 +209,6 @@ void Face::split(char orientCode, std::list<Node*>& node_list, std::list<Edge*>&
       child[i]->needReverse[3] = false;
     }
   }
-  delete [] newEdges;
-  delete [] edgecenter;
 }
 
 
@@ -332,7 +328,7 @@ Face* build_general_face( const Entity* face2node, int num_edge,
                           std::list<Edge*>& edge_list){
   
 
-  Node** node = new Node*[num_edge];
+  std::vector<Node*> node(num_edge);
   
   for(int nindex = 0; nindex < num_edge; nindex++){
     node[nindex] = new Node(pos[face2node[nindex]]);
@@ -367,10 +363,7 @@ Face* build_general_face( const Entity* face2node, int num_edge,
   
   //define the face
   Face* aFace = new Face(num_edge, edge, needReverse);
-  if(node != 0){
-    delete [] node;
-    node = 0;
-  }
+ 
   return aFace;
 }
 
@@ -385,7 +378,7 @@ Face* build_general_face( const Entity* face2node, int num_edge,
                           std::list<Edge*>& edge_list,
                           const const_store<int>& node_l2f){
 
-  Node** node = new Node*[num_edge];
+  std::vector<Node*> node(num_edge);
   for(int nindex = 0; nindex < num_edge; nindex++){
    
     node[nindex] = new Node(pos[face2node[nindex]], node_l2f[face2node[nindex]]);
@@ -431,10 +424,6 @@ Face* build_general_face( const Entity* face2node, int num_edge,
   
   //define the face
   Face* aFace = new Face(num_edge, edge, needReverse);
-  if(node != 0){
-    delete [] node;
-    node = 0;
-  }
   return aFace;
 }
 
@@ -448,7 +437,7 @@ Face* build_tmp_general_face( const Entity* face2node, int num_edge,
 
 
   
-  Node** node = new Node*[num_edge];
+  std::vector<Node*> node(num_edge);
 
   
  
@@ -493,10 +482,6 @@ Face* build_tmp_general_face( const Entity* face2node, int num_edge,
   
   //define the face
   Face* aFace = new Face(num_edge, edge, needReverse);
-  if(node != 0){
-    delete [] node;
-    node = 0;
-  }
   return aFace;
 }
 

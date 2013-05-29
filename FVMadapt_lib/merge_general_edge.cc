@@ -168,7 +168,7 @@ public:
     
     //assume facePlan[f][0] ==1 
     int nfnode = face2node.num_elems(f);
-    bool* needReverse = new bool[nfnode];
+    std::vector<bool> needReverse(nfnode);
   
     
     for(int i=0; i<nfnode; i++){
@@ -201,7 +201,7 @@ public:
       (pointSet[face2edge[f][i]].aset).insert(maxValue/2);
     }
     
-    delete [] needReverse;
+   
        
     TwoEdge current;
     unsigned  int index = 1;
