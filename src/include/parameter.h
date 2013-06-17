@@ -86,6 +86,7 @@ namespace Loci {
     virtual storeRepP freeze() ;
     virtual storeRepP thaw() ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
+    virtual void fast_copy(storeRepP& st, const entitySet& context);
     virtual void gather(const dMap &m, storeRepP &st,
                         const entitySet &context)  ;
     virtual void scatter(const dMap &m, storeRepP &st,
@@ -448,6 +449,20 @@ namespace Loci {
     warn((store_domain - context) != EMPTY) ;
     store_domain = context ;
     dispatch_notify() ;
+  }
+
+  // note this method can only be used when the paramRepI<T> (i.e., *this)
+  // is NOT connected to any of the containers since we don't perform any
+  // kind of notification
+  template<class T>
+  void paramRepI<T>::fast_copy(storeRepP &st, const entitySet &context)
+  {
+    storeRepP true_rep = st->getRep();
+    paramRepI<T>* p = dynamic_cast<paramRepI<T>*>(&(*true_rep));
+    fatal(p==0);
+    attrib_data = p->attrib_data;
+    warn((store_domain - context) != EMPTY) ;
+    store_domain = context ;
   }
 
   //**************************************************************************/

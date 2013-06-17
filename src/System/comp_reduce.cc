@@ -25,6 +25,8 @@
 using std::vector ;
 #include <set>
 using std::set ;
+#include <map>
+using std::map;
 
 using std::ostream ;
 using std::endl ;
@@ -34,9 +36,14 @@ using std::ostringstream ;
 #include "loci_globs.h"
 using std::list ;
 
+#include "thread.h"
+
 //#define VERBOSE
 
 namespace Loci {
+
+  extern bool threading_global_reduction;
+  extern bool threading_local_reduction;
 
   entitySet vmap_source_exist_apply(const vmap_info &vmi, fact_db &facts,
                                     variable reduce_var, sched_db &scheds) {
@@ -68,8 +75,60 @@ namespace Loci {
 
   executeP apply_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     entitySet exec_seq = scheds.get_exec_seq(apply);
-    executeP exec_rule = new execute_rule(apply, sequence(exec_seq), facts, scheds);
+#ifdef PTHREADS
+    if(apply.get_info().output_is_parameter) { // global reduction
+      if(threading_global_reduction) {
+        int tnum = thread_control->num_threads();
+        int minw = thread_control->min_work_per_thread();
+        if(!apply.get_info().rule_impl->thread_rule() ||
+           exec_seq.size() < tnum*minw)
+          return new execute_rule(apply,sequence(exec_seq),facts,scheds);
+        else {
+          variableSet targets = apply.targets() ;
+          fatal(target.size() != 1) ;
+          variable t = *(targets.begin()) ;
+          return new Threaded_execute_param_reduction
+            (apply, exec_seq, t, facts, scheds);
+        }
+      } else
+        return new execute_rule(apply,sequence(exec_seq),facts,scheds);
+    } else { // local reduction
+      if(threading_local_reduction) {
+        int tnum = thread_control->num_threads();
+        int minw = thread_control->min_work_per_thread();
+        if(!apply.get_info().rule_impl->thread_rule() ||
+           exec_seq.size() < tnum*minw)
+          return new execute_rule(apply,sequence(exec_seq),facts,scheds);
+        else {
+          // first we need to build an interference graph
+          UDG itg;
+          build_interference_graph(apply,facts,scheds,exec_seq,itg);
+          // then color it
+          map<int,int> color = lf_color(itg);
+          // then partition the entities.
+          vector<entitySet> partition = partition_color(color);
+          // finally generate a list of threaded schedules
+          CPTR<execute_list> schedule = new execute_list ;
+          for(size_t p=0;p<partition.size();++p) {
+            sequence seq = sequence(partition[p]);
+            if(seq.size() < tnum*minw)
+              schedule->append_list
+                (new execute_rule(apply, seq, facts, scheds));
+            else
+              schedule->append_list
+                (new Threaded_execute_rule(apply, seq, facts, scheds));
+          }
+
+          return executeP(schedule);
+        }        
+      } else
+        return new execute_rule(apply,sequence(exec_seq),facts,scheds);
+    }
+#else
+    executeP exec_rule =
+      new execute_rule(apply, sequence(exec_seq), facts, scheds);
     return exec_rule ;
+#endif
   }
 
   //targetsize >= tcount, is real size(bytes) of target buffer while tcount is valid bytes in target buffer

@@ -23,6 +23,8 @@
 #include "comp_tools.h"
 #include "visitorabs.h"
 #include "loci_globs.h"
+#include "sched_tools.h"
+#include "thread.h"
 #include <vector>
 using std::vector ;
 #include <deque>
@@ -61,58 +63,39 @@ namespace Loci {
     }
   }
 
-  class execute_chomp: public execute_modules {
-    entitySet total_domain ;
-    vector<pair<rule,rule_compilerP> > chomp_comp ;
-    vector<pair<int,rule_implP> > chomp_compP ;
-    deque<entitySet> rule_seq ;
-    variableSet chomp_vars ;
-    vector<vector<entitySet> > seq_table ;
-    int_type chomp_size ;
-    int_type chomp_iter ;
-    vector<int_type> chomp_offset ;
-    vector<storeRepP> chomp_vars_rep ;
-    int_type D_cache_size ;
-    timeAccumulator timer ;
-    vector<timeAccumulator> comp_timers ;
-    int execute_times;
-  public:
-    execute_chomp(const entitySet& td,
-                  const vector<pair<rule,rule_compilerP> >& comp,
-                  const deque<entitySet>& seq,
-                  const variableSet& cv,
-                  fact_db& facts):
-      total_domain(td),chomp_comp(comp),rule_seq(seq),
-      chomp_vars(cv),chomp_size(0),chomp_iter(0),
-      D_cache_size(0), execute_times(0){
+  extern bool threading_chomping;
 
-      comp_timers = vector<timeAccumulator>(comp.size()) ;
-      for(vector<pair<rule,rule_compilerP> >::const_iterator vi=comp.begin();
-          vi!=comp.end();++vi)
-        chomp_compP.push_back(pair<int,rule_implP>
-                              ((vi->first).ident(),
-                               (vi->first).get_rule_implP())) ;
-
-      for(vector<pair<int,rule_implP> >::iterator vi=chomp_compP.begin();
-          vi!=chomp_compP.end();++vi)
-        vi->second->initialize(facts) ;
-      
-      for(variableSet::const_iterator vi=chomp_vars.begin();
-          vi!=chomp_vars.end();++vi) {
-        storeRepP srp = facts.get_variable(*vi) ;
-        chomp_vars_rep.push_back(srp) ;
-      }
-       D_cache_size = chomping_size * 1024 ; // assume 128KB now
-       set_seq_table();
+  execute_chomp::execute_chomp
+  (const entitySet& td,
+   const vector<pair<rule,rule_compilerP> >& comp,
+   const deque<entitySet>& seq,
+   const variableSet& cv,
+   fact_db& facts):
+    total_domain(td),chomp_comp(comp),rule_seq(seq),
+    chomp_vars(cv),chomp_size(0),chomp_iter(0),
+    D_cache_size(0), execute_times(0)
+  {  
+    comp_timers = vector<timeAccumulator>(comp.size()) ;
+    for(vector<pair<rule,rule_compilerP> >::const_iterator vi=comp.begin();
+        vi!=comp.end();++vi)
+      chomp_compP.push_back(pair<int,rule_implP>
+                            ((vi->first).ident(),
+                             (vi->first).get_rule_implP())) ;
+    
+    for(vector<pair<int,rule_implP> >::iterator vi=chomp_compP.begin();
+        vi!=chomp_compP.end();++vi)
+      vi->second->initialize(facts) ;
+    
+    for(variableSet::const_iterator vi=chomp_vars.begin();
+        vi!=chomp_vars.end();++vi) {
+      storeRepP srp = facts.get_variable(*vi) ;
+      chomp_vars_rep.push_back(srp) ;
     }
-    virtual void set_seq_table();
-    virtual void execute(fact_db& facts, sched_db &scheds) ;
-    virtual void Print(std::ostream& s) const ;
-    virtual string getName() {return "execute_chomp";};
-    virtual void dataCollate(collectData &data_collector) const ;
-  } ;
+    D_cache_size = chomping_size * 1024 ; // assume 128KB now
+    set_seq_table();
+  }
   
-  void execute_chomp::set_seq_table(){
+  void execute_chomp::set_seq_table() {
     // we'll need to set up the chomp_size
     // and the chomping sequence table
     entitySet test_alloc = interval(1,1) ;
@@ -209,7 +192,6 @@ namespace Loci {
         LociAppPeakMemoryBeanCounting = LociAppPMTemp ;
     }
    
-    
     // begin execution, the loop number would be seq_table.size()
     vector<vector<entitySet> >::const_iterator vvi ;
     int count = 0 ;
@@ -307,7 +289,8 @@ namespace Loci {
   void chomp_compiler::set_var_existence(fact_db& facts, sched_db& scheds) {
     
     barrier_sets.clear();
-    for(unsigned int i = 0; i < old_barrier_sets.size(); i++)barrier_sets.push_back(old_barrier_sets[i]); 
+    for(unsigned int i = 0; i < old_barrier_sets.size(); i++)
+      barrier_sets.push_back(old_barrier_sets[i]); 
     
     vector<pair<rule,rule_compilerP> >::iterator i ;
     variableSet tvars;
@@ -468,9 +451,35 @@ namespace Loci {
     
     for(i=0;i<rule_seq.size();++i)
       total += rule_seq[i] ;
-    
-    executeP execute = new execute_chomp(total,chomp_comp,rule_seq,chomp_vars,facts);
-    return  execute;
+
+#ifdef PTHREADS
+    if(threading_chomping) {
+      int tnum = thread_control->num_threads();
+      int minw = thread_control->min_work_per_thread();
+      // no multithreading if the execution sequence is too small
+      if(total.size() < tnum*minw)
+        // normal case
+        return
+          new execute_chomp(total,chomp_comp,rule_seq,chomp_vars,facts);
+      else {
+        // generate multithreaded execution module
+        vector<rule> rs;
+        for(size_t i=0;i<chomp_comp.size();++i)
+          rs.push_back(chomp_comp[i].first);
+        
+        return new
+          Threaded_execute_chomp(sequence(total),rs,
+                                 chomp_comp,rule_seq,
+                                 chomp_vars,facts,scheds);
+      }      
+    } else {
+#endif
+      executeP execute =
+        new execute_chomp(total,chomp_comp,rule_seq,chomp_vars,facts);
+      return  execute;
+#ifdef PTHREADS
+    }
+#endif
   }
   
 } // end of namespace Loci

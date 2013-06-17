@@ -25,6 +25,7 @@
 #include "dist_tools.h"
 #include "visitor.h"
 #include "loci_globs.h"
+#include "thread.h"
 
 #include <vector>
 using std::vector ;
@@ -75,6 +76,12 @@ namespace Loci {
   extern variable LociAppLargestFreeVar ;
   extern double LociAppPMTemp ;
   extern double LociInputVarsSize ;
+  // threads
+  extern bool threading_pointwise;
+  extern bool threading_global_reduction;
+  extern bool threading_local_reduction;
+  extern bool threading_chomping;
+  extern int num_threads;
   namespace {
     // used to pre-process preallocation memory profiling
     variableSet LociRecurrenceVarsRealloc ;
@@ -983,11 +990,31 @@ namespace Loci {
     if(!in_internal_query)
       schedule->append_list(new execute_init_keyspace(facts,scheds)) ;
     schedule->append_list(fact_db_comm->create_execution_schedule(facts, scheds));
-    executeP top_level_schedule = (rule_process[baserule])->
+    executeP top_level_schedule = 0;
+
+#ifdef PTHREADS
+    if(threading_pointwise || threading_global_reduction
+       || threading_local_reduction || threading_chomping) {
+      thread_control = new ThreadControl_pthread(num_threads);
+      schedule->append_list(new StartThreads());
+    }
+#endif
+    
+    top_level_schedule = (rule_process[baserule])->
       create_execution_schedule(facts, scheds) ;
+
     if(top_level_schedule == 0) 
       return executeP(0) ;
+
     schedule->append_list(top_level_schedule) ;
+
+#ifdef PTHREADS
+    if(threading_pointwise || threading_global_reduction
+       || threading_local_reduction || threading_chomping) {
+      schedule->append_list(new ShutDownThreads());
+    }
+#endif
+    
     if(!use_dynamic_memory)
       if(profile_memory_usage) {
         variableSet profile_vars = facts.get_typed_variables() ;

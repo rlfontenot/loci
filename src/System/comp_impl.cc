@@ -21,6 +21,7 @@
 #include "comp_tools.h"
 #include "dist_tools.h"
 #include "loci_globs.h"
+#include "thread.h"
 #include <sstream>
 #include <set>
 #include <map>
@@ -106,6 +107,8 @@ namespace Loci {
   int             ta_drule_executes = 0 ;
   int             ta_dctrl_executes = 0 ;
 #endif
+
+  extern bool threading_pointwise;
 
   int current_rule_id = 0 ;
   int rule_count = 0;
@@ -1132,7 +1135,7 @@ namespace Loci {
   }
 
   executeP impl_compiler::
-  create_execution_schedule(fact_db &facts,sched_db &scheds ) {
+  create_execution_schedule(fact_db &facts,sched_db &scheds) {
     //    if(GLOBAL_AND(exec_seq.size()==0)) {
     //      return executeP(0) ;
     //    }
@@ -1148,6 +1151,24 @@ namespace Loci {
 
       return execute_dynamic;
     }
+
+#ifdef PTHREADS
+    if(threading_pointwise) {
+      int tnum = thread_control->num_threads();
+      int minw = thread_control->min_work_per_thread();
+      // if a rule is not for threading, then generate a normal module,
+      // also no multithreading if the execution sequence is too small
+      if(!impl.get_info().rule_impl->thread_rule() ||
+         exec_seq.size() < tnum*minw)
+        // normal case
+        return new execute_rule(impl,sequence(exec_seq),facts, scheds);
+      else {
+        // generate multithreaded execution module
+        return new Threaded_execute_rule(impl, exec_seq, facts, scheds);
+      }
+    }
+#endif
+    // normal case
     executeP exec_rule =
       new execute_rule(impl,sequence(exec_seq),facts, scheds);
 

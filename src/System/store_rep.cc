@@ -71,6 +71,10 @@ namespace Loci {
     Rep()->copy(st,context) ;
   }
 
+  void store_ref::fast_copy(storeRepP &st, const entitySet &context) {
+    Rep()->fast_copy(st,context) ;
+  }
+
   void store_ref::gather(const dMap &m,storeRepP &st,
                          const entitySet &context) {
     Rep()->gather(m,st,context) ;

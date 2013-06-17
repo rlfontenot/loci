@@ -25,6 +25,7 @@
 #include <vector>
 #include <set>
 #include <list>
+#include <deque>
 
 #include <Tools/cptr.h>
 #include <scheduler.h>
@@ -63,6 +64,7 @@ namespace Loci {
     virtual string getName() {return "execute_rule";};
     virtual void dataCollate(collectData &data_collector) const ;
   } ;
+
   struct ExpandStartUnit {
     variable var ;              // name of the starting var
     storeRepP rep ;             // NOTE we cannot use MapRepP here
@@ -672,6 +674,34 @@ namespace Loci {
      virtual void Print(std::ostream &s) const ;
      virtual string getName() {return "execute_param_red";};
      virtual void dataCollate(collectData &data_collector) const ;
+  } ;
+
+  class execute_chomp: public execute_modules {
+    entitySet total_domain ;
+    vector<pair<rule,rule_compilerP> > chomp_comp ;
+    vector<pair<int,rule_implP> > chomp_compP ;
+    std::deque<entitySet> rule_seq ;
+    variableSet chomp_vars ;
+    vector<vector<entitySet> > seq_table ;
+    int_type chomp_size ;
+    int_type chomp_iter ;
+    vector<int_type> chomp_offset ;
+    vector<storeRepP> chomp_vars_rep ;
+    int_type D_cache_size ;
+    timeAccumulator timer ;
+    vector<timeAccumulator> comp_timers ;
+    int execute_times;
+  public:
+    execute_chomp(const entitySet& td,
+                  const vector<pair<rule,rule_compilerP> >& comp,
+                  const std::deque<entitySet>& seq,
+                  const variableSet& cv,
+                  fact_db& facts);
+    virtual void set_seq_table();
+    virtual void execute(fact_db& facts, sched_db &scheds) ;
+    virtual void Print(std::ostream& s) const ;
+    virtual string getName() {return "execute_chomp";};
+    virtual void dataCollate(collectData &data_collector) const ;
   } ;
 
   // experimental dynamic scheduling function

@@ -58,6 +58,7 @@ void dummyFunctionDependencies(int i) {
 #include "dist_tools.h"
 #include "loci_globs.h"
 #include "comp_tools.h"
+#include "thread.h"
 #include <Tools/debug.h>
 #include <Tools/except.h>
 #include <new>
@@ -164,6 +165,13 @@ namespace Loci {
   // partitioning routine
   bool load_cell_weights = false ;
   string cell_weight_file ;
+
+  // flag to indicate whether multithreading is used for each type of rules
+  bool threading_pointwise = false;
+  bool threading_global_reduction = false;
+  bool threading_local_reduction = false;
+  bool threading_chomping = false;
+  int num_threads = 0;
 
 
   ofstream debugout ;
@@ -524,6 +532,37 @@ namespace Loci {
           load_cell_weights = true ;
           cell_weight_file = (*argv)[i+1] ;
           i+=2 ;
+        } else if(!strcmp((*argv)[i],"--threads")) {
+          // determine the number of threads to use.
+          // ideally we would like to detect the available
+          // hardware threads on a given platform automatically,
+          // this is a work in the future.
+          
+          // but right now, we will accept the user inputs
+          // and check if it is reasonable
+          int nt = atoi( (*argv)[i+1]);
+          if(nt < 0 || nt > 20)
+            nt = 2;
+          num_threads = nt;
+          if(num_threads > 1) {
+            threading_pointwise = true;
+            threading_global_reduction = true;
+            threading_local_reduction = true;
+            threading_chomping = true;
+          }
+          i+=2;
+        } else if(!strcmp((*argv)[i],"--no_threading_pointwise")) {
+          threading_pointwise = false;
+          i++;
+        } else if(!strcmp((*argv)[i],"--no_threading_global_reduction")) {
+          threading_global_reduction = false;
+          i++;
+        } else if(!strcmp((*argv)[i],"--no_threading_local_reduction")) {
+          threading_local_reduction = false;
+          i++;
+        } else if(!strcmp((*argv)[i],"--no_threading_chomp")) {
+          threading_chomping = false;
+          i++;
         }
         else
           break ;

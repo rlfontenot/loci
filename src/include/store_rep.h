@@ -188,6 +188,8 @@ namespace Loci {
       return storeRepP(0) ;
     }
     virtual void copy(storeRepP &st, const entitySet &context) = 0 ;
+    virtual void fast_copy(storeRepP& st, const entitySet& context)
+    { copy(st,context); }       // default behavior
     virtual void gather(const dMap &m, storeRepP &st,
                         const entitySet &context) = 0 ;
     virtual void scatter(const dMap &m, storeRepP &st,
@@ -263,6 +265,7 @@ namespace Loci {
     virtual storeRepP freeze() ;
     virtual storeRepP thaw() ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
+    virtual void fast_copy(storeRepP& st, const entitySet& context);
     virtual void gather(const dMap &m, storeRepP &st,
                         const entitySet &context) ;
     virtual void scatter(const dMap &m, storeRepP &st,

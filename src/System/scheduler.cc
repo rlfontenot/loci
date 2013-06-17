@@ -22,6 +22,7 @@
 #include "sched_tools.h"
 #include "dist_tools.h"
 #include "param_rule.h"
+#include "thread.h"
 #include <Tools/except.h>
 #include <constraint.h>
 #include <new>
@@ -135,6 +136,11 @@ namespace Loci {
   extern bool collect_memory_info ;
   extern bool show_graphs ;
   extern void deco_depend_gr(digraph& gr,const variableSet& given) ;
+  extern bool threading_pointwise;
+  extern bool threading_global_reduction;
+  extern bool threading_local_reduction;
+  extern bool threading_chomping;
+  extern int num_threads;  
   // 
   ////////////////////////////
 
@@ -955,7 +961,24 @@ namespace Loci {
     */
     ///////////////////////////////////
     if(Loci::MPI_rank==0)
-      cout << "creating execution schedule..." << endl;
+#ifdef PTHREADS
+      if(threading_pointwise || threading_global_reduction
+         || threading_local_reduction || threading_chomping) {
+        cout << "creating multithreaded execution schedule ("
+             << num_threads << " threads per MPI process)" << endl;
+        cout << "--threading all ";
+        if(threading_pointwise)
+          cout << "[pointwise] ";
+        if(threading_global_reduction)
+          cout << "[global reduction] ";
+        if(threading_local_reduction)
+          cout << "[local reduction] ";
+        if(threading_chomping)
+          cout << "[chomping] ";
+        cout << "rules" << endl;
+      } else
+#endif
+        cout << "creating execution schedule..." << endl;
     sw.start() ;
     
     executeP sched =  compile_graph.execution_schedule
