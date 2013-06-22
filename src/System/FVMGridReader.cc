@@ -1718,21 +1718,23 @@ namespace Loci {
     vector<pair<int,pair<int,int> > >::iterator i1,i2 ;
 
     // Note, we are assuming scratch pad is non-zero size
-    i1 = scratchPad.begin() ;
-    i2 = i1+1 ;
-    while(i2!=scratchPad.end()) {
-      while(i2!=scratchPad.end() &&
-            i1->first==i2->first && i1->second.first==i2->second.first) {
-        i1->second.second += i2->second.second ;
-        i2++ ;
+    if(scratchPad.size() > 0) {
+      i1 = scratchPad.begin() ;
+      i2 = i1+1 ;
+      while(i2!=scratchPad.end()) {
+        while(i2!=scratchPad.end() &&
+              i1->first==i2->first && i1->second.first==i2->second.first) {
+          i1->second.second += i2->second.second ;
+          i2++ ;
+        }
+        i1++ ;
+        if(i2!=scratchPad.end()) {
+          *i1 = *i2 ;
+          i2++ ;
+        }
       }
-      i1++ ;
-      if(i2!=scratchPad.end()) {
-        *i1 = *i2 ;
-        i2++ ;
-      }
+      scratchPad.erase(i1,scratchPad.end()) ;
     }
-    scratchPad.erase(i1,scratchPad.end()) ;
 
     vector<pair<int,pair<int,int> > > nsplits(MPI_processes-1) ;
     for(int i=1;i<MPI_processes;++i) {
