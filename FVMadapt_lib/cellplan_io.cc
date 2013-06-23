@@ -1,12 +1,20 @@
 #include <Loci.h>
 #include <vector>
 #include "defines.h"
+#include "dataxferDB.h"
 using std::cout;
 using std::endl;
 using std::string;
 using std::ifstream;
 
-
+namespace Loci {
+  storeRepP Local2FileOrder(storeRepP sp, entitySet dom, int &offset,
+                            fact_db::distribute_infoP dist, MPI_Comm comm) ;
+  void File2LocalOrder(storeRepP &result, entitySet resultSet,
+                       storeRepP input, int offset,
+                       fact_db::distribute_infoP dist,
+                       MPI_Comm comm) ;
+}
 
 
 
@@ -52,10 +60,6 @@ public:
 register_rule<apply_num_original_nodes> register_apply_num_original_nodes;
 
 
-
-
-
-
 class get_cellPlan : public pointwise_rule{
   const_param<std::string> planfile_par;
   store<std::vector<char> > cellPlan;
@@ -70,9 +74,6 @@ class get_cellPlan : public pointwise_rule{
     disable_threading();
   }
   virtual void compute(const sequence &seq){
-   
-   
-    
        hid_t file_id;
        entitySet dom = entitySet(seq);
        file_id = H5Fopen((*planfile_par).c_str(), H5F_ACC_RDONLY,
@@ -89,8 +90,64 @@ class get_cellPlan : public pointwise_rule{
 };
 register_rule<get_cellPlan> register_get_cellPlan;
 
-
-
+class get_DBcellPlan : public pointwise_rule{
+  const_param<std::string> planDB_par;
+  store<std::vector<char> > cellPlan;
+  
+  public:
+  get_DBcellPlan(){
+    name_store("planDB_par", planDB_par);
+    name_store("cellPlan", cellPlan);
+    input("planDB_par");
+    output("cellPlan");
+    constraint("geom_cells");
+    disable_threading();
+  }
+  virtual void compute(const sequence &seq){
+    entitySet dom = entitySet(seq);
+    store<std::vector<char> > readPlan ;
+    cerr << "getting variable " << *planDB_par << endl ;
+    readPlan = Loci::DataXFER_DB.getItem((*planDB_par).c_str()) ;
+       
+    fact_db::distribute_infoP dist = Loci::exec_current_fact_db->get_distribute_info() ;
+    if(dist==0) {
+      FORALL(dom,ii) {
+	cellPlan[ii] = readPlan[ii] ;
+      } ENDFORALL ;
+    } else {
+      dMap g2f ;
+      g2f = dist->g2f.Rep() ;
+      Map l2g ;
+      l2g = dist->l2g.Rep() ;
+      int start = 0 ;
+      if(dom!= EMPTY)
+	start = g2f[l2g[dom.Min()]] ;
+      FORALL(dom,i) {
+        start = min(start,g2f[l2g[i]]) ;
+      } ENDFORALL ;
+      int goffset = start ;
+      MPI_Allreduce(&start,&goffset,1,MPI_INT,MPI_MIN,MPI_COMM_WORLD) ;
+      store<std::vector<char> > tmp ;
+      tmp.allocate(dom) ;
+      Loci::storeRepP tmpRep = tmp.Rep() ;
+      int offset = 0 ;
+      int cnt = readPlan.domain().size()  ;
+      MPI_Scan(&cnt,&offset,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD) ;
+      offset -= cnt ;
+      offset += goffset ;
+      File2LocalOrder(tmpRep,dom,readPlan.Rep(),offset,dist,MPI_COMM_WORLD) ;
+      FORALL(dom,ii) {
+	cellPlan[ii].swap(tmp[ii]) ;
+      } ENDFORALL ;
+    }
+       
+    FORALL(dom,cc) {
+      if(cellPlan[cc].size() == 1 && cellPlan[cc][0] == 'C') 
+	cellPlan[cc].resize(0);
+    } ENDFORALL ;
+  }
+};
+register_rule<get_DBcellPlan> register_get_DBcellPlan;
 
 
 class get_balanced_cellPlan : public pointwise_rule{
@@ -167,6 +224,73 @@ class get_parentPlan : public pointwise_rule{
   } 
 };
 register_rule<get_parentPlan> register_get_parentPlan;
+
+//read in plan from former cycle
+class get_parentPlanDB : public pointwise_rule{
+  const_param<std::string> parent_planDB_par;
+  store<std::vector<char> > parentPlan;
+  
+  public:
+  get_parentPlanDB(){
+    name_store("parent_planDB_par", parent_planDB_par);
+    name_store("parentPlan", parentPlan);
+    
+    input("parent_planDB_par");
+    output("parentPlan");
+    constraint("geom_cells");
+    disable_threading();
+  }
+  virtual void compute(const sequence &seq){
+    
+    entitySet dom = entitySet(seq);
+    store<std::vector<char> > readPlan ;
+    cerr << "parentplan getting variable " << *parent_planDB_par << endl ;
+    readPlan = Loci::DataXFER_DB.getItem((*parent_planDB_par).c_str()) ;
+       
+    fact_db::distribute_infoP dist = Loci::exec_current_fact_db->get_distribute_info() ;
+    if(dist==0) {
+      FORALL(dom,ii) {
+	parentPlan[ii]= readPlan[ii] ;
+      } ENDFORALL ;
+    } else {
+      dMap g2f ;
+      g2f = dist->g2f.Rep() ;
+      Map l2g ;
+      l2g = dist->l2g.Rep() ;
+      int start = 0 ;
+      if(dom!= EMPTY)
+	start = g2f[l2g[dom.Min()]] ;
+      FORALL(dom,i) {
+        start = min(start,g2f[l2g[i]]) ;
+      } ENDFORALL ;
+      int goffset = start ;
+      MPI_Allreduce(&start,&goffset,1,MPI_INT,MPI_MIN,MPI_COMM_WORLD) ;
+
+      store<std::vector<char> > tmp ;
+      tmp.allocate(dom) ;
+      Loci::storeRepP tmpRep = tmp.Rep() ;
+      cout << "readPlan.domain()=" << readPlan.domain() 
+	   << ", dom=" << dom << endl ;
+      int offset = 0 ;
+      int cnt = readPlan.domain().size()  ;
+      MPI_Scan(&cnt,&offset,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD) ;
+      offset -= cnt ;
+      offset += goffset ;
+      cout << "offset = " << offset << endl ;
+      File2LocalOrder(tmpRep,dom,readPlan.Rep(),offset,dist,MPI_COMM_WORLD) ;
+      FORALL(dom,ii) {
+	parentPlan[ii].swap(tmp[ii]) ;
+      } ENDFORALL ;
+    }
+       
+    FORALL(dom,cc) {
+      if(parentPlan[cc].size() == 1 && parentPlan[cc][0] == 'C') 
+	parentPlan[cc].resize(0);
+    } ENDFORALL ;
+  }
+  void calculate(Entity cc){ } 
+};
+register_rule<get_parentPlanDB> register_get_parentPlanDB;
 
 
 class reprocess_plan : public pointwise_rule {
@@ -251,3 +375,43 @@ public:
  
 } ;
 register_rule<cellplan_output_file> register_cellplan_output_file;
+
+class cellplan_writeDB : public pointwise_rule {
+  const_store<std::vector<char> > tmpPlan ;
+  const_param<string> outDB_par ;
+  store<bool> cellplan_output ;
+  
+public:
+  cellplan_writeDB(){
+    name_store("tmpPlan", tmpPlan);
+    name_store("plan_outDB_par", outDB_par);
+    name_store("cellplan_output", cellplan_output);
+    input("(tmpPlan,plan_outDB_par)");
+    output("cellplan_output");
+    constraint("geom_cells");
+    disable_threading();
+  }
+  virtual void compute(const sequence &seq) {
+    entitySet dom = entitySet(seq);
+    
+    fact_db::distribute_infoP dist = Loci::exec_current_fact_db->get_distribute_info() ;
+    cerr << "writing " << *outDB_par << " DB variable" << endl ;
+    if(dist==0) {
+      store<std::vector<char> > pcopy ;
+      pcopy.allocate(dom) ;
+      FORALL(dom,ii) {
+	pcopy[ii] = tmpPlan[ii] ;
+      } ENDFORALL ;
+
+      Loci::DataXFER_DB.insertItem((*outDB_par).c_str(),pcopy.Rep()) ;
+    } else {
+      int offset = 0 ;
+      Loci::storeRepP vardist = Loci::Local2FileOrder(tmpPlan.Rep(),dom,offset,
+						      dist,
+						      MPI_COMM_WORLD) ;
+      Loci::DataXFER_DB.insertItem((*outDB_par).c_str(),vardist) ;
+    }
+  }
+ 
+} ;
+register_rule<cellplan_writeDB> register_cellplan_writeDB;
