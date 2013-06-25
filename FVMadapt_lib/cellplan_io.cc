@@ -106,7 +106,7 @@ class get_DBcellPlan : public pointwise_rule{
   virtual void compute(const sequence &seq){
     entitySet dom = entitySet(seq);
     store<std::vector<char> > readPlan ;
-    cerr << "getting variable " << *planDB_par << endl ;
+
     readPlan = Loci::DataXFER_DB.getItem((*planDB_par).c_str()) ;
        
     fact_db::distribute_infoP dist = Loci::exec_current_fact_db->get_distribute_info() ;
@@ -244,7 +244,7 @@ class get_parentPlanDB : public pointwise_rule{
     
     entitySet dom = entitySet(seq);
     store<std::vector<char> > readPlan ;
-    cerr << "parentplan getting variable " << *parent_planDB_par << endl ;
+
     readPlan = Loci::DataXFER_DB.getItem((*parent_planDB_par).c_str()) ;
        
     fact_db::distribute_infoP dist = Loci::exec_current_fact_db->get_distribute_info() ;
@@ -269,14 +269,11 @@ class get_parentPlanDB : public pointwise_rule{
       store<std::vector<char> > tmp ;
       tmp.allocate(dom) ;
       Loci::storeRepP tmpRep = tmp.Rep() ;
-      cout << "readPlan.domain()=" << readPlan.domain() 
-	   << ", dom=" << dom << endl ;
       int offset = 0 ;
       int cnt = readPlan.domain().size()  ;
       MPI_Scan(&cnt,&offset,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD) ;
       offset -= cnt ;
       offset += goffset ;
-      cout << "offset = " << offset << endl ;
       File2LocalOrder(tmpRep,dom,readPlan.Rep(),offset,dist,MPI_COMM_WORLD) ;
       FORALL(dom,ii) {
 	parentPlan[ii].swap(tmp[ii]) ;
@@ -395,7 +392,6 @@ public:
     entitySet dom = entitySet(seq);
     
     fact_db::distribute_infoP dist = Loci::exec_current_fact_db->get_distribute_info() ;
-    cerr << "writing " << *outDB_par << " DB variable" << endl ;
     if(dist==0) {
       store<std::vector<char> > pcopy ;
       pcopy.allocate(dom) ;
