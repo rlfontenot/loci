@@ -294,7 +294,9 @@ namespace Loci {
 
     // Allocate buffer for largest processor buffer size
     std::vector<int> sort_max ;
-    int local_size = qrep->pack_size(dom) ;
+    int local_size = 1 ;
+    if(prank > 0)
+      local_size = qrep->pack_size(dom) ;
     sort_max = all_collect_sizes(local_size,comm) ;
     int total_size = *std::max_element(sort_max.begin(), sort_max.end() );
     vector<unsigned char> tmp_send_buf(total_size) ;
