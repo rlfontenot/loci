@@ -115,26 +115,10 @@ class get_DBcellPlan : public pointwise_rule{
 	cellPlan[ii] = readPlan[ii] ;
       } ENDFORALL ;
     } else {
-      dMap g2f ;
-      g2f = dist->g2f.Rep() ;
-      Map l2g ;
-      l2g = dist->l2g.Rep() ;
-      int start = 0 ;
-      if(dom!= EMPTY)
-	start = g2f[l2g[dom.Min()]] ;
-      FORALL(dom,i) {
-        start = min(start,g2f[l2g[i]]) ;
-      } ENDFORALL ;
-      int goffset = start ;
-      MPI_Allreduce(&start,&goffset,1,MPI_INT,MPI_MIN,MPI_COMM_WORLD) ;
       store<std::vector<char> > tmp ;
       tmp.allocate(dom) ;
       Loci::storeRepP tmpRep = tmp.Rep() ;
       int offset = 0 ;
-      int cnt = readPlan.domain().size()  ;
-      MPI_Scan(&cnt,&offset,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD) ;
-      offset -= cnt ;
-      offset += goffset ;
       File2LocalOrder(tmpRep,dom,readPlan.Rep(),offset,dist,MPI_COMM_WORLD) ;
       FORALL(dom,ii) {
 	cellPlan[ii].swap(tmp[ii]) ;
@@ -148,6 +132,52 @@ class get_DBcellPlan : public pointwise_rule{
   }
 };
 register_rule<get_DBcellPlan> register_get_DBcellPlan;
+
+
+class get_balanced_cellPlanDB : public pointwise_rule{
+  const_param<std::string> planDB_par;
+  store<std::vector<char> > cellPlan;
+  
+  public:
+  get_balanced_cellPlanDB(){
+    name_store("balanced_planDB_par", planDB_par);
+    name_store("priority::refmesh::balancedCellPlan", cellPlan);
+    input("balanced_planDB_par");
+    output("priority::refmesh::balancedCellPlan");
+    constraint("geom_cells");
+    disable_threading();
+  }
+  virtual void compute(const sequence &seq){
+   
+    entitySet dom = entitySet(seq);
+    store<std::vector<char> > readPlan ;
+
+    readPlan = Loci::DataXFER_DB.getItem((*planDB_par).c_str()) ;
+       
+    fact_db::distribute_infoP dist = Loci::exec_current_fact_db->get_distribute_info() ;
+    if(dist==0) {
+      FORALL(dom,ii) {
+	cellPlan[ii] = readPlan[ii] ;
+      } ENDFORALL ;
+    } else {
+      store<std::vector<char> > tmp ;
+      tmp.allocate(dom) ;
+      Loci::storeRepP tmpRep = tmp.Rep() ;
+      int offset = 0 ;
+      File2LocalOrder(tmpRep,dom,readPlan.Rep(),offset,dist,MPI_COMM_WORLD) ;
+      FORALL(dom,ii) {
+	cellPlan[ii].swap(tmp[ii]) ;
+      } ENDFORALL ;
+    }
+       
+    FORALL(dom,cc) {
+      if(cellPlan[cc].size() == 1 && cellPlan[cc][0] == 'C') 
+	cellPlan[cc].resize(0);
+    } ENDFORALL ;
+  }
+
+};
+register_rule<get_balanced_cellPlanDB> register_get_balanced_cellPlanDB;
 
 
 class get_balanced_cellPlan : public pointwise_rule{
@@ -182,8 +212,6 @@ class get_balanced_cellPlan : public pointwise_rule{
   } 
 };
 register_rule<get_balanced_cellPlan> register_get_balanced_cellPlan;
-
-
 
 
 
@@ -253,27 +281,10 @@ class get_parentPlanDB : public pointwise_rule{
 	parentPlan[ii]= readPlan[ii] ;
       } ENDFORALL ;
     } else {
-      dMap g2f ;
-      g2f = dist->g2f.Rep() ;
-      Map l2g ;
-      l2g = dist->l2g.Rep() ;
-      int start = 0 ;
-      if(dom!= EMPTY)
-	start = g2f[l2g[dom.Min()]] ;
-      FORALL(dom,i) {
-        start = min(start,g2f[l2g[i]]) ;
-      } ENDFORALL ;
-      int goffset = start ;
-      MPI_Allreduce(&start,&goffset,1,MPI_INT,MPI_MIN,MPI_COMM_WORLD) ;
-
       store<std::vector<char> > tmp ;
       tmp.allocate(dom) ;
       Loci::storeRepP tmpRep = tmp.Rep() ;
       int offset = 0 ;
-      int cnt = readPlan.domain().size()  ;
-      MPI_Scan(&cnt,&offset,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD) ;
-      offset -= cnt ;
-      offset += goffset ;
       File2LocalOrder(tmpRep,dom,readPlan.Rep(),offset,dist,MPI_COMM_WORLD) ;
       FORALL(dom,ii) {
 	parentPlan[ii].swap(tmp[ii]) ;
@@ -405,6 +416,7 @@ public:
       Loci::storeRepP vardist = Loci::Local2FileOrder(tmpPlan.Rep(),dom,offset,
 						      dist,
 						      MPI_COMM_WORLD) ;
+      vardist->shift(offset) ;
       Loci::DataXFER_DB.insertItem((*outDB_par).c_str(),vardist) ;
     }
   }
