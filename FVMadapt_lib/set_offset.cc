@@ -271,13 +271,13 @@ public:
   virtual void compute(const sequence &seq) {
     int num_procs = Loci::MPI_processes;
     int my_id = Loci::MPI_rank;
-    entitySet local_geom_cells = entitySet(seq);
-
-   
+    fact_db::distribute_infoP dist = Loci::exec_current_fact_db->get_distribute_info() ;
     
+    Loci::constraint  geom_cells = Loci::exec_current_fact_db->get_variable("geom_cells");
+       
     if(num_procs ==  1){
       int offset = 0;
-      FORALL(local_geom_cells, ei){
+      FORALL(*geom_cells, ei){
         cell_offset[ei] = offset;
         offset += num_fine_cells[ei];
       }ENDFORALL;
@@ -285,32 +285,48 @@ public:
       return;
     }
     
-  
-    
-    //compute num_local_fine_cells on each process
-    
-    int num_local_fine_cells = 0;
-    FORALL(local_geom_cells, ei){
-      num_local_fine_cells += num_fine_cells[ei];
-    }ENDFORALL;
-    
+    Loci::constraint my_entities ; 
+    my_entities = dist->my_entities ;
    
-    std::vector<int> local_cells_sizes;
-    local_cells_sizes = Loci::all_collect_sizes(num_local_fine_cells);
-    
+    //don't know if it's necessray
+    entitySet local_geom_cells = (*my_entities)&(*geom_cells);
+
     //each process computes its cell  offset
-    int coffset = 0;
-    for(int i = 0; i < my_id; i++){
-      coffset += local_cells_sizes[i];
-    }
-  
-   
+
+    int coffset = 0 ;
+
+    int offset = 0;
+    int num_local_cells = 0;
+    std::vector<int> local_cells_sizes;
+    storeRepP localVar=cell_offset.Rep();
+    //put into block to make the memory for store<int> freeed after it's used 
+    {
+      store<int> file_num_fine_cells;
+      file_num_fine_cells = Loci::Local2FileOrder(num_fine_cells.Rep(),local_geom_cells,offset,dist,MPI_COMM_WORLD) ;
+      FORALL(file_num_fine_cells.domain(), ee){
+        num_local_cells += file_num_fine_cells[ee];
+      }ENDFORALL;
+      local_cells_sizes = Loci::all_collect_sizes(num_local_cells);
+      
     
-    //compute the store values
-    FORALL(local_geom_cells, ei){
-      cell_offset[ei] = coffset;
-      coffset += num_fine_cells[ei];
-    }ENDFORALL;
+      for(int i = 0; i < my_id; i++){
+        coffset += local_cells_sizes[i];
+      }
+      
+      //compute the store values
+      store<int> cell_file_offset;
+      cell_file_offset.allocate(file_num_fine_cells.domain());
+      FORALL(file_num_fine_cells.domain(), ei){
+        cell_file_offset[ei] = coffset;
+        coffset += file_num_fine_cells[ei];
+      }ENDFORALL;
+      Loci::File2LocalOrder(localVar, local_geom_cells,
+                            cell_file_offset.Rep(), offset,
+                            dist,
+                            MPI_COMM_WORLD);
+      
+    }
+    
     
    
   }
@@ -336,13 +352,13 @@ public:
   virtual void compute(const sequence &seq) {
     int num_procs = Loci::MPI_processes;
     int my_id = Loci::MPI_rank;
-    entitySet local_geom_cells = entitySet(seq);
-
-   
+    fact_db::distribute_infoP dist = Loci::exec_current_fact_db->get_distribute_info() ;
     
+    Loci::constraint  geom_cells = Loci::exec_current_fact_db->get_variable("geom_cells");
+       
     if(num_procs ==  1){
       int offset = 0;
-      FORALL(local_geom_cells, ei){
+      FORALL(*geom_cells, ei){
         cell_offset[ei] = offset;
         offset += num_fine_cells[ei];
       }ENDFORALL;
@@ -350,34 +366,48 @@ public:
       return;
     }
     
-  
-    
-    //compute num_local_fine_cells on each process
-    
-    int num_local_fine_cells = 0;
-    FORALL(local_geom_cells, ei){
-      num_local_fine_cells += num_fine_cells[ei];
-    }ENDFORALL;
-    
+    Loci::constraint my_entities ; 
+    my_entities = dist->my_entities ;
    
-    std::vector<int> local_cells_sizes;
-    local_cells_sizes = Loci::all_collect_sizes(num_local_fine_cells);
-    
+    //don't know if it's necessray
+    entitySet local_geom_cells = (*my_entities)&(*geom_cells);
+
     //each process computes its cell  offset
-    int coffset = 0;
-    for(int i = 0; i < my_id; i++){
-      coffset += local_cells_sizes[i];
+
+    int coffset = 0 ;
+
+    int offset = 0;
+    int num_local_cells = 0;
+    std::vector<int> local_cells_sizes;
+    storeRepP localVar=cell_offset.Rep();
+    //put into block to make the memory for store<int> freeed after it's used 
+    {
+      store<int> file_num_fine_cells;
+      file_num_fine_cells = Loci::Local2FileOrder(num_fine_cells.Rep(),local_geom_cells,offset,dist,MPI_COMM_WORLD) ;
+      FORALL(file_num_fine_cells.domain(), ee){
+        num_local_cells += file_num_fine_cells[ee];
+      }ENDFORALL;
+      local_cells_sizes = Loci::all_collect_sizes(num_local_cells);
+      
+    
+      for(int i = 0; i < my_id; i++){
+        coffset += local_cells_sizes[i];
+      }
+      
+      //compute the store values
+      store<int> cell_file_offset;
+      cell_file_offset.allocate(file_num_fine_cells.domain());
+      FORALL(file_num_fine_cells.domain(), ei){
+        cell_file_offset[ei] = coffset;
+        coffset += file_num_fine_cells[ei];
+      }ENDFORALL;
+      Loci::File2LocalOrder(localVar, local_geom_cells,
+                            cell_file_offset.Rep(), offset,
+                            dist,
+                            MPI_COMM_WORLD);
+      
+   
     }
-  
-   
-    
-    //compute the store values
-    FORALL(local_geom_cells, ei){
-      cell_offset[ei] = coffset;
-      coffset += num_fine_cells[ei];
-    }ENDFORALL;
-    
-   
   }
     
 } ;
