@@ -33,6 +33,7 @@ int Usage() {
        << "  -theta_r <angle> : ridge angle threshold" << endl
        << "  -theta_c <angle> : corner angle threshold" << endl
        << "  -geom_output     : output refined surface using computed geometry" << endl
+       << "  -eigen_output     : output the rank, eigenvalue and eigenvector for each node" << endl
        << "  -from_surf       : obtain input surface meshes from <case>.surf" 
        << endl
        << "                   : instead of <case>.vog" << endl 
@@ -971,6 +972,47 @@ void outputGeom(string geo_file,
   ofile.close();
 }
 
+void outputEigen(string eigen_file, 
+                 const vector<vect3d> &pos,
+                 const vector<Tri> &trias,
+		const vector<nodeInfo> &ninfo) {
+  //output the geometry into .coeff file 
+  std::ofstream ofile(eigen_file.c_str()); 
+
+  int num_nodes = ninfo.size() ;
+  ofile.precision(14) ;
+  //write out positions  of nodes
+  ofile << num_nodes << endl;
+  for(int i = 0; i < num_nodes; i++){
+    ofile << pos[i].x<< " "  << pos[i].y<< " " <<pos[i].z<< endl;
+  }
+  
+  int num_geom = trias.size() ;
+  //write out face2node
+  ofile << num_geom << endl;
+  for(int i = 0; i < num_geom; i++){
+    ofile << trias[i].t[0] << ' '
+          << trias[i].t[1] << ' '
+          << trias[i].t[2] << ' '
+          << trias[i].id << endl;
+  }
+
+  //write out eigen info
+  ofile.precision(10);
+  for(int i = 0; i < num_nodes; i++){
+    nodeInfo g = ninfo[i];
+      ofile << g.primary_k<<' '
+            << g.primary_d<<' '
+            << g.e[0]<<' '
+            << g.e[1]<<' '
+            << g.e[2]<<' '
+            << g.lambda[0]<<' '
+            << g.lambda[1]<<' '
+            << g.lambda[2]<<endl;
+            
+  }
+  ofile.close();
+}
 
 const double Axx = sqrt(3.0) ;
 const double Ayy = 1./sqrt(3.1415927) ;
@@ -1065,13 +1107,18 @@ int main(int ac, char *av[]) {
   double theta_c = 42 ; // corner angle
   bool from_surf = false ;
   bool output_geom = false ;
+  bool output_eigen = false;
   vector<string> remove_bcs ;
   while(ac > 2) {
     if(ac > 2 && !strcmp(av[1],"-geom_output")) {
       output_geom = true ;
       ac-- ;
       av++ ;
-    } else if(ac > 2 && !strcmp(av[1],"-from_surf")) {
+    } if(ac > 2 && !strcmp(av[1],"-eigen_output")) {
+      output_eigen = true ;
+      ac-- ;
+      av++ ;
+    }else if(ac > 2 && !strcmp(av[1],"-from_surf")) {
       from_surf = true ;
       ac-- ;
       av++ ;
@@ -1176,6 +1223,11 @@ int main(int ac, char *av[]) {
   vector<edgeInfo> edge_points(edges.size()) ;
   // Reconstruct curves for edges
   edgeReconstruct(edges,pos,ninfo,trias,edge_points) ;
+  if(output_eigen) {
+    string eigen_out = string(av[1]) + ".eigen" ;
+    outputEigen(eigen_out, pos, trias, ninfo) ;
+  }
+    
   vector<geomCoeff> trigeo(trias.size()) ;
   // reconstruct geometry for triangles using cubic bezier patches
   geoReconstruct(trias, edges, edge_points, pos,trigeo) ;
