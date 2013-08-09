@@ -22,7 +22,7 @@ using Loci::MPI_processes;
 namespace Loci{
     void writeVOGTag(hid_t output_fid,  vector<pair<string,entitySet> >& volTags);
 }
-vector<pair<string,entitySet> >  getVOGTagFromLocal(string meshfile,
+vector<pair<string,entitySet> >  getVOGTagFromLocal(const vector<pair<string,entitySet> >& volTagsInput,
                                                     const_store<int> &cell_offset,
                                                     const_store<int> & num_fine_cells,
                                                     int num_original_nodes,
@@ -213,6 +213,23 @@ public:
 };
 register_rule<volTag_output_file> register_volTag_output_file;
 
+$type meshfile_par param<string> ;
+$type volTagInput  blackbox<vector<pair<string, entitySet> > > ;
+
+$rule blackbox(volTagInput<-meshfile_par),prelude {
+  string meshfile = *$meshfile_par ;
+  if(MPI_rank==0){
+    hid_t file_id = Loci::hdf5OpenFile(meshfile.c_str(),
+                                       H5F_ACC_RDONLY,H5P_DEFAULT) ;
+    
+    Loci::readVolTags(file_id,
+                      *$volTagInput);
+    H5Fclose(file_id);
+  } else {
+    *$volTagInput = vector<pair<string,entitySet> >() ;
+  }
+} ;  
+  
 
 
 
@@ -220,6 +237,7 @@ register_rule<volTag_output_file> register_volTag_output_file;
 class get_volTag : public singleton_rule {
 
   blackbox<vector<pair<string, entitySet> > > volTag_blackbox ;
+  const_blackbox<vector<pair<string, entitySet> > > volTagInput ;
   
   const_param<string> meshfile_par ;
   const_store<int> cell_offset;
@@ -232,14 +250,14 @@ class get_volTag : public singleton_rule {
 public:
   get_volTag(){
     name_store("volTag_blackbox", volTag_blackbox);
-    name_store("meshfile_par", meshfile_par);
+    name_store("volTagInput", volTagInput);
      
     name_store("balanced_cell_offset", cell_offset);
     name_store("balanced_num_fine_cells", num_fine_cells);
     name_store("num_original_nodes", num_original_nodes);
     name_store("num_original_faces", num_original_faces);
  
-    input("meshfile_par");
+    input("volTagInput");
     input("balanced_num_fine_cells");
     input("balanced_cell_offset");
     input("num_original_nodes");
@@ -249,12 +267,14 @@ public:
     disable_threading();
   }
   virtual void compute(const sequence &seq) {
-   
-   *volTag_blackbox =  getVOGTagFromLocal( *meshfile_par,
-                                           cell_offset,
-                                           num_fine_cells,
-                                           *num_original_nodes,
-                                           *num_original_faces);
+
+    vector<pair<string,entitySet> > origVolTags = *volTagInput ;
+    //current volume tags
+    *volTag_blackbox =  getVOGTagFromLocal( origVolTags,
+					    cell_offset,
+					    num_fine_cells,
+					    *num_original_nodes,
+					    *num_original_faces);
    
   }
 };

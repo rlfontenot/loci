@@ -333,10 +333,11 @@ namespace Loci{
       facts.create_fact("boundary_names", boundary_names) ;
       facts.create_fact("boundary_tags", boundary_tags) ;
 
+      int cells_base = local_cells[0].Min() ;
       for(size_t i=0;i<volTags.size();++i) {
         param<string> Tag ;
         *Tag = volTags[i].first ;
-        Tag.set_entitySet(volTags[i].second) ;
+        Tag.set_entitySet(volTags[i].second >> cells_base) ;
         std::ostringstream oss ;
         oss << "volumeTag(" << volTags[i].first << ")" ;
         facts.create_fact(oss.str(),Tag) ;
@@ -496,14 +497,16 @@ namespace Loci{
     dMap g2f ;
     g2f = df->g2f.Rep() ;
 
+    int cells_base = local_cells[0].Min() ;
     for(size_t i=0;i<volTags.size();++i) {
       param<string> Tag ;
       *Tag = volTags[i].first ;
 
       // Map entitySet to new ordering
+      entitySet inputTag = (volTags[i].second >> cells_base) ;
       entitySet tagset ;
       FORALL(cells,cc) {
-        if(volTags[i].second.inSet(g2f[cc])) 
+        if(inputTag.inSet(g2f[cc])) 
           tagset += cc ;
       } ENDFORALL ;
       Tag.set_entitySet(tagset) ;
@@ -1217,7 +1220,7 @@ void writeVOGFace(hid_t file_id, Map &cl, Map &cr, multiMap &face2node) {
 }
 
 
-vector<pair<string,entitySet> > getVOGTagFromLocal(string meshfile,
+vector<pair<string,entitySet> > getVOGTagFromLocal(const vector<pair<string,entitySet> > &origVolTags,
                                                    // string outfile,
                                                    const_store<int> &cell_offset,
                                                    const_store<int> & num_fine_cells,
@@ -1226,17 +1229,6 @@ vector<pair<string,entitySet> > getVOGTagFromLocal(string meshfile,
   
 
   
-  //process 0 read in original volume tags
-  vector<pair<string,entitySet> > origVolTags;
-  if(MPI_rank==0){
-    hid_t file_id = Loci::hdf5OpenFile(meshfile.c_str(),
-                                       H5F_ACC_RDONLY,H5P_DEFAULT) ;
-    
-    Loci::readVolTags(file_id,
-                      origVolTags);
-    H5Fclose(file_id);
-  }
-  //current volume tags
   vector<pair<string,entitySet> > volTags(origVolTags.size());
 
   //serial version
