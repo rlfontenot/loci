@@ -430,6 +430,9 @@ namespace Loci {
   hid_t writeVOGOpen(string filename);
   void writeVOGSurf(hid_t file_id, std::vector<pair<int,string> > surface_ids);
   void writeVOGClose(hid_t file_id) ;
+  bool readVolTags(hid_t input_fid,
+                   std::vector<pair<string,Loci::entitySet> > &volDat);
+  
   bool setupFVMGridFromContainer(fact_db &facts,
                                  std::vector<entitySet>& local_nodes,
                                  std::vector<entitySet>& local_faces,

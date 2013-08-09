@@ -974,25 +974,34 @@ namespace Loci {
 }
 
 namespace Loci{
- 
+  storeRepP Local2FileOrder(storeRepP sp, entitySet dom, int &offset,
+                            fact_db::distribute_infoP dist, MPI_Comm comm);
+  
+  void File2LocalOrder(storeRepP &result, entitySet resultSet,
+                       storeRepP input, int offset,
+                       fact_db::distribute_infoP dist,
+                       MPI_Comm comm);
+
 
   entitySet faceCluster(const multiMap &face2node,
                         const Map &cl, const Map &cr, entitySet faces,
                         vector<unsigned char> &cluster_info,
                         vector<unsigned short> &cluster_sizes) ;
   bool readBCfromVOG(string filename,
-                    vector<pair<int,string> > &boundary_ids);
-  
+                     vector<pair<int,string> > &boundary_ids);
+  bool readVolTags(hid_t input_fid,
+                   vector<pair<string,Loci::entitySet> > &volDat);
   
   hid_t writeVOGOpen(string filename);
   void writeVOGSurf(hid_t file_id, std::vector<pair<int,string> > surface_ids);
+  void writeVOGTag(hid_t output_fid,  vector<pair<string,entitySet> >& volTags);
   void writeVOGClose(hid_t file_id) ;
 
 
 }
 
 void writeVOGNode(hid_t file_id,
-                Loci::storeRepP &pos,
+                  Loci::storeRepP &pos,
                   const_store<Loci::FineNodes> &inner_nodes);
 
 
@@ -1004,9 +1013,9 @@ namespace Loci{
       file_id = H5Fcreate(filename.c_str(),H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT) ;
     return file_id ;
   }
-   void writeVOGClose(hid_t file_id) {
-     if(MPI_rank == 0) H5Fclose(file_id) ;
-   }
+  void writeVOGClose(hid_t file_id) {
+    if(MPI_rank == 0) H5Fclose(file_id) ;
+  }
   
        
   void writeVOGSurf(hid_t file_id, std::vector<pair<int,string> > surface_ids) {
@@ -1030,128 +1039,376 @@ namespace Loci{
       }
     }
   }
-
+  unsigned long readAttributeLong(hid_t group, const char *name) {
+    hid_t id_a = H5Aopen_name(group,name) ;
+    unsigned long val = 0;
+    H5Aread(id_a,H5T_NATIVE_ULONG,&val) ;
+    H5Aclose(id_a) ;
+    return val ;
+  }
+  
+  bool readVolTags(hid_t input_fid,
+                   vector<pair<string,Loci::entitySet> > &volDat) {
+    using namespace Loci ;
+    /* Save old error handler */
+    herr_t (*old_func)(void*) = 0;
+    void *old_client_data = 0 ;
+    H5Eget_auto(&old_func, &old_client_data);
+    /* Turn off error handling */
+    H5Eset_auto(NULL, NULL);
+    
+    vector<pair<string,entitySet> > volTags ;
+    hid_t cell_info = H5Gopen(input_fid,"cell_info") ;
+    if(cell_info > 0) {
+      vector<string> vol_tag ;
+      vector<entitySet> vol_set ;
+      vector<int> vol_id ;
+      
+      hsize_t num_tags = 0 ;
+      H5Gget_num_objs(cell_info,&num_tags) ;
+      for(hsize_t tg=0;tg<num_tags;++tg) {
+        char buf[1024] ;
+        memset(buf, '\0', 1024) ;
+        H5Gget_objname_by_idx(cell_info,tg,buf,sizeof(buf)) ;
+        buf[1023]='\0' ;
+        
+        string name = string(buf) ;
+        hid_t vt_g = H5Gopen(cell_info,buf) ;
+        hid_t id_a = H5Aopen_name(vt_g,"Ident") ;
+        int ident ;
+        H5Aread(id_a,H5T_NATIVE_INT,&ident) ;
+        H5Aclose(id_a) ;
+        entitySet dom ;
+        HDF5_ReadDomain(vt_g,dom) ;
+        vol_tag.push_back(name) ;
+        vol_set.push_back(dom) ;
+        vol_id.push_back(ident) ;
+        H5Gclose(vt_g) ;
+      }
+      int maxi =0 ;
+      for(size_t i=0;i<vol_id.size();++i)
+        maxi = max(vol_id[i],maxi) ;
+      vector<pair<string,entitySet> > tmp(maxi+1) ;
+      volTags.swap(tmp) ;
+      for(size_t i=0;i<vol_id.size();++i) {
+        volTags[vol_id[i]].first = vol_tag[i] ;
+        volTags[vol_id[i]].second = vol_set[i] ;
+      }
+    } else {
+      hid_t file_info = H5Gopen(input_fid,"file_info") ;
+      long numCells = readAttributeLong(file_info,"numCells") ;
+      volTags.push_back(pair<string,entitySet>
+                        (string("Main"),
+                         entitySet(interval(0,numCells-1)))) ;
+      H5Gclose(file_info) ;
+    }
+  
+    /* Restore previous error handler */
+    H5Eset_auto(old_func, old_client_data);
+    volDat.swap(volTags) ;
+    return true ;
+  }
 
 }
 void writeVOGFace(hid_t file_id, Map &cl, Map &cr, multiMap &face2node) {
-    // Compute cell set
-    entitySet tmp_cells = cl.image(cl.domain())+cr.image(cr.domain()) ;
-    entitySet loc_geom_cells = tmp_cells & interval(0,Loci::UNIVERSE_MAX) ;
-    entitySet geom_cells = Loci::all_collect_entitySet(loc_geom_cells) ;
+  // Compute cell set
+  entitySet tmp_cells = cl.image(cl.domain())+cr.image(cr.domain()) ;
+  entitySet loc_geom_cells = tmp_cells & interval(0,Loci::UNIVERSE_MAX) ;
+  entitySet geom_cells = Loci::all_collect_entitySet(loc_geom_cells) ;
   
-    Map tmp_cl, tmp_cr;
-    multiMap tmp_face2node;
-
-  
-    long long local_num_faces = face2node.domain().size()  ;
+  Map tmp_cl, tmp_cr;
+  multiMap tmp_face2node;
 
   
-    long long num_cells = geom_cells.size() ;
-    long long num_faces = 0 ;
+  long long local_num_faces = face2node.domain().size()  ;
 
-    // Reduce these variables
-    MPI_Allreduce(&local_num_faces,&num_faces,1,MPI_LONG_LONG_INT,
-                  MPI_SUM,MPI_COMM_WORLD) ;
+  
+  long long num_cells = geom_cells.size() ;
+  long long num_faces = 0 ;
 
-    hid_t group_id = 0 ;
-    if(MPI_rank == 0) {
-      group_id = H5Gopen(file_id,"file_info") ;
+  // Reduce these variables
+  MPI_Allreduce(&local_num_faces,&num_faces,1,MPI_LONG_LONG_INT,
+                MPI_SUM,MPI_COMM_WORLD) ;
 
-      std::cout<< "num_cells = " << num_cells << endl
-               << "num_faces = " << num_faces << endl ;
+  hid_t group_id = 0 ;
+  if(MPI_rank == 0) {
+    group_id = H5Gopen(file_id,"file_info") ;
 
-      hsize_t dims = 1 ;
-      hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
+    std::cout<< "num_cells = " << num_cells << endl
+             << "num_faces = " << num_faces << endl ;
+
+    hsize_t dims = 1 ;
+    hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
     
-      hid_t att_id = H5Acreate(group_id,"numFaces", H5T_STD_I64BE,
-                               dataspace_id, H5P_DEFAULT) ;
-      H5Awrite(att_id,H5T_NATIVE_LLONG,&num_faces) ;
-      H5Aclose(att_id) ;
-      att_id = H5Acreate(group_id,"numCells", H5T_STD_I64BE,
-                         dataspace_id, H5P_DEFAULT) ;
-      H5Awrite(att_id,H5T_NATIVE_LLONG,&num_cells) ;
-      H5Aclose(att_id) ;
-      H5Gclose(group_id) ;
-      group_id = H5Gcreate(file_id,"face_info",0) ;
-    }
+    hid_t att_id = H5Acreate(group_id,"numFaces", H5T_STD_I64BE,
+                             dataspace_id, H5P_DEFAULT) ;
+    H5Awrite(att_id,H5T_NATIVE_LLONG,&num_faces) ;
+    H5Aclose(att_id) ;
+    att_id = H5Acreate(group_id,"numCells", H5T_STD_I64BE,
+                       dataspace_id, H5P_DEFAULT) ;
+    H5Awrite(att_id,H5T_NATIVE_LLONG,&num_cells) ;
+    H5Aclose(att_id) ;
+    H5Gclose(group_id) ;
+    group_id = H5Gcreate(file_id,"face_info",0) ;
+  }
   
-    entitySet faces = face2node.domain() ;
-    vector<pair<pair<int,int>, int> > f_ord(faces.size()) ;
-    int i = 0 ;
-    // For small number of cells, sort to keep bc groupings
-    if(num_cells<100000) {
-      FORALL(faces,fc) {
-        f_ord[i].first.first = cr[fc] ;
-        f_ord[i].first.second = cl[fc] ;
-        f_ord[i].second = fc ;
-        i++ ;
-      } ENDFORALL ;
-      std::sort(f_ord.begin(),f_ord.end()) ;
-    } else {
-      FORALL(faces,fc) {
-        f_ord[i].first.first = cl[fc] ;
-        f_ord[i].first.second = cr[fc] ;
-        f_ord[i].second = fc ;
-        i++ ;
-      } ENDFORALL ;
-    }
-
-    i=0 ;
-    store<int> count ;
-    count.allocate(faces) ;
+  entitySet faces = face2node.domain() ;
+  vector<pair<pair<int,int>, int> > f_ord(faces.size()) ;
+  int i = 0 ;
+  // For small number of cells, sort to keep bc groupings
+  if(num_cells<100000) {
     FORALL(faces,fc) {
-      int nfc = f_ord[i].second ;
-      count[fc] = face2node[nfc].size() ;
+      f_ord[i].first.first = cr[fc] ;
+      f_ord[i].first.second = cl[fc] ;
+      f_ord[i].second = fc ;
       i++ ;
     } ENDFORALL ;
-    tmp_face2node.allocate(count) ;
-    tmp_cl.allocate(faces) ;
-    tmp_cr.allocate(faces) ;
-    i=0 ;
-  
-    int mc = (geom_cells).Min() ;
-    // Nodes should be adjusted to start from zero also... for the general case
+    std::sort(f_ord.begin(),f_ord.end()) ;
+  } else {
     FORALL(faces,fc) {
-      int nfc = f_ord[i].second ;
-      tmp_cl[fc] = cl[nfc]-mc ;
-      tmp_cr[fc] = cr[nfc] ;
-      if(tmp_cr[fc] >= 0)
-        tmp_cr[fc] -= mc ;
-      for(int j=0;j<count[fc];++j)
-        tmp_face2node[fc][j] = face2node[nfc][j] ;
+      f_ord[i].first.first = cl[fc] ;
+      f_ord[i].first.second = cr[fc] ;
+      f_ord[i].second = fc ;
       i++ ;
     } ENDFORALL ;
-
-    vector<unsigned char> cluster_info ;
-    vector<unsigned short> cluster_sizes ;
-    while(faces != EMPTY) {
-      entitySet fcluster = Loci::faceCluster(tmp_face2node,tmp_cl,tmp_cr,faces,
-                                             cluster_info,cluster_sizes) ;
-      faces -= fcluster ;
-    }
-
-    Loci::writeUnorderedVector(group_id,"cluster_sizes",cluster_sizes) ;
-    Loci::writeUnorderedVector(group_id,"cluster_info",cluster_info) ;
-  
-  
-    if(MPI_rank == 0) {
-      H5Gclose(group_id) ;
-    }
   }
 
+  i=0 ;
+  store<int> count ;
+  count.allocate(faces) ;
+  FORALL(faces,fc) {
+    int nfc = f_ord[i].second ;
+    count[fc] = face2node[nfc].size() ;
+    i++ ;
+  } ENDFORALL ;
+  tmp_face2node.allocate(count) ;
+  tmp_cl.allocate(faces) ;
+  tmp_cr.allocate(faces) ;
+  i=0 ;
+  
+  int mc = (geom_cells).Min() ;
+  // Nodes should be adjusted to start from zero also... for the general case
+  FORALL(faces,fc) {
+    int nfc = f_ord[i].second ;
+    tmp_cl[fc] = cl[nfc]-mc ;
+    tmp_cr[fc] = cr[nfc] ;
+    if(tmp_cr[fc] >= 0)
+      tmp_cr[fc] -= mc ;
+    for(int j=0;j<count[fc];++j)
+      tmp_face2node[fc][j] = face2node[nfc][j] ;
+    i++ ;
+  } ENDFORALL ;
+
+  vector<unsigned char> cluster_info ;
+  vector<unsigned short> cluster_sizes ;
+  while(faces != EMPTY) {
+    entitySet fcluster = Loci::faceCluster(tmp_face2node,tmp_cl,tmp_cr,faces,
+                                           cluster_info,cluster_sizes) ;
+    faces -= fcluster ;
+  }
+
+  Loci::writeUnorderedVector(group_id,"cluster_sizes",cluster_sizes) ;
+  Loci::writeUnorderedVector(group_id,"cluster_info",cluster_info) ;
+  
+  
+  if(MPI_rank == 0) {
+    H5Gclose(group_id) ;
+  }
+}
 
 
-// void writeVOG(string filename,store<vector3d<double> > &pos,
-//               store<Loci::FineNodes> & inner_nodes,
-//               Map &cl, Map &cr, multiMap &face2node,
-//               vector<pair<int,string> > surface_ids) {
-//     // write grid file
-//   hid_t file_id = writeVOGOpen(filename) ;
-//   writeVOGSurf(file_id,surface_ids) ;
-//   writeVOGNode(file_id,pos) ;
-//   writeVOGFace(file_id,cl,cr,face2node) ;
-//   writeVOGClose(file_id) ;
-// }
+vector<pair<string,entitySet> > getVOGTagFromLocal(string meshfile,
+                                                   // string outfile,
+                                                   const_store<int> &cell_offset,
+                                                   const_store<int> & num_fine_cells,
+                                                   int num_original_nodes,
+                                                   int num_original_faces) {
+  
+
+  
+  //process 0 read in original volume tags
+  vector<pair<string,entitySet> > origVolTags;
+  if(MPI_rank==0){
+    hid_t file_id = Loci::hdf5OpenFile(meshfile.c_str(),
+                                       H5F_ACC_RDONLY,H5P_DEFAULT) ;
+    
+    Loci::readVolTags(file_id,
+                      origVolTags);
+    H5Fclose(file_id);
+  }
+  //current volume tags
+  vector<pair<string,entitySet> > volTags(origVolTags.size());
+
+  //serial version
+  if(Loci::MPI_processes == 1){
+    for(unsigned int i = 0; i < origVolTags.size(); i++){
+      string name = origVolTags[i].first;
+      //transfer entitySet into vector of interval
+      entitySet set=origVolTags[i].second;
+      int sz = set.num_intervals() ;
+      vector<interval> vlist(sz) ;
+      for(int j=0;j<sz;++j)vlist[j] = set[j] ;
+        
+      entitySet new_set = EMPTY;
+      for(int j=0;j<sz;++j){
+        int start = vlist[j].first+num_original_nodes+num_original_faces;
+        int end = vlist[j].second+num_original_nodes+num_original_faces ;
+          
+        start = cell_offset[start]; //the begin of interval changes to  cell_offset+1
+        end = cell_offset[end]+num_fine_cells[end]-1;//the end of interval changes to cell_offset+num_fine_cells
+        new_set += interval(start, end);
+      }
+      volTags[i] = make_pair<string, entitySet>(name, new_set);
+      std::cout << "old tag:  "  << name << " " << set << std::endl;
+      std::cout << "new tag:  " << name << " " << new_set << std::endl;
+    }
+   
+    return volTags  ;
+  }
+       
+    
+  fact_db::distribute_infoP dist = Loci::exec_current_fact_db->get_distribute_info() ;
+  Loci::constraint  geom_cells = Loci::exec_current_fact_db->get_variable("geom_cells");
+  Loci::constraint my_entities;
+  my_entities = dist->my_entities ;
+  //don't know if it's necessray
+  entitySet local_geom_cells = (*my_entities)&(*geom_cells);
+    
+  if(Loci::MPI_processes > 1){
+     
+    //trasnfer the store to file numbering 
+    int offset = 0; 
+    store<int> file_num_fine_cells;
+    file_num_fine_cells = Loci::Local2FileOrder(num_fine_cells.Rep(),local_geom_cells,offset,dist,MPI_COMM_WORLD) ;
+    offset = 0;
+    store<int> file_cell_offset;
+    file_cell_offset = Loci::Local2FileOrder(cell_offset.Rep(),local_geom_cells,offset,dist,MPI_COMM_WORLD) ;
+
+    int coffset = 0; 
+    std::vector<int> local_cell_sizes;
+    int num_local_cells = file_cell_offset.domain().size();
+    local_cell_sizes = Loci::all_collect_sizes(num_local_cells);
+    for(int i = 0; i < MPI_rank; i++){
+      coffset += local_cell_sizes[i];
+    }  
+     
+      
+    //process 0 broadcast the entitySet to all
+    int buf_size = 0;
+    if(MPI_rank==0){
+      for(unsigned int i = 0; i < origVolTags.size(); i++){
+        //transfer entitySet into vector of interval
+        entitySet set=origVolTags[i].second;
+        int sz = set.num_intervals() ;
+        buf_size += sz;
+      }
+    }
+    MPI_Bcast(&buf_size,1,MPI_INT, 0, MPI_COMM_WORLD) ;
+    vector<int> buffer(2*buf_size);
+    if(MPI_rank==0){
+      int pnt = 0;
+      for(unsigned int i = 0; i < origVolTags.size(); i++){
+        //transfer entitySet into vector of interval
+        entitySet set=origVolTags[i].second;
+        int sz = set.num_intervals() ;
+        for(int j=0;j<sz;++j){
+          buffer[pnt++] =  set[j].first;
+          buffer[pnt++] = set[j].second;
+        }
+        
+      }
+    }
+    MPI_Bcast(&buffer[0],2*buf_size,MPI_INT,0,MPI_COMM_WORLD) ;
+    //each process re-assign the intervals
+    entitySet domain = file_cell_offset.domain();
+     
+    for (int i = 0; i < buf_size; i++){
+      int start = buffer[2*i]-coffset;
+      int end = buffer[2*i+1]-coffset;
+      if(start >=0 && domain.inSet(start)) buffer[2*i] = file_cell_offset[start];
+      else buffer[2*i] = 0;
+      if(end >=0 && domain.inSet(end)) buffer[2*i+1] = file_cell_offset[end]+file_num_fine_cells[end]-1;
+      else buffer[2*i+1] = 0;
+       
+    }
+    //process 0 receive the values in buffer from all the other processes, add up the values from each process. 
+    if(MPI_rank == 0){
+       
+      for(int pi = 1; pi <MPI_processes; pi++){
+        //send a flag
+        int flag = 0 ;
+        MPI_Send(&flag,1,MPI_INT,pi,6,MPI_COMM_WORLD) ;
+        vector<int> recv_buf(2*buf_size);
+        MPI_Status mstat ;
+        MPI_Recv(&recv_buf[0],sizeof(int)*2*buf_size,MPI_BYTE,pi,7,MPI_COMM_WORLD,
+                 &mstat) ;
+        for(int i = 0; i < 2*buf_size; i++)buffer[i] += recv_buf[i];
+      }
+    }else{
+      int flag = 0;
+      MPI_Status mstat ;
+      MPI_Recv(&flag,1,MPI_INT,0,6,MPI_COMM_WORLD,&mstat) ;
+      MPI_Send(&buffer[0],sizeof(int)*2*buf_size,MPI_BYTE,0,7,MPI_COMM_WORLD);
+    }
+    //process 0 re-organize the data in buffer into volTags and write it out
+    if(MPI_rank == 0){
+      int pnt = 0;
+      for(unsigned int i = 0; i < origVolTags.size(); i++){
+        //transfer entitySet into vector of interval
+        string name = origVolTags[i].first;
+        entitySet set=origVolTags[i].second;
+        int sz = set.num_intervals() ;
+        entitySet new_set = EMPTY;
+        for(int j = 0; j < sz; j++){ 
+          int start = buffer[pnt++]; 
+          int end = buffer[pnt++];
+          new_set += interval(start, end);
+        }
+        volTags[i] = make_pair<string, entitySet>(name, new_set);
+        std::cout << "old tag:  "  << name << " " << set << std::endl;
+        std::cout << "new tag:  " << name << " " << new_set << std::endl;
+      }
+    
+    }
+
+    //broadcast volTags to other processes
+      int nvtags = volTags.size() ;
+      MPI_Bcast(&nvtags,1,MPI_INT,0,MPI_COMM_WORLD) ;
+      if(MPI_rank != 0) volTags.clear();
+      for(int i=0;i<nvtags;++i) {
+        int sz = 0 ;
+        if(MPI_rank == 0) sz = volTags[i].first.size() ;
+        MPI_Bcast(&sz,1,MPI_INT,0,MPI_COMM_WORLD) ;
+        char *buf = new char[sz+1] ;
+        buf[sz] = '\0' ;
+        if(MPI_rank == 0) strcpy(buf,volTags[i].first.c_str()) ;
+        MPI_Bcast(buf,sz,MPI_CHAR,0,MPI_COMM_WORLD) ;
+        string name = string(buf) ;
+        delete[] buf ;
+        int nivals = 0 ;
+        if(MPI_rank == 0) nivals = volTags[i].second.num_intervals() ;
+        MPI_Bcast(&nivals,1,MPI_INT,0,MPI_COMM_WORLD) ;
+
+        int *ibuf = new int[nivals*2] ;
+        if(MPI_rank == 0) 
+          for(int j=0;j<nivals;++j) {
+            ibuf[j*2]= volTags[i].second[j].first ;
+            ibuf[j*2+1]= volTags[i].second[j].second ;
+          }
+        MPI_Bcast(ibuf,nivals*2,MPI_INT,0,MPI_COMM_WORLD) ;
+        entitySet set ;
+        for(int j=0;j<nivals;++j) 
+          set += interval(ibuf[j*2],ibuf[j*2+1]) ;
+        if(MPI_rank != 0) 
+          volTags.push_back(pair<string,entitySet>(name,set)) ;
+        delete[] ibuf ;
+      }
+     
+  }
+  return volTags; 
+}
+
+
 
 
 

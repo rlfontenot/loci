@@ -43,7 +43,6 @@ namespace Loci{
   void createEdgesPar(fact_db &facts) ;
 }
 
-  
 int main(int argc, char ** argv) {
   // Let Loci initialize itself.
   // This also gives Loci first dibs on the command line arguments.
@@ -418,9 +417,9 @@ int main(int argc, char ** argv) {
       Loci::Abort();
     }
     
-  }
+   }
+   
  
-  
   if(!Loci::makeQuery(rules, facts,"node_output")) {
     std::cerr << "query failed!" << std::endl;
     Loci::Abort();
@@ -430,6 +429,12 @@ int main(int argc, char ** argv) {
     std::cerr << "query failed!" << std::endl;
     Loci::Abort();
   }
+  if(!Loci::makeQuery(rules, facts, "volTag_output")) {
+    std::cerr << "query failed!" << std::endl;
+    Loci::Abort();
+  }
+
+  
   if(plan_output){
     if(!Loci::makeQuery(rules, facts, "cellplan_output")) {
       std::cerr << "query failed!" << std::endl;

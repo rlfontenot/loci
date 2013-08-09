@@ -189,7 +189,10 @@ int main(int argc, char ** argv) {
     std::cerr << "query failed!" << std::endl;
     Loci::Abort();
   }
- 
+  if(!Loci::makeQuery(rules, facts, "volTag_output")) {
+    std::cerr << "query failed!" << std::endl;
+    Loci::Abort();
+  }
 
  
   
