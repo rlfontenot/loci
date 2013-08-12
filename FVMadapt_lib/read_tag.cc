@@ -638,4 +638,168 @@ public:
 };
 
 register_rule<get_nodetag> register_get_nodetag;
+
+
+
+class get_fineCellTag : public pointwise_rule{
+  const_blackbox<vector<char> > inputTagsData;
+  const_store<int> num_fine_cells;
+  store<std::vector<char> > fineCellTag;
+public:
+  get_fineCellTag(){
+    name_store("inputFineCellTagsData", inputTagsData);
+    name_store("fineCellTag", fineCellTag);
+    name_store("num_fine_cells", num_fine_cells);
+    input("inputFineCellTagsData");
+    input("num_fine_cells");
+    output("fineCellTag");
+    disable_threading();
+  }
+  virtual void compute(const sequence &seq){
+    vector<char> filedata  = *inputTagsData ;
+
+    MPI_Comm comm = MPI_COMM_WORLD ;    
+    
+    // Now determine what data we need to collect from filedata
+    fact_db::distribute_infoP dist = (Loci::exec_current_fact_db)->get_distribute_info() ;
+    entitySet my_entities ;
+    my_entities = ~EMPTY ;
+
+    if(dist != 0)
+      my_entities = (dist->my_entities) ;
+
   
+
+    Loci::constraint geom_cells;
+    geom_cells = (Loci::exec_current_fact_db)->get_variable("geom_cells");
+
+    entitySet  local_cells;
+    //don't know if it's necessray
+    local_cells = (my_entities)&(*geom_cells);
+    
+    // Gather data maps for nodes created at edges, then cells, then faces
+    // Note, since each of these are given a file number starting from zero
+    // and we are using local2file to get a consistent numbering we need
+    // to process each of these steps one by one.
+    vector<pair<int,int> > datamap ;
+    vector<pair<int,int> > locations ; ;
+    store<int> nodeloc ; // location of nodes
+
+   
+    int start = 0;
+     int cnt = 0 ;
+    // Now process cell created nodes
+    int ncnodes =
+      getNodeOffsets(nodeloc,num_fine_cells,local_cells,dist,comm) ;
+    
+    
+    FORALL(local_cells, cc){
+      if(num_fine_cells[cc] != 0){
+        std::vector<char>(int(num_fine_cells[cc])).swap(fineCellTag[cc]);
+        int nn = num_fine_cells[cc] ;
+
+        std::vector<char>(nn).swap(fineCellTag[cc]);
+        pair<int,int> loc(cc,0) ;
+        pair<int,int> data(start+nodeloc[cc],cnt)  ;
+        for(int i=0;i<nn;++i) {
+          loc.second = i ;
+          data.second = cnt ;
+          datamap.push_back(data) ;
+          locations.push_back(loc) ;
+          data.first++ ;
+          cnt++ ;
+          fineCellTag[cc][i] = 5 ;
+        }
+      }else{
+        std::cerr <<"ERROR:: num_fine_cells is 0"<< std::endl;
+        std::vector<char>(1).swap(fineCellTag[cc]);
+        fineCellTag[cc].clear();
+      }
+    } ENDFORALL;
+    
+    start += ncnodes ;
+    
+    nodeloc.allocate(EMPTY) ;
+   
+
+    // Sanity Check on file size
+    int local_size = filedata.size() ;
+    int global_size = 0 ;
+    MPI_Allreduce(&local_size,&global_size,1,MPI_INT,MPI_SUM,comm) ;
+    
+    // Check to see if the tag file contained enough tags
+    if(start != global_size) {
+      if(Loci::MPI_rank == 0) {
+        cerr << "Refinement tag data size mismatch! Looking for " << start << " tags, but found " << filedata.size() << "!" << endl ;
+      }
+    }
+
+    // Communicate tag file information as requested in datamap
+    vector<pair<int,char> > returndata ;
+    communicateFileData(filedata,datamap,returndata,comm) ;
+
+    // Store node tags in the fineCellTag datastructure
+    for(size_t i=0;i<returndata.size();++i) {
+      int locid = returndata[i].first ;
+      int loc = locations[locid].first ;
+      int off = locations[locid].second ;
+      fineCellTag[loc][off] = returndata[i].second ;
+    }
+#ifdef DEBUG
+    entitySet dom2 = entitySet(seq) ;
+    
+    FORALL(dom2,ii) {
+      int sz = fineCellTag[ii].size() ;
+      for(int i=0;i<sz;++i)
+        if(fineCellTag[ii][i] < 0 || fineCellTag[ii][i] > 2) {
+          cerr <<  "invalid fineCellTag " << i << ' ' << int(fineCellTag[ii][i]) << endl ;
+        }
+    } ENDFORALL ;
+#endif
+    
+  }
+     
+  
+  
+};
+
+register_rule<get_fineCellTag> register_get_fineCellTag;
+  
+class get_celltag : public pointwise_rule{
+  const_blackbox<vector<char> > inputTagsData ;
+  store<char> cellTag;
+  
+public:
+  get_celltag(){
+    name_store("inputCellTagsData", inputTagsData);
+    name_store("cellTag", cellTag);
+    input("inputCellTagsData");
+    output("cellTag");
+    constraint("geom_cells");
+    disable_threading();
+  }
+  virtual void compute(const sequence &seq){
+    MPI_Comm comm = MPI_COMM_WORLD ;    
+    
+    vector<char> filedata  = *inputTagsData ;
+    
+    // Now determine what data we need to collect from filedata
+    fact_db::distribute_infoP dist = (Loci::exec_current_fact_db)->get_distribute_info() ;
+    entitySet dom = entitySet(seq);
+
+    vector<pair<int,int> > datamap ;
+    add_to_datamap(dom,datamap,0,dist) ;
+    
+    
+    vector<pair<int,char> > returndata ;
+    communicateFileData(filedata,datamap,returndata,comm) ;
+    
+    for(size_t i=0;i<returndata.size();++i) {
+      cellTag[returndata[i].first] = returndata[i].second ;
+    }
+
+    
+  }
+
+};
+register_rule<get_celltag> register_get_celltag;

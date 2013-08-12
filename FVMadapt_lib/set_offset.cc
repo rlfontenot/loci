@@ -556,7 +556,7 @@ public:
     std::ofstream outFile;
     int nprocs = Loci::MPI_processes;
     
-    //process 0 open tagFile
+    //process 0 open c2p File
     if(Loci::MPI_rank == 0){
       outFile.open((*c2pfile_par).c_str());
       if(!outFile){
@@ -574,7 +574,7 @@ public:
           outFile << cell2parent[cc][i].first << ' '<<cell2parent[cc][i].second<<endl;
         }
       }ENDFORALL;
-      //close tagfile
+      //close c2p file
       outFile.close();
       return;
     }

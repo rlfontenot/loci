@@ -1087,3 +1087,269 @@ public:
 };
 
 register_rule<derefine_general_cellplan> register_derefine_general_cellplan;
+
+
+//this rule make  a newCellPlan according to cellPlan 
+//and fineCellTag
+class make_general_cellplan_fineCellTag:public pointwise_rule{
+  const_store<vect3d> pos;
+  const_multiMap upper;
+  const_multiMap lower;
+  const_multiMap boundary_map;
+  const_store<bool> is_quadface;
+  const_MapVec<2> edge2node;
+  const_multiMap face2edge;
+  const_multiMap face2node;
+  const_store<std::vector<char> > cellPlan;
+  const_store<std::vector<char> > facePlan;
+  const_store<std::vector<char> > edgePlan;
+  const_store<std::vector<char> > fineCellTag;
+  const_store<bool> isIndivisible;
+  const_param<int> restart_tag_par;
+  store<std::vector<char> > newCellPlan;
+
+  const_store<int> node_l2f;
+public:
+  make_general_cellplan_fineCellTag(){
+    name_store("pos", pos);
+    name_store("lower", lower);
+    name_store("upper", upper);
+    name_store("boundary_map", boundary_map);
+    name_store("face2node", face2node);
+    name_store("face2edge", face2edge);
+    name_store("edge2node", edge2node);
+    name_store("cellPlan", cellPlan);
+    name_store("facePlan", facePlan);
+    name_store("edgePlan", edgePlan);
+    name_store("fineCellTag", fineCellTag);
+    name_store("isIndivisible", isIndivisible);
+    name_store("newCellPlan", newCellPlan);
+    name_store("fileNumber(pos)", node_l2f);
+    name_store("is_quadface", is_quadface);
+    name_store("restart_tag_par", restart_tag_par);
+    input("restart_tag_par");
+    input("(cellPlan,fineCellTag) ");
+    input("isIndivisible");
+    input("(lower, upper, boundary_map) -> (facePlan,is_quadface)"); 
+    input("(lower, upper, boundary_map)->face2node->(pos, fileNumber(pos))");
+    input("(lower, upper, boundary_map)->face2edge->edge2node->pos");
+    input("(lower, upper, boundary_map)->face2edge->(edgePlan)");
+
+    output("newCellPlan");
+    constraint("gnrlcells");
+  }
+  virtual void compute(const sequence &seq){
+    if(seq.size()!=0){
+   
+      do_loop(seq, this);
+    }
+   
+  }
+  void calculate(Entity cc){
+
+    if(!isIndivisible[cc]){
+      std::list<Node*> node_list;
+      std::list<Edge*> edge_list;
+      std::list<Face*> face_list;
+      std::list<Node*> bnode_list;
+     
+
+    
+ 
+
+                                                 
+      Cell* aCell = build_general_cell(lower[cc].begin(), lower.num_elems(cc),
+                                       upper[cc].begin(), upper.num_elems(cc),
+                                       boundary_map[cc].begin(), boundary_map.num_elems(cc),
+                                       is_quadface,
+                                       face2node,
+                                       face2edge,
+                                       edge2node,
+                                       pos,
+                                       edgePlan,
+                                       facePlan,
+                                       bnode_list,
+                                       edge_list,
+                                       face_list,
+                                       node_l2f);
+
+  
+  
+ 
+      //calculate min_edge_length of the cell
+      double min_edge_length =aCell->get_min_edge_length();
+      
+      
+      std::vector<DiamondCell*> cells;
+      
+      aCell->resplit( cellPlan[cc], 
+                      node_list,
+                      edge_list,
+                      face_list,
+                      cells);
+      
+      
+    
+      
+    
+      // split the cell Globals::levels times
+      int numCells = cells.size();
+      bool cell_split = false;
+      if(numCells != 0){//aCell is not a leaf
+        for(int i = 0; i < numCells; i++){
+          if(fineCellTag[cc][i]==1) {
+            if((min_edge_length/double(1<<(cells[i]->getLevel()+Globals::levels))) > Globals::tolerance){
+              cells[i]->resplit(Globals::levels,node_list, edge_list, face_list);
+              cell_split = true;
+            }else{
+              int split_level = Globals::levels;
+              if(Globals::tolerance > 0.0) split_level = int(log(min_edge_length/Globals::tolerance)/log(2.0) - cells[i]->getLevel());
+              if(split_level >= 1){
+                cells[i]->resplit(split_level,node_list, edge_list, face_list);
+                cell_split = true;
+              }
+            }
+          }
+          
+        }
+        
+      }else{//aCell is a leaf
+        if(fineCellTag[cc][0]==1){
+          int split_level = Globals::levels;
+          if(Globals::tolerance > 0.0) split_level = int(log(min_edge_length/Globals::tolerance)/log(2.0));
+          if(split_level >= 1){
+            aCell->split(node_list, edge_list, face_list);
+            for(int i = 0; i < aCell->numNode; i++){
+              aCell->child[i]->resplit(min(Globals::levels, split_level)-1, node_list, edge_list, face_list);
+            }
+          }
+        }
+      }
+
+      //rebalance this cell
+      if(cell_split){
+        aCell->rebalance_cells(node_list, edge_list, face_list);
+        newCellPlan[cc] = aCell->make_cellplan();
+      }else{
+        //write new cellPlan
+        newCellPlan[cc] = aCell->make_cellplan();
+      }
+      
+     
+      //clean up
+      if(aCell != 0){
+        delete aCell;
+        aCell = 0;
+      }
+      cleanup_list(node_list, edge_list, face_list);
+      cleanup_list(bnode_list);
+      reduce_vector(newCellPlan[cc]);
+    }
+  }
+};
+
+register_rule<make_general_cellplan_fineCellTag> register_make_general_cellplan_fineCellTag;
+
+//this rule make  a newCellPlan according to  cellTag
+class make_general_cellplan_cellTag_norestart:public pointwise_rule{
+  const_store<vect3d> pos;
+  const_multiMap upper;
+  const_multiMap lower;
+  const_multiMap boundary_map;
+  const_MapVec<2> edge2node;
+  const_multiMap face2edge;
+  const_multiMap face2node;
+  const_store<char>  cellTag;
+  const_store<bool> isIndivisible;
+  const_param<int> norestart_tag_par;
+  store<std::vector<char> > newCellPlan;
+
+  const_store<int> node_l2f;
+public:
+  make_general_cellplan_cellTag_norestart(){
+    name_store("pos", pos);
+    name_store("lower", lower);
+    name_store("upper", upper);
+    name_store("boundary_map", boundary_map);
+    name_store("face2node", face2node);
+    name_store("face2edge", face2edge);
+    name_store("edge2node", edge2node);
+    name_store("cellTag", cellTag);
+    name_store("norestart_tag_par", norestart_tag_par);
+    name_store("isIndivisible", isIndivisible);
+    name_store("newCellPlan", newCellPlan);
+    name_store("fileNumber(pos)", node_l2f);
+    
+  
+    input("isIndivisible, cellTag");
+    input("(lower, upper, boundary_map)->face2node->(pos,fileNumber(pos))");
+    input("(lower, upper, boundary_map)->face2edge->edge2node->pos");
+    input("norestart_tag_par");
+    output("newCellPlan");
+    constraint("gnrlcells");
+  }
+  virtual void compute(const sequence &seq){
+    if(seq.size()!=0){
+   
+      do_loop(seq, this);
+    }
+
+    
+  }
+  void calculate(Entity cc){
+    if(!isIndivisible[cc]){
+      std::list<Node*> node_list;
+      std::list<Edge*> edge_list;
+      std::list<Face*> face_list;
+      std::list<Node*> bnode_list;
+  
+    
+      Cell* aCell = build_general_cell(lower[cc].begin(), lower.num_elems(cc),
+                                       upper[cc].begin(), upper.num_elems(cc),
+                                       boundary_map[cc].begin(), boundary_map.num_elems(cc),
+                                       face2node,
+                                       face2edge,
+                                       edge2node,
+                                       pos,
+                                       bnode_list,
+                                       edge_list,
+                                       face_list,
+                                       node_l2f);
+
+  
+  
+ 
+      //calculate min_edge_length of the cell
+      double min_edge_length =aCell->get_min_edge_length();
+    
+      // split the cell Globals::levels times
+    
+   
+   
+      if(cellTag[cc]==1){
+        int split_level = Globals::levels;
+        if(Globals::tolerance > 0.0) split_level = int(log(min_edge_length/Globals::tolerance)/log(2.0));
+      
+        if(split_level >= 1){
+          aCell->split(node_list, edge_list, face_list);
+          for(int i = 0; i < aCell->numNode; i++){
+            aCell->child[i]->resplit(min(Globals::levels, split_level)-1, node_list, edge_list, face_list);
+          }
+        }
+      }
+      
+      //write new cellPlan
+      newCellPlan[cc] = aCell->make_cellplan();
+      //clean up
+      if(aCell != 0){
+        delete aCell;
+        aCell = 0;
+      }
+      cleanup_list(node_list, edge_list, face_list);
+      cleanup_list(bnode_list);
+      reduce_vector(newCellPlan[cc]);
+    }
+  }
+};
+
+register_rule<make_general_cellplan_cellTag_norestart> register_make_general_cellplan_cellTag_norestart;

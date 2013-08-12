@@ -70,7 +70,7 @@ int Prism::empty_resplit( const std::vector<char>& cellPlan){
     }else if((current->mySplitCode)!=0 && currentCode != (current->mySplitCode)){
       Loci::debugout << "WARNING: split code is not consistent" << endl;
       Loci::debugout << int(currentCode) << " intree " << int( current->mySplitCode)<< endl; 
-       Loci::Abort();
+      Loci::Abort();
       
     }else{
       if((current->childCell)==0){
@@ -962,98 +962,85 @@ double Prism::get_min_edge_length(){
 
 
 void Prism::setSplitCode(int split_mode, double tol){
-  if( get_tagged() == 1){
-    
-    if(mySplitCode != 0){
-      
-      cerr<<"WARNING:mySplitCode is not zero in setSplitCode of prism: " << int(mySplitCode) <<endl;
-      exit(0);
-    }
-    
-    
-    
-    //find the edge_length of all edges
-    std::vector<Edge*> edges = get_edges();
-    std::vector<double> edge_length(3*nfold);
-    for(int i = 0; i < 3*nfold; i++)edge_length[i] = edges[i]->get_length();
-
-
-    
-    
-    //find the min_edge_length in XY direction
-    double average_length0, average_length1;
-    
-    average_length0  = 0.0;
-    for(int i = 0; i<2*nfold; i++) average_length0 +=  edge_length[i];
-    average_length0 /= double(2*nfold);
-    
-    average_length1 = 0.0;
-    for(int i = 2*nfold; i < 3*nfold; i++)average_length1 +=  edge_length[i];
-    average_length1 /= double(nfold);
-    
-    bitset<2> tolerance_mask(3); //all 1s
-    if(average_length0 < 2*tol)tolerance_mask.reset(1);
-    if(average_length1 < 2*tol)tolerance_mask.reset(0);
-   
-    double minimum_length = min(average_length0, average_length1);
-    if(split_mode == 0){
-    
-      if(average_length1/average_length0 > Globals::factor){
-        bitset<2> oldCode(1);
-        oldCode = oldCode & tolerance_mask;
-        mySplitCode = char(oldCode.to_ulong());
-        //mySplitCode = 1; //split in z direction
-        return;
-      }
-      else if(average_length0/average_length1 > Globals::factor){
-        bitset<2> oldCode(2);
-        oldCode = oldCode & tolerance_mask;
-        mySplitCode = char(oldCode.to_ulong());
-        //mySplitCode = 2;//split in xy direction
-        return;
-      }
-      else if(minimum_length > 2.0*tol){
-        mySplitCode = 3;
-        return;
-      }
-      else{
-        mySplitCode = 0;
-        return;  
-      }
-      
-      cerr<< " WARNING: reach dummy code in setSplitCode()" << endl;
-    }
-    else if(split_mode == 1){
-      if(average_length0/tol > 2.0){
-        // bitset<2> oldCode(2);
-        // oldCode = oldCode & tolerance_mask;
-        // mySplitCode = char(oldCode.to_ulong());
-        
-        mySplitCode = 2;//split in xy direction
-        return;
-      }
-      else{
-        mySplitCode = 0;
-        return;  
-      }  
-    }
-    else if(split_mode == 2){
-      if (minimum_length > 2.0*tol){
-        mySplitCode = 3;
-        return;
-      }
-      else{
-        mySplitCode = 0;
-        return;
-      }
-    }
+  if(mySplitCode != 0){
+    cerr<<"WARNING:mySplitCode is not zero in setSplitCode of prism: " << int(mySplitCode) <<endl;
+    exit(0);
   }
-  else{
+  //find the edge_length of all edges
+  std::vector<Edge*> edges = get_edges();
+  std::vector<double> edge_length(3*nfold);
+  for(int i = 0; i < 3*nfold; i++)edge_length[i] = edges[i]->get_length();
     
-    mySplitCode = 0;
-    return;
+  //find the min_edge_length in XY direction
+  double average_length0, average_length1;
+    
+  average_length0  = 0.0;
+  for(int i = 0; i<2*nfold; i++) average_length0 +=  edge_length[i];
+  average_length0 /= double(2*nfold);
+    
+  average_length1 = 0.0;
+  for(int i = 2*nfold; i < 3*nfold; i++)average_length1 +=  edge_length[i];
+  average_length1 /= double(nfold);
+    
+  bitset<2> tolerance_mask(3); //all 1s
+  if(average_length0 < 2*tol)tolerance_mask.reset(1);
+  if(average_length1 < 2*tol)tolerance_mask.reset(0);
+   
+  double minimum_length = min(average_length0, average_length1);
+  if(split_mode == 0){
+    
+    if(average_length1/average_length0 > Globals::factor){
+      bitset<2> oldCode(1);
+      oldCode = oldCode & tolerance_mask;
+      mySplitCode = char(oldCode.to_ulong());
+      //mySplitCode = 1; //split in z direction
+      return;
+    }
+    else if(average_length0/average_length1 > Globals::factor){
+      bitset<2> oldCode(2);
+      oldCode = oldCode & tolerance_mask;
+      mySplitCode = char(oldCode.to_ulong());
+      //mySplitCode = 2;//split in xy direction
+      return;
+    }
+    else if(minimum_length > 2.0*tol){
+      mySplitCode = 3;
+      return;
+    }
+    else{
+      mySplitCode = 0;
+      return;  
+    }
+      
+    cerr<< " WARNING: reach dummy code in setSplitCode()" << endl;
+  }
+  else if(split_mode == 1){
+    if(average_length0/tol > 2.0){
+      // bitset<2> oldCode(2);
+      // oldCode = oldCode & tolerance_mask;
+      // mySplitCode = char(oldCode.to_ulong());
+        
+      mySplitCode = 2;//split in xy direction
+      return;
+    }
+    else{
+      mySplitCode = 0;
+      return;  
+    }  
+  }
+  else if(split_mode == 2){
+    if (minimum_length > 2.0*tol){
+      mySplitCode = 3;
+      return;
+    }
+    else{
+      mySplitCode = 0;
+      return;
+    }
   }
 }
+  
+
 //after a cell is split, compose the cell plan according to the tree structure      
 std::vector<char> Prism::make_cellplan(){
   
