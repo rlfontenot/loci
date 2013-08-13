@@ -221,7 +221,9 @@ namespace Loci {
     MPI_Allreduce(&lsz,&tsz,1,MPI_LONG_LONG,MPI_SUM,comm) ;
     // Compute target number of processors needed to sort this set of numbers
     // ideally this will have p^2 numbers per processor
-    int target_p = int(floor(pow(double(tsz),1./3.))) ;
+    if(tsz == 0)
+      return ;
+    int target_p = max(1,int(floor(pow(double(tsz),1./3.)))) ;
     if(target_p < p) { // reduce to subset of processors
       int r = 0 ;
       MPI_Comm_rank(comm,&r) ;
