@@ -39,6 +39,8 @@ fi
 cp Tools/libTools.$LIB_POSTFIX $INSTALL_PATH/lib
 cp System/libLoci.$LIB_POSTFIX $INSTALL_PATH/lib
 cp FVMMod/fvm_m.so $INSTALL_PATH/lib
+cp FVMadapt_lib/fvmadapt_m.so $INSTALL_PATH/lib
+cp FVMadapt_lib/libfvmadaptfunc.$LIB_POSTFIX $INSTALL_PATH/lib
 cp ParMetis-4.0/GKLib/libgk.$LIB_POSTFIX $INSTALL_PATH/lib
 cp ParMetis-4.0/METISLib/libmetis.$LIB_POSTFIX $INSTALL_PATH/lib
 cp ParMetis-4.0/ParMETISLib/libparmetis.$LIB_POSTFIX $INSTALL_PATH/lib
@@ -74,7 +76,7 @@ cp include/Loci $INSTALL_PATH/include
 mkdir -p $INSTALL_PATH/ParMetis-4.0
 cp ParMetis-4.0/*.h $INSTALL_PATH/ParMetis-4.0
 
-for i in  Tools Config MPI_stubb ; do
+for i in  Tools Config MPI_stubb FVMAdapt; do
     mkdir -p $INSTALL_PATH/include/$i
     cp include/$i/*.h $INSTALL_PATH/include/$i
 done
