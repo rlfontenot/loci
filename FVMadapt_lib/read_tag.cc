@@ -206,13 +206,14 @@ vector<char> read_tags_hdf5(string filename, string varname, MPI_Comm &comm) {
 }
 
 
-// Add requests for node to datamap
+// Add requests for node to datamap, datamap here is a file2local map
+//but file number is shifted by offset so that it will start with 0
 void add_to_datamap(entitySet dom, vector<pair<int,int> > &datamap, int offset,
                     fact_db::distribute_infoP dist) {
   if(dist == 0) {
     int cnt = 0 ;
     FORALL(dom,nd) {
-      pair<int,int> item(cnt+offset,nd) ;
+      pair<int,int> item(cnt,nd) ;
       datamap.push_back(item) ;
       cnt++ ;
     } ENDFORALL ;
@@ -222,7 +223,7 @@ void add_to_datamap(entitySet dom, vector<pair<int,int> > &datamap, int offset,
     Map l2g ;
     l2g = dist->l2g.Rep() ;
     FORALL(dom,nd) {
-      pair<int,int> item(g2f[l2g[nd]]+offset,nd) ;
+      pair<int,int> item(g2f[l2g[nd]]-offset,nd) ;
       datamap.push_back(item) ;
     } ENDFORALL ;
   }      
@@ -242,7 +243,7 @@ void communicateFileData(vector<char> &filedata,
   
   int dmsz = datamap.size() ;
   if(p == 1) {
-      // On one processor then we just need to copy data from filedata
+    // On one processor then we just need to copy data from filedata
     // to tag using datamap
     {
       vector<pair<int,char> > tmp(dmsz) ;
@@ -255,6 +256,7 @@ void communicateFileData(vector<char> &filedata,
     return ;
   }
   sort(datamap.begin(),datamap.end()) ;
+ 
   vector<int> sizes(p) ;
   int lsize = filedata.size() ;
   MPI_Allgather(&lsize,1,MPI_INT,&sizes[0],1,MPI_INT,comm) ;
@@ -380,7 +382,7 @@ public:
     vector<pair<int,int> > datamap ;
     add_to_datamap(dom,datamap,0,dist) ;
     
-    
+   
     vector<pair<int,char> > returndata ;
     communicateFileData(filedata,datamap,returndata,comm) ;
     
@@ -393,6 +395,56 @@ public:
 
 };
 register_rule<get_postag> register_get_postag;
+
+
+  
+int getFileNumberOffset(const entitySet& locdom,MPI_Comm &comm){
+  // Now determine what data we need to collect from filedata
+  fact_db::distribute_infoP dist = (Loci::exec_current_fact_db)->get_distribute_info() ;
+  int imn;
+  if(dist == 0) {
+    return locdom.Min();
+  } else {
+    entitySet dom = ~EMPTY;
+    dom = locdom&(dist->my_entities) ;
+    Map l2g ;
+    l2g = dist->l2g.Rep() ;
+    // // Compute domain in global numbering
+    //     entitySet dom_global = l2g.image(dom) ;
+     
+    //     // This shouldn't happen
+    //     FATAL(dom.size() != dom_global.size()) ;
+
+    // Now get global to file numbering
+    dMap g2f ;
+    g2f = dist->g2f.Rep() ;
+
+    // Compute map from local numbering to file numbering
+    entitySet filedom = EMPTY;
+    FORALL(dom,i) {
+      filedom += g2f[l2g[i]] ;
+    } ENDFORALL ;
+
+    // int imx = std::numeric_limits<int>::min() ;
+    // int imn = std::numeric_limits<int>::max() ;
+
+    // // Find bounds in file numbering from this processor
+    //     FORALL(dom,i) {
+    //       imx = max(newnum[i],imx) ;
+    //       imn = min(newnum[i],imn) ;
+    //     } ENDFORALL ;
+
+    imn = filedom.Min();
+    // Find overall bounds
+    //imx = GLOBAL_MAX(imx) ;
+    int local_min = imn;
+    MPI_Allreduce(&local_min, &imn, 1, MPI_INT, MPI_MIN,comm);  
+    return imn;
+  }
+  return imn;
+}
+
+  
 
 // Return node location for each entity based on how many nodes are
 // created through splits input in numsplits, numsplits is accessed
@@ -647,10 +699,10 @@ class get_fineCellTag : public pointwise_rule{
   store<std::vector<char> > fineCellTag;
 public:
   get_fineCellTag(){
-    name_store("inputFineCellTagsData", inputTagsData);
+    name_store("inputCellTagsData", inputTagsData);
     name_store("fineCellTag", fineCellTag);
     name_store("num_fine_cells", num_fine_cells);
-    input("inputFineCellTagsData");
+    input("inputCellTagsData");
     input("num_fine_cells");
     output("fineCellTag");
     disable_threading();
@@ -687,7 +739,7 @@ public:
 
    
     int start = 0;
-     int cnt = 0 ;
+    int cnt = 0 ;
     // Now process cell created nodes
     int ncnodes =
       getNodeOffsets(nodeloc,num_fine_cells,local_cells,dist,comm) ;
@@ -764,7 +816,34 @@ public:
 };
 
 register_rule<get_fineCellTag> register_get_fineCellTag;
-  
+                                                
+
+class input_CellTagsData : public singleton_rule {
+  const_param<std::string> tagfile_par ;
+  blackbox<vector<char> > inputTagsData ;
+public:
+  input_CellTagsData() {
+    name_store("cell_tagfile_par",tagfile_par) ;
+    name_store("inputCellTagsData",inputTagsData) ;
+    input("cell_tagfile_par") ;
+    output("inputCellTagsData") ;
+    disable_threading() ;
+  }
+  virtual void compute(const sequence &seq) {
+    string filename = *tagfile_par;
+    MPI_Comm comm = MPI_COMM_WORLD ;    
+
+    size_t p = filename.find("ref_sca");
+    if(p != string::npos){//read hdf5 file
+      *inputTagsData = read_tags_hdf5(filename,string("ref"),comm) ;
+    } else {
+      *inputTagsData = read_tags_txt(filename,comm) ;
+    }
+  }
+} ;
+
+register_rule<input_CellTagsData> register_input_CellTagsData ;
+
 class get_celltag : public pointwise_rule{
   const_blackbox<vector<char> > inputTagsData ;
   store<char> cellTag;
@@ -786,19 +865,22 @@ public:
     // Now determine what data we need to collect from filedata
     fact_db::distribute_infoP dist = (Loci::exec_current_fact_db)->get_distribute_info() ;
     entitySet dom = entitySet(seq);
-
+    if(dist!=0)dom = dom & dist->my_entities;
+    
+    int offset= getFileNumberOffset(dom,comm);
+   
     vector<pair<int,int> > datamap ;
-    add_to_datamap(dom,datamap,0,dist) ;
+    add_to_datamap(dom,datamap,offset,dist) ;
     
     
     vector<pair<int,char> > returndata ;
     communicateFileData(filedata,datamap,returndata,comm) ;
     
+    
     for(size_t i=0;i<returndata.size();++i) {
       cellTag[returndata[i].first] = returndata[i].second ;
     }
-
-    
+        
   }
 
 };

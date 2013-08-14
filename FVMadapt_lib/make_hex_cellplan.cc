@@ -1103,7 +1103,7 @@ class make_hex_cellplan_fineCellTag:public pointwise_rule{
   const_store<std::vector<char> > cellPlan;
   const_store<std::vector<char> > facePlan;
   const_store<std::vector<char> > edgePlan;
-   const_store<std::vector<char> > fineCellTag;
+  const_store<std::vector<char> > fineCellTag;
   const_store<bool> isIndivisible;
   const_param<int> split_mode_par;
   const_param<int> restart_tag_par;

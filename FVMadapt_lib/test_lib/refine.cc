@@ -63,7 +63,7 @@ int main(int argc, char ** argv) {
   //output file for refined grid 
   string outFile;
   //the output file containing cell2parent map
-   string c2pFile;
+  string c2pFile;
   //output  plan file(optional)
   string outPlanFile;
   //this is the name of xml file
@@ -83,7 +83,8 @@ int main(int argc, char ** argv) {
   bool par_input = false;
   bool plan_output = false;
   bool levels_input = false;
-    bool cell2parent = false;
+  bool ctag_input = false;
+  bool cell2parent = false;
   int split_mode = 0;//default mode, hexcells and prisms split according to edge length
   //print out help info
   if( (argc == 1)||(argc==2) ){
@@ -163,7 +164,12 @@ int main(int argc, char ** argv) {
       //replace the tag filename with the next argument
       tagFile =  argv[++i];
       tag_input = true;
+    }else if(arg == "-ctag" && (i+1) < argc){
+      //replace the tag filename with the next argument
+      tagFile =  argv[++i];
+      ctag_input = true;
     }
+    
     else if(arg == "-par" && (i+1) < argc){
       //replace the tag filename with the next argument
       parFile =  argv[++i];
@@ -224,7 +230,7 @@ int main(int argc, char ** argv) {
   tagFile = pathname + tagFile;
   xmlFile = pathname + xmlFile;
   parFile = pathname + parFile;
-   if(cell2parent)c2pFile = pathname + c2pFile;
+  if(cell2parent)c2pFile = pathname + c2pFile;
   if(Loci::MPI_rank == 0){
     cout <<"Refine running" <<endl;
     cout << "fold: " << Globals::fold << endl;
@@ -260,10 +266,11 @@ int main(int argc, char ** argv) {
       cerr<<"          the value of levels is not used"<< endl;
     }
   }
-  if((!xml_input) && (!tag_input)&&(!par_input)){
+  if((!xml_input) && (!tag_input)&&(!par_input)&&(!ctag_input)){
     if(Loci::MPI_rank == 0)  cerr <<"WARNING: one option has to be specified, \neither  -tag option or -xml option or -par option"<< endl;
     Loci::Abort();
   }
+  
   
   if(xml_input && tag_input){
     if(Loci::MPI_rank == 0)  cerr <<"WARNING: only one option need to be specified, either  -tag option or -xml option"<< endl;
@@ -285,14 +292,29 @@ int main(int argc, char ** argv) {
       cerr<<"WARNING: in -par option, the value of -tol option is not used"<< endl;
     }
   }
-
+     
   if(levels_input && par_input){
     if(Loci::MPI_rank == 0){
       cerr <<"WARNING: in -par options , the value of -levels option is not used"<< endl;
     }
-  } 
+  }
+
+  if(ctag_input && par_input){
+    if(Loci::MPI_rank == 0)  cerr <<"WARNING: only one option need to be specified, either  -par option or -ctag option"<< endl;
+    Loci::Abort();
+  }
+ 
+  if(ctag_input && tag_input){
+    if(Loci::MPI_rank == 0)  cerr <<"WARNING: only one option need to be specified, either  -tag option or -ctag option"<< endl;
+    Loci::Abort();
+  }
+  if(ctag_input && xml_input){
+    if(Loci::MPI_rank == 0)  cerr <<"WARNING: only one option need to be specified, either  -xml option or -ctag option"<< endl;
+    Loci::Abort();
+  }
  
 
+  
   // Setup the rule database.
   // Add all registered rules.  
   rule_db rules;
@@ -340,7 +362,12 @@ int main(int argc, char ** argv) {
     facts.create_fact("tagfile_par",tagfile_par) ;
   }
  
-  
+  if(ctag_input){
+    param<std::string> tagfile_par ;
+    *tagfile_par = tagFile;
+    facts.create_fact("cell_tagfile_par",tagfile_par) ;
+  }
+ 
   if(par_input){
     param<std::string> parfile_par ;
     *parfile_par = parFile;
@@ -352,7 +379,7 @@ int main(int argc, char ** argv) {
     *xmlfile_par = xmlFile;
     facts.create_fact("xmlfile_par",xmlfile_par) ;
   }
-   if(cell2parent){
+  if(cell2parent){
     param<std::string> c2pfile_par ;
     *c2pfile_par = c2pFile;
     facts.create_fact("cell2parent_file_par",c2pfile_par) ;
@@ -372,7 +399,7 @@ int main(int argc, char ** argv) {
       param<int> restart_xml_par;
       *restart_xml_par = 1;
       facts.create_fact("restart_xml_par",restart_xml_par);
-    } else if(tag_input){
+    } else if(tag_input||ctag_input){
       param<int> restart_tag_par;
       *restart_tag_par = 1;
       facts.create_fact("restart_tag_par",restart_tag_par);
@@ -386,7 +413,7 @@ int main(int argc, char ** argv) {
       param<int> norestart_xml_par;
       *norestart_xml_par = 1;
       facts.create_fact("norestart_xml_par",norestart_xml_par);
-    }else if(tag_input){
+    }else if(tag_input||ctag_input){
       param<int> norestart_tag_par;
       *norestart_tag_par = 1;
       facts.create_fact("norestart_tag_par",norestart_tag_par);
@@ -402,24 +429,24 @@ int main(int argc, char ** argv) {
   facts.create_fact("split_mode_par", split_mode_par);
 
   Loci::load_module("fvmadapt", rules);
- //  if(Loci::MPI_rank==0){
-//     Loci::ruleSet all_rules = rules.all_rules();
-//     for(Loci::ruleSet::const_iterator ri = all_rules.begin();
-//         ri != all_rules.end(); ri++){
-//       cout << *ri << endl;
-//     }
-//     cout<< endl;
-//   }
+  //  if(Loci::MPI_rank==0){
+  //     Loci::ruleSet all_rules = rules.all_rules();
+  //     for(Loci::ruleSet::const_iterator ri = all_rules.begin();
+  //         ri != all_rules.end(); ri++){
+  //       cout << *ri << endl;
+  //     }
+  //     cout<< endl;
+  //   }
   
-   if(cell2parent){
+  if(cell2parent){
     if(!Loci::makeQuery(rules, facts, "cell2parent_output")) {
       std::cerr << "query failed!" << std::endl;
       Loci::Abort();
     }
-    
-   }
-   
+  }
  
+ 
+  
   if(!Loci::makeQuery(rules, facts,"node_output")) {
     std::cerr << "query failed!" << std::endl;
     Loci::Abort();
