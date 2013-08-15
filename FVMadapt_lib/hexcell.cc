@@ -1707,6 +1707,27 @@ bool HexCell::needDerefine(){
   }
   return false;
 }
+bool HexCell::needDerefine_ctag(){
+  if(this != 0 ){
+    if(childCell != 0){
+      bool derefine = true;
+      for(int i = 0; i < numChildren(); i++){
+        if( (childCell[i] ->getTag()) != 2)return false;
+        if(childCell[i]->childCell!=0) return false;
+      }
+      if(derefine){
+        std::vector<Edge*> edge = get_edges();
+        for(int i = 0; i < 12; i++){
+          if( edge[i]->depth_greater_than_1())return false;
+        }
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+
       
 void HexCell::derefine(){
   if(this != 0 ){

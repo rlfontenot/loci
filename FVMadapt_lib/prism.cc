@@ -1329,6 +1329,25 @@ bool Prism::needDerefine(){
   }
   return false;
 }
+bool Prism::needDerefine_ctag(){
+  if(this != 0 ){
+    if(childCell != 0){
+      bool derefine = true;
+      for(int i = 0; i < numChildren(); i++){
+        if( (childCell[i] ->getTag()) != 2) return false;
+        if (childCell[i]->childCell !=0)return false;
+      }
+      if(derefine){
+        std::vector<Edge*> edge= get_edges();
+        for(unsigned int i = 0; i < edge.size(); i++){
+          if(edge[i]->depth_greater_than_1())return false;
+        }
+        return true;
+      }
+    }
+  }
+  return false;
+}
 
 
 void Prism::derefine(){

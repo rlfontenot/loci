@@ -57,7 +57,7 @@ public:
   
   //constructor; 
   DiamondCell(char m):nfold(m),cellIndex(0),parentCell(0),childCell(0),
-                      face(new Face*[2*m]), faceOrient(new char[2*m]), faceMarked(0){}
+                      face(new Face*[2*m]), faceOrient(new char[2*m]), faceMarked(0),tag(0){}
   
   
   //destructor
@@ -95,8 +95,9 @@ public:
   //if all children are tagged as 2, remove all children
   void derefine();
   bool needDerefine();
-
-
+   bool needDerefine_ctag();
+  inline char getTag() const {return tag;}
+  inline void setTag(char c){tag=c;}
     
   inline void setCellIndex(int32 cellID){cellIndex = cellID;}
   
@@ -210,7 +211,7 @@ private:
   bool* faceMarked;//if the face has been checked. size: 2*nfold
 
   char whichChild; //used in findNeighbor() function
-  
+  char tag;//cell tag
   //assignment and copying are prohibited
   void operator=(const DiamondCell&);
   DiamondCell(const DiamondCell&);
@@ -358,6 +359,7 @@ public:
 
   //if all children are tagged as 2, remove all children
   bool needDerefine();
+  bool needDerefine_ctag();
   void derefine();
   
 
@@ -411,8 +413,8 @@ public:
     }
   }
 
-  void sort_leaves(std::list<DiamondCell*>& v1);
-  
+  void sort_leaves(std::list<DiamondCell*>& v1);//depth first search
+ 
   //find the minimum edge length in a cell(before split)
   inline double get_min_edge_length(){
     double min_length = norm(edge[0]->head->p - edge[0]->tail->p);
@@ -547,6 +549,32 @@ Cell* build_resplit_general_cell(const Entity* lower, int lower_size,
                                  const const_store<int>& node_remap,
                                  const std::vector<char>& cellPlan,
                                  const  std::vector<char>& cellNodeTag);
+
+
+
+
+
+//build a cell with edgePlan and facePlan, tag the cells
+//then resplit the edges and faces with edgePlan1 and facePlan1
+Cell* build_resplit_general_cell_ctag(const Entity* lower, int lower_size,
+                                      const Entity* upper, int upper_size,
+                                      const Entity* boundary_map, int boundary_map_size,
+                                      const const_store<bool>& is_quadface,
+                                      const const_multiMap& face2node,
+                                      const const_multiMap& face2edge,
+                                      const const_MapVec<2>& edge2node,
+                                      const const_store<vect3d>& pos,
+                                      const const_store<std::vector<char> >& edgePlan,
+                                      const const_store<std::vector<char> >& facePlan,
+                                      const const_store<std::vector<char> >& edgePlan1,
+                                      const const_store<std::vector<char> >& facePlan1,    
+                                      std::list<Node*>& bnode_list,
+                                      std::list<Node*>& node_list,
+                                      std::list<Edge*>& edge_list,
+                                      std::list<Face*>& face_list,
+                                      const const_store<int>& node_remap,
+                                      const std::vector<char>& cellPlan,
+                                      const  std::vector<char>& fineCellTag);
 
 
 //build a Cell from Loci data structures, the locations of nodes are defined

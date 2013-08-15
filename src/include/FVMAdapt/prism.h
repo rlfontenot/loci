@@ -62,9 +62,10 @@ public:
 
   //this constructor is used when faces and nodes are not actually built
   Prism():cellIndex(0), nfold(3),mySplitCode(0),gnrlface(0),quadface(0), parentCell(0),
-          childCell(0){faceOrient.reset();}
+          childCell(0),tag(0){faceOrient.reset();}
   
-  Prism(int n):cellIndex(0), nfold(n),mySplitCode(0),gnrlface(new Face*[2]), quadface(new QuadFace*[n]), parentCell(0), childCell(0){
+  Prism(int n):cellIndex(0), nfold(n),mySplitCode(0),gnrlface(new Face*[2]),
+               quadface(new QuadFace*[n]), parentCell(0), childCell(0),tag(0){
     faceOrient.reset();
   }
   
@@ -98,7 +99,11 @@ public:
   
   //if all children are tagged as 2, remove all children
   bool needDerefine();
+  bool needDerefine_ctag();
   void derefine();
+  inline char getTag() const {return tag;}
+  inline void setTag(char c){tag=c;}
+  
   inline int32 getCellIndex() const {return cellIndex;}
   
   inline int getLevel(int d){
@@ -304,7 +309,7 @@ private:
   //it can  not make both of two children sharing it keep their face orientation
   // so when nfold==4, if quadface[i] points inward, faceOrient[i] = 1; else faceOrient[i] = 0;
   std::bitset<4> faceOrient;
-  
+  char tag;
   //  char whichChild;
   //assignment and copying are prohibited
   void operator=(const Prism&);
@@ -451,6 +456,30 @@ Prism* build_resplit_prism_cell(const Entity* lower, int lower_size,
                                 const std::vector<char>& cellPlan,
                                 const  std::vector<char>& cellNodeTag);
 
+//build a cell with edgePlan and facePlan, tag the nodes
+//then resplit the edges and faces with edgePlan1 and facePlan1
+Prism* build_resplit_prism_cell_ctag(const Entity* lower, int lower_size,
+                                     const Entity* upper, int upper_size,
+                                     const Entity* boundary_map, int boundary_map_size,
+                                     const Array<char,5>& prism2face,
+                                     const Array<char,6>& prism2node,
+                                     const Array<char,5>& orientCode,
+                                     const const_multiMap& face2node,
+                                     const const_multiMap& face2edge,
+                                     const const_MapVec<2>& edge2node,
+                                     const const_store<vect3d>& pos,
+                                     const const_store<std::vector<char> >& edgePlan,
+                                     const const_store<std::vector<char> >& facePlan,
+                                     const const_store<std::vector<char> >& edgePlan1,
+                                     const const_store<std::vector<char> >& facePlan1,   
+                                     std::list<Node*>& bnode_list,
+                                     std::list<Node*>& node_list,
+                                     std::list<Edge*>& edge_list,
+                                     std::list<QuadFace*>& qface_list,
+                                     std::list<Face*>& gface_list,
+                                     const const_store<int>& node_remap,
+                                     const std::vector<char>& cellPlan,
+                                     const  std::vector<char>& fineCellTag);
 // for no restart
 Prism* build_prism_cell(const Entity* lower, int lower_size,
                         const Entity* upper, int upper_size,

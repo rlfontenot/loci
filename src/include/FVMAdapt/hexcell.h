@@ -54,9 +54,9 @@ public:
   
   //constructor; 
   HexCell():cellIndex(0), mySplitCode(0), face(0), parentCell(0),
-            childCell(0){}
+            childCell(0),tag(0){}
   HexCell(QuadFace** f):cellIndex(0), mySplitCode(0), face(f), parentCell(0),
-                        childCell(0){}  
+                        childCell(0),tag(0){}  
   //destructor
   ~HexCell(){
     if(this != 0 ){
@@ -81,6 +81,9 @@ public:
   //if all children are tagged as 2, remove all children
   void derefine();
   bool needDerefine();
+  bool needDerefine_ctag();
+  inline char getTag() const {return tag;}
+  inline void setTag(char c){tag=c;}
   
   inline int32 getCellIndex() const {return cellIndex;}
   inline char getMySplitCode() const{return mySplitCode;}
@@ -288,7 +291,8 @@ private:
   
 
   
-  std::bitset<6> faceMarked; //if the face in direction RIGHT, LEFT... has been checked 
+  std::bitset<6> faceMarked; //if the face in direction RIGHT, LEFT... has been checked
+  char tag;
   //  char whichChild;
   //assignment and copying are prohibited
   void operator=(const HexCell&);
@@ -430,7 +434,29 @@ HexCell* build_resplit_hex_cell(const Entity* lower, int lower_size,
                                 const  std::vector<char>& cellNodeTag);
  
 
-
+//build a cell with edgePlan and facePlan, tag the nodes
+//then resplit the edges and faces with edgePlan1 and facePlan1
+HexCell* build_resplit_hex_cell_ctag(const Entity* lower, int lower_size,
+                                     const Entity* upper, int upper_size,
+                                     const Entity* boundary_map, int boundary_map_size,
+                                     const Array<char,6>& hex2face,
+                                     const Array<char,8>& hex2node,
+                                     const Array<char,6>& orientCode,
+                                     const const_multiMap& face2node,
+                                     const const_multiMap& face2edge,
+                                     const const_MapVec<2>& edge2node,
+                                     const const_store<vect3d>& pos,
+                                     const const_store<std::vector<char> >& edgePlan,
+                                     const const_store<std::vector<char> >& facePlan,
+                                     const const_store<std::vector<char> >& edgePlan1,
+                                     const const_store<std::vector<char> >& facePlan1,     
+                                     std::list<Node*>& bnode_list,
+                                     std::list<Node*>& node_list,
+                                     std::list<Edge*>& edge_list,
+                                     std::list<QuadFace*>& face_list,
+                                     const const_store<int>& node_remap,
+                                     const std::vector<char>& cellPlan,
+                                     const  std::vector<char>& fineCellTag);
 //parallel version
 HexCell* build_hex_cell(const Entity* lower, int lower_size,
                         const Entity* upper, int upper_size,

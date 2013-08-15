@@ -800,7 +800,7 @@ Cell* build_resplit_general_cell(const Entity* lower, int lower_size,
                   edge_list,
                   face_list,
                   cells);
- #ifdef SIZE_DEBUG     
+#ifdef SIZE_DEBUG     
   if(node_list.size()!= cellNodeTag.size()){
     cerr<< " nodeTag size and node_list size mismatch(), nodeTag: " << cellNodeTag.size() << " node_list " << node_list.size() <<endl;
     Loci::Abort();
@@ -834,6 +834,190 @@ Cell* build_resplit_general_cell(const Entity* lower, int lower_size,
         
         
 }
+
+
+
+
+
+//build a cell with edgePlan,facePlan and cellPlan, tag the cells
+//then resplit the edges and faces with edgePlan1 and facePlan1
+Cell* build_resplit_general_cell_ctag(const Entity* lower, int lower_size,
+                                      const Entity* upper, int upper_size,
+                                      const Entity* boundary_map, int boundary_map_size,
+                                      const const_store<bool>& is_quadface,
+                                      const const_multiMap& face2node,
+                                      const const_multiMap& face2edge,
+                                      const const_MapVec<2>& edge2node,
+                                      const const_store<vect3d>& pos,
+                                      const const_store<std::vector<char> >& edgePlan,
+                                      const const_store<std::vector<char> >& facePlan,
+                                      const const_store<std::vector<char> >& edgePlan1,
+                                      const const_store<std::vector<char> >& facePlan1,    
+                                      std::list<Node*>& bnode_list,
+                                      std::list<Node*>& node_list,
+                                      std::list<Edge*>& edge_list,
+                                      std::list<Face*>& face_list,
+                                      const const_store<int>& node_remap,
+                                      const std::vector<char>& cellPlan,
+                                      const  std::vector<char>& fineCellTag){
+
+
+
+  int numFaces = lower_size + upper_size + boundary_map_size;
+  std::vector<Entity> faces(numFaces);
+  
+  //orient value: upper and boundary_map: 1
+  //              lower: -1
+  char* orient = new char[numFaces];
+  
+  int findex = 0;
+  for(int i=0; i<lower_size; i++){
+    faces[findex] = lower[i];
+    orient[findex++] = 1;
+  }
+    
+  for(int i=0; i<upper_size; i++){
+    faces[findex] = upper[i];
+    orient[findex++] = 0;
+      
+  }
+  for(int i=0; i<boundary_map_size; i++){
+    faces[findex] = boundary_map[i];
+    orient[findex++] = 0;
+      
+  } 
+    
+    
+  //collect all the nodes and edges of the cell
+  entitySet edges, nodes;
+  for(unsigned int i=0; i< faces.size(); i++){
+    for( int j= 0; j< face2node.num_elems(faces[i]); j++){
+      nodes += face2node[faces[i]][j];
+    }
+      
+    for( int j = 0; j < face2edge.num_elems(faces[i]); j++){
+      edges += face2edge[faces[i]][j];
+    }
+  }
+  //reorder entities
+  std::vector<Entity> orderedNodes = reorder_nodes(node_remap, nodes);
+  std::vector<Entity> orderedEdges = reorder_edges(node_remap, edge2node, edges);
+  reorder_faces(node_remap, face2node, faces, orient);
+  
+  int numEdges = edges.size();
+  int numNodes = nodes.size();
+          
+  //define each node
+  std::map<Entity, Node*> n2n;
+  for(entitySet::const_iterator np = nodes.begin(); np != nodes.end(); np++){
+    Node* aNode = new Node(pos[*np]);
+    bnode_list.push_back(aNode);
+    n2n[*np] = aNode;
+  }
+          
+  //define each edge 
+    
+  std::map<Entity, Edge*> e2e;
+           
+  for(entitySet::const_iterator ep = edges.begin(); ep != edges.end(); ep++){
+    Edge* anEdge = new Edge(n2n[edge2node[*ep][0]], n2n[edge2node[*ep][1]]);
+    edge_list.push_back(anEdge);
+    e2e[*ep] = anEdge;
+            
+    //replit the edge
+      
+    anEdge->resplit(edgePlan[*ep], bnode_list);
+  }
+    
+    
+    
+  //defines each face 
+  Face** face = new Face*[numFaces];
+  for(int i  = 0; i < numFaces; i++){
+    face[i] = new Face(face2edge.num_elems(faces[i]));
+    face_list.push_back(face[i]);
+    //find each edge
+    for(int j = 0; j < face[i]->numEdge; j++){
+      face[i]->edge[j] = e2e[face2edge[faces[i]][j]];
+      if(edge2node[face2edge[faces[i]][j]][0] == face2node[faces[i]][j] &&
+         edge2node[face2edge[faces[i]][j]][1] == face2node[faces[i]][j==face2node.num_elems(faces[i])-1? 0:j+1]) face[i]->needReverse[j] = false;
+        
+      else face[i]->needReverse[j] = true;
+    }
+      
+    //replit each face
+      
+     
+    if(is_quadface[faces[i]]){
+      std::vector<char> newPlan = transfer_plan_q2g(facePlan[faces[i]]);
+        
+      face[i]->resplit(newPlan, bnode_list, edge_list);
+      
+    }
+    else{
+      face[i]->resplit(facePlan[faces[i]], bnode_list, edge_list);
+     
+    }
+     
+  }
+    
+  Node** node = new Node*[numNodes];
+  for(unsigned int nindex = 0; nindex < orderedNodes.size(); nindex++){
+    node[nindex] = n2n[orderedNodes[nindex]];
+  }
+        
+  Edge** edge = new Edge*[numEdges];
+        
+  for(unsigned int eindex = 0; eindex < orderedEdges.size(); eindex++){
+    edge[eindex] = e2e[orderedEdges[eindex]];
+  }
+  Cell* aCell = new Cell(numNodes, numEdges, numFaces, node, edge, face,orient);
+  
+  //finish build
+  
+  //resplit cell
+  std::vector<DiamondCell*> cells;
+  aCell->resplit( cellPlan, 
+                  node_list,
+                  edge_list,
+                  face_list,
+                  cells);
+#ifdef SIZE_DEBUG     
+  if(cells.size()!= fineCellTag.size()){
+    cerr<< " fineCellTag size and cells size mismatch(), fineCellTag: " << fineCellTag.size() << " cells " << cells.size() <<endl;
+    Loci::Abort();
+  }
+#endif
+  //tag nodes
+  int cindex = 0;
+  for(std::vector<DiamondCell*>::const_iterator np = cells.begin(); np!= cells.end(); np++){
+    (*np)->setTag(fineCellTag[cindex++]);
+  }
+  cells.clear();
+  
+  
+  
+  //resplit the edges again without tagging the node
+  for(entitySet::const_iterator ep = edges.begin(); ep != edges.end(); ep++){
+    e2e[*ep]->resplit(edgePlan1[*ep], bnode_list);
+  }
+  //resplit the faces again without tagging the node
+  for(int i  = 0; i < numFaces; i++){
+    if(is_quadface[faces[i]]){
+      std::vector<char> newPlan = transfer_plan_q2g(facePlan1[faces[i]]);
+      face[i]->resplit(newPlan, bnode_list, edge_list);
+    }else{
+      face[i]->resplit(facePlan1[faces[i]], bnode_list, edge_list);
+    }
+  }
+
+  
+  return aCell;  
+        
+        
+}
+
+
 
 //parallel version in make_general_cellplan.cc
 Cell* build_general_cell(const Entity* lower, int lower_size,

@@ -893,6 +893,7 @@ bool Cell::balance_cell(std::list<Node*>& node_list,
  
   return needBalance;
 }
+//depth first sort_leaves
 void DiamondCell::sort_leaves(std::list<DiamondCell*>& leaves){
   if(childCell != 0){
     for(int i = 0; i <(2*nfold+2); i++)childCell[i]->sort_leaves(leaves);
@@ -901,6 +902,37 @@ void DiamondCell::sort_leaves(std::list<DiamondCell*>& leaves){
     leaves.push_back(this);
   }
 }
+
+// //breadth first get leaves
+// void Cell::get_leaves(std::vector<DiamondCell*>& leaves){
+//   std::queue<DiamondCell*> Q;
+
+//   //no leaves
+//   if(child ==0)return;
+  
+//   for(int i = 0; i < numNode; i++){ 
+//     Q.push(child[i]);
+//   }
+  
+//   //process the DiamondCells in the Q until Q is empty
+  
+//   DiamondCell* current;
+   
+//   while(!Q.empty()){
+//     current = Q.front();
+//     if(current->childCell==0)leaves.push_back(current);
+//     else{
+//       for(int i = 0; i < 2*(current->nfold) +2; i++){
+//         Q.push(current->childCell[i]);
+//       }
+//     }
+    
+//     Q.pop();
+//   }
+// }
+
+
+
 void Cell::rebalance_cells(std::list<Node*>& node_list,
                            std::list<Edge*>& edge_list,
                            std::list<Face*>& face_list){ 
@@ -1389,6 +1421,29 @@ bool Cell::needDerefine(){
   }
   return false;
 }
+
+bool Cell::needDerefine_ctag(){
+  if(this != 0 ){  
+    if(child!= 0){
+      bool derefine = true;
+      for(int i = 0; i < numNode; i++){
+        if(child[i] != 0){
+          if((child[i]->getTag())!=2) return false;
+          if(child[i]->childCell !=0) return false;
+        }
+      }
+      if(derefine){
+        for(int i = 0; i < numEdge; i++){
+          if( edge[i]->depth_greater_than_1())return false;
+        }
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+
 void Cell::derefine(){
   if(this != 0 ){  
     if(child!= 0){
@@ -1427,6 +1482,30 @@ bool DiamondCell::needDerefine(){
   }
   return false;
 }
+
+bool DiamondCell::needDerefine_ctag(){
+  if(this != 0 ){
+    if(childCell != 0){
+      bool derefine = true;
+      for(int i = 0; i < 2*nfold +2; i++){
+        if(childCell[i]!=0){
+          if( (childCell[i] ->getTag()) != 2)return false;
+          if(childCell[i]->childCell !=0) return false;
+        }
+      }
+      if(derefine){
+        std::set<Edge*> edges;
+        get_edges(edges);
+        for(std::set<Edge*>::const_iterator ei = edges.begin(); ei != edges.end(); ei++){
+          if((*ei)->depth_greater_than_1())return false;
+        }
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 void DiamondCell::derefine(){
   if(this != 0 ){
     if(childCell != 0){                   

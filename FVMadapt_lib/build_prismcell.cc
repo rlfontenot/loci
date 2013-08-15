@@ -552,7 +552,142 @@ Prism* build_resplit_prism_cell(const Entity* lower, int lower_size,
   return aCell;
 }
 
+//build a cell with edgePlan, facePlan and cellPlan, tag the cells
+//then resplit the edges and faces with edgePlan1 and facePlan1
+Prism* build_resplit_prism_cell_ctag(const Entity* lower, int lower_size,
+                                     const Entity* upper, int upper_size,
+                                     const Entity* boundary_map, int boundary_map_size,
+                                     const Array<char,5>& prism2face,
+                                     const Array<char,6>& prism2node,
+                                     const Array<char,5>& orientCode,
+                                     const const_multiMap& face2node,
+                                     const const_multiMap& face2edge,
+                                     const const_MapVec<2>& edge2node,
+                                     const const_store<vect3d>& pos,
+                                     const const_store<std::vector<char> >& edgePlan,//the plan from last cycle
+                                     const const_store<std::vector<char> >& facePlan,//the plan from last cycle
+                                     const const_store<std::vector<char> >& edgePlan1,//the plan from this cycle
+                                     const const_store<std::vector<char> >& facePlan1, //the plan from this cycle  
+                                     std::list<Node*>& bnode_list,
+                                     std::list<Node*>& node_list,
+                                     std::list<Edge*>& edge_list,
+                                     std::list<QuadFace*>& qface_list,
+                                     std::list<Face*>& gface_list,
+                                     const const_store<int>& node_remap,
+                                     const std::vector<char>& cellPlan,
+                                     const  std::vector<char>& fineCellTag
+                                     ){
+  
+  Array<Entity, 5> face_entity = collect_prism_faces(lower, lower_size,
+                                                     upper,upper_size,
+                                                     boundary_map,boundary_map_size,
+                                                     prism2face, node_remap);
+  
+  Array<Entity, 6> node_entity = collect_prism_vertices(face2node,
+                                                        face_entity,
+                                                        prism2node);
 
+
+
+  Array<bool, 9> edge_reverse;
+  Array<Entity, 9> edge_entity = collect_prism_edges( face_entity,
+                                                      node_entity,
+                                                      face2edge,
+                                                      edge2node,
+                                                      edge_reverse);
+
+ 
+  //define each node and put it into node_list
+  std::map<Entity, Node*> n2n;
+  for(int i = 0; i < 6; i++){
+    Node* aNode = new Node(pos[node_entity[i]]);
+    bnode_list.push_back(aNode);
+    n2n[node_entity[i]] = aNode;
+  }
+  
+  //edge is built according to the direction inside the prism
+  //and resplit with needReverse
+  std::map<Entity,Edge*> e2e;
+  
+  for(int i = 0; i < 9; i++){
+    Edge* anEdge = new Edge(n2n[edge2node[edge_entity[i]][edge_reverse[i]?1:0]],
+                            n2n[edge2node[edge_entity[i]][edge_reverse[i]?0:1]]);
+    edge_list.push_back(anEdge);
+    e2e[edge_entity[i]] = anEdge;
+    
+    
+    //resplit the edge
+    anEdge->resplit(edgePlan[edge_entity[i]],edge_reverse[i], bnode_list);
+
+  }
+  //resplit the edges again without tagging the node 
+  for(int i = 0; i < 9; i++){
+    e2e[edge_entity[i]]->resplit(edgePlan1[edge_entity[i]],edge_reverse[i], bnode_list);
+  }
+  
+  int f2e[3][4]= {{0, 7, 3, 6}, {1, 8, 4, 7}, {2, 6, 5, 8}};
+  int gf2e[2][3] = {{0, 1, 2}, {3, 4, 5}};
+  
+  Face* gface;
+  QuadFace* qface;
+  //defines each face and put it into face_list
+  Prism* aCell = new Prism(3);
+  
+  //gnrlface[0]
+  for(int i = 0; i < 2; i++){
+    gface = new Face(3);
+    gface_list.push_back(gface);
+
+    //define each edge
+    for(int j = 0; j < 3; j++){
+      gface->edge[j] = e2e[edge_entity[gf2e[i][j]]];
+      gface->needReverse[j] = false; 
+    }
+    //resplit each face
+    gface->resplit(facePlan[face_entity[i]], orientCode[i], bnode_list, edge_list);//resplit without orientCode
+    aCell->setFace(i, gface);
+  }
+  
+  //quadface
+  for(int i = 0; i < 3; i++){
+    qface = new QuadFace(4);
+    qface_list.push_back(qface);
+      
+    //define each edge
+    for(int j = 0; j < 4; j++){
+      qface->edge[j] = e2e[edge_entity[f2e[i][j]]];
+    }
+    //resplit each face
+    qface->resplit(facePlan1[face_entity[i+2]],orientCode[i+2], bnode_list, edge_list);
+    aCell->setFace(i, qface);
+  }
+  //finish build
+  
+  //resplit cell
+  std::vector<Prism*> cells;
+  aCell->resplit( cellPlan, 
+                  node_list,
+                  edge_list,
+                  qface_list,
+                  gface_list,
+                  cells);
+
+  //tag nodes
+  int nindex = 0;
+  for(std::vector<Prism*>::const_iterator np = cells.begin(); np!= cells.end(); np++){
+    (*np)->setTag(fineCellTag[nindex++]);
+  }
+  cells.clear();
+    
+  //resplit the faces again without tagging the node
+  std::list<QuadFace*>::const_iterator qiter = qface_list.begin();
+  std::list<Face*>::const_iterator giter = gface_list.begin();
+  for(int i = 0; i < 2; i++){
+    (*giter)->resplit(facePlan1[face_entity[i]], orientCode[i], bnode_list, edge_list);//resplit without orientCode
+  }
+   
+  return aCell;
+}
 Prism* build_prism_cell(const Entity* lower, int lower_size,
                         const Entity* upper, int upper_size,
                         const Entity* boundary_map, int boundary_map_size,
