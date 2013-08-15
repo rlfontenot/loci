@@ -108,6 +108,11 @@ int main(int argc, char ** argv) {
       cout <<"               otherwise, the tag file is for the original grid" << endl;
       cout <<"               -tag option might be used with -levels option" << endl;
       
+      cout <<"-ctag <file> -- input cell tag file(optional), " << endl;
+      cout <<"               if there is an input refinement plan file,"<<endl;
+      cout <<"               the tag file is for the refined grid" << endl;
+      cout <<"               otherwise, the tag file is for the original grid" << endl;
+      cout <<"               -tag option might be used with -levels option" << endl;
       cout <<"-par <file> -- input parameter file(optional), " << endl;
       cout <<"               The parameters will decide recursively if each cell need to split" <<endl;               
       cout << "              -xml option and -tag option and --par can not be selected at the same time" <<endl;
@@ -438,6 +443,8 @@ int main(int argc, char ** argv) {
   //     cout<< endl;
   //   }
   
+ 
+  
   if(cell2parent){
     if(!Loci::makeQuery(rules, facts, "cell2parent_output")) {
       std::cerr << "query failed!" << std::endl;
@@ -446,7 +453,6 @@ int main(int argc, char ** argv) {
   }
  
  
-  
   if(!Loci::makeQuery(rules, facts,"node_output")) {
     std::cerr << "query failed!" << std::endl;
     Loci::Abort();
