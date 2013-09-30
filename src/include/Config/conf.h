@@ -30,7 +30,7 @@
 #if defined(__INTEL_COMPILER)
 // Intel Compiler
 
-#define NO_FENV
+//#define NO_FENV
 
 #define USE_MAP_FOR_HASH_MAP
 //#define EXT_HASH_MAP
