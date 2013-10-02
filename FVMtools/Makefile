@@ -26,7 +26,7 @@ include $(LOCI_BASE)/Loci.conf
 # List the name of your compiled program here
 TARGET = extract
 
-OTHER_APPS = cfd++2xdr plot3d2vog make_periodic xdr2cobalt xdr2vog vog2xdr ugrid2vog fluent2vog cobalt2vog vogmerge vogcut vogcheck extruder vog2surf ccm2vog
+OTHER_APPS = cfd++2xdr plot3d2vog make_periodic xdr2cobalt xdr2vog vog2xdr ugrid2vog fluent2vog cobalt2vog vogmerge vogcut vogcheck extruder vog2surf ccm2vog refmesh marker refine
 
 # List your object files here
 OBJS =  extract.o extract_ensight.o extract_2dgv.o extract_ascii.o extract_tecplot.o extract_vtk.o extract_fv.o extract_cut.o extract_surf.o extract_mean.o
@@ -98,6 +98,14 @@ make_periodic: make_periodic.o predicates.o vogtools.o
 
 predicates.o:
 	$(CC) $(COPTLESS) -c $(DEFINES) predicates.c
+
+refmesh: refmesh.o
+	$(LD) -o  refmesh  refmesh.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS) -lfvmadaptfunc
+marker: marker.o
+	$(LD) -o  marker  refmesh.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS) -lfvmadaptfunc
+refine: refine.o
+	$(LD) -o  refine  refine.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS) -lfvmadaptfunc
+
 
 clean:
 	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(OTHER_APPS) $(JUNK) *.o
