@@ -1,0 +1,281 @@
+#include <Loci.h>
+#include <hdf5.h>
+#include <sstream>
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <Loci.h>
+#include <vector>
+#include "sciTypes.h"
+#include "defines.h"
+#include <Tools/tools.h>
+using std::cerr;
+using std::cout;
+using std::endl;
+using std::string;
+using std::ifstream;
+using Loci::storeRepP;
+using Loci::constraint;
+using std::vector;
+using Loci::MPI_rank;
+using Loci::MPI_processes;
+namespace Loci{
+    void writeVOGTag(hid_t output_fid,  vector<pair<string,entitySet> >& volTags);
+}
+vector<pair<string,entitySet> >  getVOGTagFromLocal(const vector<pair<string,entitySet> >& volTagsInput,
+                                                    const_store<int> &cell_offset,
+                                                    const_store<int> & num_fine_cells,
+                                                    int num_original_nodes,
+                                                    int num_original_faces);
+
+
+class node_output_file : public pointwise_rule {
+
+  store<bool> node_output ;
+  const_param<string> outfile_par ;
+  const_param<string> meshfile_par ;
+  const_store<Loci::FineNodes> inner_nodes;
+  
+  
+  
+public:
+  node_output_file(){
+    name_store("node_output", node_output);
+    name_store("outfile_par", outfile_par);
+    name_store("meshfile_par", meshfile_par);
+     
+    name_store("inner_nodes", inner_nodes);
+    
+ 
+    
+    input("outfile_par");
+    input("meshfile_par");
+    input("inner_nodes");
+ 
+    
+    output("node_output");
+    disable_threading();
+  }
+  virtual void compute(const sequence &seq) {
+    hid_t file_id = Loci::writeVOGOpen(*outfile_par) ;
+    vector<pair<int,string> > boundary_ids;
+    
+    Loci::readBCfromVOG(*meshfile_par, boundary_ids);
+    
+    Loci::writeVOGSurf(file_id,boundary_ids);
+    Loci::storeRepP pos = Loci::exec_current_fact_db->get_variable("pos");
+    writeVOGNode(file_id, pos, inner_nodes);
+    Loci::writeVOGClose(file_id) ;
+  }
+};
+register_rule<node_output_file> register_node_output_file;
+
+
+
+
+
+class face_output_file : public pointwise_rule {
+ 
+  store<bool> face_output ;
+  const_param<string> outfile_par ;
+  const_store<Loci::FineFaces> fine_faces;
+
+  
+public:
+  face_output_file(){
+    name_store("face_output", face_output);
+    name_store("outfile_par", outfile_par);
+    name_store("fine_faces", fine_faces);
+    
+    
+    input("outfile_par");
+    input("fine_faces");
+    
+    output("face_output");
+    disable_threading();
+  }
+  virtual void compute(const sequence &seq) {
+    //first put fine_faces into a maps
+    hid_t file_id = 0 ;
+
+    long numNodes = 0;
+
+    if(MPI_rank==0){
+       
+      //read numNodes
+      long long tmp_numNodes;  
+      file_id = H5Fopen((*outfile_par).c_str(),H5F_ACC_RDWR,H5P_DEFAULT) ;
+       
+      hid_t    group_id = H5Gopen(file_id,"file_info");
+       
+      hid_t attr = H5Aopen_name(group_id,"numNodes");
+      //data type and variable has to match
+      hid_t ret  = H5Aread(attr, H5T_NATIVE_LLONG, &tmp_numNodes);
+       
+      ret =  H5Aclose(attr);
+      ret = H5Gclose(group_id);
+      numNodes = tmp_numNodes;
+    }
+    //problem here; MPI has no long long 
+    if(MPI_processes > 1) MPI_Bcast(&numNodes, 1, MPI_LONG, 0, MPI_COMM_WORLD);
+     
+    //compute numFaces
+    int local_num_face = 0;
+    for(sequence::const_iterator ei = seq.begin(); ei != seq.end(); ei++){
+      local_num_face += fine_faces[*ei].size();
+    }
+
+    std::vector<int> face_sizes= Loci::all_collect_sizes(local_num_face);
+
+    long long numFaces = 0;
+    for(int i =0; i < MPI_processes; i++) numFaces += face_sizes[i];
+
+    long long cell_min = numNodes + numFaces +1;
+    long long face_min = numNodes+1;
+    for(int i =0; i < MPI_rank; i++) face_min += face_sizes[i];
+    long long face_max = face_min + face_sizes[MPI_rank] -1;
+
+  
+    Map cl, cr;
+    multiMap face2node;
+    store<int> count;
+    entitySet faces = interval(face_min, face_max);
+    cl.allocate(faces);
+    cr.allocate(faces);
+    count.allocate(faces);
+     
+    entitySet::const_iterator fid = faces.begin();
+    for(sequence::const_iterator ei = seq.begin(); ei != seq.end(); ei++){
+      for(unsigned int i = 0; i < fine_faces[*ei].size(); i++){
+        cl[*fid] = fine_faces[*ei][i][0] + cell_min;
+        if(fine_faces[*ei][i][1]>=0) cr[*fid] = fine_faces[*ei][i][1] + cell_min;
+        else  cr[*fid] = fine_faces[*ei][i][1];
+        count[*fid] = fine_faces[*ei][i].size()-2;
+        fid++;
+      }
+    }
+     
+    face2node.allocate(count);
+
+    fid = faces.begin();
+    for(sequence::const_iterator ei = seq.begin(); ei != seq.end(); ei++){
+      for(unsigned int i = 0; i < fine_faces[*ei].size(); i++){
+        for(int j = 0; j < count[*fid]; j++){
+          //vog file node index start with 0
+          // face2node[*fid][j] = fine_faces[*ei][i][j+2]-1;
+          // if(fine_faces[*ei][i][j+2] < 0) cerr <<"WARNING: negative node index" << endl;
+          face2node[*fid][j] = fine_faces[*ei][i][j+2]; 
+        }
+        fid++;
+      }
+    }
+
+
+    colorMatrix(cl, cr, face2node);
+    writeVOGFace(file_id, cl, cr, face2node);
+    Loci::writeVOGClose(file_id);
+  }
+};
+
+register_rule<face_output_file> register_face_output_file;
+
+
+
+class volTag_output_file : public singleton_rule {
+  param<int> volTag_output;
+  const_blackbox<vector<pair<string, entitySet> > > volTag_blackbox;
+  const_param<string> outfile_par ;
+  
+  
+  
+  
+public:
+  volTag_output_file(){
+    name_store("volTag_output", volTag_output);
+    name_store("outfile_par", outfile_par);
+    name_store("volTag_blackbox", volTag_blackbox);
+    
+    input("outfile_par");
+    input("volTag_blackbox");
+    output("volTag_output");
+    disable_threading();
+  }
+  virtual void compute(const sequence &seq) {
+    //write the new volTags out
+    if(MPI_rank==0){
+      hid_t out_file_id  = H5Fopen((*outfile_par).c_str(),H5F_ACC_RDWR,H5P_DEFAULT) ;
+      std::vector<pair<std::string, entitySet> > volTag = *volTag_blackbox;
+      Loci::writeVOGTag(out_file_id,
+                        volTag);
+      H5Fclose(out_file_id);
+    }
+  }
+};
+register_rule<volTag_output_file> register_volTag_output_file;
+
+$type meshfile_par param<string> ;
+$type volTagInput  blackbox<vector<pair<string, entitySet> > > ;
+
+$rule blackbox(volTagInput<-meshfile_par),prelude {
+  string meshfile = *$meshfile_par ;
+  if(MPI_rank==0){
+    hid_t file_id = Loci::hdf5OpenFile(meshfile.c_str(),
+                                       H5F_ACC_RDONLY,H5P_DEFAULT) ;
+    
+    Loci::readVolTags(file_id,
+                      *$volTagInput);
+    H5Fclose(file_id);
+  } else {
+    *$volTagInput = vector<pair<string,entitySet> >() ;
+  }
+} ;  
+  
+
+
+
+
+class get_volTag : public singleton_rule {
+
+  blackbox<vector<pair<string, entitySet> > > volTag_blackbox ;
+  const_blackbox<vector<pair<string, entitySet> > > volTagInput ;
+  
+  const_param<string> meshfile_par ;
+  const_store<int> cell_offset;
+  const_store<int> num_fine_cells;
+  const_param<int> num_original_nodes;
+  const_param<int> num_original_faces;
+  
+  
+  
+public:
+  get_volTag(){
+    name_store("volTag_blackbox", volTag_blackbox);
+    name_store("volTagInput", volTagInput);
+     
+    name_store("balanced_cell_offset", cell_offset);
+    name_store("balanced_num_fine_cells", num_fine_cells);
+    name_store("num_original_nodes", num_original_nodes);
+    name_store("num_original_faces", num_original_faces);
+ 
+    input("volTagInput");
+    input("balanced_num_fine_cells");
+    input("balanced_cell_offset");
+    input("num_original_nodes");
+    input("num_original_faces");
+    
+    output("volTag_blackbox");
+    disable_threading();
+  }
+  virtual void compute(const sequence &seq) {
+
+    vector<pair<string,entitySet> > origVolTags = *volTagInput ;
+    //current volume tags
+    *volTag_blackbox =  getVOGTagFromLocal( origVolTags,
+					    cell_offset,
+					    num_fine_cells,
+					    *num_original_nodes,
+					    *num_original_faces);
+   
+  }
+};
+register_rule<get_volTag> register_get_volTag;
