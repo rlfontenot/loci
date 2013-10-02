@@ -1,0 +1,66 @@
+Creating a geometry file:
+
+There are two ways to create a geometry file.  One is to compute the
+geometry from an existing vog file, and the other is to compute it
+from a solidMesh surf file (along with exact surface normals).
+
+To compute an approximate geometry from an existing vog file use the
+computegeom command executed as follows:
+
+For example, if you have a grid file called sphere.vog then you can get the
+geometry created in a file called "sphere.geom" by executing:
+
+computegeom -o sphere.geom sphere
+
+The computegeom utilitity uses heuristics to detect creases in the geometry
+where the surface normals are allowed to abruptly change.  The threshold used 
+for the detection of creases can be set with the -theta_r (ridge theta) option.
+The default is 15 degrees, but for a low quality coarse surface mesh, this may
+need to be set to a much larger value (about 40-50).  For a good quality surface
+mesh with subtle ridges, a lower value might be helpful.  It is helpful to 
+remove the rebuild surfaces that have high aspect ratios (or other non-viscous
+surfaces such as farfield).  These surfaces can be removed from the
+reconstruction using the -ignore_bc option.  The -geom_output can be used to
+output a doubly refined surface mesh that can be used to visualize the
+reconstructed geometry using solidmesh.
+
+alternatively you can get a the geometry from exact normals by using
+the command getgeom.  For example if you have the files sphere.surf
+(surface mesh) and sphere.surfn (surface normals) then you can get the
+geometry file "sphere.geom" by executing the command:
+
+getgeom sphere
+
+
+---------------------------------------------------------------------
+
+Tools for adapting to a curved geometry:
+
+To adapt a viscous grid you will need to adjust your grid file so that
+points near the viscous boundary are tagged consistently.  The tool
+viscousFix performs this step.  In this operation you mark the all
+points that are within a specified delta of the viscous boundary if
+any are marked within this delta.  The tool is given the viscous
+boundary condition(s), the specified delta, the input tag file, the
+output tag file and the case name.  Note, this code will read the
+topology file written to the output directory and so assumes that chem
+was run in the same directory.  An example that corrects a tag file
+"refine.dat" to with a surface delta of .05 meters from the viscous
+boundary "orb" and outputs to the file "vrefine.dat" is given below:
+                                                                     v(iter)
+viscousFix -bc orb -delta 0.05 -tag refine.dat -o vrefine.dat sphere 0
+                                                              ^casename
+
+Once the grid is adapted, then we can deform to the curved boundary
+with the command adjustpos.  For example if we are have a linear
+refined mesh given by "sphere2l.vog", we can generate the curvature
+adjusted mesh called "sphere2.vog" where the geometry was defined in
+"sphere.geom" using the command:
+
+adjustpos -i sphere2l.vog -o sphere2.vog -g sphere.geom 
+
+------------------------------------------------------------------------------
+
+Note, all of the commands will give you a help screen if run with no
+arguments.
+
