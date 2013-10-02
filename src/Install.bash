@@ -39,8 +39,8 @@ fi
 cp Tools/libTools.$LIB_POSTFIX $INSTALL_PATH/lib
 cp System/libLoci.$LIB_POSTFIX $INSTALL_PATH/lib
 cp FVMMod/fvm_m.so $INSTALL_PATH/lib
-cp FVMadapt_lib/fvmadapt_m.so $INSTALL_PATH/lib
-cp FVMadapt_lib/libfvmadaptfunc.$LIB_POSTFIX $INSTALL_PATH/lib
+cp FVMAdapt/fvmadapt_m.so $INSTALL_PATH/lib
+cp FVMAdapt/libfvmadaptfunc.$LIB_POSTFIX $INSTALL_PATH/lib
 cp ParMetis-4.0/GKLib/libgk.$LIB_POSTFIX $INSTALL_PATH/lib
 cp ParMetis-4.0/METISLib/libmetis.$LIB_POSTFIX $INSTALL_PATH/lib
 cp ParMetis-4.0/ParMETISLib/libparmetis.$LIB_POSTFIX $INSTALL_PATH/lib
@@ -62,8 +62,9 @@ cp FVMtools/vogmerge $INSTALL_PATH/bin
 cp FVMtools/vogcheck $INSTALL_PATH/bin
 cp FVMtools/extract_movie $INSTALL_PATH/bin
 cp FVMtools/extruder $INSTALL_PATH/bin
-cp FVMadapt/refmesh $INSTALL_PATH/bin
-cp FVMadapt/marker $INSTALL_PATH/bin
+cp FVMtools/refmesh $INSTALL_PATH/bin
+cp FVMtools/marker $INSTALL_PATH/bin
+cp FVMtools/refine $INSTALL_PATH/bin
 
 echo cp Loci.conf comp.conf sys.conf $INSTALL_PATH
 cp Loci.conf comp.conf sys.conf $INSTALL_PATH

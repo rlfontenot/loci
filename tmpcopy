@@ -79,8 +79,8 @@ if [ ${target:0:1} != "/" ]; then
    echo setting target to \'$target\'
 fi
 
-TARGET_DIRS="System Tools include include/Tools include/Config include/MPI_stubb include/FVMAdapt"
-TOOLS_DIRS="lpp FVMadapt_lib FVMadapt FVMadapt/include FVMtools FVMtools/libadf FVMMod ParMetis-4.0 ParMetis-4.0/GKLib ParMetis-4.0/METISLib ParMetis-4.0/ParMETISLib sprng sprng/include sprng/include/sprng"
+TARGET_DIRS="System Tools FVMAdapt include include/Tools include/Config include/MPI_stubb include/FVMAdapt"
+TOOLS_DIRS="lpp FVMtools FVMtools/libadf FVMMod ParMetis-4.0 ParMetis-4.0/GKLib ParMetis-4.0/METISLib ParMetis-4.0/ParMETISLib sprng sprng/include sprng/include/sprng"
 
 echo -n "Making Directory Structure: "
 mkdir -p $target
@@ -158,10 +158,10 @@ if [ ! -h fvm_m.so ]; then
   ln -s ../FVMMod/fvm_m.so fvm_m.so
 fi
 if [ ! -h libfvmadaptfunc.${LIB_POSTFIX} ]; then
-  ln -s ../FVMadapt_lib/libfvmadaptfunc.${LIB_POSTFIX} libfvmadaptfunc.${LIB_POSTFIX}
+  ln -s ../FVMAdapt/libfvmadaptfunc.${LIB_POSTFIX} libfvmadaptfunc.${LIB_POSTFIX}
 fi
 if [ ! -h fvmadapt_m.so ]; then
-  ln -s ../FVMadapt_lib/fvmadapt_m.so fvmadapt_m.so
+  ln -s ../FVMAdapt/fvmadapt_m.so fvmadapt_m.so
 fi
 if [ ! -h libgk.${LIB_POSTFIX} ] ; then
   ln -s ../ParMetis-4.0/GKLib/libgk.${LIB_POSTFIX} libgk.${LIB_POSTFIX}
@@ -205,6 +205,15 @@ if [ ! -h cobalt2xdr ] ; then
 fi
 if [ ! -h plot3d2xdr ] ; then
   ln -s ../FVMtools/plot3d2xdr plot3d2xdr
+fi
+if [ ! -h marker ] ; then
+  ln -s ../FVMtools/marker marker
+fi
+if [ ! -h refmesh ] ; then
+  ln -s ../FVMtools/refmesh refmesh
+fi
+if [ ! -h refine ] ; then
+  ln -s ../FVMtools/refine refine
 fi
 
 

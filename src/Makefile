@@ -28,7 +28,7 @@ include Loci.conf
 
 DEFINES = $(DEBUG) $(SYSTEM_DEFINES) $(MACHINE_SPECIFIC) 
 
-default: library lpp FVMtools FVMMod FVMadapt FVMadapt_lib
+default: library lpp FVMtools FVMMod FVMAdapt 
 
 library: shared
 
@@ -70,11 +70,8 @@ FRC :
 FVMMod: library lpp
 	cd FVMMod; $(MAKE) LOCI_BASE="$(LOCI_BASE)" default
 
-FVMadapt: library
-	cd FVMadapt; $(MAKE) LOCI_BASE="$(LOCI_BASE)" default
-
-FVMadapt_lib: library
-	cd FVMadapt_lib; $(MAKE) LOCI_BASE="$(LOCI_BASE)" all
+FVMAdapt: library
+	cd FVMAdapt; $(MAKE) LOCI_BASE="$(LOCI_BASE)" all
 
 JUNK =
 
@@ -86,7 +83,7 @@ clean:
 	cd sprng ; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)" 
 	cd FVMtools; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)"
 	cd FVMMod; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)"
-	cd FVMadapt; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)"
+	cd FVMAdapt; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)"
 	cd lpp ; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)"
 
 distclean:
@@ -97,6 +94,6 @@ distclean:
 	cd sprng ; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)" 
 	cd FVMtools; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
 	cd FVMMod; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
-	cd FVMadapt; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
+	cd FVMAdapt; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
 	cd lpp ; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
 
