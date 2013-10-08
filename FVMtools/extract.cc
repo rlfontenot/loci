@@ -342,6 +342,21 @@ void getDerivedVar(vector<float> &dval, string var_name,
   }
 }
 
+string getTopoFileName(string output_dir, string casename, string iteration) {
+  string gridtopo = output_dir+"/" + casename +".topo" ;
+  string toponamefile = output_dir + "/topo_file." + iteration + "_" + casename ;
+  struct stat tmpstat ;
+  if(stat(toponamefile.c_str(),&tmpstat)== 0) {
+    ifstream tinput(toponamefile.c_str()) ;
+    string name  ;
+    tinput >> name ;
+    name = output_dir + "/" + name ;
+    if(stat(name.c_str(),&tmpstat)==0)
+      gridtopo=name ;
+  }
+  return gridtopo ;
+}
+
 void setup_grid_topology(string casename, string iteration) {
   fact_db facts ;
   string file = casename + ".vog" ;
@@ -406,6 +421,7 @@ void setup_grid_topology(string casename, string iteration) {
   Loci::hdf5CloseFile(file_id) ;
 
 }
+
 
 //read volume element ids only for ensight output
 void extract_grid(string casename, string iteration,
@@ -550,16 +566,8 @@ void extract_grid(string casename, string iteration,
       iblank[i] = 0 ;
   }
   
-  string gridtopo = output_dir+"/" + casename +".topo" ;
-  string toponamefile = output_dir + "/topo_file." + iteration + "_" + casename ;
-  if(stat(toponamefile.c_str(),&tmpstat)== 0) {
-    ifstream tinput(toponamefile.c_str()) ;
-    string name  ;
-    tinput >> name ;
-    name = output_dir + "/" + name ;
-    if(stat(name.c_str(),&tmpstat)==0)
-      gridtopo=name ;
-  }
+  string gridtopo = getTopoFileName(output_dir, casename, iteration) ;
+
   cout << "extracting topology from '" << gridtopo << "'" << endl;
 
   file_id = H5Fopen(gridtopo.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
@@ -1877,7 +1885,7 @@ int main(int ac, char *av[]) {
     }
   }
 
-  string filename = output_dir+'/' +  casename + ".topo" ;
+  string filename = getTopoFileName(output_dir, casename, iteration) ;
   struct stat tmpstat ;
   string posfile = getPosFile(output_dir,iteration,casename) ;
   //  cout << "posfile = " << posfile << endl ;
