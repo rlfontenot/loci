@@ -394,6 +394,7 @@ public:
   bool isdollar ;
   string name ;
   list<string> prio_list ;
+  list<string> nspace_list ;
   funclist<var> param_args ;
   bracestuff bs ;
   var() : isdollar(false) {}
@@ -420,12 +421,23 @@ public:
         parsebase::killsp(s) ;
         prio_list.push_back(name);
         if(!is_name(s)) 
-          throw parseError("syntax error") ;
+          throw parseError("syntax error near ':'") ;
         name = get_name(s) ;
         parsebase::killsp(s) ;
       }
     }
-          
+    if(s.peek() == '@') {
+      while(s.peek() == '@') {
+        s.get() ;
+        parsebase::killsp(s) ;
+        nspace_list.push_back(name);
+        if(!is_name(s)) 
+          throw parseError("syntax error near '@'") ;
+        name = get_name(s) ;
+        parsebase::killsp(s) ;
+      }
+    }
+    
     param_args.get(s) ;
     bs.get(s) ;
 
@@ -438,6 +450,8 @@ public:
       s+= *li + "::" ;
     if(isdollar)
       s+="$" ;
+    for(li=nspace_list.begin();li!=nspace_list.end();++li)
+      s += *li + "@" ;
     s+=name ;
     s+= param_args.str() ;
     s+= bs.str() ;
