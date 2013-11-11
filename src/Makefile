@@ -63,7 +63,7 @@ System/libLoci.so: FRC
 lpp: library
 	cd lpp; $(MAKE) LOCI_BASE="$(LOCI_BASE)" lpp
 
-FVMtools: library lpp
+FVMtools: library FVMAdapt lpp
 	cd FVMtools; $(MAKE) LOCI_BASE="$(LOCI_BASE)" default
 FRC :
 
