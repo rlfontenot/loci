@@ -1306,16 +1306,26 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
     if(s == "constraint") {
       nestedparenstuff con ;
       con.get(is) ;
-      constraint = con.str() ;
+      if(constraint == "")
+        constraint = con.str() ;
+      else 
+        constraint += "," + con.str() ;
       line_no += con.num_lines() ;
     } else if(s == "parametric") {
       nestedparenstuff con ;
       con.get(is) ;
+      if(parametric_var != "") {
+        throw parseError("syntax error: canot specify more than one parametric variable") ;
+      }
+        
       parametric_var = con.str() ;
       line_no += con.num_lines() ;
     } else if(s == "conditional") {
       nestedparenstuff con ;
       con.get(is) ;
+      if(conditional != "") {
+        throw parseError("syntax error: canot specify more than one conditional variable") ;
+      }
       conditional = con.str() ;
       line_no += con.num_lines() ;
     } else if(s == "inplace") {
