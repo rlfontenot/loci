@@ -567,6 +567,10 @@ void fixupGluedNodesFace(vector<Loci::Array<int,4> > &fd,
       // Check to see if the face became a triangle, or degenerated
       int k=-1 ;
       int cnt = 0 ;
+      if(fd[i][0] == fd[i][2] || fd[i][1] == fd[i][3]) {
+	//	cout << "diagonal fold" << endl ;
+	cnt += 2 ;
+      }
       for(int j=0;j<3;++j) {
         if(fd[i][j] == fd[i][j+1]) {
           k = j ;
@@ -588,13 +592,20 @@ void fixupGluedNodesFace(vector<Loci::Array<int,4> > &fd,
         dgen_face++ ;
         for(int j=0;j<4;++j)
           fd[i][j] = -1 ;
-      }        
+      } 
+
+      
     }
+  }
+  if(dgen_face > 0) {
+    cout << "mesh has " << dgen_face << " degenerate faces." << endl ;
   }
 }
 
 inline int findOffset(const vector<pair<int,int> > &glueSet,
                       int i ) {
+  if(i==-1)
+    return 0 ;
   static int hint = 0 ;
   if(i <= glueSet[0].first)
     return glueSet[0].second ;
@@ -729,15 +740,17 @@ void setupGlueFaces(vector<Loci::Array<int,4> > &glueFaces,
   int gsz = glueFaces.size() ;
 
   int dgen_faces = 0 ;
-  while((dgen_faces<gsz) && (glueFaces[gsz-1-dgen_faces][0]<-1))
+  while((dgen_faces<gsz) && (glueFaces[gsz-1-dgen_faces][0]==-1))
     dgen_faces++ ;
   for(int i=0;i<gsz;++i)
-    if((i < gsz-dgen_faces) && (glueFaces[i][0] == -1)) {
+    if((i < gsz-1-dgen_faces) && (glueFaces[i][0] == -1)) {
       swap(glueFaces[i],glueFaces[gsz-1-dgen_faces]) ;
       swap(glueBC[i],glueBC[gsz-1-dgen_faces]) ;
       swap(glueCell[i],glueCell[gsz-1-dgen_faces]) ;
-      dgen_faces++ ;
+      while((dgen_faces<gsz) && (glueFaces[gsz-1-dgen_faces][0]==-1))
+	dgen_faces++ ;
     }
+
   gsz -= dgen_faces ;
   glueFaces.resize(gsz) ;
   glueBC.resize(gsz) ;
@@ -784,6 +797,7 @@ void setupGlueFaces(vector<Loci::Array<int,4> > &glueFaces,
        glueTmp[i][1] == glueTmp[i+1][1] &&
        glueTmp[i][2] == glueTmp[i+1][2] &&
        glueTmp[i][3] == glueTmp[i+1][3]) {
+
       int f1 = glueTmp[i][4] ;
       int f2 = glueTmp[i+1][4] ;
 
@@ -1020,7 +1034,7 @@ void creaseGroup(const vector<Loci::Array<int,4> > &glueFaces,
 	equal[mi->first.second] += mi->first.second ;
       }
     }
-        // now perform transitive closure of equivalence sets
+    // now perform transitive closure of equivalence sets
     bool finished = true ;
     do {
       finished = true ;
@@ -1040,6 +1054,8 @@ void creaseGroup(const vector<Loci::Array<int,4> > &glueFaces,
 	}
       }
     } while(!finished) ;
+
+
     vector<int> map_bc(maxbc+1) ;
     for(int i=0;i<maxbc+1;++i) {
       if(equal[i] == EMPTY)
@@ -1663,6 +1679,7 @@ if(Lref == "")
   
   vector<pair<int,int> > glueSet ;
   if(Loci::MPI_rank == 0) {
+    int naspect = 0 ;
     // Compute glue length
     vector<double> gluelen(gsize,1e30) ;
     int gfsz = glueFaces.size() ;
@@ -1687,8 +1704,8 @@ if(Lref == "")
       // Aspect ratio control, no aspect ratio face over max_aspect
       double len = (lenmx> max_aspect*lenmn)?lenmx:lenmn ;
       if(lenmx > max_aspect*lenmn && lenmn != 0) {
+	naspect++ ;
 
-	cerr << "max aspect tripped, "<< lenmn << "," << lenmx << endl ;
       }
 
       gluelen[n1] = min(gluelen[n1],len) ;
@@ -1696,16 +1713,18 @@ if(Lref == "")
       gluelen[n3] = min(gluelen[n3],len) ;
       gluelen[n4] = min(gluelen[n4],len) ;
     }
-
+    if(naspect > 0) {
+      cerr << "high-aspect ratio faces glued: " << naspect << endl ;
+    }
     // Limit tolerance to reasonable limits for double precision arithmetic
     // and use this to compute the distance needed before a node is glued to
     // another node
-    const double EPS = 1e-12 ;
-    tol = max(tol,EPS) ;
+    const double EPS = 1e-11 ;
+    tol = max(tol,EPS*EPS) ;
+
     for(int i=0;i<gsize;++i) {
       double eps = EPS*max(fabs(gluePos[i].x),
-			   max(fabs(gluePos[i].y),fabs(gluePos[i].z))) ;
-      
+				 max(fabs(gluePos[i].y),fabs(gluePos[i].z))) ;
       gluelen[i] = max(tol*gluelen[i],eps) ;
     }
 
