@@ -394,6 +394,7 @@ public:
   bool isdollar ;
   string name ;
   list<string> prio_list ;
+  list<string> nspace_list ;
   funclist<var> param_args ;
   bracestuff bs ;
   var() : isdollar(false) {}
@@ -420,12 +421,23 @@ public:
         parsebase::killsp(s) ;
         prio_list.push_back(name);
         if(!is_name(s)) 
-          throw parseError("syntax error") ;
+          throw parseError("syntax error near ':'") ;
         name = get_name(s) ;
         parsebase::killsp(s) ;
       }
     }
-          
+    if(s.peek() == '@') {
+      while(s.peek() == '@') {
+        s.get() ;
+        parsebase::killsp(s) ;
+        nspace_list.push_back(name);
+        if(!is_name(s)) 
+          throw parseError("syntax error near '@'") ;
+        name = get_name(s) ;
+        parsebase::killsp(s) ;
+      }
+    }
+    
     param_args.get(s) ;
     bs.get(s) ;
 
@@ -438,6 +450,8 @@ public:
       s+= *li + "::" ;
     if(isdollar)
       s+="$" ;
+    for(li=nspace_list.begin();li!=nspace_list.end();++li)
+      s += *li + "@" ;
     s+=name ;
     s+= param_args.str() ;
     s+= bs.str() ;
@@ -1292,16 +1306,26 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
     if(s == "constraint") {
       nestedparenstuff con ;
       con.get(is) ;
-      constraint = con.str() ;
+      if(constraint == "")
+        constraint = con.str() ;
+      else 
+        constraint += "," + con.str() ;
       line_no += con.num_lines() ;
     } else if(s == "parametric") {
       nestedparenstuff con ;
       con.get(is) ;
+      if(parametric_var != "") {
+        throw parseError("syntax error: canot specify more than one parametric variable") ;
+      }
+        
       parametric_var = con.str() ;
       line_no += con.num_lines() ;
     } else if(s == "conditional") {
       nestedparenstuff con ;
       con.get(is) ;
+      if(conditional != "") {
+        throw parseError("syntax error: canot specify more than one conditional variable") ;
+      }
       conditional = con.str() ;
       line_no += con.num_lines() ;
     } else if(s == "inplace") {
