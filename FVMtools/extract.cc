@@ -40,6 +40,7 @@ using std::ofstream ;
 using std::ios ;
 using std::sort ;
 using std::unique ;
+using std::ifstream ;
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -61,8 +62,10 @@ void Usage(int ac, char *av[]) {
        << "-en :  extract for the Ensight post-processing package" << endl
        << "-en_with_id :  extract for the Ensight post-processing package with node id and element id" << endl
        << "-tec:  extract for the TecPlot post-procesing package" << endl
-       << "-vtk:  extract for the Paraview post-procesing package" << endl
+       << "-vtk:   extract for the Paraview post-procesing package" << endl
+       << "-vtk64: extract for the Paraview post-procesing package (for large cases, must use >= Paraview 3.98)" << endl
        << "-vtk_surf:  extract boundary surface mesh for the Paraview post-procesing package" << endl
+       << "-vtk_surf64:  extract boundary surface mesh for the Paraview post-procesing package (for large cases, must use >= Paraview 3.98)" << endl
        << "-ascii: extract to an ascii file" << endl
        << "-surf: extract boundary surface mesh" << endl
        << "-cut:  extract a cutting plane for the 2dgv plotting package" << endl
@@ -341,12 +344,28 @@ void getDerivedVar(vector<float> &dval, string var_name,
   }
 }
 
+string getTopoFileName(string output_dir, string casename, string iteration) {
+  string gridtopo = output_dir+"/" + casename +".topo" ;
+  string toponamefile = output_dir + "/topo_file." + iteration + "_" + casename ;
+  struct stat tmpstat ;
+  if(stat(toponamefile.c_str(),&tmpstat)== 0) {
+    ifstream tinput(toponamefile.c_str()) ;
+    string name  ;
+    tinput >> name ;
+    name = output_dir + "/" + name ;
+    if(stat(name.c_str(),&tmpstat)==0)
+      gridtopo=name ;
+  }
+  return gridtopo ;
+}
+
 void setup_grid_topology(string casename, string iteration) {
   fact_db facts ;
   string file = casename + ".vog" ;
   struct stat tmpstat ;
   if(stat(file.c_str(),&tmpstat) != 0) {
-    file = casename + ".xdr" ;
+    cerr << "unable to find vog file = " << file << endl ;
+    Loci::Abort() ;
   }
 
   if(!Loci::setupFVMGrid(facts,file)) {
@@ -404,6 +423,7 @@ void setup_grid_topology(string casename, string iteration) {
   Loci::hdf5CloseFile(file_id) ;
 
 }
+
 
 //read volume element ids only for ensight output
 void extract_grid(string casename, string iteration,
@@ -548,8 +568,9 @@ void extract_grid(string casename, string iteration,
       iblank[i] = 0 ;
   }
   
-  string gridtopo = output_dir+"/" + casename +".topo" ;
+  string gridtopo = getTopoFileName(output_dir, casename, iteration) ;
 
+  cout << "extracting topology from '" << gridtopo << "'" << endl;
 
   file_id = H5Fopen(gridtopo.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
 
@@ -1469,7 +1490,7 @@ int main(int ac, char *av[]) {
   Loci::disableDebugDir() ;
   Loci::Init(&ac,&av) ;
 
-  enum {ASCII,TWODGV,ENSIGHT,FIELDVIEW,TECPLOT,VTK,VTK_SURFACE,CUTTINGPLANE, SURFACE, MEAN,NONE} plot_type = NONE ;
+  enum {ASCII,TWODGV,ENSIGHT,FIELDVIEW,TECPLOT,VTK,VTK_SURFACE,VTK64,VTK_SURFACE64,CUTTINGPLANE, SURFACE, MEAN,NONE} plot_type = NONE ;
 
   string casename ;
   bool found_casename = false ;
@@ -1524,10 +1545,15 @@ int main(int ac, char *av[]) {
 	     << "         the Ensight importer.  It is recommended that you use extract -en " << endl
 	     << "         instead of extract -tec." << endl ;
 	cout << "*****************************************************************************"<< endl ;
-      } else if(!strcmp(av[i],"-vtk"))
+      } 
+      else if(!strcmp(av[i],"-vtk"))
         plot_type = VTK ;
       else if(!strcmp(av[i],"-vtk_surf"))
         plot_type = VTK_SURFACE ;
+      else if(!strcmp(av[i],"-vtk64"))
+        plot_type = VTK64 ;
+      else if(!strcmp(av[i],"-vtk_surf64"))
+        plot_type = VTK_SURFACE64 ;
       else if(!strcmp(av[i],"-cut"))
 	plot_type = CUTTINGPLANE ;
       else if(!strcmp(av[i],"-Sx")) {
@@ -1866,7 +1892,7 @@ int main(int ac, char *av[]) {
     }
   }
 
-  string filename = output_dir+'/' +  casename + ".topo" ;
+  string filename = getTopoFileName(output_dir, casename, iteration) ;
   struct stat tmpstat ;
   string posfile = getPosFile(output_dir,iteration,casename) ;
   //  cout << "posfile = " << posfile << endl ;
@@ -1952,10 +1978,16 @@ int main(int ac, char *av[]) {
     topo_out = new tecplot_topo_handler ;
     break ;
   case VTK:
-    topo_out = new vtk_topo_handler ;
+    topo_out = new vtk_topo_handler(false) ;
     break ;
   case VTK_SURFACE:
-    topo_out = new vtk_surf_topo_handler(boundaries) ;
+    topo_out = new vtk_surf_topo_handler(boundaries,false) ;
+    break ;
+  case VTK64:
+    topo_out = new vtk_topo_handler(true) ;
+    break ;
+  case VTK_SURFACE64:
+    topo_out = new vtk_surf_topo_handler(boundaries,true) ;
     break ;
   case CUTTINGPLANE:
     topo_out = new cuttingplane_topo_handler(transformMatrix, -xShift, -yShift, -zShift) ;

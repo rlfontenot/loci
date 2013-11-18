@@ -286,30 +286,34 @@ public:
 } ;
 
 class vtk_topo_handler : public grid_topo_handler {
+  long long unsigned int npnts ;
+  long long unsigned int ntets, nprsm, npyrm, nhexs, ngen ;
+  long long unsigned int face_off ;
+  long long unsigned int Offset ;
+  long long unsigned int off ;
+  long long unsigned int data_count ;
   string filename ;
-  int npnts ;
-  int ntets, nprsm, npyrm, nhexs, ngen ;
   int nvars ;
-  int face_off ;
-  int Offset ;
-  int off ;
   string boundary_name ;
   float * pos;
   float * data_store ;
   vector<int> data_size;
-  int data_count ;
   vector<int> conn ;
   vector<int> cell_offsets ;
   vector<int> cell_faces ;
   vector<int> face_offsets ;
   vector<unsigned char> cell_types ;
+  bool is_64bit;
+  int int_size;
 public:
-  vtk_topo_handler()
+  vtk_topo_handler(bool bit64)
   {
     Offset = 0 ; 
     data_count = 0 ;
     off = 0 ;
     face_off = 0 ;
+    is_64bit = bit64;
+    int_size = is_64bit ? sizeof(long long unsigned int) : sizeof(unsigned int);
   }
   virtual ~vtk_topo_handler() {}
   virtual void fileWritingSequence(Array<int,7> &sequence) {
@@ -369,13 +373,13 @@ public:
 
 class vtk_surf_topo_handler : public grid_topo_handler {
   string filename ;
-  int npnts, ncells;
-  int ntets, nprsm, npyrm, nhexs, ngen ;
+  long long unsigned int npnts, ncells;
+  long long unsigned int ntets, nprsm, npyrm, nhexs, ngen ;
+  long long unsigned int elem_offset;
   int nvars ;
   map<int,int> bmap;
   int part_index;
   bool output_boundary;
-  int elem_offset;
   FILE *fid;
   vector<Array<int, 8> > bricks ;
   string boundary_name ;
@@ -391,12 +395,16 @@ class vtk_surf_topo_handler : public grid_topo_handler {
   vector<float> elem_data ;
   vector<string> data_names ;
   float * position;
+  bool is_64bit;
+  int int_size;
 public:
-  vtk_surf_topo_handler(vector<string> &these_boundaries)
+  vtk_surf_topo_handler(vector<string> &these_boundaries, bool bit64)
   {
     boundaries = these_boundaries;
+    is_64bit = bit64;
     part_index = 0;
     npnts = 0; ncells = 0; elem_offset = 0; output_boundary = false;	  
+    int_size = is_64bit ? sizeof(long long unsigned int) : sizeof(int);
   }
   virtual ~vtk_surf_topo_handler() {
     
