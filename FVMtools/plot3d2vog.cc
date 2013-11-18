@@ -137,7 +137,7 @@ struct block_face_info {
 } ;
 
 struct block_boundary_info {
-  block_face_info block_face[6] ;
+  vector<block_face_info> block_face[6] ;
 } ;
   
   
@@ -567,6 +567,10 @@ void fixupGluedNodesFace(vector<Loci::Array<int,4> > &fd,
       // Check to see if the face became a triangle, or degenerated
       int k=-1 ;
       int cnt = 0 ;
+      if(fd[i][0] == fd[i][2] || fd[i][1] == fd[i][3]) {
+	//	cout << "diagonal fold" << endl ;
+	cnt += 2 ;
+      }
       for(int j=0;j<3;++j) {
         if(fd[i][j] == fd[i][j+1]) {
           k = j ;
@@ -588,13 +592,20 @@ void fixupGluedNodesFace(vector<Loci::Array<int,4> > &fd,
         dgen_face++ ;
         for(int j=0;j<4;++j)
           fd[i][j] = -1 ;
-      }        
+      } 
+
+      
     }
+  }
+  if(dgen_face > 0) {
+    cout << "mesh has " << dgen_face << " degenerate faces." << endl ;
   }
 }
 
 inline int findOffset(const vector<pair<int,int> > &glueSet,
                       int i ) {
+  if(i==-1)
+    return 0 ;
   static int hint = 0 ;
   if(i <= glueSet[0].first)
     return glueSet[0].second ;
@@ -729,15 +740,17 @@ void setupGlueFaces(vector<Loci::Array<int,4> > &glueFaces,
   int gsz = glueFaces.size() ;
 
   int dgen_faces = 0 ;
-  while((dgen_faces<gsz) && (glueFaces[gsz-1-dgen_faces][0]<-1))
+  while((dgen_faces<gsz) && (glueFaces[gsz-1-dgen_faces][0]==-1))
     dgen_faces++ ;
   for(int i=0;i<gsz;++i)
-    if((i < gsz-dgen_faces) && (glueFaces[i][0] == -1)) {
+    if((i < gsz-1-dgen_faces) && (glueFaces[i][0] == -1)) {
       swap(glueFaces[i],glueFaces[gsz-1-dgen_faces]) ;
       swap(glueBC[i],glueBC[gsz-1-dgen_faces]) ;
       swap(glueCell[i],glueCell[gsz-1-dgen_faces]) ;
-      dgen_faces++ ;
+      while((dgen_faces<gsz) && (glueFaces[gsz-1-dgen_faces][0]==-1))
+	dgen_faces++ ;
     }
+
   gsz -= dgen_faces ;
   glueFaces.resize(gsz) ;
   glueBC.resize(gsz) ;
@@ -775,6 +788,7 @@ void setupGlueFaces(vector<Loci::Array<int,4> > &glueFaces,
   sort(glueTmp.begin(),glueTmp.end(),glueCompare) ;
   int gluecnt = 0 ;
   int glueerror = 0 ;
+  Loci::entitySet errorSet ;
   vector<Loci::Array<int,4> > fset ;
   vector<int> cl,cr ;
   for(int i=0;i<gsz;++i) {
@@ -783,6 +797,7 @@ void setupGlueFaces(vector<Loci::Array<int,4> > &glueFaces,
        glueTmp[i][1] == glueTmp[i+1][1] &&
        glueTmp[i][2] == glueTmp[i+1][2] &&
        glueTmp[i][3] == glueTmp[i+1][3]) {
+
       int f1 = glueTmp[i][4] ;
       int f2 = glueTmp[i+1][4] ;
 
@@ -798,6 +813,7 @@ void setupGlueFaces(vector<Loci::Array<int,4> > &glueFaces,
     } else {
       int fc = glueTmp[i][4] ;
       if(glueBC[fc] < 0) {
+	errorSet += glueBC[fc] ;
         glueerror++ ;
       } else {
         noglueFaces.push_back(glueFaces[fc]) ;
@@ -810,6 +826,13 @@ void setupGlueFaces(vector<Loci::Array<int,4> > &glueFaces,
   if(glueerror > 0) {
     cerr << "Faces not identified in the bc specification file were not glued"
          << endl ;
+    cerr << "Problem Blocks:" << endl ;
+    for(Loci::entitySet::const_iterator ei=errorSet.begin();
+	ei != errorSet.end();++ei) {
+      int b = -(*ei+1)/6 ;
+      int f = -(*ei+1)%6 ;
+      cerr << "block = " << b+1 << ", face = " << bcnames[f] << endl ;
+    }
     Loci::Abort() ;
   }
   cout << "glued " << gluecnt << " faces." << endl ;
@@ -1011,7 +1034,7 @@ void creaseGroup(const vector<Loci::Array<int,4> > &glueFaces,
 	equal[mi->first.second] += mi->first.second ;
       }
     }
-        // now perform transitive closure of equivalence sets
+    // now perform transitive closure of equivalence sets
     bool finished = true ;
     do {
       finished = true ;
@@ -1031,6 +1054,8 @@ void creaseGroup(const vector<Loci::Array<int,4> > &glueFaces,
 	}
       }
     } while(!finished) ;
+
+
     vector<int> map_bc(maxbc+1) ;
     for(int i=0;i<maxbc+1;++i) {
       if(equal[i] == EMPTY)
@@ -1271,11 +1296,13 @@ if(Lref == "")
   vector<block_boundary_info> bface_info (blockInfo.size()) ;
   for(size_t b = 0 ; b!= blockInfo.size();++b) {
     for(int i=0;i<6;++i) {
-      bface_info[b].block_face[i].tag = b*6+i+1 ;
-      bface_info[b].block_face[i].is = -2 ;
-      bface_info[b].block_face[i].ie = -2 ;
-      bface_info[b].block_face[i].js = -2 ;
-      bface_info[b].block_face[i].je = -2 ;
+      block_face_info tmp;
+      tmp.tag = b*6+i+1 ;
+      tmp.is = -2 ;
+      tmp.ie = -2 ;
+      tmp.js = -2 ;
+      tmp.je = -2 ;
+      bface_info[b].block_face[i].push_back(tmp) ;
     }
   }
 
@@ -1290,7 +1317,7 @@ if(Lref == "")
     if(boundary_file) {
       for(size_t b = 0 ; b!= blockInfo.size();++b) {
         for(int i=0;i<6;++i) {
-          bface_info[b].block_face[i].tag = -1 ;
+	  bface_info[b].block_face[i].clear() ;
         }
       }
       ifstream bfile(boundary_filename.c_str(),ios::in) ;
@@ -1339,15 +1366,31 @@ if(Lref == "")
           bfile >> Is >> Ie >> Js >> Je ;
 
           if(Is == -1)
-            Ie = 10000000 ;
+            Ie = 1000000000 ;
           if(Js == -1)
-            Je = 10000000 ;
-          bface_info[block].block_face[face].tag = boundary_flag ;
-          bface_info[block].block_face[face].is = Is ;
-          bface_info[block].block_face[face].ie = Ie ;
-          bface_info[block].block_face[face].js = Js ;
-          bface_info[block].block_face[face].je = Je ;
+            Je = 1000000000 ;
+	  block_face_info tmp;
+	  tmp.tag = boundary_flag ;
+	  tmp.is = Is ;
+	  tmp.ie = Ie ;
+	  tmp.js = Js ;
+	  tmp.je = Je ;
+	  
+          bface_info[block].block_face[face].push_back(tmp);
         }
+      }
+      for(size_t b = 0 ; b!= blockInfo.size();++b) {
+	for(int i=0;i<6;++i) {
+	  if(bface_info[b].block_face[i].empty()) {
+	    block_face_info tmp;
+	    tmp.tag = -(b*6+i+1) ;
+	    tmp.is = -2 ;
+	    tmp.ie = -2 ;
+	    tmp.js = -2 ;
+	    tmp.je = -2 ;
+	    bface_info[b].block_face[i].push_back(tmp) ;
+	  }
+	}
       }
     }
 
@@ -1359,16 +1402,36 @@ if(Lref == "")
       // IJ1 face and IJN face
       for(int i=0;i<ni-1;++i)
         for(int j=0;j<nj-1;++j) {
-          bool noglue0 = (i+1 >= bface_info[b].block_face[0].is &&
-                          i+1 <  bface_info[b].block_face[0].ie &&
-                          j+1 >= bface_info[b].block_face[0].js &&
-                          j+1 <  bface_info[b].block_face[0].je) ;
-	  int bc0 = bface_info[b].block_face[0].tag ;
-          bool noglue1 = (i+1 >= bface_info[b].block_face[1].is &&
-                          i+1 <  bface_info[b].block_face[1].ie &&
-                          j+1 >= bface_info[b].block_face[1].js &&
-                          j+1 <  bface_info[b].block_face[1].je) ;
-	  int bc1 = bface_info[b].block_face[1].tag ;
+          bool noglue0 = (i+1 >= bface_info[b].block_face[0][0].is &&
+                          i+1 <  bface_info[b].block_face[0][0].ie &&
+                          j+1 >= bface_info[b].block_face[0][0].js &&
+                          j+1 <  bface_info[b].block_face[0][0].je) ;
+	  int bc0 = bface_info[b].block_face[0][0].tag ;
+	  for(size_t l=1;l<bface_info[b].block_face[0].size();++l) {
+	    bool ng = (i+1 >= bface_info[b].block_face[0][l].is &&
+		       i+1 <  bface_info[b].block_face[0][l].ie &&
+		       j+1 >= bface_info[b].block_face[0][l].js &&
+		       j+1 <  bface_info[b].block_face[0][l].je) ;
+	    if(ng) {
+	      noglue0 = ng ;
+	      bc0 = bface_info[b].block_face[0][l].tag ;
+	    }
+	  }
+          bool noglue1 = (i+1 >= bface_info[b].block_face[1][0].is &&
+                          i+1 <  bface_info[b].block_face[1][0].ie &&
+                          j+1 >= bface_info[b].block_face[1][0].js &&
+                          j+1 <  bface_info[b].block_face[1][0].je) ;
+	  int bc1 = bface_info[b].block_face[1][0].tag ;
+	  for(size_t l=1;l<bface_info[b].block_face[1].size();++l) {
+	    bool ng = (i+1 >= bface_info[b].block_face[1][l].is &&
+		       i+1 <  bface_info[b].block_face[1][l].ie &&
+		       j+1 >= bface_info[b].block_face[1][l].js &&
+		       j+1 <  bface_info[b].block_face[1][l].je) ;
+	    if(ng) {
+	      noglue1 = ng ;
+	      bc1 = bface_info[b].block_face[1][l].tag ;
+	    }
+	  }
 
 	  Loci::Array<int,4> face ;
 	  face[3] = blockInfo[b].naddr(i  ,j  ,0) ;
@@ -1408,16 +1471,37 @@ if(Lref == "")
       // IK1 face and IKN face
       for(int i=0;i<ni-1;++i)
         for(int k=0;k<nk-1;++k) {
-          bool noglue0 = (i+1 >= bface_info[b].block_face[2].is &&
-                          i+1 <  bface_info[b].block_face[2].ie &&
-                          k+1 >= bface_info[b].block_face[2].js &&
-                          k+1 <  bface_info[b].block_face[2].je) ;
-	  int bc0 = bface_info[b].block_face[2].tag ;
-          bool noglue1 = (i+1 >= bface_info[b].block_face[3].is &&
-                          i+1 <  bface_info[b].block_face[3].ie &&
-                          k+1 >= bface_info[b].block_face[3].js &&
-                          k+1 <  bface_info[b].block_face[3].je) ;
-	  int bc1 = bface_info[b].block_face[3].tag ;
+          bool noglue0 = (i+1 >= bface_info[b].block_face[2][0].is &&
+                          i+1 <  bface_info[b].block_face[2][0].ie &&
+                          k+1 >= bface_info[b].block_face[2][0].js &&
+                          k+1 <  bface_info[b].block_face[2][0].je) ;
+	  int bc0 = bface_info[b].block_face[2][0].tag ;
+	  for(size_t l=1;l<bface_info[b].block_face[2].size();++l) {
+	    int ng = (i+1 >= bface_info[b].block_face[2][l].is &&
+		      i+1 <  bface_info[b].block_face[2][l].ie &&
+		      k+1 >= bface_info[b].block_face[2][l].js &&
+		      k+1 <  bface_info[b].block_face[2][l].je) ;
+	    if(ng) {
+	      noglue0 = ng ;
+	      bc0 = bface_info[b].block_face[2][l].tag ;
+	    }
+	  }
+
+          bool noglue1 = (i+1 >= bface_info[b].block_face[3][0].is &&
+                          i+1 <  bface_info[b].block_face[3][0].ie &&
+                          k+1 >= bface_info[b].block_face[3][0].js &&
+                          k+1 <  bface_info[b].block_face[3][0].je) ;
+	  int bc1 = bface_info[b].block_face[3][0].tag ;
+	  for(size_t l=1;l<bface_info[b].block_face[3].size();++l) {
+	    bool ng = (i+1 >= bface_info[b].block_face[3][l].is &&
+		       i+1 <  bface_info[b].block_face[3][l].ie &&
+		       k+1 >= bface_info[b].block_face[3][l].js &&
+		       k+1 <  bface_info[b].block_face[3][l].je) ;
+	    if(ng) {
+	      noglue1 = ng ;
+	      bc1 = bface_info[b].block_face[3][l].tag ;
+	    }
+	  }
 	  Loci::Array<int,4> face ;
 	  face[0] = blockInfo[b].naddr(i  ,0 ,k) ;
 	  face[1] = blockInfo[b].naddr(i+1,0 ,k) ;
@@ -1456,16 +1540,37 @@ if(Lref == "")
       // JK1 face and JKN face 
       for(int j=0;j<nj-1;++j)
         for(int k=0;k<nk-1;++k) {
-          bool noglue0 = (j+1 >= bface_info[b].block_face[4].is &&
-                          j+1 <  bface_info[b].block_face[4].ie &&
-                          k+1 >= bface_info[b].block_face[4].js &&
-                          k+1 <  bface_info[b].block_face[4].je) ;
-	  int bc0 = bface_info[b].block_face[4].tag ;
-          bool noglue1 = (j+1 >= bface_info[b].block_face[5].is &&
-                          j+1 <  bface_info[b].block_face[5].ie &&
-                          k+1 >= bface_info[b].block_face[5].js &&
-                          k+1 <  bface_info[b].block_face[5].je) ;
-	  int bc1 = bface_info[b].block_face[5].tag ;
+          bool noglue0 = (j+1 >= bface_info[b].block_face[4][0].is &&
+                          j+1 <  bface_info[b].block_face[4][0].ie &&
+                          k+1 >= bface_info[b].block_face[4][0].js &&
+                          k+1 <  bface_info[b].block_face[4][0].je) ;
+	  int bc0 = bface_info[b].block_face[4][0].tag ;
+	  for(size_t l=1;l<bface_info[b].block_face[4].size();++l) {
+	    bool ng = (j+1 >= bface_info[b].block_face[4][l].is &&
+		       j+1 <  bface_info[b].block_face[4][l].ie &&
+		       k+1 >= bface_info[b].block_face[4][l].js &&
+		       k+1 <  bface_info[b].block_face[4][l].je) ;
+	    if(ng) {
+	      noglue0 = ng ;
+	      bc0 = bface_info[b].block_face[4][l].tag ;
+	    }
+	  }
+
+          bool noglue1 = (j+1 >= bface_info[b].block_face[5][0].is &&
+                          j+1 <  bface_info[b].block_face[5][0].ie &&
+                          k+1 >= bface_info[b].block_face[5][0].js &&
+                          k+1 <  bface_info[b].block_face[5][0].je) ;
+	  int bc1 = bface_info[b].block_face[5][0].tag ;
+	  for(size_t l=1;l<bface_info[b].block_face[5].size();++l) {
+	    bool ng = (j+1 >= bface_info[b].block_face[5][l].is &&
+		       j+1 <  bface_info[b].block_face[5][l].ie &&
+		       k+1 >= bface_info[b].block_face[5][l].js &&
+		       k+1 <  bface_info[b].block_face[5][l].je) ;
+	    if(ng) {
+	      noglue1 = ng ;
+	      bc1 = bface_info[b].block_face[5][l].tag ;
+	    }
+	  }
 	  Loci::Array<int,4> face ;
 	  face[3] = blockInfo[b].naddr(0 ,j  ,k) ;
 	  face[2] = blockInfo[b].naddr(0 ,j+1,k) ;
@@ -1574,6 +1679,7 @@ if(Lref == "")
   
   vector<pair<int,int> > glueSet ;
   if(Loci::MPI_rank == 0) {
+    int naspect = 0 ;
     // Compute glue length
     vector<double> gluelen(gsize,1e30) ;
     int gfsz = glueFaces.size() ;
@@ -1598,8 +1704,8 @@ if(Lref == "")
       // Aspect ratio control, no aspect ratio face over max_aspect
       double len = (lenmx> max_aspect*lenmn)?lenmx:lenmn ;
       if(lenmx > max_aspect*lenmn && lenmn != 0) {
+	naspect++ ;
 
-	cerr << "max aspect tripped, "<< lenmn << "," << lenmx << endl ;
       }
 
       gluelen[n1] = min(gluelen[n1],len) ;
@@ -1607,16 +1713,18 @@ if(Lref == "")
       gluelen[n3] = min(gluelen[n3],len) ;
       gluelen[n4] = min(gluelen[n4],len) ;
     }
-
+    if(naspect > 0) {
+      cerr << "high-aspect ratio faces glued: " << naspect << endl ;
+    }
     // Limit tolerance to reasonable limits for double precision arithmetic
     // and use this to compute the distance needed before a node is glued to
     // another node
-    const double EPS = 1e-12 ;
-    tol = max(tol,EPS) ;
+    const double EPS = 1e-11 ;
+    tol = max(tol,EPS*EPS) ;
+
     for(int i=0;i<gsize;++i) {
       double eps = EPS*max(fabs(gluePos[i].x),
-			   max(fabs(gluePos[i].y),fabs(gluePos[i].z))) ;
-      
+				 max(fabs(gluePos[i].y),fabs(gluePos[i].z))) ;
       gluelen[i] = max(tol*gluelen[i],eps) ;
     }
 
