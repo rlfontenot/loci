@@ -58,8 +58,9 @@ void vtk_topo_handler::open(string casename, string iteration ,int inpnts,
   nhexs = inhexs ;
   ngen = ingen ;
   nvars = 0 ;
-  filename = "vtk_"+casename+"_"+iteration+".vtu" ;
-  int ncells = ntets+nprsm+npyrm+nhexs+ngen;
+  if (is_64bit) filename = "vtk64_"+casename+"_"+iteration+".vtu" ;
+  else filename = "vtk_"+casename+"_"+iteration+".vtu" ;
+  long long unsigned int ncells = ntets+nprsm+npyrm+nhexs+ngen;
   for(size_t i=0;i<variables.size();++i) {
     if(variable_types[i] == NODAL_SCALAR ||
        variable_types[i] == NODAL_DERIVED ||
@@ -74,31 +75,31 @@ void vtk_topo_handler::open(string casename, string iteration ,int inpnts,
   data_store = new float[nvars * npnts];
   FILE * fid = fopen(filename.c_str(), "w"); 
   fprintf(fid,"<?xml version='1.0'?>\n");
-  fprintf(fid,"<VTKFile type='UnstructuredGrid' version='0.1' byte_order='LittleEndian'>\n");
+  if (is_64bit) fprintf(fid,"<VTKFile type='UnstructuredGrid' version='1.0' byte_order='LittleEndian' header_type='UInt64'>\n");
+  else fprintf(fid,"<VTKFile type='UnstructuredGrid' version='0.1' byte_order='LittleEndian'>\n");
   fprintf(fid,"  <UnstructuredGrid>\n");
-  fprintf(fid,"    <Piece NumberOfPoints='%d' NumberOfCells='%d'>\n",npnts,ncells);
+  fprintf(fid,"    <Piece NumberOfPoints='%llu' NumberOfCells='%llu'>\n",npnts,ncells);
   fprintf(fid,"      <Points>\n");
-  fprintf(fid,"        <DataArray type='Float32' Name='Position' NumberOfComponents='3' format='appended' offset='%d'/>\n",Offset);
+  fprintf(fid,"        <DataArray type='Float32' Name='Position' NumberOfComponents='3' format='appended' offset='%llu'/>\n",Offset);
   fprintf(fid,"      </Points>\n");
-  Offset += 3 * npnts * sizeof(float) + sizeof(int) ;
+  Offset += 3 * npnts * sizeof(float) + int_size ;
   fclose(fid);
 }
 void vtk_topo_handler::close_mesh_elements() {
-  int ncells = ntets+nprsm+npyrm+nhexs+ngen;
+  unsigned int ncells = ntets+nprsm+npyrm+nhexs+ngen;
   FILE * fid = fopen(filename.c_str(),"a");
   fprintf(fid,"      <Cells>\n");
-  fprintf(fid,"        <DataArray type='Int32' Name='connectivity' NumberOfComponents='1' format='appended' offset='%d'/>\n",Offset);
-  //Offset += counter * sizeof (int) + sizeof(int) ;
-  Offset += off * sizeof (int) + sizeof(int) ;
-  fprintf(fid,"        <DataArray type='Int32' Name='offsets' NumberOfComponents='1' format='appended' offset='%d'/>\n",Offset);
-  Offset += ncells * sizeof (int) + sizeof(int) ;
-  fprintf(fid,"        <DataArray type='UInt8' Name='types' NumberOfComponents='1' format='appended' offset='%d'/>\n",Offset);
-  Offset += ncells * sizeof (unsigned char) + sizeof(int) ;
+  fprintf(fid,"        <DataArray type='Int32' Name='connectivity' NumberOfComponents='1' format='appended' offset='%llu'/>\n",Offset);
+  Offset += off * sizeof (int) + int_size ;
+  fprintf(fid,"        <DataArray type='Int32' Name='offsets' NumberOfComponents='1' format='appended' offset='%llu'/>\n",Offset);
+  Offset += ncells * sizeof (int) + int_size ;
+  fprintf(fid,"        <DataArray type='UInt8' Name='types' NumberOfComponents='1' format='appended' offset='%llu'/>\n",Offset);
+  Offset += ncells * sizeof (unsigned char) + int_size ;
   if (ngen) { // include faces and faceoffsets
-    fprintf(fid,"        <DataArray type='Int32' Name='faces' NumberOfComponents='1' format='appended' offset='%d'/>\n",Offset);
-    Offset += (int) cell_faces.size() * sizeof (int) + sizeof(int) ;
-    fprintf(fid,"        <DataArray type='Int32' Name='faceoffsets' NumberOfComponents='1' format='appended' offset='%d'/>\n",Offset);
-    Offset += (int) face_offsets.size() * sizeof (int) + sizeof(int) ;
+    fprintf(fid,"        <DataArray type='Int32' Name='faces' NumberOfComponents='1' format='appended' offset='%llu'/>\n",Offset);
+    Offset += (long long unsigned int) cell_faces.size() * sizeof (int) + int_size ;
+    fprintf(fid,"        <DataArray type='Int32' Name='faceoffsets' NumberOfComponents='1' format='appended' offset='%llu'/>\n",Offset);
+    Offset += (long long unsigned int) face_offsets.size() * sizeof (int) + int_size ;
   }
   fprintf(fid,"      </Cells>\n");
   fprintf(fid,"      <PointData>\n");
@@ -106,40 +107,58 @@ void vtk_topo_handler::close_mesh_elements() {
 }
 
 void vtk_topo_handler::close() {
+  /*
+  cout << "Int:                    " << std::numeric_limits<int>::max() << endl;
+  cout << "Unsigned Int:           " << std::numeric_limits<unsigned int>::max() << endl;
+  cout << "Long Long Unsigned Int: " << std::numeric_limits<long long unsigned int>::max() << endl;
+  */
   FILE * fid = fopen(filename.c_str(),"a");
   fprintf(fid,"      </PointData>\n");
   fprintf(fid,"    </Piece>\n");
   fprintf(fid,"  </UnstructuredGrid>\n");
   fprintf(fid,"  <AppendedData encoding='raw'>\n");
   fprintf(fid,"_");
-  int Scalar = npnts * sizeof (float), Vector = 3 * Scalar;
-  int Cells = (int) cell_types.size() * sizeof(int);
-  int CellChars = (int) cell_types.size() * sizeof(unsigned char);
-  int Conn = (int) conn.size() * sizeof(int);
-  fwrite((const char *) (&Vector), 4, 1, fid) ;
+  long long unsigned int Scalar = npnts * sizeof (float), Vector = 3 * Scalar;
+  long long unsigned int Cells = (long long unsigned int) cell_types.size() * sizeof(int);
+  long long unsigned int CellChars = (long long unsigned int) cell_types.size() * sizeof(unsigned char);
+  long long unsigned int Conn = (long long unsigned int) conn.size() * sizeof(int);
+  if (!is_64bit) {
+    if ( Scalar > std::numeric_limits<unsigned int>::max()) { cerr << "Dataset too large. Must use -vtk64 and Paraview 3.98." << endl; exit(1); }
+    if ( Vector > std::numeric_limits<unsigned int>::max()) { cerr << "Dataset too large. Must use -vtk64 and Paraview 3.98." << endl; exit(1); }
+    if ( Cells > std::numeric_limits<unsigned int>::max()) { cerr << "Dataset too large. Must use -vtk64 and Paraview 3.98." << endl; exit(1); }
+    if ( Conn > std::numeric_limits<unsigned int>::max()) { cerr << "Dataset too large. Must use -vtk64 and Paraview 3.98." << endl; exit(1); }
+  }
+  fwrite((const char *) (&Vector), int_size, 1, fid) ;
   fwrite((const char *) (&pos[0]), sizeof (float), 3 * npnts, fid) ;
   if (pos) delete [] pos ;
-  fwrite((const char *) (&Conn), 4, 1, fid) ;
-  fwrite((const char *) &conn[0], sizeof (int), (int) conn.size(), fid) ;
+  fwrite((const char *) (&Conn), int_size, 1, fid) ;
+  fwrite((const char *) &conn[0], sizeof (int), (long long unsigned int) conn.size(), fid) ;
   vector<int>().swap(conn) ;
-  fwrite((const char *) (&Cells), 4, 1, fid) ;
-  fwrite((const char *) &cell_offsets[0], sizeof (int), (int) cell_offsets.size(), fid) ;
+  fwrite((const char *) (&Cells), int_size, 1, fid) ;
+  fwrite((const char *) &cell_offsets[0], sizeof (int), (long long unsigned int) cell_offsets.size(), fid) ;
   vector<int>().swap(cell_offsets) ;
-  fwrite((const char *) (&CellChars), 4, 1, fid) ;
-  fwrite((const char *) &cell_types[0], sizeof (unsigned char), (int) cell_types.size(), fid) ;
+  fwrite((const char *) (&CellChars), int_size, 1, fid) ;
+  fwrite((const char *) &cell_types[0], sizeof (unsigned char), (long long unsigned int) cell_types.size(), fid) ;
   vector<unsigned char>().swap(cell_types) ;
   if (ngen) {
-    int Faces = (int) cell_faces.size() * sizeof(int) ;
-    int FaceConn = (int) face_offsets.size() * sizeof(int) ;
-    fwrite((const char *) (&Faces), 4, 1, fid) ;
-    fwrite((const char *) &cell_faces[0], sizeof (int), (int) cell_faces.size(), fid) ;
-    fwrite((const char *) (&FaceConn), 4, 1, fid) ;
-    fwrite((const char *) &face_offsets[0], sizeof (int), (int) face_offsets.size(), fid) ;
+    long long unsigned int Faces = (long long unsigned int) cell_faces.size() * sizeof(int) ;
+    long long unsigned int FaceConn = (long long unsigned int) face_offsets.size() * sizeof(int) ;
+    if (!is_64bit) {
+      if ( Faces > std::numeric_limits<unsigned int>::max()) { cerr << "Dataset too large. Must use -vtk64 and Paraview 3.98." << endl; exit(1); }
+      if ( FaceConn > std::numeric_limits<unsigned int>::max()) { cerr << "Dataset too large. Must use -vtk64 and Paraview 3.98." << endl; exit(1); }
+    }
+    fwrite((const char *) (&Faces), int_size, 1, fid) ;
+    fwrite((const char *) &cell_faces[0], sizeof (int), (long long unsigned int) cell_faces.size(), fid) ;
+    fwrite((const char *) (&FaceConn), int_size, 1, fid) ;
+    fwrite((const char *) &face_offsets[0], sizeof (int), (long long unsigned int) face_offsets.size(), fid) ;
   }
-  int curr_loc = 0;
-  for (int i=0;i<(int)data_size.size();i++) {
-    int ndata = data_size[i], ndata_size = ndata * sizeof (float); 
-    fwrite((const char *) (&ndata_size), 4, 1, fid) ;
+  long long unsigned int curr_loc = 0;
+  for (long long unsigned int i=0;i<(long long unsigned int)data_size.size();i++) {
+    long long unsigned int ndata = data_size[i], ndata_size = ndata * sizeof (float); 
+    if (!is_64bit) {
+      if ( ndata_size > std::numeric_limits<unsigned int>::max()) { cerr << "Dataset too large. Must use -vtk64 and Paraview 3.98." << endl; exit(1); }
+    }
+    fwrite((const char *) (&ndata_size), int_size, 1, fid) ;
     fwrite((const char *) (&data_store[curr_loc]), sizeof (float), ndata, fid) ;
     curr_loc += ndata;
   }
@@ -151,8 +170,8 @@ void vtk_topo_handler::close() {
 }
 void vtk_topo_handler::create_mesh_positions(vector3d<float> position[], int pts) {
   pos = new float[3*npnts];
-  for(int i=0;i<npnts;++i) {
-    int j=3*i;
+  for(long long unsigned int i=0;i<npnts;++i) {
+    long long unsigned int j=3*i;
     pos[j]   = position[i].x ;
     pos[j+1] = position[i].y ;
     pos[j+2] = position[i].z ;
@@ -378,7 +397,7 @@ void vtk_topo_handler::write_general_cell(int nfaces[], int nnfaces,
     tmp.erase(unique(tmp.begin(),tmp.end()),tmp.end()) ;
     
     for (size_t j=0;j<tmp.size();j++) conn.push_back(tmp[j]) ;  
-    off += (int) tmp.size() ;
+    off += (long long unsigned int) tmp.size() ;
     
     cell_types.push_back(ctype) ;
     cell_offsets.push_back(off) ;
@@ -392,22 +411,22 @@ void vtk_topo_handler::write_general_cell(int nfaces[], int nnfaces,
 void vtk_topo_handler::output_nodal_scalar(float val[], int npnts,
                                                string varname) {
   FILE * fid = fopen(filename.c_str(),"a") ;
-  fprintf(fid,"        <DataArray type='Float32' Name='%s' NumberOfComponents='1' format='appended' offset='%d'/>\n",varname.c_str(),Offset) ;
-  Offset += npnts * sizeof(float) + sizeof(int) ;
-  int ndata = npnts;
+  fprintf(fid,"        <DataArray type='Float32' Name='%s' NumberOfComponents='1' format='appended' offset='%llu'/>\n",varname.c_str(),Offset) ;
+  Offset += (long long unsigned int) npnts * sizeof(float) + int_size ;
+  long long unsigned int ndata = (long long unsigned int) npnts;
   data_size.push_back(ndata);
-  for(int i = 0; i < npnts; i++) data_store[data_count++] = val[i] ;
+  for(long long unsigned int i = 0; i < (long long unsigned int)npnts; i++) data_store[data_count++] = val[i] ;
   fclose(fid);
 }
 
 void vtk_topo_handler::output_nodal_vector(vector3d<float> val[],
                                                int npnts, string varname) {
   FILE * fid = fopen(filename.c_str(),"a");
-  fprintf(fid,"        <DataArray type='Float32' Name='%s' NumberOfComponents='3' format='appended' offset='%d'/>\n",varname.c_str(),Offset);
-  Offset += 3 * npnts * sizeof(float) + sizeof(int) ;
-  int vec_size = 3 * npnts;
+  fprintf(fid,"        <DataArray type='Float32' Name='%s' NumberOfComponents='3' format='appended' offset='%llu'/>\n",varname.c_str(),Offset);
+  Offset += 3 * (long long unsigned) npnts * sizeof(float) + int_size ;
+  long long unsigned int vec_size = 3 * (long long unsigned int)npnts;
   data_size.push_back(vec_size);
-  for(int i = 0; i < npnts; i++) { 
+  for(long long unsigned int i = 0; i < (long long unsigned int) npnts; i++) { 
     data_store[data_count++] = val[i].x ;
     data_store[data_count++] = val[i].y ;
     data_store[data_count++] = val[i].z ;
@@ -422,10 +441,13 @@ void vtk_surf_topo_handler::open(string casename, string iteration ,int npnts,
                     const vector<int> &variable_types,
                     double time)
 {
-  string filename = "vtk_surf_"+casename+"_"+iteration+".vtu" ;
+  string filename;
+  if (is_64bit) filename = "vtk_surf64_"+casename+"_"+iteration+".vtu" ;
+  else filename = "vtk_surf_"+casename+"_"+iteration+".vtu" ;
   fid = fopen(filename.c_str(),"w");
   fprintf(fid,"<?xml version='1.0'?>\n");
-  fprintf(fid,"<VTKFile type='UnstructuredGrid' version='0.1' byte_order='LittleEndian'>\n");
+  if (is_64bit) fprintf(fid,"<VTKFile type='UnstructuredGrid' version='1.0' byte_order='LittleEndian' header_type='UInt64'>\n");
+  else fprintf(fid,"<VTKFile type='UnstructuredGrid' version='0.1' byte_order='LittleEndian'>\n");
   fprintf(fid,"  <UnstructuredGrid>\n");
 }
 
@@ -433,50 +455,50 @@ void vtk_surf_topo_handler::close()
 {
   npnts = node_ids.size();
   ncells = elem_types.size();
-  int Offset = 0;
-  fprintf(fid,"    <Piece NumberOfPoints='%d' NumberOfCells='%d'>\n",npnts,ncells);
+  long long unsigned int Offset = 0;
+  fprintf(fid,"    <Piece NumberOfPoints='%llu' NumberOfCells='%llu'>\n",npnts,ncells);
   fprintf(fid,"      <Points>\n");
-  fprintf(fid,"        <DataArray type='Float32' Name='Position' NumberOfComponents='3' format='appended' offset='%d'/>\n",Offset);
+  fprintf(fid,"        <DataArray type='Float32' Name='Position' NumberOfComponents='3' format='appended' offset='%llu'/>\n",Offset);
   fprintf(fid,"      </Points>\n");
   fprintf(fid,"      <Cells>\n");
-  Offset += 3 * npnts * sizeof(float) + sizeof(int) ;
-  fprintf(fid,"        <DataArray type='Int32' Name='connectivity' NumberOfComponents='1' format='appended' offset='%d'/>\n",Offset);
-  Offset += (int)elem_conn.size() * sizeof (int) + sizeof(int) ;
-  fprintf(fid,"        <DataArray type='Int32' Name='offsets' NumberOfComponents='1' format='appended' offset='%d'/>\n",Offset);
-  Offset += ncells * sizeof (int) + sizeof(int) ;
-  fprintf(fid,"        <DataArray type='UInt8' Name='types' NumberOfComponents='1' format='appended' offset='%d'/>\n",Offset);
-  Offset += ncells * sizeof (unsigned char) + sizeof(int) ;
+  Offset += 3 * npnts * sizeof(float) + int_size ;
+  fprintf(fid,"        <DataArray type='Int32' Name='connectivity' NumberOfComponents='1' format='appended' offset='%llu'/>\n",Offset);
+  Offset += (long long unsigned int)elem_conn.size() * sizeof (int) + int_size ;
+  fprintf(fid,"        <DataArray type='Int32' Name='offsets' NumberOfComponents='1' format='appended' offset='%llu'/>\n",Offset);
+  Offset += ncells * sizeof (int) + int_size ;
+  fprintf(fid,"        <DataArray type='UInt8' Name='types' NumberOfComponents='1' format='appended' offset='%llu'/>\n",Offset);
+  Offset += ncells * sizeof (unsigned char) + int_size ;
   fprintf(fid,"      </Cells>\n");
   fprintf(fid,"      <CellData>\n");
-  for (int i=0;i<(int)data_names.size();i++) { 
+  for (long long unsigned int i=0;i<(long long unsigned int)data_names.size();i++) { 
     int comp=-1;
-    if      (data_size[i] ==     ncells) comp = 1;
-    else if (data_size[i] == 3 * ncells) comp = 3;
+    if      ( (int) data_size[i] ==     (int) ncells) comp = 1;
+    else if ( (int) data_size[i] == 3 * (int) ncells) comp = 3;
     else { cout << "Wrong size" << endl; exit(1); }
-    fprintf(fid,"        <DataArray type='Float32' Name='%s' NumberOfComponents='%d' format='appended' offset='%d'/>\n",data_names[i].c_str(),comp,Offset) ;
-    Offset += comp * ncells * sizeof (float) + sizeof(int); 
+    fprintf(fid,"        <DataArray type='Float32' Name='%s' NumberOfComponents='%d' format='appended' offset='%llu'/>\n",data_names[i].c_str(),comp,Offset) ;
+    Offset += comp * ncells * sizeof (float) + int_size; 
   }
   fprintf(fid,"      </CellData>\n");
   fprintf(fid,"    </Piece>\n");
   fprintf(fid,"  </UnstructuredGrid>\n");
   fprintf(fid,"  <AppendedData encoding='raw'>\n");
   fprintf(fid,"_");
-  int Scalar = (int) node_ids.size() * sizeof (float), Vector = 3 * Scalar;
-  int Cells = (int) elem_types.size() * sizeof(int);
-  int CellChars = (int) elem_types.size() * sizeof(unsigned char);
-  int Conn = (int) elem_conn.size() * sizeof(int);
-  fwrite((const char *) (&Vector), 4, 1, fid) ;
-  fwrite((const char *) (&position[0]), sizeof (float), 3 * (int)node_ids.size(), fid) ;
-  fwrite((const char *) (&Conn), 4, 1, fid) ;
-  fwrite((const char *) (&elem_conn[0]), sizeof (int), (int) elem_conn.size(), fid) ;
-  fwrite((const char *) (&Cells), 4, 1, fid) ;
-  fwrite((const char *) (&elem_offsets[0]), sizeof (int), (int) elem_offsets.size(), fid) ;
-  fwrite((const char *) (&CellChars), 4, 1, fid) ;
-  fwrite((const char *) (&elem_types[0]), sizeof (unsigned char), (int) elem_types.size(), fid) ;
-  int curr_loc = 0;
-  for (int i=0;i<(int)this->data_size.size();i++) {
-    int ndata = this->data_size[i], ndata_size = ndata * sizeof (float);
-    fwrite((const char *) (&ndata_size), 4, 1, fid) ;
+  long long unsigned int Scalar = (long long unsigned int) node_ids.size() * sizeof (float), Vector = 3 * Scalar;
+  long long unsigned int Cells = (long long unsigned int) elem_types.size() * sizeof(int);
+  long long unsigned int CellChars = (long long unsigned int) elem_types.size() * sizeof(unsigned char);
+  long long unsigned int Conn = (long long unsigned int) elem_conn.size() * sizeof(int);
+  fwrite((const char *) (&Vector), int_size, 1, fid) ;
+  fwrite((const char *) (&position[0]), sizeof (float), 3 * (long long unsigned int)node_ids.size(), fid) ;
+  fwrite((const char *) (&Conn), int_size, 1, fid) ;
+  fwrite((const char *) (&elem_conn[0]), sizeof (int), (long long unsigned int) elem_conn.size(), fid) ;
+  fwrite((const char *) (&Cells), int_size, 1, fid) ;
+  fwrite((const char *) (&elem_offsets[0]), sizeof (int), (long long unsigned int) elem_offsets.size(), fid) ;
+  fwrite((const char *) (&CellChars), int_size, 1, fid) ;
+  fwrite((const char *) (&elem_types[0]), sizeof (unsigned char), (long long unsigned int) elem_types.size(), fid) ;
+  long long unsigned int curr_loc = 0;
+  for (long long unsigned int i=0;i<(long long unsigned int)this->data_size.size();i++) {
+    long long unsigned int ndata = this->data_size[i], ndata_size = ndata * sizeof (float);
+    fwrite((const char *) (&ndata_size), int_size, 1, fid) ;
     fwrite((const char *) (&elem_data[curr_loc]), sizeof (float), ndata, fid) ;
     curr_loc += ndata;
   }

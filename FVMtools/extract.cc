@@ -62,8 +62,10 @@ void Usage(int ac, char *av[]) {
        << "-en :  extract for the Ensight post-processing package" << endl
        << "-en_with_id :  extract for the Ensight post-processing package with node id and element id" << endl
        << "-tec:  extract for the TecPlot post-procesing package" << endl
-       << "-vtk:  extract for the Paraview post-procesing package" << endl
+       << "-vtk:   extract for the Paraview post-procesing package" << endl
+       << "-vtk64: extract for the Paraview post-procesing package (for large cases, must use >= Paraview 3.98)" << endl
        << "-vtk_surf:  extract boundary surface mesh for the Paraview post-procesing package" << endl
+       << "-vtk_surf64:  extract boundary surface mesh for the Paraview post-procesing package (for large cases, must use >= Paraview 3.98)" << endl
        << "-ascii: extract to an ascii file" << endl
        << "-surf: extract boundary surface mesh" << endl
        << "-cut:  extract a cutting plane for the 2dgv plotting package" << endl
@@ -1488,7 +1490,7 @@ int main(int ac, char *av[]) {
   Loci::disableDebugDir() ;
   Loci::Init(&ac,&av) ;
 
-  enum {ASCII,TWODGV,ENSIGHT,FIELDVIEW,TECPLOT,VTK,VTK_SURFACE,CUTTINGPLANE, SURFACE, MEAN,NONE} plot_type = NONE ;
+  enum {ASCII,TWODGV,ENSIGHT,FIELDVIEW,TECPLOT,VTK,VTK_SURFACE,VTK64,VTK_SURFACE64,CUTTINGPLANE, SURFACE, MEAN,NONE} plot_type = NONE ;
 
   string casename ;
   bool found_casename = false ;
@@ -1543,10 +1545,15 @@ int main(int ac, char *av[]) {
 	     << "         the Ensight importer.  It is recommended that you use extract -en " << endl
 	     << "         instead of extract -tec." << endl ;
 	cout << "*****************************************************************************"<< endl ;
-      } else if(!strcmp(av[i],"-vtk"))
+      } 
+      else if(!strcmp(av[i],"-vtk"))
         plot_type = VTK ;
       else if(!strcmp(av[i],"-vtk_surf"))
         plot_type = VTK_SURFACE ;
+      else if(!strcmp(av[i],"-vtk64"))
+        plot_type = VTK64 ;
+      else if(!strcmp(av[i],"-vtk_surf64"))
+        plot_type = VTK_SURFACE64 ;
       else if(!strcmp(av[i],"-cut"))
 	plot_type = CUTTINGPLANE ;
       else if(!strcmp(av[i],"-Sx")) {
@@ -1971,10 +1978,16 @@ int main(int ac, char *av[]) {
     topo_out = new tecplot_topo_handler ;
     break ;
   case VTK:
-    topo_out = new vtk_topo_handler ;
+    topo_out = new vtk_topo_handler(false) ;
     break ;
   case VTK_SURFACE:
-    topo_out = new vtk_surf_topo_handler(boundaries) ;
+    topo_out = new vtk_surf_topo_handler(boundaries,false) ;
+    break ;
+  case VTK64:
+    topo_out = new vtk_topo_handler(true) ;
+    break ;
+  case VTK_SURFACE64:
+    topo_out = new vtk_surf_topo_handler(boundaries,true) ;
     break ;
   case CUTTINGPLANE:
     topo_out = new cuttingplane_topo_handler(transformMatrix, -xShift, -yShift, -zShift) ;
