@@ -31,7 +31,6 @@ namespace Loci {
   using std::string ;
   using std::map ;
   using std::vector ;
-  using std::cout ;
   
   typedef pair<string,int> param_rule_key ;
   typedef map<param_rule_key, ruleSet> param_rule_db ;
@@ -48,7 +47,7 @@ namespace Loci {
     return n ;
   }
   
-  // Return set of parametic variables that were accessed by the given ruleSet
+  // Return set of parametric variables that were accessed by the given ruleSet
   variableSet scanRulesForParametrics(ruleSet rs) {
     ruleSet::const_iterator ri ;
     variableSet pvars ;
@@ -130,7 +129,7 @@ namespace Loci {
       }
       vt = *target.begin() ;
     }
-    // Find substution rules
+    // Find substitution rules
     map<string,variable> transform_map ;
     std::vector<int> alt = vt.get_arg_list() ;
     std::vector<int> aln = v.get_arg_list() ;
@@ -141,14 +140,15 @@ namespace Loci {
       Loci::Abort() ;
     }
 #ifdef VERBOSE
-    cout << "transform_map =" ;
+    debugout << "instantiateRule("<<r<< "," << v<< ")" << endl ;
+    debugout << "transform_map =" ;
 #endif
     for(size_t i=0;i<alt.size();++i) {
       variable tv(alt[i]) ;
       variable sv(aln[i]) ;
       transform_map[tv.get_info().name] = sv ;
 #ifdef VERBOSE
-      cout << " ("<< tv.get_info().name << "," << sv << ")" << endl ;
+      debugout << " ("<< tv.get_info().name << "," << sv << ")" << endl ;
 #endif
     }
 
@@ -181,9 +181,9 @@ namespace Loci {
       param_rule_db::const_iterator pri = prule_db.find(rk) ;
       if(pri==prule_db.end()) {
         //        if(MPI_rank == 0)
-        //          cerr << "WARNING: Unable to intantiate parametric rules for variable "
+        //          cerr << "WARNING: Unable to instantiate parametric rules for variable "
         //               << v << endl ;
-        debugout << "Unable to intantiate parametric rules for variable "
+        debugout << "Unable to instantiate parametric rules for variable "
                  << v << endl ;
         continue ;
       }
@@ -196,6 +196,10 @@ namespace Loci {
   }
   
   rule_db parametric_rdb(const rule_db &rdb,variableSet query_vars) {
+#ifdef VERBOSE
+   debugout << "in parametric_rdb call with query_vars = "
+	    << query_vars << endl ;
+#endif
     Loci::rule_db par_rdb ;
     param_rule_db prule_db ; // Parametric rule db ;
 
@@ -210,6 +214,9 @@ namespace Loci {
       if(!rp->is_specialized()) {
         if(rp->is_parametric_provided()) {
           variable pv = rp->get_parametric_variable() ;
+#ifdef VERBOSE
+	  debugout << "parametric variable provided = " << pv << endl ;
+#endif
           int psize = pv.get_arg_list().size() ;
           param_rule_key rk(var2key(pv),psize) ;
           prule_db[rk] += *rsi ;
@@ -238,26 +245,26 @@ namespace Loci {
     }
     
 #ifdef VERBOSE
-    std::cout << "parvars = " << parvars << endl ;
+    debugout << " entering instantiating loop: parvars = " << parvars << endl ;
 #endif
     
-    ruleSet processed ;
+    variableSet processed ;
     int cnt = 0 ;
     while(parvars != EMPTY) {
-#ifdef VERBOSE
-      cout << "prcessing variables " << parvars << endl ;
-#endif
       processed += parvars ;
       ruleSet newrules = instantiateParametrics(prule_db,parvars) ;
 
 #ifdef VERBOSE
-      cout << "generating rules = " << endl << newrules << endl ;
+      debugout << "generating rules = " << endl << newrules << endl ;
 #endif
       parvars = scanRulesForParametrics(newrules) ;
       ruleSet::const_iterator ri ;
       for(ri=newrules.begin();ri!=newrules.end();++ri)
         par_rdb.add_rule(*ri) ;
       parvars -= processed ;
+#ifdef VERBOSE
+      debugout << "next parvars = " << parvars << endl ;
+#endif
       cnt++ ;
       if(cnt == 100) {
         if(MPI_rank == 0) 
@@ -268,6 +275,9 @@ namespace Loci {
       }
     }
     
+#ifdef VERBOSE
+    debugout << "finished parametric_rdb call" << endl ;
+#endif
     return par_rdb ;
   }
 }

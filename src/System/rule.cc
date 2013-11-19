@@ -365,6 +365,14 @@ namespace Loci {
     rule_info.constraints.swap(tmp) ;
     tmp.clear() ;
     rule_info.conditionals = rename_set(rule_info.conditionals,rvm) ;
+    if(use_parametric_variable) {
+      std::map<variable,variable>::const_iterator mi ;
+      mi = rvm.find(ParametricVariable) ;
+
+      if(mi != rvm.end()) {
+	ParametricVariable = mi->second ;
+      } 
+    }
 
 #ifdef VERBOSE
     debugout << " After prot rename vars " << endl ;
@@ -1335,7 +1343,7 @@ namespace Loci {
       newinfo.desc.constraints.swap(tmp) ;
       tmp.clear() ;
       newinfo.desc.conditionals = rename_set(newinfo.desc.conditionals,rvm) ;
-      
+
       newinfo.rule_impl = new NULL_RULE_IMPL ;
       newinfo.rule_ident = newinfo.internal_qualifier + ":"
         + newinfo.desc.rule_identifier() ;

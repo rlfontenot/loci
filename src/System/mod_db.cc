@@ -273,13 +273,23 @@ namespace Loci {
 	  break ;
 	}
       }
+      
       for(rule_impl_list::iterator gi = m.loaded_rule_list.begin(); gi !=m.loaded_rule_list.end(); ++gi) {
 	if(!(gi.get_p())->rr->is_module_rule()) {
 	  rule_implP rp = *gi ;
 	  variableSet vars = rp->get_var_list() ;
+	  if(!rp->is_specialized()) {
+	    if(rp->is_parametric_provided())
+	      vars += rp->get_parametric_variable() ;
+	  }
 	  std::map<variable,variable> new_vars;
 	  for(variableSet::variableSetIterator i=vars.begin();i!=vars.end();++i)
-	    if(input_vars.inSet(*i) || output_vars.inSet(*i) || i->is_time_variable())
+	    if(input_vars.inSet(*i) || 
+	       output_vars.inSet(*i) || 
+	       i->is_time_variable() || 
+	       i->get_info().name == "OUTPUT" ||
+	       i->get_info().name == "UNIVERSE" ||
+	       i->get_info().name == "EMPTY")
 	      new_vars[*i] = *i ;
 	    else {
 	      variable tmp_var = *i ;
