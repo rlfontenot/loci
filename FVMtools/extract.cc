@@ -1902,6 +1902,26 @@ int main(int ac, char *av[]) {
          << endl ;
     setup_grid_topology(casename,iteration) ;
   }
+  bool timesyncerror = false ;
+  if(stat(filename.c_str(),&tmpstat)==0) {
+    struct stat gridstat ;
+    string gridfile = casename + ".vog" ;
+    if(stat(gridfile.c_str(),&gridstat)==0) {
+      if(gridstat.st_mtime > tmpstat.st_mtime)
+        timesyncerror = true ;
+    }
+  }
+
+  if(timesyncerror) {
+    cerr << "WARNING!!!:  grid file newer than topology file in output directory!  "
+         << endl
+         << "             You are not extracting the present state of the mesh!"
+         << endl
+         << "             Rerun chem or vogcheck to regenerate mesh topology file in "
+         << endl
+         << "             output directory."
+         << endl ;
+  }
 
   
   if(plot_type == ASCII) {
@@ -2001,6 +2021,17 @@ int main(int ac, char *av[]) {
     extract_grid(casename,iteration,
                  topo_out,variables,
                  variable_type,variable_file,max_particles, id_required) ;//read volume element  only for ensight output  
+  }
+  
+  if(timesyncerror) {
+    cerr << "WARNING!!!:  grid file newer than topology file in output directory!  "
+         << endl
+         << "             You are not extracting the present state of the mesh!"
+         << endl
+         << "             Rerun chem or vogcheck to regenerate mesh topology file in "
+         << endl
+         << "             output directory."
+         << endl ;
   }
   Loci::Finalize() ;
 }
