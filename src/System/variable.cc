@@ -171,15 +171,16 @@ vector<time_ident> time_ident::children() {
 variable::variable_db *variable::vdb = 0 ;
 
 bool variable::info::operator<(const info &v) const {
+
     if(tvar != v.tvar)
       return tvar < v.tvar ;
-    else if(assign != v.assign)
-      return assign < v.assign ;
     else if(name != v.name)
       return name < v.name ;
     else if(time_id != v.time_id)
       return time_id < v.time_id ;
-    else if(offset != v.offset)
+    else if(time_id != time_ident() && assign != v.assign)
+      return assign < v.assign ;
+    else if(time_id != time_ident() && offset != v.offset)
       return offset < v.offset ;
     else if(priority != v.priority)
       return priority < v.priority ;
