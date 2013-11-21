@@ -310,17 +310,30 @@ namespace Loci {
       }
     }
     if(m.m_init_model != 0) {
+#ifdef VERBOSE
+      debugout << "init model with to_str = " << to_str << endl ;
+#endif
+      int cnt = 0 ;
       if(!to_str.empty()) {
         size_t tmp = 0 ;
         std::string sub_str = to_str ;
         while(tmp != std::string::npos) {
           tmp = sub_str.find("_") ;
+#ifdef VERBOSE
+	  debugout << "adding namespace " << sub_str.substr(0,tmp) << endl ;
+#endif
           facts.set_namespace(sub_str.substr(0,tmp)) ;
           sub_str = sub_str.substr(tmp+1, sub_str.size()) ;
+	  cnt++ ;
         }
       }
       m.m_init_model(facts,rdb,problem_name) ;
-      facts.unset_namespace() ;
+      
+#ifdef VERBOSE
+      debugout << "removing namespace cnt = " << cnt << endl ;
+#endif
+      for(int i=0;i<cnt;++i)
+	facts.remove_namespace() ;
     }
     // finally add the keyspace list to the global one
     global_key_space_list.copy_space_list(m.loaded_keyspace_list) ;
