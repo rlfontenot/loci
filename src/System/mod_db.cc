@@ -173,7 +173,8 @@ namespace Loci {
   } 
   
   mod::mod_db *mod::mdb = 0 ;
-  
+  vector<variableSet> unnamedVarList ;
+
   void load_module(const std::string from_str, const std::string to_str, rule_db& rdb, std::set<std::string> &str_set) {
 #ifdef VERBOSE
     debugout << "Calling load_module with " << from_str
@@ -183,6 +184,10 @@ namespace Loci {
     str_set.insert(from_str) ;
     mod md(from_str) ;
     mod::mod_info m = md.get_info(from_str) ;
+    variableSet nonamespace_vars  ;
+    if(!unnamedVarList.empty())
+      nonamespace_vars = unnamedVarList.back() ;
+
     for(rule_impl_list::iterator gi = m.loaded_rule_list.begin(); gi !=m.loaded_rule_list.end(); ++gi) {
 #ifdef VERBOSE
       debugout << "iterating over *gi = " << *gi << endl ;
@@ -200,10 +205,18 @@ namespace Loci {
 	  variableSet vars = rp->get_var_list() ;
 	  std::map<variable,variable> new_vars;
 	  for(variableSet::variableSetIterator i=vars.begin();i!=vars.end();++i) {
-	    variable tmp_var = *i ;
-	    for(int j = using_ns_vec.size()-1; j >= 0 ; --j)
-	      tmp_var =  tmp_var.add_namespace(using_ns_vec[j]); 
-	    new_vars[*i] = tmp_var ;
+	    if(nonamespace_vars.inSet(*i) || 
+	       i->is_time_variable() || 
+	       i->get_info().name == "OUTPUT" ||
+	       i->get_info().name == "UNIVERSE" ||
+	       i->get_info().name == "EMPTY")
+	      new_vars[*i] = *i ;
+	    else {
+	      variable tmp_var = *i ;
+	      for(int j = using_ns_vec.size()-1; j >= 0 ; --j)
+		tmp_var =  tmp_var.add_namespace(using_ns_vec[j]); 
+	      new_vars[*i] = tmp_var ;
+	    }
 	  }
 	  rp->rename_vars(new_vars) ;
 	  rdb.add_rule(Loci::rule(rp)) ; 
@@ -245,6 +258,10 @@ namespace Loci {
     variableSet input_vars, output_vars ;
     std::vector<std::string> using_ns_vec ;
     
+    variableSet nonamespace_vars  ;
+    if(!unnamedVarList.empty())
+      nonamespace_vars = unnamedVarList.back() ;
+
     if(!to_str.empty()) {
       size_t tmp = 0 ;
       std::string sub_str = to_str ;
@@ -273,7 +290,8 @@ namespace Loci {
 	  break ;
 	}
       }
-      
+      nonamespace_vars += input_vars + output_vars ;
+
       for(rule_impl_list::iterator gi = m.loaded_rule_list.begin(); gi !=m.loaded_rule_list.end(); ++gi) {
 	if(!(gi.get_p())->rr->is_module_rule()) {
 	  rule_implP rp = *gi ;
@@ -284,8 +302,7 @@ namespace Loci {
 	  }
 	  std::map<variable,variable> new_vars;
 	  for(variableSet::variableSetIterator i=vars.begin();i!=vars.end();++i)
-	    if(input_vars.inSet(*i) || 
-	       output_vars.inSet(*i) || 
+	    if(nonamespace_vars.inSet(*i) || 
 	       i->is_time_variable() || 
 	       i->get_info().name == "OUTPUT" ||
 	       i->get_info().name == "UNIVERSE" ||
@@ -313,6 +330,7 @@ namespace Loci {
 #ifdef VERBOSE
       debugout << "init model with to_str = " << to_str << endl ;
 #endif
+      unnamedVarList.push_back(nonamespace_vars) ;
       int cnt = 0 ;
       if(!to_str.empty()) {
         size_t tmp = 0 ;
@@ -334,6 +352,7 @@ namespace Loci {
 #endif
       for(int i=0;i<cnt;++i)
 	facts.remove_namespace() ;
+      unnamedVarList.pop_back() ;
     }
     // finally add the keyspace list to the global one
     global_key_space_list.copy_space_list(m.loaded_keyspace_list) ;
