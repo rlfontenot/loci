@@ -1601,7 +1601,7 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
   }
     
               
-
+  bool singletonApply = false ;
   if(rule_type == "apply") {
     if(output.size() != 1) 
       throw parseError("apply rule should have only one output variable") ;
@@ -1615,6 +1615,18 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
       outputFile << "<Mat" << tinfo.second <<" > " ;
     } else {
       outputFile << tinfo.second ;
+    }
+    if(tinfo.first == "param") {
+      variableSet::const_iterator vi ;
+      bool allparam = true ;
+      for(vi=input.begin();vi!=input.end();++vi) {
+        pair<string,string> tinfo2 = local_type_map[*vi] ;
+        if(tinfo2.first != "param") {
+          allparam = false ;
+        }
+      }
+      if(allparam)
+        singletonApply = true ;
     }
     outputFile << "> " ;
   }
@@ -1803,8 +1815,14 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
       syncFile(outputFile) ;
     }
     if(use_compute) {
-      outputFile <<   "      do_loop(seq,this) ;" << endl ;
-      syncFile(outputFile) ;
+      if(singletonApply) {
+        cerr << "NOTE: parameter only apply rule on '" << output << "' now executes single instance." << endl ;
+        outputFile <<   "      if(Loci::MPI_rank == 0) calculate(0) ;" << endl ;
+        syncFile(outputFile) ;
+      } else {
+        outputFile <<   "      do_loop(seq,this) ;" << endl ;
+        syncFile(outputFile) ;
+      }
     }
     outputFile <<   "    }" << endl ;
     syncFile(outputFile) ;
