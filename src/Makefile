@@ -33,7 +33,7 @@ default: library lpp FVMtools FVMMod FVMAdapt
 library: shared
 
 static: Tools System
-shared: Tools/libTools.so System/libLoci.so METIS SPRNG
+shared: Tools/libTools.so System/libLoci.so METIS SPRNG 
 
 docs:
 	cd Tutorial/docs; $(MAKE) LOCI_BASE="$(LOCI_BASE)"
@@ -63,7 +63,7 @@ System/libLoci.so: FRC
 lpp: library
 	cd lpp; $(MAKE) LOCI_BASE="$(LOCI_BASE)" lpp
 
-FVMtools: library FVMAdapt lpp
+FVMtools: library lpp FVMAdapt
 	cd FVMtools; $(MAKE) LOCI_BASE="$(LOCI_BASE)" default
 FRC :
 
