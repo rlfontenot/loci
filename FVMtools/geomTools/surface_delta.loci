@@ -148,7 +148,7 @@ $rule pointwise(surfaceDeltas<-pos,geomfile_par ),constraint(boundary_nodes),
     P[2] = vect3d(coord[0], coord[1], coord[2]);
 
     double el[3]; //edge length
-    el[0] =norm(P[0] - P[1]);
+    el[0] = norm(P[0] - P[1]);
     el[1] = norm(P[1] - P[2]);
     el[2] = norm(P[2] - P[0]);
 
@@ -161,7 +161,8 @@ $rule pointwise(surfaceDeltas<-pos,geomfile_par ),constraint(boundary_nodes),
       }
     }
 
-    maxEl *= 1.05; // allow computational error
+//    maxEl *= 1.05; // allow computational error
+      maxEl *= 2.0 ;   
     //    maxEl *= 1.5; // allow computational error
     //    maxEl += 1000 ;
     //    maxEl += 2 ;
@@ -264,13 +265,40 @@ $rule pointwise(surfaceDeltas<-pos,geomfile_par ),constraint(boundary_nodes),
         face_min = node2tri[Entity(id)][i] - sz;
       }
     }
-    //    cout << "dist_min = " << sqrt(dist_min) << "rmin = " << sqrt(rmin) << endl << endl ;
+#ifdef DIAG
+    if(dist_min > 1e-6) {
+        cout << "dist_min = " << sqrt(dist_min) << "rmin = " << sqrt(rmin) << endl << endl ;
+
+	int nelem = node2tri.num_elems(Entity(id)) ;
+	cout << "nelem =" << nelem << endl ;
+	for(int i=0;i<nelem;++i) {
+	  vect3d T0, T1, T2 ; 
+	  int index =(node2tri[Entity(id)][i]-sz)*30;
+	  T0.x = coeff[index++];
+	  T0.y = coeff[index++];
+	  T0.z = coeff[index++];
+	  
+	  T1.x = coeff[index++];
+	  T1.y = coeff[index++];
+	  T1.z = coeff[index++];
+	  
+	  T2.x = coeff[index++];
+	  T2.y = coeff[index++];
+	  T2.z = coeff[index++];
+	  double u,v,w ;
+	  get_uvw(T0,T1,T2,P,u,v,w) ;
+	  cout << T0 <<":"<<T1 << ":"<< T2 << endl ;
+	  cout << P << endl ;
+	  cout << u <<','<<v<<','<<w << endl ;
+	}
+    }
+#endif
 
     if(face_min == -1) {
       cerr << "matching face not found in geometry look-up" << endl ;
       Loci::Abort() ;
     }
-
+    
     
     //compute new pos
     int index = face_min*30 ;
