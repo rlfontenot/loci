@@ -1100,7 +1100,9 @@ namespace Loci {
     stopWatch s ;
     s.start() ;
     current_rule_id = rule_tag.ident() ;
-    //    Loci::debugout << "executing " << rule_tag << endl ;
+#ifdef VERBOSE
+    Loci::debugout << "executing " << rule_tag << endl ;
+#endif
     rp->compute(exec_seq);
     current_rule_id = 0 ;
     timer.addTime(s.stop(),exec_size) ;
