@@ -2382,8 +2382,15 @@ namespace Loci {
       entitySet alloc_dom = v_requests[*vi] + srp->domain() ;
 
       if(srp->domain() == EMPTY) {
+#ifdef VERBOSE
+	debugout << "allocate " << *vi << ", alloc_dom =" << alloc_dom << endl ;
+#endif
 	srp->allocate(alloc_dom) ;
       }else {
+#ifdef VERBOSE
+	debugout << "reallocate " << *vi << ", alloc_dom =" 
+		 << alloc_dom << endl ;
+#endif
         if(profile_memory_usage || collect_memory_info) {
           // this variable is reallocated, we take
           // the space off from the counter, since
@@ -2450,6 +2457,9 @@ namespace Loci {
                      const map<variable,variable> &va)
       :free_vars(vars),v2alias(va) {
       max_memory=0;
+#ifdef VERBOSE
+      debugout << "free vars: " << free_vars << endl ;
+#endif
       for(variableSet::const_iterator vi=free_vars.begin();
           vi!=free_vars.end();++vi) {
         v_max_sizes[*vi] = 0 ;
@@ -2480,8 +2490,12 @@ namespace Loci {
     for(variableSet::const_iterator vi=free_vars.begin();
         vi!=free_vars.end();++vi) {
       storeRepP srp = facts.get_variable(*vi) ;
-      if(srp != 0)
+      if(srp != 0) {
 	srp->allocate(EMPTY) ;
+#ifdef VERBOSE
+	debugout << "deallocating " << *vi << endl ;
+#endif
+      }
     }
     timer.addTime(s.stop(),1) ;
   }
