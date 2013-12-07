@@ -18,6 +18,7 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
+//#define VERBOSE
 #include "comp_tools.h"
 #include <vector>
 #include <sstream>
@@ -74,8 +75,8 @@ namespace Loci {
       collapse->execute(facts, scheds) ;
 
 #ifdef VERBOSE
-      cerr << cvar << " = " << *test << endl ;
-      cerr << tvar << " = " << *time_var << endl ;
+      debugout << cvar << " = " << *test << endl ;
+      debugout << tvar << " = " << *time_var << endl ;
 #endif
 
       if(*test) {// If collapse condition satisfied, were finished
@@ -89,12 +90,12 @@ namespace Loci {
       list<list<variable> >::const_iterator rli ;
       for(rli = rotate_lists.begin();rli!=rotate_lists.end();++rli) {
 #ifdef VERBOSE
-        cerr << "rotating [ " ;
+        debugout << "rotating [ " ;
         for(list<variable>::const_iterator rlii=rli->begin();rlii!=rli->end();
             ++rlii) {
-          cerr << *rlii << ' ' ;
+          debugout << *rlii << ' ' ;
         }
-        cerr << "]" << endl ;
+        debugout << "]" << endl ;
 #endif
         // before rotation, we need to adjust the
         // history variables (if necessary)
@@ -207,10 +208,15 @@ namespace Loci {
     for(ruleSet::const_iterator ri=outrules.begin();ri!=outrules.end();++ri) 
       outcond += ri->get_info().desc.conditionals ;
 
+#ifdef VERBOSE
+    debugout << "loop: collapse vars = " << collapse_vars << endl ;
+    debugout << "loop: input_vars = " << input_vars << endl ;
+    debugout << "loop: outcond = " << outcond << endl ;
+#endif
     digraph::vertexSet collapse_search = collapse_vars ;
 
     collapse_search += input_vars ;
-    collapse_search += outcond ;
+    //    collapse_search += outcond ;
     
     digraph::vertexSet collapse_part = visit_vertices(loop_grt,collapse_search) ;
     collapse_part += collapse_search ;
@@ -233,7 +239,9 @@ namespace Loci {
           collapse_search += ri->ident() ;
       } else {
           // Later make this verbose
-          //          cerr << *ri << "put in advance because of " << extract_vars(ri->sources()-collapse_part) << endl ;
+#ifdef VERBOSE
+	debugout << *ri << "put in advance because of " << extract_vars(ri->sources()-collapse_part) << endl ;
+#endif
           digraph::vertexSet tmp_search  ;
           tmp_search += ri->ident() ;
           output_set += visit_vertices(loop_grt,tmp_search)+tmp_search ;
