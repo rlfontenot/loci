@@ -102,7 +102,7 @@ predicates.o:
 refmesh: refmesh.o
 	$(LD) -o  refmesh  refmesh.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS) -lfvmadaptfunc
 marker: marker.o
-	$(LD) -o  marker  refmesh.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS) -lfvmadaptfunc
+	$(LD) -o  marker  marker.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS) -lfvmadaptfunc
 refine: refine.o
 	$(LD) -o  refine  refine.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS) -lfvmadaptfunc
 
