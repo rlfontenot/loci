@@ -208,7 +208,8 @@ namespace Loci {
     }
     $vol = sum/3.0 ;
     if(sum <= 0.0) {
-      cerr << Loci::MPI_rank << "  Zero or negative volume in grid cell " << _e_ << endl ;
+      cerr << "MPI_rank = " << Loci::MPI_rank << ":  Zero or negative volume in grid cell id :" << _e_ << endl ;
+      cerr << "For more information see debug file." << endl ;
       for(const Entity* nf=$upper.begin();nf!=$upper.end();++nf) {
 	Loci::debugout << "upper facecenter [" << *nf << " ] =  "
                        << nf->$facecenter << endl ;
