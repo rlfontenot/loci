@@ -456,7 +456,7 @@ namespace VOG {
       if(MPI_rank == 0) {
         cerr << "Bad Grid: Non-Convex Cell (centroid outside cell bounds)" << endl ;
       }
-      Loci::Abort() ;
+      //      Loci::Abort() ;
     }
   }
 
