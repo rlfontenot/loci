@@ -70,6 +70,8 @@ void Usage(int ac, char *av[]) {
        << "-surf: extract boundary surface mesh" << endl
        << "-cut:  extract a cutting plane for the 2dgv plotting package" << endl
        << "-mean: generate mean and variance from a family of ouput variables" << endl 
+       << "-combine: combine mean and variance from online averaging ouput" << endl 
+       << "-fcombine: combine favre mean and variance from online averaging ouput" << endl 
        << endl ;
   cout << "Variables are defined by the solver, but typically include: " << endl
        << "r     - nodal density" << endl 
@@ -1490,7 +1492,7 @@ int main(int ac, char *av[]) {
   Loci::disableDebugDir() ;
   Loci::Init(&ac,&av) ;
 
-  enum {ASCII,TWODGV,ENSIGHT,FIELDVIEW,TECPLOT,VTK,VTK_SURFACE,VTK64,VTK_SURFACE64,CUTTINGPLANE, SURFACE, MEAN,NONE} plot_type = NONE ;
+  enum {ASCII,TWODGV,ENSIGHT,FIELDVIEW,TECPLOT,VTK,VTK_SURFACE,VTK64,VTK_SURFACE64,CUTTINGPLANE, SURFACE, MEAN, COMBINE, FCOMBINE, NONE} plot_type = NONE ;
 
   string casename ;
   bool found_casename = false ;
@@ -1527,6 +1529,10 @@ int main(int ac, char *av[]) {
         plot_type = SURFACE ;
       else if(!strcmp(av[i],"-mean"))
         plot_type = MEAN ;
+      else if(!strcmp(av[i],"-combine"))
+        plot_type = COMBINE ;
+      else if(!strcmp(av[i],"-fcombine"))
+        plot_type = FCOMBINE ;
       else if(!strcmp(av[i],"-2d"))
         plot_type = TWODGV ;
       else if(!strcmp(av[i],"-en"))
@@ -1950,6 +1956,34 @@ int main(int ac, char *av[]) {
 	
     process_mean(casename,iteration,variables,variable_type,
                  variable_file,end_iter,inc_iter) ;
+    Loci::Finalize() ;
+    exit(0) ;
+  }
+  if(plot_type == COMBINE) {
+    if(end_iter<0 ||inc_iter< 0) {
+      cerr << "ERROR: Must use option -end to specify ending iteration for average" << endl
+	   << "       and option -inc to specify iteration increment value for iterations" << endl
+	   << "       to specify which files to average!" << endl ;
+      Loci::Finalize() ;
+      exit(-1) ;
+    }
+	
+    combine_mean(casename,iteration,variables,variable_type,
+                 variable_file,end_iter,inc_iter,false) ;
+    Loci::Finalize() ;
+    exit(0) ;
+  }
+  if(plot_type == FCOMBINE) {
+    if(end_iter<0 ||inc_iter< 0) {
+      cerr << "ERROR: Must use option -end to specify ending iteration for average" << endl
+	   << "       and option -inc to specify iteration increment value for iterations" << endl
+	   << "       to specify which files to average!" << endl ;
+      Loci::Finalize() ;
+      exit(-1) ;
+    }
+	
+    combine_mean(casename,iteration,variables,variable_type,
+                 variable_file,end_iter,inc_iter,true) ;
     Loci::Finalize() ;
     exit(0) ;
   }

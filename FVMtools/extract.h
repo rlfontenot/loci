@@ -676,6 +676,13 @@ void process_mean(string casename, string iteration,
                   vector<string> variable_filenames,
                   int end_iter, int inc_iter) ;
 
+void combine_mean(string casename, string iteration,
+                  vector<string> variables,
+                  vector<int> variable_types,
+                  vector<string> variable_filenames,
+                  int end_iter, int inc_iter,
+		  bool do_favre) ;
+
 int  sizeElementType(hid_t group_id, const char *element_name) ;
 
 template<class T> void readElementType(hid_t group_id, const char *element_name,

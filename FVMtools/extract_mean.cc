@@ -677,3 +677,312 @@ void process_mean(string casename, string iteration,
     }
   }
 }
+
+void combine_mean(string casename, string iteration,
+                  vector<string> variables,
+                  vector<int> variable_types,
+                  vector<string> variable_filenames,
+                  int end_iter, int inc_iter,
+		  bool do_favre) {
+
+  string postfix ="" ;
+  string iter_part = "" ;
+  size_t i = 0;
+  while(iteration[i] >= '0' && iteration[i] <= '9' && i<iteration.size()) {
+    iter_part += iteration[i] ;
+    i++ ;
+  }
+  while(i<iteration.size()) {
+    postfix += iteration[i] ;
+    i++ ;
+  }
+  int start_iter = atoi(iter_part.c_str()) ;
+  
+  for(size_t i=0;i<variables.size();++i) {
+    int ssz = variables[i].size()  ;
+    string var_name ;
+    for(int j=0;j<ssz-4;++j)
+      var_name += variables[i][j] ;
+    
+    string rem ;
+    for(int j=max(ssz-4,0);j<ssz;++j)
+      rem += variables[i][j] ;
+    if(rem != "mean") {
+      cerr << "error variable " << variables[i] << " should end with 'mean' for combine to work properly!  Ignoring this variable!" << endl ;
+      continue ;
+    }
+    
+    cout << "processing variable: " << var_name << endl ;
+    string var = var_name ;
+    string filename = variable_filenames[i] ;
+    switch(variable_types[i]) {
+    case NODAL_SCALAR:
+      {
+	store<double> rbar ;
+        store<double> rxmean ;
+	store<double> rxvar ;
+        double n = 0;
+        for(int it = start_iter;it<=end_iter;it+=inc_iter) {
+          char buf[128] ;
+	  bzero(buf,128) ;
+          snprintf(buf,127,"%d",it) ;
+          cout << "iteration: " << buf << postfix << '\r' ;
+	  cout.flush() ;
+          n = n + 1.0 ;
+          fact_db facts ;
+	  store<float> scalar_mean ;
+	  { 
+	    string vname = var+"mean" ;
+	    string filename = output_dir+'/'  + vname+ "_sca." +
+	      string(buf) + postfix + "_" + casename ;
+	    hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
+						H5F_ACC_RDONLY,
+						H5P_DEFAULT) ;
+	    Loci::readContainer(file_id,vname,scalar_mean.Rep(),EMPTY,facts) ;
+	    Loci::hdf5CloseFile(file_id) ;
+	  }
+	  entitySet dom = scalar_mean.domain() ;
+
+	  store<float> scalar_var ;
+	  { 
+	    string vname = var+"var" ;
+	    string filename = output_dir+'/'  + vname+ "_sca." +
+	      string(buf) + postfix + "_" + casename ;
+	    hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
+						H5F_ACC_RDONLY,
+						H5P_DEFAULT) ;
+	    Loci::readContainer(file_id,vname,scalar_var.Rep(),EMPTY,facts) ;
+	    Loci::hdf5CloseFile(file_id) ;
+	  }
+
+	  store<float> rentry ;
+	  if(do_favre) { 
+	    string vname = "rmean" ;
+	    string filename = output_dir+'/'  + vname+ "_sca." +
+	      string(buf) + postfix + "_" + casename ;
+	    hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
+						H5F_ACC_RDONLY,
+						H5P_DEFAULT) ;
+	    Loci::readContainer(file_id,vname,rentry.Rep(),EMPTY,facts) ;
+	    Loci::hdf5CloseFile(file_id) ;
+	  } else {
+	    rentry.allocate(dom) ;
+	    FORALL(dom,ii) {
+	      rentry[ii] = 1.0 ;
+	    } ENDFORALL ;
+	  }
+
+          if(it == start_iter) {
+	    rbar.allocate(dom) ;
+	    rxmean.allocate(dom) ;
+	    rxvar.allocate(dom) ;
+            FORALL(dom,ii) {
+              rbar[ii] = 0. ;
+              rxmean[ii] = 0. ;
+	      rxvar[ii] = 0. ;
+            } ENDFORALL ;
+          }
+
+          FORALL(dom,nd) {
+            double rdelta = rentry[nd] - rbar[nd] ;
+	    double rbar_old = rbar[nd] ;
+	    rbar[nd] += rdelta/n ;
+	    double rxmean_old = rxmean[nd] ;
+	    double rxdelta = rentry[nd]*scalar_mean[nd] - rxmean[nd] ;
+	    rxmean[nd] += rxdelta/n ;
+	    if(it!=start_iter) {
+	      double xtilde_new = rxmean[nd]/rbar[nd] ;
+	      // Correct variances for change in mean
+	      double eps1 = (xtilde_new-rxmean_old/rbar_old) ;
+	      double rxvarcor = rxvar[nd] + rbar_old*eps1*eps1 ;
+	      double eps2 = (xtilde_new-scalar_mean[nd]) ;
+	      double rvarcor = scalar_var[nd]*rentry[nd] + rentry[nd]*eps2*eps2 ;
+	      // Update corrected variances using recursive delta form
+	      rxvar[nd] = rxvarcor + (rvarcor-rxvarcor)/n ;
+	    } else {
+	      rxvar[nd] = rentry[nd]*scalar_var[nd] ;
+	    }
+          } ENDFORALL ;
+        }
+        store<float> m ;
+        store<float> v ;
+        entitySet dom = rxmean.domain() ;
+        m.allocate(dom) ;
+        v.allocate(dom) ;
+        FORALL(dom,ii) {
+	  cout << "rbar=" << rbar[ii] << endl ;
+          m[ii] = rxmean[ii]/rbar[ii] ;
+          v[ii] = rxvar[ii]/rbar[ii] ;
+        } ENDFORALL ;
+        string filename = output_dir+'/' + var + "CMean_sca."
+          + iteration + "_" + casename ;
+        hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
+                                       H5P_DEFAULT, H5P_DEFAULT) ;
+        string sname = var+"CMean" ;
+	cout << "Writing Variables: " << sname ;
+        fact_db facts ;
+        Loci::writeContainer(file_id,sname,m.Rep(),facts) ;
+
+        Loci::hdf5CloseFile(file_id) ;
+
+        filename = output_dir+'/' + var + "CVar_sca."
+          + iteration + "_" + casename ;
+        file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
+                                       H5P_DEFAULT, H5P_DEFAULT) ;
+        sname = var+"CVar" ;
+	cout << ", " << sname ;
+        Loci::writeContainer(file_id,sname,v.Rep(),facts) ;
+        Loci::hdf5CloseFile(file_id) ;
+	cout << endl ;
+      }
+      break;
+    case NODAL_DERIVED:
+      cerr << "variable " << variables[i] << " not supported NODAL_DERIVED variable for combine" << endl ;
+      break ;
+    case NODAL_VECTOR:
+      {
+	store<double> rbar ;
+        store<vector3d<double> > rxmean ;
+	store<vector3d<double> > rxvar ;
+        double n = 0;
+        for(int it = start_iter;it<=end_iter;it+=inc_iter) {
+          char buf[128] ;
+	  bzero(buf,128) ;
+          snprintf(buf,127,"%d",it) ;
+          cout << "iteration: " << buf << postfix << '\r' ;
+	  cout.flush() ;
+          n = n + 1.0 ;
+          fact_db facts ;
+	  store<vector3d<float> > vect_mean ;
+	  { 
+	    string vname = var+"mean" ;
+	    string filename = output_dir+'/'  + vname+ "_vec." +
+	      string(buf) + postfix + "_" + casename ;
+	    hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
+						H5F_ACC_RDONLY,
+						H5P_DEFAULT) ;
+	    Loci::readContainer(file_id,vname,vect_mean.Rep(),EMPTY,facts) ;
+	    Loci::hdf5CloseFile(file_id) ;
+	  }
+	  entitySet dom = vect_mean.domain() ;
+
+	  store<vector3d<float> > vect_var ;
+	  { 
+	    string vname = var+"var" ;
+	    string filename = output_dir+'/'  + vname+ "_vec." +
+	      string(buf) + postfix + "_" + casename ;
+	    hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
+						H5F_ACC_RDONLY,
+						H5P_DEFAULT) ;
+	    Loci::readContainer(file_id,vname,vect_var.Rep(),EMPTY,facts) ;
+	    Loci::hdf5CloseFile(file_id) ;
+	  }
+
+	  store<float> rentry ;
+	  if(do_favre) { 
+	    string vname = "rmean" ;
+	    string filename = output_dir+'/'  + vname+ "_sca." +
+	      string(buf) + postfix + "_" + casename ;
+	    hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
+						H5F_ACC_RDONLY,
+						H5P_DEFAULT) ;
+	    Loci::readContainer(file_id,vname,rentry.Rep(),EMPTY,facts) ;
+	    Loci::hdf5CloseFile(file_id) ;
+	  } else {
+	    rentry.allocate(dom) ;
+	    FORALL(dom,ii) {
+	      rentry[ii] = 1.0 ;
+	    } ENDFORALL ;
+	  }
+
+          if(it == start_iter) {
+	    rbar.allocate(dom) ;
+	    rxmean.allocate(dom) ;
+	    rxvar.allocate(dom) ;
+            FORALL(dom,ii) {
+              rbar[ii] = 0. ;
+              rxmean[ii] = vector3d<double>(0.,0.,0.) ;
+	      rxvar[ii] = vector3d<double>(0.,0.,0.) ;
+            } ENDFORALL ;
+          }
+
+          FORALL(dom,nd) {
+            double rdelta = rentry[nd] - rbar[nd] ;
+	    double rbar_old = rbar[nd] ;
+	    rbar[nd] += rdelta/n ;
+	    vector3d<double> rxmean_old = rxmean[nd] ;
+	    vector3d<double> rxdelta = double(rentry[nd])*vector3d<double>(vect_mean[nd]) - rxmean[nd] ;
+	    rxmean[nd] += rxdelta/n ;
+	    if(it!=start_iter) {
+	      vector3d<double> xtilde_new = rxmean[nd]/rbar[nd] ;
+	      // Correct variances for change in mean
+	      vector3d<double> eps1 = (xtilde_new-rxmean_old/rbar_old) ;
+	      vector3d<double> eps1sq = vector3d<double>(eps1.x*eps1.x,
+							 eps1.y*eps1.y,
+							 eps1.z*eps1.z) ;
+	      vector3d<double> rxvarcor = rxvar[nd] + rbar_old*eps1sq ;
+	      vector3d<double> eps2 = (xtilde_new-vector3d<double>(vect_mean[nd])) ;
+	      vector3d<double> eps2sq = vector3d<double>(eps2.x*eps2.x,
+							 eps2.y*eps2.y,
+							 eps2.z*eps2.z) ;
+	      vector3d<double> rvarcor = vector3d<double>(vect_var[nd]*rentry[nd]) + rentry[nd]*eps2sq ;
+	    // Update corrected variances using recursive delta form
+	      rxvar[nd] = rxvarcor + (rvarcor-rxvarcor)/n ;
+	    } else {
+	      rxvar[nd] = rentry[nd]*vect_var[nd] ;
+	    }
+	  } ENDFORALL ;
+        }
+        store<vector3d<float> > m ;
+        store<vector3d<float> > v ;
+        entitySet dom = rxmean.domain() ;
+        m.allocate(dom) ;
+        v.allocate(dom) ;
+        FORALL(dom,ii) {
+          m[ii] = rxmean[ii]/rbar[ii] ;
+          v[ii] = rxvar[ii]/rbar[ii] ;
+        } ENDFORALL ;
+        string filename = output_dir+'/' + var + "CMean_vec."
+          + iteration + "_" + casename ;
+        hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
+                                       H5P_DEFAULT, H5P_DEFAULT) ;
+        string sname = var+"CMean" ;
+	cout << "Writing Variables: " << sname ;
+        fact_db facts ;
+        Loci::writeContainer(file_id,sname,m.Rep(),facts) ;
+
+        Loci::hdf5CloseFile(file_id) ;
+
+        filename = output_dir+'/' + var + "CVar_vec."
+          + iteration + "_" + casename ;
+        file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
+                                       H5P_DEFAULT, H5P_DEFAULT) ;
+        sname = var+"CVar" ;
+	cout << ", " << sname ;
+        Loci::writeContainer(file_id,sname,v.Rep(),facts) ;
+        Loci::hdf5CloseFile(file_id) ;
+	cout << endl ;
+      }
+      break;
+    case NODAL_MASSFRACTION:
+      cerr << "variable " << variables[i] << "not supporting nodal mass fraction for combine" << endl ;
+      break ;
+    case BOUNDARY_SCALAR:
+      cerr << "variable " << variables[i] << " not supprting boundary scalar for combine!" << endl ;
+      break;
+    case BOUNDARY_VECTOR:
+      cerr << "varaible " << variables[i] << " not supporting bouddary vector for combine!" << endl ;
+      break ;
+    case BOUNDARY_DERIVED_SCALAR:
+    case BOUNDARY_DERIVED_VECTOR:
+      cerr << "variable " << variables[i] << " ignored for Mean operation."
+           << endl ;
+      break ;
+    default:
+      cerr << "unable to process variable " << var_name << "!"<< endl ;
+      cerr << "this variable is ignored!" << endl ;
+      break ;
+    }
+  }
+}
+
