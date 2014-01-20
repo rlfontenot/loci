@@ -585,10 +585,8 @@ namespace Loci {
       int lt=tag_base, gt=0 ;
       MPI_Allreduce(&lt, &gt, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD) ;
       tag_base = gt ;
-      if(tag_base > 32767) {
-        if(MPI_rank == 0)
-          std::cerr << "WARNING: execute_comm2 MPI tags may become exhausted!"
-                    << std::endl ;
+      if(tag_base > 32760) {
+        tag_base = 1500 ; // recycle tags
       }
     }
   } ;
