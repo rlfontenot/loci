@@ -79,7 +79,7 @@ if [ ${target:0:1} != "/" ]; then
    echo setting target to \'$target\'
 fi
 
-TARGET_DIRS="System Tools FVMAdapt include include/Tools include/Config include/MPI_stubb include/FVMAdapt"
+TARGET_DIRS="System Tools FVMAdapt include include/Tools include/g++-fixes  include/hdf5CC include/Config include/MPI_stubb include/FVMAdapt"
 TOOLS_DIRS="lpp FVMtools FVMtools/libadf FVMMod ParMetis-4.0 ParMetis-4.0/GKLib ParMetis-4.0/METISLib ParMetis-4.0/ParMETISLib sprng sprng/include sprng/include/sprng"
 
 echo -n "Making Directory Structure: "
