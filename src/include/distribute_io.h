@@ -270,9 +270,107 @@ namespace Loci {
                                 localCells, *Loci::exec_current_fact_db) ;
   }
   
+  
+  void parallelWriteBoundaryTopology(const char *filename,
+                                     const std::vector<std::string>& bnamelist,
+                                     storeRepP face2nodeRep,
+                                     storeRepP refRep,
+                                     storeRepP bnamesRep,
+                                     storeRepP posRep,
+                                     entitySet fset,
+                                     fact_db &facts,
+                                     bool withIds) ;
+
+  inline
+  void parallelWriteBoundaryTopology(const char *filename,
+                                     const std::vector<std::string>& bnamelist,
+                                     storeRepP face2nodeRep,
+                                     storeRepP refRep,
+                                     storeRepP bnamesRep,
+                                     storeRepP posRep,
+                                     entitySet fset,
+                                     bool withIds) {
+    if(Loci::exec_current_fact_db == 0) {
+      std::cerr << "Loci::parallelWriteBoundaryTopology()" ;
+      std::cerr << "this routine needs a fact database argument when called outside of a rule!" << endl ;
+      Loci::Abort() ;
+    } else
+      parallelWriteBoundaryTopology(filename, bnamelist,
+                                    face2nodeRep, refRep, bnamesRep, posRep,
+                                    fset, *Loci::exec_current_fact_db, withIds) ;
+  }
+
+  
+  void parallelWriteBoundaryPosition(const char *filename,
+                                     const std::vector<std::string>& bnamelist,
+                                     storeRepP face2nodeRep,
+                                     storeRepP refRep,
+                                     storeRepP bnamesRep,
+                                     storeRepP posRep,
+                                     entitySet fset,
+                                     fact_db &facts
+                                     ) ;
+
+  inline
+  void parallelWriteBoundaryPosition(const char *filename,
+                                     const std::vector<std::string>& bnamelist,
+                                     storeRepP face2nodeRep,
+                                     storeRepP refRep,
+                                     storeRepP bnamesRep,
+                                     storeRepP posRep,
+                                     entitySet fset
+                                     ) {
+    if(Loci::exec_current_fact_db == 0) {
+      std::cerr << "Loci::parallelWriteBoundaryPosition()" ;
+      std::cerr << "this routine needs a fact database argument when called outside of a rule!" << endl ;
+      Loci::Abort() ;
+    } else
+      parallelWriteBoundaryPosition(filename, bnamelist,
+                                    face2nodeRep, refRep, bnamesRep, posRep,
+                                    fset, *Loci::exec_current_fact_db) ;
+  }
 
 
 
+
+  void parallelWriteCutPlane(const char *filename,
+                             storeRepP upperRep,
+                             storeRepP lowerRep,
+                             storeRepP boundary_mapRep,
+                             storeRepP face2nodeRep,
+                             storeRepP face2edgeRep,
+                             storeRepP edge2nodeRep,
+                             storeRepP posRep,
+                             entitySet localCells,
+                             fact_db &facts);
+  
+
+  inline  void parallelWriteCutPlane(const char *filename,
+                                     storeRepP upperRep,
+                                     storeRepP lowerRep,
+                                     storeRepP boundary_mapRep,
+                                     storeRepP face2nodeRep,
+                                     storeRepP face2edgeRep,
+                                     storeRepP edge2nodeRep,
+                                     storeRepP posRep,
+                                     entitySet localCells
+                                     ){
+                                  
+    if(Loci::exec_current_fact_db == 0) {
+      std::cerr << "Loci::parallelWriteBoundaryPosition()" ;
+      std::cerr << "this routine needs a fact database argument when called outside of a rule!" << endl ;
+      Loci::Abort() ;
+    } else  parallelWriteCutPlane(filename,
+                                  upperRep,
+                                  lowerRep,
+                                  boundary_mapRep,
+                                  face2nodeRep,
+                                  face2edgeRep,
+                                  edge2nodeRep,
+                                  posRep,
+                                  localCells,
+                                  *Loci::exec_current_fact_db);
+  }
 }
 
 #endif
