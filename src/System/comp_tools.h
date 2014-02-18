@@ -585,8 +585,8 @@ namespace Loci {
       int lt=tag_base, gt=0 ;
       MPI_Allreduce(&lt, &gt, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD) ;
       tag_base = gt ;
-      if(tag_base > 32760) {
-        tag_base = 1500 ; // recycle tags
+      if(tag_base > 32500) {
+	tag_base=1500 ; // recycle tags
       }
     }
   } ;

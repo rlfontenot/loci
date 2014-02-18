@@ -338,7 +338,7 @@ echo >> sys.conf
 #setup hdf5
 # find hdf5
 
-if [ ! -e $H5PATH/bin/h5dump ]; then
+if [ ! -d "$H5PATH" ]; then
     find_exec h5dump
     if [ $RETURN_VALUE != 0 ]; then
 	H5PATH=${RETURN_VALUE%/bin*}
