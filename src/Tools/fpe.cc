@@ -22,6 +22,9 @@
 #include <Tools/debugger.h>
 #include <stdlib.h>
 
+#ifdef DARWIN
+#include <xmmintrin.h>
+#endif
 
 #ifdef SPARC
 
@@ -118,11 +121,17 @@ namespace Loci {
 #else
 
 namespace Loci {
-  
+#ifdef DARWIN
+  void set_fpe_abort()
+  {
+    _MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() & ~_MM_MASK_INVALID) ;
+  }
+#else
   void set_fpe_abort()
   {
     
   }
+#endif
 }
 #endif
 #endif
