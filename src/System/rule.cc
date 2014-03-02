@@ -238,7 +238,9 @@ namespace Loci {
         vmap_info di(*i) ;
         if(v.find(di) != v.end()) {
           cerr << "Warning, duplicate variable in var set." << endl ;
+	  cerr << "i=" << *i << endl ;
           cerr << "expr = " << di << endl ;
+	  throw int(-1) ;
         } else
           v.insert(di) ;
       }
@@ -255,20 +257,32 @@ namespace Loci {
    
   void rule_impl::source(const string &invar) {
     exprP p = expression::create(invar) ;
-    fill_descriptors(rule_info.sources,
-                     collect_associative_op(p,OP_COMMA)) ;
+    try {
+      fill_descriptors(rule_info.sources,
+		       collect_associative_op(p,OP_COMMA)) ;
+    } catch(int i) {
+      cerr << "parsing source string " << invar ;
+    }
   }
 
   void rule_impl::target(const string &outvar) {
     exprP p = expression::create(outvar) ;
-    fill_descriptors(rule_info.targets,
-                     collect_associative_op(p,OP_COMMA)) ;
+    try {
+      fill_descriptors(rule_info.targets,
+		       collect_associative_op(p,OP_COMMA)) ;
+    } catch(int i) {
+      cerr << "parsing target string " << outvar << endl ;
+    }
   }
 
   void rule_impl::constraint(const string &constrain) {
     exprP p = expression::create(constrain) ;
-    fill_descriptors(rule_info.constraints,
-                     collect_associative_op(p,OP_COMMA)) ;
+    try {
+      fill_descriptors(rule_info.constraints,
+		       collect_associative_op(p,OP_COMMA)) ;
+    } catch(int i) {
+      cerr << "parsing constraint string = " << constrain << endl ;
+    }
   }
 
   void rule_impl::conditional(const string &cond) {
