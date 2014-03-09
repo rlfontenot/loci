@@ -20,22 +20,37 @@ $type geomfile_par param<std::string>;
 
 
 
-void get_uvw(const vect3d &T0, const vect3d &T1, const vect3d &T2,
-             const vect3d &P,double &u, double &v, double &w) {
+// get parametric corrdinates of point projected onto triangle
+void get_uvw(const vect3d &T0, const vect3d &T1, 
+	     const vect3d &T2, const vect3d &P,
+	     double &u, double &v, double &w) {
   // triangle normal vector
   vect3d n = cross(T1-T0,T2-T0) ;
-  n *= 1./norm(n) ;
+  n *= 1./(norm(n)+1e-30) ;
   double a0 = dot(cross(T1-P,T2-P),n) ; // Compute projected areas
   double a1 = dot(cross(T2-P,T0-P),n) ;
   double a2 = dot(cross(T0-P,T1-P),n) ;
-  // bound areas to be positive (we are not allowed to go outside of triangle)
-  a0 = max(a0,0.0) ;
-  a1 = max(a1,0.0) ;
-  a2 = max(a2,0.0) ;
-  double s = a0+a1+a2 ; // Scale barycentric coordinates to [0,1]
-  u = a0/s ;
-  v = a1/s ;
-  w = a2/s ;
+  if(a0 < 0 && !(a1 < 0 || a2 < 0)) {
+    u = 0 ;
+    w = min(max(dot(P-T1,T2-T1)/(dot(T2-T1,T2-T1)+1e-30),0.0),1.0) ;
+    v = 1.0-w ;
+  } else if(a1 < 0 && !(a0 < 0 || a2 < 0)) {
+    v = 0 ;
+    w = min(max(dot(P-T0,T2-T0)/(dot(T2-T0,T2-T0)+1e-30),0.0),1.0) ;
+    u = 1.0-w ;
+  } else if(a2 < 0 && !(a0 < 0 || a1 < 0)) {
+    w = 0 ;
+    v = min(max(dot(P-T0,T0-T1)/(dot(T0-T1,T0-T1)+1e-30),0.0),1.0) ;
+    u = 1.0-v ;
+  } else {
+    a0 = max(a0,0.0) ;
+    a1 = max(a1,0.0) ;
+    a2 = max(a2,0.0) ;
+    double s = a0+a1+a2 ; // Scale barycentric coordinates to [0,1]
+    u = a0/s ;
+    v = a1/s ;
+    w = a2/s ;
+  }
 }
 
 vect3d project_pt(const vect3d &T0, const vect3d &T1, const vect3d &T2,
