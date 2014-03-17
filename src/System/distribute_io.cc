@@ -972,8 +972,11 @@ namespace Loci {
 
     //Get the sequences of where we place the data when we receive it
     vector<sequence> recv_seqs = transposeSeq(send_seqs) ;
-
-
+    // shift by the offset
+    int offset = out_ptn[prank].Min() ;
+    for(int i=0;i<p;++i)
+      recv_seqs[i] <<= offset ;
+    
     
 
     // Compute allocation domain

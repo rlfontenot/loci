@@ -105,41 +105,40 @@ void readSurface(string bc_name,
   else  gridtopo = "output/" + bc_name +"/"+casename+"_"+iteration+"_bndry.topo" ;
   cout << "reading topo file : " << gridtopo << endl;
 
-  hid_t fi ;
-  hid_t file_id ; 
+ 
+  hid_t fi_id ; 
 
-  file_id = H5Fopen(gridtopo.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT);
-  if(file_id <= 0) {
+  fi_id = H5Fopen(gridtopo.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT);
+  if(fi_id <= 0) {
     cerr << "unable to open file '" << gridtopo << "'"<< endl ;
   }
-  fi = H5Gopen(file_id,bc_name.c_str()) ;
+ 
 
 
   //get sizes
-  int numQuads = sizeElementType(fi,"quads") ;
-  int numTrias = sizeElementType(fi,"triangles") ;
-  int numGnrls = sizeElementType(fi,"nside_sizes") ;
-  int nside_nodes_size = sizeElementType(fi,"nside_nodes") ;
+  int numQuads = sizeElementType(fi_id,"quads") ;
+  int numTrias = sizeElementType(fi_id,"triangles") ;
+  int numGnrls = sizeElementType(fi_id,"nside_sizes") ;
+  int nside_nodes_size = sizeElementType(fi_id,"nside_nodes") ;
   
   //get surface is
-  unsigned long surf_id = readAttributeLong(fi,"id");
-
+  unsigned long surf_id = readAttributeLong(fi_id,"id");
+ 
   //read in vectors
   surf.trias.resize(numTrias);
   surf.quads.resize(numQuads);
   surf.nside_sizes.resize(numGnrls);
   surf.nside_nodes.resize(nside_nodes_size);
   
-  readElementType(fi,"triangles",surf.trias) ;
-  readElementType(fi,"quads",surf.quads) ;
-  readElementType(fi,"nside_sizes",surf.nside_sizes) ;
-  readElementType(fi,"nside_nodes",surf.nside_nodes) ; 
+  readElementType(fi_id,"triangles",surf.trias) ;
+  readElementType(fi_id,"quads",surf.quads) ;
+  readElementType(fi_id,"nside_sizes",surf.nside_sizes) ;
+  readElementType(fi_id,"nside_nodes",surf.nside_nodes) ; 
   surf.id = surf_id;  
   surf.name = bc_name;
 
   //close the file
-  H5Gclose(fi) ;
-  H5Fclose(file_id) ;
+  H5Fclose(fi_id) ;
 
   //open position file
   string gridpos;
@@ -147,40 +146,39 @@ void readSurface(string bc_name,
   else gridpos = "output/" + bc_name +"/"+casename+"_"+iteration+ "_bndry.pos"; 
   cout << "reading position file : " << gridpos << endl;
   
-  file_id = H5Fopen(gridpos.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT);
-  if(file_id <= 0) {
+  fi_id = H5Fopen(gridpos.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT);
+  if(fi_id <= 0) {
     cerr << "unable to open file '" << gridpos << "'"<< endl ;
   }
-  fi = H5Gopen(file_id,bc_name.c_str()) ;
+  
   
   //read in positions
-  int numNodes = sizeElementType(fi,"positions") ;
+  int numNodes = sizeElementType(fi_id,"positions") ;
   surf.pos.resize(numNodes);
-  readElementType(fi,"positions",surf.pos) ;
-  //close file
-  H5Gclose(fi) ;
-  H5Fclose(file_id) ;
+  readElementType(fi_id,"positions",surf.pos) ;
+  H5Fclose(fi_id) ;
 }
   
 //read in a cutting plane
-void readSurface_cut(string casename,
+void readSurface_cut(string bc_name,
+                     string casename,
                      string iteration,
                      int id,
                      surface_info& surf
                      ) {
   //open the cutting plane file
   string gridtopo;
-  if(iteration=="")gridtopo = "output/cut/" +casename+".cut" ;
-  else gridtopo = "output/cut/" +casename+"_"+iteration+".cut" ;
+  if(iteration=="")gridtopo = "output/"+bc_name+"/" +casename+".cut" ;
+  else gridtopo = "output/"+bc_name+"/" +casename+"_"+iteration+".cut" ;
   
-  hid_t fi ;
-  hid_t file_id ; 
+  hid_t fi = -1 ;
+  
 
-  file_id = H5Fopen(gridtopo.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT);
-  if(file_id <= 0) {
+  fi = H5Fopen(gridtopo.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT);
+  if(fi <= 0) {
     cerr << "unable to open file '" << gridtopo << "'"<< endl ;
   }
-  fi = H5Gopen(file_id,"cuttingplane") ;
+ 
 
   //read in the sizes
   int numGnrls = sizeElementType(fi,"nside_sizes") ;
@@ -196,7 +194,7 @@ void readSurface_cut(string casename,
   readElementType(fi,"nside_nodes",surf.nside_nodes) ; 
 
   surf.id = id;  //assign an id to cutting plane
-  surf.name = "cuttingplane"; //assign a name to the cutting plane
+  surf.name = bc_name; //assign a name to the cutting plane
   
   //read in num of edge nodes
   int numNodes = sizeElementType(fi,"positions") ;
@@ -205,21 +203,8 @@ void readSurface_cut(string casename,
   surf.pos.resize(numNodes);
   readElementType(fi,"positions",surf.pos) ;
 
-  //read in num of inner_edge nodes
-  int numInnerNodes = sizeElementType(fi,"positions2") ;
-  
-  //read in inner_edge nodes positions
-  if(numInnerNodes > 0){
-    vector<vector3d<double> > pos2(numInnerNodes);
-    readElementType(fi,"positions2",pos2);
-    surf.pos.resize(numNodes+numInnerNodes);
-    for(int j = 0; j <numInnerNodes; j++){
-      surf.pos[j+numNodes] = pos2[j]; 
-    }
-  }
-  
-  H5Gclose(fi) ;
-  H5Fclose(file_id) ;
+ 
+  H5Fclose(fi) ;
 }
 
 void writeEnsight(string casename,
@@ -461,10 +446,11 @@ int main(int ac, char *av[]) {
   }
   
   vector<string> boundaries;
+  vector<string> cutplanes;
   string bc_name="";
   string casename;
   string iteration="";
-  bool cut = false;
+
   string ofile = "";
   
   
@@ -490,9 +476,13 @@ int main(int ac, char *av[]) {
         parsed = true ;
       }
     }else  if(opt == "-cut") {
-      cut = true;
+      i++ ;
+      if(i<ac) {
+        cutplanes.push_back(string(av[i])) ;
+        parsed = true ;
+      }
       parsed = true ;
-    
+      
     }else  if(opt == "-o") {
       i++ ;
       if(i<ac) {
@@ -517,17 +507,18 @@ int main(int ac, char *av[]) {
   
  
   int num_boundaries = boundaries.size();
-  if(cut) num_boundaries++;
-  if(num_boundaries==0){
+  int num_cutplanes = cutplanes.size();
+  
+  if((num_boundaries+num_cutplanes)==0){
     Usage() ;
     return -1;
   }
   
-  vector<surface_info> surf_list(num_boundaries);
+  vector<surface_info> surf_list(num_boundaries+num_cutplanes);
   
  
 
-  for(unsigned int i = 0; i < boundaries.size(); i++){
+  for(int i = 0; i < num_boundaries; i++){
     string bc_name = boundaries[i];
     readSurface(bc_name,
                 casename,
@@ -535,18 +526,21 @@ int main(int ac, char *av[]) {
                 surf_list[i]);
   }
 
-  if(cut){
-    int id = num_boundaries;
-    readSurface_cut(casename,
+
+  for(int i = 0; i < num_cutplanes; i++){ 
+    
+    string bc_name = cutplanes[i];
+    readSurface_cut(bc_name,
+                    casename,
                     iteration,
-                    id,
-                    surf_list[num_boundaries-1]
+                    num_boundaries+i+1,
+                    surf_list[num_boundaries+i]
                     );
   }
   
   
   if(ofile=="") ofile = casename;
-
+  
   cout << "writing ensight file: " << ofile+".case and "<< ofile+".geo"<< endl;  
   
   
