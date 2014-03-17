@@ -428,7 +428,7 @@ int main(int ac, char *av[]) {
         var_str += "," ;
     }
     var_str += "> } " ;
-    cout << "var_str="<<var_str <<endl ;
+    //    cout << "var_str="<<var_str <<endl ;
     istringstream ifile(var_str) ;
 
     facts.read_vars(ifile,rdb) ;

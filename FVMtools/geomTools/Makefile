@@ -13,7 +13,7 @@ JUNK = *~ core ti_files ii_files rii_files
 
 GEOMOBJS = compute_geom.o svdcmp.o
 
-OBJS = adjust_pos.o surface_delta.o mesh_deform.o 
+OBJS = adjust_pos.o surface_delta.o mesh_deform.o geomRep.o
 
 default: computegeom adjustpos getgeom viscousFix
 
