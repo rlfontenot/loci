@@ -73,6 +73,7 @@ namespace geomRep {
     }
   
     infile >> nfaces ;
+
     if(infile.fail()) {
       npnts = -1 ;
       nfaces = -1 ;
@@ -102,13 +103,16 @@ namespace geomRep {
     } 
     if(infile.fail())
       return false ;
+
     setupSearchMap() ;
+
     return true ;
   }
 
   void surfaceGeometry::setupSearchMap() {
     if(kdp)
       delete kdp ;
+
     vector<Loci::kdTree::coord3d> fpos(nfaces) ;
     vector<int> fid(nfaces) ;
     for(int i=0;i<nfaces;++i) {
@@ -116,6 +120,7 @@ namespace geomRep {
       fid[i] = i ; ;
     }
     kdp = new Loci::kdTree::kd_tree(fpos,fid) ;
+
     vector<pair<int,int> > searchPairs ;
     for(int i=0;i<nfaces;++i) {
       Loci::kdTree::coord3d c = triGeom[i].centroid() ;
@@ -141,24 +146,23 @@ namespace geomRep {
           searchPairs.push_back(e2) ;
         }
       }
-      sort(searchPairs.begin(),searchPairs.end()) ;
-      vector<pair<int,int> >::iterator ue = 
-        unique(searchPairs.begin(),searchPairs.end()) ;
-      int sz = ue-searchPairs.begin() ;
-
-      vector<int> lsearchMap(sz) ;
-      vector<int> sizes(nfaces,0) ;
-      for(int i=0;i<sz;++i) {
-        lsearchMap[i] = searchPairs[i].second ;
-        sizes[searchPairs[i].first]++ ;
-      }
-      vector<int> loffsets(nfaces+1,0) ;
-      for(int i=0;i<nfaces;++i)
-        loffsets[i+1] = loffsets[i]+sizes[i] ;
-      searchMap.swap(lsearchMap) ;
-      offsetMap.swap(loffsets) ;
     }
-
+    sort(searchPairs.begin(),searchPairs.end()) ;
+    vector<pair<int,int> >::iterator ue = 
+      unique(searchPairs.begin(),searchPairs.end()) ;
+    int sz = ue-searchPairs.begin() ;
+    
+    vector<int> lsearchMap(sz) ;
+    vector<int> sizes(nfaces,0) ;
+    for(int i=0;i<sz;++i) {
+      lsearchMap[i] = searchPairs[i].second ;
+      sizes[searchPairs[i].first]++ ;
+    }
+    vector<int> loffsets(nfaces+1,0) ;
+    for(int i=0;i<nfaces;++i)
+      loffsets[i+1] = loffsets[i]+sizes[i] ;
+    searchMap.swap(lsearchMap) ;
+    offsetMap.swap(loffsets) ;
   }
 
   void surfaceGeometry:: broadcastGeometry(int root, MPI_Comm comm) {
