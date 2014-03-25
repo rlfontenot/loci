@@ -92,11 +92,51 @@ namespace Loci {
     }
     
     double get_real(istream &s) {
-        if(!is_real(s))
-          return 0.0 ;
-        double r = 0.0 ;
-        s >> r ;
-        return r ;
+      if(!is_real(s)) {
+	return 0.0 ;
+      }
+
+      // First grab real into string rval
+      string rval ;
+      char ch = s.get() ;
+      rval += ch ; // since aready passing is_real we know first character
+      // is in rval
+
+      // any leading digits will go in rval
+      while(isdigit(s.peek())) {
+	ch = s.get() ;
+	rval += ch ;
+      }
+      // If there is a point, then the point and any following digits will
+      // go into rval
+      if(s.peek() == '.') {
+	ch = s.get() ;
+	rval += ch ;
+	while(isdigit(s.peek())) {
+	  ch = s.get() ;
+	  rval += ch ; 
+	}
+      }
+      // If there is an exponent, check to make sure it is followed by a digit
+      // if it is then grab the exponent, else put back the character with 
+      // unget
+      if(s.peek() == 'e' || s.peek() == 'E') {
+	ch = s.get() ;
+	ch = s.peek() ;
+	if(isdigit(ch) || ch=='-' || ch=='+') { // valid exponent
+	  rval += 'e' ;
+	  ch = s.get() ;
+	  rval += ch ;
+	  while(isdigit(s.peek())) {
+	    ch = s.get() ;
+	    rval += ch ; 
+	  }
+	} else { // invalid exponent, ignore 'e' or 'E'
+	  s.unget() ;
+	}
+      }
+
+      return atof(rval.c_str()) ;
     }
 
     bool is_string(istream &s) {
