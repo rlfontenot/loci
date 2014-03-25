@@ -41,6 +41,72 @@
 
 namespace Loci {
 
+  //-----------STD pair-------------------------------//
+  template<class T1,class T2> std::ostream &
+    operator<<(std::ostream &s, const std::pair<T1,T2> &v) {
+    s<<"["<<v.first<<","<<v.second<<"]";
+    return s;
+  }
+
+  template<class T1,class T2> std::istream &
+    operator>>(std::istream &s, std::pair<T1,T2> &i) {
+    char ch ;
+    do{
+      ch = s.get() ;
+    } while(ch==' ' || ch=='\n') ;
+    if(ch!='[') {
+      std::cerr << "Incorrect format when reading interval" << std::endl ;
+      std::cerr << "expected a '[' but got a '" << ch << "'" << std::endl ;
+      s.putback(ch) ;
+      return s ;
+    }
+    s >> i.first ;
+    do{
+      ch = s.get() ;
+    } while(ch==' ' || ch=='\n') ;
+    if(ch!=',') {
+      std::cerr << "Incorrect format when reading interval" << std::endl ;
+      std::cerr << "expected a ',' but got a '" << ch << "'" << std::endl ;
+      s.putback(ch) ;
+      return s ;
+    }
+    s >> i.second ;
+    
+    do{
+      ch = s.get() ;
+    } while(ch==' ' || ch=='\n') ;
+    if(ch!=']') {
+      std::cerr << "Incorrect format when reading interval" << std::endl ;
+      std::cerr << "expected a ']' but got a '" << ch << "'" << std::endl ;
+      s.putback(ch) ;
+      return s ;
+    }
+    return s;
+  }
+
+  template<class T> inline std::ostream &operator << (std::ostream &s,
+                                                      const std::vector<T> &v){
+    s << v.size() ;
+    for(typename std::vector<T>::const_iterator i=v.begin();i!=v.end(); ++i) 
+      s << ' ' << *i ;
+    s << std::endl ;
+    return s ;
+  }
+
+  template<class T> inline std::istream &operator >> (std::istream &s,
+                                                      std::vector<T> &v){
+    v.clear() ;
+    int sz ;
+    s >> sz ;
+    for(int i=0;i<sz;++i) {
+      T val ;
+      s >> val ;
+      v.push_back(val) ;
+    }
+    return s ;
+  }
+
+
   template <class T> 
   class data_schema_traits { };
 
@@ -314,28 +380,6 @@ namespace Loci {
     typedef T Converter_Base_Type ;
     typedef vectorSchemaConverter<T> Converter_Type ;
   } ;
-
-  template<class T> inline std::ostream &operator << (std::ostream &s,
-                                                      const std::vector<T> &v){
-    s << v.size() ;
-    for(typename std::vector<T>::const_iterator i=v.begin();i!=v.end(); ++i) 
-      s << ' ' << *i ;
-    s << std::endl ;
-    return s ;
-  }
-
-  template<class T> inline std::istream &operator >> (std::istream &s,
-                                                      std::vector<T> &v){
-    v.clear() ;
-    int sz ;
-    s >> sz ;
-    for(int i=0;i<sz;++i) {
-      T val ;
-      s >> val ;
-      v.push_back(val) ;
-    }
-    return s ;
-  }
 
   class std_string_schema_converter {
     std::string &ref ;
