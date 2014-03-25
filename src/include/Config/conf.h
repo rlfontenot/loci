@@ -27,6 +27,13 @@
 
 #if defined(__GNUC__)
 
+#if defined(__clang__) 
+// clang compiler
+#define USE_MAP_FOR_HASH_MAP
+#define restrict __restrict__
+#define NO_OFFSETOF
+
+#else
 #if defined(__INTEL_COMPILER)
 // Intel Compiler
 
@@ -60,6 +67,7 @@
 #else
 #define USE_MAP_FOR_HASH_MAP
 #define NO_OFFSETOF
+#endif
 #endif
 #endif
 
