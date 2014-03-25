@@ -642,6 +642,7 @@ namespace Loci {
       std::cerr << "Loci::getCutPlane()" ;
       std::cerr << "this routine needs a fact database argument when called outside of a rule!" << endl ;
       Loci::Abort() ;
+      return CutPlane() ;
     } else return getCutPlane( upperRep,
                                lowerRep,
                                boundary_mapRep,
