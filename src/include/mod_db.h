@@ -66,7 +66,7 @@ namespace Loci {
       ~mod_info() { } 
     } ;
   private: 
-    friend class mod_info ;
+    friend struct mod_info ;
     struct mod_db {
       std::map<std::string,mod_info> mod_map ;
       typedef std::map<std::string,mod_info>::iterator MI ;

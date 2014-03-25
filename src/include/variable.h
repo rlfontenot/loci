@@ -167,7 +167,7 @@ namespace Loci {
       int ident() const { return variable::vdb->vars.get_id(*this) ; }
     } ;
   private:
-    friend class variable::info ;
+    friend struct variable::info ;
     struct variable_db {
       key_ident<info> vars ;
     } ;

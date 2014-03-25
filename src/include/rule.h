@@ -847,7 +847,7 @@ namespace Loci {
       }
     } ;
   private:
-    friend class rule::info ;
+    friend struct rule::info ;
     friend rule promote_rule(const rule&, const time_ident&) ;
     friend rule prepend_rule(const rule&, const time_ident&) ;
     struct rule_db {
