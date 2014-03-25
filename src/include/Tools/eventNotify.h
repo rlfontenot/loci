@@ -19,7 +19,7 @@
 //#
 //#############################################################################
 #ifndef EVENTNOTIFY_H
-#define EVENTNOFITY_H
+#define EVENTNOTIFY_H
 
 #ifdef HAVE_CONFIG_H
 #include <config.h> // This must be the first file included
