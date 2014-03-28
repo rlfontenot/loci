@@ -33,7 +33,7 @@ namespace Loci {
     s << size << std::endl ;
     
     FORALL(domain(),ii) {
-      T * p = base_ptr + ii*size ;
+      T * p = alloc_ptr + (ii-base_offset)*size ;
       Loci::streamoutput(p,size,s) ;
     }ENDFORALL ;
     s << '}' << std::endl ;
@@ -70,7 +70,7 @@ namespace Loci {
     allocate(e) ;
 
     FORALL(e,ii) {
-      T * p = base_ptr + ii*size ;
+      T * p = alloc_ptr + (ii-base_offset)*size ;
       for(int i=0;i<size;++i)
         p[i] = T() ;
       
@@ -91,90 +91,16 @@ namespace Loci {
   template<class T> 
   void storeVecRepI<T>::allocate(const entitySet &ptn) {
   
-    /*
-    entitySet common = store_domain & ptn ;
-    T *tmp_base_ptr, *tmp_alloc_pointer ;
-    tmp_alloc_pointer = 0 ;
-    tmp_base_ptr = 0 ;
-    if(store_domain != EMPTY) {
-      if(size > 0) {
-	if(common != EMPTY) {
-	  int top = ptn.Min() ; 
-	  int sza = (ptn.Max() - top + 1) * size ;
-	  tmp_alloc_pointer = new T[sza] ; 
-	  tmp_base_ptr = tmp_alloc_pointer - top*size ;
-	  FORALL(common,i) { 
-	    T *p1 = tmp_base_ptr + i*size ;
-	    T* p2 = base_ptr + i*size ;
-	    for(int j = 0; j < size; ++j)
-	      p1[j] = p2[j] ;
-	  } ENDFORALL ; 
-	}
-      }
-    }
-    else {
-      if(size != 0) {
-	fatal(size < 1) ;
-	if(ptn != EMPTY) {
-	  int top = ptn.Min() ; 
-	  int sza = (ptn.Max()-top+1)*size ;
-	  tmp_alloc_pointer = new T[sza] ;
-	  tmp_base_ptr = alloc_pointer - top*size ;
-	}
-      }
-    }
+    if(alloc_ptr) delete[] alloc_ptr ;
     
-    //------------------------------------------------------------------
-    // Allocation reclaims all previously hold memeory 
-    //------------------------------------------------------------------
-    //int p = 0 ;
-    
-    if(alloc_pointer) 
-      delete[] alloc_pointer ;
-    
-    //-----------------------------------------------------------------
-    // Get the minimum and maximum entity ID from the entitySet and
-    //allocate 
-    // memory of the size = ( max-min+1). Notice that, if the entityset 
-    // contains the entities with ID quite sparse, it will create lots of 
-    // unused block of memory. 
-    //------------------------------------------------------------------
-    alloc_pointer = tmp_alloc_pointer ;
-    base_ptr = tmp_base_ptr ;
-    */
-    /*
-      if(size != 0) {
-      fatal(size < 1) ;
-      if(common == EMPTY) {
-      if(ptn != EMPTY) {
-      int top = ptn.Min() ; 
-      int sza = (ptn.Max() - top + 1) * size ;
-      alloc_pointer = new T[sza] ;
-      base_ptr = alloc_pointer - top*size ;
-      } 
-      }
-      }
-    */
-    /*
-      if(!p) {
-      debugout << " ******************************************" << endl ;
-      debugout << "Size = " << size << "  Domain = " << ptn << endl ;
-      total_memory_usage += double(sza*sizeof(T)) ;
-      debugout << " Allocated  " << double(sza*sizeof(T)) << " bytes :   Total Memory Usage is now " << total_memory_usage << endl ;
-      debugout << " ******************************************" << endl ;
-      }
-    */
-    if(alloc_pointer) delete[] alloc_pointer ;
-    
-    alloc_pointer = 0 ;
-    base_ptr      = 0 ;
+    alloc_ptr = 0 ;
 
     if(size != 0) {
       fatal(size < 1) ;
       if(ptn != EMPTY) {
         int top = ptn.Min() ; int sza = (ptn.Max()-top+1)*size ;
-        alloc_pointer = new T[sza] ;
-        base_ptr = alloc_pointer - top*size ;
+        alloc_ptr = new T[sza] ;
+	base_offset = top ;
       }
     }
     
@@ -186,7 +112,7 @@ namespace Loci {
   template<class T>
     void storeVecRepI<T>::shift(int_type offset) {
     store_domain >>= offset ;
-    base_ptr -= offset*size ;
+    base_offset += offset ;
     dispatch_notify() ;
   }
 
@@ -195,7 +121,7 @@ namespace Loci {
   template<class T> 
   storeVecRepI<T>::~storeVecRepI() 
   {
-    if(alloc_pointer) delete[] alloc_pointer ;
+    if(alloc_ptr) delete[] alloc_ptr ;
   }
 
   //*******************************************************************/
@@ -258,7 +184,8 @@ namespace Loci {
     NPTR<storeType> p(Rep()) ;
 
     if(p!=0) {
-      base_ptr = p->get_base_ptr() ;
+      alloc_ptr = p->get_alloc_ptr() ;
+      base_offset = p->get_base_offset() ;
       size = p->get_size() ;
     }
 
@@ -283,7 +210,8 @@ namespace Loci {
   {
     NPTR<storeType> p(Rep()) ;
     if(p!=0) {
-      base_ptr = p->get_base_ptr() ;
+      alloc_ptr = p->get_alloc_ptr() ;
+      base_offset = p->get_base_offset() ;
       size = p->get_size() ;
     }
     warn(p == 0) ;
@@ -323,7 +251,7 @@ namespace Loci {
     ds.setVecSize(size) ;
     for(entitySet::const_iterator ei=store_domain.begin();
         ei!=store_domain.end();++ei) {
-      T* b = base_ptr+( (*ei)*size) ;
+      T* b = alloc_ptr+( (*ei-base_offset)*size) ;
       T* e = b + size ; 
       ds[*ei] = std::vector<T>(b,e) ;
     }
@@ -339,13 +267,13 @@ namespace Loci {
     ds.setVecSize(size) ;
     for(entitySet::const_iterator ei=shared.begin();
         ei!=shared.end();++ei) {
-      T* b = base_ptr+( (*ei)*size) ;
+      T* b = alloc_ptr+( (*ei-base_offset)*size) ;
       T* e = b + size ; 
       ds[*ei] = std::vector<T>(b,e) ;
     }
     
     Entity c = *domain().begin() ;
-    T* b = base_ptr + (c*size) ;
+    T* b = alloc_ptr + ((c-base_offset)*size) ;
     T* e = b + size ;
     for(entitySet::const_iterator ei=out.begin();
         ei!=out.end();++ei)
@@ -362,7 +290,7 @@ namespace Loci {
     set_elem_size(sz) ;
     fatal((context - domain()) != EMPTY) ;
     FORALL(context,i) {
-      T *p = base_ptr + i*sz ;
+      T *p = alloc_ptr + (i-base_offset)*sz ;
       for(int j=0;j<sz;++j)
         p[j] = s[i][j] ;
     } ENDFORALL ;
@@ -377,11 +305,11 @@ namespace Loci {
     const_storeVec<T> s(st) ;
     int sz = s.vecSize() ;
     set_elem_size(sz) ;
-    fatal(base_ptr == 0) ;
+    fatal(alloc_ptr == 0) ;
     fatal((m.image(context) - s.domain()) != EMPTY) ;
     fatal((context - domain()) != EMPTY) ;
     FORALL(context,i) {
-      T *p = base_ptr + i*sz ;
+      T *p = alloc_ptr + (i-base_offset)*sz ;
       for(int j=0;j<sz;++j)
         p[j] = s[m[i]][j] ;
     } ENDFORALL ;
@@ -396,13 +324,13 @@ namespace Loci {
     const_storeVec<T> s(st) ;
     int sz = s.vecSize() ;
     set_elem_size(sz) ;
-    fatal((context != EMPTY) && (base_ptr == 0)) ;
+    fatal((context != EMPTY) && (alloc_ptr == 0)) ;
     fatal((context - s.domain()) != EMPTY) ;
     fatal((m.image(context) - domain()) != EMPTY) ;
     fatal((context - m.domain()) != EMPTY);
 	
     FORALL(context,i) {
-      T *p = base_ptr + m[i]*sz ;
+      T *p = alloc_ptr + (m[i]-base_offset)*sz ;
       for(int j=0;j<sz;++j)
         p[j] = s[i][j] ;
     } ENDFORALL ;
@@ -449,7 +377,7 @@ namespace Loci {
     typedef data_schema_traits<T> converter_traits;
     for( ci = sdom.begin(); ci != sdom.end(); ++ci) {
       for( int ivec = 0; ivec < size; ivec++){
-        typename converter_traits::Converter_Type cvtr(base_ptr[(*ci)*size+ivec]) ;
+        typename converter_traits::Converter_Type cvtr(alloc_ptr[((*ci)-base_offset)*size+ivec]) ;
         arraySize += cvtr.getSize() ;
       }
     }
@@ -534,7 +462,7 @@ namespace Loci {
     for(int i = 0; i < eset.num_intervals(); ++i) {
       Loci::int_type indx1 = eset[i].first ;
       Loci::int_type stop  = eset[i].second ;
-      T *p = base_ptr + M * indx1 ;
+      T *p = alloc_ptr + M * (indx1 -base_offset);
       const int t = (stop - indx1 + 1) * M ;
       MPI_Pack( p, t*sizeof(T), MPI_BYTE, outbuf, outcount, &position, 
                 MPI_COMM_WORLD) ;
@@ -558,7 +486,7 @@ namespace Loci {
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
       for( int ivec = 0; ivec < size; ivec++){
         typename data_schema_traits<T>::Converter_Type
-          cvtr( base_ptr[(*ci)*size+ivec] );
+          cvtr( alloc_ptr[((*ci)-base_offset)*size+ivec] );
         stateSize = cvtr.getSize();
         maxStateSize = max( maxStateSize, stateSize);
       }
@@ -574,7 +502,7 @@ namespace Loci {
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
       for( int ivec = 0; ivec < size; ivec++){
         typename data_schema_traits<T>::Converter_Type
-          cvtr( base_ptr[(*ci)*size+ivec] );
+          cvtr( alloc_ptr[((*ci)-base_offset)*size+ivec] );
         cvtr.getState( &inbuf[0], stateSize);
 
         MPI_Pack(&stateSize,1, MPI_INT, outbuf, outcount,&position,
@@ -617,14 +545,14 @@ namespace Loci {
         const Loci::int_type indx1 = seq[i].first ;
         const Loci::int_type stop =  seq[i].second ;
         for(Loci::int_type indx = indx1; indx != stop-1; --indx) {
-          T *p = base_ptr + M * indx ;
+          T *p = alloc_ptr + M * (indx-base_offset) ;
           MPI_Unpack( inbuf, insize, &position, p, sizeof(T) * M, 
                       MPI_BYTE, MPI_COMM_WORLD) ;
         }
       } else {
         Loci::int_type indx1 = seq[i].first ;
         Loci::int_type stop = seq[i].second ;
-        T *p = base_ptr + M * indx1 ;
+        T *p = alloc_ptr + M * (indx1-base_offset) ;
         const int t = (stop - indx1 + 1) * M ;
         MPI_Unpack( inbuf, insize, &position, p, t * sizeof(T), 
                     MPI_BYTE, MPI_COMM_WORLD) ;
@@ -662,7 +590,7 @@ namespace Loci {
         MPI_Unpack( inbuf, insize, &position, &outbuf[0], outcount, 
                     MPI_BYTE, MPI_COMM_WORLD) ;
 
-        typename schema_traits::Converter_Type  cvtr( base_ptr[(*ci)*size+ivec] );
+        typename schema_traits::Converter_Type  cvtr( alloc_ptr[((*ci)-base_offset)*size+ivec] );
         cvtr.setState( &outbuf[0], stateSize);
       }
     }
@@ -720,7 +648,7 @@ namespace Loci {
     typedef data_schema_traits<T> schema_traits ;
     for(entitySet::const_iterator ci = dom.begin(); ci != dom.end(); ++ci) 
       for(int ivec = 0; ivec < fi.size; ivec++){
-        typename schema_traits::Converter_Type cvtr(base_ptr[(*ci)*fi.size+ivec] );
+        typename schema_traits::Converter_Type cvtr(alloc_ptr[((*ci)-base_offset)*fi.size+ivec] );
         stateSize = cvtr.getSize();
         fi.second_level.push_back(stateSize) ;
       }
@@ -770,7 +698,7 @@ namespace Loci {
 	int qs = get_size() ;
 	for(entitySet::const_iterator si = eset.begin(); si != eset.end();++si) {
 	  for(int ivec = 0; ivec < qs; ivec++){
-	    tmp_array[tmp++] = base_ptr[(*si)*qs+ivec] ;
+	    tmp_array[tmp++] = alloc_ptr[((*si)-base_offset)*qs+ivec] ;
 	  }
 	}
 	H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, tmp_array) ;
@@ -798,7 +726,7 @@ namespace Loci {
 	int stateSize = 0 ;
 	for(entitySet::const_iterator si = eset.begin(); si != eset.end();++si) {
 	  for(int ivec = 0; ivec < size; ivec++){
-	    typename schema_traits::Converter_Type cvtr(base_ptr[(*si)*size+ivec]);
+	    typename schema_traits::Converter_Type cvtr(alloc_ptr[((*si)-base_offset)*size+ivec]);
 	    cvtr.getState(tmp_array+tmp, stateSize) ;
 	    tmp +=stateSize ;
 	  }
@@ -841,7 +769,7 @@ namespace Loci {
 
 	for(entitySet::const_iterator si = eset.begin(); si != eset.end();++si) 
 	  for(int ivec = 0; ivec < qs; ivec++) {
-	    base_ptr[(*si)*qs+ivec] = tmp_array[tmp++] ;
+	    alloc_ptr[((*si)-base_offset)*qs+ivec] = tmp_array[tmp++] ;
 	  }
 	H5Sclose(memspace) ;
         H5Tclose(datatype) ;
@@ -875,7 +803,7 @@ namespace Loci {
 	size_t indx = 0 ;
 	for(entitySet::const_iterator si = eset.begin(); si != eset.end(); ++si) 
 	  for(int ivec = 0; ivec < qs; ivec++) {
-	    typename data_schema_traits<T>::Converter_Type cvtr(base_ptr[(*si)*qs+ivec]);
+	    typename data_schema_traits<T>::Converter_Type cvtr(alloc_ptr[((*si)-base_offset)*qs+ivec]);
 	    bucsize = vint[indx++] ;
 	    cvtr.setState(tmp_array+tmp, bucsize) ;
 	    tmp += bucsize ;

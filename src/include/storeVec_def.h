@@ -211,7 +211,8 @@ namespace Loci {
   //******************************************************************/
   template<class T> class storeVecRepI : public storeRep {
     entitySet    store_domain ;
-    T           *alloc_pointer, *base_ptr ;
+    T           *alloc_ptr ;
+    int          base_offset ;
     int          size ;
     lmutex       mutex ;
     bool         isMat; //if this is a storeMat
@@ -239,10 +240,10 @@ namespace Loci {
     frame_info get_frame_info(USER_DEFINED_CONVERTER g) ;
   public:
     storeVecRepI() 
-    { alloc_pointer= 0 ; base_ptr = 0 ; size=0 ; isMat=false; }
+    { alloc_ptr= 0 ; base_offset = 0 ; size=0 ; isMat=false; }
     
     storeVecRepI(const entitySet &p) 
-    { size = 0; alloc_pointer=0 ; allocate(p) ; isMat = false; }
+    { size = 0; alloc_ptr=0 ; allocate(p) ; isMat = false; }
     
     virtual ~storeVecRepI() ;
     virtual void allocate(const entitySet &ptn) ;
@@ -270,7 +271,8 @@ namespace Loci {
     virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en) ;
     virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const ;
     virtual void set_elem_size(int sz) ;
-    T *get_base_ptr() const { return base_ptr ; }
+    T *get_alloc_ptr() const { return alloc_ptr ; }
+    int get_base_offset() const { return base_offset ; }
     int get_size() const { return size ; }
     virtual DatatypeP getType() ;
     virtual frame_info get_frame_info() ;
@@ -279,7 +281,8 @@ namespace Loci {
 
   template<class T> class storeVec : public store_instance {
     typedef storeVecRepI<T> storeType ;
-    T* base_ptr ;
+    T* alloc_ptr ;
+    int base_offset ;
     int size ;
     storeVec(const storeVec<T> &var) {setRep(var.Rep()) ;}
     storeVec<T> & operator=(const storeVec<T> &str) {
@@ -301,23 +304,24 @@ namespace Loci {
     const entitySet domain() const { return Rep()->domain() ; }
     Vect<T> elem(int indx) {
 #ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
+      fatal(alloc_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif 
-      return Vect<T>(base_ptr+(indx*size),size) ; }
+      return Vect<T>(alloc_ptr+((indx-base_offset)*size),size) ; }
     Vect<T> operator[](int indx) {
 #ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
+      fatal(alloc_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif 
-      return Vect<T>(base_ptr+(indx*size),size) ; }
+      return Vect<T>(alloc_ptr+((indx-base_offset)*size),size) ; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ;}
   } ;
 
   template<class T> class const_storeVec : public store_instance {
     typedef storeVecRepI<T> storeType ;
-    const T* restrict base_ptr ;
+    const T* restrict alloc_ptr ;
+    int base_offset ;
     int size ;
     const_storeVec(const const_storeVec<T> &var) {setRep(var.Rep()) ;}
     const_storeVec(const storeVec<T> &var) {setRep(var.Rep()) ;}
@@ -344,16 +348,16 @@ namespace Loci {
     const entitySet domain() const { return Rep()->domain() ; }
     const_Vect<T> elem(int indx) const restrict {
 #ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
+      fatal(alloc_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif 
-      return const_Vect<T>(base_ptr+(indx*size),size) ; }
+      return const_Vect<T>(alloc_ptr+((indx-base_offset)*size),size) ; }
     const_Vect<T> operator[](int indx) const restrict {
 #ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
+      fatal(alloc_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif 
-      return const_Vect<T>(base_ptr+(indx*size),size) ;
+      return const_Vect<T>(alloc_ptr+((indx-base_offset)*size),size) ;
     }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
   } ;

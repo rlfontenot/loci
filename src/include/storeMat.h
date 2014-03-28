@@ -41,7 +41,8 @@ namespace Loci {
  
   template<class T> class storeMat : public store_instance {
     typedef storeVecRepI<T> storeType ;
-    T* base_ptr ;
+    T* alloc_ptr ;
+    int base_offset ;
     int size_tot ;
     int size_dim ;
     storeMat(const storeMat &var) {setRep(var.Rep()) ; }
@@ -70,16 +71,16 @@ namespace Loci {
 
     Mat<T> elem(int indx) {
 #ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
+      fatal(alloc_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif 
-      return Mat<T>(base_ptr+(indx*size_tot),size_dim) ; }
+      return Mat<T>(alloc_ptr+((indx-base_offset)*size_tot),size_dim) ; }
     Mat<T> operator[](int indx) {
 #ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
+      fatal(alloc_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif 
-      return Mat<T>(base_ptr+(indx*size_tot),size_dim) ; }
+      return Mat<T>(alloc_ptr+((indx-base_offset)*size_tot),size_dim) ; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ;}
 
@@ -97,7 +98,8 @@ namespace Loci {
   {
     NPTR<storeType> p(Rep()) ;
     if(p!=0) {
-      base_ptr = p->get_base_ptr() ;
+      alloc_ptr = p->get_alloc_ptr() ;
+      base_offset = p->get_base_offset() ;
       size_tot = p->get_size() ;
       size_dim = int(sqrt(float(size_tot))+.5) ;
     }
@@ -120,7 +122,8 @@ namespace Loci {
 
   template<class T> class const_storeMat : public store_instance {
     typedef storeVecRepI<T> storeType ;
-    const T* base_ptr ;
+    const T* alloc_ptr ;
+    int base_offset ;
     int size_tot ;
     int size_dim ;
     const_storeMat(const const_storeMat<T> &var) { setRep(var.Rep()) ; }
@@ -150,16 +153,16 @@ namespace Loci {
 
     const_Mat<T> elem(int indx) {
 #ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
+      fatal(alloc_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif 
-      return const_Mat<T>(base_ptr+(indx*size_tot),size_dim) ; }
+      return const_Mat<T>(alloc_ptr+((indx-base_offset)*size_tot),size_dim) ; }
     const_Mat<T> operator[](int indx) {
 #ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
+      fatal(alloc_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif 
-      return const_Mat<T>(base_ptr+(indx*size_tot),size_dim) ; }
+      return const_Mat<T>(alloc_ptr+((indx-base_offset)*size_tot),size_dim) ; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
   } ;
 
@@ -175,7 +178,8 @@ namespace Loci {
   {
     NPTR<storeType> p(Rep()) ;
     if(p!=0) {
-      base_ptr = p->get_base_ptr() ;
+      alloc_ptr = p->get_alloc_ptr() ;
+      base_offset = p->get_base_offset() ;
       size_tot = p->get_size() ;
       size_dim = int(sqrt(float(size_tot))+.5) ;
     }
