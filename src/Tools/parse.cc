@@ -102,9 +102,12 @@ namespace Loci {
       rval += ch ; // since aready passing is_real we know first character
       // is in rval
 
+      bool leading_digit = isdigit(ch) ;
+
       // any leading digits will go in rval
       while(isdigit(s.peek())) {
 	ch = s.get() ;
+	leading_digit = true ;
 	rval += ch ;
       }
       // If there is a point, then the point and any following digits will
@@ -112,10 +115,14 @@ namespace Loci {
       if(s.peek() == '.') {
 	ch = s.get() ;
 	rval += ch ;
+	bool trailing_digit = false ;
 	while(isdigit(s.peek())) {
+	  trailing_digit = true ;
 	  ch = s.get() ;
 	  rval += ch ; 
 	}
+	if(!leading_digit && !trailing_digit)  // convert . to .0 
+	  rval += '0' ; 
       }
       // If there is an exponent, check to make sure it is followed by a digit
       // if it is then grab the exponent, else put back the character with 
