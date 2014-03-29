@@ -139,10 +139,10 @@ namespace Loci {
     MPI_Comm_rank(comm,&rank) ;
     int procs = 1 ;
     MPI_Comm_size(comm,&procs) ;
-    long local_size = v.size() ;
-    std::vector<long> recv_sizes(procs) ;
-    MPI_Gather(&local_size,1,MPI_LONG,
-               &recv_sizes[0],1,MPI_LONG,0,comm) ;
+    size_t local_size = v.size() ;
+    std::vector<size_t> recv_sizes(procs) ;
+    MPI_Gather(&local_size,sizeof(size_t),MPI_BYTE,
+               &recv_sizes[0],sizeof(size_t),MPI_BYTE,0,comm) ;
 
     if(rank == 0) {
       hsize_t array_size = 0 ;
@@ -280,20 +280,20 @@ namespace Loci {
       return;
     }
     //parallel version
-    long local_size_combined = v1.size() + v2.size() ;
-    std::vector<long> recv_sizes_combined(procs) ;
-    MPI_Gather(&local_size_combined,1,MPI_LONG,
-               &recv_sizes_combined[0],1,MPI_LONG,0,comm) ;
+    size_t local_size_combined = v1.size() + v2.size() ;
+    std::vector<size_t> recv_sizes_combined(procs) ;
+    MPI_Gather(&local_size_combined,sizeof(size_t),MPI_BYTE,
+               &recv_sizes_combined[0],sizeof(size_t),MPI_BYTE,0,comm) ;
     
-    long local_size1 = v1.size();
-    std::vector<long> recv_sizes1(procs) ;
-    MPI_Gather(&local_size1,1,MPI_LONG,
-               &recv_sizes1[0],1,MPI_LONG,0,comm) ;
+    size_t local_size1 = v1.size();
+    std::vector<size_t> recv_sizes1(procs) ;
+    MPI_Gather(&local_size1,sizeof(size_t),MPI_BYTE,
+               &recv_sizes1[0],sizeof(size_t),MPI_BYTE,0,comm) ;
     
     long local_size2 = v2.size();
-    std::vector<long> recv_sizes2(procs) ;
-    MPI_Gather(&local_size2,1,MPI_LONG,
-               &recv_sizes2[0],1,MPI_LONG,0,comm) ;
+    std::vector<size_t> recv_sizes2(procs) ;
+    MPI_Gather(&local_size2,sizeof(size_t),MPI_BYTE,
+               &recv_sizes2[0],sizeof(size_t),MPI_BYTE,0,comm) ;
     
     if(rank == 0) {
     
@@ -435,7 +435,7 @@ namespace Loci {
                                              const_store<T> &s, entitySet set,
                                              const char *name) {
     std::vector<T> v(set.size()) ;
-    int c = 0 ;
+    size_t c = 0 ;
     FORALL(set,ii) {
       v[c++] = s[ii] ;
     } ENDFORALL ;
