@@ -150,7 +150,7 @@ void Usage(int ac, char *av[]) {
   exit(-1) ;
 }
 
-int  sizeElementType(hid_t group_id, const char *element_name) {
+size_t  sizeElementType(hid_t group_id, const char *element_name) {
   hid_t dataset = H5Dopen(group_id,element_name) ;
   if(dataset < 0) {
     H5Eclear() ;
@@ -163,7 +163,7 @@ int  sizeElementType(hid_t group_id, const char *element_name) {
   
   
   H5Dclose(dataset) ;
-  return int(size) ;
+  return size ;
   
 }
 
@@ -578,17 +578,17 @@ void extract_grid(string casename, string iteration,
 
   hid_t elg = H5Gopen(file_id,"elements") ;
 
-  int ntets = sizeElementType(elg,"tetrahedra") ;
-  int nhexs = sizeElementType(elg,"hexahedra") ;
-  int nprsm = sizeElementType(elg,"prism") ;
-  int npyrm = sizeElementType(elg,"pyramid") ;
-  int ngenc = sizeElementType(elg,"GeneralCellNfaces") ;
+  size_t ntets = sizeElementType(elg,"tetrahedra") ;
+  size_t nhexs = sizeElementType(elg,"hexahedra") ;
+  size_t nprsm = sizeElementType(elg,"prism") ;
+  size_t npyrm = sizeElementType(elg,"pyramid") ;
+  size_t ngenc = sizeElementType(elg,"GeneralCellNfaces") ;
 
-  int ntets_b = ntets ;
-  int nhexs_b = nhexs ;
-  int nprsm_b = nprsm ;
-  int npyrm_b = npyrm ;
-  int ngenc_b = ngenc ;
+  size_t ntets_b = ntets ;
+  size_t nhexs_b = nhexs ;
+  size_t nprsm_b = nprsm ;
+  size_t npyrm_b = npyrm ;
+  size_t ngenc_b = ngenc ;
   const int block_size=65536 ; // Size of blocking factor
   if(has_iblank) {
     // need to adjust the number of elements based on iblanking.
@@ -697,16 +697,16 @@ void extract_grid(string casename, string iteration,
     if(ngenc > 0) {
         vector<int> GeneralCellNfaces(ngenc) ;
         readElementType(elg,"GeneralCellNfaces",GeneralCellNfaces) ;
-        int nside = sizeElementType(elg,"GeneralCellNsides") ;
+        size_t nside = sizeElementType(elg,"GeneralCellNsides") ;
         vector<int> GeneralCellNsides(nside) ;
         readElementType(elg,"GeneralCellNsides",GeneralCellNsides) ;
-        int nnodes = sizeElementType(elg,"GeneralCellNodes") ;
+        size_t nnodes = sizeElementType(elg,"GeneralCellNodes") ;
         vector<int> GeneralCellNodes(nnodes) ;
         readElementType(elg,"GeneralCellNodes",GeneralCellNodes) ;
         int cnt1 = 0 ;
         int cnt2 = 0 ;
         int cnt = 0 ;
-        for(int i=0;i<ngenc;++i) {
+        for(size_t i=0;i<ngenc;++i) {
           bool blank = true ;
           int nf = GeneralCellNfaces[i] ;
           for(int f=0;f<nf;++f) {
@@ -1029,10 +1029,10 @@ void extract_grid(string casename, string iteration,
         // still need to do general cell iblanking
         vector<int> GeneralCellNfaces(ngenc) ;
         readElementType(elg,"GeneralCellNfaces",GeneralCellNfaces) ;
-        int nside = sizeElementType(elg,"GeneralCellNsides") ;
+        size_t nside = sizeElementType(elg,"GeneralCellNsides") ;
         vector<int> GeneralCellNsides(nside) ;
         readElementType(elg,"GeneralCellNsides",GeneralCellNsides) ;
-        int nnodes = sizeElementType(elg,"GeneralCellNodes") ;
+        size_t nnodes = sizeElementType(elg,"GeneralCellNodes") ;
         vector<int> GeneralCellNodes(nnodes) ;
         readElementType(elg,"GeneralCellNodes",GeneralCellNodes) ;
         vector<int> GeneralCell_ids(ngenc);
@@ -1044,7 +1044,7 @@ void extract_grid(string casename, string iteration,
           int skip_cells = 0;
           int skip_faces = 0 ;
           int skip_nodes = 0 ;
-          for(int i=0;i<ngenc;++i) {
+          for(size_t i=0;i<ngenc;++i) {
             bool blank = true ;
             int nf = GeneralCellNfaces[i] ;
             int cnt1s = cnt1 ;
@@ -1087,10 +1087,10 @@ void extract_grid(string casename, string iteration,
         // still need to do general cell iblanking
         vector<int> GeneralCellNfaces(ngenc) ;
         readElementType(elg,"GeneralCellNfaces",GeneralCellNfaces) ;
-        int nside = sizeElementType(elg,"GeneralCellNsides") ;
+        size_t nside = sizeElementType(elg,"GeneralCellNsides") ;
         vector<int> GeneralCellNsides(nside) ;
         readElementType(elg,"GeneralCellNsides",GeneralCellNsides) ;
-        int nnodes = sizeElementType(elg,"GeneralCellNodes") ;
+        size_t nnodes = sizeElementType(elg,"GeneralCellNodes") ;
         vector<int> GeneralCellNodes(nnodes) ;
         readElementType(elg,"GeneralCellNodes",GeneralCellNodes) ;
         if(has_iblank) {
@@ -1099,7 +1099,7 @@ void extract_grid(string casename, string iteration,
           int skip_cells = 0;
           int skip_faces = 0 ;
           int skip_nodes = 0 ;
-          for(int i=0;i<ngenc;++i) {
+          for(size_t i=0;i<ngenc;++i) {
             bool blank = true ;
             int nf = GeneralCellNfaces[i] ;
             int cnt1s = cnt1 ;
@@ -1144,9 +1144,9 @@ void extract_grid(string casename, string iteration,
       for(hsize_t bc=0;bc<num_bcs;++bc) {
         hid_t bcg = H5Gopen(bndg,bc_names[bc].c_str()) ;
         
-        int nquads = sizeElementType(bcg,"quads") ;
-        int ntrias = sizeElementType(bcg,"triangles") ;
-        int ngeneral = sizeElementType(bcg,"nside_sizes") ;
+        size_t nquads = sizeElementType(bcg,"quads") ;
+        size_t ntrias = sizeElementType(bcg,"triangles") ;
+        size_t ngeneral = sizeElementType(bcg,"nside_sizes") ;
         
         vector<Array<int,3> > trias(ntrias) ;
         readElementType(bcg,"triangles",trias) ;
@@ -1155,20 +1155,20 @@ void extract_grid(string casename, string iteration,
 
         vector<int> nside_sizes(ngeneral) ;
         readElementType(bcg,"nside_sizes",nside_sizes) ;
-        int nside_nodes_size = sizeElementType(bcg,"nside_nodes") ;
+        size_t nside_nodes_size = sizeElementType(bcg,"nside_nodes") ;
         vector<int> nside_nodes(nside_nodes_size) ;
         readElementType(bcg,"nside_nodes",nside_nodes) ;
         
         vector<int> node_set ;
-        for(int i=0;i<nside_nodes_size;++i)
+        for(size_t i=0;i<nside_nodes_size;++i)
           node_set.push_back(nside_nodes[i]) ;
         
-        for(int i=0;i<ntrias;++i) {
+        for(size_t i=0;i<ntrias;++i) {
           node_set.push_back(trias[i][0]) ;
           node_set.push_back(trias[i][1]) ;
           node_set.push_back(trias[i][2]) ;
         }
-        for(int i=0;i<nquads;++i) {
+        for(size_t i=0;i<nquads;++i) {
           node_set.push_back(quads[i][0]) ;
           node_set.push_back(quads[i][1]) ;
           node_set.push_back(quads[i][2]) ;
@@ -1185,13 +1185,13 @@ void extract_grid(string casename, string iteration,
         
         topo->create_boundary_part(bc_names[bc],&node_set[0],node_set.size()) ;
         
-        for(int i=0;i<ntrias;++i) 
+        for(size_t i=0;i<ntrias;++i) 
           for(int j=0;j<3;++j) 
             trias[i][j] = nmap[trias[i][j]] ;
-        for(int i=0;i<nquads;++i) 
+        for(size_t i=0;i<nquads;++i) 
           for(int j=0;j<4;++j) 
             quads[i][j] = nmap[quads[i][j]] ;
-        for(int i=0;i<nside_nodes_size;++i)
+        for(size_t i=0;i<nside_nodes_size;++i)
           nside_nodes[i] = nmap[nside_nodes[i]] ;
         
         vector<int > trias_id(ntrias) ;
@@ -1202,7 +1202,7 @@ void extract_grid(string casename, string iteration,
         readElementType(bcg,"nside_id",nside_id) ;
         
         int cnt = 0 ;
-        for(int i=0;i<ntrias;++i) {
+        for(size_t i=0;i<ntrias;++i) {
           bool blank = true ;
           for(int j=0;j<3;++j)
             if(iblank[node_set[trias[i][j]-1]] < 2)
@@ -1221,7 +1221,7 @@ void extract_grid(string casename, string iteration,
         topo->write_trias(&trias[0],&trias_id[0],ntrias) ;
 
         cnt = 0 ;
-        for(int i=0;i<nquads;++i) {
+        for(size_t i=0;i<nquads;++i) {
           bool blank = true ;
           for(int j=0;j<4;++j)
             if(iblank[node_set[quads[i][j]-1]] < 2)
@@ -1380,7 +1380,7 @@ void extract_grid(string casename, string iteration,
           }
           
           hid_t di = H5Gopen(file_id,"dataInfo") ;
-          int nbel = sizeElementType(di,"entityIds") ;
+          size_t nbel = sizeElementType(di,"entityIds") ;
           
           vector<int> elemIds(nbel) ;
           readElementType(di,"entityIds",elemIds) ;
@@ -1406,7 +1406,7 @@ void extract_grid(string casename, string iteration,
           }
           
           hid_t di = H5Gopen(file_id,"dataInfo") ;
-          int nbel = sizeElementType(di,"entityIds") ;
+          size_t nbel = sizeElementType(di,"entityIds") ;
           
           vector<int> elemIds(nbel) ;
           readElementType(di,"entityIds",elemIds) ;
@@ -1433,7 +1433,7 @@ void extract_grid(string casename, string iteration,
           exit(-1) ;
         }
         
-        int np = sizeElementType(file_id, "particle position") ;
+        size_t np = sizeElementType(file_id, "particle position") ;
         vector<vector3d<float> > ppos(np) ;
         readElementType(file_id, "particle position", ppos) ;
         
@@ -1450,7 +1450,7 @@ void extract_grid(string casename, string iteration,
           cerr << "unable to open file '" << filename << "'!" << endl ;
           continue ;
         }
-        int np = sizeElementType(file_id, varname.c_str()) ;
+        size_t np = sizeElementType(file_id, varname.c_str()) ;
         vector<float> scalar(np) ;
         readElementType(file_id, varname.c_str(), scalar) ;
 
@@ -1468,7 +1468,7 @@ void extract_grid(string casename, string iteration,
           cerr << "unable to open file '" << filename << "'!" << endl ;
           continue ;
         }
-        int np = sizeElementType(file_id, varname.c_str()) ;
+        size_t np = sizeElementType(file_id, varname.c_str()) ;
         vector<vector3d<float> > vec(np) ;
         readElementType(file_id, varname.c_str(), vec) ;
 

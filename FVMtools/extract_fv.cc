@@ -160,9 +160,9 @@ string convert_fv_compatible(string var) {
   return var ;
 }
 
-void fv_topo_handler::open(string casename, string iteration ,int inpnts,
-                           int intets, int inprsm, int inpyrm,
-                           int inhexs, int ingen,
+void fv_topo_handler::open(string casename, string iteration ,size_t inpnts,
+                           size_t intets, size_t inprsm, size_t inpyrm,
+                           size_t inhexs, size_t ingen,
                            const vector<string> &bc_names,
                            const vector<string> &variables,
                            const vector<int> &variable_types,
@@ -297,20 +297,20 @@ void fv_topo_handler::close() {
   }
   fclose(OFP) ;
 }
-void fv_topo_handler::create_mesh_positions(vector3d<float> pos[], int pts) {
+void fv_topo_handler::create_mesh_positions(vector3d<float> pos[], size_t pts) {
   int ibuf[2] ;
   ibuf[0] = FV_NODES ;
   ibuf[1] = pts ;
   fwrite(ibuf,sizeof(int),2,OFP) ;
-  for(int i=0;i<pts;++i) {
+  for(size_t i=0;i<pts;++i) {
     float x = pos[i].x;
     fwrite(&x,sizeof(float),1,OFP) ;
   }
-  for(int i=0;i<pts;++i) {
+  for(size_t i=0;i<pts;++i) {
     float y = pos[i].y ;
     fwrite(&y,sizeof(float),1,OFP) ;
   }
-  for(int i=0;i<pts;++i) {
+  for(size_t i=0;i<pts;++i) {
     float z = pos[i].z;
     fwrite(&z,sizeof(float),1,OFP) ;
   }
@@ -326,35 +326,35 @@ void fv_topo_handler::create_mesh_elements() {
   ibuf[4] = npyrm ;
   fwrite(ibuf,sizeof(int),5,OFP) ;
 }
-void fv_topo_handler::write_tets(Array<int,4> tets[], int ntets, int block, int nblocks, int tottets) {
+void fv_topo_handler::write_tets(Array<int,4> tets[], size_t ntets, int block, int nblocks, size_t tottets) {
   static int tet_walls[6] = { NOT_A_WALL, NOT_A_WALL, NOT_A_WALL,
                               NOT_A_WALL, NOT_A_WALL, NOT_A_WALL };
   
   unsigned int elem_header = fv_encode_elem_header(FV_TET_ELEM_ID,
                                                    tet_walls) ;
-  for(int i=0;i<ntets;++i) {
+  for(size_t i=0;i<ntets;++i) {
     fwrite(&elem_header,sizeof(elem_header),1,OFP) ;
     fwrite(&tets[i][0],sizeof(int),4,OFP) ;
   }
 }
-void fv_topo_handler::write_pyrm(Array<int,5> pyrm[], int npyrm, int block, int nblocks, int tottets) {
+void fv_topo_handler::write_pyrm(Array<int,5> pyrm[], size_t npyrm, int block, int nblocks, size_t tottets) {
   static int pyrm_walls[6] = { NOT_A_WALL, NOT_A_WALL, NOT_A_WALL,
                               NOT_A_WALL, NOT_A_WALL, NOT_A_WALL };
   
   unsigned int elem_header = fv_encode_elem_header(FV_PYRA_ELEM_ID,
                                                    pyrm_walls) ;
-  for(int i=0;i<npyrm;++i) {
+  for(size_t i=0;i<npyrm;++i) {
     fwrite(&elem_header,sizeof(elem_header),1,OFP) ;
     fwrite(&pyrm[i][0],sizeof(int),5,OFP) ;
   }
 }
-void fv_topo_handler::write_prsm(Array<int,6> prsm[], int nprsm,int block, int nblocks, int totprsm) {
+void fv_topo_handler::write_prsm(Array<int,6> prsm[], size_t nprsm,int block, int nblocks, size_t totprsm) {
   static int prsm_walls[6] = { NOT_A_WALL, NOT_A_WALL, NOT_A_WALL,
                               NOT_A_WALL, NOT_A_WALL, NOT_A_WALL };
   
   unsigned int elem_header = fv_encode_elem_header(FV_PRISM_ELEM_ID,
                                                    prsm_walls) ;
-  for(int i=0;i<nprsm;++i) {
+  for(size_t i=0;i<nprsm;++i) {
     fwrite(&elem_header,sizeof(elem_header),1,OFP) ;
     Array<int,6> prsml ;
     prsml[0] = prsm[i][0] ;
@@ -367,13 +367,13 @@ void fv_topo_handler::write_prsm(Array<int,6> prsm[], int nprsm,int block, int n
   }
 
 }
-void fv_topo_handler::write_hexs(Array<int,8> hexs[], int nhexs, int block, int nblocks, int tothexs) {
+void fv_topo_handler::write_hexs(Array<int,8> hexs[], size_t nhexs, int block, int nblocks, size_t tothexs) {
   static int hex_walls[6] = { NOT_A_WALL, NOT_A_WALL, NOT_A_WALL,
                               NOT_A_WALL, NOT_A_WALL, NOT_A_WALL };
 
   unsigned int elem_header = fv_encode_elem_header(FV_HEX_ELEM_ID,
                                                    hex_walls) ;
-  for(int i=0;i<nhexs;++i) {
+  for(size_t i=0;i<nhexs;++i) {
     fwrite(&elem_header,sizeof(elem_header),1,OFP) ;
     Array<int,8> hlocal ;
     hlocal[0] = hexs[i][0] ;
@@ -389,16 +389,16 @@ void fv_topo_handler::write_hexs(Array<int,8> hexs[], int nhexs, int block, int 
   
 }
 
-void fv_topo_handler::write_general_cell(int nfaces[], int nnfaces,
-                                         int nsides[], int nnsides,
-                                         int nodes[], int nnodes) {
+void fv_topo_handler::write_general_cell(int nfaces[], size_t nnfaces,
+                                         int nsides[], size_t nnsides,
+                                         int nodes[], size_t nnodes) {
   int ibuf[4] ;
   ibuf[0] = FV_ARB_POLY_ELEMENTS ;
   ibuf[1] = nnfaces ;
   fwrite(ibuf,sizeof(int),2,OFP) ;
   int sc = 0 ;
   int nc = 0 ;
-  for(int i=0;i<nnfaces;++i) {
+  for(size_t i=0;i<nnfaces;++i) {
     int nf = nfaces[i] ;
     int nnd = 0 ;
     for(int j=0;j<nf;++j)
@@ -426,10 +426,10 @@ void fv_topo_handler::write_general_cell(int nfaces[], int nnfaces,
     }
   }
 
-  if(nc != nnodes) {
+  if(size_t(nc) != nnodes) {
     cerr << " something wrong!" << endl ;
   }
-  if(sc != nnsides) {
+  if(size_t(sc) != nnsides) {
     cerr << "something worng with sides!" << endl ;
   }
 }
@@ -437,25 +437,25 @@ void fv_topo_handler::write_general_cell(int nfaces[], int nnfaces,
 void fv_topo_handler::close_mesh_elements() {
 }
 void fv_topo_handler::create_boundary_part(string name,int node_set[],
-                                           int npnts) {
+                                           size_t npnts) {
   ordinary_faces.clear() ;
   part_nodes.push_back(vector<int>(npnts)) ;
-  for(int i=0;i<npnts;++i)
+  for(size_t i=0;i<npnts;++i)
     part_nodes[part_id-1][i] = node_set[i] ;
 
 }
   
 
 void fv_topo_handler::write_quads(Array<int,4> quads[],
-                                  int quads_ids[], int nquads) {
-  for(int i=0;i<nquads;++i) {
+                                  int quads_ids[], size_t nquads) {
+  for(size_t i=0;i<nquads;++i) {
     ordinary_faces.push_back(quads[i]) ;
     elem_ids.push_back(quads_ids[i]) ;
   }
 }
 void fv_topo_handler::write_trias(Array<int,3> trias[],
-                                  int trias_ids[], int ntrias) {
-  for(int i=0;i<ntrias;++i) {
+                                  int trias_ids[], size_t ntrias) {
+  for(size_t i=0;i<ntrias;++i) {
     Array<int,4> a ;
     a[0] = trias[i][0] ;
     a[1] = trias[i][1] ;
@@ -468,13 +468,13 @@ void fv_topo_handler::write_trias(Array<int,3> trias[],
 }
 
 void fv_topo_handler::write_general_face(int nside_sizes[],
-                                         int nside_ids[], int ngeneral,
+                                         int nside_ids[], size_t ngeneral,
                                          int nside_nodes[],
-                                         int nside_nodes_size) {
+                                         size_t nside_nodes_size) {
   int ibuf[4] ;
   ibuf[1] = part_id ;
   ibuf[2] = ngeneral+ordinary_faces.size() ;
-  for(int i=0;i<ngeneral;++i) {
+  for(size_t i=0;i<ngeneral;++i) {
     elem_ids.push_back(nside_ids[i]) ;
   }
   if(ngeneral == 0) {
@@ -515,7 +515,7 @@ void fv_topo_handler::write_general_face(int nside_sizes[],
     }
 
     int cnt = 0 ;
-    for(int i=0;i<ngeneral;++i) {
+    for(size_t i=0;i<ngeneral;++i) {
       ibuf[0] = nside_sizes[i] ;
       fwrite(ibuf,sizeof(int),1,OFP) ;
       for(int j=0;j<nside_sizes[i];++j) {
@@ -531,7 +531,7 @@ void fv_topo_handler::close_boundary_part() {
   ordinary_faces.clear() ;
 }
 
-void fv_topo_handler::output_nodal_scalar(float val[], int npnts,
+void fv_topo_handler::output_nodal_scalar(float val[], size_t npnts,
                                           string varname) {
   if(first_var) {
     int ibuf[1] ;
@@ -543,29 +543,29 @@ void fv_topo_handler::output_nodal_scalar(float val[], int npnts,
 }
 
 void fv_topo_handler::output_nodal_vector(vector3d<float> val[],
-                                               int npnts, string varname) {
+					  size_t npnts, string varname) {
   if(first_var) {
     int ibuf[1] ;
     ibuf[0] = FV_VARIABLES ;
     fwrite(ibuf,sizeof(int),1,OFP) ;
     first_var = false ;
   }
-  for(int i=0;i<npnts;++i) {
+  for(size_t i=0;i<npnts;++i) {
     float d = val[i].x ;
     fwrite(&d,sizeof(float),1,OFP) ;
   }
-  for(int i=0;i<npnts;++i) {
+  for(size_t i=0;i<npnts;++i) {
     float d = val[i].y ;
     fwrite(&d,sizeof(float),1,OFP) ;
   }
-  for(int i=0;i<npnts;++i) {
+  for(size_t i=0;i<npnts;++i) {
     float d = val[i].z ;
     fwrite(&d,sizeof(float),1,OFP) ;
   }
 }
 
 void fv_topo_handler::output_boundary_scalar(float val[], int node_set[],
-                                             int nvals, string varname) {
+                                             size_t nvals, string varname) {
   if(first_var) {
     int ibuf[1] ;
     ibuf[0] = FV_VARIABLES ;
@@ -590,15 +590,15 @@ void fv_topo_handler::output_boundary_scalar(float val[], int node_set[],
     einv[elem_ids[i]] = i ;
     valout[i] = 0.0 ;
   }
-  for(int i=0;i<nvals;++i) {
+  for(size_t i=0;i<nvals;++i) {
     valout[einv[node_set[i]]] = val[i] ;
   }
   fwrite(&valout[0],sizeof(float),valout.size(),OFP) ;
 }  
 
 void fv_topo_handler::output_boundary_vector(vector3d<float> val[],
-                                                  int node_set[],
-                                                  int nvals, string varname) {
+					     int node_set[],
+					     size_t nvals, string varname) {
   if(first_var) {
     int ibuf[1] ;
     ibuf[0] = FV_VARIABLES ;
@@ -621,26 +621,26 @@ void fv_topo_handler::output_boundary_vector(vector3d<float> val[],
     einv[elem_ids[i]] = i ;
     valout[i] = 0.0 ;
   }
-  for(int i=0;i<nvals;++i) 
+  for(size_t i=0;i<nvals;++i) 
     valout[einv[node_set[i]]] = val[i].x ;
   fwrite(&valout[0],sizeof(float),valout.size(),OFP) ;
 
   for(size_t i=0;i<elem_ids.size();++i) 
     valout[i] = 0.0 ;
-  for(int i=0;i<nvals;++i) 
+  for(size_t i=0;i<nvals;++i) 
     valout[einv[node_set[i]]] = val[i].y ;
   fwrite(&valout[0],sizeof(float),valout.size(),OFP) ;
 
   for(size_t i=0;i<elem_ids.size();++i) 
     valout[i] = 0.0 ;
-  for(int i=0;i<nvals;++i) 
+  for(size_t i=0;i<nvals;++i) 
     valout[einv[node_set[i]]] = val[i].z ;
   fwrite(&valout[0],sizeof(float),valout.size(),OFP) ;
 }  
 
 void
 fv_topo_handler::create_particle_positions
-(vector3d<float> pos[], int pts, int maxp) {
+(vector3d<float> pos[], size_t pts, size_t maxp) {
 
   int m = pts ;
   if(maxp >= 0 && maxp < pts)
@@ -714,8 +714,8 @@ fv_topo_handler::create_particle_positions
 }
 
 void
-fv_topo_handler::output_particle_scalar(float val[], int np,
-                                        int maxp, string valname) {
+fv_topo_handler::output_particle_scalar(float val[], size_t np,
+                                        size_t maxp, string valname) {
   int m = np ;
   if(maxp >= 0 && maxp < np)
     m = maxp ;
@@ -739,8 +739,8 @@ fv_topo_handler::output_particle_scalar(float val[], int np,
 }
 
 void
-fv_topo_handler::output_particle_vector(vector3d<float> val[], int np,
-                                        int maxp, string valname) {
+fv_topo_handler::output_particle_vector(vector3d<float> val[], size_t np,
+                                        size_t maxp, string valname) {
   int m = np ;
   if(maxp >= 0 && maxp < np)
     m = maxp ;

@@ -116,9 +116,9 @@ int TECEND() {
   return(0)  ;
 }
 
-void tecplot_topo_handler::open(string casename, string iteration ,int inpnts,
-                                int intets, int inprsm, int inpyrm,
-                                int inhexs, int ingen,
+void tecplot_topo_handler::open(string casename, string iteration ,size_t inpnts,
+                                size_t intets, size_t inprsm, size_t inpyrm,
+                                size_t inhexs, size_t ingen,
                                 const vector<string> &bc_names,
                                 const vector<string> &variables,
                                 const vector<int> &variable_types,
@@ -153,7 +153,8 @@ void tecplot_topo_handler::open(string casename, string iteration ,int inpnts,
   int VIsDouble = 0 ;
   TECINI(casename.c_str(),varstring.c_str(),filename.c_str(),
          ".",&Debug,&VIsDouble) ;
-  TECZNE("VOLUME_MESH",&npnts,&ncells,filename.c_str(),"FEBRICK") ;
+  int npt = npnts ;
+  TECZNE("VOLUME_MESH",&npt,&ncells,filename.c_str(),"FEBRICK") ;
   
 }
 void tecplot_topo_handler::close_mesh_elements() {
@@ -164,20 +165,21 @@ void tecplot_topo_handler::close_mesh_elements() {
 
 void tecplot_topo_handler::close() {
 }
-void tecplot_topo_handler::create_mesh_positions(vector3d<float> pos[], int pts) {
+void tecplot_topo_handler::create_mesh_positions(vector3d<float> pos[], size_t pts) {
   vector<float> pos_x(npnts),pos_y(npnts),pos_z(npnts) ;
-  for(int i=0;i<npnts;++i) {
+  for(size_t i=0;i<npnts;++i) {
     pos_x[i] = pos[i].x ;
     pos_y[i] = pos[i].y ;
     pos_z[i] = pos[i].z ;
   }
-  TECDAT(&npnts,&pos_x[0],filename.c_str()) ;
-  TECDAT(&npnts,&pos_y[0],filename.c_str()) ;
-  TECDAT(&npnts,&pos_z[0],filename.c_str()) ;
+  int npt = npnts ;
+  TECDAT(&npt,&pos_x[0],filename.c_str()) ;
+  TECDAT(&npt,&pos_y[0],filename.c_str()) ;
+  TECDAT(&npt,&pos_z[0],filename.c_str()) ;
 }
 
-void tecplot_topo_handler::write_tets(Array<int,4> tets[], int ntets, int block, int nblocks, int tottets) {
-  for(int i=0;i<ntets;++i) {
+void tecplot_topo_handler::write_tets(Array<int,4> tets[], size_t ntets, int block, int nblocks, size_t tottets) {
+  for(size_t i=0;i<ntets;++i) {
     Array<int,8> brick ;
     brick[0] = tets[i][0] ;
     brick[1] = tets[i][1] ;
@@ -190,8 +192,8 @@ void tecplot_topo_handler::write_tets(Array<int,4> tets[], int ntets, int block,
     bricks.push_back(brick) ;
   }    
 }
-void tecplot_topo_handler::write_pyrm(Array<int,5> pyrm[], int npyrm, int block, int nblocks, int totpyrm) {
-  for(int i=0;i<npyrm;++i) {
+void tecplot_topo_handler::write_pyrm(Array<int,5> pyrm[], size_t npyrm, int block, int nblocks, size_t totpyrm) {
+  for(size_t i=0;i<npyrm;++i) {
     Array<int,8> brick ;
     brick[0] = pyrm[i][0] ;
     brick[1] = pyrm[i][1] ;
@@ -205,8 +207,8 @@ void tecplot_topo_handler::write_pyrm(Array<int,5> pyrm[], int npyrm, int block,
   }
   
 }
-void tecplot_topo_handler::write_prsm(Array<int,6> prsm[], int nprsm,int block, int nblocks, int totprsm) {
-  for(int i=0;i<nprsm;++i) {
+void tecplot_topo_handler::write_prsm(Array<int,6> prsm[], size_t nprsm,int block, int nblocks, size_t totprsm) {
+  for(size_t i=0;i<nprsm;++i) {
     Array<int,8> brick ;
     brick[0] = prsm[i][0] ;
     brick[1] = prsm[i][1] ;
@@ -219,8 +221,8 @@ void tecplot_topo_handler::write_prsm(Array<int,6> prsm[], int nprsm,int block, 
     bricks.push_back(brick) ;
   }
 }
-void tecplot_topo_handler::write_hexs(Array<int,8> hexs[], int nhexs, int block, int nblocks, int tothexs) {
-  for(int i=0;i<nhexs;++i) {
+void tecplot_topo_handler::write_hexs(Array<int,8> hexs[], size_t nhexs, int block, int nblocks, size_t tothexs) {
+  for(size_t i=0;i<nhexs;++i) {
     Array<int,8> brick ;
     for(int j=0;j<8;++j)
       brick[j] = hexs[i][j] ;
@@ -228,32 +230,32 @@ void tecplot_topo_handler::write_hexs(Array<int,8> hexs[], int nhexs, int block,
   }
 }
 
-void tecplot_topo_handler::write_general_cell(int nfaces[], int nnfaces,
-                                              int nsides[], int nnsides,
-                                              int nodes[], int nnodes) {
+void tecplot_topo_handler::write_general_cell(int nfaces[], size_t nnfaces,
+                                              int nsides[], size_t nnsides,
+                                              int nodes[], size_t nnodes) {
   cerr << "tecplot extract module doesn't support general cells!" << endl ;
 }
 
 void tecplot_topo_handler::create_boundary_part(string name,int node_set[],
-                                                int npnts) {
+                                                size_t npnts) {
   boundary_name = name ;
   ordinary_faces.clear() ;
   node_ids.clear() ;
-  for(int i=0;i<npnts;++i)
+  for(size_t i=0;i<npnts;++i)
     node_ids.push_back(node_set[i]) ;
 }
   
 
 void tecplot_topo_handler::write_quads(Array<int,4> quads[],
-                                       int quads_ids[], int nquads) {
-  for(int i=0;i<nquads;++i) {
+                                       int quads_ids[], size_t nquads) {
+  for(size_t i=0;i<nquads;++i) {
     ordinary_faces.push_back(quads[i]) ;
     elem_ids.push_back(quads_ids[i]) ;
   }
 }
 void tecplot_topo_handler::write_trias(Array<int,3> trias[],
-                                       int trias_ids[], int ntrias) {
-  for(int i=0;i<ntrias;++i) {
+                                       int trias_ids[], size_t ntrias) {
+  for(size_t i=0;i<ntrias;++i) {
     Array<int,4> a ;
     a[0] = trias[i][0] ;
     a[1] = trias[i][1] ;
@@ -266,9 +268,9 @@ void tecplot_topo_handler::write_trias(Array<int,3> trias[],
 }
 
 void tecplot_topo_handler::write_general_face(int nside_sizes[],
-                                              int nside_ids[], int ngeneral,
+                                              int nside_ids[], size_t ngeneral,
                                               int nside_nodes[],
-                                              int nside_nodes_size) {
+                                              size_t nside_nodes_size) {
   if(ngeneral != 0) {
     cerr << "general boundary facets ignored in tecplot extract"
          << endl ;
@@ -299,30 +301,32 @@ void tecplot_topo_handler::close_boundary_part() {
   boundary_name = "" ;
 }
 
-void tecplot_topo_handler::output_nodal_scalar(float val[], int npnts,
+void tecplot_topo_handler::output_nodal_scalar(float val[], size_t npnts,
                                                string varname) {
-  TECDAT(&npnts,&val[0],filename.c_str()) ;
+  int npt = npnts ;
+  TECDAT(&npt,&val[0],filename.c_str()) ;
 }
 
 void tecplot_topo_handler::output_nodal_vector(vector3d<float> val[],
-                                               int npnts, string varname) {
+                                               size_t npnts, string varname) {
   vector<float> tmp(npnts) ;
-  for(int i=0;i<npnts;++i)
+  for(size_t i=0;i<npnts;++i)
     tmp[i] = val[i].x ;
-  TECDAT(&npnts,&tmp[0],filename.c_str()) ;
-  for(int i=0;i<npnts;++i)
+  int npt = npnts ;
+  TECDAT(&npt,&tmp[0],filename.c_str()) ;
+  for(size_t i=0;i<npnts;++i)
     tmp[i] = val[i].y ;
-  TECDAT(&npnts,&tmp[0],filename.c_str()) ;
-  for(int i=0;i<npnts;++i)
+  TECDAT(&npt,&tmp[0],filename.c_str()) ;
+  for(size_t i=0;i<npnts;++i)
     tmp[i] = val[i].z ;
-  TECDAT(&npnts,&tmp[0],filename.c_str()) ;
+  TECDAT(&npt,&tmp[0],filename.c_str()) ;
 }
 
 void tecplot_topo_handler::output_boundary_scalar(float val[], int node_set[],
-                                                  int nvals, string varname) {
+                                                  size_t nvals, string varname) {
 }  
 
 void tecplot_topo_handler::output_boundary_vector(vector3d<float> val[],
                                                   int node_set[],
-                                                  int nvals, string varname) {
+                                                  size_t nvals, string varname) {
 }  

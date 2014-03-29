@@ -77,63 +77,63 @@ public:
     sequence[5] = PARTICLE_POSITIONS ;
     sequence[6] = PARTICLE_VARIABLES ;
   }
-  virtual void open(string casename, string iteration ,int npnts,
-                    int ntets, int nprsm, int npyrm, int nhexs, int ngen,
+  virtual void open(string casename, string iteration ,size_t npnts,
+                    size_t ntets, size_t nprsm, size_t npyrm, size_t nhexs, size_t ngen,
                     const vector<string> &bc_names,
                     const vector<string> &variables,
                     const vector<int> &variable_types,
                     double time) = 0 ;
   virtual void close() = 0 ;
-  virtual void create_mesh_positions(vector3d<float> pos[], int npnts) = 0 ;
+  virtual void create_mesh_positions(vector3d<float> pos[], size_t npnts) = 0 ;
   virtual void create_mesh_elements() = 0 ;
   
-  virtual void write_tets_ids(int tets_ids[], int ntets,int block, int numblocks,int tottets){} 
-  virtual void write_pyrm_ids(int pyrm_ids[],int npyrm,int block, int numblocks,int totpyrm){}
-  virtual void write_prsm_ids(int prsm_ids[],int nprsm,int block, int numblocks,int totprsm){}
-  virtual void write_hexs_ids(int hex_ids[], int nhexs,int block, int numblocks,int tothexs){}
-  virtual void write_general_cell_ids(int nfaces_ids[],int nnfaces){}
+  virtual void write_tets_ids(int tets_ids[], size_t ntets,int block, int numblocks,size_t tottets){} 
+  virtual void write_pyrm_ids(int pyrm_ids[],size_t npyrm,int block, int numblocks,size_t totpyrm){}
+  virtual void write_prsm_ids(int prsm_ids[],size_t nprsm,int block, int numblocks,size_t totprsm){}
+  virtual void write_hexs_ids(int hex_ids[], size_t nhexs,int block, int numblocks,size_t tothexs){}
+  virtual void write_general_cell_ids(int nfaces_ids[],size_t nnfaces){}
   
-  virtual void write_tets(Array<int,4> tets[],  int ntets,int block, int numblocks,int tottets) = 0 ;
-  virtual void write_pyrm(Array<int,5> pyrm[],int npyrm,int block, int numblocks,int totpyrm) = 0 ;
-  virtual void write_prsm(Array<int,6> prsm[], int nprsm,int block, int numblocks,int totprsm) = 0 ;
-  virtual void write_hexs(Array<int,8> hexs[],  int nhexs,int block, int numblocks,int tothexs) = 0 ;
-  virtual void write_general_cell(int nfaces[], int nnfaces,
-                                  int nsides[], int nnsides,
-                                  int nodes[], int nnodes) = 0 ;
+  virtual void write_tets(Array<int,4> tets[],  size_t ntets,int block, int numblocks,size_t tottets) = 0 ;
+  virtual void write_pyrm(Array<int,5> pyrm[],size_t npyrm,int block, int numblocks,size_t totpyrm) = 0 ;
+  virtual void write_prsm(Array<int,6> prsm[], size_t nprsm,int block, int numblocks,size_t totprsm) = 0 ;
+  virtual void write_hexs(Array<int,8> hexs[],  size_t nhexs,int block, int numblocks,size_t tothexs) = 0 ;
+  virtual void write_general_cell(int nfaces[], size_t nnfaces,
+                                  int nsides[], size_t nnsides,
+                                  int nodes[], size_t nnodes) = 0 ;
   
   virtual void close_mesh_elements() = 0 ;
 
-  virtual void create_boundary_part(string name,int node_set[],int npnts) = 0 ;
+  virtual void create_boundary_part(string name,int node_set[],size_t npnts) = 0 ;
   virtual void write_quads(Array<int,4> quads[], int quad_ids[],
-                           int nquads) = 0 ;
+                           size_t nquads) = 0 ;
   virtual void write_trias(Array<int,3> trias[], int tria_ids[],
-                           int ntrias) = 0 ;
-  virtual void write_general_face(int nside_sizes[], int nside_ids[], int ngeneral,
-                             int nside_nodes[], int nside_nodes_size) = 0 ;
+                           size_t ntrias) = 0 ;
+  virtual void write_general_face(int nside_sizes[], int nside_ids[], size_t ngeneral,
+                             int nside_nodes[], size_t nside_nodes_size) = 0 ;
   virtual void close_boundary_part() = 0 ;
   virtual void create_nodal_output() = 0 ;
-  virtual void output_nodal_scalar(float val[], int npnts, string valname) = 0 ;
+  virtual void output_nodal_scalar(float val[], size_t npnts, string valname) = 0 ;
   virtual void output_nodal_vector(vector3d<float> val[],
-                                   int npnts, string valname) = 0 ;
+                                   size_t npnts, string valname) = 0 ;
   virtual void close_nodal_output() = 0 ;
   virtual void output_boundary_scalar(float val[], int node_set[],
-                                      int nvals, string valname) = 0 ;
+                                      size_t nvals, string valname) = 0 ;
   virtual void output_boundary_vector(vector3d<float> val[], int node_set[],
-                                      int nvals, string valname) = 0 ;
+                                      size_t nvals, string valname) = 0 ;
 
   // maxp is the maximum particles to be extracted
   virtual void create_particle_positions(vector3d<float> pos[],
-                                         int np, int maxp) = 0 ;
-  virtual void output_particle_scalar(float val[], int np,
-                                      int maxp, string valname) = 0 ;
-  virtual void output_particle_vector(vector3d<float> val[], int np,
-                                      int maxp, string valname) = 0 ;
+                                         size_t np, size_t maxp) = 0 ;
+  virtual void output_particle_scalar(float val[], size_t np,
+                                      size_t maxp, string valname) = 0 ;
+  virtual void output_particle_vector(vector3d<float> val[], size_t np,
+                                      size_t maxp, string valname) = 0 ;
 } ;
 
 class ensight_topo_handler : public grid_topo_handler {
   string dirname ;
-  int npnts ;
-  int ntets, nprsm, npyrm, nhexs, ngen ;
+  size_t npnts ;
+  size_t ntets, nprsm, npyrm, nhexs, ngen ;
   FILE *OFP ;
   int part_id ;
   vector<vector<int> > part_nodes ;
@@ -163,62 +163,62 @@ public:
     }
   }
   virtual ~ensight_topo_handler() {}
-  virtual void open(string casename, string iteration ,int npnts,
-                    int ntets, int nprsm, int npyrm, int nhexs, int ngen,
+  virtual void open(string casename, string iteration ,size_t npnts,
+                    size_t ntets, size_t nprsm, size_t npyrm, size_t nhexs, size_t ngen,
                     const vector<string> &bc_names,
                     const vector<string> &variables,
                     const vector<int> &variable_types,
                     double time) ;
   virtual void close() ;
-  virtual void create_mesh_positions(vector3d<float> pos[], int npnts) ;
+  virtual void create_mesh_positions(vector3d<float> pos[], size_t npnts) ;
   virtual void create_mesh_elements() {}
 
-  virtual void write_tets(Array<int,4> tets[], int ntets,int block, int numblocks,int tottets) ;
-  virtual void write_pyrm(Array<int,5> prsm[], int npyrm,int block, int numblocks,int totprym) ;
-  virtual void write_prsm(Array<int,6> prsm[], int nprsm,int block, int numblocks,int totprsm)  ;
-  virtual void write_hexs(Array<int,8> hexs[], int nhexs,int block, int numblocks,int tothexs) ;
-  virtual void write_general_cell(int nfaces[], int nnfaces,
-                                  int nsides[], int nnsides,
-                                  int nodes[], int nnodes) ;
+  virtual void write_tets(Array<int,4> tets[], size_t ntets,int block, int numblocks,size_t tottets) ;
+  virtual void write_pyrm(Array<int,5> prsm[], size_t npyrm,int block, int numblocks,size_t totprym) ;
+  virtual void write_prsm(Array<int,6> prsm[], size_t nprsm,int block, int numblocks,size_t totprsm)  ;
+  virtual void write_hexs(Array<int,8> hexs[], size_t nhexs,int block, int numblocks,size_t tothexs) ;
+  virtual void write_general_cell(int nfaces[], size_t nnfaces,
+                                  int nsides[], size_t nnsides,
+                                  int nodes[], size_t nnodes) ;
 
-  virtual void write_tets_ids(int tets_ids[], int ntets,int block, int numblocks,int tottets) ;
-  virtual void write_pyrm_ids(int pyrm_ids[],int npyrm,int block, int numblocks,int totpyrm) ;
-  virtual void write_prsm_ids(int prsm_ids[],int nprsm,int block, int numblocks,int totprsm)  ;
-  virtual void write_hexs_ids(int hex_ids[], int nhexs,int block, int numblocks,int tothexs)  ;
-  virtual void write_general_cell_ids(int nfaces_ids[],int nnfaces) ;
+  virtual void write_tets_ids(int tets_ids[], size_t ntets,int block, int numblocks,size_t tottets) ;
+  virtual void write_pyrm_ids(int pyrm_ids[],size_t npyrm,int block, int numblocks,size_t totpyrm) ;
+  virtual void write_prsm_ids(int prsm_ids[],size_t nprsm,int block, int numblocks,size_t totprsm)  ;
+  virtual void write_hexs_ids(int hex_ids[], size_t nhexs,int block, int numblocks,size_t tothexs)  ;
+  virtual void write_general_cell_ids(int nfaces_ids[],size_t nnfaces) ;
 
   
   virtual void close_mesh_elements() {}
-  virtual void create_boundary_part(string name,int node_set[], int npnts) ;
+  virtual void create_boundary_part(string name,int node_set[], size_t npnts) ;
   virtual void write_quads(Array<int,4> quads[], int quad_ids[],
-                           int nquads) ;
+                           size_t nquads) ;
   virtual void write_trias(Array<int,3> trias[], int tria_ids[],
-                           int ntrias) ;
-  virtual void write_general_face(int nside_sizes[], int nside_ids[], int ngeneral,
-                             int nside_nodes[], int nside_nodes_size) ;
+                           size_t ntrias) ;
+  virtual void write_general_face(int nside_sizes[], int nside_ids[], size_t ngeneral,
+                             int nside_nodes[], size_t nside_nodes_size) ;
   virtual void close_boundary_part() ;
   virtual void create_nodal_output() {}
-  virtual void output_nodal_scalar(float val[], int npnts, string valname) ;
+  virtual void output_nodal_scalar(float val[], size_t npnts, string valname) ;
   virtual void output_nodal_vector(vector3d<float> val[],
-                                   int npnts, string valname) ;
+                                   size_t npnts, string valname) ;
   virtual void close_nodal_output() {} ; 
   virtual void output_boundary_scalar(float val[], int node_set[],
-                                      int nvals, string valname) ;
+                                      size_t nvals, string valname) ;
   virtual void output_boundary_vector(vector3d<float> val[], int node_set[],
-                                      int nvals, string valname) ;
+                                      size_t nvals, string valname) ;
   
   virtual void create_particle_positions(vector3d<float> pos[],
-                                         int np, int maxp) ;
-  virtual void output_particle_scalar(float val[], int np,
-                                      int maxp, string valname) ;
-  virtual void output_particle_vector(vector3d<float> val[], int np,
-                                      int maxp, string valname) ;
+					 size_t np, size_t maxp) ;
+  virtual void output_particle_scalar(float val[], size_t np,
+                                      size_t maxp, string valname) ;
+  virtual void output_particle_vector(vector3d<float> val[], size_t np,
+                                      size_t maxp, string valname) ;
 } ;
 
 class tecplot_topo_handler : public grid_topo_handler {
   string filename ;
-  int npnts ;
-  int ntets, nprsm, npyrm, nhexs, ngen ;
+  size_t npnts ;
+  size_t ntets, nprsm, npyrm, nhexs, ngen ;
   int nvars ;
   vector<Array<int, 8> > bricks ;
   string boundary_name ;
@@ -237,52 +237,48 @@ public:
     sequence[5] = PARTICLE_POSITIONS ;
     sequence[6] = PARTICLE_VARIABLES ;
   }
-  virtual void open(string casename, string iteration ,int npnts,
-                    int ntets, int nprsm, int npyrm, int nhexs, int ngen,
+  virtual void open(string casename, string iteration ,size_t npnts,
+                    size_t ntets, size_t nprsm, size_t npyrm, size_t nhexs, size_t ngen,
                     const vector<string> &bc_names,
                     const vector<string> &variables,
                     const vector<int> &variable_types,
                     double time) ;
   virtual void close() ;
-  virtual void create_mesh_positions(vector3d<float> pos[], int npnts) ;
+  virtual void create_mesh_positions(vector3d<float> pos[], size_t npnts) ;
   virtual void create_mesh_elements() {}
-  virtual void write_tets(Array<int,4> tets[], int ntets, int block, int numblocks,int tottets) ;
-  virtual void write_pyrm(Array<int,5> prsm[], int npyrm, int block, int numblocks,int totpyrm) ;
-  virtual void write_prsm(Array<int,6> prsm[], int nprsm, int block, int numblocks,int totprsm)  ;
-  virtual void write_hexs(Array<int,8> hexs[], int nhexs, int block, int numblocks,int tothexs) ;
-  virtual void write_general_cell(int nfaces[], int nnfaces,
-                                  int nsides[], int nnsides,
-                                  int nodes[], int nnodes) ;
-
-
-  
-
+  virtual void write_tets(Array<int,4> tets[], size_t ntets, int block, int numblocks,size_t tottets) ;
+  virtual void write_pyrm(Array<int,5> prsm[], size_t npyrm, int block, int numblocks,size_t totpyrm) ;
+  virtual void write_prsm(Array<int,6> prsm[], size_t nprsm, int block, int numblocks,size_t totprsm)  ;
+  virtual void write_hexs(Array<int,8> hexs[], size_t nhexs, int block, int numblocks,size_t tothexs) ;
+  virtual void write_general_cell(int nfaces[], size_t nnfaces,
+                                  int nsides[], size_t nnsides,
+                                  int nodes[], size_t nnodes) ;
   
   virtual void close_mesh_elements() ;
-  virtual void create_boundary_part(string name,int node_set[], int npnts) ;
+  virtual void create_boundary_part(string name,int node_set[], size_t npnts) ;
   virtual void write_quads(Array<int,4> quads[], int quad_ids[],
-                           int nquads) ;
+                           size_t nquads) ;
   virtual void write_trias(Array<int,3> trias[], int tria_ids[],
-                           int ntrias) ;
-  virtual void write_general_face(int nside_sizes[], int nside_ids[], int ngeneral,
-                             int nside_nodes[], int nside_nodes_size) ;
+                           size_t ntrias) ;
+  virtual void write_general_face(int nside_sizes[], int nside_ids[], size_t ngeneral,
+                             int nside_nodes[], size_t nside_nodes_size) ;
   virtual void close_boundary_part() ;
   virtual void create_nodal_output() {}
-  virtual void output_nodal_scalar(float val[], int npnts, string valname) ;
+  virtual void output_nodal_scalar(float val[], size_t npnts, string valname) ;
   virtual void output_nodal_vector(vector3d<float> val[],
-                                   int npnts, string valname) ;
+                                   size_t npnts, string valname) ;
   virtual void close_nodal_output() {} ; 
   virtual void output_boundary_scalar(float val[], int node_set[],
-                                      int nvals, string valname) ;
+                                      size_t nvals, string valname) ;
   virtual void output_boundary_vector(vector3d<float> val[], int node_set[],
-                                      int nvals, string valname) ;
+                                      size_t nvals, string valname) ;
     
   virtual void create_particle_positions(vector3d<float> pos[],
-                                         int np, int maxp) {}
-  virtual void output_particle_scalar(float val[], int np,
-                                      int maxp, string valname) {}
-  virtual void output_particle_vector(vector3d<float> val[], int np,
-                                      int maxp, string valname) {}
+                                         size_t np, size_t maxp) {}
+  virtual void output_particle_scalar(float val[], size_t np,
+                                      size_t maxp, string valname) {}
+  virtual void output_particle_vector(vector3d<float> val[], size_t np,
+                                      size_t maxp, string valname) {}
 } ;
 
 class vtk_topo_handler : public grid_topo_handler {
@@ -325,50 +321,47 @@ public:
     sequence[5] = PARTICLE_POSITIONS ;
     sequence[6] = PARTICLE_VARIABLES ;
   }
-  virtual void open(string casename, string iteration ,int npnts,
-                    int ntets, int nprsm, int npyrm, int nhexs, int ngen,
+  virtual void open(string casename, string iteration ,size_t npnts,
+                    size_t ntets, size_t nprsm, size_t npyrm, size_t nhexs, size_t ngen,
                     const vector<string> &bc_names,
                     const vector<string> &variables,
                     const vector<int> &variable_types,
                     double time) ;
   virtual void close() ;
-  virtual void create_mesh_positions(vector3d<float> pos[], int npnts) ;
+  virtual void create_mesh_positions(vector3d<float> pos[], size_t npnts) ;
   virtual void create_mesh_elements() {}
-  virtual void write_tets(Array<int,4> tets[], int ntets, int block, int numblocks,int tottets) ;
-  virtual void write_pyrm(Array<int,5> prsm[], int npyrm, int block, int numblocks,int totpyrm) ;
-  virtual void write_prsm(Array<int,6> prsm[], int nprsm, int block, int numblocks,int totprsm)  ;
-  virtual void write_hexs(Array<int,8> hexs[], int nhexs, int block, int numblocks,int tothexs) ;
-  virtual void write_general_cell(int nfaces[], int nnfaces,
-                                  int nsides[], int nnsides,
-                                  int nodes[], int nnodes) ;
+  virtual void write_tets(Array<int,4> tets[], size_t ntets, int block, int numblocks,size_t tottets) ;
+  virtual void write_pyrm(Array<int,5> prsm[], size_t npyrm, int block, int numblocks,size_t totpyrm) ;
+  virtual void write_prsm(Array<int,6> prsm[], size_t nprsm, int block, int numblocks,size_t totprsm)  ;
+  virtual void write_hexs(Array<int,8> hexs[], size_t nhexs, int block, int numblocks,size_t tothexs) ;
+  virtual void write_general_cell(int nfaces[], size_t nnfaces,
+                                  int nsides[], size_t nnsides,
+                                  int nodes[], size_t nnodes) ;
   virtual void close_mesh_elements() ;
-  virtual void create_boundary_part(string name,int node_set[], int npnts) {}
+  virtual void create_boundary_part(string name,int node_set[], size_t npnts) {}
   virtual void write_quads(Array<int,4> quads[], int quad_ids[],
-                           int nquads) {}
+                           size_t nquads) {}
   virtual void write_trias(Array<int,3> trias[], int tria_ids[],
-                           int ntrias) {}
-  virtual void write_general_face(int nside_sizes[], int nside_ids[], int ngeneral,
-                             int nside_nodes[], int
-			     nside_nodes_size) {}
+                           size_t ntrias) {}
+  virtual void write_general_face(int nside_sizes[], int nside_ids[], size_t ngeneral,
+                             int nside_nodes[], size_t  nside_nodes_size) {}
   virtual void close_boundary_part() {}
   virtual void create_nodal_output() {}
-  virtual void output_nodal_scalar(float val[], int npnts, string valname) ;
+  virtual void output_nodal_scalar(float val[], size_t npnts, string valname) ;
   virtual void output_nodal_vector(vector3d<float> val[],
-                                   int npnts, string valname) ;
+                                   size_t npnts, string valname) ;
   virtual void close_nodal_output() {} ; 
   virtual void output_boundary_scalar(float val[], int node_set[],
-                                      int nvals, string
-				      valname) {}
+                                      size_t nvals, string valname) {}
   virtual void output_boundary_vector(vector3d<float> val[], int node_set[],
-                                      int nvals, string
-				      valname) {}
+                                      size_t nvals, string valname) {}
     
   virtual void create_particle_positions(vector3d<float> pos[],
-                                         int np, int maxp) {}
-  virtual void output_particle_scalar(float val[], int np,
-                                      int maxp, string valname) {}
-  virtual void output_particle_vector(vector3d<float> val[], int np,
-                                      int maxp, string valname) {}
+                                         size_t np, size_t maxp) {}
+  virtual void output_particle_scalar(float val[], size_t np,
+                                      size_t maxp, string valname) {}
+  virtual void output_particle_vector(vector3d<float> val[], size_t np,
+                                      size_t maxp, string valname) {}
 } ;
 
 class vtk_surf_topo_handler : public grid_topo_handler {
@@ -418,57 +411,56 @@ public:
     sequence[5] = PARTICLE_POSITIONS ;
     sequence[6] = PARTICLE_VARIABLES ;
   }
-  virtual void open(string casename, string iteration ,int npnts,
-                    int ntets, int nprsm, int npyrm, int nhexs, int ngen,
+  virtual void open(string casename, string iteration ,size_t npnts,
+                    size_t ntets, size_t nprsm, size_t npyrm, size_t nhexs, size_t ngen,
                     const vector<string> &bc_names,
                     const vector<string> &variables,
                     const vector<int> &variable_types,
                     double time) ;
   virtual void close() ;
-  virtual void create_mesh_positions(vector3d<float> pos[],int npnts);
+  virtual void create_mesh_positions(vector3d<float> pos[],size_t npnts);
   virtual void create_mesh_elements() {}
-  virtual void write_tets(Array<int,4> tets[], int ntets,int block, int numblocks,int tottets) {}
-  virtual void write_pyrm(Array<int,5> prsm[], int npyrm, int block, int numblocks,int totpyrm) {}
-  virtual void write_prsm(Array<int,6> prsm[], int nprsm,int block, int numblocks,int totprsm) {}
-  virtual void write_hexs(Array<int,8> hexs[], int nhexs,int block, int numblocks,int tothexs) {}
-  virtual void write_general_cell(int nfaces[], int nnfaces,
-                                  int nsides[], int nnsides,
-                                  int nodes[], int nnodes) {}
+  virtual void write_tets(Array<int,4> tets[], size_t ntets,int block, int numblocks,size_t tottets) {}
+  virtual void write_pyrm(Array<int,5> prsm[], size_t npyrm, int block, int numblocks,size_t totpyrm) {}
+  virtual void write_prsm(Array<int,6> prsm[], size_t nprsm,int block, int numblocks,size_t totprsm) {}
+  virtual void write_hexs(Array<int,8> hexs[], size_t nhexs,int block, int numblocks,size_t tothexs) {}
+  virtual void write_general_cell(int nfaces[], size_t nnfaces,
+                                  int nsides[], size_t nnsides,
+                                  int nodes[], size_t nnodes) {}
   virtual void close_mesh_elements() {}
-  virtual void create_boundary_part(string name,int node_set[], int npnts) ;
+  virtual void create_boundary_part(string name,int node_set[], size_t npnts) ;
   virtual void write_quads(Array<int,4> quads[], int quad_ids[],
-                           int nquads) ;
+                           size_t nquads) ;
   virtual void write_trias(Array<int,3> trias[], int tria_ids[],
-                           int ntrias) ;
-  virtual void write_general_face(int nside_sizes[], int nside_ids[], int ngeneral,
-                             int nside_nodes[], int nside_nodes_size) ;
+                           size_t ntrias) ;
+  virtual void write_general_face(int nside_sizes[], int nside_ids[], size_t ngeneral,
+                             int nside_nodes[], size_t nside_nodes_size) ;
   virtual void close_boundary_part() ;
   virtual void create_nodal_output() {}
-  virtual void output_nodal_scalar(float val[], int npnts,string valname) {}
+  virtual void output_nodal_scalar(float val[], size_t npnts,string valname) {}
   virtual void output_nodal_vector(vector3d<float> val[],
-                                   int npnts, string valname) {}
+                                   size_t npnts, string valname) {}
   virtual void close_nodal_output() {}
   virtual void output_boundary_scalar(float val[], int node_set[],
-                                      int nvals, string valname) ;
+                                      size_t nvals, string valname) ;
   virtual void output_boundary_vector(vector3d<float> val[], int node_set[],
-                                      int nvals, string valname) ;
+                                      size_t nvals, string valname) ;
     
   virtual void create_particle_positions(vector3d<float> pos[],
-                                         int np, int maxp) {}
-  virtual void output_particle_scalar(float val[], int np,
-                                      int maxp, string
+                                         size_t np, size_t maxp) {}
+  virtual void output_particle_scalar(float val[], size_t np,
+                                      size_t maxp, string
 				      valname) {}
-  virtual void output_particle_vector(vector3d<float> val[], int np,
-                                      int maxp, string
-				      valname) {}
+  virtual void output_particle_vector(vector3d<float> val[], size_t np,
+                                      size_t maxp, string valname) {}
 } ;
 
 class fv_topo_handler : public grid_topo_handler {
   string dirname ;
   string filename ;
   string particleFilename ;
-  int npnts ;
-  int ntets, nprsm, npyrm, nhexs, ngen ;
+  size_t npnts ;
+  size_t ntets, nprsm, npyrm, nhexs, ngen ;
   int part_id ;
   vector<Array<int,4> > ordinary_faces ;
   vector<vector<int> > part_nodes ;
@@ -504,50 +496,50 @@ public:
     sequence[5] = PARTICLE_VARIABLES ;
     sequence[6] = PARTICLE_POSITIONS ;
   }
-  virtual void open(string casename, string iteration ,int npnts,
-                    int ntets, int nprsm, int npyrm, int nhexs, int ngen,
+  virtual void open(string casename, string iteration ,size_t npnts,
+                    size_t ntets, size_t nprsm, size_t npyrm, size_t nhexs, size_t ngen,
                     const vector<string> &bc_names,
                     const vector<string> &variables,
                     const vector<int> &variable_types,
                     double time) ;
   virtual void close() ;
-  virtual void create_mesh_positions(vector3d<float> pos[], int npnts) ;
+  virtual void create_mesh_positions(vector3d<float> pos[], size_t npnts) ;
   virtual void create_mesh_elements() ;
   
-  virtual void write_tets(Array<int,4> tets[], int ntets,int block, int numblocks,int tottets) ;
-  virtual void write_pyrm(Array<int,5> prsm[], int npyrm,int block, int numblocks,int totprym) ;
-  virtual void write_prsm(Array<int,6> prsm[], int nprsm,int block, int numblocks,int totprsm)  ;
-  virtual void write_hexs(Array<int,8> hexs[], int nhexs,int block, int numblocks,int tothexs) ;
-  virtual void write_general_cell(int nfaces[], int nnfaces,
-                                  int nsides[], int nnsides,
-                                  int nodes[], int nnodes) ;
+  virtual void write_tets(Array<int,4> tets[], size_t ntets,int block, int numblocks,size_t tottets) ;
+  virtual void write_pyrm(Array<int,5> prsm[], size_t npyrm,int block, int numblocks,size_t totprym) ;
+  virtual void write_prsm(Array<int,6> prsm[], size_t nprsm,int block, int numblocks,size_t totprsm)  ;
+  virtual void write_hexs(Array<int,8> hexs[], size_t nhexs,int block, int numblocks,size_t tothexs) ;
+  virtual void write_general_cell(int nfaces[], size_t nnfaces,
+                                  int nsides[], size_t nnsides,
+                                  int nodes[], size_t nnodes) ;
 
 
   virtual void close_mesh_elements() ;
-  virtual void create_boundary_part(string name,int node_set[], int npnts) ;
+  virtual void create_boundary_part(string name,int node_set[], size_t npnts) ;
   virtual void write_quads(Array<int,4> quads[], int quad_ids[],
-                           int nquads) ;
+                           size_t nquads) ;
   virtual void write_trias(Array<int,3> trias[], int tria_ids[],
-                           int ntrias) ;
-  virtual void write_general_face(int nside_sizes[], int nside_ids[], int ngeneral,
-                             int nside_nodes[], int nside_nodes_size) ;
+                           size_t ntrias) ;
+  virtual void write_general_face(int nside_sizes[], int nside_ids[], size_t ngeneral,
+                             int nside_nodes[], size_t nside_nodes_size) ;
   virtual void close_boundary_part() ;
   virtual void create_nodal_output() {}
-  virtual void output_nodal_scalar(float val[], int npnts, string valname) ;
+  virtual void output_nodal_scalar(float val[], size_t npnts, string valname) ;
   virtual void output_nodal_vector(vector3d<float> val[],
-                                   int npnts, string valname) ;
+                                   size_t npnts, string valname) ;
   virtual void close_nodal_output() {} ; 
   virtual void output_boundary_scalar(float val[], int node_set[],
-                                      int nvals, string valname) ;
+                                      size_t nvals, string valname) ;
   virtual void output_boundary_vector(vector3d<float> val[], int node_set[],
-                                      int nvals, string valname) ;
+                                      size_t nvals, string valname) ;
     
   virtual void create_particle_positions(vector3d<float> pos[],
-                                         int np, int maxp) ;
-  virtual void output_particle_scalar(float val[], int np,
-                                      int maxp, string valname) ;
-  virtual void output_particle_vector(vector3d<float> val[], int np,
-                                      int maxp, string valname) ;
+                                         size_t np, size_t maxp) ;
+  virtual void output_particle_scalar(float val[], size_t np,
+                                      size_t maxp, string valname) ;
+  virtual void output_particle_vector(vector3d<float> val[], size_t np,
+                                      size_t maxp, string valname) ;
 } ;
 
 struct affineMapping {
@@ -594,56 +586,50 @@ public:
     sequence[5] = PARTICLE_POSITIONS ;
     sequence[6] = PARTICLE_VARIABLES ;
   }
-  virtual void open(string casename, string iteration ,int npnts,
-                    int ntets, int nprsm, int npyrm, int nhexs, int ngen,
+  virtual void open(string casename, string iteration ,size_t npnts,
+                    size_t ntets, size_t nprsm, size_t npyrm, size_t nhexs, size_t ngen,
                     const vector<string> &bc_names,
                     const vector<string> &variables,
                     const vector<int> &variable_types,
                     double time) ;
   virtual void close() ;
-  virtual void create_mesh_positions(vector3d<float> pos[], int npnts) ;
+  virtual void create_mesh_positions(vector3d<float> pos[], size_t npnts) ;
   virtual void create_mesh_elements() ;
   
-  virtual void write_tets(Array<int,4> tets[], int ntets,int block, int numblocks,int tottets) ;
-  virtual void write_pyrm(Array<int,5> pyrm[], int npyrm,int block, int numblocks,int totpyrm) ;
-  virtual void write_prsm(Array<int,6> prsm[], int nprsm,int block, int numblocks,int totprsm) ;
-  virtual void write_hexs(Array<int,8> hexs[], int nhexs,int block, int numblocks,int tothexs) ;
-  virtual void write_general_cell(int nfaces[], int nnfaces,
-                                  int nsides[], int nnsides,
-                                  int nodes[], int nnodes) ;
-
-
-
-
-
-
+  virtual void write_tets(Array<int,4> tets[], size_t ntets,int block, int numblocks,size_t tottets) ;
+  virtual void write_pyrm(Array<int,5> pyrm[], size_t npyrm,int block, int numblocks,size_t totpyrm) ;
+  virtual void write_prsm(Array<int,6> prsm[], size_t nprsm,int block, int numblocks,size_t totprsm) ;
+  virtual void write_hexs(Array<int,8> hexs[], size_t  nhexs,int block, int numblocks,size_t tothexs) ;
+  virtual void write_general_cell(int nfaces[], size_t nnfaces,
+                                  int nsides[], size_t nnsides,
+                                  int nodes[], size_t nnodes) ;
 
   virtual void close_mesh_elements() ;
 
-  virtual void create_boundary_part(string name,int node_set[],int npnts) ;
+  virtual void create_boundary_part(string name,int node_set[],size_t npnts) ;
   virtual void write_quads(Array<int,4> quads[], int quad_ids[],
-                           int nquads) ;
+                           size_t nquads) ;
   virtual void write_trias(Array<int,3> trias[], int tria_ids[],
-                           int ntrias) ;
-  virtual void write_general_face(int nside_sizes[], int nside_ids[], int ngeneral,
-                             int nside_nodes[], int nside_nodes_size) ;
+                           size_t ntrias) ;
+  virtual void write_general_face(int nside_sizes[], int nside_ids[], size_t ngeneral,
+                             int nside_nodes[], size_t nside_nodes_size) ;
   virtual void close_boundary_part() ;
   virtual void create_nodal_output() ;
-  virtual void output_nodal_scalar(float val[], int npnts, string valname) ;
+  virtual void output_nodal_scalar(float val[], size_t npnts, string valname) ;
   virtual void output_nodal_vector(vector3d<float> val[],
-                                   int npnts, string valname) ;
+                                   size_t npnts, string valname) ;
   virtual void close_nodal_output() ;
   virtual void output_boundary_scalar(float val[], int node_set[],
-                                      int nvals, string valname) ;
+                                      size_t nvals, string valname) ;
   virtual void output_boundary_vector(vector3d<float> val[], int node_set[],
-                                      int nvals, string valname) ;
+                                      size_t nvals, string valname) ;
 
   virtual void create_particle_positions(vector3d<float> pos[],
-                                         int np, int maxp) {}
-  virtual void output_particle_scalar(float val[], int np,
-                                      int maxp, string valname) {}
-  virtual void output_particle_vector(vector3d<float> val[], int np,
-                                      int maxp, string valname) {}
+                                         size_t np, size_t maxp) {}
+  virtual void output_particle_scalar(float val[], size_t np,
+                                      size_t maxp, string valname) {}
+  virtual void output_particle_vector(vector3d<float> val[], size_t np,
+                                      size_t maxp, string valname) {}
 } ;
 
 void get_2dgv(string casename, string iteration,
@@ -683,7 +669,7 @@ void combine_mean(string casename, string iteration,
                   int end_iter, int inc_iter,
 		  bool do_favre) ;
 
-int  sizeElementType(hid_t group_id, const char *element_name) ;
+size_t  sizeElementType(hid_t group_id, const char *element_name) ;
 
 template<class T> void readElementType(hid_t group_id, const char *element_name,
                                        vector<T> &v) {

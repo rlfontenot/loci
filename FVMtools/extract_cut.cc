@@ -56,8 +56,8 @@ cuttingplane_topo_handler::cuttingplane_topo_handler(affineMapping &transformMat
   transMatrix.Combine(transformMatrix);
 }
 
-void cuttingplane_topo_handler::open(string casename, string iteration ,int npnts,
-				     int ntets, int nprsm, int npyrm, int nhexs, int ngen,
+void cuttingplane_topo_handler::open(string casename, string iteration ,size_t npnts,
+				     size_t ntets, size_t nprsm, size_t npyrm, size_t nhexs, size_t ngen,
 				     const vector<string> &bc_names,
 				     const vector<string> &variables,
 				     const vector<int> &variable_types,
@@ -364,12 +364,12 @@ void cuttingplane_topo_handler::checkLoop(int start, int end) {
     cerr << "** Problem cell: " << intersects[start][4] << " ** (failed loop test)" << endl;
 }
 
-void cuttingplane_topo_handler::create_mesh_positions(vector3d<float> pos[], int npnts) {
-  for(int i = 0 ; i < npnts ; ++i) {
+void cuttingplane_topo_handler::create_mesh_positions(vector3d<float> pos[], size_t npnts) {
+  for(size_t i = 0 ; i < npnts ; ++i) {
     nodes.push_back(pos[i]);       // Make a local copy of all node positions
   }
   
-  for(int i = 0; i < npnts; i++) {
+  for(size_t i = 0; i < npnts; i++) {
     nodes[i] = transMatrix.MapNode(nodes[i]);   // Transform topology into cutting position
   }
 
@@ -379,7 +379,7 @@ void cuttingplane_topo_handler::create_mesh_positions(vector3d<float> pos[], int
 void cuttingplane_topo_handler::create_mesh_elements() {
 }
 
-void cuttingplane_topo_handler::write_tets(Array<int,4> tets[], int ntets,int block, int nblocks, int tottets) {
+void cuttingplane_topo_handler::write_tets(Array<int,4> tets[], size_t ntets,int block, int nblocks, size_t tottets) {
   bool isCut;
   if(block == 0) {
     tetsCut = 0 ;
@@ -388,7 +388,7 @@ void cuttingplane_topo_handler::write_tets(Array<int,4> tets[], int ntets,int bl
   int faceNodeIndex[3];
   int faceNode[3];
 
-  for (int i = 0 ; i < ntets ; ++i) {
+  for (size_t i = 0 ; i < ntets ; ++i) {
     isCut = false;
     for (int j = 1; j < 4; ++j) {
       if (signbit(nodes[tets[i][0] - 1].z * nodes[tets[i][j] - 1].z)) {
@@ -420,7 +420,7 @@ void cuttingplane_topo_handler::write_tets(Array<int,4> tets[], int ntets,int bl
     cout << "Number of tets cut: " << tetsCut << endl ;
 }
 
-void cuttingplane_topo_handler::write_pyrm(Array<int,5> pyrm[], int npyrm, int block, int nblocks, int totpyrm) {  
+void cuttingplane_topo_handler::write_pyrm(Array<int,5> pyrm[], size_t npyrm, int block, int nblocks, size_t totpyrm) {  
   bool isCut;
   if(block == 0) {
     pyrmCut = 0 ;
@@ -428,7 +428,7 @@ void cuttingplane_topo_handler::write_pyrm(Array<int,5> pyrm[], int npyrm, int b
   int prevNode, intersectStart = intersects.size();
   int faceNode[4];
 
-  for (int i = 0 ; i < npyrm ; ++i) {
+  for (size_t i = 0 ; i < npyrm ; ++i) {
     isCut = false;
     for (int j = 1; j < 5; ++j) {
       if (signbit(nodes[pyrm[i][0] - 1].z * nodes[pyrm[i][j] - 1].z)) {
@@ -459,7 +459,7 @@ void cuttingplane_topo_handler::write_pyrm(Array<int,5> pyrm[], int npyrm, int b
     cout << "Number of pyrm cut: " << pyrmCut << endl ;
 }
 
-void cuttingplane_topo_handler::write_prsm(Array<int,6> prsm[], int nprsm,int block, int nblocks, int totprsm) {
+void cuttingplane_topo_handler::write_prsm(Array<int,6> prsm[], size_t nprsm,int block, int nblocks, size_t totprsm) {
   bool isCut;
   if(block == 0) {
     prsmCut = 0 ;
@@ -467,7 +467,7 @@ void cuttingplane_topo_handler::write_prsm(Array<int,6> prsm[], int nprsm,int bl
   int prevNode, intersectStart = intersects.size();
   int faceNode[4];
 
-  for (int i = 0 ; i < nprsm ; ++i) {
+  for (size_t i = 0 ; i < nprsm ; ++i) {
     isCut = false;
     for (int j = 1; j < 6; ++j) {
       if (signbit(nodes[prsm[i][0] - 1].z * nodes[prsm[i][j] - 1].z)) {
@@ -502,7 +502,7 @@ void cuttingplane_topo_handler::write_prsm(Array<int,6> prsm[], int nprsm,int bl
     cout << "Number of prsm cut: " << prsmCut << endl ;
 }
 
-void cuttingplane_topo_handler::write_hexs(Array<int,8> hexs[], int nhexs,int block, int nblocks, int tothexs) {
+void cuttingplane_topo_handler::write_hexs(Array<int,8> hexs[], size_t nhexs,int block, int nblocks, size_t tothexs) {
   bool isCut;
   if(block == 0) {
     hexsCut = 0 ;
@@ -510,7 +510,7 @@ void cuttingplane_topo_handler::write_hexs(Array<int,8> hexs[], int nhexs,int bl
   int prevNode, intersectStart = intersects.size();
   int faceNode[4];
 
-  for (int i = 0 ; i < nhexs ; ++i) {
+  for (size_t i = 0 ; i < nhexs ; ++i) {
     isCut = false;
     for (int j = 1; j < 8; ++j) {
       if (signbit(nodes[hexs[i][0] - 1].z * nodes[hexs[i][j] - 1].z)) {
@@ -545,14 +545,14 @@ void cuttingplane_topo_handler::write_hexs(Array<int,8> hexs[], int nhexs,int bl
     cout << "Number of hexs cut: " << hexsCut << endl ;
 }
 
-void cuttingplane_topo_handler::write_general_cell(int nfaces[], int nnfaces,
-                                                   int nsides[], int nnsides,
-						   int nodes[], int nnodes) {
+void cuttingplane_topo_handler::write_general_cell(int nfaces[], size_t nnfaces,
+                                                   int nsides[], size_t nnsides,
+						   int nodes[], size_t nnodes) {
   int genCut = 0, celloffset = 0, faceoffset = 0;
   bool isCut;
   int *faceNode, intersectStart = intersects.size();
 
-  for (int cell = 0; cell < nnfaces; ++cell) {
+  for (size_t cell = 0; cell < nnfaces; ++cell) {
     isCut = false;
     for (int face = 0; face < nfaces[cell]; ++face) {
       faceNode = new int[nsides[face + faceoffset]];
@@ -578,19 +578,20 @@ void cuttingplane_topo_handler::write_general_cell(int nfaces[], int nnfaces,
 void cuttingplane_topo_handler::close_mesh_elements() {
 }
 
-void cuttingplane_topo_handler::create_boundary_part(string name,int node_set[],int npnts) {
+void cuttingplane_topo_handler::create_boundary_part(string name,int node_set[],size_t npnts) {
 }
 
 void cuttingplane_topo_handler::write_quads(Array<int,4> quads[], int quad_ids[],
-					    int nquads) {
+					    size_t nquads) {
 }
 
 void cuttingplane_topo_handler::write_trias(Array<int,3> trias[], int tria_ids[],
-					    int ntrias) {
+					    size_t ntrias) {
 }
 
-void cuttingplane_topo_handler::write_general_face(int nside_sizes[], int nside_ids[], int ngeneral,
-						   int nside_nodes[], int nside_nodes_size) {
+void cuttingplane_topo_handler::
+write_general_face(int nside_sizes[], int nside_ids[], size_t ngeneral,
+		   int nside_nodes[], size_t nside_nodes_size) {
 }
 
 void cuttingplane_topo_handler::close_boundary_part() {
@@ -599,10 +600,10 @@ void cuttingplane_topo_handler::close_boundary_part() {
 void cuttingplane_topo_handler::create_nodal_output() {
 }
 
-void cuttingplane_topo_handler::output_nodal_scalar(float val[], int npnts, string valname) {
+void cuttingplane_topo_handler::output_nodal_scalar(float val[], size_t npnts, string valname) {
   vector<float> newVal;
 
-  for (int i = 0; i < npnts; ++i) {
+  for (size_t i = 0; i < npnts; ++i) {
     newVal.push_back(val[i]);
   }
 
@@ -611,18 +612,18 @@ void cuttingplane_topo_handler::output_nodal_scalar(float val[], int npnts, stri
 }
 
 void cuttingplane_topo_handler::output_nodal_vector(vector3d<float> val[],
-						    int npnts, string valname) {
+						    size_t npnts, string valname) {
 }
 
 void cuttingplane_topo_handler::close_nodal_output() {
 }
 
 void cuttingplane_topo_handler::output_boundary_scalar(float val[], int node_set[],
-						       int nvals, string valname) {
+						       size_t nvals, string valname) {
 }
 
 void cuttingplane_topo_handler::output_boundary_vector(vector3d<float> val[], int node_set[],
-						       int nvals, string valname) {
+						       size_t nvals, string valname) {
 }
 
 affineMapping::affineMapping() {

@@ -43,9 +43,9 @@ using std::ios ;
 #include <sys/types.h>
 #include <sys/stat.h>
 
-void ensight_topo_handler::open(string casename, string iteration ,int inpnts,
-                                int intets, int inprsm, int inpyrm,
-                                int inhexs, int ingen,
+void ensight_topo_handler::open(string casename, string iteration ,size_t inpnts,
+                                size_t intets, size_t inprsm, size_t inpyrm,
+                                size_t inhexs, size_t ingen,
                                 const vector<string> &bc_names,
                                 const vector<string> &variables,
                                 const vector<int> &variable_types,
@@ -158,9 +158,9 @@ void ensight_topo_handler::open(string casename, string iteration ,int inpnts,
 void ensight_topo_handler::close() {
   fclose(OFP) ;
 }
-void ensight_topo_handler::create_mesh_positions(vector3d<float> pos[], int pts) {
+void ensight_topo_handler::create_mesh_positions(vector3d<float> pos[], size_t pts) {
   positions.reserve(pts) ;
-  for(int i=0;i<pts;++i)
+  for(size_t i=0;i<pts;++i)
     positions.push_back(pos[i]) ;
   
   char tmp_buf[80] ;
@@ -175,44 +175,46 @@ void ensight_topo_handler::create_mesh_positions(vector3d<float> pos[], int pts)
   memset(tmp_buf, '\0', 80) ;
   snprintf(tmp_buf, 80, "coordinates") ;
   fwrite(tmp_buf, sizeof(char), 80, OFP) ;
-  fwrite(&pts, sizeof(int), 1, OFP) ;
+  int pnts =  pts ;
+  fwrite(&pnts, sizeof(int), 1, OFP) ;
 
   if(node_id_opt == GIVEN || node_id_opt == IGNORE){
-    for(int i = 0; i < pts; i++){
+    for(size_t i = 0; i < pts; i++){
       int nid = i+1;
       fwrite(&nid, sizeof(int), 1, OFP) ;
     }
   }
 
-  for(int i=0;i<pts;++i) {
+  for(size_t i=0;i<pts;++i) {
     float x = pos[i].x;
     fwrite(&x,sizeof(float),1,OFP) ;
   }
-  for(int i=0;i<pts;++i) {
+  for(size_t i=0;i<pts;++i) {
     float y = pos[i].y ;
     fwrite(&y,sizeof(float),1,OFP) ;
   }
-  for(int i=0;i<pts;++i) {
+  for(size_t i=0;i<pts;++i) {
     float z = pos[i].z;
     fwrite(&z,sizeof(float),1,OFP) ;
   }
 }
 
-void ensight_topo_handler::write_tets(Array<int,4> tets[], int ntets, int block,int nblocks, int tottets) {
+void ensight_topo_handler::write_tets(Array<int,4> tets[], size_t ntets, int block,int nblocks, size_t tottets) {
   if(tottets > 0) {
     if(block == 0 && (element_id_opt != GIVEN && element_id_opt != IGNORE)) {
       char tmp_buf[80] ;
       memset(tmp_buf, '\0', 80) ;
       snprintf(tmp_buf, 80, "tetra4") ;
       fwrite(tmp_buf, sizeof(char), 80, OFP) ;
-      fwrite(&tottets, sizeof(int), 1, OFP) ;
+      int tot = tottets ;
+      fwrite(&tot, sizeof(int), 1, OFP) ;
     }
     
     if(ntets > 0)
       fwrite(tets,sizeof(Array<int,4>),ntets,OFP) ;
   }
 }
-void ensight_topo_handler::write_tets_ids( int tets_ids[], int ntets, int block,int nblocks, int tottets) {
+void ensight_topo_handler::write_tets_ids( int tets_ids[], size_t ntets, int block,int nblocks, size_t tottets) {
   if(element_id_opt == GIVEN || element_id_opt == IGNORE) {
     if(tottets > 0) {
       if(block == 0) {
@@ -220,7 +222,8 @@ void ensight_topo_handler::write_tets_ids( int tets_ids[], int ntets, int block,
         memset(tmp_buf, '\0', 80) ;
         snprintf(tmp_buf, 80, "tetra4") ;
         fwrite(tmp_buf, sizeof(char), 80, OFP) ;
-        fwrite(&tottets, sizeof(int), 1, OFP) ;
+	int tot = tottets ;
+        fwrite(&tot, sizeof(int), 1, OFP) ;
       }
     
     if(ntets > 0)
@@ -229,21 +232,22 @@ void ensight_topo_handler::write_tets_ids( int tets_ids[], int ntets, int block,
   }
 }
 
-void ensight_topo_handler::write_pyrm(Array<int,5> pyrm[], int npyrm,int block, int nblocks, int totpyrm) {
+void ensight_topo_handler::write_pyrm(Array<int,5> pyrm[], size_t npyrm,int block, int nblocks, size_t totpyrm) {
   if(totpyrm > 0) {
     if(block==0&& (element_id_opt != GIVEN && element_id_opt != IGNORE) ) {
       char tmp_buf[80] ;
       memset(tmp_buf, '\0', 80) ;
       snprintf(tmp_buf, 80, "pyramid5") ;
       fwrite(tmp_buf, sizeof(char), 80, OFP) ;
-      fwrite(&totpyrm, sizeof(int), 1, OFP) ;
+      int tot = totpyrm ;
+      fwrite(&tot, sizeof(int), 1, OFP) ;
     }
     if(npyrm > 0)
       fwrite(pyrm, sizeof(Array<int,5>), npyrm, OFP) ;
   }
 }
 
-void ensight_topo_handler::write_pyrm_ids(int pyrm_ids[], int npyrm,int block, int nblocks, int totpyrm) {
+void ensight_topo_handler::write_pyrm_ids(int pyrm_ids[], size_t npyrm,int block, int nblocks, size_t totpyrm) {
  if(element_id_opt == GIVEN || element_id_opt == IGNORE) {
   if(totpyrm > 0) {
     if(block==0) {
@@ -251,7 +255,8 @@ void ensight_topo_handler::write_pyrm_ids(int pyrm_ids[], int npyrm,int block, i
       memset(tmp_buf, '\0', 80) ;
       snprintf(tmp_buf,80, "pyramid5") ;
       fwrite(tmp_buf, sizeof(char), 80, OFP) ;
-      fwrite(&totpyrm, sizeof(int), 1, OFP) ;
+      int tot = totpyrm ;
+      fwrite(&tot, sizeof(int), 1, OFP) ;
     }
     if(npyrm > 0)
       fwrite(pyrm_ids, sizeof(int), npyrm, OFP) ;
@@ -260,21 +265,22 @@ void ensight_topo_handler::write_pyrm_ids(int pyrm_ids[], int npyrm,int block, i
 }
 
 
-void ensight_topo_handler::write_prsm(Array<int,6> prsm[], int nprsm,int block, int nblocks, int totprsm) {
+void ensight_topo_handler::write_prsm(Array<int,6> prsm[], size_t nprsm,int block, int nblocks, size_t totprsm) {
   if(totprsm > 0) {
     if(block==0 && (element_id_opt != GIVEN && element_id_opt != IGNORE) ) {
       char tmp_buf[80] ;
       memset(tmp_buf, '\0', 80) ;
       snprintf(tmp_buf, 80, "penta6") ;
       fwrite(tmp_buf, sizeof(char), 80, OFP) ;
-      fwrite(&totprsm, sizeof(int), 1, OFP) ;
+      int tot = totprsm ;
+      fwrite(&tot, sizeof(int), 1, OFP) ;
     }
     if(nprsm > 0)
       fwrite(prsm, sizeof(Array<int,6> ), nprsm, OFP) ;
   }
 }
 
-void ensight_topo_handler::write_prsm_ids(int prsm_ids[], int nprsm,int block, int nblocks, int totprsm) {
+void ensight_topo_handler::write_prsm_ids(int prsm_ids[], size_t nprsm,int block, int nblocks, size_t totprsm) {
    if(element_id_opt == GIVEN || element_id_opt == IGNORE) {
      if(totprsm > 0) {
       if(block==0) {
@@ -282,7 +288,8 @@ void ensight_topo_handler::write_prsm_ids(int prsm_ids[], int nprsm,int block, i
         memset(tmp_buf, '\0', 80) ;
         snprintf(tmp_buf, 80, "penta6") ;
         fwrite(tmp_buf, sizeof(char), 80, OFP) ;
-        fwrite(&totprsm, sizeof(int), 1, OFP) ;
+	int tot = totprsm ;
+        fwrite(&tot, sizeof(int), 1, OFP) ;
       }
       if(nprsm > 0)
         fwrite(prsm_ids, sizeof(int), nprsm, OFP) ;
@@ -291,21 +298,22 @@ void ensight_topo_handler::write_prsm_ids(int prsm_ids[], int nprsm,int block, i
    }
 }
 
-void ensight_topo_handler::write_hexs(Array<int,8> hexs[], int nhexs, int block, int nblocks, int tothexs) {
+void ensight_topo_handler::write_hexs(Array<int,8> hexs[], size_t nhexs, int block, int nblocks, size_t tothexs) {
   if(tothexs > 0) {
     if(block == 0 &&(element_id_opt != GIVEN && element_id_opt != IGNORE)) {
       char tmp_buf[80] ;
       memset(tmp_buf, '\0', 80) ;
       snprintf(tmp_buf,80, "hexa8") ;
       fwrite(tmp_buf, sizeof(char), 80, OFP) ;
-      fwrite(&tothexs, sizeof(int), 1, OFP) ;
+      int tot = tothexs ;
+      fwrite(&tot, sizeof(int), 1, OFP) ;
     }
     if(nhexs > 0)
       fwrite(hexs, sizeof(Array<int,8>), nhexs, OFP) ;
   }
 }
 
-void ensight_topo_handler::write_hexs_ids( int hexs_ids[], int nhexs, int block, int nblocks, int tothexs) {
+void ensight_topo_handler::write_hexs_ids( int hexs_ids[], size_t nhexs, int block, int nblocks, size_t tothexs) {
   if(element_id_opt == GIVEN || element_id_opt == IGNORE) {
     if(tothexs > 0) {
       if(block == 0) {
@@ -313,7 +321,8 @@ void ensight_topo_handler::write_hexs_ids( int hexs_ids[], int nhexs, int block,
         memset(tmp_buf, '\0', 80) ;
         snprintf(tmp_buf,80, "hexa8") ;
         fwrite(tmp_buf, sizeof(char), 80, OFP) ;
-        fwrite(&tothexs, sizeof(int), 1, OFP) ;
+	int tot = tothexs ;
+        fwrite(&tot, sizeof(int), 1, OFP) ;
       }
     if(nhexs > 0)
       fwrite(hexs_ids, sizeof(int), nhexs, OFP) ;
@@ -323,16 +332,17 @@ void ensight_topo_handler::write_hexs_ids( int hexs_ids[], int nhexs, int block,
 
 
 
-void ensight_topo_handler::write_general_cell(int nfaces[],int nnfaces,
-                                               int nsides[], int nnsides,
-                                               int nodes[], int nnodes) {
+void ensight_topo_handler::write_general_cell(int nfaces[],size_t nnfaces,
+                                               int nsides[], size_t nnsides,
+                                               int nodes[], size_t nnodes) {
   if(nnfaces > 0) {
     if(element_id_opt != GIVEN && element_id_opt != IGNORE){
       char tmp_buf[80] ;
       memset(tmp_buf, '\0', 80) ;
       snprintf(tmp_buf, 80, "nfaced") ;
       fwrite(tmp_buf, sizeof(char), 80, OFP) ;
-      fwrite(&nnfaces, sizeof(int), 1, OFP) ;
+      int nnf = nnfaces ;
+      fwrite(&nnf, sizeof(int), 1, OFP) ;
     }
     fwrite(nfaces, sizeof(int), nnfaces, OFP) ;
     fwrite(nsides, sizeof(int),nnsides,OFP) ;
@@ -340,27 +350,28 @@ void ensight_topo_handler::write_general_cell(int nfaces[],int nnfaces,
   }
 }
 
-void ensight_topo_handler::write_general_cell_ids(int nfaces_ids[], int nnfaces) {
+void ensight_topo_handler::write_general_cell_ids(int nfaces_ids[], size_t nnfaces) {
   if(element_id_opt == GIVEN || element_id_opt == IGNORE) {
     if(nnfaces > 0) {
       char tmp_buf[80] ;
       memset(tmp_buf, '\0', 80) ;
       snprintf(tmp_buf,80, "nfaced") ;
       fwrite(tmp_buf, sizeof(char), 80, OFP) ;
-      fwrite(&nnfaces, sizeof(int), 1, OFP) ;
+      int nnf = nnfaces ;
+      fwrite(&nnf, sizeof(int), 1, OFP) ;
       fwrite(nfaces_ids, sizeof(int), nnfaces, OFP) ;
     }
   }
 }
 
 void ensight_topo_handler::create_boundary_part(string name,int node_set[],
-                                                int npnts) {
+                                                size_t npnts) {
   part_nodes.push_back(vector<int>(npnts)) ;
   part_tria_ids.push_back(vector<int>(0)) ;
   part_quad_ids.push_back(vector<int>(0)) ;
   part_nside_ids.push_back(vector<int>(0)) ;
   
-  for(int i=0;i<npnts;++i)
+  for(size_t i=0;i<npnts;++i)
     part_nodes[part_id-2][i] = node_set[i] ;
 
   char tmp_buf[80] ;
@@ -374,20 +385,21 @@ void ensight_topo_handler::create_boundary_part(string name,int node_set[],
   memset(tmp_buf, '\0', 80) ;
   snprintf(tmp_buf,80, "coordinates") ;
   fwrite(tmp_buf, sizeof(char), 80, OFP) ;
-  fwrite(&npnts, sizeof(int), 1, OFP) ;
+  int npt = npnts ;
+  fwrite(&npt, sizeof(int), 1, OFP) ;
 
   if(node_id_opt == GIVEN || node_id_opt == IGNORE){
     fwrite(&node_set[0], sizeof(int), npnts,OFP) ;
   }
-  for(int i=0;i<npnts;++i) {
+  for(size_t i=0;i<npnts;++i) {
     float x = positions[node_set[i]-1].x;
     fwrite(&x,sizeof(float),1,OFP) ;
   }
-  for(int i=0;i<npnts;++i) {
+  for(size_t i=0;i<npnts;++i) {
     float y = positions[node_set[i]-1].y ;
     fwrite(&y,sizeof(float),1,OFP) ;
   }
-  for(int i=0;i<npnts;++i) {
+  for(size_t i=0;i<npnts;++i) {
     float z = positions[node_set[i]-1].z;
     fwrite(&z,sizeof(float),1,OFP) ;
   }
@@ -395,57 +407,60 @@ void ensight_topo_handler::create_boundary_part(string name,int node_set[],
   
 
 void ensight_topo_handler::write_quads(Array<int,4> quads[],
-                                       int quads_ids[], int nquads) {
+                                       int quads_ids[], size_t nquads) {
   if(nquads > 0) {
     char tmp_buf[80] ;
     memset(tmp_buf, '\0', 80) ;
     snprintf(tmp_buf, 80, "quad4") ;
     fwrite(tmp_buf, sizeof(char), 80, OFP) ;
-    fwrite(&nquads, sizeof(int),1,OFP) ;
+    int nq = nquads ;
+    fwrite(&nq, sizeof(int),1,OFP) ;
     if(element_id_opt == GIVEN || element_id_opt == IGNORE ){
       fwrite(&quads_ids[0], sizeof(int),nquads,OFP) ;
     }
     fwrite(&quads[0],sizeof(Array<int,4>),nquads,OFP) ;
     vector<int> qid(nquads) ;
-    for(int i=0;i<nquads;++i) 
+    for(size_t i=0;i<nquads;++i) 
       qid[i] = quads_ids[i] ;
     part_quad_ids[part_id-2].swap(qid) ;
   }
 }
 void ensight_topo_handler::write_trias(Array<int,3> trias[],
-                                       int trias_ids[], int ntrias) {
+                                       int trias_ids[], size_t ntrias) {
   if(ntrias > 0) {
     char tmp_buf[80] ;
     memset(tmp_buf, '\0', 80) ;
     snprintf(tmp_buf, 80, "tria3") ;
     fwrite(tmp_buf, sizeof(char), 80, OFP) ;
-    fwrite(&ntrias, sizeof(int),1,OFP) ;
+    int nt = ntrias ;
+    fwrite(&nt, sizeof(int),1,OFP) ;
     if(element_id_opt == GIVEN || element_id_opt == IGNORE){
       fwrite(&trias_ids[0], sizeof(int),ntrias,OFP) ;
     }
     fwrite(&trias[0],sizeof(Array<int,3>),ntrias,OFP) ;
     vector<int> qid(ntrias) ;
-    for(int i=0;i<ntrias;++i) 
+    for(size_t i=0;i<ntrias;++i) 
       qid[i] = trias_ids[i] ;
     part_tria_ids[part_id-2].swap(qid) ;
   }
 }
 
 void ensight_topo_handler::write_general_face(int nside_sizes[],
-                                         int nside_ids[], int ngeneral,
+                                         int nside_ids[], size_t ngeneral,
                                          int nside_nodes[],
-                                         int nside_nodes_size) {
+                                         size_t nside_nodes_size) {
   if(ngeneral > 0) {
     char tmp_buf[80] ;
     memset(tmp_buf, '\0', 80) ;
     snprintf(tmp_buf, 80, "nsided") ;
     fwrite(tmp_buf, sizeof(char), 80, OFP) ;
-    fwrite(&ngeneral, sizeof(int),1,OFP) ;
+    int ngen = ngeneral ;
+    fwrite(&ngen, sizeof(int),1,OFP) ;
     if(element_id_opt == GIVEN ||element_id_opt == IGNORE ){
       fwrite(&nside_ids[0], sizeof(int),ngeneral,OFP) ;
     }
-    int tot = 0 ;
-    for(int i=0;i<ngeneral;++i)
+    size_t tot = 0 ;
+    for(size_t i=0;i<ngeneral;++i)
       tot += nside_sizes[i] ;
     if(nside_nodes_size != tot) {
       cerr << "mismatch in node size and faces size " << nside_nodes_size
@@ -454,7 +469,7 @@ void ensight_topo_handler::write_general_face(int nside_sizes[],
     fwrite(&nside_sizes[0],sizeof(int),ngeneral,OFP) ;
     fwrite(&nside_nodes[0],sizeof(int),nside_nodes_size,OFP) ;
     vector<int> qid(ngeneral) ;
-    for(int i=0;i<ngeneral;++i) 
+    for(size_t i=0;i<ngeneral;++i) 
       qid[i] = nside_ids[i] ;
     part_nside_ids[part_id-2].swap(qid) ;
   }
@@ -464,7 +479,7 @@ void ensight_topo_handler::close_boundary_part() {
   part_id++ ;
 }
 
-void ensight_topo_handler::output_nodal_scalar(float val[], int npnts,
+void ensight_topo_handler::output_nodal_scalar(float val[], size_t npnts,
                                                string varname) {
   string filename = dirname + '/' + varname ;
   FILE *FP = 0 ;
@@ -507,7 +522,7 @@ void ensight_topo_handler::output_nodal_scalar(float val[], int npnts,
 }
 
 void ensight_topo_handler::output_nodal_vector(vector3d<float> val[],
-                                               int npnts, string varname) {
+                                               size_t npnts, string varname) {
   string filename = dirname + '/' + varname ;
   FILE *FP = 0 ;
   FP = fopen(filename.c_str(), "wb") ;
@@ -529,15 +544,15 @@ void ensight_topo_handler::output_nodal_vector(vector3d<float> val[],
   memset(tmp_buf, '\0', 80) ;
   snprintf(tmp_buf, 80, "coordinates") ;
   fwrite(tmp_buf, sizeof(char), 80, FP) ;
-  for(int i=0;i<npnts;++i) {
+  for(size_t i=0;i<npnts;++i) {
     float d = val[i].x ;
     fwrite(&d,sizeof(float),1,FP) ;
   }
-  for(int i=0;i<npnts;++i) {
+  for(size_t i=0;i<npnts;++i) {
     float d = val[i].y ;
     fwrite(&d,sizeof(float),1,FP) ;
   }
-  for(int i=0;i<npnts;++i) {
+  for(size_t i=0;i<npnts;++i) {
     float d = val[i].z ;
     fwrite(&d,sizeof(float),1,FP) ;
   }
@@ -570,11 +585,11 @@ void ensight_topo_handler::output_nodal_vector(vector3d<float> val[],
 }
 
 void ensight_topo_handler::output_boundary_scalar(float val[], int node_set[],
-                                                  int nvals, string varname) {
+                                                  size_t nvals, string varname) {
   map<int,int> nmap ;
   map<int,int>::const_iterator mi ;
 
-  for(int i=0;i<nvals;++i)
+  for(size_t i=0;i<nvals;++i)
     nmap[node_set[i]] = i ;
   
   string filename = dirname + '/' + varname ;
@@ -652,11 +667,11 @@ void ensight_topo_handler::output_boundary_scalar(float val[], int node_set[],
 
 void ensight_topo_handler::output_boundary_vector(vector3d<float> val[],
                                                   int node_set[],
-                                                  int nvals, string varname) {
+                                                  size_t nvals, string varname) {
   map<int,int> nmap ;
   map<int,int>::const_iterator mi ;
 
-  for(int i=0;i<nvals;++i)
+  for(size_t i=0;i<nvals;++i)
     nmap[node_set[i]] = i ;
   
   string filename = dirname + '/' + varname ;
@@ -777,7 +792,7 @@ void ensight_topo_handler::output_boundary_vector(vector3d<float> val[],
 
 void
 ensight_topo_handler::create_particle_positions
-(vector3d<float> pos[], int pts, int maxp) {
+(vector3d<float> pos[], size_t pts, size_t maxp) {
 
   int m = pts ;
   if(maxp >= 0 && maxp < pts)
@@ -831,8 +846,8 @@ ensight_topo_handler::create_particle_positions
 }
 
 void
-ensight_topo_handler::output_particle_scalar(float val[], int np,
-                                             int maxp, string valname) {
+ensight_topo_handler::output_particle_scalar(float val[], size_t np,
+                                             size_t maxp, string valname) {
   int m = np ;
   if(maxp >= 0 && maxp < np)
     m = maxp ;
@@ -866,8 +881,8 @@ ensight_topo_handler::output_particle_scalar(float val[], int np,
 }
 
 void
-ensight_topo_handler::output_particle_vector(vector3d<float> val[], int np,
-                                             int maxp, string valname) {
+ensight_topo_handler::output_particle_vector(vector3d<float> val[], size_t np,
+                                             size_t maxp, string valname) {
   int m = np ;
   if(maxp >= 0 && maxp < np)
     m = maxp ;
