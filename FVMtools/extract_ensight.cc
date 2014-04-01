@@ -29,12 +29,14 @@ using std::string ;
 #include <fstream>
 #include <string>
 #include <sstream>
+#include <set> 
 using std::vector ;
 using std::string ;
 using std::cerr ;
 using std::endl ;
 using std::cout ;
 using std::map ;
+using std::set ;
 using std::ofstream ;
 using std::ios ;
 
@@ -117,7 +119,7 @@ void ensight_topo_handler::open(string casename, string iteration ,size_t inpnts
         of << "scalar per measured node:\t " << variables[i] << '\t'
            << variables[i] << endl ;
       }
-      if(vt == PARTICLE_VECTOR) {
+       if(vt == PARTICLE_VECTOR) {
         of << "vector per measured node:\t " << variables[i] << '\t'
            << variables[i] << endl ;
       }
@@ -922,6 +924,243 @@ ensight_topo_handler::output_particle_vector(vector3d<float> val[], size_t np,
   fclose(FP) ;
 }
 
+void ensightPartConverter::exportPostProcessorFiles(string casename,
+						    string iteration) {
+  string dirname = casename + "_ensight."+iteration ;
+  struct stat statbuf ;
+  if(stat(dirname.c_str(),&statbuf))
+    mkdir(dirname.c_str(),0755) ;
+  else
+    if(!S_ISDIR(statbuf.st_mode)) {
+      cerr << "file " << dirname << " should be a directory!, rename 'ensight' and start again."
+           << endl ;
+      exit(-1) ;
+    }
+  
+  string geo_filename =  casename + ".geo" ;
+  string case_filename = dirname + "/" + casename + ".case" ;
+  set<string> nodal_scalars ;
+  set<string> nodal_vectors ;
+  for(size_t i =0;i<surfacePartList.size();++i) {
+    vector<string> nscalars = surfacePartList[i].getNodalScalarVars() ;
+    for(size_t j=0;j<nscalars.size();++j) 
+      nodal_scalars.insert(nscalars[j]) ;
+    vector<string> nvectors = surfacePartList[i].getNodalVectorVars() ;
+    for(size_t j=0;j<nvectors.size();++j) 
+      nodal_vectors.insert(nvectors[j]) ;
+  }
+
+
+  //write out case file
+  ofstream of(case_filename.c_str(),ios::out) ;
+  of << "FORMAT" << endl ;
+  of << "type:  ensight gold" << endl ;
+  of << "GEOMETRY" << endl ;
+  of << "model:  " << geo_filename << endl ;
+  
+  geo_filename = dirname + "/"+geo_filename ;
+  
+  if(nodal_scalars.size()+nodal_vectors.size() > 0) {
+    of << "VARIABLE" << endl ;
+    set<string>::const_iterator si ;
+    for(si=nodal_scalars.begin();si!=nodal_scalars.end();++si) {
+      of << "scalar per node:\t " << *si << '\t' << *si << endl ;
+    }
+    for(si=nodal_vectors.begin();si!=nodal_vectors.end();++si) {
+      of << "vector per node:\t " << *si << '\t' << *si << endl ;
+    }
+  }
+  of.close() ;
+  
+  FILE *OFP ;
+  OFP = fopen(geo_filename.c_str(),"wb") ;
+  if(OFP == NULL) {
+    cerr << "unable to open file '" << geo_filename << "' for writing!" ;
+    exit(-1) ;
+  }
+  char tmp_buf[80] ;
+  
+  memset(tmp_buf, '\0', 80) ; 
+  snprintf(tmp_buf,80, "C Binary") ;
+  fwrite(tmp_buf, sizeof(char), 80, OFP) ;
+  memset(tmp_buf, '\0', 80) ;
+  snprintf(tmp_buf,80, "Ensight model geometry description") ;
+  fwrite(tmp_buf, sizeof(char), 80, OFP) ;
+  memset(tmp_buf, '\0', 80) ;
+  snprintf(tmp_buf, 80, "Grid file used is %s", casename.c_str()) ;
+  fwrite(tmp_buf, sizeof(char), 80, OFP) ;
+  memset(tmp_buf, '\0', 80) ;
+  snprintf(tmp_buf, 80, "node id off") ;  
+  fwrite(tmp_buf, sizeof(char), 80, OFP) ;
+  memset(tmp_buf, '\0', 80) ;
+  snprintf(tmp_buf, 80,"element id off") ;  
+  fwrite(tmp_buf, sizeof(char), 80, OFP) ;
+
+  int part_id = 0 ;
+  vector<int> partnums(surfacePartList.size()) ;
+  // Loop over parts, write out their geometry
+  for(size_t i =0;i<surfacePartList.size();++i) {
+    part_id++ ;
+    partnums[i] = part_id ;
+    memset(tmp_buf, '\0', 80) ;
+    snprintf(tmp_buf,80, "part") ;
+    fwrite(tmp_buf, sizeof(char), 80, OFP) ;
+    fwrite(&part_id, sizeof(int), 1, OFP) ;
+    memset(tmp_buf, '\0', 80) ;
+    string name = surfacePartList[i].getPartName();
+    snprintf(tmp_buf,80, "%s", name.c_str()) ;
+    fwrite(tmp_buf, sizeof(char), 80, OFP) ;
+    memset(tmp_buf, '\0', 80) ;
+    snprintf(tmp_buf,80, "coordinates") ;
+    fwrite(tmp_buf, sizeof(char), 80, OFP) ;
+    int npt = surfacePartList[i].getNumNodes() ;
+    fwrite(&npt, sizeof(int), 1, OFP) ;
+    vector<vector3d<float> > pos ;
+    surfacePartList[i].getPos(pos) ;
+    for(int j=0;j<npt;++j) {
+      float x = pos[j].x ;
+      fwrite(&x,sizeof(float),1,OFP) ;
+    }
+    for(int j=0;j<npt;++j) {
+      float y = pos[j].y ;
+      fwrite(&y,sizeof(float),1,OFP) ;
+    }
+    for(int j=0;j<npt;++j) {
+      float z = pos[j].z ;
+      fwrite(&z,sizeof(float),1,OFP) ;
+    }
+    int nquads = surfacePartList[i].getNumQuads() ;
+    if(nquads > 0) {
+      char tmp_buf[80] ;
+      memset(tmp_buf, '\0', 80) ;
+      snprintf(tmp_buf, 80, "quad4") ;
+      fwrite(tmp_buf, sizeof(char), 80, OFP) ;
+      int nq = nquads ;
+      fwrite(&nq, sizeof(int),1,OFP) ;
+      vector<Array<int,4> > quads ;
+      surfacePartList[i].getQuads(quads) ;
+      fwrite(&quads[0],sizeof(Array<int,4>),nquads,OFP) ;
+    }
+    int ntrias = surfacePartList[i].getNumTrias() ;
+    if(ntrias > 0) {
+      char tmp_buf[80] ;
+      memset(tmp_buf, '\0', 80) ;
+      snprintf(tmp_buf, 80, "tria3") ;
+      fwrite(tmp_buf, sizeof(char), 80, OFP) ;
+      int nt = ntrias ;
+      fwrite(&nt, sizeof(int),1,OFP) ;
+      vector<Array<int,3> > trias ;
+      surfacePartList[i].getTrias(trias) ;
+      fwrite(&trias[0],sizeof(Array<int,3>),ntrias,OFP) ;
+    }    
+    int ngeneral = surfacePartList[i].getNumGenfc() ;
+    if(ngeneral > 0) {
+      char tmp_buf[80] ;
+      memset(tmp_buf, '\0', 80) ;
+      snprintf(tmp_buf, 80, "nsided") ;
+      fwrite(tmp_buf, sizeof(char), 80, OFP) ;
+      int ngen = ngeneral ;
+      fwrite(&ngen, sizeof(int),1,OFP) ;
+      
+      vector<int> nside_sizes,nside_nodes ;
+      surfacePartList[i].getGenf(nside_sizes,nside_nodes) ;
+      
+      int tot = 0 ;
+      for(int j=0;j<ngeneral;++j)
+	tot += nside_sizes[j] ;
+      int nside_nodes_size = nside_nodes.size() ;
+      if(nside_nodes_size != tot) {
+	cerr << "mismatch in node size and faces size " << nside_nodes_size
+	     << " was " << tot << endl ;
+      }
+      fwrite(&nside_sizes[0],sizeof(int),ngeneral,OFP) ;
+      fwrite(&nside_nodes[0],sizeof(int),nside_nodes_size,OFP) ;
+    }
+  }
+
+  fclose(OFP) ;
+  
+  // Finished writing out the the geo file, now write out the variables
+  set<string>::const_iterator si ;
+  for(si=nodal_scalars.begin();si!=nodal_scalars.end();++si) {
+    string varname = *si ;
+    string filename = dirname + "/" + varname ;
+    FILE *FP = 0 ;
+    FP = fopen(filename.c_str(), "wb") ;
+    if(FP==0) {
+      cerr << "can't open file '" << filename << "' for writing variable info!"
+	   << endl ;
+
+      continue ;
+    }
+    memset(tmp_buf, '\0', 80) ;
+    snprintf(tmp_buf,80,"variable : %s",varname.c_str()) ;
+    fwrite(tmp_buf, sizeof(char), 80, FP) ;
+    // Loop over parts and write out variables for each part if they 
+    // exist ;
+    for(size_t i =0;i<surfacePartList.size();++i) {
+      if(surfacePartList[i].hasNodalScalarVar(varname)) {
+	memset(tmp_buf, '\0', 80) ;
+	snprintf(tmp_buf,80, "part") ;
+	fwrite(tmp_buf, sizeof(char), 80, FP) ;
+	int tmp = partnums[i] ;
+	fwrite(&tmp, sizeof(int), 1, FP) ;
+	memset(tmp_buf, '\0', 80) ;
+	snprintf(tmp_buf,80, "coordinates") ;
+	fwrite(tmp_buf, sizeof(char), 80, FP) ;
+	vector<float> vals ;
+	surfacePartList[i].getNodalScalar(varname,vals) ;
+	fwrite(&vals[0],sizeof(float),vals.size(),FP) ;
+      }
+    }
+    fclose(FP) ;
+  }
+
+  for(si=nodal_vectors.begin();si!=nodal_vectors.end();++si) {
+    string varname = *si ;
+    string filename = dirname + "/" + varname ;
+    FILE *FP = 0 ;
+    FP = fopen(filename.c_str(), "wb") ;
+    if(FP==0) {
+      cerr << "can't open file '" << filename << "' for writing variable info!"
+	   << endl ;
+
+      continue ;
+    }
+    memset(tmp_buf, '\0', 80) ;
+    snprintf(tmp_buf,80,"variable : %s",varname.c_str()) ;
+    fwrite(tmp_buf, sizeof(char), 80, FP) ;
+    // Loop over parts and write out variables for each part if they 
+    // exist ;
+    for(size_t i =0;i<surfacePartList.size();++i) {
+      memset(tmp_buf, '\0', 80) ;
+      if(surfacePartList[i].hasNodalVectorVar(varname)) {
+	memset(tmp_buf, '\0', 80) ;
+	snprintf(tmp_buf,80, "part") ;
+	fwrite(tmp_buf, sizeof(char), 80, FP) ;
+	int tmp = partnums[i] ;
+	fwrite(&tmp, sizeof(int), 1, FP) ;
+	memset(tmp_buf, '\0', 80) ;
+	snprintf(tmp_buf,80, "coordinates") ;
+	fwrite(tmp_buf, sizeof(char), 80, FP) ;
+	vector<vector3d<float> > vals ;
+	surfacePartList[i].getNodalVector(varname,vals) ;
+	int nvals = vals.size() ;
+	for(int i=0;i<nvals;++i)
+	  fwrite(&vals[i].x,sizeof(float),1,FP) ;
+
+	for(int i=0;i<nvals;++i)
+	  fwrite(&vals[i].y,sizeof(float),1,FP) ;
+
+	for(int i=0;i<nvals;++i)
+	  fwrite(&vals[i].z,sizeof(float),1,FP) ;
+      }
+    }
+    fclose(FP) ;
+  }
+
+  
+}
 // ... the end ...
 
 

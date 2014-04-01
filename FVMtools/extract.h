@@ -767,4 +767,79 @@ extern string output_dir ;
 
 string getPosFile(string output_dir,string iteration, string casename) ;
 
+
+// Create abstraction for parts
+
+class surfacePart {
+  bool error ;
+  string partName ;
+  string directory ;
+  string topoFile ;
+  string posFile ;
+  int nnodes, nquads, ntrias, ngenf ;
+  // maps from variables to file name
+  map<string,string> nodalScalarVars ;
+  map<string,string> nodalVectorVars ;
+ public:
+  surfacePart() {error = true ;}
+  surfacePart(string name, string directory, string iteration,
+	      vector<string> vars) ;
+  bool fail() const { return error ; }
+  string getPartName() const { return partName ; }
+  int getNumNodes() const { return nnodes ; }
+  int getNumQuads() const { return nquads ; }
+  int getNumTrias() const { return ntrias ; }
+  int getNumGenfc() const { return ngenf ; }
+  bool hasNodalScalarVar(string var) const {
+    map<string,string>::const_iterator mi=nodalScalarVars.find(var) ;
+    return (mi != nodalScalarVars.end()) ;
+  }
+  bool hasNodalVectorVar(string var) const {
+    map<string,string>::const_iterator mi=nodalVectorVars.find(var) ;
+    return (mi != nodalVectorVars.end()) ;
+  }
+
+  vector<string> getNodalScalarVars() const {
+    vector<string> tmp ;
+    map<string,string>::const_iterator mi ;
+    for(mi=nodalScalarVars.begin();mi!=nodalScalarVars.end();++mi)
+      tmp.push_back(mi->first) ;
+    return tmp ;
+  }
+  vector<string> getNodalVectorVars() const {
+    vector<string> tmp ;
+    map<string,string>::const_iterator mi ;
+    for(mi=nodalVectorVars.begin();mi!=nodalVectorVars.end();++mi)
+      tmp.push_back(mi->first) ;
+    return tmp ;
+  }
+  void getQuads(vector<Array<int,4> > &quads) const ;
+  void getTrias(vector<Array<int,3> > &trias) const ;
+  void getGenf(vector<int> &numGenFnodes, vector<int> &genNodes) const ;
+  void getPos(vector<vector3d<float> > &pos) const ;
+  void getNodalScalar(string varname, vector<float> &vals) const ;
+  void getNodalVector(string varname, vector<vector3d<float> > &vals) const ;
+} ;
+
+class postProcessorConvert {
+ protected:
+  vector<surfacePart> surfacePartList ;
+ public:
+  void addSurfaceParts(const vector<surfacePart> &list) {
+    for(size_t i=0;i<list.size();++i)
+      surfacePartList.push_back(list[i]) ;
+  }
+  virtual void exportPostProcessorFiles(string casename, string iteration) = 0 ;
+} ;
+
+class ensightPartConverter : public postProcessorConvert {
+ public:
+  virtual void exportPostProcessorFiles(string casename, string iteration) ;
+} ;
+
 #endif
+
+
+
+
+

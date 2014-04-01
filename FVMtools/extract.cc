@@ -177,6 +177,175 @@ string getPosFile(string output_dir,string iteration, string casename) {
   }
   return posname ;
 }
+surfacePart::surfacePart(string name, string dir, string iteration,
+			 vector<string> vars) {
+  partName = name ;
+  directory = dir ;
+  nnodes = 0 ;
+  nquads = 0 ;
+  ntrias = 0 ;
+  ngenf = 0 ;
+  error = true  ;
+  string topo_link = dir + "/topo_file."+iteration ;
+  ifstream topo_links(topo_link.c_str(),ios::in) ;
+  if(topo_links.fail()) return ;
+
+  string topolink ;
+  topo_links>> topolink ;
+  topo_links.close();
+  topoFile = dir + "/" + topolink ;
+  
+  posFile = dir + "/pos." + iteration ;
+  hid_t file_id = Loci::hdf5OpenFile(posFile.c_str(),
+				     H5F_ACC_RDONLY,
+				     H5P_DEFAULT) ;
+
+  if(file_id < 0) return ;
+  
+  nnodes = sizeElementType(file_id,"data") ;
+  Loci::hdf5CloseFile(file_id) ;
+
+  file_id = Loci::hdf5OpenFile(topoFile.c_str(),
+				     H5F_ACC_RDONLY,
+				     H5P_DEFAULT) ;
+  if(file_id < 0) return ;
+
+  ngenf = sizeElementType(file_id,"nside_sizes") ;
+  nquads = sizeElementType(file_id,"quads") ;
+  ntrias = sizeElementType(file_id,"triangles") ;
+  
+  
+  Loci::hdf5CloseFile(file_id) ;
+
+  for(size_t i=0;i<vars.size();++i) {
+    string varname = vars[i] ;
+    // try scalar
+    string svar = dir+"/" + varname+"_sca."+iteration ;
+    file_id = Loci::hdf5OpenFile(svar.c_str(),
+				 H5F_ACC_RDONLY,
+				 H5P_DEFAULT) ;
+    bool found_var = false ;
+    if(file_id >= 0) {
+      int nsz = sizeElementType(file_id,"data") ;
+      if(nsz == nnodes) {
+	nodalScalarVars[varname] = svar ;
+	found_var = true ;
+      }
+      Loci::hdf5CloseFile(file_id) ;
+    }
+
+    if(!found_var) {
+      svar = dir+"/" + varname+"_vec."+iteration ;
+      file_id = Loci::hdf5OpenFile(svar.c_str(),
+				   H5F_ACC_RDONLY,
+				   H5P_DEFAULT) ;
+      if(file_id >= 0) {
+	int nsz = sizeElementType(file_id,"data") ;
+	if(nsz == nnodes) {
+	  nodalVectorVars[varname] = svar ;
+	  found_var = true ;
+	}
+	Loci::hdf5CloseFile(file_id) ;
+      }
+    }
+  }
+  error = false ;
+}
+
+void surfacePart::getQuads(vector<Array<int,4> > &quads) const {
+  quads.clear() ;
+  if(nquads > 0) {
+    hid_t file_id = Loci::hdf5OpenFile(topoFile.c_str(),
+				       H5F_ACC_RDONLY,
+				       H5P_DEFAULT) ;
+    if(file_id < 0) return ;
+    vector<Array<int,4> > tmp(nquads) ;
+    readElementType(file_id,"quads",tmp) ;
+    quads.swap(tmp) ;
+    Loci::hdf5CloseFile(file_id) ;
+  }
+}
+
+void surfacePart::getTrias(vector<Array<int,3> > &trias) const {
+  trias.clear() ;
+  if(ntrias > 0) {
+    hid_t file_id = Loci::hdf5OpenFile(topoFile.c_str(),
+				       H5F_ACC_RDONLY,
+				       H5P_DEFAULT) ;
+    if(file_id < 0) return ;
+    vector<Array<int,3> > tmp(ntrias) ;
+    readElementType(file_id,"triangles",tmp) ;
+    trias.swap(tmp) ;
+    Loci::hdf5CloseFile(file_id) ;
+  }
+}
+
+void surfacePart::getGenf(vector<int> &numGenFnodes, vector<int> &genNodes) const {
+  numGenFnodes.clear() ;
+  genNodes.clear() ;
+  if(ngenf > 0) {
+    hid_t file_id = Loci::hdf5OpenFile(topoFile.c_str(),
+				       H5F_ACC_RDONLY,
+				       H5P_DEFAULT) ;
+    if(file_id < 0) return ;
+
+    vector<int> tmp(ngenf) ;
+    readElementType(file_id,"nside_sizes",tmp) ;
+    numGenFnodes.swap(tmp) ;
+
+    int nsz = sizeElementType(file_id,"nside_nodes") ;
+    vector<int> tmp2(nsz) ;
+    readElementType(file_id,"nside_nodes",tmp2) ;
+    genNodes.swap(tmp2) ;
+    Loci::hdf5CloseFile(file_id) ;
+  }
+}
+
+void surfacePart::getPos(vector<vector3d<float> > &pos) const {
+  vector<vector3d<float> > tmp(nnodes) ;
+  pos.swap(tmp) ;
+  hid_t file_id = Loci::hdf5OpenFile(posFile.c_str(),
+				     H5F_ACC_RDONLY,
+				     H5P_DEFAULT) ;
+
+  if(file_id < 0) return ;
+  readElementType(file_id,"data",pos) ;
+  Loci::hdf5CloseFile(file_id) ;
+}
+
+void surfacePart::getNodalScalar(string varname,
+				 vector<float> &vals) const {
+  vector<float> tmp(nnodes) ;
+  vals.swap(tmp) ;
+  map<string,string>::const_iterator mi = nodalScalarVars.find(varname) ;
+  if(mi == nodalScalarVars.end())
+    return ;
+  string filename = mi->second ;
+  hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
+				     H5F_ACC_RDONLY,
+				     H5P_DEFAULT) ;
+
+  if(file_id < 0) return ;
+  readElementType(file_id,"data",vals) ;
+  Loci::hdf5CloseFile(file_id) ;
+  
+}
+void surfacePart::getNodalVector(string varname,
+				 vector<vector3d<float> > &vals) const {
+  vector<vector3d<float> > tmp(nnodes) ;
+  vals.swap(tmp) ;
+  map<string,string>::const_iterator mi = nodalVectorVars.find(varname) ;
+  if(mi == nodalScalarVars.end())
+    return ;
+  string filename = mi->second ;
+  hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
+				     H5F_ACC_RDONLY,
+				     H5P_DEFAULT) ;
+
+  if(file_id < 0) return ;
+  readElementType(file_id,"data",vals) ;
+  Loci::hdf5CloseFile(file_id) ;
+}
 
 void getDerivedVar(vector<float> &dval, string var_name,
                    string casename, string iteration) {
@@ -1520,6 +1689,7 @@ int main(int ac, char *av[]) {
   int inc_iter = -1 ;
   bool id_required = false;//ensight has the option to display node and element ids
 
+  vector<string> partlist ;
   
   for(int i=1;i<ac;++i) {
     if(av[i][0] == '-') {
@@ -1620,6 +1790,10 @@ int main(int ac, char *av[]) {
         if(av[i][0] >='0' && av[i][0] <= '9')
           v = "BC_"+v ;
         boundaries.push_back(v) ;
+      } else if(!strcmp(av[i],"-part")) {
+        i++ ;
+        string v(av[i]) ;
+        partlist.push_back(v) ;
       } else if(!strcmp(av[i],"-mp")) {
         // get the number of particles
         ++i ;
@@ -1674,6 +1848,28 @@ int main(int ac, char *av[]) {
     }
   
       
+  if(partlist.size() > 0) {
+    H5Eset_auto(NULL,NULL) ;
+    vector<surfacePart> parts(partlist.size()) ;
+    for(size_t i=0;i<partlist.size();++i) {
+      string name = partlist[i] ;
+      cout << "part: " << name << endl ;
+      string dir = output_dir + "/" + casename + "_BC." + name ;
+      vector<string> varlist = variables;
+      parts[i] = surfacePart(name,dir,iteration,varlist) ;
+      if(parts[i].fail()) {
+	cerr << "unable to load part: " << name << endl ;
+      }
+    }
+    // hardwired for ensight right now
+    ensightPartConverter econvert ;
+    econvert.addSurfaceParts(parts) ;
+    econvert.exportPostProcessorFiles(casename,iteration) ;
+
+    Loci::Finalize() ;
+    exit(0) ;
+  } 
+  
 
   if(variables.size() == 0) {
     DIR *dp = opendir(output_dir.c_str()) ;
@@ -1882,7 +2078,6 @@ int main(int ac, char *av[]) {
     variable_type[i] = UNDEFINED ;
   }
 
-  H5Eset_auto(NULL,NULL) ;
 
   // we will first check to see if particle position is present
   // in case of any particle information extraction
@@ -1897,6 +2092,7 @@ int main(int ac, char *av[]) {
       exit(-1) ;
     }
   }
+  H5Eset_auto(NULL,NULL) ;
 
   string filename = getTopoFileName(output_dir, casename, iteration) ;
   struct stat tmpstat ;
@@ -1929,7 +2125,6 @@ int main(int ac, char *av[]) {
          << endl ;
   }
 
-  
   if(plot_type == ASCII) {
     if(boundaries.size() == 0) {
       process_ascii_nodal(casename,iteration,
