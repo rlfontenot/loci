@@ -653,6 +653,8 @@ namespace Loci {
                                localCells,//all geom_cells
                                *Loci::exec_current_fact_db);
   }
+  storeRepP Local2FileOrder_output(storeRepP sp, entitySet dom,
+                                   fact_db& facts, MPI_Comm comm);
   
   template<class T>   void writeCutPlaneNodalVal(hid_t file_id,
                                                  std::string element_name,
@@ -753,6 +755,9 @@ namespace Loci {
   }
   
                           
+  void writeCutPlaneTopo(hid_t bc_id,
+                         const CutPlane& cp,
+                         fact_db &facts) ;
    
 
  
