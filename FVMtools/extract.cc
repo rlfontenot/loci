@@ -193,21 +193,20 @@ surfacePart::surfacePart(string name, string dir, string iteration,
   string topolink ;
   topo_links>> topolink ;
   topo_links.close();
-  topoFile = dir + "/" + topolink ;
   
   posFile = dir + "/pos." + iteration ;
   hid_t file_id = Loci::hdf5OpenFile(posFile.c_str(),
 				     H5F_ACC_RDONLY,
 				     H5P_DEFAULT) ;
-
   if(file_id < 0) return ;
   
   nnodes = sizeElementType(file_id,"data") ;
   Loci::hdf5CloseFile(file_id) ;
-
+  
+  topoFile = dir + "/" + topolink ;
   file_id = Loci::hdf5OpenFile(topoFile.c_str(),
-				     H5F_ACC_RDONLY,
-				     H5P_DEFAULT) ;
+                               H5F_ACC_RDONLY,
+                               H5P_DEFAULT) ;
   if(file_id < 0) return ;
 
   ngenf = sizeElementType(file_id,"nside_sizes") ;
@@ -216,7 +215,7 @@ surfacePart::surfacePart(string name, string dir, string iteration,
   
   
   Loci::hdf5CloseFile(file_id) ;
-
+  bool has_element_data = false ;
   for(size_t i=0;i<vars.size();++i) {
     string varname = vars[i] ;
     // try scalar
@@ -248,7 +247,63 @@ surfacePart::surfacePart(string name, string dir, string iteration,
 	Loci::hdf5CloseFile(file_id) ;
       }
     }
+    if(!found_var) {
+      svar = dir+"/" + varname+"_bsca."+iteration ;
+      file_id = Loci::hdf5OpenFile(svar.c_str(),
+				   H5F_ACC_RDONLY,
+				   H5P_DEFAULT) ;
+      if(file_id >= 0) {
+	int nsz = sizeElementType(file_id,"data") ;
+	if(nsz == (nquads+ntrias+ngenf)) {
+	  elementScalarVars[varname] = svar ;
+	  found_var = true ;
+          has_element_data = true ;
+	}
+	Loci::hdf5CloseFile(file_id) ;
+      }
+    }
+    if(!found_var) {
+      svar = dir+"/" + varname+"_bvec."+iteration ;
+      file_id = Loci::hdf5OpenFile(svar.c_str(),
+				   H5F_ACC_RDONLY,
+				   H5P_DEFAULT) ;
+      if(file_id >= 0) {
+	int nsz = sizeElementType(file_id,"data") ;
+	if(nsz == (nquads+ntrias+ngenf)) {
+	  elementVectorVars[varname] = svar ;
+	  found_var = true ;
+          has_element_data = true ;
+	}
+	Loci::hdf5CloseFile(file_id) ;
+      }
+    }
+      
   }
+  if(has_element_data) {
+    file_id = Loci::hdf5OpenFile(topoFile.c_str(),
+                                 H5F_ACC_RDONLY,
+                                 H5P_DEFAULT) ;
+    if(nquads > 0) {
+      vector<int> tmp(nquads) ;
+      readElementType(file_id,"quads_ord",tmp) ;
+      quad_ord.swap(tmp) ;
+    }
+
+    if(ntrias > 0) {
+      vector<int> tmp(ntrias) ;
+      readElementType(file_id,"triangles_ord",tmp) ;
+      tri_ord.swap(tmp) ;
+    }
+
+    if(ngenf > 0) {
+      vector<int> tmp(ngenf) ;
+      readElementType(file_id,"nside_ord",tmp) ;
+      gen_ord.swap(tmp) ;
+    }
+    Loci::hdf5CloseFile(file_id) ;
+    
+  }
+    
   error = false ;
 }
 
@@ -345,6 +400,62 @@ void surfacePart::getNodalVector(string varname,
   if(file_id < 0) return ;
   readElementType(file_id,"data",vals) ;
   Loci::hdf5CloseFile(file_id) ;
+}
+
+void surfacePart::getElementScalar(string varname,
+                                   vector<float> &qvals,
+                                   vector<float> &tvals,
+                                   vector<float> &gvals) const {
+  { vector<float> tmpq(nquads) ;  qvals.swap(tmpq) ; }
+  { vector<float> tmpt(ntrias) ;  tvals.swap(tmpt) ; }
+  { vector<float> tmpg(ngenf) ;  gvals.swap(tmpg) ; }
+  
+  map<string,string>::const_iterator mi = elementScalarVars.find(varname) ;
+  if(mi == elementScalarVars.end())
+    return ;
+  string filename = mi->second ;
+  hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
+				     H5F_ACC_RDONLY,
+				     H5P_DEFAULT) ;
+
+  if(file_id < 0) return ;
+  vector<float> vals(nquads+ntrias+ngenf) ;
+  readElementType(file_id,"data",vals) ;
+  Loci::hdf5CloseFile(file_id) ;
+  for(int i=0;i<nquads;++i)
+    qvals[i] = vals[quad_ord[i]] ;
+  for(int i=0;i<ntrias;++i) 
+    tvals[i] = vals[tri_ord[i]] ;
+  for(int i=0;i<ngenf;++i)
+    gvals[i] = vals[gen_ord[i]] ;
+}
+
+void surfacePart::getElementVector(string varname,
+                                   vector<vector3d<float> > &qvals,
+                                   vector<vector3d<float> > &tvals,
+                                   vector<vector3d<float> > &gvals) const {
+  { vector<vector3d<float> > tmpq(nquads) ;  qvals.swap(tmpq) ; }
+  { vector<vector3d<float> > tmpt(ntrias) ;  tvals.swap(tmpt) ; }
+  { vector<vector3d<float> > tmpg(ngenf) ;  gvals.swap(tmpg) ; }
+  
+  map<string,string>::const_iterator mi = elementVectorVars.find(varname) ;
+  if(mi == elementVectorVars.end())
+    return ;
+  string filename = mi->second ;
+  hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
+				     H5F_ACC_RDONLY,
+				     H5P_DEFAULT) ;
+
+  if(file_id < 0) return ;
+  vector<vector3d<float> > vals(nquads+ntrias+ngenf) ;
+  readElementType(file_id,"data",vals) ;
+  Loci::hdf5CloseFile(file_id) ;
+  for(int i=0;i<nquads;++i)
+    qvals[i] = vals[quad_ord[i]] ;
+  for(int i=0;i<ntrias;++i)
+    tvals[i] = vals[tri_ord[i]] ;
+  for(int i=0;i<ngenf;++i)
+    gvals[i] = vals[gen_ord[i]] ;
 }
 
 void getDerivedVar(vector<float> &dval, string var_name,
@@ -1854,7 +1965,7 @@ int main(int ac, char *av[]) {
     for(size_t i=0;i<partlist.size();++i) {
       string name = partlist[i] ;
       cout << "part: " << name << endl ;
-      string dir = output_dir + "/" + casename + "_BC." + name ;
+      string dir = output_dir + "/" + casename + "_SURF." + name ;
       vector<string> varlist = variables;
       parts[i] = surfacePart(name,dir,iteration,varlist) ;
       if(parts[i].fail()) {

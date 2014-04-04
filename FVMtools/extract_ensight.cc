@@ -941,6 +941,8 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
   string case_filename = dirname + "/" + casename + ".case" ;
   set<string> nodal_scalars ;
   set<string> nodal_vectors ;
+  set<string> element_scalars ;
+  set<string> element_vectors ;
   for(size_t i =0;i<surfacePartList.size();++i) {
     vector<string> nscalars = surfacePartList[i].getNodalScalarVars() ;
     for(size_t j=0;j<nscalars.size();++j) 
@@ -948,6 +950,12 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
     vector<string> nvectors = surfacePartList[i].getNodalVectorVars() ;
     for(size_t j=0;j<nvectors.size();++j) 
       nodal_vectors.insert(nvectors[j]) ;
+    vector<string> escalars = surfacePartList[i].getElementScalarVars() ;
+    for(size_t j=0;j<escalars.size();++j) 
+      element_scalars.insert(escalars[j]) ;
+    vector<string> evectors = surfacePartList[i].getElementVectorVars() ;
+    for(size_t j=0;j<evectors.size();++j) 
+      element_vectors.insert(evectors[j]) ;
   }
 
 
@@ -960,7 +968,8 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
   
   geo_filename = dirname + "/"+geo_filename ;
   
-  if(nodal_scalars.size()+nodal_vectors.size() > 0) {
+  if(nodal_scalars.size()+nodal_vectors.size()+
+     element_scalars.size()+element_vectors.size() > 0) {
     of << "VARIABLE" << endl ;
     set<string>::const_iterator si ;
     for(si=nodal_scalars.begin();si!=nodal_scalars.end();++si) {
@@ -968,6 +977,12 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
     }
     for(si=nodal_vectors.begin();si!=nodal_vectors.end();++si) {
       of << "vector per node:\t " << *si << '\t' << *si << endl ;
+    }
+    for(si=element_scalars.begin();si!=element_scalars.end();++si) {
+      of << "scalar per element:\t " << *si << '\t' << *si << endl ;
+    }
+    for(si=element_vectors.begin();si!=element_vectors.end();++si) {
+      of << "vector per element:\t " << *si << '\t' << *si << endl ;
     }
   }
   of.close() ;
@@ -1082,6 +1097,7 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
   
   // Finished writing out the the geo file, now write out the variables
   set<string>::const_iterator si ;
+  // write out nodal scalars
   for(si=nodal_scalars.begin();si!=nodal_scalars.end();++si) {
     string varname = *si ;
     string filename = dirname + "/" + varname ;
@@ -1115,7 +1131,7 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
     }
     fclose(FP) ;
   }
-
+  // write out nodal vector variables
   for(si=nodal_vectors.begin();si!=nodal_vectors.end();++si) {
     string varname = *si ;
     string filename = dirname + "/" + varname ;
@@ -1134,7 +1150,7 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
     // exist ;
     for(size_t i =0;i<surfacePartList.size();++i) {
       memset(tmp_buf, '\0', 80) ;
-      if(surfacePartList[i].hasNodalVectorVar(varname)) {
+      if(surfacePartList[i].hasElementVectorVar(varname)) {
 	memset(tmp_buf, '\0', 80) ;
 	snprintf(tmp_buf,80, "part") ;
 	fwrite(tmp_buf, sizeof(char), 80, FP) ;
@@ -1158,8 +1174,119 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
     }
     fclose(FP) ;
   }
+  // write out element scalars
+  for(si=element_scalars.begin();si!=element_scalars.end();++si) {
+    string varname = *si ;
+    string filename = dirname + "/" + varname ;
+    FILE *FP = 0 ;
+    FP = fopen(filename.c_str(), "wb") ;
+    if(FP==0) {
+      cerr << "can't open file '" << filename << "' for writing variable info!"
+	   << endl ;
+      continue ;
+    }
+    memset(tmp_buf, '\0', 80) ;
+    snprintf(tmp_buf,80,"variable : %s",varname.c_str()) ;
+    fwrite(tmp_buf, sizeof(char), 80, FP) ;
+    // Loop over parts and write out variables for each part if they 
+    // exist ;
+    for(size_t i =0;i<surfacePartList.size();++i) {
+      if(surfacePartList[i].hasElementScalarVar(varname)) {
+	memset(tmp_buf, '\0', 80) ;
+	snprintf(tmp_buf,80, "part") ;
+	fwrite(tmp_buf, sizeof(char), 80, FP) ;
+	int tmp = partnums[i] ;
+	fwrite(&tmp, sizeof(int), 1, FP) ;
+        vector<float> qvals, tvals, gvals ;
+        surfacePartList[i].getElementScalar(varname,qvals,tvals,gvals) ;
 
-  
+        if(qvals.size() > 0) {
+          memset(tmp_buf, '\0', 80) ;
+          snprintf(tmp_buf,80, "quad4") ;
+          fwrite(tmp_buf, sizeof(char), 80, FP) ;
+          fwrite(&qvals[0],sizeof(float),qvals.size(),FP) ;
+        }
+        if(tvals.size() > 0) {
+          memset(tmp_buf, '\0', 80) ;
+          snprintf(tmp_buf,80, "tria3") ;
+          fwrite(tmp_buf, sizeof(char), 80, FP) ;
+          fwrite(&tvals[0],sizeof(float),tvals.size(),FP) ;
+        }
+        if(gvals.size() > 0) {
+          memset(tmp_buf, '\0', 80) ;
+          snprintf(tmp_buf,80, "nsided") ;
+          fwrite(tmp_buf, sizeof(char), 80, FP) ;
+          fwrite(&gvals[0],sizeof(float),gvals.size(),FP) ;
+        }
+      }
+    }
+    fclose(FP) ;
+  }
+  // write out element vectors
+  for(si=element_vectors.begin();si!=element_vectors.end();++si) {
+    string varname = *si ;
+    string filename = dirname + "/" + varname ;
+    FILE *FP = 0 ;
+    FP = fopen(filename.c_str(), "wb") ;
+    if(FP==0) {
+      cerr << "can't open file '" << filename << "' for writing variable info!"
+	   << endl ;
+      continue ;
+    }
+    memset(tmp_buf, '\0', 80) ;
+    snprintf(tmp_buf,80,"variable : %s",varname.c_str()) ;
+    fwrite(tmp_buf, sizeof(char), 80, FP) ;
+    
+    // Loop over parts and write out variables for each part if they 
+    // exist ;
+    for(size_t i =0;i<surfacePartList.size();++i) {
+      if(surfacePartList[i].hasElementVectorVar(varname)) {
+	memset(tmp_buf, '\0', 80) ;
+	snprintf(tmp_buf,80, "part") ;
+	fwrite(tmp_buf, sizeof(char), 80, FP) ;
+	int tmp = partnums[i] ;
+	fwrite(&tmp, sizeof(int), 1, FP) ;
+        vector<vector3d<float> > qvals, tvals, gvals ;
+        surfacePartList[i].getElementVector(varname,qvals,tvals,gvals) ;
+        
+        if(qvals.size() > 0) {
+          memset(tmp_buf, '\0', 80) ;
+          snprintf(tmp_buf,80, "quad4") ;
+          fwrite(tmp_buf, sizeof(char), 80, FP) ;
+          for(size_t i=0;i<qvals.size();++i)
+            fwrite(&qvals[i].x,sizeof(float),1,FP) ;
+          for(size_t i=0;i<qvals.size();++i)
+            fwrite(&qvals[i].y,sizeof(float),1,FP) ;
+          for(size_t i=0;i<qvals.size();++i)
+            fwrite(&qvals[i].z,sizeof(float),1,FP) ;
+        }
+        if(tvals.size() > 0) {
+          memset(tmp_buf, '\0', 80) ;
+          snprintf(tmp_buf,80, "tria3") ;
+          fwrite(tmp_buf, sizeof(char), 80, FP) ;
+          for(size_t i=0;i<tvals.size();++i)
+            fwrite(&tvals[i].x,sizeof(float),1,FP) ;
+          for(size_t i=0;i<tvals.size();++i)
+            fwrite(&tvals[i].y,sizeof(float),1,FP) ;
+          for(size_t i=0;i<tvals.size();++i)
+            fwrite(&tvals[i].z,sizeof(float),1,FP) ;
+        }
+        if(gvals.size() > 0) {
+          memset(tmp_buf, '\0', 80) ;
+          snprintf(tmp_buf,80, "nsided") ;
+          fwrite(tmp_buf, sizeof(char), 80, FP) ;
+          for(size_t i=0;i<gvals.size();++i)
+            fwrite(&gvals[i].x,sizeof(float),1,FP) ;
+          for(size_t i=0;i<gvals.size();++i)
+            fwrite(&gvals[i].y,sizeof(float),1,FP) ;
+          for(size_t i=0;i<gvals.size();++i)
+            fwrite(&gvals[i].z,sizeof(float),1,FP) ;
+        }
+      }
+    }
+    fclose(FP) ;
+  }
+
 }
 // ... the end ...
 

@@ -780,6 +780,11 @@ class surfacePart {
   // maps from variables to file name
   map<string,string> nodalScalarVars ;
   map<string,string> nodalVectorVars ;
+  map<string,string> elementScalarVars ;
+  map<string,string> elementVectorVars ;
+  vector<int> quad_ord ;
+  vector<int> tri_ord ;
+  vector<int> gen_ord ;
  public:
   surfacePart() {error = true ;}
   surfacePart(string name, string directory, string iteration,
@@ -798,6 +803,14 @@ class surfacePart {
     map<string,string>::const_iterator mi=nodalVectorVars.find(var) ;
     return (mi != nodalVectorVars.end()) ;
   }
+  bool hasElementScalarVar(string var) const {
+    map<string,string>::const_iterator mi=elementScalarVars.find(var) ;
+    return (mi != elementScalarVars.end()) ;
+  }
+  bool hasElementVectorVar(string var) const {
+    map<string,string>::const_iterator mi=elementVectorVars.find(var) ;
+    return (mi != elementVectorVars.end()) ;
+  }
 
   vector<string> getNodalScalarVars() const {
     vector<string> tmp ;
@@ -813,12 +826,33 @@ class surfacePart {
       tmp.push_back(mi->first) ;
     return tmp ;
   }
+  
+  vector<string> getElementScalarVars() const {
+    vector<string> tmp ;
+    map<string,string>::const_iterator mi ;
+    for(mi=elementScalarVars.begin();mi!=elementScalarVars.end();++mi)
+      tmp.push_back(mi->first) ;
+    return tmp ;
+  }
+  vector<string> getElementVectorVars() const {
+    vector<string> tmp ;
+    map<string,string>::const_iterator mi ;
+    for(mi=elementVectorVars.begin();mi!=elementVectorVars.end();++mi)
+      tmp.push_back(mi->first) ;
+    return tmp ;
+  }
+  
   void getQuads(vector<Array<int,4> > &quads) const ;
   void getTrias(vector<Array<int,3> > &trias) const ;
   void getGenf(vector<int> &numGenFnodes, vector<int> &genNodes) const ;
   void getPos(vector<vector3d<float> > &pos) const ;
   void getNodalScalar(string varname, vector<float> &vals) const ;
   void getNodalVector(string varname, vector<vector3d<float> > &vals) const ;
+  void getElementScalar(string varname, vector<float> &qvals,
+                        vector<float> &tvals, vector<float> &gvals) const ;
+  void getElementVector(string varname, vector<vector3d<float> > &qvals,
+                        vector<vector3d<float> > &tvals,
+                        vector<vector3d<float> > &gvals) const ;
 } ;
 
 class postProcessorConvert {
