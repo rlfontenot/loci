@@ -496,68 +496,8 @@ namespace Loci {
   void writeBoundaryTopo(hid_t file_id, //file_id of this boudnary surface
                          storeRepP face2nodeRep,
                          entitySet bfaces, //boundary faces belong to this surface 
-                         fact_db &facts,
-                         bool withIds //whether or not write out the file id of faces
-                         ); 
+                         fact_db &facts ); 
   
- //  void parallelWriteBoundaryTopology(std::string filename,
-//                                      const std::vector<std::string>& bnamelist,
-//                                      storeRepP face2nodeRep,
-//                                      storeRepP refRep,
-//                                      storeRepP bnamesRep,
-//                                      storeRepP posRep,
-//                                      entitySet fset,
-//                                      fact_db &facts,
-//                                      bool withIds) ;
-
-//   inline
-//   void parallelWriteBoundaryTopology(std::string filename,
-//                                      const std::vector<std::string>& bnamelist,
-//                                      storeRepP face2nodeRep,
-//                                      storeRepP refRep,
-//                                      storeRepP bnamesRep,
-//                                      storeRepP posRep,
-//                                      entitySet fset,
-//                                      bool withIds) {
-//     if(Loci::exec_current_fact_db == 0) {
-//       std::cerr << "Loci::parallelWriteBoundaryTopology()" ;
-//       std::cerr << "this routine needs a fact database argument when called outside of a rule!" << endl ;
-//       Loci::Abort() ;
-//     } else
-//       parallelWriteBoundaryTopology(filename, bnamelist,
-//                                     face2nodeRep, refRep, bnamesRep, posRep,
-//                                     fset, *Loci::exec_current_fact_db, withIds) ;
-//   }
-
-  
-//   void parallelWriteBoundaryPosition(const char* basename,//filename
-//                                      const std::vector<std::string>& boundaryList,//boundary namelist, if empty, output all boundaries
-//                                      storeRepP face2nodeRep,
-//                                      storeRepP refRep,
-//                                      storeRepP bnamesRep,
-//                                      storeRepP posRep,
-//                                      entitySet fset, //all boundary faces 
-//                                      fact_db &facts
-//                                      );  
-
-//   inline
-//   void parallelWriteBoundaryPosition(const char *filename,
-//                                      const std::vector<std::string>& bnamelist,
-//                                      storeRepP face2nodeRep,
-//                                      storeRepP refRep,
-//                                      storeRepP bnamesRep,
-//                                      storeRepP posRep,
-//                                      entitySet fset
-//                                      ) {
-//     if(Loci::exec_current_fact_db == 0) {
-//       std::cerr << "Loci::parallelWriteBoundaryPosition()" ;
-//       std::cerr << "this routine needs a fact database argument when called outside of a rule!" << endl ;
-//       Loci::Abort() ;
-//     } else
-//       parallelWriteBoundaryPosition(filename, bnamelist,
-//                                     face2nodeRep, refRep, bnamesRep, posRep,
-//                                     fset, *Loci::exec_current_fact_db) ;
-//   }
 
 
  
@@ -759,40 +699,5 @@ namespace Loci {
                          const CutPlane& cp,
                          fact_db &facts) ;
    
-
- 
-  void parallelWriteCutPlaneTopo(hid_t file_id,
-                                 const CutPlane& cp,
-                                 fact_db &facts);
-  
-  void parallelWriteCutPlane(std::string cplane_name,
-                             std::string file_name,
-                             storeRepP face2nodeRep,
-                             storeRepP edge2nodeRep,
-                             storeRepP posRep,
-                             const CutPlane& cp,
-                             fact_db &facts);
-  
-  inline
-  void parallelWriteCutPlane(std::string cplane_name,
-                             std::string file_name,
-                             storeRepP face2nodeRep,
-                             storeRepP edge2nodeRep,
-                             storeRepP posRep,
-                             const CutPlane& cp){
-                                  
-    if(Loci::exec_current_fact_db == 0) {
-      std::cerr << "Loci::parallelWriteCutPlane()" ;
-      std::cerr << "this routine needs a fact database argument when called outside of a rule!" << endl ;
-      Loci::Abort() ;
-    } else  parallelWriteCutPlane( cplane_name,
-                                   file_name,
-                                   face2nodeRep,
-                                   edge2nodeRep,
-                                   posRep,
-                                   cp,
-                                   *Loci::exec_current_fact_db);
-  }
-
 }
 #endif

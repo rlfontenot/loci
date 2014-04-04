@@ -948,10 +948,8 @@ namespace Loci{
        
   void writeBoundaryTopo(hid_t file_id, //file_id of this boudnary surface
                          storeRepP face2nodeRep,
-                         entitySet bfaces,
-                         fact_db &facts,
-                         bool withIds
-                         ){ //boundary faces belong to this surface 
+                         entitySet bfaces,//boundary faces define this surface 
+                         fact_db &facts ){ 
     const_multiMap face2node(face2nodeRep) ;
 
     //collect the local boundary nodes belong to this boundary
@@ -960,24 +958,18 @@ namespace Loci{
     //map each node to its file number in output file
     Map node_remap ;
     node_remap = get_output_node_remap(facts, nodes_local) ;
-    
-    //prepare the maps to find the faces' global ids
-    Map l2g ;
-    dMap g2f ;
-    if(withIds){
-      if(MPI_processes > 1) {
-        fact_db::distribute_infoP df = facts.get_distribute_info() ;
-        l2g = df->l2g.Rep() ;
-        g2f = df->g2f.Rep() ;
-      } else {
-        l2g.allocate(bfaces) ;
-        FORALL(bfaces,fc) {
-          l2g[fc] = fc ;
-          g2f[fc] = fc ;
-        } ENDFORALL ;
-      }
-    }
 
+    // Compute face reordering for topo sorting
+    store<int> faceorder ;
+    faceorder.allocate(bfaces) ;
+    int sz = bfaces.size();
+    int off = 0 ;
+    MPI_Scan(&sz,&off,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD) ;
+    off -= sz ;
+    FORALL(bfaces,fc) {
+      faceorder[fc] = off ;
+      off++ ;
+    } ENDFORALL ;
     //get output vectors
     int ntria=0, nquad=0, nsided =0;
     FORALL(bfaces,fc) {
@@ -999,14 +991,14 @@ namespace Loci{
     
     vector<int> nsizes(nsided) ;
     vector<int> nsidenodes ;
-    
+   
     
     FORALL(bfaces,fc) {
       if(face2node[fc].size() == 3) {
           Trias[nt][0] = node_remap[face2node[fc][0]] ;
           Trias[nt][1] = node_remap[face2node[fc][1]] ;
           Trias[nt][2] = node_remap[face2node[fc][2]] ;
-          if(withIds)tria_ids[nt] = g2f[l2g[fc]] ;
+          tria_ids[nt] = faceorder[fc] ;
           nt++ ;
       } else if(face2node[fc].size() == 4) {
         Quads[nq][0] = node_remap[face2node[fc][0]] ;
@@ -1014,139 +1006,30 @@ namespace Loci{
         Quads[nq][2] = node_remap[face2node[fc][2]] ;
         Quads[nq][3] = node_remap[face2node[fc][3]] ;
           
-        if(withIds)quad_ids[nq] = g2f[l2g[fc]] ;
+        quad_ids[nq] = faceorder[fc] ; 
         nq++ ;
-        } else {
+      } else {
         nsizes[ng] = face2node[fc].size() ;
         for(int i=0;i<nsizes[ng];++i)
           nsidenodes.push_back(node_remap[face2node[fc][i]]) ;
         
-        if(withIds)genc_ids[ng] = g2f[l2g[fc]] ;
+        genc_ids[ng] = faceorder[fc] ; 
         ng++ ;
       }
-      } ENDFORALL ;
+    } ENDFORALL ;
     
       
-      //write out vectors
-      writeUnorderedVector(file_id,"triangles",Trias) ;
-      if(withIds) writeUnorderedVector(file_id,"triangles_id",tria_ids) ;
-      writeUnorderedVector(file_id,"quads",Quads) ;
-      if(withIds) writeUnorderedVector(file_id,"quads_id",quad_ids) ;
-
-      writeUnorderedVector(file_id,"nside_sizes",nsizes) ;
-      writeUnorderedVector(file_id,"nside_nodes",nsidenodes) ;
-      if(withIds)writeUnorderedVector(file_id,"nside_id",genc_ids) ;
-      
+    //write out vectors
+    writeUnorderedVector(file_id,"triangles",Trias) ;
+    writeUnorderedVector(file_id,"triangles_ord",tria_ids) ;
+    writeUnorderedVector(file_id,"quads",Quads) ;
+    writeUnorderedVector(file_id,"quads_ord",quad_ids) ;
+    
+    writeUnorderedVector(file_id,"nside_sizes",nsizes) ;
+    writeUnorderedVector(file_id,"nside_nodes",nsidenodes) ;
+    writeUnorderedVector(file_id,"nside_ord",genc_ids) ;
   }
-  // //this function writes out the topology of boundaries into file output/$bc_name/$basename
-//   //each boundary is in separate directory $bc_name under output/
-//   //bc_name is provided in boundaryList, if this list is empty, output all boundaries
-  
-//   //This function should be called in a rule, the constraint of the rule should be "boundary_faces",
-//   //and  fset should be entitySet(seq), seq is the sequence of compute() function
-//   //the rule should disable threading.
-//   //the input of the rule should include:
-//   // "face2node->pos"
-//   // "ref->boundary_names"
-//   // other info for basename, boundaryList and withIds
-  
-//   void parallelWriteBoundaryTopology(string basename,//filename
-//                                      const vector<string>& boundaryList, //boundary namelist, if empty, output all boundaries
-//                                      storeRepP face2nodeRep,
-//                                      storeRepP refRep,
-//                                      storeRepP bnamesRep,
-//                                      storeRepP posRep,
-//                                      entitySet fset, //all boundary faces 
-//                                      fact_db &facts,
-//                                      bool withIds) {//will the global face ids be written out
-//     //collect all boundary names
-//     vector<string> all_boundaries = get_boundary_names(bnamesRep, facts);
-
-//     //if boundary namelist is not provided, write out all boundaries
-//     vector<string> bnamelist;
-//     if(boundaryList.empty()) bnamelist = all_boundaries;
-//     else bnamelist = boundaryList;
-    
-//     //for each boundary surface
-//     for(size_t i=0;i<bnamelist.size();++i) {
-//       hid_t file_id = 0 ;
-//       string current_bc = bnamelist[i] ;//name of the boundary
-//       //open the file
-//       if(MPI_rank==0) {
-//         file_id = open_boundary_file(current_bc, basename);
-//       }
       
-//       //find all the boundary faces that belong to this surface
-//       entitySet bfaces = get_boundary_faces(current_bc, refRep, bnamesRep, fset);
-//       writeBoundaryTopo( file_id, 
-//                          face2nodeRep,
-//                          bfaces,
-//                          facts,
-//                          withIds);
-      
-//      if(MPI_rank==0) {
-//        H5Fclose(file_id) ;
-//      }
-//     }
-//   }
-  
-//   //this function writes out the positions of boundaries into file output/$bc_name/$basename
-//   //each boundary is in separate directory $bc_name under output/
-//   //bc_name is provided in boundaryList, if this list is empty, output all boundaries
-  
-//   //This function should be called in a rule, the constraint of the rule should be "boundary_faces",
-//   //and  fset should be entitySet(seq), seq is the sequence of compute() function
-//   //the rule should disable threading.
-//   //the input of the rule should include:
-//   // "face2node->pos"
-//   // "ref->boundary_names"
-//   // other info for basename, boundaryList
-//   void parallelWriteBoundaryPosition(const char* basename,//filename
-//                                      const vector<string>& boundaryList,//boundary namelist, if empty, output all boundaries
-//                                      storeRepP face2nodeRep,
-//                                      storeRepP refRep,
-//                                      storeRepP bnamesRep,
-//                                      storeRepP posRep,
-//                                      entitySet fset, //all boundary faces 
-//                                      fact_db &facts
-//                                      ) {
-    
-//     //if boundaryList is empty, collect all boundary names 
-//     vector<string> bnamelist;
-//     if(boundaryList.empty()) bnamelist =get_boundary_names(bnamesRep, facts);
-//     else bnamelist =  vector<string>(boundaryList);
-//     const_store<vector3d<double> > pos(posRep);
-    
-//     //for each boudnary surface
-//     for(size_t i=0;i<bnamelist.size();++i) {
-//       hid_t file_id = 0 ;
-//       string current_bc = bnamelist[i] ;
-      
-//       //open the file     
-//       if(MPI_rank==0) {
-//         file_id = open_boundary_file(current_bc, basename);
-//       }
-//      entitySet nodes_local = get_boundary_nodes(current_bc,//boundary name
-//                                        face2nodeRep,
-//                                        refRep, // ref map
-//                                        bnamesRep,//bounadry name store
-//                                        fset, //all boundary faces 
-//                                        facts );
-      
-      
-//       //write out the vector
-//       writeUnorderedStore(file_id, pos, nodes_local, "positions") ;
-      
-//       //write out attribute and close the file
-//       if(MPI_rank==0) {
-//         H5Fclose(file_id);
-//       }
-//     }
-    
-//   }
-      
- 
- 
   //this function find the index of an inner edge.
   //an inner edge is the edge from facecenter to one of its nodes during face triangulation
   //if the edge already exists, the index is returned
@@ -1173,7 +1056,7 @@ namespace Loci{
                         const_multiMap& face2node,
                         const_multiMap& face2edge,
                         const_MapVec<2>& edge2node,
-                        const_store<vector3d<double> >& pos,
+                        const_store<real_t>& val,
                         entitySet& edgesCut, //the edges(node 2 node) cut
                         std::map<pair<int, int>, int >& edgeIndex,//map of inner edges(face 2 node) to its index in inner_edges, the index starts with 1 
                         vector<pair<int, int> >& intersects, //pair of edges, if the second number is negative, it is index to inner_edges
@@ -1184,9 +1067,9 @@ namespace Loci{
     disambiguatedFaces += f;
 
     //get the pos of face center
-    vect3d  newNode = vect3d(0.0, 0.0, 0.0);
+    real_t  newNode = 0.0 ;
     for (int i = 0; i < nNodes; ++i) {
-      newNode += pos[face2node[f][i]];
+      newNode += val[face2node[f][i]];
     }
     newNode /= double(nNodes);
     
@@ -1197,13 +1080,13 @@ namespace Loci{
       int cutsFound = 0;
       //check this edge
       Entity edge = face2edge[f][i];
-      if (signbit(pos[edge2node[edge][0]].z * pos[edge2node[edge][1]].z)) {
+      if (signbit(val[edge2node[edge][0]] * val[edge2node[edge][1]])) {
         edgesCut += edge;
         faceCut[cutsFound] = edge;
         cutsFound++; 
       }
       //check face center to first node
-      if (signbit(newNode.z * pos[edge2node[edge][0]].z)) {
+      if (signbit(newNode * val[edge2node[edge][0]])) {
         int node = edge2node[edge][0];
         int edgeId = create_inner_edge(f, node, edgeIndex,inner_edges);
         faceCut[cutsFound]  = -edgeId;
@@ -1211,7 +1094,7 @@ namespace Loci{
       }
   
       //check face center to second node
-      if (signbit(newNode.z * pos[edge2node[edge][1]].z)) {
+      if (signbit(newNode * val[edge2node[edge][1]])) {
         if(cutsFound >1){
           cerr<<"ERROR: tri face has more than two cuts" << endl;
           exit(-1);
@@ -1224,18 +1107,13 @@ namespace Loci{
       if (cutsFound == 2) intersects.push_back(make_pair(faceCut[0], faceCut[1]));
     }
   }
-  
-
-
-
-
 
   // Find edges cut in the face and register them into intersects
   bool registerFace(Entity f,
                     const_multiMap& face2node,
                     const_multiMap& face2edge,
                     const_MapVec<2>& edge2node,
-                    const_store<vect3d>& pos,
+                    const_store<real_t>& val,
                     entitySet& edgesCut,//the edges(node 2 node) cut
                     std::map<pair<int, int>, int >& edgeIndex,//map of inner edges(face 2 node) to its index in inner_edges, the index starts with 1
                     vector<pair<int, int> >& intersects, //pair of edges, if the second number is negative, it is index to inner_edges
@@ -1249,7 +1127,7 @@ namespace Loci{
     for(int i = 0; i < face2edge.num_elems(f); ++i) {
       Entity edge = face2edge[f][i];
       //if it is cut
-      if (signbit(pos[edge2node[edge][0]].z * pos[edge2node[edge][1]].z)) {
+      if (signbit(val[edge2node[edge][0]] * val[edge2node[edge][1]])) {
         if (cutsFound < 2) {
           //store it in faceCut
           faceCut[cutsFound] = edge;
@@ -1267,7 +1145,7 @@ namespace Loci{
                         face2node,
                         face2edge,
                         edge2node,
-                        pos,
+                        val,
                         edgesCut,
                         edgeIndex,
                         intersects,
@@ -1339,11 +1217,11 @@ namespace Loci{
   //return the cutting position of an edge 
   double get_edge_weight(Entity e,
                          const_MapVec<2>& edge2node,
-                         const_store<vect3d>& pos){
+                         const_store<real_t>& val){
     
-    vect3d a = pos[edge2node[e][0]];
-    vect3d b = pos[edge2node[e][1]];
-    return ((b.z)/(b.z - a.z));
+    real_t a = val[edge2node[e][0]];
+    real_t b = val[edge2node[e][1]];
+    return ((b)/(b - a));
   }
  
 
@@ -1351,11 +1229,11 @@ namespace Loci{
   double get_inner_edge_weight(Entity f,
                                int rank, //index of the node in face2node
                                const_multiMap& face2node,
-                               const_store<vect3d>& pos){
+                               const_store<real_t> & val){
    
-    vect3d  a = get_center_val(f, face2node, pos);
-    vect3d b = pos[face2node[f][rank]];
-    return ((b.z)/(b.z - a.z));
+    real_t a = get_center_val(f, face2node, val);
+    real_t b = val[face2node[f][rank]];
+    return ((b)/(b - a));
   }
   
   
@@ -1365,7 +1243,7 @@ namespace Loci{
                        storeRepP face2nodeRep,
                        storeRepP face2edgeRep,
                        storeRepP edge2nodeRep,
-                       storeRepP posRep,
+                       storeRepP valRep,
                        entitySet localCells,//all geom_cells
                        fact_db &facts) {
 
@@ -1373,7 +1251,7 @@ namespace Loci{
       boundary_map(boundary_mapRep),face2node(face2nodeRep), face2edge(face2edgeRep) ;
     
     const_MapVec<2> edge2node(edge2nodeRep);
-    const_store<vect3d> pos(posRep);
+    const_store<real_t> val(valRep);
 
     //cutplane data structure:
     entitySet edgesCut; //the edges(node 2 node) cut, local numbering
@@ -1407,7 +1285,7 @@ namespace Loci{
                          face2node,
                          face2edge,
                          edge2node,
-                         pos,
+                         val,
                          edgesCut,
                          edgeIndex,
                          intersects, 
@@ -1425,7 +1303,7 @@ namespace Loci{
     //compute the cutting postions of edges 
     edgesWeight.allocate(edgesCut);
     FORALL(edgesCut, e){
-      double t = get_edge_weight(e, edge2node, pos);
+      double t = get_edge_weight(e, edge2node, val);
       edgesWeight[e] = t;
     }ENDFORALL;
     
@@ -1450,7 +1328,7 @@ namespace Loci{
         for(int i = 0; i < face2node.num_elems(f); i++){
           if( edgeIndex.find(pair<int, int>(f, face2node[f][i]))!=edgeIndex.end()){ //what is in edgeIndex?
             facesRank[f][cnt] = i;
-            facesWeight[f][cnt] = get_inner_edge_weight(f, i, face2node, pos);
+            facesWeight[f][cnt] = get_inner_edge_weight(f, i, face2node, val);
             cnt++;
           }
         }
@@ -1555,37 +1433,6 @@ namespace Loci{
     
     writeUnorderedVector(bc_id,"nside_nodes",nsidenodes) ;      
   }
-  
-  void parallelWriteCutPlane(string cplane_name,
-                             string file_name,
-                             storeRepP face2nodeRep,
-                             storeRepP edge2nodeRep,
-                             storeRepP posRep,
-                             const CutPlane& cp,
-                             fact_db &facts){
-
-    hid_t file_id = open_boundary_file(cplane_name, file_name);
-    const_store<vect3d> pos(posRep);
-    string element_name = "positions";
-    writeCutPlaneNodalVal(file_id,
-                          element_name,
-                          face2nodeRep,
-                          edge2nodeRep,
-                          pos,
-                          cp,
-                          facts);
-    
-    writeCutPlaneTopo(file_id,
-                      cp,
-                      facts);
-    
-    if(MPI_rank == 0) {
-      H5Fclose(file_id);
-    }
-  }
-  
-
-  
   
   namespace {
     void get_vect3dOption(const options_list &ol,std::string vname,
