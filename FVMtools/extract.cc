@@ -188,6 +188,8 @@ surfacePart::surfacePart(string name, string dir, string iteration,
   error = true  ;
   string topo_link = dir + "/topo_file."+iteration ;
   ifstream topo_links(topo_link.c_str(),ios::in) ;
+  if(topo_links.fail()) cerr << "topo_links fail, " << topo_link << endl ;
+
   if(topo_links.fail()) return ;
 
   string topolink ;
@@ -198,6 +200,7 @@ surfacePart::surfacePart(string name, string dir, string iteration,
   hid_t file_id = Loci::hdf5OpenFile(posFile.c_str(),
 				     H5F_ACC_RDONLY,
 				     H5P_DEFAULT) ;
+  if(file_id < 0) cerr << posFile << " fail" << endl ;
   if(file_id < 0) return ;
   
   nnodes = sizeElementType(file_id,"data") ;
@@ -207,6 +210,7 @@ surfacePart::surfacePart(string name, string dir, string iteration,
   file_id = Loci::hdf5OpenFile(topoFile.c_str(),
                                H5F_ACC_RDONLY,
                                H5P_DEFAULT) ;
+  if(file_id < 0) cerr << topoFile << " fail" << endl ;
   if(file_id < 0) return ;
 
   ngenf = sizeElementType(file_id,"nside_sizes") ;
@@ -307,6 +311,55 @@ surfacePart::surfacePart(string name, string dir, string iteration,
   error = false ;
 }
 
+bool surfacePart::hasNodalScalarVar(string var) const {
+  map<string,string>::const_iterator mi=nodalScalarVars.find(var) ;
+  return (mi != nodalScalarVars.end()) ;
+}
+bool surfacePart::hasNodalVectorVar(string var) const {
+  map<string,string>::const_iterator mi=nodalVectorVars.find(var) ;
+  return (mi != nodalVectorVars.end()) ;
+}
+bool surfacePart::hasElementScalarVar(string var) const {
+  map<string,string>::const_iterator mi=elementScalarVars.find(var) ;
+  return (mi != elementScalarVars.end()) ;
+}
+bool surfacePart::hasElementVectorVar(string var) const {
+  map<string,string>::const_iterator mi=elementVectorVars.find(var) ;
+  return (mi != elementVectorVars.end()) ;
+}
+
+vector<string> surfacePart::getNodalScalarVars() const {
+  vector<string> tmp ;
+  map<string,string>::const_iterator mi ;
+  for(mi=nodalScalarVars.begin();mi!=nodalScalarVars.end();++mi)
+    tmp.push_back(mi->first) ;
+  return tmp ;
+}
+
+vector<string> surfacePart::getNodalVectorVars() const {
+  vector<string> tmp ;
+  map<string,string>::const_iterator mi ;
+  for(mi=nodalVectorVars.begin();mi!=nodalVectorVars.end();++mi)
+    tmp.push_back(mi->first) ;
+  return tmp ;
+}
+  
+vector<string> surfacePart::getElementScalarVars() const {
+  vector<string> tmp ;
+  map<string,string>::const_iterator mi ;
+  for(mi=elementScalarVars.begin();mi!=elementScalarVars.end();++mi)
+    tmp.push_back(mi->first) ;
+  return tmp ;
+}
+
+vector<string> surfacePart::getElementVectorVars() const {
+  vector<string> tmp ;
+  map<string,string>::const_iterator mi ;
+  for(mi=elementVectorVars.begin();mi!=elementVectorVars.end();++mi)
+    tmp.push_back(mi->first) ;
+  return tmp ;
+}
+  
 void surfacePart::getQuads(vector<Array<int,4> > &quads) const {
   quads.clear() ;
   if(nquads > 0) {
@@ -1961,14 +2014,14 @@ int main(int ac, char *av[]) {
       
   if(partlist.size() > 0) {
     H5Eset_auto(NULL,NULL) ;
-    vector<surfacePart> parts(partlist.size()) ;
+    vector<surfacePartP> parts(partlist.size()) ;
     for(size_t i=0;i<partlist.size();++i) {
       string name = partlist[i] ;
       cout << "part: " << name << endl ;
       string dir = output_dir + "/" + casename + "_SURF." + name ;
       vector<string> varlist = variables;
-      parts[i] = surfacePart(name,dir,iteration,varlist) ;
-      if(parts[i].fail()) {
+      parts[i] = new surfacePart(name,dir,iteration,varlist) ;
+      if(parts[i]->fail()) {
 	cerr << "unable to load part: " << name << endl ;
       }
     }

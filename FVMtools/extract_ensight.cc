@@ -944,16 +944,16 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
   set<string> element_scalars ;
   set<string> element_vectors ;
   for(size_t i =0;i<surfacePartList.size();++i) {
-    vector<string> nscalars = surfacePartList[i].getNodalScalarVars() ;
+    vector<string> nscalars = surfacePartList[i]->getNodalScalarVars() ;
     for(size_t j=0;j<nscalars.size();++j) 
       nodal_scalars.insert(nscalars[j]) ;
-    vector<string> nvectors = surfacePartList[i].getNodalVectorVars() ;
+    vector<string> nvectors = surfacePartList[i]->getNodalVectorVars() ;
     for(size_t j=0;j<nvectors.size();++j) 
       nodal_vectors.insert(nvectors[j]) ;
-    vector<string> escalars = surfacePartList[i].getElementScalarVars() ;
+    vector<string> escalars = surfacePartList[i]->getElementScalarVars() ;
     for(size_t j=0;j<escalars.size();++j) 
       element_scalars.insert(escalars[j]) ;
-    vector<string> evectors = surfacePartList[i].getElementVectorVars() ;
+    vector<string> evectors = surfacePartList[i]->getElementVectorVars() ;
     for(size_t j=0;j<evectors.size();++j) 
       element_vectors.insert(evectors[j]) ;
   }
@@ -1022,16 +1022,16 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
     fwrite(tmp_buf, sizeof(char), 80, OFP) ;
     fwrite(&part_id, sizeof(int), 1, OFP) ;
     memset(tmp_buf, '\0', 80) ;
-    string name = surfacePartList[i].getPartName();
+    string name = surfacePartList[i]->getPartName();
     snprintf(tmp_buf,80, "%s", name.c_str()) ;
     fwrite(tmp_buf, sizeof(char), 80, OFP) ;
     memset(tmp_buf, '\0', 80) ;
     snprintf(tmp_buf,80, "coordinates") ;
     fwrite(tmp_buf, sizeof(char), 80, OFP) ;
-    int npt = surfacePartList[i].getNumNodes() ;
+    int npt = surfacePartList[i]->getNumNodes() ;
     fwrite(&npt, sizeof(int), 1, OFP) ;
     vector<vector3d<float> > pos ;
-    surfacePartList[i].getPos(pos) ;
+    surfacePartList[i]->getPos(pos) ;
     for(int j=0;j<npt;++j) {
       float x = pos[j].x ;
       fwrite(&x,sizeof(float),1,OFP) ;
@@ -1044,7 +1044,7 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
       float z = pos[j].z ;
       fwrite(&z,sizeof(float),1,OFP) ;
     }
-    int nquads = surfacePartList[i].getNumQuads() ;
+    int nquads = surfacePartList[i]->getNumQuads() ;
     if(nquads > 0) {
       char tmp_buf[80] ;
       memset(tmp_buf, '\0', 80) ;
@@ -1053,10 +1053,10 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
       int nq = nquads ;
       fwrite(&nq, sizeof(int),1,OFP) ;
       vector<Array<int,4> > quads ;
-      surfacePartList[i].getQuads(quads) ;
+      surfacePartList[i]->getQuads(quads) ;
       fwrite(&quads[0],sizeof(Array<int,4>),nquads,OFP) ;
     }
-    int ntrias = surfacePartList[i].getNumTrias() ;
+    int ntrias = surfacePartList[i]->getNumTrias() ;
     if(ntrias > 0) {
       char tmp_buf[80] ;
       memset(tmp_buf, '\0', 80) ;
@@ -1065,10 +1065,10 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
       int nt = ntrias ;
       fwrite(&nt, sizeof(int),1,OFP) ;
       vector<Array<int,3> > trias ;
-      surfacePartList[i].getTrias(trias) ;
+      surfacePartList[i]->getTrias(trias) ;
       fwrite(&trias[0],sizeof(Array<int,3>),ntrias,OFP) ;
     }    
-    int ngeneral = surfacePartList[i].getNumGenfc() ;
+    int ngeneral = surfacePartList[i]->getNumGenfc() ;
     if(ngeneral > 0) {
       char tmp_buf[80] ;
       memset(tmp_buf, '\0', 80) ;
@@ -1078,7 +1078,7 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
       fwrite(&ngen, sizeof(int),1,OFP) ;
       
       vector<int> nside_sizes,nside_nodes ;
-      surfacePartList[i].getGenf(nside_sizes,nside_nodes) ;
+      surfacePartList[i]->getGenf(nside_sizes,nside_nodes) ;
       
       int tot = 0 ;
       for(int j=0;j<ngeneral;++j)
@@ -1115,7 +1115,7 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
     // Loop over parts and write out variables for each part if they 
     // exist ;
     for(size_t i =0;i<surfacePartList.size();++i) {
-      if(surfacePartList[i].hasNodalScalarVar(varname)) {
+      if(surfacePartList[i]->hasNodalScalarVar(varname)) {
 	memset(tmp_buf, '\0', 80) ;
 	snprintf(tmp_buf,80, "part") ;
 	fwrite(tmp_buf, sizeof(char), 80, FP) ;
@@ -1125,7 +1125,7 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
 	snprintf(tmp_buf,80, "coordinates") ;
 	fwrite(tmp_buf, sizeof(char), 80, FP) ;
 	vector<float> vals ;
-	surfacePartList[i].getNodalScalar(varname,vals) ;
+	surfacePartList[i]->getNodalScalar(varname,vals) ;
 	fwrite(&vals[0],sizeof(float),vals.size(),FP) ;
       }
     }
@@ -1150,7 +1150,7 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
     // exist ;
     for(size_t i =0;i<surfacePartList.size();++i) {
       memset(tmp_buf, '\0', 80) ;
-      if(surfacePartList[i].hasElementVectorVar(varname)) {
+      if(surfacePartList[i]->hasNodalVectorVar(varname)) {
 	memset(tmp_buf, '\0', 80) ;
 	snprintf(tmp_buf,80, "part") ;
 	fwrite(tmp_buf, sizeof(char), 80, FP) ;
@@ -1160,7 +1160,7 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
 	snprintf(tmp_buf,80, "coordinates") ;
 	fwrite(tmp_buf, sizeof(char), 80, FP) ;
 	vector<vector3d<float> > vals ;
-	surfacePartList[i].getNodalVector(varname,vals) ;
+	surfacePartList[i]->getNodalVector(varname,vals) ;
 	int nvals = vals.size() ;
 	for(int i=0;i<nvals;++i)
 	  fwrite(&vals[i].x,sizeof(float),1,FP) ;
@@ -1191,14 +1191,14 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
     // Loop over parts and write out variables for each part if they 
     // exist ;
     for(size_t i =0;i<surfacePartList.size();++i) {
-      if(surfacePartList[i].hasElementScalarVar(varname)) {
+      if(surfacePartList[i]->hasElementScalarVar(varname)) {
 	memset(tmp_buf, '\0', 80) ;
 	snprintf(tmp_buf,80, "part") ;
 	fwrite(tmp_buf, sizeof(char), 80, FP) ;
 	int tmp = partnums[i] ;
 	fwrite(&tmp, sizeof(int), 1, FP) ;
         vector<float> qvals, tvals, gvals ;
-        surfacePartList[i].getElementScalar(varname,qvals,tvals,gvals) ;
+        surfacePartList[i]->getElementScalar(varname,qvals,tvals,gvals) ;
 
         if(qvals.size() > 0) {
           memset(tmp_buf, '\0', 80) ;
@@ -1240,14 +1240,14 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
     // Loop over parts and write out variables for each part if they 
     // exist ;
     for(size_t i =0;i<surfacePartList.size();++i) {
-      if(surfacePartList[i].hasElementVectorVar(varname)) {
+      if(surfacePartList[i]->hasElementVectorVar(varname)) {
 	memset(tmp_buf, '\0', 80) ;
 	snprintf(tmp_buf,80, "part") ;
 	fwrite(tmp_buf, sizeof(char), 80, FP) ;
 	int tmp = partnums[i] ;
 	fwrite(&tmp, sizeof(int), 1, FP) ;
         vector<vector3d<float> > qvals, tvals, gvals ;
-        surfacePartList[i].getElementVector(varname,qvals,tvals,gvals) ;
+        surfacePartList[i]->getElementVector(varname,qvals,tvals,gvals) ;
         
         if(qvals.size() > 0) {
           memset(tmp_buf, '\0', 80) ;

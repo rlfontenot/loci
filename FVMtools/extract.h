@@ -769,19 +769,56 @@ string getPosFile(string output_dir,string iteration, string casename) ;
 
 
 // Create abstraction for parts
-
-class surfacePart {
+class volumePartBase : public Loci::CPTR_type {
   bool error ;
   string partName ;
+  int ntets, nhexs, nprsm, npyrm, ngenc ;
+} ;
+class surfacePartBase : public Loci::CPTR_type {
+ protected:
+  bool error ;
+  string partName ;
+  int nnodes, nquads, ntrias, ngenf ;
+ public:
+  bool fail() const { return error ; }
+  string getPartName() const { return partName ; }
+  int getNumNodes() const { return nnodes ; }
+  int getNumQuads() const { return nquads ; }
+  int getNumTrias() const { return ntrias ; }
+  int getNumGenfc() const { return ngenf ; }
+  virtual bool hasNodalScalarVar(string var) const = 0 ;
+  virtual bool hasNodalVectorVar(string var) const = 0 ;
+  virtual bool hasElementScalarVar(string var) const = 0 ;
+  virtual bool hasElementVectorVar(string var) const = 0 ;
+  virtual std::vector<string> getNodalScalarVars() const = 0 ;
+  virtual std::vector<string> getNodalVectorVars() const = 0 ;
+  virtual std::vector<string> getElementScalarVars() const = 0 ;
+  virtual std::vector<string> getElementVectorVars() const = 0 ;
+  virtual void getQuads(vector<Array<int,4> > &quads) const = 0 ;
+  virtual void getTrias(vector<Array<int,3> > &trias) const = 0 ;
+  virtual void getGenf(vector<int> &numGenFnodes, vector<int> &genNodes) const =0;
+  virtual void getPos(vector<vector3d<float> > &pos) const = 0;
+  virtual void getNodalScalar(string varname, vector<float> &vals) const = 0 ;
+  virtual void getNodalVector(string varname, vector<vector3d<float> > &vals) const = 0;
+  virtual void getElementScalar(string varname, vector<float> &qvals,
+				vector<float> &tvals, 
+				vector<float> &gvals) const =0 ;
+  virtual void getElementVector(string varname, vector<vector3d<float> > &qvals,
+				vector<vector3d<float> > &tvals,
+				vector<vector3d<float> > &gvals) const = 0 ;
+} ;
+typedef Loci::CPTR<surfacePartBase> surfacePartP ;
+
+class surfacePart : public surfacePartBase {
   string directory ;
   string topoFile ;
   string posFile ;
-  int nnodes, nquads, ntrias, ngenf ;
   // maps from variables to file name
   map<string,string> nodalScalarVars ;
   map<string,string> nodalVectorVars ;
   map<string,string> elementScalarVars ;
   map<string,string> elementVectorVars ;
+
   vector<int> quad_ord ;
   vector<int> tri_ord ;
   vector<int> gen_ord ;
@@ -789,77 +826,34 @@ class surfacePart {
   surfacePart() {error = true ;}
   surfacePart(string name, string directory, string iteration,
 	      vector<string> vars) ;
-  bool fail() const { return error ; }
-  string getPartName() const { return partName ; }
-  int getNumNodes() const { return nnodes ; }
-  int getNumQuads() const { return nquads ; }
-  int getNumTrias() const { return ntrias ; }
-  int getNumGenfc() const { return ngenf ; }
-  bool hasNodalScalarVar(string var) const {
-    map<string,string>::const_iterator mi=nodalScalarVars.find(var) ;
-    return (mi != nodalScalarVars.end()) ;
-  }
-  bool hasNodalVectorVar(string var) const {
-    map<string,string>::const_iterator mi=nodalVectorVars.find(var) ;
-    return (mi != nodalVectorVars.end()) ;
-  }
-  bool hasElementScalarVar(string var) const {
-    map<string,string>::const_iterator mi=elementScalarVars.find(var) ;
-    return (mi != elementScalarVars.end()) ;
-  }
-  bool hasElementVectorVar(string var) const {
-    map<string,string>::const_iterator mi=elementVectorVars.find(var) ;
-    return (mi != elementVectorVars.end()) ;
-  }
-
-  vector<string> getNodalScalarVars() const {
-    vector<string> tmp ;
-    map<string,string>::const_iterator mi ;
-    for(mi=nodalScalarVars.begin();mi!=nodalScalarVars.end();++mi)
-      tmp.push_back(mi->first) ;
-    return tmp ;
-  }
-  vector<string> getNodalVectorVars() const {
-    vector<string> tmp ;
-    map<string,string>::const_iterator mi ;
-    for(mi=nodalVectorVars.begin();mi!=nodalVectorVars.end();++mi)
-      tmp.push_back(mi->first) ;
-    return tmp ;
-  }
+  virtual bool hasNodalScalarVar(string var) const ;
+  virtual bool hasNodalVectorVar(string var) const ;
+  virtual bool hasElementScalarVar(string var) const ;
+  virtual bool hasElementVectorVar(string var) const ;
+  virtual vector<string> getNodalScalarVars() const ;
+  virtual vector<string> getNodalVectorVars() const ;
+  virtual vector<string> getElementScalarVars() const ;
+  virtual vector<string> getElementVectorVars() const ;
   
-  vector<string> getElementScalarVars() const {
-    vector<string> tmp ;
-    map<string,string>::const_iterator mi ;
-    for(mi=elementScalarVars.begin();mi!=elementScalarVars.end();++mi)
-      tmp.push_back(mi->first) ;
-    return tmp ;
-  }
-  vector<string> getElementVectorVars() const {
-    vector<string> tmp ;
-    map<string,string>::const_iterator mi ;
-    for(mi=elementVectorVars.begin();mi!=elementVectorVars.end();++mi)
-      tmp.push_back(mi->first) ;
-    return tmp ;
-  }
-  
-  void getQuads(vector<Array<int,4> > &quads) const ;
-  void getTrias(vector<Array<int,3> > &trias) const ;
-  void getGenf(vector<int> &numGenFnodes, vector<int> &genNodes) const ;
-  void getPos(vector<vector3d<float> > &pos) const ;
-  void getNodalScalar(string varname, vector<float> &vals) const ;
-  void getNodalVector(string varname, vector<vector3d<float> > &vals) const ;
-  void getElementScalar(string varname, vector<float> &qvals,
-                        vector<float> &tvals, vector<float> &gvals) const ;
-  void getElementVector(string varname, vector<vector3d<float> > &qvals,
-                        vector<vector3d<float> > &tvals,
-                        vector<vector3d<float> > &gvals) const ;
+  virtual void getQuads(vector<Array<int,4> > &quads) const ;
+  virtual void getTrias(vector<Array<int,3> > &trias) const ;
+  virtual void getGenf(vector<int> &numGenFnodes, vector<int> &genNodes) const ;
+  virtual void getPos(vector<vector3d<float> > &pos) const ;
+  virtual void getNodalScalar(string varname, vector<float> &vals) const ;
+  virtual void getNodalVector(string varname, vector<vector3d<float> > &vals) const ;
+  virtual void getElementScalar(string varname, vector<float> &qvals,
+				vector<float> &tvals, 
+				vector<float> &gvals) const ;
+  virtual void getElementVector(string varname, vector<vector3d<float> > &qvals,
+				vector<vector3d<float> > &tvals,
+				vector<vector3d<float> > &gvals) const ;
 } ;
 
 class postProcessorConvert {
  protected:
-  vector<surfacePart> surfacePartList ;
+  vector<surfacePartP> surfacePartList ;
  public:
-  void addSurfaceParts(const vector<surfacePart> &list) {
+  void addSurfaceParts(const vector<surfacePartP> &list) {
     for(size_t i=0;i<list.size();++i)
       surfacePartList.push_back(list[i]) ;
   }
