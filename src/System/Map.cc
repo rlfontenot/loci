@@ -210,8 +210,8 @@ namespace Loci {
       mx = max(mx,*i) ;
       mn = min(mn,*i) ;
     }                                         
-    int sz = mx-mn+1 ;
-    int sz2 = end-start ;
+    size_t sz = mx-mn+1 ;
+    size_t sz2 = end-start ;
     if(sz>2*sz2) {
       // If the image is too sparse then we are better off sorting
       // using standard sort
@@ -229,7 +229,7 @@ namespace Loci {
       return dom ;
     }
     std::vector<bool> bits(sz) ;
-    for(int i=0;i<sz;++i)
+    for(size_t i=0;i<sz;++i)
       bits[i] = false ;
     for(const int *i=start;i!=end;++i)
       bits[*i-mn] = true ;
@@ -238,7 +238,7 @@ namespace Loci {
 
     entitySet result ;
     interval iv(mn,mn) ;
-    for(int i=0;i<sz;++i)
+    for(size_t i=0;i<sz;++i)
       if(!bits[i]) {
         iv.second = i+mn-1 ;
         result += iv ;
@@ -297,10 +297,10 @@ namespace Loci {
     }        
     int mxi = getEntityIdentity(mx);
     int mni = getEntityIdentity(mn);
-    int sz = mxi-mni+1 ;
+    size_t sz = mxi-mni+1 ;
     int si = getEntityIdentity(*start);
     int ei = getEntityIdentity(*end);
-    int sz2 = ei-si ;
+    size_t sz2 = ei-si ;
     if(sz>2*sz2) {
       // If the image is too sparse then we are better off sorting
       // using standard sort
@@ -744,9 +744,9 @@ namespace Loci {
   storeRepP multiMapRepI::thaw() {
     dmultiMap dm ;
     FORALL(store_domain, i) {
-      int sz = end(i)-begin(i) ;
+      size_t sz = end(i)-begin(i) ;
       std::vector<int,malloc_alloc<int> >(sz).swap(dm[i]) ;
-      for(int j = 0; j < sz; ++j)
+      for(size_t j = 0; j < sz; ++j)
         dm[i][j] = base_ptr[i][j] ;
     } ENDFORALL ;
     return(dm.Rep()) ;
@@ -754,7 +754,7 @@ namespace Loci {
   
   void multiMapRepI::allocate(const store<int> &sizes) {
     
-   int sz = 0 ;
+    size_t sz = 0 ;
     entitySet ptn = sizes.domain() ;
     if(alloc_pointer) delete[] alloc_pointer ;
     alloc_pointer = 0 ;
@@ -837,7 +837,7 @@ namespace Loci {
     int len = ptn.Max() - top + 2 ;
     int **new_index = new int *[len] ;
     int **new_base_ptr = new_index-top ;
-    int sz = 0 ;
+    size_t sz = 0 ;
     FORALL(ptn,i) {
       sz += count[i] ;
     } ENDFORALL ;
@@ -1077,7 +1077,7 @@ namespace Loci {
       for(int i=0;i<d.num_intervals();++i)
         codomain += image_section(begin(d[i].first),end(d[i].second)) ;
     } else {
-      int sz = 0 ;
+      size_t sz = 0 ;
       for(int i=0;i<d.num_intervals();++i)
         sz += end(d[i].second)-begin(d[i].first) ;
 
