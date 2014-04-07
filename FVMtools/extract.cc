@@ -177,6 +177,723 @@ string getPosFile(string output_dir,string iteration, string casename) {
   }
   return posname ;
 }
+
+string getTopoFileName(string output_dir, string casename, string iteration) {
+  string gridtopo = output_dir+"/" + casename +".topo" ;
+  string toponamefile = output_dir + "/topo_file." + iteration + "_" + casename ;
+  struct stat tmpstat ;
+  if(stat(toponamefile.c_str(),&tmpstat)== 0) {
+    ifstream tinput(toponamefile.c_str()) ;
+    string name  ;
+    tinput >> name ;
+    name = output_dir + "/" + name ;
+    if(stat(name.c_str(),&tmpstat)==0)
+      gridtopo=name ;
+  }
+  return gridtopo ;
+}
+
+volumePart::volumePart(string out_dir, string iteration, string casename,
+		       vector<string> vars) {
+  error = true ;
+  partName = casename + "_Volume" ;
+
+  // Check number of nodes
+  //-------------------------------------------------------------------------
+  posFile = getPosFile(out_dir,iteration,casename) ;
+  hid_t file_id = H5Fopen(posFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
+  if(file_id < 0)
+    return ;
+  hid_t elg = H5Gopen(file_id,"pos") ;
+  if(elg < 0) {
+    H5Fclose(file_id) ;
+    return ;
+  }
+  nnodes = sizeElementType(elg,"data") ;
+  H5Gclose(elg) ;
+  H5Fclose(file_id) ;
+    
+
+  // Check for iblank information
+  //-------------------------------------------------------------------------
+
+  string iblankname = out_dir+"/grid_iblank." + iteration + "_" + casename ;
+  struct stat tmpstat ;
+  bool has_iblank = false ;
+  if(stat(iblankname.c_str(),&tmpstat)== 0) {
+    file_id = Loci::hdf5OpenFile(iblankname.c_str(),
+                                       H5F_ACC_RDONLY,
+                                       H5P_DEFAULT) ;
+    if(file_id < 0) {
+      return ;
+    }
+    fact_db facts ;
+    store<unsigned char> iblank_tmp ;
+    Loci::readContainer(file_id,"iblank",iblank_tmp.Rep(),EMPTY,facts) ;
+    Loci::hdf5CloseFile(file_id) ;
+    entitySet pdom = interval(1,nnodes) ;
+    iblank.allocate(pdom) ;
+    entitySet dom = iblank_tmp.domain() ;
+    int cnt = 1 ;
+    FORALL(dom,nd) {
+      iblank[cnt++] = iblank_tmp[nd] ;
+    } ENDFORALL ;
+    has_iblank = true ;
+  } 
+
+  // Check for element types in topo file
+  //-------------------------------------------------------------------------
+  topoFile = getTopoFileName(out_dir, casename, iteration) ;
+  file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
+  if(file_id < 0) 
+    return ;
+  elg = H5Gopen(file_id,"elements") ;
+  if(elg < 0) 
+    return ;
+
+  ntets = sizeElementType(elg,"tetrahedra") ;
+  nhexs = sizeElementType(elg,"hexahedra") ;
+  nprsm = sizeElementType(elg,"prism") ;
+  npyrm = sizeElementType(elg,"pyramid") ;
+  ngenc = sizeElementType(elg,"GeneralCellNfaces") ;
+  
+  size_t ntets_b = ntets ;
+  size_t nhexs_b = nhexs ;
+  size_t nprsm_b = nprsm ;
+  size_t npyrm_b = npyrm ;
+  size_t ngenc_b = ngenc ;
+  const int block_size=65536 ; // Size of blocking factor
+  if(has_iblank) {
+    // need to adjust the number of elements based on iblanking.
+    if(ntets > 0) {
+      int nblocks = (ntets-1)/block_size+1 ;
+      int remain = ntets ;
+      int start = 0 ;
+      int cnt = 0 ;
+      for(int b=0;b<nblocks;++b) {
+        int size = min(block_size,remain) ;
+        vector<Array<int,4> > tets(size) ;
+        readElementTypeBlock(elg,"tetrahedra",tets,start,size) ;
+        remain -= size ;
+        start += size ;
+        for(int i=0;i<size;++i) {
+          bool blank = true ;
+          for(int j=0;j<4;++j)
+            if(iblank[tets[i][j]] < 2)
+              blank = false ;
+          if(!blank)
+            cnt++ ;
+	  else
+	    tetsIblanked += start-size+i ;
+        }
+      }
+      WARN(remain != 0) ;
+      ntets_b = cnt ;
+      if(ntets-ntets_b > 0)
+        cout << ntets-ntets_b << " tetrahedra iblanked" << endl ;
+    }
+    if(nhexs > 0) {
+      int nblocks = (nhexs-1)/block_size+1 ;
+      int remain = nhexs ;
+      int start = 0 ;
+      int cnt = 0 ;
+      for(int b=0;b<nblocks;++b) {
+        int size = min(block_size,remain) ;
+        
+        vector<Array<int,8> > hexs(size) ;
+        readElementTypeBlock(elg,"hexahedra",hexs,start,size) ;
+        remain -= size ;
+        start += size ;
+        for(int i=0;i<size;++i) {
+          bool blank = true ;
+          for(int j=0;j<8;++j)
+            if(iblank[hexs[i][j]] < 2)
+              blank = false ;
+          if(!blank)
+            cnt++ ;
+	  else 
+	    hexsIblanked += start-size+i ;
+        }
+      }
+      WARN(remain != 0) ;
+      nhexs_b = cnt ;
+      if(nhexs-nhexs_b > 0)
+        cout << nhexs-nhexs_b << " hexahedra iblanked" << endl ;
+    }
+    if(nprsm > 0) {
+      int nblocks = (nprsm-1)/block_size+1 ;
+      int remain = nprsm ;
+      int start = 0 ;
+      int cnt = 0 ;
+      for(int b=0;b<nblocks;++b) {
+        int size = min(block_size,remain) ;
+        vector<Array<int,6> > prsm(size) ;
+        readElementTypeBlock(elg,"prism",prsm,start,size) ;
+        remain -= size ;
+        start += size ;
+        for(int i=0;i<size;++i) {
+          bool blank = true ;
+          for(int j=0;j<6;++j)
+            if(iblank[prsm[i][j]] < 2)
+              blank = false ;
+          if(!blank)
+            cnt++ ;
+	  else
+	    prsmIblanked += start-size+i ;
+        }
+      }
+      WARN(remain != 0) ;
+      nprsm_b = cnt ;
+      if(nprsm-nprsm_b > 0)
+        cout << nprsm-nprsm_b << " prisms iblanked" << endl ;
+        
+    }
+    if(npyrm > 0) {
+      int nblocks = (npyrm-1)/block_size+1 ;
+      int remain = npyrm ;
+      int start = 0 ;
+      int cnt = 0 ;
+      for(int b=0;b<nblocks;++b) {
+        int size = min(block_size,remain) ;
+        vector<Array<int,5> > pyrm(size) ;
+        readElementTypeBlock(elg,"pyramid",pyrm,start,size) ;
+        remain -= size ;
+        start += size ;
+        for(int i=0;i<size;++i) {
+          bool blank = true ;
+          for(int j=0;j<5;++j)
+            if(iblank[pyrm[i][j]] < 2)
+              blank = false ;
+          if(!blank)
+            cnt++ ;
+	  else 
+	    pyrmIblanked += start-size+i ;
+        }
+      }
+      WARN(remain != 0) ;
+      npyrm_b = cnt ;
+      if(npyrm-npyrm_b > 0)
+        cout << npyrm-npyrm_b << " pyramids iblanked" << endl ;
+    }
+    if(ngenc > 0) {
+        vector<int> GeneralCellNfaces(ngenc) ;
+        readElementType(elg,"GeneralCellNfaces",GeneralCellNfaces) ;
+        size_t nside = sizeElementType(elg,"GeneralCellNsides") ;
+        vector<int> GeneralCellNsides(nside) ;
+        readElementType(elg,"GeneralCellNsides",GeneralCellNsides) ;
+        size_t nnodes = sizeElementType(elg,"GeneralCellNodes") ;
+        vector<int> GeneralCellNodes(nnodes) ;
+        readElementType(elg,"GeneralCellNodes",GeneralCellNodes) ;
+        int cnt1 = 0 ;
+        int cnt2 = 0 ;
+        int cnt = 0 ;
+        for(size_t i=0;i<ngenc;++i) {
+          bool blank = true ;
+          int nf = GeneralCellNfaces[i] ;
+          for(int f=0;f<nf;++f) {
+            int fs = GeneralCellNsides[cnt1++] ;
+            for(int n=0;n<fs;++n) {
+              int nd = GeneralCellNodes[cnt2++] ;
+              if(iblank[nd] < 2)
+                blank = false ;
+            }
+          }
+          if(!blank)
+            cnt++ ;
+	  else
+	    gencIblanked += i ;
+        }
+        ngenc_b = cnt ;
+        if(ngenc-ngenc_b > 0)
+          cout << ngenc-ngenc_b << " general cells iblanked" << endl ;
+    }
+    H5Gclose(elg) ;
+    Loci::hdf5CloseFile(file_id) ;
+     
+  }
+  ntets_orig = ntets ;
+  nhexs_orig = nhexs ;
+  nprsm_orig = nprsm ;
+  npyrm_orig = npyrm ;
+  ngenc_orig = ngenc ;
+
+  ntets = ntets_b ;
+  nhexs = nhexs_b ;
+  nprsm = nprsm_b ;
+  npyrm = npyrm_b ;
+  ngenc = ngenc_b ;
+  ntetsIblank = ntets_orig-ntets ;
+  nhexsIblank = nhexs_orig-nhexs ;
+  nprsmIblank = nprsm_orig-nprsm ;
+  npyrmIblank = npyrm_orig-npyrm ;
+  ngencIblank = ngenc_orig-ngenc ;
+  
+
+  // Now check for variables
+  for(size_t i=0;i<vars.size();++i) {
+    string varname = vars[i] ;
+    string filename = out_dir+'/' + varname + "_sca." + iteration + "_" + casename ;
+    struct stat tmpstat ;
+    if(stat(filename.c_str(),&tmpstat) == 0) {
+      nodalScalarVars[varname] = filename ;
+    } else {
+      filename = out_dir+'/' + varname + "_vec." + iteration + "_" + casename ;
+      if(stat(filename.c_str(),&tmpstat) == 0) {
+        nodalVectorVars[varname] = filename ;
+      }
+    }
+  }
+  
+  error = false ;
+}
+bool volumePart::hasNodalScalarVar(string var) const {
+  map<string,string>::const_iterator mi=nodalScalarVars.find(var) ;
+  return (mi != nodalScalarVars.end()) ;
+}
+bool volumePart::hasNodalVectorVar(string var) const {
+  map<string,string>::const_iterator mi=nodalVectorVars.find(var) ;
+  return (mi != nodalVectorVars.end()) ;
+}
+std::vector<string> volumePart::getNodalScalarVars() const  {
+  vector<string> tmp ;
+  map<string,string>::const_iterator mi ;
+  for(mi=nodalScalarVars.begin();mi!=nodalScalarVars.end();++mi)
+    tmp.push_back(mi->first) ;
+  return tmp ;
+}
+
+std::vector<string> volumePart::getNodalVectorVars() const {
+  vector<string> tmp ;
+  map<string,string>::const_iterator mi ;
+  for(mi=nodalVectorVars.begin();mi!=nodalVectorVars.end();++mi)
+    tmp.push_back(mi->first) ;
+  return tmp ;
+}
+
+void volumePart::getPos(vector<vector3d<float> > &pos) const {
+  pos.clear() ;
+  string filename = posFile ;
+  hid_t file_id = H5Fopen(filename.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
+  if(file_id < 0)
+    return ;
+  hid_t elg = H5Gopen(file_id,"pos") ;
+  if(elg < 0) {
+    H5Fclose(file_id) ;
+    return ;
+  }
+  size_t nsz = sizeElementType(elg,"data") ;
+  if(nsz != nnodes) {
+    H5Gclose(elg) ;
+    H5Fclose(file_id) ;
+    return ;
+  }
+    
+  vector<vector3d<float> > tmp(nsz) ;
+  pos.swap(tmp) ;
+  readElementType(elg,"data",pos) ;
+  H5Gclose(elg) ;
+  H5Fclose(file_id) ;
+}
+
+void volumePart::getTetBlock(vector<Array<int,4> > &tets, size_t start, size_t size) const {
+  tets.clear() ;
+  if(ntets <=0)
+    return ;
+
+  hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
+  if(file_id < 0) 
+    return ;
+  hid_t elg = H5Gopen(file_id,"elements") ;
+  if(elg < 0) 
+    return ;
+  int lsize = min(size,ntets_orig-start) ;
+  vector<Array<int,4> > tets_local(lsize) ;
+  readElementTypeBlock(elg,"tetrahedra",tets_local,start,lsize) ;
+  H5Gclose(elg) ;
+  Loci::hdf5CloseFile(file_id) ;
+
+  entitySet iblank = tetsIblanked & interval(start,start+lsize-1) ;
+  if(iblank==EMPTY) {
+    tets.swap(tets_local) ;
+    return ;
+  }
+  // Remove iblanked cells
+  vector<Array<int,4> > tets_new(lsize-iblank.size()) ;
+  int cnt = 0 ;
+  entitySet dom = (~(iblank<<start)) & interval(0,lsize-1) ;
+  FORALL(dom,cp) {
+    tets_new[cnt] = tets_local[cp] ;
+    cnt++ ;
+  }ENDFORALL ;
+  tets.swap(tets_new) ;
+}
+
+void volumePart::getTetIds(vector<int> &tetids, size_t start, size_t size) const {
+  tetids.clear() ;
+  if(ntets <=0)
+    return ;
+
+  hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
+  if(file_id < 0) 
+    return ;
+  hid_t elg = H5Gopen(file_id,"elements") ;
+  if(elg < 0) 
+    return ;
+  int lsize = min(size,ntets_orig-start) ;
+  vector<int > tets_local(lsize) ;
+  readElementTypeBlock(elg,"tetrahedra_ids",tets_local,start,lsize) ;
+  H5Gclose(elg) ;
+  Loci::hdf5CloseFile(file_id) ;
+
+  entitySet iblank = tetsIblanked & interval(start,start+lsize-1) ;
+  if(iblank==EMPTY) {
+    tetids.swap(tets_local) ;
+    return ;
+  }
+  // Remove iblanked cells
+  vector<int > tets_new(lsize-iblank.size()) ;
+  int cnt = 0 ;
+  entitySet dom = (~(iblank<<start)) & interval(0,lsize-1) ;
+  FORALL(dom,cp) {
+    tets_new[cnt] = tets_local[cp] ;
+    cnt++ ;
+  }ENDFORALL ;
+  tetids.swap(tets_new) ;
+}
+
+void volumePart::getPyrmBlock(vector<Array<int,5> > &pyrms, size_t start, size_t size) const {
+  pyrms.clear() ;
+  if(npyrm <=0)
+    return ;
+
+  hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
+  if(file_id < 0) 
+    return ;
+  hid_t elg = H5Gopen(file_id,"elements") ;
+  if(elg < 0) 
+    return ;
+  int lsize = min(size,npyrm_orig-start) ;
+  vector<Array<int,5> > pyrms_local(lsize) ;
+  readElementTypeBlock(elg,"pyramid",pyrms_local,start,lsize) ;
+  H5Gclose(elg) ;
+  Loci::hdf5CloseFile(file_id) ;
+
+  entitySet iblank = pyrmIblanked & interval(start,start+lsize-1) ;
+  if(iblank==EMPTY) {
+    pyrms.swap(pyrms_local) ;
+    return ;
+  }
+  // Remove iblanked cells
+  vector<Array<int,5> > pyrms_new(lsize-iblank.size()) ;
+  int cnt = 0 ;
+  entitySet dom = (~(iblank<<start)) & interval(0,lsize-1) ;
+  FORALL(dom,cp) {
+    pyrms_new[cnt] = pyrms_local[cp] ;
+    cnt++ ;
+  }ENDFORALL ;
+  pyrms.swap(pyrms_new) ;
+}
+
+void volumePart::getPyrmIds(vector<int> &pyrmids, size_t start, size_t size) const {
+  pyrmids.clear() ;
+  if(npyrm <=0)
+    return ;
+
+  hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
+  if(file_id < 0) 
+    return ;
+  hid_t elg = H5Gopen(file_id,"elements") ;
+  if(elg < 0) 
+    return ;
+  int lsize = min(size,npyrm_orig-start) ;
+  vector<int > pyrms_local(lsize) ;
+  readElementTypeBlock(elg,"pyramid_ids",pyrms_local,start,lsize) ;
+  H5Gclose(elg) ;
+  Loci::hdf5CloseFile(file_id) ;
+
+  entitySet iblank = pyrmIblanked & interval(start,start+lsize-1) ;
+  if(iblank==EMPTY) {
+    pyrmids.swap(pyrms_local) ;
+    return ;
+  }
+  // Remove iblanked cells
+  vector<int > pyrms_new(lsize-iblank.size()) ;
+  int cnt = 0 ;
+  entitySet dom = (~(iblank<<start)) & interval(0,lsize-1) ;
+  FORALL(dom,cp) {
+    pyrms_new[cnt] = pyrms_local[cp] ;
+    cnt++ ;
+  }ENDFORALL ;
+  pyrmids.swap(pyrms_new) ;
+}
+void volumePart::getPrsmBlock(vector<Array<int,6> > &prsms, size_t start, size_t size) const {
+  prsms.clear() ;
+  if(nprsm <=0)
+    return ;
+
+  hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
+  if(file_id < 0) 
+    return ;
+  hid_t elg = H5Gopen(file_id,"elements") ;
+  if(elg < 0) 
+    return ;
+  int lsize = min(size,nprsm_orig-start) ;
+  vector<Array<int,6> > prsms_local(lsize) ;
+  readElementTypeBlock(elg,"prism",prsms_local,start,lsize) ;
+  H5Gclose(elg) ;
+  Loci::hdf5CloseFile(file_id) ;
+
+  entitySet iblank = prsmIblanked & interval(start,start+lsize-1) ;
+  if(iblank==EMPTY) {
+    prsms.swap(prsms_local) ;
+    return ;
+  }
+  // Remove iblanked cells
+  vector<Array<int,6> > prsms_new(lsize-iblank.size()) ;
+  int cnt = 0 ;
+  entitySet dom = (~(iblank<<start)) & interval(0,lsize-1) ;
+  FORALL(dom,cp) {
+    prsms_new[cnt] = prsms_local[cp] ;
+    cnt++ ;
+  }ENDFORALL ;
+  prsms.swap(prsms_new) ;
+}
+void volumePart::getPrsmIds(vector<int> &prsmids, size_t start, size_t size) const {
+  prsmids.clear() ;
+  if(nprsm <=0)
+    return ;
+
+  hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
+  if(file_id < 0) 
+    return ;
+  hid_t elg = H5Gopen(file_id,"elements") ;
+  if(elg < 0) 
+    return ;
+  int lsize = min(size,nprsm_orig-start) ;
+  vector<int > prsms_local(lsize) ;
+  readElementTypeBlock(elg,"prism_ids",prsms_local,start,lsize) ;
+  H5Gclose(elg) ;
+  Loci::hdf5CloseFile(file_id) ;
+
+  entitySet iblank = prsmIblanked & interval(start,start+lsize-1) ;
+  if(iblank==EMPTY) {
+    prsmids.swap(prsms_local) ;
+    return ;
+  }
+  // Remove iblanked cells
+  vector<int > prsms_new(lsize-iblank.size()) ;
+  int cnt = 0 ;
+  entitySet dom = (~(iblank<<start)) & interval(0,lsize-1) ;
+  FORALL(dom,cp) {
+    prsms_new[cnt] = prsms_local[cp] ;
+    cnt++ ;
+  }ENDFORALL ;
+  prsmids.swap(prsms_new) ;
+}
+
+void volumePart::getHexBlock(vector<Array<int,8> > &hexs, size_t start, size_t size) const {
+  hexs.clear() ;
+  if(nhexs <=0)
+    return ;
+
+  hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
+  if(file_id < 0) 
+    return ;
+  hid_t elg = H5Gopen(file_id,"elements") ;
+  if(elg < 0) 
+    return ;
+  int lsize = min(size,nhexs_orig-start) ;
+  vector<Array<int,8> > hexs_local(lsize) ;
+  readElementTypeBlock(elg,"hexahedra",hexs_local,start,lsize) ;
+  H5Gclose(elg) ;
+  Loci::hdf5CloseFile(file_id) ;
+
+  entitySet iblank = hexsIblanked & interval(start,start+lsize-1) ;
+  if(iblank==EMPTY) {
+    hexs.swap(hexs_local) ;
+    return ;
+  }
+  // Remove iblanked cells
+  vector<Array<int,8> > hexs_new(lsize-iblank.size()) ;
+  int cnt = 0 ;
+  entitySet dom = (~(iblank<<start)) & interval(0,lsize-1) ;
+  FORALL(dom,cp) {
+    hexs_new[cnt] = hexs_local[cp] ;
+    cnt++ ;
+  }ENDFORALL ;
+  hexs.swap(hexs_new) ;
+}
+void volumePart::getHexIds(vector<int> &hexids, size_t start, size_t size) const {
+  hexids.clear() ;
+  if(nhexs <=0)
+    return ;
+
+  hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
+  if(file_id < 0) 
+    return ;
+  hid_t elg = H5Gopen(file_id,"elements") ;
+  if(elg < 0) 
+    return ;
+  int lsize = min(size,nhexs_orig-start) ;
+  vector<int > hexs_local(lsize) ;
+  readElementTypeBlock(elg,"hexahedra_ids",hexs_local,start,lsize) ;
+  H5Gclose(elg) ;
+  Loci::hdf5CloseFile(file_id) ;
+
+  entitySet iblank = hexsIblanked & interval(start,start+lsize-1) ;
+  if(iblank==EMPTY) {
+    hexids.swap(hexs_local) ;
+    return ;
+  }
+  // Remove iblanked cells
+  vector<int > hexs_new(lsize-iblank.size()) ;
+  int cnt = 0 ;
+  entitySet dom = (~(iblank<<start)) & interval(0,lsize-1) ;
+  FORALL(dom,cp) {
+    hexs_new[cnt] = hexs_local[cp] ;
+    cnt++ ;
+  }ENDFORALL ;
+  hexids.swap(hexs_new) ;
+}
+void volumePart::getGenCell(vector<int> &genCellNfaces, 
+			    vector<int> &genCellNsides,
+			    vector<int> &genCellNodes) const {
+  hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
+  if(file_id < 0) 
+    return ;
+  hid_t elg = H5Gopen(file_id,"elements") ;
+  if(elg < 0) 
+    return ;
+
+  vector<int> GeneralCellNfaces(ngenc_orig) ;
+  readElementType(elg,"GeneralCellNfaces",GeneralCellNfaces) ;
+  size_t nside = sizeElementType(elg,"GeneralCellNsides") ;
+  vector<int> GeneralCellNsides(nside) ;
+  readElementType(elg,"GeneralCellNsides",GeneralCellNsides) ;
+  size_t nnodes = sizeElementType(elg,"GeneralCellNodes") ;
+  vector<int> GeneralCellNodes(nnodes) ;
+  readElementType(elg,"GeneralCellNodes",GeneralCellNodes) ;
+  H5Gclose(elg) ;
+  Loci::hdf5CloseFile(file_id) ;
+  // If no general cells iblanked, then return
+  if(ngenc_orig == ngenc) {
+    genCellNfaces.swap(GeneralCellNfaces) ;
+    genCellNsides.swap(GeneralCellNsides) ;
+    genCellNodes.swap(GeneralCellNodes) ;
+    return ;
+  }
+  int cnt1 = 0 ;
+  int cnt2 = 0 ;
+  int skip_cells = 0;
+  int skip_faces = 0 ;
+  int skip_nodes = 0 ;
+  for(size_t i=0;i<ngenc;++i) {
+    bool blank = gencIblanked.inSet(i) ;
+    int nf = GeneralCellNfaces[i] ;
+    int cnt1s = cnt1 ;
+    int cnt2s = cnt2 ;
+    for(int f=0;f<nf;++f) {
+      int fs = GeneralCellNsides[cnt1++] ;
+      cnt2 += fs ;
+    }
+    if(blank) {
+      skip_cells += 1 ;
+      skip_faces += cnt1-cnt1s ;
+      skip_nodes += cnt2-cnt2s ;
+    } else {
+      if(skip_cells > 0) {
+	GeneralCellNfaces[i-skip_cells] = GeneralCellNfaces[i] ;
+	for(int j=0;j<cnt1-cnt1s;++j)
+	  GeneralCellNsides[cnt1s+j-skip_faces] =
+	    GeneralCellNsides[cnt1s+j] ;
+	for(int j=0;j<cnt2-cnt2s;++j)
+	  GeneralCellNodes[cnt2s+j-skip_nodes] =
+	    GeneralCellNodes[cnt2s+j] ;
+      }
+    }
+    
+  }
+  GeneralCellNfaces.resize(GeneralCellNfaces.size()-skip_cells) ;
+  GeneralCellNsides.resize(GeneralCellNsides.size()-skip_faces) ;
+  GeneralCellNodes.resize(GeneralCellNodes.size()-skip_nodes) ;
+  genCellNfaces.swap(GeneralCellNfaces) ;
+  genCellNsides.swap(GeneralCellNsides) ;
+  genCellNodes.swap(GeneralCellNodes) ;
+}
+void volumePart::getGenIds(vector<int> &genids) const {
+  genids.clear() ;
+  if(ngenc <=0)
+    return ;
+
+  hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
+  if(file_id < 0) 
+    return ;
+  hid_t elg = H5Gopen(file_id,"elements") ;
+  if(elg < 0) 
+    return ;
+  int lsize = ngenc_orig ;
+  vector<int > gens_local(lsize) ;
+  readElementType(elg,"GeneralCell_ids",gens_local) ;
+  H5Gclose(elg) ;
+  Loci::hdf5CloseFile(file_id) ;
+
+  entitySet iblank = gencIblanked & interval(0,lsize-1) ;
+  if(iblank==EMPTY) {
+    genids.swap(gens_local) ;
+    return ;
+  }
+  // Remove iblanked cells
+  vector<int > gens_new(lsize-iblank.size()) ;
+  int cnt = 0 ;
+  entitySet dom = (~(iblank)) & interval(0,lsize-1) ;
+  FORALL(dom,cp) {
+    gens_new[cnt] = gens_local[cp] ;
+    cnt++ ;
+  }ENDFORALL ;
+  genids.swap(gens_new) ;
+}
+  
+void volumePart::getNodalScalar(string varname, vector<float> &vals) const {
+  vals.clear() ;
+  map<string,string>::const_iterator mi = nodalScalarVars.find(varname) ;
+  if(mi == nodalScalarVars.end())
+    return ;
+  string filename = mi->second;
+  hid_t file_id = H5Fopen(filename.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
+  if(file_id < 0)
+    return ;
+  hid_t elg = H5Gopen(file_id,varname.c_str()) ;
+  if(elg < 0)
+    return ;
+  int nsz = sizeElementType(elg,"data") ;
+  vector<float> tmp(nsz) ;
+  vals.swap(tmp) ;
+  readElementType(elg,"data",vals) ;
+  H5Gclose(elg) ;
+  H5Fclose(file_id) ;
+}
+
+void volumePart::getNodalVector(string varname, vector<vector3d<float> > &vals) const {
+  vals.clear() ;
+  map<string,string>::const_iterator mi = nodalVectorVars.find(varname) ;
+  if(mi == nodalVectorVars.end())
+    return ;
+  string filename = mi->second;
+  hid_t file_id = H5Fopen(filename.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
+  if(file_id < 0)
+    return ;
+  hid_t elg = H5Gopen(file_id,varname.c_str()) ;
+  if(elg < 0)
+    return ;
+  int nsz = sizeElementType(elg,"data") ;
+  vector<vector3d<float> > tmp(nsz) ;
+  vals.swap(tmp) ;
+  readElementType(elg,"data",vals) ;
+  H5Gclose(elg) ;
+  H5Fclose(file_id) ;
+}
+
+
 surfacePart::surfacePart(string name, string dir, string iteration,
 			 vector<string> vars) {
   partName = name ;
@@ -511,6 +1228,168 @@ void surfacePart::getElementVector(string varname,
     gvals[i] = vals[gen_ord[i]] ;
 }
 
+surfacePartCopy::surfacePartCopy(string name,
+                                 vector<Array<int,3> > &triangles,
+                                 vector<Array<int,4> > &quads,
+                                 vector<int> &genface2n,
+                                 vector<int> &gnodes) {
+  error = false ;
+  vector<int> node_set ;
+  for(size_t i=0;i<gnodes.size();++i)
+    node_set.push_back(gnodes[i]) ;
+        
+  for(size_t i=0;i<triangles.size();++i) {
+    node_set.push_back(triangles[i][0]) ;
+    node_set.push_back(triangles[i][1]) ;
+    node_set.push_back(triangles[i][2]) ;
+  }
+  for(size_t i=0;i<quads.size();++i) {
+    node_set.push_back(quads[i][0]) ;
+    node_set.push_back(quads[i][1]) ;
+    node_set.push_back(quads[i][2]) ;
+    node_set.push_back(quads[i][3]) ;
+  }
+  sort(node_set.begin(),node_set.end()) ;
+  node_set.erase(unique(node_set.begin(),node_set.end()),node_set.end()) ;
+  
+  map<int,int> nmap ;
+  for(size_t i=0;i<node_set.size();++i) {
+    nmap[node_set[i]] = i+1 ;
+  }
+  nodemap = node_set ;
+  trifaces = triangles ;
+  quadfaces = quads ;
+  nfacenodes = genface2n ;
+  gennodes = gennodes ;
+  for(size_t i=0;i<trifaces.size();++i) {
+    trifaces[i][0] = nmap[trifaces[i][0]] ;
+    trifaces[i][1] = nmap[trifaces[i][1]] ;
+    trifaces[i][2] = nmap[trifaces[i][2]] ;
+  }
+  for(size_t i=0;i<quadfaces.size();++i) {
+    quadfaces[i][0] = nmap[quadfaces[i][0]] ;
+    quadfaces[i][1] = nmap[quadfaces[i][1]] ;
+    quadfaces[i][2] = nmap[quadfaces[i][2]] ;
+    quadfaces[i][3] = nmap[quadfaces[i][3]] ;
+  }
+  for(size_t i=0;i<gennodes.size();++i)
+    gennodes[i] = nmap[gennodes[i]] ;
+  
+  partName = name ;
+  nnodes = nodemap.size() ;
+  nquads = quadfaces.size() ;
+  ntrias = trifaces.size() ;
+  ngenf = nfacenodes.size() ;
+}
+
+void surfacePartCopy::registerPos(const vector<vector3d<float> > &posvol) {
+  vector<vector3d<float> > tmp(nodemap.size()) ;
+  pos.swap(tmp) ;
+  for(size_t i=0;i<nodemap.size();++i)
+    pos[i] = posvol[nodemap[i]-1] ;
+}
+
+void surfacePartCopy::registerNodalScalar(string name, const vector<float> &val) {
+  vector<float> tmp(nodemap.size()) ;
+  for(size_t i=0;i<nodemap.size();++i)
+    tmp[i] = val[nodemap[i]-1] ;
+  nodalScalars[name] = tmp ;
+}
+
+void surfacePartCopy::registerNodalVector(string name, const vector<vector3d<float> > &val) {
+  vector<vector3d<float> > tmp(nodemap.size())
+    ;
+  for(size_t i=0;i<nodemap.size();++i)
+    tmp[i] = val[nodemap[i]-1] ;
+  nodalVectors[name] = tmp ;
+}
+
+bool surfacePartCopy::hasNodalScalarVar(string var) const {
+  map<string,vector<float> >::const_iterator mi ;
+  mi = nodalScalars.find(var) ;
+  return !(mi == nodalScalars.end()) ;
+}
+bool surfacePartCopy::hasNodalVectorVar(string var) const {
+  map<string,vector<vector3d<float> > >::const_iterator mi ;
+  mi = nodalVectors.find(var) ;
+  return !(mi == nodalVectors.end()) ;
+}
+bool surfacePartCopy::hasElementScalarVar(string var) const {
+  return false ;
+}
+bool surfacePartCopy::hasElementVectorVar(string var) const {
+  return false ;
+}
+
+vector<string> surfacePartCopy::getNodalScalarVars() const {
+  vector<string> tmp ;
+  map<string,vector<float> >::const_iterator mi ;
+  for(mi=nodalScalars.begin();mi!=nodalScalars.end();++mi)
+    tmp.push_back(mi->first) ;
+  return tmp ;
+}
+
+vector<string> surfacePartCopy::getNodalVectorVars() const {
+  vector<string> tmp ;
+  map<string,vector<vector3d<float> > >::const_iterator mi ;
+  for(mi=nodalVectors.begin();mi!=nodalVectors.end();++mi)
+    tmp.push_back(mi->first) ;
+  return tmp ;
+}
+  
+vector<string> surfacePartCopy::getElementScalarVars() const {
+  return vector<string>() ;
+}
+
+vector<string> surfacePartCopy::getElementVectorVars() const {
+  return vector<string>() ;
+}
+  
+void surfacePartCopy::getQuads(vector<Array<int,4> > &quads) const {
+  quads = quadfaces ;
+}
+
+void surfacePartCopy::getTrias(vector<Array<int,3> > &trias) const {
+  trias = trifaces ;
+}
+
+void surfacePartCopy::getGenf(vector<int> &numGenFnodes, vector<int> &genNodes) const {
+  numGenFnodes = nfacenodes ;
+  genNodes = gennodes ;
+}
+
+void surfacePartCopy::getPos(vector<vector3d<float> > &pos_out) const {
+  pos_out = pos ;
+}
+
+
+void surfacePartCopy::getNodalScalar(string varname,
+                                     vector<float> &vals) const {
+  map<string,vector<float> >::const_iterator mi ;
+  mi = nodalScalars.find(varname) ;
+  if(!(mi == nodalScalars.end()))
+    vals = mi->second ;
+}
+void surfacePartCopy::getNodalVector(string varname,
+				 vector<vector3d<float> > &vals) const {
+  map<string,vector<vector3d<float> > >::const_iterator mi ;
+  mi = nodalVectors.find(varname) ;
+  if(!(mi == nodalVectors.end()))
+    vals = mi->second ;
+}
+
+void surfacePartCopy::getElementScalar(string varname,
+                                   vector<float> &qvals,
+                                   vector<float> &tvals,
+                                   vector<float> &gvals) const {
+}
+
+void surfacePartCopy::getElementVector(string varname,
+                                   vector<vector3d<float> > &qvals,
+                                   vector<vector3d<float> > &tvals,
+                                   vector<vector3d<float> > &gvals) const {
+}
+
 void getDerivedVar(vector<float> &dval, string var_name,
                    string casename, string iteration) {
   if(var_name == "m") {
@@ -679,20 +1558,6 @@ void getDerivedVar(vector<float> &dval, string var_name,
   }
 }
 
-string getTopoFileName(string output_dir, string casename, string iteration) {
-  string gridtopo = output_dir+"/" + casename +".topo" ;
-  string toponamefile = output_dir + "/topo_file." + iteration + "_" + casename ;
-  struct stat tmpstat ;
-  if(stat(toponamefile.c_str(),&tmpstat)== 0) {
-    ifstream tinput(toponamefile.c_str()) ;
-    string name  ;
-    tinput >> name ;
-    name = output_dir + "/" + name ;
-    if(stat(name.c_str(),&tmpstat)==0)
-      gridtopo=name ;
-  }
-  return gridtopo ;
-}
 
 void setup_grid_topology(string casename, string iteration) {
   fact_db facts ;
@@ -1416,8 +2281,6 @@ void extract_grid(string casename, string iteration,
       }
 
       if(ngenc > 0) {
-
-        // still need to do general cell iblanking
         vector<int> GeneralCellNfaces(ngenc) ;
         readElementType(elg,"GeneralCellNfaces",GeneralCellNfaces) ;
         size_t nside = sizeElementType(elg,"GeneralCellNsides") ;
@@ -1817,6 +2680,94 @@ void extract_grid(string casename, string iteration,
   H5Gclose(bndg) ;
   H5Fclose(file_id) ;
 }
+
+
+void extractVolumeSurfaces(vector<surfacePartP> &volSurface,
+                           volumePartP vp,
+                           string output_dir,
+                           string iteration,
+                           string casename) {
+  string gridtopo = getTopoFileName(output_dir, casename, iteration) ;
+
+  cout << "extracting topology from '" << gridtopo << "'" << endl;
+
+  hid_t file_id = H5Fopen(gridtopo.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
+  
+  hid_t bndg = H5Gopen(file_id,"boundaries") ;
+  hsize_t num_bcs = 0 ;
+  H5Gget_num_objs(bndg,&num_bcs) ;
+  vector<string>  bc_names ;
+  for(hsize_t bc=0;bc<num_bcs;++bc) {
+    char buf[1024] ;
+    memset(buf, '\0', 1024) ;
+    H5Gget_objname_by_idx(bndg,bc,buf,sizeof(buf)) ;
+    buf[1023]='\0' ;
+    bc_names.push_back(string(buf)) ;
+  }
+  vector<surfacePartCopy * > surfaceWork(num_bcs) ;
+  for(hsize_t bc=0;bc<num_bcs;++bc) {
+    hid_t bcg = H5Gopen(bndg,bc_names[bc].c_str()) ;
+    
+    size_t nquads = sizeElementType(bcg,"quads") ;
+    size_t ntrias = sizeElementType(bcg,"triangles") ;
+    size_t ngeneral = sizeElementType(bcg,"nside_sizes") ;
+        
+    vector<Array<int,3> > trias(ntrias) ;
+    readElementType(bcg,"triangles",trias) ;
+    vector<Array<int,4> > quads(nquads) ;
+    readElementType(bcg,"quads",quads) ;
+    
+    vector<int> nside_sizes(ngeneral) ;
+    readElementType(bcg,"nside_sizes",nside_sizes) ;
+    size_t nside_nodes_size = sizeElementType(bcg,"nside_nodes") ;
+    vector<int> nside_nodes(nside_nodes_size) ;
+    readElementType(bcg,"nside_nodes",nside_nodes) ;
+    surfaceWork[bc] = 
+      new surfacePartCopy(bc_names[bc],trias, quads,nside_sizes,nside_nodes) ;
+  }
+  H5Gclose(bndg) ;
+  H5Fclose(file_id) ;
+  
+  {
+    vector<vector3d<float> > posvol ;
+    vp->getPos(posvol) ;
+    for(hsize_t bc=0;bc<num_bcs;++bc) {
+      surfaceWork[bc]->registerPos(posvol) ;
+    }
+  }
+  {
+    vector<string> vars = vp->getNodalScalarVars() ;
+    for(size_t i=0;i<vars.size();++i) {
+      vector<float> val ;
+      vp->getNodalScalar(vars[i],val) ;
+      for(hsize_t bc=0;bc<num_bcs;++bc) {
+        surfaceWork[bc]->registerNodalScalar(vars[i],val) ;
+      }
+    }
+      
+  }
+  {
+    vector<string> vars = vp->getNodalVectorVars() ;
+    for(size_t i=0;i<vars.size();++i) {
+      vector<vector3d<float> > val ;
+      vp->getNodalVector(vars[i],val) ;
+      for(hsize_t bc=0;bc<num_bcs;++bc) {
+        surfaceWork[bc]->registerNodalVector(vars[i],val) ;
+      }
+    }
+      
+  }
+  volSurface = vector<surfacePartP>(num_bcs) ;
+  for(hsize_t bc=0;bc<num_bcs;++bc) {
+    volSurface[bc] = surfaceWork[bc] ;
+  }
+  
+}
+
+
+
+
+
 namespace Loci {
   void disableDebugDir() ;
 }
@@ -2014,20 +2965,33 @@ int main(int ac, char *av[]) {
       
   if(partlist.size() > 0) {
     H5Eset_auto(NULL,NULL) ;
-    vector<surfacePartP> parts(partlist.size()) ;
+    vector<surfacePartP> parts ;
     for(size_t i=0;i<partlist.size();++i) {
       string name = partlist[i] ;
       cout << "part: " << name << endl ;
       string dir = output_dir + "/" + casename + "_SURF." + name ;
       vector<string> varlist = variables;
-      parts[i] = new surfacePart(name,dir,iteration,varlist) ;
-      if(parts[i]->fail()) {
+      surfacePartP sp = new surfacePart(name,dir,iteration,varlist) ;
+      if(sp->fail()) {
 	cerr << "unable to load part: " << name << endl ;
+      } else {
+	parts.push_back(sp) ;
       }
     }
+    vector<string> varlist = variables;
+    volumePartP vp = new volumePart(output_dir,iteration,casename,varlist) ;
+    if(vp->fail()) {
+      cerr << "failed reading volume part" << endl ;
+    }
+    
+    vector<surfacePartP> volSurface ;
+    extractVolumeSurfaces(volSurface,vp,output_dir,iteration,casename) ;
+    
     // hardwired for ensight right now
     ensightPartConverter econvert ;
     econvert.addSurfaceParts(parts) ;
+    econvert.addSurfaceParts(volSurface) ;
+    econvert.addVolumePart(vp) ;
     econvert.exportPostProcessorFiles(casename,iteration) ;
 
     Loci::Finalize() ;

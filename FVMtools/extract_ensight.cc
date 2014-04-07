@@ -943,6 +943,14 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
   set<string> nodal_vectors ;
   set<string> element_scalars ;
   set<string> element_vectors ;
+  for(size_t i=0;i<volumePartList.size();++i) {
+    vector<string> nscalars = volumePartList[i]->getNodalScalarVars() ;
+    for(size_t j=0;j<nscalars.size();++j) 
+      nodal_scalars.insert(nscalars[j]) ;
+    vector<string> nvectors = volumePartList[i]->getNodalVectorVars() ;
+    for(size_t j=0;j<nvectors.size();++j) 
+      nodal_vectors.insert(nvectors[j]) ;
+  }    
   for(size_t i =0;i<surfacePartList.size();++i) {
     vector<string> nscalars = surfacePartList[i]->getNodalScalarVars() ;
     for(size_t j=0;j<nscalars.size();++j) 
@@ -1012,6 +1020,139 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
   fwrite(tmp_buf, sizeof(char), 80, OFP) ;
 
   int part_id = 0 ;
+  // Volume Parts Output
+  // -----------------------------------------------------------------------
+  vector<int> vpartnums ;
+  for(size_t i=0;i<volumePartList.size();++i) {
+    part_id++ ;
+    vpartnums.push_back(part_id) ;
+    memset(tmp_buf, '\0', 80) ;
+    snprintf(tmp_buf, 80, "part") ;
+    fwrite(tmp_buf,sizeof(char), 80, OFP) ;
+    fwrite(&part_id,sizeof(int),1,OFP) ;
+    memset(tmp_buf, '\0', 80) ;
+    string name = volumePartList[i]->getPartName();
+    snprintf(tmp_buf,80, "%s", name.c_str()) ;
+    fwrite(tmp_buf, sizeof(char), 80, OFP) ;
+    memset(tmp_buf, '\0', 80) ;
+    snprintf(tmp_buf, 80, "coordinates") ;
+    fwrite(tmp_buf, sizeof(char), 80, OFP) ;
+    size_t pnts = volumePartList[i]->getNumNodes() ;
+    vector<vector3d<float> > pos ;
+    volumePartList[i]->getPos(pos) ;
+
+    int pts = pnts ;
+    fwrite(&pts,sizeof(int),1,OFP) ;
+    for(size_t j=0;j<pnts;++j) {
+      float x = pos[j].x ;
+      fwrite(&x,sizeof(float),1,OFP) ;
+    }
+    for(size_t j=0;j<pnts;++j) {
+      float y = pos[j].y ;
+      fwrite(&y,sizeof(float),1,OFP) ;
+    }
+    for(size_t j=0;j<pnts;++j) {
+      float z = pos[j].z ;
+      fwrite(&z,sizeof(float),1,OFP) ;
+    }
+    const int block_size=65536 ; // Size of blocking factor
+    if(volumePartList[i]->getNumTets() > 0) { // write out tets
+      memset(tmp_buf, '\0', 80) ;
+      snprintf(tmp_buf, 80, "tetra4") ;
+      fwrite(tmp_buf, sizeof(char), 80, OFP) ;
+      int tot = volumePartList[i]->getNumTets() ;
+      fwrite(&tot, sizeof(int), 1, OFP) ;
+
+      int start = 0 ;
+      int top = tot + volumePartList[i]->getNumTetsIblank() ;
+      while(start < top) {
+	vector<Array<int,4> > tets ;
+	volumePartList[i]->getTetBlock(tets,start,block_size) ;
+	start += block_size ;
+	if(tets.size() > 0) {
+	  int ntets = tets.size() ;
+	  fwrite(&tets[0],sizeof(Array<int,4>),ntets,OFP) ;
+	}
+      }
+    }
+
+    if(volumePartList[i]->getNumHexs() > 0) { // write out hexs
+      memset(tmp_buf, '\0', 80) ;
+      snprintf(tmp_buf,80, "hexa8") ;
+      fwrite(tmp_buf, sizeof(char), 80, OFP) ;
+      int tot = volumePartList[i]->getNumHexs() ;
+      fwrite(&tot, sizeof(int), 1, OFP) ;
+
+      int start = 0 ;
+      int top = tot+volumePartList[i]->getNumHexsIblank() ;
+      while(start < top) {
+	vector<Array<int,8> > hexs ;
+	volumePartList[i]->getHexBlock(hexs,start,block_size) ;
+	start += block_size ;
+	if(hexs.size() > 0) {
+	  int nhexs = hexs.size() ;
+	  fwrite(&hexs[0],sizeof(Array<int,8>),nhexs,OFP) ;
+	}
+      }
+    }
+
+    if(volumePartList[i]->getNumPrsm() > 0) { // write out Prisms
+      memset(tmp_buf, '\0', 80) ;
+      snprintf(tmp_buf,80, "penta6") ;
+      fwrite(tmp_buf, sizeof(char), 80, OFP) ;
+      int tot = volumePartList[i]->getNumPrsm() ;
+      fwrite(&tot, sizeof(int), 1, OFP) ;
+      
+      int start = 0 ;
+      int top = tot + volumePartList[i]->getNumPrsmIblank() ;
+      while(start < top) {
+	vector<Array<int,6> > prsm ;
+	volumePartList[i]->getPrsmBlock(prsm,start,block_size) ;
+	start += block_size ;
+	if(prsm.size() > 0) {
+	  int nprsm = prsm.size() ;
+	  fwrite(&prsm[0],sizeof(Array<int,6>),nprsm,OFP) ;
+	}
+      }
+    }
+
+    if(volumePartList[i]->getNumPyrm() > 0) { // write out Pyramids
+      memset(tmp_buf, '\0', 80) ;
+      snprintf(tmp_buf,80, "pyramid5") ;
+      fwrite(tmp_buf, sizeof(char), 80, OFP) ;
+      int tot = volumePartList[i]->getNumPyrm() ;
+      fwrite(&tot, sizeof(int), 1, OFP) ;
+      
+      int start = 0 ;
+      int top = tot+volumePartList[i]->getNumPyrmIblank() ;
+      while(start < top) {
+	vector<Array<int,5> > pyrm ;
+	volumePartList[i]->getPyrmBlock(pyrm,start,block_size) ;
+	start += block_size ;
+	if(pyrm.size() > 0) {
+	  int npyrm = pyrm.size() ;
+	  fwrite(&pyrm[0],sizeof(Array<int,5>),npyrm,OFP) ;
+	}
+      }
+    }
+    
+    if(volumePartList[i]->getNumGenc() > 0) { // write out general cells
+      vector<int> genCellNfaces, genCellNsides,genCellNodes ;
+      volumePartList[i]->getGenCell(genCellNfaces,genCellNsides,genCellNodes) ;
+      char tmp_buf[80] ;
+      memset(tmp_buf, '\0', 80) ;
+      snprintf(tmp_buf, 80, "nfaced") ;
+      fwrite(tmp_buf, sizeof(char), 80, OFP) ;
+      int nnf = genCellNfaces.size() ;
+      fwrite(&nnf, sizeof(int), 1, OFP) ;
+
+      fwrite(&genCellNfaces[0], sizeof(int), nnf, OFP) ;
+      int nnsides = genCellNsides.size() ;
+      fwrite(&genCellNsides[0], sizeof(int),nnsides,OFP) ;
+      int nnodes = genCellNodes.size() ;
+      fwrite(&genCellNodes[0],sizeof(int),nnodes,OFP) ;
+    }
+  }
   vector<int> partnums(surfacePartList.size()) ;
   // Loop over parts, write out their geometry
   for(size_t i =0;i<surfacePartList.size();++i) {
@@ -1112,7 +1253,24 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
     memset(tmp_buf, '\0', 80) ;
     snprintf(tmp_buf,80,"variable : %s",varname.c_str()) ;
     fwrite(tmp_buf, sizeof(char), 80, FP) ;
-    // Loop over parts and write out variables for each part if they 
+    // Loop over volume parts and write out variables for each part if they
+    // exist
+    for(size_t i =0;i<volumePartList.size();++i) {
+      if(volumePartList[i]->hasNodalScalarVar(varname)) {
+	memset(tmp_buf, '\0', 80) ;
+	snprintf(tmp_buf,80, "part") ;
+	fwrite(tmp_buf, sizeof(char), 80, FP) ;
+	int tmp = vpartnums[i] ;
+	fwrite(&tmp, sizeof(int), 1, FP) ;
+	memset(tmp_buf, '\0', 80) ;
+	snprintf(tmp_buf,80, "coordinates") ;
+	fwrite(tmp_buf, sizeof(char), 80, FP) ;
+	vector<float> vals ;
+	volumePartList[i]->getNodalScalar(varname,vals) ;
+	fwrite(&vals[0],sizeof(float),vals.size(),FP) ;
+      }
+    }
+    // Loop over surface parts and write out variables for each part if they 
     // exist ;
     for(size_t i =0;i<surfacePartList.size();++i) {
       if(surfacePartList[i]->hasNodalScalarVar(varname)) {
@@ -1146,6 +1304,29 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
     memset(tmp_buf, '\0', 80) ;
     snprintf(tmp_buf,80,"variable : %s",varname.c_str()) ;
     fwrite(tmp_buf, sizeof(char), 80, FP) ;
+    // Loop over volume parts and write out variables for each part if they
+    // exist
+    for(size_t i =0;i<volumePartList.size();++i) {
+      if(volumePartList[i]->hasNodalVectorVar(varname)) {
+	memset(tmp_buf, '\0', 80) ;
+	snprintf(tmp_buf,80, "part") ;
+	fwrite(tmp_buf, sizeof(char), 80, FP) ;
+	int tmp = vpartnums[i] ;
+	fwrite(&tmp, sizeof(int), 1, FP) ;
+	memset(tmp_buf, '\0', 80) ;
+	snprintf(tmp_buf,80, "coordinates") ;
+	fwrite(tmp_buf, sizeof(char), 80, FP) ;
+	vector<vector3d<float> > vals ;
+	volumePartList[i]->getNodalVector(varname,vals) ;
+        int nvals = vals.size() ;
+        for(int j=0;j<nvals;++j)
+          fwrite(&vals[j].x,sizeof(float),1,FP) ;
+        for(int j=0;j<nvals;++j)
+          fwrite(&vals[j].y,sizeof(float),1,FP) ;
+        for(int j=0;j<nvals;++j)
+          fwrite(&vals[j].z,sizeof(float),1,FP) ;
+      }
+    }
     // Loop over parts and write out variables for each part if they 
     // exist ;
     for(size_t i =0;i<surfacePartList.size();++i) {

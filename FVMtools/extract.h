@@ -770,10 +770,90 @@ string getPosFile(string output_dir,string iteration, string casename) ;
 
 // Create abstraction for parts
 class volumePartBase : public Loci::CPTR_type {
+ protected:
   bool error ;
   string partName ;
-  int ntets, nhexs, nprsm, npyrm, ngenc ;
+  size_t nnodes ;
+  size_t ntets, nhexs, nprsm, npyrm, ngenc ; 
+  size_t ntetsIblank, nhexsIblank,nprsmIblank,npyrmIblank,ngencIblank ;
+ public:
+  bool fail() const { return error ; }
+  string getPartName() const { return partName ; }
+  size_t getNumNodes() const { return nnodes ; }
+  
+  size_t getNumTets() const { return ntets ; }
+  size_t getNumHexs() const { return nhexs ; }
+  size_t getNumPrsm() const { return nprsm ; }
+  size_t getNumPyrm() const { return npyrm ; }
+  size_t getNumGenc() const { return ngenc ; }
+  size_t getNumTetsIblank() const { return ntetsIblank ; }
+  size_t getNumHexsIblank() const { return nhexsIblank ; }
+  size_t getNumPrsmIblank() const { return nprsmIblank ; }
+  size_t getNumPyrmIblank() const { return npyrmIblank ; }
+  size_t getNumGencIblank() const { return ngencIblank ; }
+
+  virtual bool hasNodalScalarVar(string var) const = 0 ;
+  virtual bool hasNodalVectorVar(string var) const = 0 ;
+  virtual std::vector<string> getNodalScalarVars() const = 0 ;
+  virtual std::vector<string> getNodalVectorVars() const = 0 ;
+  virtual void getPos(vector<vector3d<float> > &pos) const = 0 ;
+  virtual void getTetBlock(vector<Array<int,4> > &tets, size_t start, size_t size) const = 0 ;
+  virtual void getTetIds(vector<int> &tetids, size_t start, size_t size) const = 0 ;
+  virtual void getPyrmBlock(vector<Array<int,5> > &pyrms, size_t start, size_t size) const = 0 ;
+  virtual void getPyrmIds(vector<int> &pyrmids, size_t start, size_t size) const = 0 ;
+  virtual void getPrsmBlock(vector<Array<int,6> > &prsms, size_t start, size_t size) const = 0 ;
+  virtual void getPrsmIds(vector<int> &prsmids, size_t start, size_t size) const = 0 ;
+  virtual void getHexBlock(vector<Array<int,8> > &hexs, size_t start, size_t size) const = 0 ;
+  virtual void getHexIds(vector<int> &hexids, size_t start, size_t size) const = 0 ;
+  virtual void getGenCell(vector<int> &genCellNfaces, 
+			  vector<int> &genCellNsides,
+			  vector<int> &genCellNodes) const = 0;
+  virtual void getGenIds(vector<int> &genids) const = 0 ;
+  
+  virtual void getNodalScalar(string varname, vector<float> &vals) const = 0 ;
+  virtual void getNodalVector(string varname, vector<vector3d<float> > &vals) const = 0 ;
 } ;
+
+typedef Loci::CPTR<volumePartBase> volumePartP ;
+
+class volumePart : public volumePartBase {
+  string directory ;
+  string topoFile ;
+  string posFile ;
+  // maps from variables to file name
+  map<string,string> nodalScalarVars ;
+  map<string,string> nodalVectorVars ;
+  bool has_iblank ;
+  store<unsigned char> iblank ;
+  size_t ntets_orig, nhexs_orig, nprsm_orig, npyrm_orig, ngenc_orig ; 
+  Loci::entitySet tetsIblanked, hexsIblanked, prsmIblanked, pyrmIblanked ;
+  Loci::entitySet gencIblanked ;
+ public:
+  volumePart() {error = true ;}
+  volumePart(string output_dir, string iteration, string casename,
+	      vector<string> vars) ;
+  virtual bool hasNodalScalarVar(string var) const ;
+  virtual bool hasNodalVectorVar(string var) const ;
+  virtual std::vector<string> getNodalScalarVars() const ;
+  virtual std::vector<string> getNodalVectorVars() const ;
+  virtual void getPos(vector<vector3d<float> > &val) const ;
+  virtual void getTetBlock(vector<Array<int,4> > &tets, size_t start, size_t size) const ;
+  virtual void getTetIds(vector<int> &tetids, size_t start, size_t size) const ;
+  virtual void getPyrmBlock(vector<Array<int,5> > &pyrms, size_t start, size_t size) const ;
+  virtual void getPyrmIds(vector<int> &pyrmids, size_t start, size_t size) const ;
+  virtual void getPrsmBlock(vector<Array<int,6> > &prsms, size_t start, size_t size) const ;
+  virtual void getPrsmIds(vector<int> &prsmids, size_t start, size_t size) const ;
+  virtual void getHexBlock(vector<Array<int,8> > &hexs, size_t start, size_t size) const ;
+  virtual void getHexIds(vector<int> &hexids, size_t start, size_t size) const ;
+  virtual void getGenCell(vector<int> &genCellNfaces, 
+			  vector<int> &genCellNsides,
+			  vector<int> &genCellNodes) const ;
+  virtual void getGenIds(vector<int> &genids) const ;
+  
+  virtual void getNodalScalar(string varname, vector<float> &vals) const ;
+  virtual void getNodalVector(string varname, vector<vector3d<float> > &vals) const ;
+} ;
+
 class surfacePartBase : public Loci::CPTR_type {
  protected:
   bool error ;
@@ -849,13 +929,56 @@ class surfacePart : public surfacePartBase {
 				vector<vector3d<float> > &gvals) const ;
 } ;
 
+class surfacePartCopy : public surfacePartBase {
+  vector<Array<int,3> > trifaces ;
+  vector<Array<int,4> > quadfaces ;
+  vector<int> nfacenodes, gennodes ;
+  vector<int> nodemap ;
+  vector<vector3d<float> > pos ;
+  map<string,vector<float> > nodalScalars ;
+  map<string,vector<vector3d<float> > > nodalVectors ;
+ public:
+  surfacePartCopy() {error = true ;}
+  surfacePartCopy(string name, vector<Array<int,3> > &triangles,
+                  vector<Array<int,4> > &quads,
+                  vector<int> &genface2n, vector<int> &gnodes) ;
+  void registerPos(const vector<vector3d<float> > &pos) ;
+  void registerNodalScalar(string name,const vector<float> &val) ;
+  void registerNodalVector(string name,const vector<vector3d<float> > &val) ;
+  virtual bool hasNodalScalarVar(string var) const ;
+  virtual bool hasNodalVectorVar(string var) const ;
+  virtual bool hasElementScalarVar(string var) const ;
+  virtual bool hasElementVectorVar(string var) const ;
+  virtual vector<string> getNodalScalarVars() const ;
+  virtual vector<string> getNodalVectorVars() const ;
+  virtual vector<string> getElementScalarVars() const ;
+  virtual vector<string> getElementVectorVars() const ;
+  
+  virtual void getQuads(vector<Array<int,4> > &quads) const ;
+  virtual void getTrias(vector<Array<int,3> > &trias) const ;
+  virtual void getGenf(vector<int> &numGenFnodes, vector<int> &genNodes) const ;
+  virtual void getPos(vector<vector3d<float> > &pos) const ;
+  virtual void getNodalScalar(string varname, vector<float> &vals) const ;
+  virtual void getNodalVector(string varname, vector<vector3d<float> > &vals) const ;
+  virtual void getElementScalar(string varname, vector<float> &qvals,
+				vector<float> &tvals, 
+				vector<float> &gvals) const ;
+  virtual void getElementVector(string varname, vector<vector3d<float> > &qvals,
+				vector<vector3d<float> > &tvals,
+				vector<vector3d<float> > &gvals) const ;
+} ;
+
 class postProcessorConvert {
  protected:
   vector<surfacePartP> surfacePartList ;
+  vector<volumePartP> volumePartList ;
  public:
   void addSurfaceParts(const vector<surfacePartP> &list) {
     for(size_t i=0;i<list.size();++i)
       surfacePartList.push_back(list[i]) ;
+  }
+  void addVolumePart(volumePartP volpart) {
+    volumePartList.push_back(volpart) ;
   }
   virtual void exportPostProcessorFiles(string casename, string iteration) = 0 ;
 } ;
@@ -866,8 +989,3 @@ class ensightPartConverter : public postProcessorConvert {
 } ;
 
 #endif
-
-
-
-
-
