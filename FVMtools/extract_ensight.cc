@@ -924,8 +924,18 @@ ensight_topo_handler::output_particle_vector(vector3d<float> val[], size_t np,
   fclose(FP) ;
 }
 
+bool ensightPartConverter::processesVolumeElements() const {
+  return true ; 
+}
+bool ensightPartConverter::processesSurfaceElements() const {
+  return true ; 
+}
+bool ensightPartConverter::processesParticleElements() const {
+  return true ; 
+}
+
 void ensightPartConverter::exportPostProcessorFiles(string casename,
-						    string iteration) {
+						    string iteration) const {
   string dirname = casename + "_ensight."+iteration ;
   struct stat statbuf ;
   if(stat(dirname.c_str(),&statbuf))

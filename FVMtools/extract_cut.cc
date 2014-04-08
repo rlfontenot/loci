@@ -1,5 +1,3 @@
-
-
 //#############################################################################
 //#
 //# Copyright 2008, Mississippi State University
@@ -706,4 +704,17 @@ vector3d<float> affineMapping::MapNode(vector3d<float> v) {
       res[i] += M[i][j]*tmp[j] ;
   vector3d<float> r(res[0],res[1],res[2]) ;
   return r ;
+}
+
+bool cuttingPlanePartConverter::processesVolumeElements() const {
+  return true ;
+}
+bool cuttingPlanePartConverter::processesSurfaceElements() const {
+  return false ;
+}
+bool cuttingPlanePartConverter::processesParticleElements() const {
+  return false ;
+}
+
+void cuttingPlanePartConverter::exportPostProcessorFiles(string casename, string iteration) const {
 }

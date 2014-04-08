@@ -28,6 +28,7 @@ using std::string ;
 #include <iostream> 
 #include <fstream>
 #include <string>
+#include <set> 
 #include <sstream>
 #include <algorithm>
 using std::vector ;
@@ -428,7 +429,6 @@ volumePart::volumePart(string out_dir, string iteration, string casename,
   npyrmIblank = npyrm_orig-npyrm ;
   ngencIblank = ngenc_orig-ngenc ;
   
-
   // Now check for variables
   for(size_t i=0;i<vars.size();++i) {
     string varname = vars[i] ;
@@ -440,6 +440,7 @@ volumePart::volumePart(string out_dir, string iteration, string casename,
       filename = out_dir+'/' + varname + "_vec." + iteration + "_" + casename ;
       if(stat(filename.c_str(),&tmpstat) == 0) {
         nodalVectorVars[varname] = filename ;
+      } else {
       }
     }
   }
@@ -459,6 +460,7 @@ std::vector<string> volumePart::getNodalScalarVars() const  {
   map<string,string>::const_iterator mi ;
   for(mi=nodalScalarVars.begin();mi!=nodalScalarVars.end();++mi)
     tmp.push_back(mi->first) ;
+
   return tmp ;
 }
 
@@ -893,6 +895,20 @@ void volumePart::getNodalVector(string varname, vector<vector3d<float> > &vals) 
   H5Fclose(file_id) ;
 }
 
+void volumePart::getNodalIblank(vector<unsigned char> &blank) const {
+  if(has_iblank) {
+    Loci::entitySet idom = iblank.domain() ;
+    vector<unsigned char> tmp(idom.size()) ;
+    int cnt = 0 ;
+    FORALL(idom,ii) {
+      tmp[cnt] = iblank[ii] ;
+      cnt++ ;
+    } ENDFORALL ;
+    blank.swap(tmp) ;
+  } else {
+    blank.clear() ;
+  } 
+}
 
 surfacePart::surfacePart(string name, string dir, string iteration,
 			 vector<string> vars) {
@@ -1304,6 +1320,29 @@ void surfacePartCopy::registerNodalVector(string name, const vector<vector3d<flo
   nodalVectors[name] = tmp ;
 }
 
+void surfacePartCopy::
+registerElementScalar(string name, 
+		      const vector<float> &qval,
+		      const vector<float> &tval,
+		      const vector<float> &gval)  {
+  Array<vector<float>,3> &tmp = elementScalars[name] ;
+  tmp[0] = qval ;
+  tmp[1] = tval ;
+  tmp[2] = gval ;
+}
+
+void surfacePartCopy::
+registerElementVector(string name, 
+		      const vector<vector3d<float> > &qval,
+		      const vector<vector3d<float> > &tval,
+		      const vector<vector3d<float> > &gval)  {
+  Array<vector<vector3d<float> >,3> &tmp = elementVectors[name] ;
+  tmp[0] = qval ;
+  tmp[1] = tval ;
+  tmp[2] = gval ;
+}
+
+
 bool surfacePartCopy::hasNodalScalarVar(string var) const {
   map<string,vector<float> >::const_iterator mi ;
   mi = nodalScalars.find(var) ;
@@ -1315,10 +1354,14 @@ bool surfacePartCopy::hasNodalVectorVar(string var) const {
   return !(mi == nodalVectors.end()) ;
 }
 bool surfacePartCopy::hasElementScalarVar(string var) const {
-  return false ;
+  map<string,Array<vector<float>,3> >::const_iterator mi ;
+  mi = elementScalars.find(var) ;
+  return mi != elementScalars.end() ;
 }
 bool surfacePartCopy::hasElementVectorVar(string var) const {
-  return false ;
+  map<string,Array<vector<vector3d<float> >,3> >::const_iterator mi ;
+  mi = elementVectors.find(var) ;
+  return mi != elementVectors.end() ;
 }
 
 vector<string> surfacePartCopy::getNodalScalarVars() const {
@@ -1338,11 +1381,19 @@ vector<string> surfacePartCopy::getNodalVectorVars() const {
 }
   
 vector<string> surfacePartCopy::getElementScalarVars() const {
-  return vector<string>() ;
+  vector<string> tmp ;
+  map<string,Array<vector<float>,3> >::const_iterator mi ;
+  for(mi=elementScalars.begin();mi!=elementScalars.end();++mi) 
+    tmp.push_back(mi->first) ;
+  return tmp ;
 }
 
 vector<string> surfacePartCopy::getElementVectorVars() const {
-  return vector<string>() ;
+  vector<string> tmp ;
+  map<string,Array<vector<vector3d<float> >,3> >::const_iterator mi ;
+  for(mi=elementVectors.begin();mi!=elementVectors.end();++mi) 
+    tmp.push_back(mi->first) ;
+  return tmp ;
 }
   
 void surfacePartCopy::getQuads(vector<Array<int,4> > &quads) const {
@@ -1378,17 +1429,51 @@ void surfacePartCopy::getNodalVector(string varname,
     vals = mi->second ;
 }
 
-void surfacePartCopy::getElementScalar(string varname,
+void surfacePartCopy::getElementScalar(string name,
                                    vector<float> &qvals,
                                    vector<float> &tvals,
                                    vector<float> &gvals) const {
+  map<string,Array<vector<float>,3> >::const_iterator mi ;
+  mi = elementScalars.find(name) ;
+  qvals = mi->second[0] ;
+  tvals = mi->second[1] ;
+  gvals = mi->second[2] ;
 }
 
-void surfacePartCopy::getElementVector(string varname,
+void surfacePartCopy::getElementVector(string name,
                                    vector<vector3d<float> > &qvals,
                                    vector<vector3d<float> > &tvals,
                                    vector<vector3d<float> > &gvals) const {
+  map<string,Array<vector<vector3d<float> >,3> >::const_iterator mi ;
+  mi = elementVectors.find(name) ;
+  qvals = mi->second[0] ;
+  tvals = mi->second[1] ;
+  gvals = mi->second[2] ;
 }
+
+particlePart::particlePart(string output_dir, string iteration, string casename,
+			   vector<string> vars) {
+}
+bool particlePart::hasScalarVar(string var) const {
+  return false ;
+}
+bool particlePart::hasVectorVar(string var) const {
+  return false ;
+}
+std::vector<string> particlePart::getScalarVars() const {
+  return vector<string>() ;
+}
+std::vector<string> particlePart::getVectorVars() const {
+  return vector<string>() ;
+}
+void particlePart::getParticlePositions(vector<vector3d<float> > &ppos) {
+}
+void particlePart::getParticleScalar(string varname, vector<float> &val) {
+}
+void particlePart::getParticleVector(string varname, 
+				     vector<vector3d<float> > &val) {
+}
+
 
 void getDerivedVar(vector<float> &dval, string var_name,
                    string casename, string iteration) {
@@ -2686,13 +2771,101 @@ void extractVolumeSurfaces(vector<surfacePartP> &volSurface,
                            volumePartP vp,
                            string output_dir,
                            string iteration,
-                           string casename) {
+                           string casename,
+			   vector<string> varlist) {
   string gridtopo = getTopoFileName(output_dir, casename, iteration) ;
 
   cout << "extracting topology from '" << gridtopo << "'" << endl;
 
   hid_t file_id = H5Fopen(gridtopo.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
+
+  map<string,int> elementScalars ;
+  map<string,int> elementVectors ;
+  vector<string> variable_file(varlist.size()) ;
+  vector<map<int,int> > entityMap(varlist.size()) ;
+  vector<vector<int> > entityIds(varlist.size()) ;
+  vector<vector<float> > scalarElementVars(varlist.size()) ;
+  vector<vector<vector3d<float> > > vectorElementVars(varlist.size()) ;
+
+  for(size_t i = 0;i<varlist.size();++i) {
+    string var = varlist[i] ;
+    string filename = output_dir+'/' + var + "_bnd." + iteration + "_" + casename ;
+    struct stat tmpstat ;
+    if(stat(filename.c_str(),&tmpstat)== 0) {
+      elementScalars[var] = i ;
+      variable_file[i] = filename ;
+      continue ;
+    }
+    filename = output_dir+'/' + var + "_bndvec." + iteration + "_" + casename ;
+    if(stat(filename.c_str(),&tmpstat)== 0) {
+      elementVectors[var] = i ;
+      variable_file[i] = filename ;
+      continue ;
+    }
+  }
+
+  map<string,int>::const_iterator mi ;
+  for(mi=elementScalars.begin();mi!=elementScalars.end();++mi) {
+    int id = mi->second ;
+    string filename(variable_file[id]) ;
+    string varname = varlist[id] ;
+    hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
+				       H5F_ACC_RDONLY,
+				       H5P_DEFAULT) ;
+
+    if(file_id < 0) {
+      cerr << "unable to open file '" << filename << "'!" << endl ;
+      continue ;
+    }
+          
+    hid_t di = H5Gopen(file_id,"dataInfo") ;
+    size_t nbel = sizeElementType(di,"entityIds") ;
+    
+    vector<int> elemIds(nbel) ;
+    readElementType(di,"entityIds",elemIds) ;
+          
+    H5Gclose(di) ;
+    vector<float> var(nbel) ;
+    readElementType(file_id,varname.c_str(),var) ;
+    
+    entityIds[id] = elemIds ;
+    for(size_t i=0;i<nbel;++i) {
+      entityMap[id][elemIds[i]] = int(i) ;
+    }
+    scalarElementVars[id] = var ;
+    H5Fclose(file_id) ;
+  }
   
+  for(mi=elementVectors.begin();mi!=elementVectors.end();++mi) {
+    int id = mi->second ;
+    string filename(variable_file[id]) ;
+    string varname = varlist[id] ;
+    hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
+				       H5F_ACC_RDONLY,
+				       H5P_DEFAULT) ;
+    if(file_id < 0) {
+      cerr << "unable to open file '" << filename << "'!" << endl ;
+      continue ;
+    }
+          
+    hid_t di = H5Gopen(file_id,"dataInfo") ;
+    size_t nbel = sizeElementType(di,"entityIds") ;
+    
+    vector<int> elemIds(nbel) ;
+    readElementType(di,"entityIds",elemIds) ;
+          
+    H5Gclose(di) ;
+    vector<vector3d<float> > var(nbel) ;
+    readElementType(file_id,varname.c_str(),var) ;
+    
+    entityIds[id] = elemIds ;
+    for(size_t i=0;i<nbel;++i) {
+      entityMap[id][elemIds[i]] = int(i) ;
+    }
+    vectorElementVars[id] = var ;
+    H5Fclose(file_id) ;
+  }
+
   hid_t bndg = H5Gopen(file_id,"boundaries") ;
   hsize_t num_bcs = 0 ;
   H5Gget_num_objs(bndg,&num_bcs) ;
@@ -2722,8 +2895,162 @@ void extractVolumeSurfaces(vector<surfacePartP> &volSurface,
     size_t nside_nodes_size = sizeElementType(bcg,"nside_nodes") ;
     vector<int> nside_nodes(nside_nodes_size) ;
     readElementType(bcg,"nside_nodes",nside_nodes) ;
+
+    vector<int > trias_id(ntrias) ;
+    readElementType(bcg,"triangles_id",trias_id) ;
+    vector<int > quads_id(nquads) ;
+    readElementType(bcg,"quads_id",quads_id) ;
+    vector<int > nside_id(ngeneral) ;
+    readElementType(bcg,"nside_id",nside_id) ;
+
+    vector<unsigned char> iblank ;
+    vp->getNodalIblank(iblank) ;
+    if(iblank.size() > 0) {
+      int cnt = 0 ;
+      for(size_t i=0;i<ntrias;++i) {
+	bool blank = true ;
+	for(int j=0;j<3;++j)
+	  if(iblank[trias[i][j]-1] < 2)
+	    blank = false ;
+	if(blank)
+	  cnt++ ;
+	else 
+	  if(cnt != 0) { // If there are some blanked copy into place
+	    trias[i-cnt]=trias[i] ;
+	    trias_id[i-cnt] = trias_id[i] ;
+	  }
+      }
+      if(cnt > 0) {
+	size_t newsz = trias.size()-cnt ;
+	trias.resize(newsz) ;
+	trias_id.resize(newsz) ;
+      }
+      cnt = 0 ;
+      for(size_t i=0;i<nquads;++i) {
+	bool blank = true ;
+	for(int j=0;j<4;++j)
+	  if(iblank[quads[i][j]-1] < 2)
+	    blank = false ;
+	if(blank)
+	  cnt++ ;
+	else 
+	  if(cnt != 0) { // If there are some blanked copy into place
+	    quads[i-cnt]=quads[i] ;
+	    quads_id[i-cnt] = quads_id[i] ;
+	  }
+      }
+      if(cnt > 0) {
+	size_t newsz = quads.size()-cnt ;
+	quads.resize(newsz) ;
+	quads_id.resize(newsz) ;
+      }
+      cnt  = 0 ;
+      int cnt2 = 0 ;
+      int nside_off = 0 ;
+      for(size_t i=0;i<ngeneral;++i) {
+	bool blank = true ;
+	for(int j=0;j<nside_sizes[i];++j) {
+	  if(iblank[nside_nodes[nside_off+j]-1] < 2)
+	    blank = false ;
+	}
+	if(blank) {
+	  cnt++ ;
+	  cnt2 += nside_sizes[i] ;
+	} else {
+	  if(cnt != 0) {
+	    nside_nodes[i-cnt] = nside_nodes[i] ;
+	    nside_id[i-cnt] = nside_id[i] ;
+	    for(int j=0;j<nside_sizes[i];++j)
+	      nside_nodes[nside_off-cnt2+j] = nside_nodes[nside_off+j] ;
+	  }
+	}
+	nside_off += nside_sizes[i] ;
+      }
+      if(cnt > 0) {
+	size_t newsz = nside_sizes.size()-cnt ;
+	nside_sizes.resize(newsz) ;
+	nside_id.resize(newsz) ;
+	size_t newsz2 = nside_nodes.size()-cnt2 ;
+	nside_nodes.resize(newsz2) ;
+      }
+    }
     surfaceWork[bc] = 
       new surfacePartCopy(bc_names[bc],trias, quads,nside_sizes,nside_nodes) ;
+
+    for(mi=elementScalars.begin();mi!=elementScalars.end();++mi) {
+      int id = mi->second ;
+      string varname = varlist[id] ;
+      vector<float> qvals(quads.size()) ;
+      vector<float> tvals(trias.size()) ;
+      vector<float> gvals(nside_sizes.size()) ;
+      bool valid = true ;
+      for(size_t i=0;i<quads.size();++i) {
+	map<int,int>::const_iterator ii = entityMap[id].find(quads_id[i]) ;
+	if(ii==entityMap[id].end()) {
+	  valid = false ;
+	  break ;
+	} else {
+	  qvals[i] = scalarElementVars[id][ii->second] ;
+	}
+      }
+      for(size_t i=0;i<trias.size();++i) {
+	map<int,int>::const_iterator ii = entityMap[id].find(trias_id[i]) ;
+	if(ii==entityMap[id].end()) {
+	  valid = false ;
+	  break ;
+	} else {
+	  tvals[i] = scalarElementVars[id][ii->second] ;
+	}
+      }
+      for(size_t i=0;i<nside_sizes.size();++i) {
+	map<int,int>::const_iterator ii = entityMap[id].find(nside_id[i]) ;
+	if(ii==entityMap[id].end()) {
+	  valid = false ;
+	  break ;
+	} else {
+	  gvals[i] = scalarElementVars[id][ii->second] ;
+	}
+      }
+      if(valid)
+	surfaceWork[bc]->registerElementScalar(varname,qvals,tvals,gvals) ;
+    }
+
+    for(mi=elementVectors.begin();mi!=elementVectors.end();++mi) {
+      int id = mi->second ;
+      string varname = varlist[id] ;
+      vector<vector3d<float> > qvals(quads.size()) ;
+      vector<vector3d<float> > tvals(trias.size()) ;
+      vector<vector3d<float> > gvals(nside_sizes.size()) ;
+      bool valid = true ;
+      for(size_t i=0;i<quads.size();++i) {
+	map<int,int>::const_iterator ii = entityMap[id].find(quads_id[i]) ;
+	if(ii==entityMap[id].end()) {
+	  valid = false ;
+	} else {
+	  qvals[i] = vectorElementVars[id][ii->second] ;
+	}
+      }
+      for(size_t i=0;i<trias.size();++i) {
+	map<int,int>::const_iterator ii = entityMap[id].find(trias_id[i]) ;
+	if(ii==entityMap[id].end()) {
+	  valid = false ;
+	} else {
+	  tvals[i] = vectorElementVars[id][ii->second] ;
+	}
+      }
+      for(size_t i=0;i<nside_sizes.size();++i) {
+	map<int,int>::const_iterator ii = entityMap[id].find(nside_id[i]) ;
+	if(ii==entityMap[id].end()) {
+	  valid = false ;
+	} else {
+	  gvals[i] = vectorElementVars[id][ii->second] ;
+	}
+      }
+      
+      if(valid)
+	surfaceWork[bc]->registerElementVector(varname,qvals,tvals,gvals) ;
+    }
+    
   }
   H5Gclose(bndg) ;
   H5Fclose(file_id) ;
@@ -2744,7 +3071,6 @@ void extractVolumeSurfaces(vector<surfacePartP> &volSurface,
         surfaceWork[bc]->registerNodalScalar(vars[i],val) ;
       }
     }
-      
   }
   {
     vector<string> vars = vp->getNodalVectorVars() ;
@@ -2755,7 +3081,6 @@ void extractVolumeSurfaces(vector<surfacePartP> &volSurface,
         surfaceWork[bc]->registerNodalVector(vars[i],val) ;
       }
     }
-      
   }
   volSurface = vector<surfacePartP>(num_bcs) ;
   for(hsize_t bc=0;bc<num_bcs;++bc) {
@@ -2962,44 +3287,38 @@ int main(int ac, char *av[]) {
       Loci::Abort() ;
     }
   
-      
-  if(partlist.size() > 0) {
-    H5Eset_auto(NULL,NULL) ;
-    vector<surfacePartP> parts ;
-    for(size_t i=0;i<partlist.size();++i) {
-      string name = partlist[i] ;
-      cout << "part: " << name << endl ;
-      string dir = output_dir + "/" + casename + "_SURF." + name ;
-      vector<string> varlist = variables;
-      surfacePartP sp = new surfacePart(name,dir,iteration,varlist) ;
-      if(sp->fail()) {
-	cerr << "unable to load part: " << name << endl ;
-      } else {
-	parts.push_back(sp) ;
-      }
+  if(partlist.size() == 0) { // scan for parts
+    DIR *dp = opendir(output_dir.c_str()) ;
+    // Look in output directory and find all variables
+    if(dp == 0) {
+      cerr << "unable to open directory '" << output_dir << "'" << endl ;
+      exit(-1) ;
     }
-    vector<string> varlist = variables;
-    volumePartP vp = new volumePart(output_dir,iteration,casename,varlist) ;
-    if(vp->fail()) {
-      cerr << "failed reading volume part" << endl ;
-    }
-    
-    vector<surfacePartP> volSurface ;
-    extractVolumeSurfaces(volSurface,vp,output_dir,iteration,casename) ;
-    
-    // hardwired for ensight right now
-    ensightPartConverter econvert ;
-    econvert.addSurfaceParts(parts) ;
-    econvert.addSurfaceParts(volSurface) ;
-    econvert.addVolumePart(vp) ;
-    econvert.exportPostProcessorFiles(casename,iteration) ;
-
-    Loci::Finalize() ;
-    exit(0) ;
-  } 
+    dirent *entry = readdir(dp) ;
   
-
+    while(entry != 0) {
+      string filename = entry->d_name ;
+      string postfix ;
+      string vname ;
+      string vtype ;
+      string searchHeader = casename+"_SURF." ;
+      string filesub = filename.substr(0,searchHeader.size()) ;
+      if(searchHeader == filesub) {
+	size_t len = filename.size()-searchHeader.size() ;
+	string partname = filename.substr(searchHeader.size(),len) ;
+	string filecheck = output_dir + "/" + filename + "/topo_file." + iteration ;
+	struct stat tmpstat ;
+	if(stat(filecheck.c_str(),&tmpstat)== 0) {
+	  partlist.push_back(partname) ;
+	}
+      }
+      entry = readdir(dp) ;
+    }
+    closedir(dp) ;
+  }    
+      
   if(variables.size() == 0) {
+    std::set<string> varset ;
     DIR *dp = opendir(output_dir.c_str()) ;
     // Look in output directory and find all variables
     if(dp == 0) {
@@ -3045,13 +3364,13 @@ int main(int ac, char *av[]) {
       if(dot>0 && und>0 && postfix == tail) {
         if(vtype == "sca" || vtype == "vec" || vtype == "bnd" ||
            vtype == "bndvec" || vtype == "ptsca" || vtype == "ptvec") {
-          variables.push_back(vname) ;
+          varset.insert(vname) ;
         }
         if(vtype == "sca" && vname == "pg") {
-          variables.push_back("P") ;
+          varset.insert("P") ;
         }
         if(vtype == "sca" && vname == "a") {
-          variables.push_back("m") ;
+          varset.insert("m") ;
         }
       }
       if(dot > 0 && postfix == tail) {
@@ -3079,7 +3398,7 @@ int main(int ac, char *av[]) {
             iss >> s ;
             if(s != "") {
               string v = "f"+s ;
-              variables.push_back(v) ;
+              varset.insert(v) ;
             }
           } while(!iss.eof() && s!= "") ;
             
@@ -3089,6 +3408,54 @@ int main(int ac, char *av[]) {
        
       entry = readdir(dp) ;
     }
+    closedir(dp) ;
+    if(partlist.size() > 0) { // Now check each part for variables
+      for(size_t i=0;i<partlist.size();++i) {
+	string dirname = output_dir+"/"+casename+"_SURF."+partlist[i] ;
+	DIR *dp = opendir(dirname.c_str()) ;
+	// Look in output directory and find all variables
+	if(dp == 0) {
+	  cerr << "unable to open directory '" << dirname << "'" << endl ;
+	  exit(-1) ;
+	}
+	dirent *entry = readdir(dp) ;
+  	for(;entry != 0;entry=readdir(dp)) {
+	  string filename = entry->d_name ;	
+	  int fsz = filename.size() ;
+	  int isz = iteration.size() ;
+	  if(fsz <= isz)
+	    continue ;
+	  string fiter = filename.substr(fsz-(isz+1),isz+1) ;
+
+	  if(fiter != string("."+iteration)) 
+	    continue ;
+
+	  string remainder  = filename.substr(0,fsz-(isz+1)) ;
+	  int remsz = remainder.size() ;
+	  if(remsz <= 4)
+	    continue ;
+	  string postfix = remainder.substr(remsz-4,4) ;
+	  if(postfix == "_sca" || postfix == "_vec") {
+	    string vname = remainder.substr(0,remsz-4) ;
+	    varset.insert(vname) ;
+	    continue ;
+	  }
+	  if(remsz <= 5)
+	    continue ;
+	  postfix = remainder.substr(remsz-5,5) ;
+	  if(postfix == "_bsca" || postfix == "_bvec") {
+	    string vname = remainder.substr(0,remsz-5) ;
+	    varset.insert(vname) ;
+	  }
+	}
+	closedir(dp) ;
+      }
+    }
+    
+    std::set<string>::const_iterator vi ;
+    for(vi=varset.begin();vi!=varset.end();++vi)
+      variables.push_back(*vi) ;
+
     if(variables.size() == 0) {
       variables.push_back("x") ;
       variables.push_back("y") ;
@@ -3099,7 +3466,6 @@ int main(int ac, char *av[]) {
       cout << ' ' << variables[i] ;
     }
     cout << endl ;
-    closedir(dp) ;
       
   }
   
@@ -3202,7 +3568,8 @@ int main(int ac, char *av[]) {
 
     // ... other derived variables here
 
-    cerr << "Warning, variable '" << var << "' is unknown and will not be processed." << endl ;
+    if(partlist.size() == 0) 
+      cerr << "Warning, variable '" << var << "' is unknown and will not be processed." << endl ;
     variable_type[i] = UNDEFINED ;
   }
 
@@ -3341,6 +3708,95 @@ int main(int ac, char *av[]) {
     exit(0) ;
   }
   
+  // New grid topology processor
+  postProcessorP postprocessor = 0 ;
+  
+  switch(plot_type) {
+  case ENSIGHT:
+    postprocessor = new ensightPartConverter ;
+    break ;
+  case FIELDVIEW:
+    postprocessor = new fieldViewPartConverter ;
+    break ;
+  case TECPLOT:
+    postprocessor = new tecplotPartConverter ;
+    break ;
+  case VTK:
+    postprocessor = new vtkPartConverter(false) ;
+    break ;
+  case VTK_SURFACE:
+    postprocessor = new vtkSurfacePartConverter(false) ;
+    break ;
+  case VTK64:
+    postprocessor = new vtkPartConverter(true) ;
+    break ;
+  case VTK_SURFACE64:
+    postprocessor = new vtkSurfacePartConverter(true) ;
+    break ;
+  case CUTTINGPLANE:
+    postprocessor = new cuttingPlanePartConverter(transformMatrix, -xShift, -yShift, -zShift) ;
+    break ;
+  default:
+    cerr << "Unknown export method!" << endl ;
+    break ;
+  }
+
+  if(partlist.size() > 0) {
+    H5Eset_auto(NULL,NULL) ;
+    vector<surfacePartP> parts ;
+
+    if(postprocessor->processesSurfaceElements()) {
+      for(size_t i=0;i<partlist.size();++i) {
+	string name = partlist[i] ;
+	cout << "part: " << name << endl ;
+	string dir = output_dir + "/" + casename + "_SURF." + name ;
+	surfacePartP sp = new surfacePart(name,dir,iteration,variables) ;
+	if(sp->fail()) {
+	  cerr << "unable to load part: " << name << endl ;
+	} else {
+	  parts.push_back(sp) ;
+	}
+      }
+    }
+    volumePartP vp = 0 ;
+    if(postprocessor->processesVolumeElements()) {
+      string testfile = output_dir + "/topo_file." + iteration +"_" + casename ;
+      struct stat tmpstat ;
+      cout << "checking " << testfile << endl ;
+      if(stat(testfile.c_str(),&tmpstat)==0) {
+	// topo file exists, so there is a volume grid
+	cout << "creating volume part" << endl;
+	vp = new volumePart(output_dir,iteration,casename,variables) ;
+	if(vp->fail()) {
+	  vp = 0 ;
+	} else {
+	  if(postprocessor->processesSurfaceElements()) {
+	    vector<surfacePartP> volSurface ;
+
+	    extractVolumeSurfaces(volSurface,vp,output_dir,iteration,casename,variables) ;
+	    std::set<string> partset ;
+	    for(size_t i=0;i<partlist.size();++i) {
+	      partset.insert(parts[i]->getPartName()) ;
+	    }
+	    for(size_t i=0;i<volSurface.size();++i) {
+	      if(partset.find(volSurface[i]->getPartName()) == partset.end())
+		parts.push_back(volSurface[i]) ;
+	    }
+	  }
+	}
+      }
+    }
+    if(parts.size() > 0)
+      postprocessor->addSurfaceParts(parts) ;
+    if(vp!=0)
+      postprocessor->addVolumePart(vp) ;
+    postprocessor->exportPostProcessorFiles(casename,iteration) ;
+
+    Loci::Finalize() ;
+    exit(0) ;
+  } 
+
+
   // process grid topology
   grid_topo_handler *topo_out = 0 ;
  

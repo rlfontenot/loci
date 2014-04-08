@@ -614,6 +614,7 @@ void vtk_surf_topo_handler::output_boundary_scalar(float val[], int node_set[],s
   for (int i=0;i<(int)elem_ids.size();i++) elem_data.push_back(valout[i]);
 }
 
+
 void vtk_surf_topo_handler::output_boundary_vector(vector3d<float> val[], int node_set[],size_t nvals, string valname) 
 {
   data_names.push_back(valname);
@@ -640,3 +641,28 @@ void vtk_surf_topo_handler::output_boundary_vector(vector3d<float> val[], int no
   }
 }
     
+bool vtkSurfacePartConverter::processesVolumeElements() const {
+  return false ;
+}
+bool vtkSurfacePartConverter::processesSurfaceElements() const {
+  return true ;
+}
+bool vtkSurfacePartConverter::processesParticleElements() const {
+  return false ;
+}
+
+void vtkSurfacePartConverter::exportPostProcessorFiles(string casename, string iteration) const {
+}
+
+bool vtkPartConverter::processesVolumeElements() const {
+  return true ;
+}
+bool vtkPartConverter::processesSurfaceElements() const {
+  return true ;
+}
+bool vtkPartConverter::processesParticleElements() const {
+  return false ;
+}
+
+void vtkPartConverter::exportPostProcessorFiles(string casename, string iteration) const {
+}

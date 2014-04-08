@@ -761,5 +761,13 @@ fv_topo_handler::output_particle_vector(vector3d<float> val[], size_t np,
   particle_vectors.push_back(tmp) ;
 }
 
+bool fieldViewPartConverter::processesVolumeElements() const { return true ;}
+bool fieldViewPartConverter::processesSurfaceElements() const { return true ;}
+bool fieldViewPartConverter::processesParticleElements() const { return true ;}
+
+void fieldViewPartConverter::
+exportPostProcessorFiles(string casename, string iteration) const {
+}
+
 // ... the end ...
 

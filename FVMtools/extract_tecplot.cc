@@ -330,3 +330,16 @@ void tecplot_topo_handler::output_boundary_vector(vector3d<float> val[],
                                                   int node_set[],
                                                   size_t nvals, string varname) {
 }  
+
+bool tecplotPartConverter::processesVolumeElements() const {
+  return true ;
+}
+bool tecplotPartConverter::processesSurfaceElements() const {
+  return true ;
+}
+bool tecplotPartConverter::processesParticleElements() const {
+  return false ;
+}
+
+void tecplotPartConverter::exportPostProcessorFiles(string casename, string iteration) const {
+}

@@ -768,6 +768,46 @@ extern string output_dir ;
 string getPosFile(string output_dir,string iteration, string casename) ;
 
 
+class particlePartBase : public Loci::CPTR_type {
+ protected:
+  bool error ;
+  string partName ;
+  size_t numParticles ;
+ public:
+  bool fail() const { return error ; }
+  string getPartName() const { return partName ; }
+  size_t getNumParticles() const { return numParticles ; }
+  virtual bool hasScalarVar(string var) const = 0 ;
+  virtual bool hasVectorVar(string var) const = 0 ;
+  virtual std::vector<string> getScalarVars() const = 0 ;
+  virtual std::vector<string> getVectorVars() const = 0 ;
+  virtual void getParticlePositions(vector<vector3d<float> > &ppos) = 0;
+  virtual void getParticleScalar(string varname, vector<float> &val) = 0 ;
+  virtual void getParticleVector(string varname, 
+				 vector<vector3d<float> > &val) = 0 ;
+} ;
+
+typedef Loci::CPTR<particlePartBase> particlePartP ;
+
+class particlePart: public particlePartBase {
+  string directory ;
+  string posfile ;
+  map<string,string> scalarVars ;
+  map<string,string> vectorVars ;
+ public:
+  particlePart() { error = true ; }
+  particlePart(string output_dir, string iteration, string casename,
+	       vector<string> vars) ;
+  virtual bool hasScalarVar(string var) const ;
+  virtual bool hasVectorVar(string var) const ;
+  virtual std::vector<string> getScalarVars() const ;
+  virtual std::vector<string> getVectorVars() const ;
+  virtual void getParticlePositions(vector<vector3d<float> > &ppos) ;
+  virtual void getParticleScalar(string varname, vector<float> &val) ;
+  virtual void getParticleVector(string varname, 
+				 vector<vector3d<float> > &val) ;
+} ;
+
 // Create abstraction for parts
 class volumePartBase : public Loci::CPTR_type {
  protected:
@@ -812,6 +852,7 @@ class volumePartBase : public Loci::CPTR_type {
   
   virtual void getNodalScalar(string varname, vector<float> &vals) const = 0 ;
   virtual void getNodalVector(string varname, vector<vector3d<float> > &vals) const = 0 ;
+  virtual void getNodalIblank(vector<unsigned char> &blank) const = 0 ;
 } ;
 
 typedef Loci::CPTR<volumePartBase> volumePartP ;
@@ -852,6 +893,7 @@ class volumePart : public volumePartBase {
   
   virtual void getNodalScalar(string varname, vector<float> &vals) const ;
   virtual void getNodalVector(string varname, vector<vector3d<float> > &vals) const ;
+  virtual void getNodalIblank(vector<unsigned char> &blank) const ;
 } ;
 
 class surfacePartBase : public Loci::CPTR_type {
@@ -937,6 +979,8 @@ class surfacePartCopy : public surfacePartBase {
   vector<vector3d<float> > pos ;
   map<string,vector<float> > nodalScalars ;
   map<string,vector<vector3d<float> > > nodalVectors ;
+  map<string,Array<vector<float>,3> > elementScalars ;
+  map<string,Array<vector<vector3d<float> >,3> > elementVectors ;
  public:
   surfacePartCopy() {error = true ;}
   surfacePartCopy(string name, vector<Array<int,3> > &triangles,
@@ -945,6 +989,14 @@ class surfacePartCopy : public surfacePartBase {
   void registerPos(const vector<vector3d<float> > &pos) ;
   void registerNodalScalar(string name,const vector<float> &val) ;
   void registerNodalVector(string name,const vector<vector3d<float> > &val) ;
+  void registerElementScalar(string name, 
+			     const vector<float> &qval,
+			     const vector<float> &tval,
+			     const vector<float> &gval) ;
+  void registerElementVector(string name, 
+			     const vector<vector3d<float> > &qval,
+			     const vector<vector3d<float> > &tval,
+			     const vector<vector3d<float> > &gval) ;
   virtual bool hasNodalScalarVar(string var) const ;
   virtual bool hasNodalVectorVar(string var) const ;
   virtual bool hasElementScalarVar(string var) const ;
@@ -968,10 +1020,11 @@ class surfacePartCopy : public surfacePartBase {
 				vector<vector3d<float> > &gvals) const ;
 } ;
 
-class postProcessorConvert {
+class postProcessorConvert : public Loci::CPTR_type {
  protected:
   vector<surfacePartP> surfacePartList ;
   vector<volumePartP> volumePartList ;
+  vector<particlePartP> particlePartList ;
  public:
   void addSurfaceParts(const vector<surfacePartP> &list) {
     for(size_t i=0;i<list.size();++i)
@@ -980,12 +1033,86 @@ class postProcessorConvert {
   void addVolumePart(volumePartP volpart) {
     volumePartList.push_back(volpart) ;
   }
-  virtual void exportPostProcessorFiles(string casename, string iteration) = 0 ;
+  void addParticlePart(particlePartP particles) {
+    particlePartList.push_back(particles) ;
+  }
+  virtual bool processesVolumeElements() const = 0 ;
+  virtual bool processesSurfaceElements() const = 0 ;
+  virtual bool processesParticleElements() const = 0 ;
+
+  virtual void exportPostProcessorFiles(string casename, string iteration) const = 0 ;
 } ;
+
+typedef Loci::CPTR<postProcessorConvert> postProcessorP ;
 
 class ensightPartConverter : public postProcessorConvert {
  public:
-  virtual void exportPostProcessorFiles(string casename, string iteration) ;
+  virtual bool processesVolumeElements() const ;
+  virtual bool processesSurfaceElements() const ;
+  virtual bool processesParticleElements() const ;
+
+  virtual void exportPostProcessorFiles(string casename, string iteration) const ;
+} ;
+
+class tecplotPartConverter : public postProcessorConvert {
+ public:
+  virtual bool processesVolumeElements() const ;
+  virtual bool processesSurfaceElements() const ;
+  virtual bool processesParticleElements() const ;
+
+  virtual void exportPostProcessorFiles(string casename, string iteration) const ;
+} ;
+
+class vtkPartConverter : public postProcessorConvert {
+  bool bit64 ;
+ public:
+  vtkPartConverter() {bit64 = false; } 
+  vtkPartConverter(bool input) {bit64 = input; } ;
+  virtual bool processesVolumeElements() const ;
+  virtual bool processesSurfaceElements() const ;
+  virtual bool processesParticleElements() const ;
+
+  virtual void exportPostProcessorFiles(string casename, string iteration) const ;
+} ;
+
+class vtkSurfacePartConverter : public postProcessorConvert {
+  bool bit64 ;
+ public:
+  vtkSurfacePartConverter() {bit64=false; }
+  vtkSurfacePartConverter(bool input) { bit64=input; }
+  virtual bool processesVolumeElements() const ;
+  virtual bool processesSurfaceElements() const ;
+  virtual bool processesParticleElements() const ;
+
+  virtual void exportPostProcessorFiles(string casename, string iteration) const ;
+} ;
+
+class fieldViewPartConverter : public postProcessorConvert {
+ public:
+  virtual bool processesVolumeElements() const ;
+  virtual bool processesSurfaceElements() const ;
+  virtual bool processesParticleElements() const ;
+
+  virtual void exportPostProcessorFiles(string casename, string iteration) const ;
+} ;
+
+class cuttingPlanePartConverter : public postProcessorConvert 
+{
+  affineMapping transformMatrix ;
+  float xShift, yShift, zShift ;
+ public:
+  cuttingPlanePartConverter(const affineMapping &m,
+			    float xs,float ys,float zs) {
+    transformMatrix = m ;
+    xShift=xs ;
+    yShift=ys ;
+    zShift=zs ;
+  }
+  virtual bool processesVolumeElements() const ;
+  virtual bool processesSurfaceElements() const ;
+  virtual bool processesParticleElements() const ;
+
+  virtual void exportPostProcessorFiles(string casename, string iteration) const ;
 } ;
 
 #endif
