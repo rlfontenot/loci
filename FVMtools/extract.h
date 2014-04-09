@@ -781,10 +781,10 @@ class particlePartBase : public Loci::CPTR_type {
   virtual bool hasVectorVar(string var) const = 0 ;
   virtual std::vector<string> getScalarVars() const = 0 ;
   virtual std::vector<string> getVectorVars() const = 0 ;
-  virtual void getParticlePositions(vector<vector3d<float> > &ppos) = 0;
-  virtual void getParticleScalar(string varname, vector<float> &val) = 0 ;
+  virtual void getParticlePositions(vector<vector3d<float> > &ppos) const = 0;
+  virtual void getParticleScalar(string varname, vector<float> &val) const = 0 ;
   virtual void getParticleVector(string varname, 
-				 vector<vector3d<float> > &val) = 0 ;
+				 vector<vector3d<float> > &val) const  = 0 ;
 } ;
 
 typedef Loci::CPTR<particlePartBase> particlePartP ;
@@ -794,18 +794,19 @@ class particlePart: public particlePartBase {
   string posfile ;
   map<string,string> scalarVars ;
   map<string,string> vectorVars ;
+  int stride_size ;
  public:
   particlePart() { error = true ; }
   particlePart(string output_dir, string iteration, string casename,
-	       vector<string> vars) ;
+	       vector<string> vars, int maxparticles) ;
   virtual bool hasScalarVar(string var) const ;
   virtual bool hasVectorVar(string var) const ;
   virtual std::vector<string> getScalarVars() const ;
   virtual std::vector<string> getVectorVars() const ;
-  virtual void getParticlePositions(vector<vector3d<float> > &ppos) ;
-  virtual void getParticleScalar(string varname, vector<float> &val) ;
+  virtual void getParticlePositions(vector<vector3d<float> > &ppos) const ;
+  virtual void getParticleScalar(string varname, vector<float> &val) const ;
   virtual void getParticleVector(string varname, 
-				 vector<vector3d<float> > &val) ;
+				 vector<vector3d<float> > &val) const ;
 } ;
 
 // Create abstraction for parts

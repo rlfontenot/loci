@@ -953,6 +953,8 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
   set<string> nodal_vectors ;
   set<string> element_scalars ;
   set<string> element_vectors ;
+  set<string> particle_scalars ;
+  set<string> particle_vectors ;
   for(size_t i=0;i<volumePartList.size();++i) {
     vector<string> nscalars = volumePartList[i]->getNodalScalarVars() ;
     for(size_t j=0;j<nscalars.size();++j) 
@@ -975,6 +977,14 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
     for(size_t j=0;j<evectors.size();++j) 
       element_vectors.insert(evectors[j]) ;
   }
+  for(size_t i=0;i<particlePartList.size();++i) {
+    vector<string> nscalars = particlePartList[i]->getScalarVars() ;
+    for(size_t j=0;j<nscalars.size();++j) 
+      particle_scalars.insert(nscalars[j]) ;
+    vector<string> nvectors = particlePartList[i]->getVectorVars() ;
+    for(size_t j=0;j<nvectors.size();++j) 
+      particle_vectors.insert(nvectors[j]) ;
+  }    
 
 
   //write out case file
@@ -983,11 +993,18 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
   of << "type:  ensight gold" << endl ;
   of << "GEOMETRY" << endl ;
   of << "model:  " << geo_filename << endl ;
+  string particle_geo_file ;
+  if(particlePartList.size() > 0) {
+    string pgeo_file = casename + "_particles.geo" ;
+    of << "measured:  " << pgeo_file << endl ;
+    particle_geo_file = dirname + "/" + pgeo_file ;
+  }
   
   geo_filename = dirname + "/"+geo_filename ;
   
   if(nodal_scalars.size()+nodal_vectors.size()+
-     element_scalars.size()+element_vectors.size() > 0) {
+     element_scalars.size()+element_vectors.size()+
+     particle_scalars.size()+particle_vectors.size()> 0) {
     of << "VARIABLE" << endl ;
     set<string>::const_iterator si ;
     for(si=nodal_scalars.begin();si!=nodal_scalars.end();++si) {
@@ -1002,7 +1019,14 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
     for(si=element_vectors.begin();si!=element_vectors.end();++si) {
       of << "vector per element:\t " << *si << '\t' << *si << endl ;
     }
+    for(si=particle_scalars.begin();si!=particle_scalars.end();++si) {
+      of << "scalar per measured node:\t " << *si << '\t' << *si << endl ;
+    }
+    for(si=particle_vectors.begin();si!=particle_vectors.end();++si) {
+      of << "vector per measured node:\t " << *si << '\t' << *si << endl ;
+    }
   }
+
   of.close() ;
   
   FILE *OFP ;
@@ -1473,6 +1497,110 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
           for(size_t i=0;i<gvals.size();++i)
             fwrite(&gvals[i].z,sizeof(float),1,FP) ;
         }
+      }
+    }
+    fclose(FP) ;
+  }
+  if(particlePartList.size() > 0) {
+    FILE *FP = 0 ;
+    FP = fopen(particle_geo_file.c_str(), "wb") ;
+    if(FP==0) {
+      cerr << "can't open file '" << particle_geo_file
+	   << "' for writing particle geometry info!" << endl ;
+      return ;
+    }
+    int npnts = 0 ;
+    for(size_t i=0;i<particlePartList.size();++i)
+      npnts += particlePartList[i]->getNumParticles() ;
+
+    char tmp_buf[80] ;
+    memset(tmp_buf, '\0', 80) ;
+    snprintf(tmp_buf,80,"C Binary") ;
+    fwrite(tmp_buf, sizeof(char), 80, FP) ;
+    
+    memset(tmp_buf, '\0', 80) ;
+    snprintf(tmp_buf,80, "particle positions") ;
+    fwrite(tmp_buf, sizeof(char), 80, FP) ;
+
+    memset(tmp_buf, '\0', 80) ;
+    snprintf(tmp_buf,80, "particle coordinates") ;
+    fwrite(tmp_buf, sizeof(char), 80, FP) ;
+
+    // number of points
+    fwrite(&npnts, sizeof(int), 1, FP) ;
+    // point ids
+    for(int i=1;i<npnts+1;++i)
+      fwrite(&i, sizeof(int), 1, FP) ;
+    
+
+    for(size_t i=0;i<particlePartList.size();++i) {
+      int np = particlePartList[i]->getNumParticles() ;
+      vector<vector3d<float> > ppos ;
+      particlePartList[i]->getParticlePositions(ppos) ;
+      for(int k=0;k<np;++k) {
+	float x = ppos[k].x ;
+	float y = ppos[k].y ;
+	float z = ppos[k].z ;
+	fwrite(&x, sizeof(float), 1, FP) ;
+	fwrite(&y, sizeof(float), 1, FP) ;
+	fwrite(&z, sizeof(float), 1, FP) ;
+      }
+    }
+    fclose(FP) ;
+    
+  }
+
+  for(si=particle_scalars.begin();si!=particle_scalars.end();++si) {
+    string varname = *si ;
+    string filename = dirname + "/" + varname ;
+    FILE *FP = 0 ;
+    FP = fopen(filename.c_str(), "wb") ;
+    if(FP==0) {
+      cerr << "can't open file '" << filename << "' for writing variable info!"
+	   << endl ;
+      continue ;
+    }
+    char tmp_buf[80] ;
+    
+    memset(tmp_buf, '\0', 80) ;
+    snprintf(tmp_buf, 80, "Per particle scalar: %s", varname.c_str()) ;
+    fwrite(tmp_buf, sizeof(char), 80, FP) ;
+    for(size_t i=0;i<particlePartList.size();++i) {
+      int np = particlePartList[i]->getNumParticles() ;
+      vector<float> val ;
+      particlePartList[i]->getParticleScalar(varname,val) ;
+      fwrite(&val[0],sizeof(float),np,FP) ;
+    }
+    fclose(FP) ;
+  }
+
+  for(si=particle_vectors.begin();si!=particle_vectors.end();++si) {
+    string varname = *si ;
+    string filename = dirname + "/" + varname ;
+    FILE *FP = 0 ;
+    FP = fopen(filename.c_str(), "wb") ;
+    if(FP==0) {
+      cerr << "can't open file '" << filename << "' for writing variable info!"
+	   << endl ;
+      continue ;
+    }
+    char tmp_buf[80] ;
+    
+    memset(tmp_buf, '\0', 80) ;
+    snprintf(tmp_buf, 80, "Per particle vector: %s", varname.c_str()) ;
+    fwrite(tmp_buf, sizeof(char), 80, FP) ;
+    for(size_t i=0;i<particlePartList.size();++i) {
+      int np = particlePartList[i]->getNumParticles() ;
+      vector<vector3d<float> > val ;
+      particlePartList[i]->getParticleVector(varname,val) ;
+      for(int k=0;k<np;++k) {
+	float x = val[k].x ;
+	float y = val[k].y ;
+	float z = val[k].z ;
+    
+	fwrite(&x, sizeof(float), 1, FP) ;
+	fwrite(&y, sizeof(float), 1, FP) ;
+	fwrite(&z, sizeof(float), 1, FP) ;
       }
     }
     fclose(FP) ;

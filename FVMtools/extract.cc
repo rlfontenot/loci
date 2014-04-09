@@ -1452,26 +1452,138 @@ void surfacePartCopy::getElementVector(string name,
 }
 
 particlePart::particlePart(string output_dir, string iteration, string casename,
-			   vector<string> vars) {
+			   vector<string> vars,
+			   int maxparticles) {
+  error = true ;
+  partName = "Particles" ;
+  directory = output_dir ;
+  posfile = output_dir + "/particle_pos."+iteration + "_" + casename ;
+  
+  struct stat tmpstat ;
+  if(stat(posfile.c_str(),&tmpstat) != 0) {
+    return ;
+  }
+  hid_t file_id = Loci::hdf5OpenFile(posfile.c_str(),
+				     H5F_ACC_RDONLY,
+				     H5P_DEFAULT) ;
+  if(file_id < 0) 
+    return ;
+  numParticles = sizeElementType(file_id, "particle position") ;
+  H5Fclose(file_id) ;
+  stride_size = 1 ;
+  if(maxparticles > 0) {
+    stride_size = numParticles/maxparticles ;
+    int num_blocks = numParticles/stride_size ;
+    numParticles = num_blocks*stride_size ;
+  }  
+  for(size_t i=0;i<vars.size();++i) {
+    string varname = vars[i] ;
+    string scalarfile = output_dir+"/"+varname+"_ptsca."
+      +iteration+"_"+casename ;
+    if(stat(scalarfile.c_str(),&tmpstat) == 0) {
+      scalarVars[varname] = scalarfile ;
+    } else {
+      string vectorfile = output_dir+"/"+varname+"_ptvec."
+	+iteration+"_"+casename ;
+      if(stat(vectorfile.c_str(),&tmpstat) == 0) 
+	vectorVars[varname] = vectorfile ;
+    }
+  }
 }
+
 bool particlePart::hasScalarVar(string var) const {
-  return false ;
+  map<string,string>::const_iterator mi ;
+  mi = scalarVars.find(var) ;
+  return !(mi == scalarVars.end()) ;
 }
 bool particlePart::hasVectorVar(string var) const {
-  return false ;
+  map<string,string>::const_iterator mi ;
+  mi = vectorVars.find(var) ;
+  return !(mi == vectorVars.end()) ;
 }
 std::vector<string> particlePart::getScalarVars() const {
-  return vector<string>() ;
+  vector<string> tmp ;
+  map<string,string>::const_iterator mi ;
+  for(mi=scalarVars.begin();mi!=scalarVars.end();++mi)
+    tmp.push_back(mi->first) ;
+  return tmp ;
 }
 std::vector<string> particlePart::getVectorVars() const {
-  return vector<string>() ;
+  vector<string> tmp ;
+  map<string,string>::const_iterator mi ;
+  for(mi=vectorVars.begin();mi!=vectorVars.end();++mi)
+    tmp.push_back(mi->first) ;
+  return tmp ;
 }
-void particlePart::getParticlePositions(vector<vector3d<float> > &ppos) {
+void particlePart::getParticlePositions(vector<vector3d<float> > &ppos) const {
+  hid_t file_id = Loci::hdf5OpenFile(posfile.c_str(),
+				     H5F_ACC_RDONLY, H5P_DEFAULT) ;
+  if(file_id < 0) {
+    cerr << "unable to open file '" << posfile << "'!" << endl ;
+    return ;
+  }
+  size_t np = sizeElementType(file_id, "particle position") ;
+  vector<vector3d<float> > tmp(np) ;
+  readElementType(file_id, "particle position", tmp) ;
+  Loci::hdf5CloseFile(file_id) ;
+  
+  if(stride_size == 1)
+    ppos.swap(tmp) ;
+  else {
+    vector<vector3d<float> > cpy(numParticles) ;
+    for(size_t i=0;i<numParticles;++i)
+      cpy[i] = tmp[i*stride_size] ;
+    ppos.swap(cpy) ;
+  }
 }
-void particlePart::getParticleScalar(string varname, vector<float> &val) {
+void particlePart::getParticleScalar(string varname, vector<float> &val) const {
+  map<string,string>::const_iterator mi ;
+  mi = scalarVars.find(varname) ;
+  string filename = mi->second ;
+  hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
+				     H5F_ACC_RDONLY, H5P_DEFAULT) ;
+  if(file_id < 0) {
+    cerr << "unable to open file '" << filename << "'!" << endl ;
+  }
+  size_t np = sizeElementType(file_id, varname.c_str()) ;
+  vector<float> scalar(np) ;
+  readElementType(file_id, varname.c_str(), scalar) ;
+  Loci::hdf5CloseFile(file_id) ;
+  
+  if(stride_size == 1)
+    val.swap(scalar) ;
+  else {
+    vector<float > cpy(numParticles) ;
+    for(size_t i=0;i<numParticles;++i)
+      cpy[i] = scalar[i*stride_size] ;
+    val.swap(cpy) ;
+  }
 }
+
 void particlePart::getParticleVector(string varname, 
-				     vector<vector3d<float> > &val) {
+				     vector<vector3d<float> > &val) const {
+  map<string,string>::const_iterator mi ;
+  mi = vectorVars.find(varname) ;
+  string filename = mi->second ;
+  hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
+				     H5F_ACC_RDONLY, H5P_DEFAULT) ;
+  if(file_id < 0) {
+    cerr << "unable to open file '" << filename << "'!" << endl ;
+    return ;
+  }
+  size_t np = sizeElementType(file_id, varname.c_str()) ;
+  vector<vector3d<float> > tmp(np) ;
+  readElementType(file_id, varname.c_str(), tmp) ;
+  Loci::hdf5CloseFile(file_id) ;
+  
+  if(stride_size == 1)
+    val.swap(tmp) ;
+  else {
+    vector<vector3d<float> > cpy(numParticles) ;
+    for(size_t i=0;i<numParticles;++i)
+      cpy[i] = tmp[i*stride_size] ;
+    val.swap(cpy) ;
+  }
 }
 
 
@@ -3786,10 +3898,22 @@ int main(int ac, char *av[]) {
 	}
       }
     }
+    particlePartP pp = 0 ;
+    if(postprocessor->processesParticleElements()) {
+      string testfile = output_dir + "/particle_pos."+iteration + "_" + casename ;
+      struct stat tmpstat ;
+      cout << "checking " << testfile << endl ;
+      if(stat(testfile.c_str(),&tmpstat)==0) {
+	pp = new particlePart(output_dir,iteration,casename,variables,max_particles) ;
+      }
+    }
+
     if(parts.size() > 0)
       postprocessor->addSurfaceParts(parts) ;
     if(vp!=0)
       postprocessor->addVolumePart(vp) ;
+    if(pp!=0)
+      postprocessor->addParticlePart(pp) ;
     postprocessor->exportPostProcessorFiles(casename,iteration) ;
 
     Loci::Finalize() ;
