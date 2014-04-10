@@ -909,7 +909,249 @@ void volumePart::getNodalIblank(vector<unsigned char> &blank) const {
     blank.clear() ;
   } 
 }
+//----
+void volumePartDerivedVars::processDerivedVars(const vector<string> &vars) {
+  for(size_t i=0;i<vars.size();++i) {
+    if(vars[i] == "m" && !shadowPart->hasNodalScalarVar("m")) {
+      if(shadowPart->hasNodalScalarVar("a") && 
+	 shadowPart->hasNodalVectorVar("v"))
+	derivedVars["m"] = VAR_M ;
+    }
+    if(vars[i] == "P" && !shadowPart->hasNodalScalarVar("P")) {
+      if(shadowPart->hasNodalScalarVar("pg")) {
+	derivedVars["P"] = VAR_P ;
+      }
+    }
+    if(vars[i] == "p" && !shadowPart->hasNodalScalarVar("p")) {
+      if(shadowPart->hasNodalScalarVar("pg")) {
+	derivedVars["P"] = VAR_logp ;
+      }
+    }
+    if(vars[i] == "u" && !shadowPart->hasNodalScalarVar("u")) {
+      if(shadowPart->hasNodalVectorVar("v")) {
+	derivedVars["u"] = VAR_U ;
+      }
+    }
+    if(vars[i] == "0" && !shadowPart->hasNodalScalarVar("0")) {
+      if(shadowPart->hasNodalVectorVar("v")) {
+	derivedVars["0"] = VAR_0 ;
+      }
+    }
+   if(vars[i] == "1" && !shadowPart->hasNodalScalarVar("1")) {
+      if(shadowPart->hasNodalVectorVar("v")) {
+	derivedVars["1"] = VAR_1 ;
+      }
+    }
+    if(vars[i] == "2" && !shadowPart->hasNodalScalarVar("2")) {
+      if(shadowPart->hasNodalVectorVar("v")) {
+	derivedVars["2"] = VAR_2 ;
+      }
+    }
+    if(vars[i] == "x")
+      derivedVars["x"] = VAR_X ;
+    if(vars[i] == "y")
+      derivedVars["y"] = VAR_Y ;
+    if(vars[i] == "z")
+      derivedVars["z"] = VAR_Z ;
+  }
+}
+volumePartDerivedVars::volumePartDerivedVars(volumePartP part,
+					     string output_dir, 
+					     string iteration, string casename,
+					     vector<string> vars) {
+  error = part->fail() ;
+  partName = part->getPartName() ;
+  nnodes = part->getNumNodes() ;
+  ntets = part->getNumTets() ;
+  nhexs = part->getNumHexs() ;
+  nprsm = part->getNumPrsm() ;
+  npyrm = part->getNumPyrm() ;
+  ngenc = part->getNumGenc() ;
+  ntetsIblank = part->getNumTetsIblank() ;
+  nhexsIblank = part->getNumHexsIblank() ;
+  nprsmIblank = part->getNumPrsmIblank() ;
+  npyrmIblank = part->getNumPyrmIblank() ;
+  ngencIblank = part->getNumGencIblank() ;
 
+  shadowPart = part ;
+
+  string filename = output_dir+"/Pambient_par." + iteration +"_" + casename ;
+  hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
+				     H5F_ACC_RDONLY,
+				     H5P_DEFAULT) ;
+  Pambient = 0 ;
+  if(file_id >= 0) {
+    fact_db facts ;
+    param<float> Pamb ;
+    Loci::readContainer(file_id,"Pambient",Pamb.Rep(),EMPTY,facts) ;
+    Loci::hdf5CloseFile(file_id) ;
+    Pambient = *Pamb ;
+  }
+  processDerivedVars(vars) ;
+}
+
+bool volumePartDerivedVars::hasNodalScalarVar(string var) const {
+  map<string,derivedVar_t>::const_iterator mi=derivedVars.find(var) ;
+  if(mi==derivedVars.end())
+    return shadowPart->hasNodalScalarVar(var) ;
+  else
+    return true ;
+}
+bool volumePartDerivedVars::hasNodalVectorVar(string var) const {
+  return shadowPart->hasNodalVectorVar(var) ;
+}
+std::vector<string> volumePartDerivedVars::getNodalScalarVars() const  {
+  
+  vector<string> tmp = shadowPart->getNodalScalarVars() ;
+  map<string,derivedVar_t>::const_iterator mi ;
+  for(mi=derivedVars.begin();mi!=derivedVars.end();++mi)
+    tmp.push_back(mi->first) ;
+  return tmp ;
+}
+
+std::vector<string> volumePartDerivedVars::getNodalVectorVars() const {
+  return shadowPart->getNodalVectorVars() ;
+}
+
+void volumePartDerivedVars::getPos(vector<vector3d<float> > &pos) const {
+  shadowPart->getPos(pos) ;
+}
+
+void volumePartDerivedVars::getTetBlock(vector<Array<int,4> > &tets, size_t start, size_t size) const {
+  shadowPart->getTetBlock(tets,start,size) ;
+}
+
+void volumePartDerivedVars::getTetIds(vector<int> &tetids, size_t start, size_t size) const {
+  shadowPart->getTetIds(tetids,start,size) ;
+}
+
+void volumePartDerivedVars::getPyrmBlock(vector<Array<int,5> > &pyrms, size_t start, size_t size) const {
+  shadowPart->getPyrmBlock(pyrms,start,size) ;
+}
+
+void volumePartDerivedVars::getPyrmIds(vector<int> &pyrmids, size_t start, size_t size) const {
+  shadowPart->getPyrmIds(pyrmids,start,size) ;
+}
+void volumePartDerivedVars::getPrsmBlock(vector<Array<int,6> > &prsms, size_t start, size_t size) const {
+  shadowPart->getPrsmBlock(prsms,start,size) ;
+}
+void volumePartDerivedVars::getPrsmIds(vector<int> &prsmids, size_t start, size_t size) const {
+  shadowPart->getPrsmIds(prsmids,start,size) ;
+}
+ 
+void volumePartDerivedVars::getHexBlock(vector<Array<int,8> > &hexs, size_t start, size_t size) const {
+  shadowPart->getHexBlock(hexs,start,size) ;
+}
+void volumePartDerivedVars::getHexIds(vector<int> &hexids, size_t start, size_t size) const {
+  shadowPart->getHexIds(hexids,start,size) ;
+}
+void volumePartDerivedVars::getGenCell(vector<int> &genCellNfaces, 
+			    vector<int> &genCellNsides,
+			    vector<int> &genCellNodes) const {
+  shadowPart->getGenCell(genCellNfaces,genCellNsides,genCellNodes) ;
+}
+void volumePartDerivedVars::getGenIds(vector<int> &genids) const {
+  shadowPart->getGenIds(genids) ;
+}
+  
+void volumePartDerivedVars::getNodalScalar(string varname, vector<float> &vals) const {
+  map<string,derivedVar_t>::const_iterator mi=derivedVars.find(varname) ;
+  if(mi==derivedVars.end())
+    shadowPart->getNodalScalar(varname,vals) ;
+  else {
+    derivedVar_t vartype = mi->second ;
+    switch(vartype) {
+    case VAR_M: 
+      {
+	vector<float> a ;
+	vector<vector3d<float> > v ;
+	shadowPart->getNodalScalar("a",a) ;
+	shadowPart->getNodalVector("v",v) ;
+	vector<float> m(a.size()) ;
+	for(size_t i=0;i<a.size();++i)
+	  m[i] = norm(v[i])/a[i] ;
+	vals.swap(m) ;
+      }
+      break ;
+    case VAR_P:
+    case VAR_logp:
+      {
+	vector<float> pg ;
+	shadowPart->getNodalScalar("pg",pg) ;
+	vector<float> P(pg.size()) ;
+	for(size_t i=0;i<P.size();++i) 
+	  P[i] = (vartype==VAR_logp)?log10(max(pg[i]+Pambient,1e-30f)):
+	    (pg[i]+Pambient) ;
+	vals.swap(P) ;
+      }
+      break ;
+    case VAR_U:
+    case VAR_0:
+    case VAR_1:
+    case VAR_2:
+      {
+	vector<vector3d<float> > v ;
+	shadowPart->getNodalVector("v",v) ;
+	vector<float> tmp(v.size()) ;
+	for(size_t i=0;i<v.size();++i) {
+	  switch(vartype) {
+	  case VAR_U:
+	    tmp[i] = norm(v[i]) ;
+	    break ;
+	  case VAR_0:
+	    tmp[i] = v[i].x ;
+	    break ;
+	  case VAR_1:
+	    tmp[i] = v[i].y ;
+	    break ;
+	  case VAR_2:
+	    tmp[i] = v[i].z ;
+	    break ;
+	  default:
+	    tmp[i] = 0 ;
+	  }
+	}
+	vals.swap(tmp) ;
+      }
+      break ;
+    case VAR_X:
+    case VAR_Y:
+    case VAR_Z:
+      {
+	vector<vector3d<float> > pos ;
+	shadowPart->getPos(pos) ;
+	vector<float> tmp(pos.size()) ;
+	for(size_t i=0;i<pos.size();++i) {
+	  switch(vartype) {
+	  case VAR_X:
+	    tmp[i] = pos[i].x ;
+	    break ;
+	  case VAR_Y:
+	    tmp[i] = pos[i].y ;
+	    break ;
+	  case VAR_Z:
+	    tmp[i] =pos[i].z ;
+	    break ;
+	  default:
+	    tmp[i] = 0 ;
+	  }
+	}
+	vals.swap(tmp) ;
+      }
+      break ;
+    }
+  }
+}
+
+void volumePartDerivedVars::getNodalVector(string varname, vector<vector3d<float> > &vals) const {
+  shadowPart->getNodalVector(varname,vals) ;
+}
+
+void volumePartDerivedVars::getNodalIblank(vector<unsigned char> &blank) const {
+  shadowPart->getNodalIblank(blank) ;
+}
+
+//----
 surfacePart::surfacePart(string name, string dir, string iteration,
 			 vector<string> vars) {
   partName = name ;
@@ -1243,7 +1485,243 @@ void surfacePart::getElementVector(string varname,
   for(int i=0;i<ngenf;++i)
     gvals[i] = vals[gen_ord[i]] ;
 }
+//----
+void surfacePartDerivedVars::processDerivedVars(const vector<string> &vars) {
+  for(size_t i=0;i<vars.size();++i) {
+    if(vars[i] == "m" && !shadowPart->hasNodalScalarVar("m")) {
+      if(shadowPart->hasNodalScalarVar("a") && 
+	 shadowPart->hasNodalVectorVar("v"))
+	derivedVars["m"] = VAR_M ;
+    }
+    if(vars[i] == "P" && !shadowPart->hasNodalScalarVar("P")) {
+      if(shadowPart->hasNodalScalarVar("pg")) {
+	derivedVars["P"] = VAR_P ;
+      }
+    }
+    if(vars[i] == "p" && !shadowPart->hasNodalScalarVar("p")) {
+      if(shadowPart->hasNodalScalarVar("pg")) {
+	derivedVars["P"] = VAR_logp ;
+      }
+    }
+    if(vars[i] == "u" && !shadowPart->hasNodalScalarVar("u")) {
+      if(shadowPart->hasNodalVectorVar("v")) {
+	derivedVars["u"] = VAR_U ;
+      }
+    }
+    if(vars[i] == "0" && !shadowPart->hasNodalScalarVar("0")) {
+      if(shadowPart->hasNodalVectorVar("v")) {
+	derivedVars["0"] = VAR_0 ;
+      }
+    }
+   if(vars[i] == "1" && !shadowPart->hasNodalScalarVar("1")) {
+      if(shadowPart->hasNodalVectorVar("v")) {
+	derivedVars["1"] = VAR_1 ;
+      }
+    }
+    if(vars[i] == "2" && !shadowPart->hasNodalScalarVar("2")) {
+      if(shadowPart->hasNodalVectorVar("v")) {
+	derivedVars["2"] = VAR_2 ;
+      }
+    }
+    if(vars[i] == "x")
+      derivedVars["x"] = VAR_X ;
+    if(vars[i] == "y")
+      derivedVars["y"] = VAR_Y ;
+    if(vars[i] == "z")
+      derivedVars["z"] = VAR_Z ;
+  }
+}
 
+surfacePartDerivedVars::surfacePartDerivedVars(surfacePartP part, 
+					       string output_dir,
+					       string casename ,
+					       string iteration, 
+					       vector<string> vars) {
+  error = part->fail() ;
+  partName = part->getPartName() ;
+  nnodes = part->getNumNodes() ;
+  nquads = part->getNumQuads() ;
+  ntrias = part->getNumTrias() ;
+  ngenf = part->getNumGenfc() ;
+  shadowPart = part ;
+
+  string filename = output_dir+"/Pambient_par." + iteration +"_" + casename ;
+  hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
+				     H5F_ACC_RDONLY,
+				     H5P_DEFAULT) ;
+  Pambient = 0 ;
+  if(file_id >= 0) {
+    fact_db facts ;
+    param<float> Pamb ;
+    Loci::readContainer(file_id,"Pambient",Pamb.Rep(),EMPTY,facts) ;
+    Loci::hdf5CloseFile(file_id) ;
+    Pambient = *Pamb ;
+  }
+  processDerivedVars(vars) ;
+}
+
+bool surfacePartDerivedVars::hasNodalScalarVar(string var) const {
+  map<string,derivedVar_t>::const_iterator mi=derivedVars.find(var) ;
+  if(mi==derivedVars.end())
+    return shadowPart->hasNodalScalarVar(var) ;
+  else
+    return true ;
+}
+bool surfacePartDerivedVars::hasNodalVectorVar(string var) const {
+  return shadowPart->hasNodalVectorVar(var) ;
+}
+bool surfacePartDerivedVars::hasElementScalarVar(string var) const {
+  return shadowPart->hasElementScalarVar(var) ;
+}
+bool surfacePartDerivedVars::hasElementVectorVar(string var) const {
+  return shadowPart->hasElementVectorVar(var)  ;
+}
+
+vector<string> surfacePartDerivedVars::getNodalScalarVars() const {
+  vector<string> tmp = shadowPart->getNodalScalarVars() ;
+  map<string,derivedVar_t>::const_iterator mi ;
+  for(mi=derivedVars.begin();mi!=derivedVars.end();++mi)
+    tmp.push_back(mi->first) ;
+  return tmp ;
+}
+
+vector<string> surfacePartDerivedVars::getNodalVectorVars() const {
+  return shadowPart->getNodalVectorVars() ;
+}
+  
+vector<string> surfacePartDerivedVars::getElementScalarVars() const {
+  return shadowPart->getElementScalarVars() ;
+}
+
+vector<string> surfacePartDerivedVars::getElementVectorVars() const {
+  return shadowPart->getElementVectorVars() ;
+}
+  
+void surfacePartDerivedVars::getQuads(vector<Array<int,4> > &quads) const {
+  shadowPart->getQuads(quads) ;
+}
+
+void surfacePartDerivedVars::getTrias(vector<Array<int,3> > &trias) const {
+  shadowPart->getTrias(trias) ;
+}
+
+void surfacePartDerivedVars::getGenf(vector<int> &numGenFnodes, vector<int> &genNodes) const {
+  shadowPart->getGenf(numGenFnodes,genNodes) ;
+}
+
+void surfacePartDerivedVars::getPos(vector<vector3d<float> > &pos) const {
+  shadowPart->getPos(pos) ;
+}
+
+void surfacePartDerivedVars::getNodalScalar(string varname,
+					    vector<float> &vals) const {
+  map<string,derivedVar_t>::const_iterator mi=derivedVars.find(varname) ;
+  if(mi==derivedVars.end())
+    shadowPart->getNodalScalar(varname,vals) ;
+  else {
+    derivedVar_t vartype = mi->second ;
+    switch(vartype) {
+    case VAR_M: 
+      {
+	vector<float> a ;
+	vector<vector3d<float> > v ;
+	shadowPart->getNodalScalar("a",a) ;
+	shadowPart->getNodalVector("v",v) ;
+	vector<float> m(a.size()) ;
+	for(size_t i=0;i<a.size();++i)
+	  m[i] = norm(v[i])/a[i] ;
+	vals.swap(m) ;
+      }
+      break ;
+    case VAR_P:
+    case VAR_logp:
+      {
+	vector<float> pg ;
+	shadowPart->getNodalScalar("pg",pg) ;
+	vector<float> P(pg.size()) ;
+	for(size_t i=0;i<P.size();++i) 
+	  P[i] = (vartype==VAR_logp)?log10(max(pg[i]+Pambient,1e-30f)):
+	    (pg[i]+Pambient) ;
+	vals.swap(P) ;
+      }
+      break ;
+    case VAR_U:
+    case VAR_0:
+    case VAR_1:
+    case VAR_2:
+      {
+	vector<vector3d<float> > v ;
+	shadowPart->getNodalVector("v",v) ;
+	vector<float> tmp(v.size()) ;
+	for(size_t i=0;i<v.size();++i) {
+	  switch(vartype) {
+	  case VAR_U:
+	    tmp[i] = norm(v[i]) ;
+	    break ;
+	  case VAR_0:
+	    tmp[i] = v[i].x ;
+	    break ;
+	  case VAR_1:
+	    tmp[i] = v[i].y ;
+	    break ;
+	  case VAR_2:
+	    tmp[i] = v[i].z ;
+	    break ;
+	  default:
+	    tmp[i] = 0 ;
+	  }
+	}
+	vals.swap(tmp) ;
+      }
+      break ;
+    case VAR_X:
+    case VAR_Y:
+    case VAR_Z:
+      {
+	vector<vector3d<float> > pos ;
+	shadowPart->getPos(pos) ;
+	vector<float> tmp(pos.size()) ;
+	for(size_t i=0;i<pos.size();++i) {
+	  switch(vartype) {
+	  case VAR_X:
+	    tmp[i] = pos[i].x ;
+	    break ;
+	  case VAR_Y:
+	    tmp[i] = pos[i].y ;
+	    break ;
+	  case VAR_Z:
+	    tmp[i] =pos[i].z ;
+	    break ;
+	  default:
+	    tmp[i] = 0 ;
+	  }
+	}
+	vals.swap(tmp) ;
+      }
+      break ;
+    }
+  }
+}
+void surfacePartDerivedVars::getNodalVector(string varname,
+				 vector<vector3d<float> > &vals) const {
+  shadowPart->getNodalVector(varname,vals) ;
+}
+
+void surfacePartDerivedVars::getElementScalar(string varname,
+                                   vector<float> &qvals,
+                                   vector<float> &tvals,
+                                   vector<float> &gvals) const {
+  shadowPart->getElementScalar(varname,qvals,tvals,gvals) ;
+}
+
+void surfacePartDerivedVars::getElementVector(string varname,
+                                   vector<vector3d<float> > &qvals,
+                                   vector<vector3d<float> > &tvals,
+                                   vector<vector3d<float> > &gvals) const {
+  shadowPart->getElementVector(varname,qvals,tvals,gvals) ;
+}
+
+//----
 surfacePartCopy::surfacePartCopy(string name,
                                  vector<Array<int,3> > &triangles,
                                  vector<Array<int,4> > &quads,
@@ -3828,35 +4306,74 @@ int main(int ac, char *av[]) {
     postprocessor = new ensightPartConverter ;
     break ;
   case FIELDVIEW:
-    postprocessor = new fieldViewPartConverter ;
+    // uncomment when implemented
+    //postprocessor = new fieldViewPartConverter ;
     break ;
   case TECPLOT:
-    postprocessor = new tecplotPartConverter ;
+    // uncomment when implemented
+    //postprocessor = new tecplotPartConverter ;
     break ;
   case VTK:
-    postprocessor = new vtkPartConverter(false) ;
+    // uncomment when implemented
+    //postprocessor = new vtkPartConverter(false) ;
     break ;
   case VTK_SURFACE:
-    postprocessor = new vtkSurfacePartConverter(false) ;
+    // uncomment when implemented
+    //postprocessor = new vtkSurfacePartConverter(false) ;
     break ;
   case VTK64:
-    postprocessor = new vtkPartConverter(true) ;
+    // uncomment when implemented
+    //postprocessor = new vtkPartConverter(true) ;
     break ;
   case VTK_SURFACE64:
-    postprocessor = new vtkSurfacePartConverter(true) ;
+    // uncomment when implemented
+    //postprocessor = new vtkSurfacePartConverter(true) ;
     break ;
   case CUTTINGPLANE:
-    postprocessor = new cuttingPlanePartConverter(transformMatrix, -xShift, -yShift, -zShift) ;
+    // uncomment when implemented
+    //postprocessor = new cuttingPlanePartConverter(transformMatrix, -xShift, -yShift, -zShift) ;
     break ;
   default:
     cerr << "Unknown export method!" << endl ;
     break ;
   }
 
-  if(partlist.size() > 0) {
+  if(postprocessor != 0) {
     H5Eset_auto(NULL,NULL) ;
     vector<surfacePartP> parts ;
 
+
+    // Check for derived variable input requirements
+    std::set<string> varset ;
+    for(size_t i=0;i<variables.size();++i)
+      varset.insert(variables[i]) ;
+    if(varset.find("m") != varset.end()) {
+      varset.insert("a") ;
+      varset.insert("v") ;
+    }
+    if(varset.find("P") != varset.end()) {
+      varset.insert("pg") ;
+    }
+    if(varset.find("p") != varset.end()) {
+      varset.insert("pg") ;
+    }
+    if(varset.find("u") != varset.end()) {
+      varset.insert("v") ;
+    }
+    if(varset.find("0") != varset.end()) {
+      varset.insert("v") ;
+    }
+    if(varset.find("1") != varset.end()) {
+      varset.insert("v") ;
+    }
+    if(varset.find("2") != varset.end()) {
+      varset.insert("v") ;
+    }
+    vector<string> varlist ;
+    std::set<string>::const_iterator vi ;
+    for(vi=varset.begin();vi!=varset.end();++vi)
+      varlist.push_back(*vi) ;
+    variables.swap(varlist) ;
     if(postprocessor->processesSurfaceElements()) {
       for(size_t i=0;i<partlist.size();++i) {
 	string name = partlist[i] ;
@@ -3908,10 +4425,20 @@ int main(int ac, char *av[]) {
       }
     }
 
-    if(parts.size() > 0)
-      postprocessor->addSurfaceParts(parts) ;
-    if(vp!=0)
-      postprocessor->addVolumePart(vp) ;
+    if(parts.size() > 0) {
+      vector<surfacePartP> modparts(parts.size()) ;
+      for(size_t i=0;i<parts.size();++i)
+	modparts[i] = new surfacePartDerivedVars(parts[i],
+					      output_dir,casename,
+					      iteration, variables) ;
+      postprocessor->addSurfaceParts(modparts) ;
+    }
+    if(vp!=0) {
+      volumePartP vpn = new volumePartDerivedVars(vp,
+						  output_dir,casename,
+						  iteration,variables) ;
+      postprocessor->addVolumePart(vpn) ;
+    }
     if(pp!=0)
       postprocessor->addParticlePart(pp) ;
     postprocessor->exportPostProcessorFiles(casename,iteration) ;

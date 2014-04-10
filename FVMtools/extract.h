@@ -858,6 +858,41 @@ class volumePartBase : public Loci::CPTR_type {
 
 typedef Loci::CPTR<volumePartBase> volumePartP ;
 
+class volumePartDerivedVars : public volumePartBase {
+  volumePartP shadowPart ;
+  enum derivedVar_t { VAR_M, VAR_P, VAR_logp, VAR_U, VAR_0, VAR_1, VAR_2,
+		      VAR_X, VAR_Y, VAR_Z } ;
+  map<string,derivedVar_t> derivedVars ;
+  float Pambient ;
+  void processDerivedVars(const vector<string> &vars) ;
+ public:
+  volumePartDerivedVars() {error = true ;}
+  volumePartDerivedVars(volumePartP part,
+			string output_dir, string iteration, string casename,
+			vector<string> vars) ;
+  virtual bool hasNodalScalarVar(string var) const ;
+  virtual bool hasNodalVectorVar(string var) const ;
+  virtual std::vector<string> getNodalScalarVars() const ;
+  virtual std::vector<string> getNodalVectorVars() const ;
+  virtual void getPos(vector<vector3d<float> > &val) const ;
+  virtual void getTetBlock(vector<Array<int,4> > &tets, size_t start, size_t size) const ;
+  virtual void getTetIds(vector<int> &tetids, size_t start, size_t size) const ;
+  virtual void getPyrmBlock(vector<Array<int,5> > &pyrms, size_t start, size_t size) const ;
+  virtual void getPyrmIds(vector<int> &pyrmids, size_t start, size_t size) const ;
+  virtual void getPrsmBlock(vector<Array<int,6> > &prsms, size_t start, size_t size) const ;
+  virtual void getPrsmIds(vector<int> &prsmids, size_t start, size_t size) const ;
+  virtual void getHexBlock(vector<Array<int,8> > &hexs, size_t start, size_t size) const ;
+  virtual void getHexIds(vector<int> &hexids, size_t start, size_t size) const ;
+  virtual void getGenCell(vector<int> &genCellNfaces, 
+			  vector<int> &genCellNsides,
+			  vector<int> &genCellNodes) const ;
+  virtual void getGenIds(vector<int> &genids) const ;
+  
+  virtual void getNodalScalar(string varname, vector<float> &vals) const ;
+  virtual void getNodalVector(string varname, vector<vector3d<float> > &vals) const ;
+  virtual void getNodalIblank(vector<unsigned char> &blank) const ;
+} ;
+
 class volumePart : public volumePartBase {
   string directory ;
   string topoFile ;
@@ -932,6 +967,43 @@ class surfacePartBase : public Loci::CPTR_type {
 } ;
 typedef Loci::CPTR<surfacePartBase> surfacePartP ;
 
+class surfacePartDerivedVars : public surfacePartBase {
+  surfacePartP shadowPart ;
+  enum derivedVar_t { VAR_M, VAR_P, VAR_logp, VAR_U, VAR_0, VAR_1, VAR_2,
+		      VAR_X, VAR_Y, VAR_Z } ;
+  map<string,derivedVar_t> derivedVars ;
+  float Pambient ;
+  void processDerivedVars(const vector<string> &vars) ;
+ public:
+  surfacePartDerivedVars() { error = true ; shadowPart=0;} 
+  surfacePartDerivedVars(surfacePartP part, string output_dir,
+			 string casename ,
+			 string iteration, 
+			 vector<string> vars) ;
+  virtual bool hasNodalScalarVar(string var) const ;
+  virtual bool hasNodalVectorVar(string var) const ;
+  virtual bool hasElementScalarVar(string var) const ;
+  virtual bool hasElementVectorVar(string var) const ;
+  virtual vector<string> getNodalScalarVars() const ;
+  virtual vector<string> getNodalVectorVars() const ;
+  virtual vector<string> getElementScalarVars() const ;
+  virtual vector<string> getElementVectorVars() const ;
+  
+  virtual void getQuads(vector<Array<int,4> > &quads) const ;
+  virtual void getTrias(vector<Array<int,3> > &trias) const ;
+  virtual void getGenf(vector<int> &numGenFnodes, vector<int> &genNodes) const ;
+  virtual void getPos(vector<vector3d<float> > &pos) const ;
+  virtual void getNodalScalar(string varname, vector<float> &vals) const ;
+  virtual void getNodalVector(string varname, vector<vector3d<float> > &vals) const ;
+  virtual void getElementScalar(string varname, vector<float> &qvals,
+				vector<float> &tvals, 
+				vector<float> &gvals) const ;
+  virtual void getElementVector(string varname, vector<vector3d<float> > &qvals,
+				vector<vector3d<float> > &tvals,
+				vector<vector3d<float> > &gvals) const ;
+} ;
+    
+      
 class surfacePart : public surfacePartBase {
   string directory ;
   string topoFile ;
