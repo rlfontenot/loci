@@ -1017,6 +1017,7 @@ class surfacePart : public surfacePartBase {
   vector<int> quad_ord ;
   vector<int> tri_ord ;
   vector<int> gen_ord ;
+  entitySet quadSet,triSet,genSet ;
  public:
   surfacePart() {error = true ;}
   surfacePart(string name, string directory, string iteration,

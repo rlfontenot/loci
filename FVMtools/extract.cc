@@ -220,7 +220,7 @@ volumePart::volumePart(string out_dir, string iteration, string casename,
 
   string iblankname = out_dir+"/grid_iblank." + iteration + "_" + casename ;
   struct stat tmpstat ;
-  bool has_iblank = false ;
+  has_iblank = false ;
   if(stat(iblankname.c_str(),&tmpstat)== 0) {
     file_id = Loci::hdf5OpenFile(iblankname.c_str(),
                                        H5F_ACC_RDONLY,
@@ -1192,6 +1192,12 @@ surfacePart::surfacePart(string name, string dir, string iteration,
   nquads = sizeElementType(file_id,"quads") ;
   ntrias = sizeElementType(file_id,"triangles") ;
   
+  if(nquads > 0)
+    quadSet = interval(0,nquads-1) ;
+  if(ntrias > 0)
+    triSet = interval(0,ntrias-1) ;
+  if(ngenf > 0)
+    genSet = interval(0,ngenf-1) ;
   
   Loci::hdf5CloseFile(file_id) ;
   bool has_element_data = false ;
@@ -1256,7 +1262,17 @@ surfacePart::surfacePart(string name, string dir, string iteration,
 	Loci::hdf5CloseFile(file_id) ;
       }
     }
-      
+  }
+  vector<unsigned char> iblank ;
+  string iblank_file = dir +"/iblank."+iteration ;
+  file_id = Loci::hdf5OpenFile(iblank_file.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT);
+  if(file_id >=0) {
+    vector<unsigned char> tmp(nquads+ntrias+ngenf) ;
+    iblank.swap(tmp) ;
+    readElementType(file_id,"data",iblank) ;
+    Loci::hdf5CloseFile(file_id) ;
+    for(size_t i=0;i<iblank.size();++i)
+      has_element_data = (iblank[i] > 1) || has_element_data ;
   }
   if(has_element_data) {
     file_id = Loci::hdf5OpenFile(topoFile.c_str(),
@@ -1280,7 +1296,24 @@ surfacePart::surfacePart(string name, string dir, string iteration,
       gen_ord.swap(tmp) ;
     }
     Loci::hdf5CloseFile(file_id) ;
-    
+    if(iblank.size() > 0) {
+      // compute iblanked set
+      quadSet = EMPTY ;
+      for(int i=0;i<nquads;++i)
+        if(iblank[quad_ord[i]] < 2)
+          quadSet += i ;
+      nquads = quadSet.size() ;
+      triSet = EMPTY ;
+      for(int i=0;i<ntrias;++i)
+        if(iblank[tri_ord[i]] < 2)
+          triSet += i ;
+      ntrias = triSet.size() ;
+      genSet = EMPTY ;
+      for(int i=0;i<ngenf;++i)
+        if(iblank[gen_ord[i]] < 2)
+          genSet += i ;
+      ngenf = genSet.size() ;
+    }
   }
     
   error = false ;
@@ -1342,9 +1375,16 @@ void surfacePart::getQuads(vector<Array<int,4> > &quads) const {
 				       H5F_ACC_RDONLY,
 				       H5P_DEFAULT) ;
     if(file_id < 0) return ;
-    vector<Array<int,4> > tmp(nquads) ;
+    int nq = sizeElementType(file_id,"quads") ;
+
+    vector<Array<int,4> > tmp(nq) ;
     readElementType(file_id,"quads",tmp) ;
-    quads.swap(tmp) ;
+    quads.resize(nquads) ;
+    int cnt = 0 ;
+    FORALL(quadSet,ii) {
+      quads[cnt] = tmp[ii] ;
+      cnt++ ;
+    } ENDFORALL ;
     Loci::hdf5CloseFile(file_id) ;
   }
 }
@@ -1356,9 +1396,15 @@ void surfacePart::getTrias(vector<Array<int,3> > &trias) const {
 				       H5F_ACC_RDONLY,
 				       H5P_DEFAULT) ;
     if(file_id < 0) return ;
-    vector<Array<int,3> > tmp(ntrias) ;
+    int nt = sizeElementType(file_id,"triangles") ;
+    vector<Array<int,3> > tmp(nt) ;
     readElementType(file_id,"triangles",tmp) ;
-    trias.swap(tmp) ;
+    trias.resize(ntrias) ;
+    int cnt = 0 ;
+    FORALL(triSet,ii) {
+      trias[cnt] = tmp[ii] ;
+      cnt++ ;
+    } ENDFORALL ;
     Loci::hdf5CloseFile(file_id) ;
   }
 }
@@ -1372,14 +1418,23 @@ void surfacePart::getGenf(vector<int> &numGenFnodes, vector<int> &genNodes) cons
 				       H5P_DEFAULT) ;
     if(file_id < 0) return ;
 
-    vector<int> tmp(ngenf) ;
+    int ng = sizeElementType(file_id,"nside_sizes") ;
+    vector<int> tmp(ng) ;
     readElementType(file_id,"nside_sizes",tmp) ;
-    numGenFnodes.swap(tmp) ;
 
     int nsz = sizeElementType(file_id,"nside_nodes") ;
     vector<int> tmp2(nsz) ;
     readElementType(file_id,"nside_nodes",tmp2) ;
-    genNodes.swap(tmp2) ;
+
+    vector<int> sum(ng) ;
+    sum[0] = 0 ;
+    for(int i=1;i<ng;++i)
+      sum[i] = sum[i-1]+tmp[i-1] ;
+    FORALL(genSet,ii) {
+      numGenFnodes.push_back(tmp[ii]) ;
+      for(int i=0;i<tmp[ii];++i)
+        genNodes.push_back(tmp2[sum[ii]+i]) ;
+    } ENDFORALL ;
     Loci::hdf5CloseFile(file_id) ;
   }
 }
@@ -1447,15 +1502,24 @@ void surfacePart::getElementScalar(string varname,
 				     H5P_DEFAULT) ;
 
   if(file_id < 0) return ;
-  vector<float> vals(nquads+ntrias+ngenf) ;
+  vector<float> vals(quad_ord.size()+tri_ord.size()+gen_ord.size()) ;
   readElementType(file_id,"data",vals) ;
   Loci::hdf5CloseFile(file_id) ;
-  for(int i=0;i<nquads;++i)
-    qvals[i] = vals[quad_ord[i]] ;
-  for(int i=0;i<ntrias;++i) 
-    tvals[i] = vals[tri_ord[i]] ;
-  for(int i=0;i<ngenf;++i)
-    gvals[i] = vals[gen_ord[i]] ;
+  int i=0 ;
+  FORALL(quadSet,ii) {
+    qvals[i] = vals[quad_ord[ii]] ;
+    i++ ;
+  } ENDFORALL ;
+  i=0; 
+  FORALL(triSet,ii) {
+    tvals[i] = vals[tri_ord[ii]] ;
+    i++ ;
+  } ENDFORALL ;
+  i=0;
+  FORALL(genSet,ii) {
+    gvals[i] = vals[gen_ord[ii]] ;
+    i++ ;
+  } ENDFORALL ;
 }
 
 void surfacePart::getElementVector(string varname,
@@ -1475,15 +1539,24 @@ void surfacePart::getElementVector(string varname,
 				     H5P_DEFAULT) ;
 
   if(file_id < 0) return ;
-  vector<vector3d<float> > vals(nquads+ntrias+ngenf) ;
+  vector<vector3d<float> > vals(quad_ord.size()+tri_ord.size()+gen_ord.size()) ;
   readElementType(file_id,"data",vals) ;
   Loci::hdf5CloseFile(file_id) ;
-  for(int i=0;i<nquads;++i)
-    qvals[i] = vals[quad_ord[i]] ;
-  for(int i=0;i<ntrias;++i)
-    tvals[i] = vals[tri_ord[i]] ;
-  for(int i=0;i<ngenf;++i)
-    gvals[i] = vals[gen_ord[i]] ;
+  int i=0 ;
+  FORALL(quadSet,ii) {
+    qvals[i] = vals[quad_ord[ii]] ;
+    i++ ;
+  } ENDFORALL ;
+  i=0; 
+  FORALL(triSet,ii) {
+    tvals[i] = vals[tri_ord[ii]] ;
+    i++ ;
+  } ENDFORALL ;
+  i=0;
+  FORALL(genSet,ii) {
+    gvals[i] = vals[gen_ord[ii]] ;
+    i++ ;
+  } ENDFORALL ;
 }
 //----
 void surfacePartDerivedVars::processDerivedVars(const vector<string> &vars) {
@@ -3495,6 +3568,7 @@ void extractVolumeSurfaces(vector<surfacePartP> &volSurface,
 
     vector<unsigned char> iblank ;
     vp->getNodalIblank(iblank) ;
+
     if(iblank.size() > 0) {
       int cnt = 0 ;
       for(size_t i=0;i<ntrias;++i) {
