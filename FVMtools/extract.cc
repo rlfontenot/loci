@@ -4256,13 +4256,7 @@ int main(int ac, char *av[]) {
   string filename = getTopoFileName(output_dir, casename, iteration) ;
   struct stat tmpstat ;
   string posfile = getPosFile(output_dir,iteration,casename) ;
-  //  cout << "posfile = " << posfile << endl ;
-  if(stat(filename.c_str(),&tmpstat)!= 0 ||
-     stat(posfile.c_str(),&tmpstat) != 0) {
-    cerr << "Warning, no grid topology information.  Will attempt to generate!"
-         << endl ;
-    setup_grid_topology(casename,iteration) ;
-  }
+
   bool timesyncerror = false ;
   if(stat(filename.c_str(),&tmpstat)==0) {
     struct stat gridstat ;
@@ -4521,6 +4515,13 @@ int main(int ac, char *av[]) {
     exit(0) ;
   } 
 
+  //  cout << "posfile = " << posfile << endl ;
+  if(stat(filename.c_str(),&tmpstat)!= 0 ||
+     stat(posfile.c_str(),&tmpstat) != 0) {
+    cerr << "Warning, no grid topology information.  Generating from vog file."
+         << endl ;
+    setup_grid_topology(casename,iteration) ;
+  }
 
   // process grid topology
   grid_topo_handler *topo_out = 0 ;
