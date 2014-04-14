@@ -11,7 +11,8 @@
 #include <Loci.h>
 #include <sstream>
 #include <vector>
-
+#include <sstream>
+using std::istringstream ;
 using std::vector ;
 using std::pair ;
 using std::cout ;
@@ -21,7 +22,7 @@ using std::cerr ;
 typedef int int32;
 typedef long int int64;
 
-int readNodeis( double parentID,
+int64 readNodeis( double parentID,
                 const char *name, int32** value );
 
 void checkError( int err, double nodeID, string str )
@@ -151,7 +152,7 @@ void readAllData(double const nodeID, char* buffer)
   //is extended data
   
   // Read the rest of the extended data.
-  long long size = getSize(nodeID, true);
+  int64 size = getSize(nodeID, true);
   string type = getType(nodeID);
   char * local_buffer = buffer + type2size(type) * size;
   
@@ -200,7 +201,7 @@ string readNodestr( double parentID,
   ADF_Get_Node_ID(parentID, name, &childID, &err);
   if(err!=-1)return string();//node doesn't exist
   
-  int size = getSize(childID);
+  int64 size = getSize(childID);
   if(size==0) return string();//node exist and size is 0
   
   char value[ADF_FILENAME_LENGTH];
@@ -219,7 +220,7 @@ int readNodefs( double parentID,
   ADF_Get_Node_ID(parentID, name, &nodeID, &err);
   checkError(err, parentID, string("Error in getting node ID of ")+string(name));
 
-  int size = getSize(nodeID);
+  int64 size = getSize(nodeID);
   if(size==0) return 0;
   *value = new float[size];
   readAllData(nodeID, (char*)(*value));
@@ -227,7 +228,7 @@ int readNodefs( double parentID,
 }
 
 
-int readNodeis( double parentID,
+int64 readNodeis( double parentID,
                 const char *name, int32** value )
 {
   double nodeID;
@@ -236,7 +237,7 @@ int readNodeis( double parentID,
   ADF_Get_Node_ID(parentID, name, &nodeID, &err);
   checkError(err, parentID, string("Error in getting node ID of ")+string(name));
  
-  int size = getSize(nodeID);
+  int64 size = getSize(nodeID);
   if(size==0) return 0;
   *value = new int32[size];
   readAllData(nodeID, (char*)(*value));
@@ -253,7 +254,7 @@ int readNodeds( double parentID,
   ADF_Get_Node_ID(parentID, name, &nodeID, &err);
   checkError(err, parentID, string("Error in getting node ID of ")+string(name));
 
-  int size = getSize(nodeID);
+  int64 size = getSize(nodeID);
   if(size==0) return 0;
   *value = new double[size];
   readAllData(nodeID, (char*)(*value));
@@ -394,9 +395,9 @@ void readVertices( double vertices,  store<vector3d<double> >& pos)
 //read in facebased  topology 
 void readMesh(  double topoID,
                 vector<int32* > &allFaces,
-                vector<int> &faceSizes,
+                vector<int64> &faceSizes,
                 vector<int32* > &allFaceCells,
-                vector<int> &faceCellSizes, 
+                vector<int64> &faceCellSizes, 
                 vector<pair<int,string> > &surf_ids)
 {
   int err; 
@@ -423,7 +424,7 @@ void readMesh(  double topoID,
     bzero(nodeName,ADF_NAME_LENGTH) ;
     snprintf(nodeName,ADF_NAME_LENGTH, "/Maps/Map-%d/IdMap", mapIndex);
    
-    int localNumNode = readNodeis(root, nodeName, &vertexMapData);
+    int64 localNumNode = readNodeis(root, nodeName, &vertexMapData);
     if(vertexMapData==0){
       cerr<< " Error reading vertex map " << endl;
       exit(1);
@@ -448,7 +449,7 @@ void readMesh(  double topoID,
     
     bzero(nodeName,ADF_NAME_LENGTH) ;
     snprintf(nodeName,ADF_NAME_LENGTH, "/Maps/Map-%d/IdMap", mapIndex);
-    int localNumCells = readNodeis(root, nodeName, &cellMapData);
+    int64 localNumCells = readNodeis(root, nodeName, &cellMapData);
     
     if(cellMapData==0){
       cerr<< " Error reading vertex map " << endl;
@@ -463,7 +464,7 @@ void readMesh(  double topoID,
   }
   //read in internal faces
   int32* faceData = 0;
-  int localFaceSize = readNodeis(topoID, "InternalFaces/Vertices", &faceData);
+  int64 localFaceSize = readNodeis(topoID, "InternalFaces/Vertices", &faceData);
   faceSizes.push_back(localFaceSize);
   if(!isLocal){
     //map vertices data
@@ -528,7 +529,7 @@ void readMesh(  double topoID,
       allFaces.push_back(bfaceData);
     
       int32* bfaceCellData = 0;
-      int numFaces = readNodeis(bfaceID, "Cells", &bfaceCellData);
+      int64 numFaces = readNodeis(bfaceID, "Cells", &bfaceCellData);
       faceCellSizes.push_back(2*numFaces);
       if(!isLocal){
         //map cell data
@@ -634,11 +635,79 @@ void getMeshID(double processorID, double* verticesID, double* topoID){
 //facemap is not read, assume no duplicate faces between processors
 int main( int argc, char *argv[])
 {
+  bool optimize = true ;
+  Loci::Init(&argc,&argv) ;//Loci initialize
+
   if(Loci::MPI_processes > 1){
     cerr<<"ccm2vog can not run in parallel at present" << endl;
     exit(1);
   }
+  string Lref = "NOSCALE" ;
     
+  while(argc>=2 && argv[1][0] == '-') {
+    // If user specifies an alternate query, extract it from the
+    // command line.
+    if(argc >= 3 && !strcmp(argv[1],"-Lref")) {
+      Lref = argv[2] ;
+      argc -= 2 ;
+      argv += 2 ;
+    } else if(argc >= 2 && !strcmp(argv[1],"-v")) {
+      cout << "Loci version: " << Loci::version() << endl ;
+      if(argc == 2) {
+        Loci::Finalize() ;
+        exit(0) ;
+      }
+      argc-- ;
+      argv++ ;
+    } else if(argc >= 2 && !strcmp(argv[1],"-o")) {
+      optimize = false ;
+      argc-- ;
+      argv++ ;
+    } else if(argc >= 2 && !strcmp(argv[1],"-in")) {
+      Lref = "1 inch" ;
+      argc-- ;
+      argv++ ;
+    } else if(argc >= 2 && !strcmp(argv[1],"-ft")) {
+      Lref = "1 foot" ;
+      argc-- ;
+      argv++ ;
+    } else if(argc >= 2 && !strcmp(argv[1],"-cm")) {
+      Lref = "1 centimeter" ;
+      argc-- ;
+      argv++ ;
+    } else if(argc >= 2 && !strcmp(argv[1],"-m")) {
+      Lref = "1 meter" ;
+      argc-- ;
+      argv++ ;
+    } else if(argc >= 2 && !strcmp(argv[1],"-mm")) {
+      Lref = "1 millimeter" ;
+      argc-- ;
+      argv++ ;
+    } else {
+      cerr << "argument " << argv[1] << " is not understood." << endl ;
+      argc-- ;
+      argv++ ;
+    }
+  }
+  
+  if(Lref == "NOSCALE") {
+    cerr << "Must set grid units!" << endl
+         << "Use options -in, -ft, -cm, -m, or -Lref to set grid units." << endl ;
+    exit(-1) ;
+  }
+
+  if(Lref == "")
+    Lref = "1 meter" ;
+  
+  if(!isdigit(Lref[0])) {
+    Lref = string("1") + Lref ;
+  }
+
+  Loci::UNIT_type tp ;
+  istringstream iss(Lref) ;
+  iss >> tp ;
+  double posScale = tp.get_value_in("meter") ;
+  
   if (argc < 2 || argc > 3){
     cerr << "Usage: ccm2vog input.ccm[g] [output.vog]"<<endl;
     exit(1);
@@ -658,7 +727,17 @@ int main( int argc, char *argv[])
     }
     case_name = infile.substr(0, p);
   }else{
-    cerr << "Usage: ccm2vog input.ccm[g] [output.vog]"<<endl;
+    cerr << "Usage: ccm2vog [options] input.ccm[g] [output.vog]"<<endl
+         << "options:" << endl
+         << "  -o  : disable optimization that reorders nodes and faces" << endl
+         << "  -v  : display version" << endl
+         << "  -in : input grid is in inches" << endl
+         << "  -ft : input grid is in feet" << endl
+         << "  -cm : input grid is in centimeters" << endl
+         << "  -m  : input grid is in meters" << endl
+         << "  -Lref <units> : 1 unit in input grid is <units> long" << endl
+         << endl ;
+
     exit(1); 
   }
   
@@ -668,9 +747,11 @@ int main( int argc, char *argv[])
   
 
  
-  bool optimize = true ;
-  Loci::Init(&argc,&argv) ;//Loci initialize
-  
+  if(string(argv[1]) == string("-o")) {
+    optimize = false ;
+    argv++ ;
+    argc-- ;
+  }
   //Loci data structures
   store<vector3d<double> > pos;
   Map cl, cr;
@@ -723,7 +804,7 @@ int main( int argc, char *argv[])
   
   //go through all processors, compute total number of nodes
   int totalNumNode = 0;
-  for(unsigned int i = 0; i < processorIDs.size(); i++){
+  for(size_t i = 0; i < processorIDs.size(); i++){
     double verticesID;
     getMeshID(processorIDs[i], &verticesID, NULL);  
     totalNumNode += getNumNodes(verticesID);
@@ -733,16 +814,19 @@ int main( int argc, char *argv[])
   //allocate pos read pos, pos always use local number
   entitySet nodes = interval(0, totalNumNode-1);
   pos.allocate(nodes);
-  for(unsigned int i = 0; i < processorIDs.size(); i++){
+  for(size_t i = 0; i < processorIDs.size(); i++){
     double verticesID;
     getMeshID(processorIDs[i], &verticesID, NULL);  
     readVertices(verticesID, pos);
   }
-  
+
+  FORALL(nodes,nn) {
+    pos[nn] *= posScale ;
+  } ENDFORALL ;
   
   //go through all processors, compute total number of faces
   int totalNumFace = 0;
-  for(unsigned int i = 0; i < processorIDs.size(); i++){
+  for(size_t i = 0; i < processorIDs.size(); i++){
     double topoID;
     getMeshID(processorIDs[i], NULL, &topoID);  
     totalNumFace += getNumFaces(topoID);
@@ -760,11 +844,11 @@ int main( int argc, char *argv[])
   //read in all face info, the vertices and cell indexes will be
   //mapped to local numbering is they are not local
   vector<int32*> allFaces;
-  vector<int> faceSizes;
+  vector<int64> faceSizes;
   vector<int32*> allFaceCells;
-  vector<int32> faceCellSizes;
+  vector<int64> faceCellSizes;
   vector<pair<int,string> > surf_ids;
-  for(unsigned int i = 0; i < processorIDs.size(); i++){
+  for(size_t i = 0; i < processorIDs.size(); i++){
     double topoID;
     getMeshID(processorIDs[i], NULL, &topoID);  
     readMesh( topoID,
@@ -781,7 +865,7 @@ int main( int argc, char *argv[])
   //put face info into maps
   entitySet::const_iterator ei = facesSet.begin();
   
-  for(unsigned int fid = 0; fid < allFaces.size(); fid++){
+  for(size_t fid = 0; fid < allFaces.size(); fid++){
     int pointer = 0;
    
     while(pointer < faceSizes[fid])
@@ -797,7 +881,7 @@ int main( int argc, char *argv[])
   
   
   ei = facesSet.begin();
-  for(unsigned int fid = 0; fid < allFaces.size(); fid++){
+  for(size_t fid = 0; fid < allFaces.size(); fid++){
     int pointer = 0;
     while(pointer < faceSizes[fid]){
       for(int  i = 0; i < facecount[*ei]; i++){
@@ -810,8 +894,8 @@ int main( int argc, char *argv[])
   }
  
   ei = facesSet.begin();
-  for(unsigned int fid = 0; fid < allFaces.size(); fid++){
-    int pointer = 0;
+  for(size_t fid = 0; fid < allFaces.size(); fid++){
+    int64 pointer = 0;
     while(pointer < faceCellSizes[fid]){
       cl[*ei] = allFaceCells[fid][pointer];
       cr[*ei] = allFaceCells[fid][pointer+1];
@@ -823,8 +907,8 @@ int main( int argc, char *argv[])
   }
   
   //release memory
-  for(unsigned int fid = 0; fid < allFaces.size(); fid++)delete [] allFaces[fid];
-  for(unsigned int fid = 0; fid < allFaceCells.size(); fid++)delete [] allFaceCells[fid];
+  for(size_t fid = 0; fid < allFaces.size(); fid++)delete [] allFaces[fid];
+  for(size_t fid = 0; fid < allFaceCells.size(); fid++)delete [] allFaceCells[fid];
   
   entitySet cellSet = cl.image(facesSet)+cr.image(facesSet);
     
