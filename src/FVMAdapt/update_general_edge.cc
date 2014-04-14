@@ -214,7 +214,7 @@ public:
                 
         //define new edgeID and push the children into Q
         //put edgecenter into pointSet if necessary
-        int newID[4];
+        int newID[4] = {-1,-1,-1,-1} ;
         //define the 4 children  
         TwoEdge child[4];
 
