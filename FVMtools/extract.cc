@@ -4457,7 +4457,7 @@ int main(int ac, char *av[]) {
     }
     volumePartP vp = 0 ;
     if(postprocessor->processesVolumeElements()) {
-      string testfile = output_dir + "/topo_file." + iteration +"_" + casename ;
+      string testfile = getTopoFileName(output_dir, casename, iteration) ;
       struct stat tmpstat ;
       cout << "checking " << testfile << endl ;
       if(stat(testfile.c_str(),&tmpstat)==0) {
