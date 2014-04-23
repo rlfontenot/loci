@@ -553,9 +553,13 @@ struct affineMapping {
   vector3d<float> MapNode(vector3d<float> v) ;
 };
 
+
+template <int T>
+     static bool arrLessThan(Array<int,T> arr1, Array<int,T> arr2) ;   // Used for sorting and searching through the Array datatype
+
 class cuttingplane_topo_handler : public grid_topo_handler {
-  template <int T>
-    static bool arrLessThan(Array<int,T> arr1, Array<int,T> arr2) ;   // Used for sorting and searching through the Array datatype
+   
+  
   bool registerFace(int faceNode[], int nNodes, int cellNum) ;        // Finds cuts in the face and registers them into the vector of intersections
   void disambiguateFace(int faceNode[], int nNodes, int cellNum) ;     // Cuts a nonplanar face into planar triangles and sends each to registerFace()
   void checkLoop(int start, int end) ;     // Walks around the loop made by a cut cell and handles any double loops or errors
@@ -631,6 +635,50 @@ public:
   virtual void output_particle_vector(vector3d<float> val[], size_t np,
                                       size_t maxp, string valname) {}
 } ;
+
+//this class that will handle the cuttingplane computing
+class cuttingplane {
+ 
+  bool registerFace(int faceNode[], int nNodes, int cellNum) ;        // Finds cuts in the face and registers them into the vector of intersections
+  void disambiguateFace(int faceNode[], int nNodes, int cellNum) ;     // Cuts a nonplanar face into planar triangles and sends each to registerFace()
+  void checkLoop(int start, int end) ;     // Walks around the loop made by a cut cell and handles any double loops or errors
+  int cellCount ;                          // Used to offset cell numbers to ensure unique numbering
+  int numDisFaces ;                        // Total number of faces disambiguated
+  int searchNodeMap(Array<int,2> arr1) ;   // Finds node arr1 in nodeMap and returns index
+  vector<vector3d<float> > nodes ;         // Copy of all nodes and 3d coordinates
+  vector<vector<float> > nodeVal ;         // Stores scalar property values for each node
+  vector<string> variables;                // Stores property names in strings
+  string strIter;                          // Stores iteration number
+  vector<Array<int,5> > intersects ;       // List of all edges formed from plane intersection
+  map<int, int> cellMap ;                  // Maps old 3d cell numbers to the new smaller set of 2d cells
+  vector<Array<int,2> > nodeMap ;          // Maps old 3d node numbers to the new smaller set of 2d nodes
+  list<vector<int> > disambiguatedFaces ;  // Stores all unmatched previously disambiguated faces and corresponding fabricated nodes
+  list<vector<int> > resolvedFace;         // Stores all matched disambiguated faces
+  affineMapping transMatrix ;              // Transformation matrix that transforms the grid topology to the desired position
+  int tetsCut, prsmCut, pyrmCut, hexsCut, genCut ;
+public:
+  cuttingplane(const affineMapping &transformMatrix,
+               const float& xShift, const float& yShift, const float& zShift, const string& iteration);
+  virtual ~cuttingplane() {}
+  virtual void close();
+  virtual  void create_mesh_positions(const vector<vector3d<float> >& pos) ;
+  virtual  void transform_mesh_positions(); 
+  virtual void write_tets(const vector<Array<int,4> >& tets);
+  virtual void write_pyrm(const vector<Array<int,5> >& pyrm);
+  virtual void write_prsm(const vector<Array<int,6> >& prsm);
+  virtual void write_hexs(const vector<Array<int,8> >& hexs);
+  virtual void write_general_cell(const vector<int>& nfaces,
+                                  const vector<int>& nsides,
+                                  const vector<int>& nodes);
+ 
+  virtual void output_nodal_scalar(const vector<float>& val, string valname) ;
+ 
+} ;
+
+
+
+
+
 
 void get_2dgv(string casename, string iteration,
               vector<string> variables,

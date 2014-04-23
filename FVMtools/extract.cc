@@ -4374,32 +4374,25 @@ int main(int ac, char *av[]) {
     postprocessor = new ensightPartConverter ;
     break ;
   case FIELDVIEW:
-    // uncomment when implemented
-    //postprocessor = new fieldViewPartConverter ;
+     postprocessor = new fieldViewPartConverter ;
     break ;
   case TECPLOT:
-    // uncomment when implemented
-    //postprocessor = new tecplotPartConverter ;
+    postprocessor = new tecplotPartConverter ;
     break ;
   case VTK:
-    // uncomment when implemented
-    //postprocessor = new vtkPartConverter(false) ;
+    postprocessor = new vtkPartConverter(false) ;
     break ;
   case VTK_SURFACE:
-    // uncomment when implemented
-    //postprocessor = new vtkSurfacePartConverter(false) ;
+    postprocessor = new vtkSurfacePartConverter(false) ;
     break ;
   case VTK64:
-    // uncomment when implemented
-    //postprocessor = new vtkPartConverter(true) ;
+    postprocessor = new vtkPartConverter(true) ;
     break ;
   case VTK_SURFACE64:
-    // uncomment when implemented
-    //postprocessor = new vtkSurfacePartConverter(true) ;
+    postprocessor = new vtkSurfacePartConverter(true) ;
     break ;
   case CUTTINGPLANE:
-    // uncomment when implemented
-    //postprocessor = new cuttingPlanePartConverter(transformMatrix, -xShift, -yShift, -zShift) ;
+    postprocessor = new cuttingPlanePartConverter(transformMatrix, -xShift, -yShift, -zShift) ;
     break ;
   default:
     cerr << "Unknown export method!" << endl ;
