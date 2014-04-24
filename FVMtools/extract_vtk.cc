@@ -44,602 +44,6 @@ using std::ios ;
 
 using namespace std ;
 
-void vtk_topo_handler::open(string casename, string iteration ,size_t inpnts,
-                            size_t intets, size_t inprsm, size_t inpyrm,
-                            size_t inhexs, size_t ingen,
-                            const vector<string> &bc_names,
-                            const vector<string> &variables,
-                            const vector<int> &variable_types,
-                            double time) {
-  npnts = inpnts ;
-  ntets = intets ;
-  nprsm = inprsm ;
-  npyrm = inpyrm ;
-  nhexs = inhexs ;
-  ngen = ingen ;
-  nvars = 0 ;
-  if (is_64bit) filename = "vtk64_"+casename+"_"+iteration+".vtu" ;
-  else filename = "vtk_"+casename+"_"+iteration+".vtu" ;
-  long long unsigned int ncells = ntets+nprsm+npyrm+nhexs+ngen;
-  for(size_t i=0;i<variables.size();++i) {
-    if(variable_types[i] == NODAL_SCALAR ||
-       variable_types[i] == NODAL_DERIVED ||
-       variable_types[i] == NODAL_MASSFRACTION) {
-      nvars++ ;
-    } else if(variable_types[i] == NODAL_VECTOR) {
-      nvars += 3;
-    } else {
-      cerr << "Variable type for " << variables[i] << " is not currently supported by vtk extractor" << endl ;
-    }
-  }
-  data_store = new float[nvars * npnts];
-  FILE * fid = fopen(filename.c_str(), "w"); 
-  fprintf(fid,"<?xml version='1.0'?>\n");
-  if (is_64bit) fprintf(fid,"<VTKFile type='UnstructuredGrid' version='1.0' byte_order='LittleEndian' header_type='UInt64'>\n");
-  else fprintf(fid,"<VTKFile type='UnstructuredGrid' version='0.1' byte_order='LittleEndian'>\n");
-  fprintf(fid,"  <UnstructuredGrid>\n");
-  fprintf(fid,"    <Piece NumberOfPoints='%llu' NumberOfCells='%llu'>\n",npnts,ncells);
-  fprintf(fid,"      <Points>\n");
-  fprintf(fid,"        <DataArray type='Float32' Name='Position' NumberOfComponents='3' format='appended' offset='%llu'/>\n",Offset);
-  fprintf(fid,"      </Points>\n");
-  Offset += 3 * npnts * sizeof(float) + int_size ;
-  fclose(fid);
-}
-void vtk_topo_handler::close_mesh_elements() {
-  unsigned int ncells = ntets+nprsm+npyrm+nhexs+ngen;
-  FILE * fid = fopen(filename.c_str(),"a");
-  fprintf(fid,"      <Cells>\n");
-  fprintf(fid,"        <DataArray type='Int32' Name='connectivity' NumberOfComponents='1' format='appended' offset='%llu'/>\n",Offset);
-  Offset += off * sizeof (int) + int_size ;
-  fprintf(fid,"        <DataArray type='Int32' Name='offsets' NumberOfComponents='1' format='appended' offset='%llu'/>\n",Offset);
-  Offset += ncells * sizeof (int) + int_size ;
-  fprintf(fid,"        <DataArray type='UInt8' Name='types' NumberOfComponents='1' format='appended' offset='%llu'/>\n",Offset);
-  Offset += ncells * sizeof (unsigned char) + int_size ;
-  if (ngen) { // include faces and faceoffsets
-    fprintf(fid,"        <DataArray type='Int32' Name='faces' NumberOfComponents='1' format='appended' offset='%llu'/>\n",Offset);
-    Offset += (long long unsigned int) cell_faces.size() * sizeof (int) + int_size ;
-    fprintf(fid,"        <DataArray type='Int32' Name='faceoffsets' NumberOfComponents='1' format='appended' offset='%llu'/>\n",Offset);
-    Offset += (long long unsigned int) face_offsets.size() * sizeof (int) + int_size ;
-  }
-  fprintf(fid,"      </Cells>\n");
-  fprintf(fid,"      <PointData>\n");
-  fclose(fid);
-}
-
-void vtk_topo_handler::close() {
-  /*
-    cout << "Int:                    " << std::numeric_limits<int>::max() << endl;
-    cout << "Unsigned Int:           " << std::numeric_limits<unsigned int>::max() << endl;
-    cout << "Long Long Unsigned Int: " << std::numeric_limits<long long unsigned int>::max() << endl;
-  */
-  FILE * fid = fopen(filename.c_str(),"a");
-  fprintf(fid,"      </PointData>\n");
-  fprintf(fid,"    </Piece>\n");
-  fprintf(fid,"  </UnstructuredGrid>\n");
-  fprintf(fid,"  <AppendedData encoding='raw'>\n");
-  fprintf(fid,"_");
-  long long unsigned int Scalar = npnts * sizeof (float), Vector = 3 * Scalar;
-  long long unsigned int Cells = (long long unsigned int) cell_types.size() * sizeof(int);
-  long long unsigned int CellChars = (long long unsigned int) cell_types.size() * sizeof(unsigned char);
-  long long unsigned int Conn = (long long unsigned int) conn.size() * sizeof(int);
-  if (!is_64bit) {
-    if ( Scalar > std::numeric_limits<unsigned int>::max()) { cerr << "Dataset too large. Must use -vtk64 and Paraview 3.98." << endl; exit(1); }
-    if ( Vector > std::numeric_limits<unsigned int>::max()) { cerr << "Dataset too large. Must use -vtk64 and Paraview 3.98." << endl; exit(1); }
-    if ( Cells > std::numeric_limits<unsigned int>::max()) { cerr << "Dataset too large. Must use -vtk64 and Paraview 3.98." << endl; exit(1); }
-    if ( Conn > std::numeric_limits<unsigned int>::max()) { cerr << "Dataset too large. Must use -vtk64 and Paraview 3.98." << endl; exit(1); }
-  }
-  fwrite((const char *) (&Vector), int_size, 1, fid) ;
-  fwrite((const char *) (&pos[0]), sizeof (float), 3 * npnts, fid) ;
-  if (pos) delete [] pos ;
-  fwrite((const char *) (&Conn), int_size, 1, fid) ;
-  fwrite((const char *) &conn[0], sizeof (int), (long long unsigned int) conn.size(), fid) ;
-  vector<int>().swap(conn) ;
-  fwrite((const char *) (&Cells), int_size, 1, fid) ;
-  fwrite((const char *) &cell_offsets[0], sizeof (int), (long long unsigned int) cell_offsets.size(), fid) ;
-  vector<int>().swap(cell_offsets) ;
-  fwrite((const char *) (&CellChars), int_size, 1, fid) ;
-  fwrite((const char *) &cell_types[0], sizeof (unsigned char), (long long unsigned int) cell_types.size(), fid) ;
-  vector<unsigned char>().swap(cell_types) ;
-  if (ngen) {
-    long long unsigned int Faces = (long long unsigned int) cell_faces.size() * sizeof(int) ;
-    long long unsigned int FaceConn = (long long unsigned int) face_offsets.size() * sizeof(int) ;
-    if (!is_64bit) {
-      if ( Faces > std::numeric_limits<unsigned int>::max()) { cerr << "Dataset too large. Must use -vtk64 and Paraview 3.98." << endl; exit(1); }
-      if ( FaceConn > std::numeric_limits<unsigned int>::max()) { cerr << "Dataset too large. Must use -vtk64 and Paraview 3.98." << endl; exit(1); }
-    }
-    fwrite((const char *) (&Faces), int_size, 1, fid) ;
-    fwrite((const char *) &cell_faces[0], sizeof (int), (long long unsigned int) cell_faces.size(), fid) ;
-    fwrite((const char *) (&FaceConn), int_size, 1, fid) ;
-    fwrite((const char *) &face_offsets[0], sizeof (int), (long long unsigned int) face_offsets.size(), fid) ;
-  }
-  long long unsigned int curr_loc = 0;
-  for (long long unsigned int i=0;i<(long long unsigned int)data_size.size();i++) {
-    long long unsigned int ndata = data_size[i], ndata_size = ndata * sizeof (float); 
-    if (!is_64bit) {
-      if ( ndata_size > std::numeric_limits<unsigned int>::max()) { cerr << "Dataset too large. Must use -vtk64 and Paraview 3.98." << endl; exit(1); }
-    }
-    fwrite((const char *) (&ndata_size), int_size, 1, fid) ;
-    fwrite((const char *) (&data_store[curr_loc]), sizeof (float), ndata, fid) ;
-    curr_loc += ndata;
-  }
-  if (data_store) delete [] data_store;
-  vector<int>().swap(data_size);
-  fprintf(fid,"  </AppendedData>\n");
-  fprintf(fid,"</VTKFile>\n");
-  fclose(fid);
-}
-void vtk_topo_handler::create_mesh_positions(vector3d<float> position[], size_t pts) {
-  pos = new float[3*npnts];
-  for(long long unsigned int i=0;i<npnts;++i) {
-    long long unsigned int j=3*i;
-    pos[j]   = position[i].x ;
-    pos[j+1] = position[i].y ;
-    pos[j+2] = position[i].z ;
-  }
-}
-
-void vtk_topo_handler::write_tets(Array<int,4> cells[], size_t ncells, int block, int nblocks, size_t tottets) {
-  unsigned int type = 10 ;
-  unsigned char ctype = (unsigned char)type ;
-  int nnpc = 4;
-
-  const int nf=4,nnpf[nf]={3,3,3,3};
-  vector< vector<int> > ff(nf);
-  for (int i=0;i<nf;i++) ff[i].resize(nnpf[i]);
-  ff[0][0] = 0; ff[0][1] = 1; ff[0][2] = 3;
-  ff[1][0] = 1; ff[1][1] = 2; ff[1][2] = 3;
-  ff[2][0] = 2; ff[2][1] = 0; ff[2][2] = 3;
-  ff[3][0] = 0; ff[3][1] = 2; ff[3][2] = 1;
-
-  if (ngen) {
-    for(size_t i=0;i<ncells;++i) {
-      for (int j=0;j<nnpc;j++) { 
-        int nd = cells[i][j]-1 ;
-        conn.push_back(nd) ;
-        off++ ;
-      }
-      cell_types.push_back(ctype);
-      cell_offsets.push_back(off);
-      
-      cell_faces.push_back(nf); face_off++;
-      for (int j=0;j<nf;j++) {
-        cell_faces.push_back(nnpf[j]); face_off++;
-        for (int k=0;k<nnpf[j];k++) {
-	  int nn = cells[i][ff[j][k]] - 1;
-	  cell_faces.push_back(nn); face_off++;
-	}
-      }
-      face_offsets.push_back(face_off) ;
-    }
-  }
-  else {
-    for(size_t i=0;i<ncells;++i) {
-      for (int j=0;j<nnpc;j++) { 
-        int nd = cells[i][j]-1 ;
-        conn.push_back(nd) ;
-        off++ ;
-      }
-      cell_types.push_back(ctype);
-      cell_offsets.push_back(off);
-    }
-  }
-}
-
-void vtk_topo_handler::write_pyrm(Array<int,5> cells[], size_t ncells, int block, int nblocks, size_t totpyrm) {
-  unsigned int type = 14 ;
-  unsigned char ctype = (unsigned char)type ;
-  int nnpc = 5;
-
-  const int nf=5,nnpf[nf]={4,3,3,3,3};
-  vector< vector<int> > ff(nf);
-  for (int i=0;i<nf;i++) ff[i].resize(nnpf[i]);
-  ff[0][0] = 0; ff[0][1] = 3; ff[0][2] = 2; ff[0][3] = 1;
-  ff[1][0] = 0; ff[1][1] = 1; ff[1][2] = 4;
-  ff[2][0] = 1; ff[2][1] = 2; ff[2][2] = 4;
-  ff[3][0] = 2; ff[3][1] = 3; ff[3][2] = 4;
-  ff[4][0] = 3; ff[4][1] = 0; ff[4][2] = 4; 
-
-  if (ngen) {
-    for(size_t i=0;i<ncells;++i) {
-      for (int j=0;j<nnpc;j++) { 
-        int nd = cells[i][j]-1 ;
-        conn.push_back(nd) ;
-        off++ ;
-      }
-      cell_types.push_back(ctype);
-      cell_offsets.push_back(off);
-      
-      cell_faces.push_back(nf); face_off++;
-      for (int j=0;j<nf;j++) {
-        cell_faces.push_back(nnpf[j]); face_off++;
-        for (int k=0;k<nnpf[j];k++) {
-	  int nn = cells[i][ff[j][k]] - 1;
-	  cell_faces.push_back(nn); face_off++;
-	}
-      }
-      face_offsets.push_back(face_off) ;
-    }
-  }
-  else {
-    for(size_t i=0;i<ncells;++i) {
-      for (int j=0;j<nnpc;j++) { 
-        int nd = cells[i][j]-1 ;
-        conn.push_back(nd) ;
-        off++ ;
-      }
-      cell_types.push_back(ctype);
-      cell_offsets.push_back(off);
-    }
-  }
-}
-
-void vtk_topo_handler::write_prsm(Array<int,6> cells[], size_t ncells, int block, int nblocks, size_t totprsm) {
-  unsigned int type = 13 ;
-  unsigned char ctype = (unsigned char)type ;
-  int nnpc = 6;
-
-  const int nf=5,nnpf[nf]={4,4,4,3,3};
-  vector< vector<int> > ff(nf);
-  for (int i=0;i<nf;i++) ff[i].resize(nnpf[i]);
-  ff[0][0] = 0; ff[0][1] = 2; ff[0][2] = 5; ff[0][3] = 3;
-  ff[1][0] = 2; ff[1][1] = 1; ff[1][2] = 4; ff[1][3] = 5;
-  ff[2][0] = 0; ff[2][1] = 3; ff[2][2] = 4; ff[2][3] = 1;
-  ff[3][0] = 0; ff[3][1] = 1; ff[3][2] = 2;
-  ff[4][0] = 3; ff[4][1] = 5; ff[4][2] = 4; 
-
-  if (ngen) {
-    for(size_t i=0;i<ncells;++i) {
-      for (int j=0;j<nnpc;j++) { 
-        int nd = cells[i][j]-1 ;
-        conn.push_back(nd) ;
-        off++ ;
-      }
-      cell_types.push_back(ctype);
-      cell_offsets.push_back(off);
-      
-      cell_faces.push_back(nf); face_off++;
-      for (int j=0;j<nf;j++) {
-        cell_faces.push_back(nnpf[j]); face_off++;
-        for (int k=0;k<nnpf[j];k++) {
-	  int nn = cells[i][ff[j][k]] - 1;
-	  cell_faces.push_back(nn); face_off++;
-	}
-      }
-      face_offsets.push_back(face_off) ;
-    }
-  }
-  else {
-    for(size_t i=0;i<ncells;++i) {
-      for (int j=0;j<nnpc;j++) { 
-        int nd = cells[i][j]-1 ;
-        conn.push_back(nd) ;
-        off++ ;
-      }
-      cell_types.push_back(ctype);
-      cell_offsets.push_back(off);
-    }
-  }
-}
-
-void vtk_topo_handler::write_hexs(Array<int,8> cells[], size_t ncells, int block, int nblocks, size_t tothexs) {
-  unsigned int type = 12 ;
-  unsigned char ctype = (unsigned char)type ;
-  int nnpc = 8;
-
-  const int nf=6,nnpf[nf]={4,4,4,4,4,4};
-  vector< vector<int> > ff(nf);
-  for (int i=0;i<nf;i++) ff[i].resize(nnpf[i]);
-  ff[0][0] = 0; ff[0][1] = 1; ff[0][2] = 5; ff[0][3] = 4;
-  ff[1][0] = 1; ff[1][1] = 2; ff[1][2] = 6; ff[1][3] = 5;
-  ff[2][0] = 2; ff[2][1] = 3; ff[2][2] = 7; ff[2][3] = 6;
-  ff[3][0] = 3; ff[3][1] = 0; ff[3][2] = 4; ff[3][3] = 7;
-  ff[4][0] = 4; ff[4][1] = 5; ff[4][2] = 6; ff[4][3] = 7;
-  ff[5][0] = 0; ff[5][1] = 3; ff[5][2] = 2; ff[5][3] = 1;
-
-  if (ngen) {
-    for(size_t i=0;i<ncells;++i) {
-      for (int j=0;j<nnpc;j++) { 
-        int nd = cells[i][j]-1 ;
-        conn.push_back(nd) ;
-        off++ ;
-      }
-      cell_types.push_back(ctype);
-      cell_offsets.push_back(off);
-      
-      cell_faces.push_back(nf); face_off++;
-      for (int j=0;j<nf;j++) {
-        cell_faces.push_back(nnpf[j]); face_off++;
-        for (int k=0;k<nnpf[j];k++) {
-	  int nn = cells[i][ff[j][k]] - 1;
-	  cell_faces.push_back(nn); face_off++;
-	}
-      }
-      face_offsets.push_back(face_off) ;
-    }
-  }
-  else {
-    for(size_t i=0;i<ncells;++i) {
-      for (int j=0;j<nnpc;j++) { 
-        int nd = cells[i][j]-1 ;
-        conn.push_back(nd) ;
-        off++ ;
-      }
-      cell_types.push_back(ctype);
-      cell_offsets.push_back(off);
-    }
-  }
-}
-
-void vtk_topo_handler::write_general_cell(int nfaces[], size_t nnfaces,
-                                          int nsides[], size_t nnsides,
-                                          int nodes[], size_t nnodes) {
-  unsigned int type = 42 ;
-  unsigned char ctype = (unsigned char)type ;
-  int face = 0, node = 0 ;
-  vector<int> tmp;
-  
-  for(size_t i=0;i<nnfaces;++i) {
-    int tsz=0,nf = nfaces[i] ;
-    for (int j=0;j<nf;j++) tsz += nsides[face++] ; 
-    tmp.resize(tsz) ; face-=nf ; tsz=0 ;
-    cell_faces.push_back(nf) ; face_off++ ;
-    for (int j=0;j<nf;j++) { 
-      int ne = nsides[face++] ; 
-      cell_faces.push_back(ne) ; face_off++ ;
-      for (int k=0;k<ne;k++) { 
-        int nd = nodes[node++]-1 ;
-	cell_faces.push_back(nd) ; face_off++ ;
-	tmp[tsz++] = nd ;
-      }
-    }
-
-    sort(tmp.begin(),tmp.end()) ;
-    tmp.erase(unique(tmp.begin(),tmp.end()),tmp.end()) ;
-    
-    for (size_t j=0;j<tmp.size();j++) conn.push_back(tmp[j]) ;  
-    off += (long long unsigned int) tmp.size() ;
-    
-    cell_types.push_back(ctype) ;
-    cell_offsets.push_back(off) ;
-    face_offsets.push_back(face_off) ;
-  }
-
-  if (nnodes  != size_t(node)) cerr << "Problem in write_general_cell" << endl ;
-  if (nnsides != size_t(face)) cerr << "Problem in write_general_cell" << endl ;
-}
-
-void vtk_topo_handler::output_nodal_scalar(float val[], size_t npnts,
-                                           string varname) {
-  FILE * fid = fopen(filename.c_str(),"a") ;
-  fprintf(fid,"        <DataArray type='Float32' Name='%s' NumberOfComponents='1' format='appended' offset='%llu'/>\n",varname.c_str(),Offset) ;
-  Offset += (long long unsigned int) npnts * sizeof(float) + int_size ;
-  long long unsigned int ndata = (long long unsigned int) npnts;
-  data_size.push_back(ndata);
-  for(long long unsigned int i = 0; i < (long long unsigned int)npnts; i++) data_store[data_count++] = val[i] ;
-  fclose(fid);
-}
-
-void vtk_topo_handler::output_nodal_vector(vector3d<float> val[],
-                                           size_t npnts, string varname) {
-  FILE * fid = fopen(filename.c_str(),"a");
-  fprintf(fid,"        <DataArray type='Float32' Name='%s' NumberOfComponents='3' format='appended' offset='%llu'/>\n",varname.c_str(),Offset);
-  Offset += 3 * (long long unsigned) npnts * sizeof(float) + int_size ;
-  long long unsigned int vec_size = 3 * (long long unsigned int)npnts;
-  data_size.push_back(vec_size);
-  for(long long unsigned int i = 0; i < (long long unsigned int) npnts; i++) { 
-    data_store[data_count++] = val[i].x ;
-    data_store[data_count++] = val[i].y ;
-    data_store[data_count++] = val[i].z ;
-  }
-  fclose(fid);
-}
-
-void vtk_surf_topo_handler::open(string casename, string iteration ,size_t npnts,
-                                 size_t ntets, size_t nprsm, size_t npyrm, size_t nhexs, size_t ngen,
-                                 const vector<string> &bc_names,
-                                 const vector<string> &variables,
-                                 const vector<int> &variable_types,
-                                 double time)
-{
-  string filename;
-  if (is_64bit) filename = "vtk_surf64_"+casename+"_"+iteration+".vtu" ;
-  else filename = "vtk_surf_"+casename+"_"+iteration+".vtu" ;
-  fid = fopen(filename.c_str(),"w");
-  fprintf(fid,"<?xml version='1.0'?>\n");
-  if (is_64bit) fprintf(fid,"<VTKFile type='UnstructuredGrid' version='1.0' byte_order='LittleEndian' header_type='UInt64'>\n");
-  else fprintf(fid,"<VTKFile type='UnstructuredGrid' version='0.1' byte_order='LittleEndian'>\n");
-  fprintf(fid,"  <UnstructuredGrid>\n");
-}
-
-void vtk_surf_topo_handler::close()
-{
-  npnts = node_ids.size();
-  ncells = elem_types.size();
-  long long unsigned int Offset = 0;
-  fprintf(fid,"    <Piece NumberOfPoints='%llu' NumberOfCells='%llu'>\n",npnts,ncells);
-  fprintf(fid,"      <Points>\n");
-  fprintf(fid,"        <DataArray type='Float32' Name='Position' NumberOfComponents='3' format='appended' offset='%llu'/>\n",Offset);
-  fprintf(fid,"      </Points>\n");
-  fprintf(fid,"      <Cells>\n");
-  Offset += 3 * npnts * sizeof(float) + int_size ;
-  fprintf(fid,"        <DataArray type='Int32' Name='connectivity' NumberOfComponents='1' format='appended' offset='%llu'/>\n",Offset);
-  Offset += (long long unsigned int)elem_conn.size() * sizeof (int) + int_size ;
-  fprintf(fid,"        <DataArray type='Int32' Name='offsets' NumberOfComponents='1' format='appended' offset='%llu'/>\n",Offset);
-  Offset += ncells * sizeof (int) + int_size ;
-  fprintf(fid,"        <DataArray type='UInt8' Name='types' NumberOfComponents='1' format='appended' offset='%llu'/>\n",Offset);
-  Offset += ncells * sizeof (unsigned char) + int_size ;
-  fprintf(fid,"      </Cells>\n");
-  fprintf(fid,"      <CellData>\n");
-  for (long long unsigned int i=0;i<(long long unsigned int)data_names.size();i++) { 
-    int comp=-1;
-    if      ( (int) data_size[i] ==     (int) ncells) comp = 1;
-    else if ( (int) data_size[i] == 3 * (int) ncells) comp = 3;
-    else { cout << "Wrong size" << endl; exit(1); }
-    fprintf(fid,"        <DataArray type='Float32' Name='%s' NumberOfComponents='%d' format='appended' offset='%llu'/>\n",data_names[i].c_str(),comp,Offset) ;
-    Offset += comp * ncells * sizeof (float) + int_size; 
-  }
-  fprintf(fid,"      </CellData>\n");
-  fprintf(fid,"    </Piece>\n");
-  fprintf(fid,"  </UnstructuredGrid>\n");
-  fprintf(fid,"  <AppendedData encoding='raw'>\n");
-  fprintf(fid,"_");
-  long long unsigned int Scalar = (long long unsigned int) node_ids.size() * sizeof (float), Vector = 3 * Scalar;
-  long long unsigned int Cells = (long long unsigned int) elem_types.size() * sizeof(int);
-  long long unsigned int CellChars = (long long unsigned int) elem_types.size() * sizeof(unsigned char);
-  long long unsigned int Conn = (long long unsigned int) elem_conn.size() * sizeof(int);
-  fwrite((const char *) (&Vector), int_size, 1, fid) ;
-  fwrite((const char *) (&position[0]), sizeof (float), 3 * (long long unsigned int)node_ids.size(), fid) ;
-  fwrite((const char *) (&Conn), int_size, 1, fid) ;
-  fwrite((const char *) (&elem_conn[0]), sizeof (int), (long long unsigned int) elem_conn.size(), fid) ;
-  fwrite((const char *) (&Cells), int_size, 1, fid) ;
-  fwrite((const char *) (&elem_offsets[0]), sizeof (int), (long long unsigned int) elem_offsets.size(), fid) ;
-  fwrite((const char *) (&CellChars), int_size, 1, fid) ;
-  fwrite((const char *) (&elem_types[0]), sizeof (unsigned char), (long long unsigned int) elem_types.size(), fid) ;
-  long long unsigned int curr_loc = 0;
-  for (long long unsigned int i=0;i<(long long unsigned int)this->data_size.size();i++) {
-    long long unsigned int ndata = this->data_size[i], ndata_size = ndata * sizeof (float);
-    fwrite((const char *) (&ndata_size), int_size, 1, fid) ;
-    fwrite((const char *) (&elem_data[curr_loc]), sizeof (float), ndata, fid) ;
-    curr_loc += ndata;
-  }
-  fprintf(fid,"  </AppendedData>\n");
-  fprintf(fid,"</VTKFile>\n");
-  fclose(fid);
-}
-
-void vtk_surf_topo_handler::create_boundary_part(string name,int node_set[], size_t np)
-{
-  output_boundary = false;
-  for (int i=0;i<(int)boundaries.size();i++) {
-    if (name == boundaries[i]) {
-      output_boundary = true;
-      for (size_t j=0;j<np;j++) {
-	int node = node_set[j];
-        node_ids.push_back(node);
-	nmap[j+1+part_index] = node;
-      }
-    }
-  }
-}
-
-void vtk_surf_topo_handler::create_mesh_positions(vector3d<float> Pos[],size_t np)
-{
-  position = new float[3*node_ids.size()];
-
-  vector<int> G2L(np,-1);
-
-  for (int i=0;i<(int)node_ids.size();i++) {
-    int j=node_ids[i]-1;
-    position[3*i]   = Pos[j].x; 
-    position[3*i+1] = Pos[j].y; 
-    position[3*i+2] = Pos[j].z; 
-    G2L[j] = i;
-  }
-  for (int i=0;i<(int)elem_conn.size();i++) elem_conn[i] = G2L[elem_conn[i]];
-  vector<int>().swap(G2L);
-}
-
-void vtk_surf_topo_handler::write_quads(Array<int,4> quads[], int quad_ids[],size_t nquads) 
-{
-  if (output_boundary) {
-    int type = 9;
-    unsigned char char_type = (unsigned char)type;
-    for (size_t i=0;i<nquads;i++) {
-      elem_ids.push_back(quad_ids[i]);
-      for (int j=0;j<4;j++) {
-	int id = nmap[quads[i][j]+part_index]-1;
-        elem_conn.push_back(id);
-      }
-      elem_offset += 4;
-      elem_offsets.push_back(elem_offset);
-      elem_types.push_back(char_type);
-    }
-  }
-}
-
-void vtk_surf_topo_handler::write_trias(Array<int,3> trias[], int tria_ids[],size_t ntrias) 
-{
-  if (output_boundary) {
-    int type = 5;
-    unsigned char char_type = (unsigned char)type;
-    for (size_t i=0;i<ntrias;i++) {
-      elem_ids.push_back(tria_ids[i]);
-      for (int j=0;j<3;j++) {
-	int id = nmap[trias[i][j]+part_index]-1;
-        elem_conn.push_back(id);
-      }
-      elem_offset += 3;
-      elem_offsets.push_back(elem_offset);
-      elem_types.push_back(char_type);
-    }
-  }
-}
-
-void vtk_surf_topo_handler::write_general_face(int nside_sizes[], int nside_ids[], size_t ngeneral,int nside_nodes[], size_t nside_nodes_size) 
-{
-  if (output_boundary) {
-    int type = 7,cnt=0;
-    unsigned char char_type = (unsigned char)type;
-    for (size_t i=0;i<ngeneral;i++) {
-      elem_ids.push_back(nside_ids[i]);
-      for (int j=0;j<nside_sizes[i];j++) {
-	int id = nmap[nside_nodes[cnt++]+part_index]-1;
-        elem_conn.push_back(id);
-      }
-      elem_offset += nside_sizes[i];
-      elem_offsets.push_back(elem_offset);
-      elem_types.push_back(char_type);
-    }
-  }
-}
-
-void vtk_surf_topo_handler::close_boundary_part()
-{
-  if (output_boundary) part_index += node_ids.size();
-  output_boundary = false;
-}
-
-void vtk_surf_topo_handler::output_boundary_scalar(float val[], int node_set[],size_t nvals, string valname) 
-{
-  data_names.push_back(valname);
-  int size = elem_ids.size();
-  data_size.push_back(size);
-  
-  vector<float> valout(elem_ids.size(),0);  
-  
-  if (!bmap.size()) for (size_t i=0;i<elem_ids.size();i++) bmap[elem_ids[i]] = i;
-
-  for (size_t i=0;i<nvals;i++) valout[bmap[node_set[i]]] = val[i];
-
-  for (int i=0;i<(int)elem_ids.size();i++) elem_data.push_back(valout[i]);
-}
-
-
-void vtk_surf_topo_handler::output_boundary_vector(vector3d<float> val[], int node_set[],size_t nvals, string valname) 
-{
-  data_names.push_back(valname);
-  int size = 3 * elem_ids.size();
-  data_size.push_back(size);
-  
-  vector<float> xvalout(elem_ids.size(),0);  
-  vector<float> yvalout(elem_ids.size(),0);  
-  vector<float> zvalout(elem_ids.size(),0);  
-  
-  if (!bmap.size()) for (size_t i=0;i<elem_ids.size();i++) bmap[elem_ids[i]] = i;
-
-  for (size_t i=0;i<nvals;i++) {
-    int j = bmap[node_set[i]];
-    xvalout[j] = val[i].x;
-    yvalout[j] = val[i].y;
-    zvalout[j] = val[i].z;
-  }
-
-  for (int i=0;i<(int)elem_ids.size();i++) {
-    elem_data.push_back(xvalout[i]);
-    elem_data.push_back(yvalout[i]);
-    elem_data.push_back(zvalout[i]);
-  }
-}
     
 bool vtkSurfacePartConverter::processesVolumeElements() const {
   return true ;
@@ -652,185 +56,209 @@ bool vtkSurfacePartConverter::processesParticleElements() const {
 }
 
 void vtkSurfacePartConverter::exportPostProcessorFiles(string casename, string iteration) const {
-  string filename ;
-  long long unsigned int npnts, ncells;
- 
-  long long unsigned int elem_offset;
-  int part_index;
- 
+
   FILE *fid;
-  vector<Array<int, 8> > bricks ;
+  string dirname = casename+"_vtk."+iteration ;
+  struct stat statbuf ;
+  if(stat(dirname.c_str(),&statbuf))
+    mkdir(dirname.c_str(),0755) ;
+  else
+    if(!S_ISDIR(statbuf.st_mode)) {
+      cerr << "file '" << dirname << "' should be a directory!, rename and start again."
+           << endl ;
+      exit(-1) ;
+    }
   
-  vector<int> elem_ids ;
-  vector<int> elem_conn ;
-  vector<int> elem_offsets ;
- 
- 
-  vector<unsigned char> elem_types ;
- 
-  vector<int> data_size ;
-  vector<float> elem_data ;
-  vector<string> data_names ;
-  vector<float>  position;
-  int int_size;
- 
-  part_index = 0;
-  npnts = 0; ncells = 0; elem_offset = 0;
-  int_size = bit64 ? sizeof(long long unsigned int) : sizeof(int);
+  int nsurfaces = surfacePartList.size() ;
+  for(int i=0;i<nsurfaces;++i) {
+    string surfName = surfacePartList[i]->getPartName() ;
+    string filename = dirname + "/" + surfName+"_Surf.vtu" ;
+    if(bit64)
+      filename = dirname+ "/" + surfName+"_Surf64.vtu" ;
+  
+    long long unsigned int npnts, ncells;
+    
+    long long unsigned int elem_offset;
+    int part_index;
+    
+    vector<int> elem_ids ;
+    vector<int> elem_conn ;
+    vector<int> elem_offsets ;
+    
+    
+    vector<unsigned char> elem_types ;
+    
+    vector<int> data_size ;
+    vector<float> elem_data ;
+    vector<string> data_names ;
+    vector<float> point_data ;
+    vector<string>  point_data_names ;
+    vector<int> point_data_size ;
+    vector<float>  position;
+    int int_size;
+    
+    part_index = 0;
+    npnts = 0; ncells = 0; elem_offset = 0;
+    int_size = bit64 ? sizeof(long long unsigned int) : sizeof(int);
   
 
-  set<string> element_scalars ;
-  set<string> element_vectors ;
-  for(size_t i =0;i<surfacePartList.size();++i) {
+    set<string> element_scalars ;
+    set<string> element_vectors ;
     vector<string> escalars = surfacePartList[i]->getElementScalarVars() ;
     for(size_t j=0;j<escalars.size();++j) 
       element_scalars.insert(escalars[j]) ;
     vector<string> evectors = surfacePartList[i]->getElementVectorVars() ;
     for(size_t j=0;j<evectors.size();++j) 
       element_vectors.insert(evectors[j]) ;
-  }
+    set<string> point_scalars ;
+    set<string> point_vectors ;
+    vector<string> pscalars = surfacePartList[i]->getNodalScalarVars() ;
+    vector<string> pvectors = surfacePartList[i]->getNodalVectorVars() ;
+    for(size_t j=0;j<pscalars.size();++j)
+      point_scalars.insert(pscalars[j]) ;
+    for(size_t j=0;j<pvectors.size();++j)
+      point_vectors.insert(pvectors[j]) ;
 
   
-  //open file and write the header
-  {
-    
-    if (bit64) filename = "vtk_surf64_"+casename+"_"+iteration+".vtu" ;
-    else filename = "vtk_surf_"+casename+"_"+iteration+".vtu" ;
     fid = fopen(filename.c_str(),"w");
     fprintf(fid,"<?xml version='1.0'?>\n");
     if (bit64) fprintf(fid,"<VTKFile type='UnstructuredGrid' version='1.0' byte_order='LittleEndian' header_type='UInt64'>\n");
     else fprintf(fid,"<VTKFile type='UnstructuredGrid' version='0.1' byte_order='LittleEndian'>\n");
     fprintf(fid,"  <UnstructuredGrid>\n");
-  }
   
-  vector<int> node_offset(surfacePartList.size()) ;
-  vector<int> partnums(surfacePartList.size()) ;
-  int tot = 0;
-  int part_id = 0;
-  for(size_t i =0;i<surfacePartList.size();++i) {
+    int tot = 0;
     size_t npt = surfacePartList[i]->getNumNodes() ;
-    node_offset[i] = tot;
     tot += npt;
-    part_id++ ;
-    partnums[i] = part_id ; 
-  }
-  npnts = tot;
+    npnts = tot;
   
-  //write boundary mesh
-  vector<int> face_offset(surfacePartList.size()) ;
-  {
+    //write boundary mesh
+
     int face_id = 0;
-    for(size_t i =0;i<surfacePartList.size();++i) {
-      face_offset[i] = face_id;
-      //write out quads
-      int nquads = surfacePartList[i]->getNumQuads() ;
-      if(nquads > 0) {
-        vector<Array<int,4> > quads ;
-        surfacePartList[i]->getQuads(quads) ;
-        
-        int type = 9;
-        unsigned char char_type = (unsigned char)type;
-        for (int fi=0;fi<nquads;fi++) {
-          elem_ids.push_back(face_id++);
-          for (int j=0;j<4;j++) {
-            int id = quads[fi][j] + node_offset[i] -1;
-            elem_conn.push_back(id);
-          }
-          elem_offset += 4;
-          elem_offsets.push_back(elem_offset);
-          elem_types.push_back(char_type);
-        }
-      }
-      //write out trias
-      int ntrias = surfacePartList[i]->getNumTrias() ;
-      if(ntrias > 0) {
-        vector<Array<int,3> > trias ;
-        surfacePartList[i]->getTrias(trias) ; 
-        int type = 5;
-        unsigned char char_type = (unsigned char)type;
-        for (int fi=0;fi<ntrias;fi++) {
-          elem_ids.push_back(face_id++);
-          for (int j=0;j<3;j++) {
-            int id = trias[fi][j] + node_offset[i]-1;
-            elem_conn.push_back(id);
-          }
-          elem_offset += 3;
-          elem_offsets.push_back(elem_offset);
-          elem_types.push_back(char_type);
-        }
-      }
-      //write out general faces
-      int ngeneral = surfacePartList[i]->getNumGenfc() ;
-      if(ngeneral > 0) {
-        vector<int> nside_sizes,nside_nodes ;
-        surfacePartList[i]->getGenf(nside_sizes,nside_nodes) ;
-        {
-          int tot = 0 ;
-          for(int j=0;j<ngeneral;++j)
-            tot += nside_sizes[j] ;
-          int nside_nodes_size = nside_nodes.size() ;
-          if(nside_nodes_size != tot) {
-            cerr << "mismatch in node size and faces size " << nside_nodes_size
-                 << " was " << tot << endl ;
-          }
-        }
-        int type = 7,cnt=0;
-        unsigned char char_type = (unsigned char)type;
-        for (int fi=0;fi<ngeneral;fi++) {
-     
-          elem_ids.push_back(face_id++);
-          for (int j=0;j<nside_sizes[fi];j++) {
-            int id = nside_nodes[cnt++]+node_offset[i]-1;
-            elem_conn.push_back(id);
-          }
-          elem_offset += nside_sizes[fi];
-          elem_offsets.push_back(elem_offset);
-          elem_types.push_back(char_type);
-        }
-      }
+    //write out quads
+    int nquads = surfacePartList[i]->getNumQuads() ;
+    if(nquads > 0) {
+      vector<Array<int,4> > quads ;
+      surfacePartList[i]->getQuads(quads) ;
       
-    }//finish all boundaries
-  }//end of writing boundary mesh
+      int type = 9;
+      unsigned char char_type = (unsigned char)type;
+      for (int fi=0;fi<nquads;fi++) {
+	elem_ids.push_back(face_id++);
+	for (int j=0;j<4;j++) {
+	  int id = quads[fi][j] -1;
+	  elem_conn.push_back(id);
+	}
+	elem_offset += 4;
+	elem_offsets.push_back(elem_offset);
+	elem_types.push_back(char_type);
+      }
+    }
+    //write out trias
+    int ntrias = surfacePartList[i]->getNumTrias() ;
+    if(ntrias > 0) {
+      vector<Array<int,3> > trias ;
+      surfacePartList[i]->getTrias(trias) ; 
+      int type = 5;
+      unsigned char char_type = (unsigned char)type;
+      for (int fi=0;fi<ntrias;fi++) {
+	elem_ids.push_back(face_id++);
+	for (int j=0;j<3;j++) {
+	  int id = trias[fi][j] -1;
+	  elem_conn.push_back(id);
+	}
+	elem_offset += 3;
+	elem_offsets.push_back(elem_offset);
+	elem_types.push_back(char_type);
+      }
+    }
+    //write out general faces
+    int ngeneral = surfacePartList[i]->getNumGenfc() ;
+    if(ngeneral > 0) {
+      vector<int> nside_sizes,nside_nodes ;
+      surfacePartList[i]->getGenf(nside_sizes,nside_nodes) ;
+      {
+	int tot = 0 ;
+	for(int j=0;j<ngeneral;++j)
+	  tot += nside_sizes[j] ;
+	int nside_nodes_size = nside_nodes.size() ;
+	if(nside_nodes_size != tot) {
+	  cerr << "mismatch in node size and faces size " << nside_nodes_size
+	       << " was " << tot << endl ;
+	}
+      }
+      int type = 7,cnt=0;
+      unsigned char char_type = (unsigned char)type;
+      for (int fi=0;fi<ngeneral;fi++) {
+	
+	elem_ids.push_back(face_id++);
+	for (int j=0;j<nside_sizes[fi];j++) {
+	  int id = nside_nodes[cnt++]-1;
+	  elem_conn.push_back(id);
+	}
+	elem_offset += nside_sizes[fi];
+	elem_offsets.push_back(elem_offset);
+	elem_types.push_back(char_type);
+      }
+    }
 
+    set<string>::const_iterator si ;
+    // write out point scalars
+    for( si=point_scalars.begin();si!=point_scalars.end();++si){
+      string varname = *si ;
+      point_data_names.push_back(varname);
+      int size = surfacePartList[i]->getNumNodes() ;
+      point_data_size.push_back(size);    
+      vector<float> val ;
+      surfacePartList[i]->getNodalScalar(varname,val);
+      for(int j=0;j<size;++j) 
+	point_data.push_back(val[j]) ;
+    }
 
+    // write put point vectors
+    for( si=point_vectors.begin();si!=point_vectors.end();++si){
+      string varname = *si ;
+      point_data_names.push_back(varname);
+      int size = surfacePartList[i]->getNumNodes() ;
+      point_data_size.push_back(size*3);    
+      vector<vector3d<float> > val ;
+      surfacePartList[i]->getNodalVector(varname,val) ;
+      for(int j=0;j<size;++j) {
+	point_data.push_back(val[j].x) ;
+	point_data.push_back(val[j].y) ;
+	point_data.push_back(val[j].z) ;
+      }
+    }
 
- 
-    
-  set<string>::const_iterator si ;
-  // write out nodal scalars
-  for( si=element_scalars.begin();si!=element_scalars.end();++si){
-      
-    string varname = *si ;
-    data_names.push_back(varname);
-    int size = elem_ids.size();
-    data_size.push_back(size);    
-    vector<float> valout(size, 0);  
-    for(size_t i =0;i<surfacePartList.size();++i) {
+    // write out element scalars
+    for( si=element_scalars.begin();si!=element_scalars.end();++si){
+      string varname = *si ;
+      data_names.push_back(varname);
+      int size = elem_ids.size();
+      data_size.push_back(size);    
+      vector<float> valout(size, 0);  
       if(surfacePartList[i]->hasElementScalarVar(varname)) {
         vector<float> qvals, tvals, gvals ;
         surfacePartList[i]->getElementScalar(varname,qvals,tvals,gvals) ;
         int nqval = qvals.size();
         int ntval = tvals.size();
         int ngval = gvals.size();
-        for (int fi=0;fi<nqval;fi++) valout[fi+face_offset[i]] = qvals[fi];
-        for (int fi=0;fi<ntval;fi++) valout[fi+nqval+face_offset[i]] = tvals[fi];
-        for (int fi=0;fi<ngval;fi++) valout[fi+nqval+ntval+face_offset[i]] = tvals[fi];
+        for (int fi=0;fi<nqval;fi++) valout[fi] = qvals[fi];
+        for (int fi=0;fi<ntval;fi++) valout[fi+nqval] = tvals[fi];
+        for (int fi=0;fi<ngval;fi++) valout[fi+nqval+ntval] = tvals[fi];
       }
+      for (int i=0;i<size;i++) elem_data.push_back(valout[i]);
     }
-    for (int i=0;i<size;i++) elem_data.push_back(valout[i]);
-  }
 
-  //output boundary vector
-  for(si=element_vectors.begin();si!=element_vectors.end();++si) {
-    string varname = *si ;
-    data_names.push_back(varname);
-    int size = 3 * elem_ids.size();
-    data_size.push_back(size);
-  
-    vector<float> xvalout(elem_ids.size(),0);  
-    vector<float> yvalout(elem_ids.size(),0);  
-    vector<float> zvalout(elem_ids.size(),0);
-    for(size_t i =0;i<surfacePartList.size();++i) {
+    //output boundary vector
+    for(si=element_vectors.begin();si!=element_vectors.end();++si) {
+      string varname = *si ;
+      data_names.push_back(varname);
+      int size = 3 * elem_ids.size();
+      data_size.push_back(size);
+      
+      vector<float> xvalout(elem_ids.size(),0);  
+      vector<float> yvalout(elem_ids.size(),0);  
+      vector<float> zvalout(elem_ids.size(),0);
       if(surfacePartList[i]->hasElementVectorVar(varname)) {
         vector<vector3d<float> > qvals, tvals, gvals ;
         surfacePartList[i]->getElementVector(varname,qvals,tvals,gvals) ;
@@ -838,36 +266,31 @@ void vtkSurfacePartConverter::exportPostProcessorFiles(string casename, string i
         int ntval = tvals.size();
         int ngval = gvals.size();
         
-        for (int fi=0;fi<nqval;fi++) xvalout[fi+face_offset[i]] = qvals[fi].x;
-        for (int fi=0;fi<ntval;fi++) yvalout[fi+nqval+face_offset[i]] = tvals[fi].y;
-        for (int fi=0;fi<ngval;fi++) zvalout[fi+nqval+ntval+face_offset[i]] = tvals[fi].z;
+        for (int fi=0;fi<nqval;fi++) xvalout[fi] = qvals[fi].x;
+        for (int fi=0;fi<ntval;fi++) yvalout[fi+nqval] = tvals[fi].y;
+        for (int fi=0;fi<ngval;fi++) zvalout[fi+nqval+ntval] = tvals[fi].z;
+      }
+      for (int i=0;i<(int)elem_ids.size();i++) {
+	elem_data.push_back(xvalout[i]);
+	elem_data.push_back(yvalout[i]);
+	elem_data.push_back(zvalout[i]);
       }
     }
 
-    for (int i=0;i<(int)elem_ids.size();i++) {
-      elem_data.push_back(xvalout[i]);
-      elem_data.push_back(yvalout[i]);
-      elem_data.push_back(zvalout[i]);
-    }
-  }
-    
-  //create mesh positions
-  {
-    position.resize(3*npnts);
-    for(size_t i =0;i<surfacePartList.size();++i) {
+
+    //create mesh positions
+    {
+      position.resize(3*npnts);
       vector<vector3d<float> > pos ;
       surfacePartList[i]->getPos(pos) ;
       int npt  = pos.size();
       for (int j=0;j<npt;j++) {
-        position[3*(node_offset[i]+j)]   = pos[j].x; 
-        position[3*(node_offset[i]+j)+1] = pos[j].y; 
-        position[3*(node_offset[i]+j)+2] = pos[j].z; 
+        position[3*j+0]   = pos[j].x; 
+        position[3*j+1] = pos[j].y; 
+        position[3*j+2] = pos[j].z; 
       }
     }
-  }
-  //close()
-  {
-     
+
     ncells = elem_types.size();
     
     long long unsigned int Offset = 0;
@@ -884,6 +307,20 @@ void vtkSurfacePartConverter::exportPostProcessorFiles(string casename, string i
     fprintf(fid,"        <DataArray type='UInt8' Name='types' NumberOfComponents='1' format='appended' offset='%llu'/>\n",Offset);
     Offset += ncells * sizeof (unsigned char) + int_size ;
     fprintf(fid,"      </Cells>\n");
+
+
+    fprintf(fid,"      <PointData>\n");
+    for (long long unsigned int i=0;i<(long long unsigned int)point_data_names.size();i++) { 
+      int comp=-1;
+      if      ( (int) point_data_size[i] ==     (int) npnts) comp = 1;
+      else if ( (int) point_data_size[i] == 3 * (int) npnts) comp = 3;
+      else { cout << "Wrong size" << endl; exit(1); }
+      fprintf(fid,"        <DataArray type='Float32' Name='%s' NumberOfComponents='%d' format='appended' offset='%llu'/>\n",point_data_names[i].c_str(),comp,Offset) ;
+      Offset += comp * npnts * sizeof (float) + int_size; 
+    }
+    fprintf(fid,"      </PointData>\n");
+
+
     fprintf(fid,"      <CellData>\n");
     for (long long unsigned int i=0;i<(long long unsigned int)data_names.size();i++) { 
       int comp=-1;
@@ -898,6 +335,7 @@ void vtkSurfacePartConverter::exportPostProcessorFiles(string casename, string i
     fprintf(fid,"  </UnstructuredGrid>\n");
     fprintf(fid,"  <AppendedData encoding='raw'>\n");
     fprintf(fid,"_");
+
     long long unsigned int Scalar = (long long unsigned int) npnts * sizeof (float), Vector = 3 * Scalar;
     long long unsigned int Cells = (long long unsigned int) elem_types.size() * sizeof(int);
     long long unsigned int CellChars = (long long unsigned int) elem_types.size() * sizeof(unsigned char);
@@ -910,25 +348,36 @@ void vtkSurfacePartConverter::exportPostProcessorFiles(string casename, string i
     fwrite((const char *) (&elem_offsets[0]), sizeof (int), (long long unsigned int) elem_offsets.size(), fid) ;
     fwrite((const char *) (&CellChars), int_size, 1, fid) ;
     fwrite((const char *) (&elem_types[0]), sizeof (unsigned char), (long long unsigned int) elem_types.size(), fid) ;
+
     long long unsigned int curr_loc = 0;
-    for (long long unsigned int i=0;i<(long long unsigned int)data_size.size();i++) {
-      long long unsigned int ndata = data_size[i], ndata_size = ndata * sizeof (float);
+    for (size_t j=0;j<point_data_size.size();j++) {
+      long long unsigned int ndata = point_data_size[j] ;
+      long long unsigned int ndata_size = ndata * sizeof (float);
+      fwrite((const char *) (&ndata_size), int_size, 1, fid) ;
+      fwrite((const char *) (&point_data[curr_loc]), sizeof (float), ndata, fid) ;
+      curr_loc += ndata;
+    }
+
+    curr_loc = 0;
+    for (size_t j=0;j<data_size.size();j++) {
+      long long unsigned int ndata = data_size[j] ;
+      long long unsigned int ndata_size = ndata * sizeof (float);
       fwrite((const char *) (&ndata_size), int_size, 1, fid) ;
       fwrite((const char *) (&elem_data[curr_loc]), sizeof (float), ndata, fid) ;
       curr_loc += ndata;
     }
     fprintf(fid,"  </AppendedData>\n");
     fprintf(fid,"</VTKFile>\n");
+
     fclose(fid);
   }
-
 }
 
 bool vtkPartConverter::processesVolumeElements() const {
   return true ;
 }
 bool vtkPartConverter::processesSurfaceElements() const {
-  return true ;
+  return false ;
 }
 bool vtkPartConverter::processesParticleElements() const {
   return false ;

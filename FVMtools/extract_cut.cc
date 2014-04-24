@@ -44,594 +44,64 @@ using std::set;
 
 #include "extract.h"
 
-cuttingplane_topo_handler::cuttingplane_topo_handler(affineMapping &transformMatrix,
-						     float xShift, float yShift, float zShift) {
-  vector3d<float> transVec;
-  transVec.x = xShift;
-  transVec.y = yShift;
-  transVec.z = zShift;
-
-  transMatrix.translate(transVec);
-
-  transMatrix.Combine(transformMatrix);
-}
-
-void cuttingplane_topo_handler::open(string casename, string iteration ,size_t npnts,
-				     size_t ntets, size_t nprsm, size_t npyrm, size_t nhexs, size_t ngen,
-				     const vector<string> &bc_names,
-				     const vector<string> &variables,
-				     const vector<int> &variable_types,
-                                     double time) {
-  strIter = iteration;
-  numDisFaces = 0;
-}
-
-template <int T>  class ArrayLessThan {
+//this class that will handle the cuttingplane computing
+class cuttingplane {
+ 
+  bool registerFace(int faceNode[], int nNodes, int cellNum) ;        // Finds cuts in the face and registers them into the vector of intersections
+  void disambiguateFace(int faceNode[], int nNodes, int cellNum) ;     // Cuts a nonplanar face into planar triangles and sends each to registerFace()
+  void checkLoop(int start, int end) ;     // Walks around the loop made by a cut cell and handles any double loops or errors
+  int cellCount ;                          // Used to offset cell numbers to ensure unique numbering
+  int numDisFaces ;                        // Total number of faces disambiguated
+  int searchNodeMap(Array<int,2> arr1) ;   // Finds node arr1 in nodeMap and returns index
+  vector<vector3d<float> > nodes ;         // Copy of all nodes and 3d coordinates
+  vector<vector<float> > nodeVal ;         // Stores scalar property values for each node
+  vector<string> variables;                // Stores property names in strings
+  string strIter;                          // Stores iteration number
+  vector<Array<int,5> > intersects ;       // List of all edges formed from plane intersection
+  map<int, int> cellMap ;                  // Maps old 3d cell numbers to the new smaller set of 2d cells
+  vector<Array<int,2> > nodeMap ;          // Maps old 3d node numbers to the new smaller set of 2d nodes
+  list<vector<int> > disambiguatedFaces ;  // Stores all unmatched previously disambiguated faces and corresponding fabricated nodes
+  list<vector<int> > resolvedFace;         // Stores all matched disambiguated faces
+  affineMapping transMatrix ;              // Transformation matrix that transforms the grid topology to the desired position
+  int tetsCut, prsmCut, pyrmCut, hexsCut, genCut ;
 public:
-  bool operator()(const Array<int,T> &arr1, const Array<int,T> &arr2) {
-    for (int i = 0; i < T; ++i) {
-      if (arr1[i] == arr2[i]) continue;
-      if (arr1[i] < arr2[i]) return true;
-      break;
-    }
-    return false;
-  }
+  cuttingplane(const affineMapping &transformMatrix,
+               const float& xShift, const float& yShift, const float& zShift, const string& iteration);
+  virtual ~cuttingplane() {}
+  virtual void close();
+  virtual  void create_mesh_positions(const vector<vector3d<float> >& pos) ;
+  virtual  void transform_mesh_positions(); 
+  virtual void write_tets(const vector<Array<int,4> >& tets);
+  virtual void write_pyrm(const vector<Array<int,5> >& pyrm);
+  virtual void write_prsm(const vector<Array<int,6> >& prsm);
+  virtual void write_hexs(const vector<Array<int,8> >& hexs);
+  virtual void write_general_cell(const vector<int>& nfaces,
+                                  const vector<int>& nsides,
+                                  const vector<int>& nodes);
+ 
+  virtual void output_nodal_scalar(const vector<float>& val, string valname) ;
+ 
 } ;
 
 
-
-
-void cuttingplane_topo_handler::close() {
-  int temp1, temp2 ;
-  Array<int,2> tempArr2 ;
-  for (unsigned int i = 0 ; i < intersects.size() ; ++i) {
-    tempArr2[0] = intersects[i][0];
-    tempArr2[1] = intersects[i][1];
-    nodeMap.push_back(tempArr2);
-    tempArr2[0] = intersects[i][2];
-    tempArr2[1] = intersects[i][3];
-    nodeMap.push_back(tempArr2);
-
-    cellMap[intersects[i][4]] = cellMap.size();
-
-    if (intersects[i][0] > intersects[i][2]) {
-      temp1 = intersects[i][0] ;
-      temp2 = intersects[i][1] ;
-      intersects[i][0] = intersects[i][2] ;
-      intersects[i][1] = intersects[i][3] ;
-      intersects[i][2] = temp1 ;
-      intersects[i][3] = temp2 ;
+template <int T> class ArrayLessThan {
+public:
+  bool operator()(const Array<int,T> &arr1, const Array<int,T> &arr2) {
+    for(int i=0;i<T;++i) {
+      if(arr1[i] < arr2[i]) return true ;
+      if(arr1[i] > arr2[i]) return false ;
     }
-    else if ((intersects[i][0] == intersects[i][2]) && (intersects[i][1] > intersects[i][3])) {
-      temp1 = intersects[i][0] ;
-      temp2 = intersects[i][1] ;
-      intersects[i][0] = intersects[i][2] ;
-      intersects[i][1] = intersects[i][3] ;
-      intersects[i][2] = temp1 ;
-      intersects[i][3] = temp2 ;
-    }
+    return false ;
   }
+} ;
 
-  sort(intersects.begin(), intersects.end(), ArrayLessThan<5>());
-  sort(nodeMap.begin(), nodeMap.end(), ArrayLessThan<2>());
-
-  int lastUnique = 0;
-  for (unsigned int scan = 0; scan < nodeMap.size(); ++scan) {
-    if (!(nodeMap[scan][0] == nodeMap[lastUnique][0] && nodeMap[scan][1] == nodeMap[lastUnique][1])) {
-      lastUnique++;
-      nodeMap[lastUnique] = nodeMap[scan];
-    }
+template<int T> bool arrLessThan(const Array<int,T> &arr1, const Array<int,T> &arr2) {
+  for(int i=0;i<T;++i) {
+    if(arr1[i] < arr2[i]) return true ;
+    if(arr1[i] > arr2[i]) return false ;
   }
-  nodeMap.resize(lastUnique+1);
-
-  lastUnique = 0;
-  for(unsigned int scan = 0; scan < intersects.size(); ++scan) {
-    if(intersects[scan][0] == intersects[scan + 1][0] && intersects[scan][1] == intersects[scan + 1][1] && 
-       intersects[scan][2] == intersects[scan + 1][2] && intersects[scan][3] == intersects[scan + 1][3]) {
-      tempArr2[0] = intersects[scan][0];
-      tempArr2[1] = intersects[scan][1];
-      intersects[lastUnique][0] = searchNodeMap(tempArr2);
-      tempArr2[0] = intersects[scan][2];
-      tempArr2[1] = intersects[scan][3];
-      intersects[lastUnique][1] = searchNodeMap(tempArr2);
-      intersects[lastUnique][2] = cellMap[intersects[scan][4]] - 1;
-      intersects[lastUnique][3] = cellMap[intersects[scan+1][4]] - 1;
-      intersects[lastUnique][4] = 0;
-      scan++;
-    } else {
-      tempArr2[0] = intersects[scan][0];
-      tempArr2[1] = intersects[scan][1];
-      intersects[lastUnique][0] = searchNodeMap(tempArr2);
-      tempArr2[0] = intersects[scan][2];
-      tempArr2[1] = intersects[scan][3];
-      intersects[lastUnique][1] = searchNodeMap(tempArr2);
-      intersects[lastUnique][2] = cellMap[intersects[scan][4]] - 1;
-      intersects[lastUnique][3] = -1;
-      intersects[lastUnique][4] = 0;
-    }
-    lastUnique++;
-  }
-  intersects.resize(lastUnique);
-
-  vector<float> coords[2];
-  float t, x;
-  int a, b;
-  for (unsigned int i = 0; i < nodeMap.size(); i++) {
-    a = nodeMap[i][0] - 1;
-    b = nodeMap[i][1] - 1;
-    t = (nodes[b].z)/(nodes[b].z - nodes[a].z);
-    coords[0].push_back( t*nodes[a].x + (1.0 - t)*nodes[b].x );
-    coords[1].push_back( t*nodes[a].y + (1.0 - t)*nodes[b].y );
-  }
-
-  ofstream outFile;
-  for (unsigned int varPass = 0; varPass < variables.size(); varPass++) {
-    string out = variables[varPass] + "." + strIter;
-    outFile.open(out.c_str());
-    outFile << "general" << endl;
-    outFile << nodeMap.size() << " 0" << endl;
-    for (unsigned int i = 0; i < nodeMap.size(); i++)
-      outFile << coords[0][i] << ' ' << coords[1][i] << endl;
-    
-    outFile << intersects.size() << " 0 " << cellMap.size() << " 0" << endl;
-    for (unsigned int i = 0; i < intersects.size(); i++)
-      outFile << intersects[i][0] << ' ' << intersects[i][1] << ' ' << intersects[i][2] << ' ' << intersects[i][3] << endl;
-
-    for (unsigned int i = 0; i < nodeMap.size(); i++) {
-      a = nodeMap[i][0] - 1;
-      b = nodeMap[i][1] - 1;
-      t = (nodes[b].z)/(nodes[b].z - nodes[a].z);
-      x = t*nodeVal[varPass][a] + (1.0 - t)*nodeVal[varPass][b];
-      outFile << x << endl;
-    }
-    outFile.close();
-  }
+  return false ;
 }
-
-template <int T>
-bool arrLessThan(Array<int,T> arr1, Array<int,T> arr2) {
-  for (int i = 0; i < T; ++i) {
-    if (arr1[i] == arr2[i]) continue;
-    if (arr1[i] < arr2[i]) return true;
-    break;
-  }
-  return false;
-}
-
-int cuttingplane_topo_handler::searchNodeMap(Array<int, 2> arr1) {
-  int middle, front = 0, back = nodeMap.size() - 1;
-  while(front + 1 < back) {
-    middle = (front + back)/2;
-    if (arrLessThan<2>(arr1, nodeMap[middle]))
-      back = middle;
-    else
-      front = middle;
-  }
-  if (arrLessThan<2>(arr1, nodeMap[back]))
-    return front;
-  else 
-    return back;
-}
-
-bool cuttingplane_topo_handler::registerFace(int faceNode[], int nNodes, int cellNum) {
-  Array<int, 5> faceCut;
-  int thisNode, prevNode, cutsFound = 0;
-  prevNode = faceNode[nNodes - 1];
-
-  faceCut[4] = cellNum;
-  for(int i = 0; i < nNodes; ++i) {
-    thisNode = faceNode[i];
-
-    if (signbit(nodes[thisNode - 1].z * nodes[prevNode - 1].z)) {
-      if (cutsFound < 2) {
-	if (thisNode < prevNode) {
-	  faceCut[0 + cutsFound*2] = thisNode ;
-	  faceCut[1 + cutsFound*2] = prevNode ;
-	} else {
-	  faceCut[0 + cutsFound*2] = prevNode ;
-	  faceCut[1 + cutsFound*2] = thisNode ;
-	}
-      }
-      cutsFound++;
-    }
-    prevNode = thisNode;
-  }
-  if (cutsFound == 2)
-    intersects.push_back(faceCut);
-  else if (cutsFound > 2)
-    disambiguateFace(faceNode, nNodes, cellNum);
-
-  return (cutsFound > 0);
-}
-
-void cuttingplane_topo_handler::disambiguateFace(int faceNode[], int nNodes, int cellNum) {
-  bool needNewNode = true;
-  int thisNode, prevNode, trigFace[3], centerNode;
-  vector<int> tmpfaceNode(faceNode, faceNode + nNodes);
-  list<vector<int> >::iterator face, remember;
-  numDisFaces++;
-
-  if (disambiguatedFaces.size() != 0) {
-    sort(tmpfaceNode.begin(), tmpfaceNode.end());
-
-    int i;
-    for (face = disambiguatedFaces.begin(); face != disambiguatedFaces.end(); face++) {
-      if ((*face).size() - 1 == static_cast<unsigned int>(nNodes)) {
-	for (i = 0; i < nNodes; i++) {
-	  if (tmpfaceNode[i] != (*face)[i+1])
-	    break;
-	}
-	if (i == nNodes) {
-	  centerNode = (*face)[0];
-	  disambiguatedFaces.erase(face);
-	  needNewNode = false;
-	  break;
-	}
-      }
-    }
-  }
-  
-  if (needNewNode) {
-    vector3d<float> newNode;
-    newNode.x = newNode.y = newNode.z = 0;
-    float tmp;
-
-    for (int i = 0; i < nNodes; ++i) {
-      newNode.x += nodes[faceNode[i]-1].x;
-      newNode.y += nodes[faceNode[i]-1].y;
-      newNode.z += nodes[faceNode[i]-1].z;
-    }
-    newNode.x /= nNodes;
-    newNode.y /= nNodes;
-    newNode.z /= nNodes;
-    nodes.push_back(newNode);
-    centerNode = nodes.size();
-
-    for (unsigned int i = 0; i < nodeVal.size(); i++) {
-      tmp = 0;
-      for (int j = 0; j < nNodes; j++) {
-	tmp += nodeVal[i][faceNode[j]-1];
-      }
-      tmp /= nNodes;
-      nodeVal[i].push_back(tmp);
-    }
-
-    vector<int> newFaceList;
-    newFaceList.push_back(centerNode);
-    for (int i = 0; i < nNodes; ++i) {
-      newFaceList.push_back(faceNode[i]);
-    }
-    sort(newFaceList.begin()+1, newFaceList.end());
-    disambiguatedFaces.push_back(newFaceList);
-  }
-
-  trigFace[2] = centerNode;
-  prevNode = faceNode[nNodes - 1];
-  for (int i = 0; i < nNodes; ++i) {
-    thisNode = faceNode[i];
-    trigFace[0] = thisNode;
-    trigFace[1] = prevNode;
-    prevNode = thisNode;
-    registerFace(trigFace, 3, cellNum);
-  }
-}
-
-void cuttingplane_topo_handler::checkLoop(int start, int end) {
-  bool loopIsGood = true;
-  int loopNumber = 0;
-
-  list<int> edges;
-  for (int i = start+1; i < end; i++)
-    edges.push_back(i);
-
-  Array<int, 2> firstNode, nextNode;
-  firstNode[0] = intersects[start][0];
-  firstNode[1] = intersects[start][1];
-  nextNode[0] = intersects[start][2];
-  nextNode[1] = intersects[start][3];
-
-  list<int>::iterator iter;
-  while (!edges.empty() && loopIsGood) {
-    for (iter = edges.begin(); iter != edges.end(); iter++) {
-      if (intersects[*iter][0] == nextNode[0] && intersects[*iter][1] == nextNode[1]) {
-	nextNode[0] = intersects[*iter][2];
-	nextNode[1] = intersects[*iter][3];
-	intersects[*iter][4] += loopNumber;
-	edges.erase(iter);
-	break;
-      } else if (intersects[*iter][2] == nextNode[0] && intersects[*iter][3] == nextNode[1]) {
-	nextNode[0] = intersects[*iter][0];
-	nextNode[1] = intersects[*iter][1];
-	intersects[*iter][4] += loopNumber;
-	edges.erase(iter);
-	break;
-      }
-    }
-    if (iter == edges.end())
-      loopIsGood = false;
-    if ((firstNode[0] == nextNode[0] && firstNode[1] == nextNode[1]) && !edges.empty()) {
-      cellCount++;
-      loopNumber++;
-      firstNode[0] = intersects[edges.front()][0];
-      firstNode[1] = intersects[edges.front()][1];
-      nextNode[0] = intersects[edges.front()][2];
-      nextNode[1] = intersects[edges.front()][3];
-      intersects[edges.front()][4] += loopNumber;
-      edges.erase(edges.begin());
-    }
-  }
-  if (firstNode[0] != nextNode[0] || firstNode[1] != nextNode[1])
-    cerr << "** Problem cell: " << intersects[start][4] << " ** (failed loop test)" << endl;
-}
-
-void cuttingplane_topo_handler::create_mesh_positions(vector3d<float> pos[], size_t npnts) {
-  for(size_t i = 0 ; i < npnts ; ++i) {
-    nodes.push_back(pos[i]);       // Make a local copy of all node positions
-  }
-  
-  for(size_t i = 0; i < npnts; i++) {
-    nodes[i] = transMatrix.MapNode(nodes[i]);   // Transform topology into cutting position
-  }
-
-  cellCount = 0;
-}
-
-void cuttingplane_topo_handler::create_mesh_elements() {
-}
-
-void cuttingplane_topo_handler::write_tets(Array<int,4> tets[], size_t ntets,int block, int nblocks, size_t tottets) {
-  bool isCut;
-  if(block == 0) {
-    tetsCut = 0 ;
-  }
-  int  intersectStart = intersects.size();
-  int faceNodeIndex[3];
-  int faceNode[3];
-
-  for (size_t i = 0 ; i < ntets ; ++i) {
-    isCut = false;
-    for (int j = 1; j < 4; ++j) {
-      if (signbit(nodes[tets[i][0] - 1].z * nodes[tets[i][j] - 1].z)) {
-	isCut = true;
-	break;
-      }
-    }
-    if(isCut) {
-      tetsCut++ ;
-      for (faceNodeIndex[2] = 2 ; faceNodeIndex[2] < 4 ; ++faceNodeIndex[2]) {
- 	for (faceNodeIndex[1] = 1 ; faceNodeIndex[1] < faceNodeIndex[2] ; ++faceNodeIndex[1]) {
-	  for (faceNodeIndex[0] = 0 ; faceNodeIndex[0] < faceNodeIndex[1] ; ++faceNodeIndex[0]) {
-
-	    for (int j = 0; j < 3; j++)
-	      faceNode[j] = tets[i][faceNodeIndex[j]];
-	    registerFace(faceNode, 3, i+cellCount);
-
-	  }
-	}
-      }
-      checkLoop(intersectStart, intersects.size());
-      intersectStart = intersects.size();
-    }
-  }
-
-  cellCount += ntets;
-
-  if(block+1==nblocks)
-    cout << "Number of tets cut: " << tetsCut << endl ;
-}
-
-void cuttingplane_topo_handler::write_pyrm(Array<int,5> pyrm[], size_t npyrm, int block, int nblocks, size_t totpyrm) {  
-  bool isCut;
-  if(block == 0) {
-    pyrmCut = 0 ;
-  }
-  int prevNode, intersectStart = intersects.size();
-  int faceNode[4];
-
-  for (size_t i = 0 ; i < npyrm ; ++i) {
-    isCut = false;
-    for (int j = 1; j < 5; ++j) {
-      if (signbit(nodes[pyrm[i][0] - 1].z * nodes[pyrm[i][j] - 1].z)) {
-	isCut = true;
-	break;
-      }
-    }
-    if (isCut) {
-      prevNode = 3;
-      for (int thisNode = 0; thisNode < 4; ++thisNode) {
-	faceNode[0] = pyrm[i][prevNode];
-	faceNode[1] = pyrm[i][thisNode];
-	faceNode[2] = pyrm[i][4];
-	registerFace(faceNode, 3, i+cellCount);
-	prevNode = thisNode;
-      }
-      for (int j = 0; j < 4; ++j)
-	faceNode[j] = pyrm[i][j];
-      registerFace(faceNode, 4, i+cellCount);
-      pyrmCut++;
-      checkLoop(intersectStart, intersects.size());
-      intersectStart = intersects.size();
-    }
-  }
-  
-  cellCount += npyrm;
-  if(block+1 == nblocks)
-    cout << "Number of pyrm cut: " << pyrmCut << endl ;
-}
-
-void cuttingplane_topo_handler::write_prsm(Array<int,6> prsm[], size_t nprsm,int block, int nblocks, size_t totprsm) {
-  bool isCut;
-  if(block == 0) {
-    prsmCut = 0 ;
-  }
-  int prevNode, intersectStart = intersects.size();
-  int faceNode[4];
-
-  for (size_t i = 0 ; i < nprsm ; ++i) {
-    isCut = false;
-    for (int j = 1; j < 6; ++j) {
-      if (signbit(nodes[prsm[i][0] - 1].z * nodes[prsm[i][j] - 1].z)) {
-	isCut = true;
-	break;
-      }
-    }
-    if (isCut) {
-      prevNode = 2;
-      for (int thisNode = 0; thisNode < 3; ++thisNode) {
-	faceNode[0] = prsm[i][prevNode];
-	faceNode[1] = prsm[i][thisNode];
-	faceNode[2] = prsm[i][thisNode + 3];
-	faceNode[3] = prsm[i][prevNode + 3];
-	registerFace(faceNode, 4, i+cellCount);
-	prevNode = thisNode;
-      }
-      for (int j = 0; j < 2; ++j) {
-	for (int k = 0; k < 3; ++k) {
-	  faceNode[k] = prsm[i][k + j*3];
-	}
-	registerFace(faceNode, 3, i+cellCount);
-      }
-      prsmCut++;
-      checkLoop(intersectStart, intersects.size());
-      intersectStart = intersects.size();
-    }
-  }
-
-  cellCount += nprsm;
-  if(block+1 == nblocks)
-    cout << "Number of prsm cut: " << prsmCut << endl ;
-}
-
-void cuttingplane_topo_handler::write_hexs(Array<int,8> hexs[], size_t nhexs,int block, int nblocks, size_t tothexs) {
-  bool isCut;
-  if(block == 0) {
-    hexsCut = 0 ;
-  }
-  int prevNode, intersectStart = intersects.size();
-  int faceNode[4];
-
-  for (size_t i = 0 ; i < nhexs ; ++i) {
-    isCut = false;
-    for (int j = 1; j < 8; ++j) {
-      if (signbit(nodes[hexs[i][0] - 1].z * nodes[hexs[i][j] - 1].z)) {
-	isCut = true;
-	break;
-      }
-    }
-    if (isCut) {
-      prevNode = 3;
-      for (int thisNode = 0; thisNode < 4; ++thisNode) {
-	faceNode[0] = hexs[i][prevNode];
-	faceNode[1] = hexs[i][thisNode];
-	faceNode[2] = hexs[i][thisNode + 4];
-	faceNode[3] = hexs[i][prevNode + 4];
-	registerFace(faceNode, 4, i+cellCount);
-	prevNode = thisNode;
-      }
-      for (int j = 0; j < 2; ++j) {
-	for (int k = 0; k < 4; ++k) {
-	  faceNode[k] = hexs[i][k + j*4];
-	}
-	registerFace(faceNode, 4, i+cellCount);
-      }
-      hexsCut++;
-      checkLoop(intersectStart, intersects.size());
-      intersectStart = intersects.size();
-    }
-  }
-
-  cellCount += nhexs;
-  if(block+1 == nblocks)
-    cout << "Number of hexs cut: " << hexsCut << endl ;
-}
-
-void cuttingplane_topo_handler::write_general_cell(int nfaces[], size_t nnfaces,
-                                                   int nsides[], size_t nnsides,
-						   int nodes[], size_t nnodes) {
-  int genCut = 0, celloffset = 0, faceoffset = 0;
-  bool isCut;
-  int *faceNode, intersectStart = intersects.size();
-
-  for (size_t cell = 0; cell < nnfaces; ++cell) {
-    isCut = false;
-    for (int face = 0; face < nfaces[cell]; ++face) {
-      faceNode = new int[nsides[face + faceoffset]];
-      for (int node = 0; node < nsides[face + faceoffset]; ++node) {
-	faceNode[node] = nodes[node + celloffset];
-      }
-      if (registerFace(faceNode, nsides[face + faceoffset], cell + cellCount))
-	isCut = true;
-      delete [] faceNode;
-      celloffset += nsides[face + faceoffset];
-    }
-    faceoffset += nfaces[cell];
-    if (isCut) {
-      genCut++;
-      checkLoop(intersectStart, intersects.size());
-      intersectStart = intersects.size();
-    }
-  }
-
-  cout << "Number of genc cut: " << genCut << endl;
-}
-
-void cuttingplane_topo_handler::close_mesh_elements() {
-}
-
-void cuttingplane_topo_handler::create_boundary_part(string name,int node_set[],size_t npnts) {
-}
-
-void cuttingplane_topo_handler::write_quads(Array<int,4> quads[], int quad_ids[],
-					    size_t nquads) {
-}
-
-void cuttingplane_topo_handler::write_trias(Array<int,3> trias[], int tria_ids[],
-					    size_t ntrias) {
-}
-
-void cuttingplane_topo_handler::
-write_general_face(int nside_sizes[], int nside_ids[], size_t ngeneral,
-		   int nside_nodes[], size_t nside_nodes_size) {
-}
-
-void cuttingplane_topo_handler::close_boundary_part() {
-}
-
-void cuttingplane_topo_handler::create_nodal_output() {
-}
-
-void cuttingplane_topo_handler::output_nodal_scalar(float val[], size_t npnts, string valname) {
-  vector<float> newVal;
-
-  for (size_t i = 0; i < npnts; ++i) {
-    newVal.push_back(val[i]);
-  }
-
-  nodeVal.push_back(newVal);
-  variables.push_back(valname);
-}
-
-void cuttingplane_topo_handler::output_nodal_vector(vector3d<float> val[],
-						    size_t npnts, string valname) {
-}
-
-void cuttingplane_topo_handler::close_nodal_output() {
-}
-
-void cuttingplane_topo_handler::output_boundary_scalar(float val[], int node_set[],
-						       size_t nvals, string valname) {
-}
-
-void cuttingplane_topo_handler::output_boundary_vector(vector3d<float> val[], int node_set[],
-						       size_t nvals, string valname) {
-}
-
-
-
-
-
-
-
  
 
 cuttingplane::cuttingplane(const affineMapping &transformMatrix,

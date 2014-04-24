@@ -4520,29 +4520,11 @@ int main(int ac, char *av[]) {
   grid_topo_handler *topo_out = 0 ;
  
   switch(plot_type) {
-  case ENSIGHT:
-    topo_out = new ensight_topo_handler( id_required);
-    break ;
   case FIELDVIEW:
     topo_out = new fv_topo_handler ;
     break ;
   case TECPLOT:
     topo_out = new tecplot_topo_handler ;
-    break ;
-  case VTK:
-    topo_out = new vtk_topo_handler(false) ;
-    break ;
-  case VTK_SURFACE:
-    topo_out = new vtk_surf_topo_handler(boundaries,false) ;
-    break ;
-  case VTK64:
-    topo_out = new vtk_topo_handler(true) ;
-    break ;
-  case VTK_SURFACE64:
-    topo_out = new vtk_surf_topo_handler(boundaries,true) ;
-    break ;
-  case CUTTINGPLANE:
-    topo_out = new cuttingplane_topo_handler(transformMatrix, -xShift, -yShift, -zShift) ;
     break ;
   default:
     cerr << "Unknown export method!" << endl ;
