@@ -1163,8 +1163,7 @@ surfacePart::surfacePart(string name, string dir, string iteration,
   error = true  ;
   string topo_link = dir + "/topo_file."+iteration ;
   ifstream topo_links(topo_link.c_str(),ios::in) ;
-  if(topo_links.fail()) cerr << "topo_links fail, " << topo_link << endl ;
-
+  //  if(topo_links.fail()) cerr << "topo_links fail, " << topo_link << endl ;
   if(topo_links.fail()) return ;
 
   string topolink ;
@@ -2739,7 +2738,7 @@ int main(int ac, char *av[]) {
   bool id_required = false;//ensight has the option to display node and element ids
 
   vector<string> partlist ;
-  
+  bool novolume = false ;
   for(int i=1;i<ac;++i) {
     if(av[i][0] == '-') {
       if(!strcmp(av[i],"-ascii"))
@@ -2833,12 +2832,15 @@ int main(int ac, char *av[]) {
       }
       else if(!strcmp(av[i],"-xr")) 
         view=VIEWXR ;
+      else if(!strcmp(av[i],"-novolume"))
+	novolume = true ;
       else if(!strcmp(av[i],"-bc")) {
         i++ ;
         string v(av[i]) ;
         if(av[i][0] >='0' && av[i][0] <= '9')
           v = "BC_"+v ;
         boundaries.push_back(v) ;
+	partlist.push_back(v) ;
       } else if(!strcmp(av[i],"-part")) {
         i++ ;
         string v(av[i]) ;
@@ -2880,6 +2882,8 @@ int main(int ac, char *av[]) {
       }
     }
   }
+  if(boundaries.size() > 0)
+    novolume = true ;
   if(plot_type == NONE) {
     Usage(ac,av) ;
   }
@@ -2986,14 +2990,14 @@ int main(int ac, char *av[]) {
       entry = readdir(dp) ;
     }
     closedir(dp) ;
+    
     if(partlist.size() > 0) { // Now check each part for variables
       for(size_t i=0;i<partlist.size();++i) {
 	string dirname = output_dir+"/"+casename+"_SURF."+partlist[i] ;
 	DIR *dp = opendir(dirname.c_str()) ;
 	// Look in output directory and find all variables
 	if(dp == 0) {
-	  cerr << "unable to open directory '" << dirname << "'" << endl ;
-	  exit(-1) ;
+	  continue ;
 	}
 	dirent *entry = readdir(dp) ;
   	for(;entry != 0;entry=readdir(dp)) {
@@ -3362,7 +3366,7 @@ int main(int ac, char *av[]) {
       }
     }
     volumePartP vp = 0 ;
-    if(postprocessor->processesVolumeElements()) {
+    if(!novolume && postprocessor->processesVolumeElements()) {
       string testfile = getTopoFileName(output_dir, casename, iteration) ;
       struct stat tmpstat ;
       cout << "checking " << testfile << endl ;
@@ -3378,7 +3382,7 @@ int main(int ac, char *av[]) {
 
 	    extractVolumeSurfaces(volSurface,vp,output_dir,iteration,casename,variables) ;
 	    std::set<string> partset ;
-	    for(size_t i=0;i<partlist.size();++i) {
+	    for(size_t i=0;i<parts.size();++i) {
 	      partset.insert(parts[i]->getPartName()) ;
 	    }
 	    for(size_t i=0;i<volSurface.size();++i) {
