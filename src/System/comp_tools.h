@@ -378,7 +378,6 @@ namespace Loci {
     rule apply, unit_tag ;  // rule to apply
     // keyspace that it exist
     KeySpaceP space ;
-    bool output_mapping ;
   public:
     dynamic_apply_compiler(rule a, rule u, KeySpaceP kp) {
       apply = a ;
