@@ -862,7 +862,6 @@ namespace Loci {
     const_store<real_t> X,X_f ;
     const_store<vector3d<real_t> > Wf_l, Wf_r ;
     store<vector3d<real_t> > grads ;
-    int vs ;
   public:
 
     gradscalar() {
@@ -919,7 +918,6 @@ namespace Loci {
     const_store<vector3d<real_t> > X,X_f ;
     const_store<vector3d<real_t> > Wf_l, Wf_r ;
     store<tensor3d<real_t> > grads ;
-    int vs ;
   public:
     gradvec3d() {
       name_store("lower",lower) ;
