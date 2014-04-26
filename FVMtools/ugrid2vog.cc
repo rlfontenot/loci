@@ -119,8 +119,8 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
   prisms.clear() ;
   hexs.clear() ;
 
-  int num_nodes, num_sf_trias, num_sf_quads ;
-  int num_vol_tets, num_vol_pents5, num_vol_pents6, num_vol_hexs ;
+  int num_nodes=0, num_sf_trias=0, num_sf_quads=0 ;
+  int num_vol_tets=0, num_vol_pents5=0, num_vol_pents6=0, num_vol_hexs=0 ;
 
   FILE* IFP = NULL ;
 
