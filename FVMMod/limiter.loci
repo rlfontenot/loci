@@ -346,7 +346,6 @@ namespace Loci {
     const_store<real> X, X_f ;
     const_store<vect3d> Xgrad ;
     const_store<char> firstOrderCells ;
-    int vs ;
   public:
     get_limiter_scalar() ;
     void calculate(Entity cc) ;
@@ -489,7 +488,6 @@ namespace Loci {
     const_store<vect3d> X, X_f ;
     const_store<tens3d> Xgrad ;
     const_store<char> firstOrderCells ;
-    int vs ;
   public:
     get_limiter3d() ;
     void calculate(Entity cc) ;
@@ -700,7 +698,6 @@ namespace Loci {
     const_store<real> nodMax,nodMin ;
     const_store<vect3d> Xgrad ;
     const_store<char> firstOrderCells ;
-    int vs ;
   public:
     nodal_barth_scalar() ;
     void calculate(Entity cc) ;
@@ -788,7 +785,6 @@ namespace Loci {
     const_store<vect3d> X ;
     const_store<tens3d> Xgrad ;
     const_store<char> firstOrderCells ;
-    int vs ;
   public:
     nodal_barth_3d() ;
     void calculate(Entity cc) ;
