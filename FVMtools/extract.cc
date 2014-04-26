@@ -2372,7 +2372,25 @@ void setup_grid_topology(string casename, string iteration) {
 }
 
 
-
+vector<string> volumeSurfaceNames(string output_dir, string iteration,
+				  string casename) {
+  string gridtopo = getTopoFileName(output_dir, casename, iteration) ;
+  hid_t file_id = H5Fopen(gridtopo.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
+  hid_t bndg = H5Gopen(file_id,"boundaries") ;
+  hsize_t num_bcs = 0 ;
+  H5Gget_num_objs(bndg,&num_bcs) ;
+  vector<string>  bc_names ;
+  for(hsize_t bc=0;bc<num_bcs;++bc) {
+    char buf[1024] ;
+    memset(buf, '\0', 1024) ;
+    H5Gget_objname_by_idx(bndg,bc,buf,sizeof(buf)) ;
+    buf[1023]='\0' ;
+    bc_names.push_back(string(buf)) ;
+  }
+  H5Gclose(bndg) ;
+  H5Fclose(file_id) ;
+  return bc_names ;
+}
 
 void extractVolumeSurfaces(vector<surfacePartP> &volSurface,
                            volumePartP vp,
@@ -2901,6 +2919,7 @@ int main(int ac, char *av[]) {
     }
   
   if(partlist.size() == 0) { // scan for parts
+    std::set<string> partfind ;
     DIR *dp = opendir(output_dir.c_str()) ;
     // Look in output directory and find all variables
     if(dp == 0) {
@@ -2922,12 +2941,22 @@ int main(int ac, char *av[]) {
 	string filecheck = output_dir + "/" + filename + "/topo_file." + iteration ;
 	struct stat tmpstat ;
 	if(stat(filecheck.c_str(),&tmpstat)== 0) {
+	  partfind.insert(partname) ;
 	  partlist.push_back(partname) ;
 	}
       }
       entry = readdir(dp) ;
     }
     closedir(dp) ;
+
+    vector<string> vsurfs = volumeSurfaceNames(output_dir,iteration,
+					       casename) ;
+    for(size_t i=0;i<vsurfs.size();++i) {
+      if(partfind.find(vsurfs[i]) == partfind.end()) {
+	partlist.push_back(vsurfs[i]) ;
+      }
+    }
+    
   }    
       
   if(variables.size() == 0) {
@@ -3142,11 +3171,6 @@ int main(int ac, char *av[]) {
       continue ;
     }
       
-    if(var.size()>1 && var[0] == 'f') {
-      variable_type[i] = NODAL_MASSFRACTION ;
-      continue ;
-    }
-
     // ... other derived variables here
 
     if(partlist.size() == 0) 
@@ -3352,16 +3376,34 @@ int main(int ac, char *av[]) {
     for(vi=varset.begin();vi!=varset.end();++vi)
       varlist.push_back(*vi) ;
     variables.swap(varlist) ;
+    
     if(postprocessor->processesSurfaceElements()) {
+      std::set<string> volsearch ;
       for(size_t i=0;i<partlist.size();++i) {
 	string name = partlist[i] ;
-	cout << "part: " << name << endl ;
 	string dir = output_dir + "/" + casename + "_SURF." + name ;
 	surfacePartP sp = new surfacePart(name,dir,iteration,variables) ;
 	if(sp->fail()) {
-	  cerr << "unable to load part: " << name << endl ;
+	  volsearch.insert(name) ;
 	} else {
+	  cout << "part: " << name << endl ;
 	  parts.push_back(sp) ;
+	}
+      }
+      if(!volsearch.empty()) {
+	vector<surfacePartP> volSurface ;
+
+	volumePartP vp = 
+	  new volumePart(output_dir,iteration,casename,variables) ;	
+	if(!vp->fail())
+	  extractVolumeSurfaces(volSurface,vp,output_dir,iteration,
+				casename,variables) ;
+	
+	for(size_t i=0;i<volSurface.size();++i) {
+	  if(volsearch.find(volSurface[i]->getPartName()) != volsearch.end()) {
+	    cout << "part: " << volSurface[i]->getPartName() << endl ;
+	    parts.push_back(volSurface[i]) ;
+	  }
 	}
       }
     }
@@ -3376,21 +3418,7 @@ int main(int ac, char *av[]) {
 	vp = new volumePart(output_dir,iteration,casename,variables) ;
 	if(vp->fail()) {
 	  vp = 0 ;
-	} else {
-	  if(postprocessor->processesSurfaceElements()) {
-	    vector<surfacePartP> volSurface ;
-
-	    extractVolumeSurfaces(volSurface,vp,output_dir,iteration,casename,variables) ;
-	    std::set<string> partset ;
-	    for(size_t i=0;i<parts.size();++i) {
-	      partset.insert(parts[i]->getPartName()) ;
-	    }
-	    for(size_t i=0;i<volSurface.size();++i) {
-	      if(partset.find(volSurface[i]->getPartName()) == partset.end())
-		parts.push_back(volSurface[i]) ;
-	    }
-	  }
-	}
+	} 
       }
     }
     particlePartP pp = 0 ;
