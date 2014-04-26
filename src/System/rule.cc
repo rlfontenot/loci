@@ -1065,7 +1065,7 @@ namespace Loci {
       for(i=desc.targets.begin();i!=desc.targets.end();++i) {
         for(size_t j=0;j<(*i).mapping.size();++j) {
           source_vars += (*i).mapping[j] ;
-          map_vars == (*i).mapping[j] ;
+          map_vars += (*i).mapping[j] ;
         }
         target_vars += (*i).var ;
         tvars += (*i).var ;
@@ -1203,7 +1203,7 @@ namespace Loci {
       for(i=desc.targets.begin();i!=desc.targets.end();++i) {
         for(size_t j=0;j<(*i).mapping.size();++j) {
           source_vars += (*i).mapping[j] ;
-          map_vars == (*i).mapping[j] ;
+          map_vars += (*i).mapping[j] ;
         }
         target_vars += (*i).var ;
         tvars += (*i).var ;
@@ -1391,7 +1391,7 @@ namespace Loci {
           i!=newinfo.desc.targets.end();++i) {
         for(size_t j=0;j<(*i).mapping.size();++j) {
           newinfo.source_vars += (*i).mapping[j] ;
-          newinfo.map_vars == (*i).mapping[j] ;
+          newinfo.map_vars += (*i).mapping[j] ;
         }
         newinfo.target_vars += (*i).var ;
         tvars += (*i).var ;
