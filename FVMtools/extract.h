@@ -214,11 +214,11 @@ string getPosFile(string output_dir,string iteration, string casename) ;
 
 
 class particlePartBase : public Loci::CPTR_type {
- protected:
+protected:
   bool error ;
   string partName ;
   size_t numParticles ;
- public:
+public:
   bool fail() const { return error ; }
   string getPartName() const { return partName ; }
   size_t getNumParticles() const { return numParticles ; }
@@ -240,7 +240,7 @@ class particlePart: public particlePartBase {
   map<string,string> scalarVars ;
   map<string,string> vectorVars ;
   int stride_size ;
- public:
+public:
   particlePart() { error = true ; }
   particlePart(string output_dir, string iteration, string casename,
 	       vector<string> vars, int maxparticles) ;
@@ -256,13 +256,13 @@ class particlePart: public particlePartBase {
 
 // Create abstraction for parts
 class volumePartBase : public Loci::CPTR_type {
- protected:
+protected:
   bool error ;
   string partName ;
   size_t nnodes ;
   size_t ntets, nhexs, nprsm, npyrm, ngenc ; 
   size_t ntetsIblank, nhexsIblank,nprsmIblank,npyrmIblank,ngencIblank ;
- public:
+public:
   bool fail() const { return error ; }
   string getPartName() const { return partName ; }
   size_t getNumNodes() const { return nnodes ; }
@@ -310,7 +310,7 @@ class volumePartDerivedVars : public volumePartBase {
   map<string,derivedVar_t> derivedVars ;
   float Pambient ;
   void processDerivedVars(const vector<string> &vars) ;
- public:
+public:
   volumePartDerivedVars() {error = true ;}
   volumePartDerivedVars(volumePartP part,
 			string output_dir, string iteration, string casename,
@@ -350,10 +350,10 @@ class volumePart : public volumePartBase {
   size_t ntets_orig, nhexs_orig, nprsm_orig, npyrm_orig, ngenc_orig ; 
   Loci::entitySet tetsIblanked, hexsIblanked, prsmIblanked, pyrmIblanked ;
   Loci::entitySet gencIblanked ;
- public:
+public:
   volumePart() {error = true ;}
   volumePart(string output_dir, string iteration, string casename,
-	      vector<string> vars) ;
+             vector<string> vars) ;
   virtual bool hasNodalScalarVar(string var) const ;
   virtual bool hasNodalVectorVar(string var) const ;
   virtual std::vector<string> getNodalScalarVars() const ;
@@ -378,11 +378,11 @@ class volumePart : public volumePartBase {
 } ;
 
 class surfacePartBase : public Loci::CPTR_type {
- protected:
+protected:
   bool error ;
   string partName ;
   int nnodes, nquads, ntrias, ngenf ;
- public:
+public:
   bool fail() const { return error ; }
   string getPartName() const { return partName ; }
   int getNumNodes() const { return nnodes ; }
@@ -400,6 +400,10 @@ class surfacePartBase : public Loci::CPTR_type {
   virtual void getQuads(vector<Array<int,4> > &quads) const = 0 ;
   virtual void getTrias(vector<Array<int,3> > &trias) const = 0 ;
   virtual void getGenf(vector<int> &numGenFnodes, vector<int> &genNodes) const =0;
+  virtual void getQuadsIds(vector<int> &quads_ids) const = 0 ;
+  virtual void getTriasIds(vector<int> &trias_ids) const = 0 ;
+  virtual void getGenfIds(vector<int> &genface_ids) const =0;
+  
   virtual void getPos(vector<vector3d<float> > &pos) const = 0;
   virtual void getNodalScalar(string varname, vector<float> &vals) const = 0 ;
   virtual void getNodalVector(string varname, vector<vector3d<float> > &vals) const = 0;
@@ -419,7 +423,7 @@ class surfacePartDerivedVars : public surfacePartBase {
   map<string,derivedVar_t> derivedVars ;
   float Pambient ;
   void processDerivedVars(const vector<string> &vars) ;
- public:
+public:
   surfacePartDerivedVars() { error = true ; shadowPart=0;} 
   surfacePartDerivedVars(surfacePartP part, string output_dir,
 			 string casename ,
@@ -437,6 +441,9 @@ class surfacePartDerivedVars : public surfacePartBase {
   virtual void getQuads(vector<Array<int,4> > &quads) const ;
   virtual void getTrias(vector<Array<int,3> > &trias) const ;
   virtual void getGenf(vector<int> &numGenFnodes, vector<int> &genNodes) const ;
+  virtual void getQuadsIds(vector<int> &quads_ids) const  ;
+  virtual void getTriasIds(vector<int> &trias_ids) const ;
+  virtual void getGenfIds(vector<int> &genface_ids) const ;
   virtual void getPos(vector<vector3d<float> > &pos) const ;
   virtual void getNodalScalar(string varname, vector<float> &vals) const ;
   virtual void getNodalVector(string varname, vector<vector3d<float> > &vals) const ;
@@ -463,7 +470,7 @@ class surfacePart : public surfacePartBase {
   vector<int> tri_ord ;
   vector<int> gen_ord ;
   entitySet quadSet,triSet,genSet ;
- public:
+public:
   surfacePart() {error = true ;}
   surfacePart(string name, string directory, string iteration,
 	      vector<string> vars) ;
@@ -479,6 +486,10 @@ class surfacePart : public surfacePartBase {
   virtual void getQuads(vector<Array<int,4> > &quads) const ;
   virtual void getTrias(vector<Array<int,3> > &trias) const ;
   virtual void getGenf(vector<int> &numGenFnodes, vector<int> &genNodes) const ;
+  virtual void getQuadsIds(vector<int> &quads_ids) const  ;
+  virtual void getTriasIds(vector<int> &trias_ids) const ;
+  virtual void getGenfIds(vector<int> &genface_ids) const ;
+  
   virtual void getPos(vector<vector3d<float> > &pos) const ;
   virtual void getNodalScalar(string varname, vector<float> &vals) const ;
   virtual void getNodalVector(string varname, vector<vector3d<float> > &vals) const ;
@@ -494,17 +505,23 @@ class surfacePartCopy : public surfacePartBase {
   vector<Array<int,3> > trifaces ;
   vector<Array<int,4> > quadfaces ;
   vector<int> nfacenodes, gennodes ;
+  vector<int> triaIds;
+  vector<int> quadIds;
+  vector<int> genIds;
   vector<int> nodemap ;
   vector<vector3d<float> > pos ;
   map<string,vector<float> > nodalScalars ;
   map<string,vector<vector3d<float> > > nodalVectors ;
   map<string,Array<vector<float>,3> > elementScalars ;
   map<string,Array<vector<vector3d<float> >,3> > elementVectors ;
- public:
+public:
   surfacePartCopy() {error = true ;}
   surfacePartCopy(string name, vector<Array<int,3> > &triangles,
+                  vector<int> &tria_ids,
                   vector<Array<int,4> > &quads,
-                  vector<int> &genface2n, vector<int> &gnodes) ;
+                  vector<int>& quads_ids,
+                  vector<int> &genface2n, vector<int> &gnodes,
+                  vector<int>&gen_ids) ;
   void registerPos(const vector<vector3d<float> > &pos) ;
   void registerNodalScalar(string name,const vector<float> &val) ;
   void registerNodalVector(string name,const vector<vector3d<float> > &val) ;
@@ -528,6 +545,10 @@ class surfacePartCopy : public surfacePartBase {
   virtual void getQuads(vector<Array<int,4> > &quads) const ;
   virtual void getTrias(vector<Array<int,3> > &trias) const ;
   virtual void getGenf(vector<int> &numGenFnodes, vector<int> &genNodes) const ;
+  virtual void getQuadsIds(vector<int> &quads_ids) const;  
+  virtual void getTriasIds(vector<int> &trias_ids) const; 
+  virtual void getGenfIds(vector<int> &genface_ids) const; 
+  
   virtual void getPos(vector<vector3d<float> > &pos) const ;
   virtual void getNodalScalar(string varname, vector<float> &vals) const ;
   virtual void getNodalVector(string varname, vector<vector3d<float> > &vals) const ;
@@ -540,11 +561,11 @@ class surfacePartCopy : public surfacePartBase {
 } ;
 
 class postProcessorConvert : public Loci::CPTR_type {
- protected:
+protected:
   vector<surfacePartP> surfacePartList ;
   vector<volumePartP> volumePartList ;
   vector<particlePartP> particlePartList ;
- public:
+public:
   void addSurfaceParts(const vector<surfacePartP> &list) {
     for(size_t i=0;i<list.size();++i)
       surfacePartList.push_back(list[i]) ;
@@ -565,7 +586,9 @@ class postProcessorConvert : public Loci::CPTR_type {
 typedef Loci::CPTR<postProcessorConvert> postProcessorP ;
 
 class ensightPartConverter : public postProcessorConvert {
- public:
+  bool id_required;
+public:
+  ensightPartConverter(bool input) {id_required = input; } ;
   virtual bool processesVolumeElements() const ;
   virtual bool processesSurfaceElements() const ;
   virtual bool processesParticleElements() const ;
@@ -574,7 +597,7 @@ class ensightPartConverter : public postProcessorConvert {
 } ;
 
 class tecplotPartConverter : public postProcessorConvert {
- public:
+public:
   virtual bool processesVolumeElements() const ;
   virtual bool processesSurfaceElements() const ;
   virtual bool processesParticleElements() const ;
@@ -584,7 +607,7 @@ class tecplotPartConverter : public postProcessorConvert {
 
 class vtkPartConverter : public postProcessorConvert {
   bool bit64 ;
- public:
+public:
   vtkPartConverter() {bit64 = false; } 
   vtkPartConverter(bool input) {bit64 = input; } ;
   virtual bool processesVolumeElements() const ;
@@ -596,7 +619,7 @@ class vtkPartConverter : public postProcessorConvert {
 
 class vtkSurfacePartConverter : public postProcessorConvert {
   bool bit64 ;
- public:
+public:
   vtkSurfacePartConverter() {bit64=false; }
   vtkSurfacePartConverter(bool input) { bit64=input; }
   virtual bool processesVolumeElements() const ;
@@ -607,7 +630,7 @@ class vtkSurfacePartConverter : public postProcessorConvert {
 } ;
 
 class fieldViewPartConverter : public postProcessorConvert {
- public:
+public:
   virtual bool processesVolumeElements() const ;
   virtual bool processesSurfaceElements() const ;
   virtual bool processesParticleElements() const ;
@@ -619,7 +642,7 @@ class cuttingPlanePartConverter : public postProcessorConvert
 {
   affineMapping transformMatrix ;
   float xShift, yShift, zShift ;
- public:
+public:
   cuttingPlanePartConverter(const affineMapping &m,
 			    float xs,float ys,float zs) {
     transformMatrix = m ;

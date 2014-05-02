@@ -223,8 +223,8 @@ volumePart::volumePart(string out_dir, string iteration, string casename,
   has_iblank = false ;
   if(stat(iblankname.c_str(),&tmpstat)== 0) {
     file_id = Loci::hdf5OpenFile(iblankname.c_str(),
-                                       H5F_ACC_RDONLY,
-                                       H5P_DEFAULT) ;
+                                 H5F_ACC_RDONLY,
+                                 H5P_DEFAULT) ;
     if(file_id < 0) {
       return ;
     }
@@ -377,36 +377,36 @@ volumePart::volumePart(string out_dir, string iteration, string casename,
         cout << npyrm-npyrm_b << " pyramids iblanked" << endl ;
     }
     if(ngenc > 0) {
-        vector<int> GeneralCellNfaces(ngenc) ;
-        readElementType(elg,"GeneralCellNfaces",GeneralCellNfaces) ;
-        size_t nside = sizeElementType(elg,"GeneralCellNsides") ;
-        vector<int> GeneralCellNsides(nside) ;
-        readElementType(elg,"GeneralCellNsides",GeneralCellNsides) ;
-        size_t nnodes = sizeElementType(elg,"GeneralCellNodes") ;
-        vector<int> GeneralCellNodes(nnodes) ;
-        readElementType(elg,"GeneralCellNodes",GeneralCellNodes) ;
-        int cnt1 = 0 ;
-        int cnt2 = 0 ;
-        int cnt = 0 ;
-        for(size_t i=0;i<ngenc;++i) {
-          bool blank = true ;
-          int nf = GeneralCellNfaces[i] ;
-          for(int f=0;f<nf;++f) {
-            int fs = GeneralCellNsides[cnt1++] ;
-            for(int n=0;n<fs;++n) {
-              int nd = GeneralCellNodes[cnt2++] ;
-              if(iblank[nd] < 2)
-                blank = false ;
-            }
+      vector<int> GeneralCellNfaces(ngenc) ;
+      readElementType(elg,"GeneralCellNfaces",GeneralCellNfaces) ;
+      size_t nside = sizeElementType(elg,"GeneralCellNsides") ;
+      vector<int> GeneralCellNsides(nside) ;
+      readElementType(elg,"GeneralCellNsides",GeneralCellNsides) ;
+      size_t nnodes = sizeElementType(elg,"GeneralCellNodes") ;
+      vector<int> GeneralCellNodes(nnodes) ;
+      readElementType(elg,"GeneralCellNodes",GeneralCellNodes) ;
+      int cnt1 = 0 ;
+      int cnt2 = 0 ;
+      int cnt = 0 ;
+      for(size_t i=0;i<ngenc;++i) {
+        bool blank = true ;
+        int nf = GeneralCellNfaces[i] ;
+        for(int f=0;f<nf;++f) {
+          int fs = GeneralCellNsides[cnt1++] ;
+          for(int n=0;n<fs;++n) {
+            int nd = GeneralCellNodes[cnt2++] ;
+            if(iblank[nd] < 2)
+              blank = false ;
           }
-          if(!blank)
-            cnt++ ;
-	  else
-	    gencIblanked += i ;
         }
-        ngenc_b = cnt ;
-        if(ngenc-ngenc_b > 0)
-          cout << ngenc-ngenc_b << " general cells iblanked" << endl ;
+        if(!blank)
+          cnt++ ;
+        else
+          gencIblanked += i ;
+      }
+      ngenc_b = cnt ;
+      if(ngenc-ngenc_b > 0)
+        cout << ngenc-ngenc_b << " general cells iblanked" << endl ;
     }
     H5Gclose(elg) ;
     Loci::hdf5CloseFile(file_id) ;
@@ -937,7 +937,7 @@ void volumePartDerivedVars::processDerivedVars(const vector<string> &vars) {
 	derivedVars["0"] = VAR_0 ;
       }
     }
-   if(vars[i] == "1" && !shadowPart->hasNodalScalarVar("1")) {
+    if(vars[i] == "1" && !shadowPart->hasNodalScalarVar("1")) {
       if(shadowPart->hasNodalVectorVar("v")) {
 	derivedVars["1"] = VAR_1 ;
       }
@@ -1046,8 +1046,8 @@ void volumePartDerivedVars::getHexIds(vector<int> &hexids, size_t start, size_t 
   shadowPart->getHexIds(hexids,start,size) ;
 }
 void volumePartDerivedVars::getGenCell(vector<int> &genCellNfaces, 
-			    vector<int> &genCellNsides,
-			    vector<int> &genCellNodes) const {
+                                       vector<int> &genCellNsides,
+                                       vector<int> &genCellNodes) const {
   shadowPart->getGenCell(genCellNfaces,genCellNsides,genCellNodes) ;
 }
 void volumePartDerivedVars::getGenIds(vector<int> &genids) const {
@@ -1387,7 +1387,18 @@ void surfacePart::getQuads(vector<Array<int,4> > &quads) const {
     Loci::hdf5CloseFile(file_id) ;
   }
 }
+void surfacePart::getQuadsIds(vector<int> &quads_ids) const {
+  cout << "start getQuadsIds " << endl;
+  quads_ids.clear();
+  FORALL(quadSet,ii) {
+    // quads_ids.push_back(quad_ord[ii]) ;
+    quads_ids.push_back(ii);
+  } ENDFORALL ;
+  cout << "start getQuadsIds " << endl;
+}
 
+ 
+  
 void surfacePart::getTrias(vector<Array<int,3> > &trias) const {
   trias.clear() ;
   if(ntrias > 0) {
@@ -1406,6 +1417,15 @@ void surfacePart::getTrias(vector<Array<int,3> > &trias) const {
     } ENDFORALL ;
     Loci::hdf5CloseFile(file_id) ;
   }
+}
+void  surfacePart::getTriasIds(vector<int> &trias_ids) const{
+  cout << "start getTriasIds " << endl;
+  trias_ids.clear();
+  FORALL(triSet,ii) {
+    //  trias_ids.push_back(tri_ord[ii]) ;
+    trias_ids.push_back(ii);
+  } ENDFORALL ;
+  cout << "end getTriasIds " << endl;
 }
 
 void surfacePart::getGenf(vector<int> &numGenFnodes, vector<int> &genNodes) const {
@@ -1436,6 +1456,16 @@ void surfacePart::getGenf(vector<int> &numGenFnodes, vector<int> &genNodes) cons
     } ENDFORALL ;
     Loci::hdf5CloseFile(file_id) ;
   }
+}
+
+void  surfacePart::getGenfIds(vector<int> &genface_ids) const{
+  cout << "start getGenIds " << endl;
+  genface_ids.clear();
+  FORALL(genSet,ii) {
+    //genface_ids.push_back(gen_ord[ii]) ;
+    genface_ids.push_back(ii);
+  } ENDFORALL ;
+  cout << "end getGenIds " << endl;
 }
 
 void surfacePart::getPos(vector<vector3d<float> > &pos) const {
@@ -1585,7 +1615,7 @@ void surfacePartDerivedVars::processDerivedVars(const vector<string> &vars) {
 	derivedVars["0"] = VAR_0 ;
       }
     }
-   if(vars[i] == "1" && !shadowPart->hasNodalScalarVar("1")) {
+    if(vars[i] == "1" && !shadowPart->hasNodalScalarVar("1")) {
       if(shadowPart->hasNodalVectorVar("v")) {
 	derivedVars["1"] = VAR_1 ;
       }
@@ -1680,7 +1710,15 @@ void surfacePartDerivedVars::getTrias(vector<Array<int,3> > &trias) const {
 void surfacePartDerivedVars::getGenf(vector<int> &numGenFnodes, vector<int> &genNodes) const {
   shadowPart->getGenf(numGenFnodes,genNodes) ;
 }
-
+void  surfacePartDerivedVars::getQuadsIds(vector<int> &quads_ids) const{
+  shadowPart->getQuadsIds(quads_ids);
+}
+void  surfacePartDerivedVars::getTriasIds(vector<int> &trias_ids) const{
+  shadowPart->getTriasIds(trias_ids); 
+}
+void surfacePartDerivedVars::getGenfIds(vector<int> &genface_ids) const{
+  shadowPart->getGenfIds(genface_ids);
+}
 void surfacePartDerivedVars::getPos(vector<vector3d<float> > &pos) const {
   shadowPart->getPos(pos) ;
 }
@@ -1775,30 +1813,33 @@ void surfacePartDerivedVars::getNodalScalar(string varname,
   }
 }
 void surfacePartDerivedVars::getNodalVector(string varname,
-				 vector<vector3d<float> > &vals) const {
+                                            vector<vector3d<float> > &vals) const {
   shadowPart->getNodalVector(varname,vals) ;
 }
 
 void surfacePartDerivedVars::getElementScalar(string varname,
-                                   vector<float> &qvals,
-                                   vector<float> &tvals,
-                                   vector<float> &gvals) const {
+                                              vector<float> &qvals,
+                                              vector<float> &tvals,
+                                              vector<float> &gvals) const {
   shadowPart->getElementScalar(varname,qvals,tvals,gvals) ;
 }
 
 void surfacePartDerivedVars::getElementVector(string varname,
-                                   vector<vector3d<float> > &qvals,
-                                   vector<vector3d<float> > &tvals,
-                                   vector<vector3d<float> > &gvals) const {
+                                              vector<vector3d<float> > &qvals,
+                                              vector<vector3d<float> > &tvals,
+                                              vector<vector3d<float> > &gvals) const {
   shadowPart->getElementVector(varname,qvals,tvals,gvals) ;
 }
 
 //----
 surfacePartCopy::surfacePartCopy(string name,
                                  vector<Array<int,3> > &triangles,
+                                 vector<int> &tria_ids,
                                  vector<Array<int,4> > &quads,
+                                 vector<int> &quad_ids,
                                  vector<int> &genface2n,
-                                 vector<int> &gnodes) {
+                                 vector<int> &gnodes,
+                                 vector<int> &gen_ids) {
   error = false ;
   vector<int> node_set ;
   for(size_t i=0;i<gnodes.size();++i)
@@ -1827,6 +1868,10 @@ surfacePartCopy::surfacePartCopy(string name,
   quadfaces = quads ;
   nfacenodes = genface2n ;
   gennodes = gennodes ;
+  triaIds = tria_ids;
+  quadIds = quad_ids;
+  genIds = gen_ids;
+  
   for(size_t i=0;i<trifaces.size();++i) {
     trifaces[i][0] = nmap[trifaces[i][0]] ;
     trifaces[i][1] = nmap[trifaces[i][1]] ;
@@ -1949,14 +1994,21 @@ vector<string> surfacePartCopy::getElementVectorVars() const {
 void surfacePartCopy::getQuads(vector<Array<int,4> > &quads) const {
   quads = quadfaces ;
 }
-
+void surfacePartCopy::getQuadsIds(vector<int> &quads_ids) const{
+  quads_ids = quadIds;
+}
 void surfacePartCopy::getTrias(vector<Array<int,3> > &trias) const {
   trias = trifaces ;
 }
-
+void surfacePartCopy::getTriasIds(vector<int> &trias_ids) const{
+  trias_ids = triaIds;
+}
 void surfacePartCopy::getGenf(vector<int> &numGenFnodes, vector<int> &genNodes) const {
   numGenFnodes = nfacenodes ;
   genNodes = gennodes ;
+}
+void surfacePartCopy::getGenfIds(vector<int> &genface_ids) const{
+  genface_ids = genIds;
 }
 
 void surfacePartCopy::getPos(vector<vector3d<float> > &pos_out) const {
@@ -1972,7 +2024,7 @@ void surfacePartCopy::getNodalScalar(string varname,
     vals = mi->second ;
 }
 void surfacePartCopy::getNodalVector(string varname,
-				 vector<vector3d<float> > &vals) const {
+                                     vector<vector3d<float> > &vals) const {
   map<string,vector<vector3d<float> > >::const_iterator mi ;
   mi = nodalVectors.find(varname) ;
   if(!(mi == nodalVectors.end()))
@@ -1980,9 +2032,9 @@ void surfacePartCopy::getNodalVector(string varname,
 }
 
 void surfacePartCopy::getElementScalar(string name,
-                                   vector<float> &qvals,
-                                   vector<float> &tvals,
-                                   vector<float> &gvals) const {
+                                       vector<float> &qvals,
+                                       vector<float> &tvals,
+                                       vector<float> &gvals) const {
   map<string,Array<vector<float>,3> >::const_iterator mi ;
   mi = elementScalars.find(name) ;
   qvals = mi->second[0] ;
@@ -1991,9 +2043,9 @@ void surfacePartCopy::getElementScalar(string name,
 }
 
 void surfacePartCopy::getElementVector(string name,
-                                   vector<vector3d<float> > &qvals,
-                                   vector<vector3d<float> > &tvals,
-                                   vector<vector3d<float> > &gvals) const {
+                                       vector<vector3d<float> > &qvals,
+                                       vector<vector3d<float> > &tvals,
+                                       vector<vector3d<float> > &gvals) const {
   map<string,Array<vector<vector3d<float> >,3> >::const_iterator mi ;
   mi = elementVectors.find(name) ;
   qvals = mi->second[0] ;
@@ -2157,8 +2209,8 @@ void getDerivedVar(vector<float> &dval, string var_name,
 
     filename = output_dir+"/v_vec." + iteration +"_" + casename ;
     file_id = Loci::hdf5OpenFile(filename.c_str(),
-                                       H5F_ACC_RDONLY,
-                                       H5P_DEFAULT) ;
+                                 H5F_ACC_RDONLY,
+                                 H5P_DEFAULT) ;
     if(file_id < 0) {
       cerr << "unable to open file '" << filename << "'!" << endl ;
       return ;
@@ -2192,8 +2244,8 @@ void getDerivedVar(vector<float> &dval, string var_name,
 
     filename = output_dir+"/Pambient_par." + iteration +"_" + casename ;
     file_id = Loci::hdf5OpenFile(filename.c_str(),
-                                       H5F_ACC_RDONLY,
-                                       H5P_DEFAULT) ;
+                                 H5F_ACC_RDONLY,
+                                 H5P_DEFAULT) ;
     if(file_id < 0) {
       cerr << "unable to open file '" << filename << "'!" << endl ;
       return ;
@@ -2601,7 +2653,7 @@ void extractVolumeSurfaces(vector<surfacePartP> &volSurface,
       }
     }
     surfaceWork[bc] = 
-      new surfacePartCopy(bc_names[bc],trias, quads,nside_sizes,nside_nodes) ;
+      new surfacePartCopy(bc_names[bc],trias,trias_id, quads,quads_id, nside_sizes,nside_nodes, nside_id) ;
 
     for(mi=elementScalars.begin();mi!=elementScalars.end();++mi) {
       int id = mi->second ;
@@ -2802,39 +2854,39 @@ int main(int ac, char *av[]) {
 	i++ ;
 	std::istringstream iss(av[i]) ;
 	if ((iss >> std::dec >> xShift).fail())
-	    Usage(ac, av) ;
+          Usage(ac, av) ;
       }
       else if(!strcmp(av[i],"-Sy")) {
 	i++ ;
 	std::istringstream iss(av[i]) ;
 	if ((iss >> std::dec >> yShift).fail())
-	    Usage(ac, av) ;
+          Usage(ac, av) ;
       }
       else if(!strcmp(av[i],"-Sz")) {
 	i++ ;
 	std::istringstream iss(av[i]) ;
 	if ((iss >> std::dec >> zShift).fail())
-	    Usage(ac, av) ;
+          Usage(ac, av) ;
       }
       else if(!strcmp(av[i],"-Rx")) {
 	i++ ;
 	std::istringstream iss(av[i]) ;
 	if ((iss >> std::dec >> temp).fail())
-	    Usage(ac, av) ;
+          Usage(ac, av) ;
         transformMatrix.rotateX(-temp) ;
       }
       else if(!strcmp(av[i],"-Ry")) {
 	i++ ;
 	std::istringstream iss(av[i]) ;
 	if ((iss >> std::dec >> temp).fail())
-	    Usage(ac, av) ;
+          Usage(ac, av) ;
 	transformMatrix.rotateY(-temp) ;
       }
       else if(!strcmp(av[i],"-Rz")) {
 	i++ ;
 	std::istringstream iss(av[i]) ;
 	if ((iss >> std::dec >> temp).fail())
-	    Usage(ac, av) ;
+          Usage(ac, av) ;
 	transformMatrix.rotateZ(-temp) ;
       }
       else if(!strcmp(av[i],"-xy")) 
@@ -3312,10 +3364,10 @@ int main(int ac, char *av[]) {
   
   switch(plot_type) {
   case ENSIGHT:
-    postprocessor = new ensightPartConverter ;
+    postprocessor = new ensightPartConverter(id_required) ;
     break ;
   case FIELDVIEW:
-     postprocessor = new fieldViewPartConverter ;
+    postprocessor = new fieldViewPartConverter ;
     break ;
   case TECPLOT:
     postprocessor = new tecplotPartConverter ;
@@ -3430,15 +3482,16 @@ int main(int ac, char *av[]) {
 	pp = new particlePart(output_dir,iteration,casename,variables,max_particles) ;
       }
     }
-
+    
     if(parts.size() > 0) {
       vector<surfacePartP> modparts(parts.size()) ;
       for(size_t i=0;i<parts.size();++i)
 	modparts[i] = new surfacePartDerivedVars(parts[i],
-					      output_dir,casename,
-					      iteration, variables) ;
+                                                 output_dir,casename,
+                                                 iteration, variables) ;
       postprocessor->addSurfaceParts(modparts) ;
     }
+    
     if(vp!=0) {
       volumePartP vpn = new volumePartDerivedVars(vp,
 						  output_dir,casename,
@@ -3448,7 +3501,6 @@ int main(int ac, char *av[]) {
     if(pp!=0)
       postprocessor->addParticlePart(pp) ;
     postprocessor->exportPostProcessorFiles(casename,iteration) ;
-
     Loci::Finalize() ;
     exit(0) ;
   } 

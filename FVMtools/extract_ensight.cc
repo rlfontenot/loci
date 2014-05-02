@@ -172,14 +172,15 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
   snprintf(tmp_buf, 80, "node id off") ;  
   fwrite(tmp_buf, sizeof(char), 80, OFP) ;
   memset(tmp_buf, '\0', 80) ;
-  snprintf(tmp_buf, 80,"element id off") ;  
+  if(id_required)snprintf(tmp_buf,80, "element id given") ;
+  else snprintf(tmp_buf, 80,"element id off") ;  
   fwrite(tmp_buf, sizeof(char), 80, OFP) ;
 
   int part_id = 0 ;
   // Volume Parts Output
   // -----------------------------------------------------------------------
   vector<int> vpartnums ;
-  for(size_t i=0;i<volumePartList.size();++i) {
+  for(size_t i=0;i<volumePartList.size();++i) { 
     part_id++ ;
     vpartnums.push_back(part_id) ;
     memset(tmp_buf, '\0', 80) ;
@@ -212,13 +213,19 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
       fwrite(&z,sizeof(float),1,OFP) ;
     }
     const int block_size=65536 ; // Size of blocking factor
+    
     if(volumePartList[i]->getNumTets() > 0) { // write out tets
       memset(tmp_buf, '\0', 80) ;
       snprintf(tmp_buf, 80, "tetra4") ;
       fwrite(tmp_buf, sizeof(char), 80, OFP) ;
       int tot = volumePartList[i]->getNumTets() ;
       fwrite(&tot, sizeof(int), 1, OFP) ;
-
+      
+      if(id_required){//write fake ids
+        vector<int> ids(tot, 1);
+        fwrite(&ids[0],sizeof(int),tot,OFP); 
+      }
+      
       int start = 0 ;
       int top = tot + volumePartList[i]->getNumTetsIblank() ;
       while(start < top) {
@@ -238,7 +245,12 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
       fwrite(tmp_buf, sizeof(char), 80, OFP) ;
       int tot = volumePartList[i]->getNumHexs() ;
       fwrite(&tot, sizeof(int), 1, OFP) ;
-
+      
+      if(id_required){//write fake ids
+        vector<int> ids(tot, 1);
+        fwrite(&ids[0],sizeof(int),tot,OFP); 
+      }
+      
       int start = 0 ;
       int top = tot+volumePartList[i]->getNumHexsIblank() ;
       while(start < top) {
@@ -258,6 +270,11 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
       fwrite(tmp_buf, sizeof(char), 80, OFP) ;
       int tot = volumePartList[i]->getNumPrsm() ;
       fwrite(&tot, sizeof(int), 1, OFP) ;
+
+      if(id_required){//write fake ids
+        vector<int> ids(tot, 1);
+        fwrite(&ids[0],sizeof(int),tot,OFP); 
+      }
       
       int start = 0 ;
       int top = tot + volumePartList[i]->getNumPrsmIblank() ;
@@ -278,6 +295,11 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
       fwrite(tmp_buf, sizeof(char), 80, OFP) ;
       int tot = volumePartList[i]->getNumPyrm() ;
       fwrite(&tot, sizeof(int), 1, OFP) ;
+
+      if(id_required){//write fake ids
+        vector<int> ids(tot, 1);
+        fwrite(&ids[0],sizeof(int),tot,OFP); 
+      }
       
       int start = 0 ;
       int top = tot+volumePartList[i]->getNumPyrmIblank() ;
@@ -302,6 +324,11 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
       int nnf = genCellNfaces.size() ;
       fwrite(&nnf, sizeof(int), 1, OFP) ;
 
+      if(id_required){//write fake ids
+        vector<int> ids(nnf, 1);
+        fwrite(&ids[0],sizeof(int),nnf,OFP); 
+      }
+      
       fwrite(&genCellNfaces[0], sizeof(int), nnf, OFP) ;
       int nnsides = genCellNsides.size() ;
       fwrite(&genCellNsides[0], sizeof(int),nnsides,OFP) ;
@@ -349,6 +376,11 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
       fwrite(tmp_buf, sizeof(char), 80, OFP) ;
       int nq = nquads ;
       fwrite(&nq, sizeof(int),1,OFP) ;
+      if(id_required){
+        vector<int> quads_ids;
+        surfacePartList[i]->getQuadsIds(quads_ids);
+        fwrite(&quads_ids[0], sizeof(int),nquads,OFP) ;
+      }
       vector<Array<int,4> > quads ;
       surfacePartList[i]->getQuads(quads) ;
       fwrite(&quads[0],sizeof(Array<int,4>),nquads,OFP) ;
@@ -361,6 +393,11 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
       fwrite(tmp_buf, sizeof(char), 80, OFP) ;
       int nt = ntrias ;
       fwrite(&nt, sizeof(int),1,OFP) ;
+      if(id_required){
+        vector<int> trias_ids;
+        surfacePartList[i]->getTriasIds(trias_ids);
+        fwrite(&trias_ids[0], sizeof(int),ntrias,OFP) ;
+      }
       vector<Array<int,3> > trias ;
       surfacePartList[i]->getTrias(trias) ;
       fwrite(&trias[0],sizeof(Array<int,3>),ntrias,OFP) ;
@@ -373,7 +410,11 @@ void ensightPartConverter::exportPostProcessorFiles(string casename,
       fwrite(tmp_buf, sizeof(char), 80, OFP) ;
       int ngen = ngeneral ;
       fwrite(&ngen, sizeof(int),1,OFP) ;
-      
+      if(id_required){
+        vector<int> nside_ids;
+        surfacePartList[i]->getGenfIds(nside_ids);
+        fwrite(&nside_ids[0], sizeof(int),ngeneral,OFP) ;
+      }
       vector<int> nside_sizes,nside_nodes ;
       surfacePartList[i]->getGenf(nside_sizes,nside_nodes) ;
       
