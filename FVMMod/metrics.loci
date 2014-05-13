@@ -179,7 +179,12 @@ namespace Loci {
 
 #define STRONG_CHECK
 
-  $rule pointwise(vol<-cellcenter,(upper,lower,boundary_map)->(area,facecenter)),constraint(cartesianCoordinateModel,geom_cells) {
+  $type minVolume param<double> ;
+  $rule default(minVolume) {
+    $minVolume = -1 ;
+  }
+
+  $rule pointwise(vol<-minVolume,cellcenter,(upper,lower,boundary_map)->(area,facecenter)),constraint(cartesianCoordinateModel,geom_cells) {
     real_t sum = 0.0 ;
     vector3d<real_t> dv ;
     for(const Entity* nf=$upper.begin();nf!=$upper.end();++nf) {
@@ -233,7 +238,9 @@ namespace Loci {
       Loci::debugout << " volume[ " << _e_ << " ] = "
                      << $vol << endl ;
       
-      exit(-1) ;
+      $vol = max($minVolume,$vol) ;
+      if($vol < 1e-40) 
+	exit(-1) ;
     }
   }
 
