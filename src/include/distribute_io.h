@@ -611,7 +611,7 @@ namespace Loci {
     const_store<double> edgesWeight(cp.edgesWeight); //the weight for interpoplation for each edgesCut, allocated on edgesCut
     store<int> nodeCount(cp.nodeCount);
     multiStore<double> facesWeight(cp.facesWeight); //the weight for interpoplation for each local disambiguatedFaces
-    multiStore<double> facesRank(cp.facesRank); //the weight for interpoplation for each local disambiguatedFaces
+    multiStore<int> facesRank(cp.facesRank); //the weight for interpoplation for each local disambiguatedFaces
     
    
     //compute the cutting positions of edges 
