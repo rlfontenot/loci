@@ -220,13 +220,13 @@ namespace Loci {
                                                 std::vector<T> &v1,
                                                 std::vector<T> &v2,
                                                 MPI_Comm comm) {
-    int rank = 0 ;
-    MPI_Comm_rank(comm,&rank) ;
+    int my_rank = 0 ;
+    MPI_Comm_rank(comm,&my_rank) ;
     int procs = 1 ;
     MPI_Comm_size(comm,&procs) ;
     //serial version
     if(procs==1){
-     
+      
       hsize_t array_size_combined = v1.size() + v2.size() ;
       if(array_size_combined == 0)
         return ;
@@ -279,30 +279,39 @@ namespace Loci {
       H5Tclose(datatype) ;
       return;
     }
+    
     //parallel version
     size_t local_size_combined = v1.size() + v2.size() ;
     std::vector<size_t> recv_sizes_combined(procs) ;
     MPI_Gather(&local_size_combined,sizeof(size_t),MPI_BYTE,
                &recv_sizes_combined[0],sizeof(size_t),MPI_BYTE,0,comm) ;
+
+    
     
     size_t local_size1 = v1.size();
     std::vector<size_t> recv_sizes1(procs) ;
     MPI_Gather(&local_size1,sizeof(size_t),MPI_BYTE,
                &recv_sizes1[0],sizeof(size_t),MPI_BYTE,0,comm) ;
+
     
-    long local_size2 = v2.size();
+    
+
+    size_t local_size2 = v2.size();
     std::vector<size_t> recv_sizes2(procs) ;
     MPI_Gather(&local_size2,sizeof(size_t),MPI_BYTE,
                &recv_sizes2[0],sizeof(size_t),MPI_BYTE,0,comm) ;
     
-    if(rank == 0) {
     
+
+    if(my_rank == 0) {
+     
       hsize_t array_size_combined = 0 ;
       for(int i=0;i<procs;++i){
         array_size_combined += recv_sizes_combined[i] ;
       }
-      if(array_size_combined == 0)
-        return ;
+
+      
+      if(array_size_combined == 0) return ;
       
       int rank = 1 ;
       hsize_t dimension = array_size_combined ;
@@ -320,6 +329,7 @@ namespace Loci {
       hid_t datatype = dp->get_hdf5_type() ;
       hid_t dataset = H5Dcreate(group_id,element_name,datatype,
                                 dataspace, H5P_DEFAULT) ;
+     
       
       if(count != 0) {
       
@@ -329,15 +339,15 @@ namespace Loci {
         H5Dwrite(dataset,datatype,memspace,dataspace,
                  H5P_DEFAULT, &v1[0]) ;
         H5Sclose(memspace) ;
-      
+        
+        
       }
       for(int i=1;i<procs;++i) {
       
         start += recv_sizes1[i-1] ;
        
-        if(recv_sizes1[i] == 0)
-          continue ;
-      
+        if(recv_sizes1[i] == 0)continue ;
+        debugout<<"combine 8: before recv v1 proc " << i  << endl;
         int flag = 0 ;
         MPI_Send(&flag,1,MPI_INT,i,0,comm) ;
       
@@ -345,7 +355,7 @@ namespace Loci {
         MPI_Status mstat ;
         MPI_Recv(&rv[0],sizeof(T)*recv_sizes1[i],MPI_BYTE,i,1,comm,
                  &mstat) ;
-      
+       
         count = recv_sizes1[i] ;
        
         H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
@@ -354,45 +364,52 @@ namespace Loci {
         H5Dwrite(dataset,datatype,memspace,dataspace,
                  H5P_DEFAULT, &rv[0]) ;
         H5Sclose(memspace) ;
+        
       }
       
       start += recv_sizes1[procs-1] ;
       count = recv_sizes2[0] ;
      
       if(count != 0) {
+       
         H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
                             &start, &stride, &count, NULL) ;
         hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
         H5Dwrite(dataset,datatype,memspace,dataspace,
                  H5P_DEFAULT, &v2[0]) ;
         H5Sclose(memspace) ;
+       
       }
       for(int i=1;i<procs;++i) {
         start += recv_sizes2[i-1] ;
      
         if(recv_sizes2[i] == 0)
           continue ;
+       
         int flag = 0 ;
         MPI_Send(&flag,1,MPI_INT,i,2,comm) ;
         std::vector<T> rv(recv_sizes2[i]) ;
         MPI_Status mstat ;
         MPI_Recv(&rv[0],sizeof(T)*recv_sizes2[i],MPI_BYTE,i,3,comm,
                  &mstat) ;
+        
         count = recv_sizes2[i] ;
         H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
         hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
         H5Dwrite(dataset,datatype,memspace,dataspace,
                  H5P_DEFAULT, &rv[0]) ;
         H5Sclose(memspace) ;
+       
       }
 
       H5Dclose(dataset) ;
       H5Sclose(dataspace) ;
       H5Tclose(datatype) ;
+     
     } else {
       if(local_size_combined == 0)
         return ;
-      
+     
       int flag = 0;
       MPI_Status mstat ;
       if(local_size1 != 0){
@@ -593,9 +610,22 @@ namespace Loci {
                                localCells,//all geom_cells
                                *Loci::exec_current_fact_db);
   }
+
+  // Convert container from local numbering to output file numbering
+  // pass in store rep pointer: sp
+  // entitySet to write: dom
+  // fact_db pointer  (facts)
+  // MPI Communicator
   storeRepP Local2FileOrder_output(storeRepP sp, entitySet dom,
                                    fact_db& facts, MPI_Comm comm);
-  
+  // Convert container from local numbering to output file numbering
+  // pass in store rep pointer: sp, multiStoreRep
+  // pass in store rep pointer: cp, the count store for sp
+  // entitySet to write: dom
+  // fact_db pointer  (facts)
+  // MPI Communicator
+  storeRepP Local2FileOrder_output_multiStore(storeRepP sp, storeRepP cp, entitySet dom, 
+                                              fact_db& facts, MPI_Comm comm);
   template<class T>   void writeCutPlaneNodalVal(hid_t file_id,
                                                  std::string element_name,
                                                  storeRepP face2nodeRep,
@@ -613,7 +643,15 @@ namespace Loci {
     multiStore<double> facesWeight(cp.facesWeight); //the weight for interpoplation for each local disambiguatedFaces
     multiStore<int> facesRank(cp.facesRank); //the weight for interpoplation for each local disambiguatedFaces
     
-   
+    
+    //check the domain
+    if((cp.edgesCut-edge2node.domain())!=EMPTY){
+      debugout<< "ERROR: the domain of edge2node is smaller than cp.edgesCut"<<endl;
+    }
+    if((cp.disambiguatedFaces-face2node.domain())!=EMPTY){
+      debugout<< "ERROR: the domain of face2node is smaller than cp.disambiguatedFaces"<<endl;
+    }
+    
     //compute the cutting positions of edges 
     store<T> edge_pos;
     edge_pos.allocate(cp.edgesCut);
@@ -624,12 +662,19 @@ namespace Loci {
       T p = interpolate_val(w, a, b);
       edge_pos[e] = p;
     }ENDFORALL;
+    
    
     //transform the store into output order
     store<T> gedge_pos;
-    gedge_pos = Local2FileOrder_output(edge_pos.Rep(),  cp.edgesCut, 
-                                       facts, MPI_COMM_WORLD);
-
+    storeRepP geposRep =  Local2FileOrder_output(edge_pos.Rep(),  cp.edgesCut, 
+                                                 facts, MPI_COMM_WORLD);
+       
+    if(geposRep == NULL){
+      gedge_pos .allocate(EMPTY);
+    }else{
+      gedge_pos = geposRep;
+    }
+   
    
     //get positions std::vector
     entitySet local_edges_cut = gedge_pos.domain();
@@ -639,11 +684,20 @@ namespace Loci {
     entitySet::const_iterator ei ;
     for(ei=local_edges_cut.begin();ei!=local_edges_cut.end();++ei)
       vpos[cnt++] = gedge_pos[*ei];
+    
+   
    
     std::vector<T>  vpos2;
-
+    
+    long long local_inner_edges_size = cp.inner_edges.size();
+    long long total_inner_edges_size = 0;
+    MPI_Allreduce(&local_inner_edges_size,&total_inner_edges_size,1,MPI_LONG_LONG_INT,
+                  MPI_SUM,MPI_COMM_WORLD) ;
+   
+   
     //if there are inner edges, output the cutting positions  
-    if(cp.inner_edges.size() > 0){
+    if(total_inner_edges_size > 0){
+            
       multiStore<T> face_pos;
       face_pos.allocate(nodeCount);
       FORALL(cp.disambiguatedFaces, f){
@@ -656,11 +710,19 @@ namespace Loci {
           face_pos[f][ei] = p;
         }
       }ENDFORALL;
+     
 
       //transform the store into output order
       multiStore<T> gface_pos;
-      gface_pos = Local2FileOrder_output(face_pos.Rep(),  cp.disambiguatedFaces, 
-                                         facts, MPI_COMM_WORLD);
+      storeRepP gfposRep = Local2FileOrder_output_multiStore(face_pos.Rep(), nodeCount.Rep(), cp.disambiguatedFaces, 
+                                                             facts, MPI_COMM_WORLD);
+      
+      if(gfposRep == NULL){
+        gface_pos .allocate(EMPTY);
+      }else{
+        gface_pos = gfposRep;
+      }
+     
       //get positions std::vector
       entitySet local_faces_cut = gface_pos.domain();
     
@@ -669,8 +731,6 @@ namespace Loci {
           vpos2.push_back(gface_pos[f][ei]);
         }
       }ENDFORALL;
-     
-
     }
    
     //write out the vector

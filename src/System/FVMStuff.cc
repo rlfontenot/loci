@@ -108,7 +108,7 @@ namespace Loci{
   //input: nodes : the local store domain need to be output,
   //assume nodes will be written out in the global ordering.   
   storeRepP get_output_node_remap(fact_db &facts,entitySet nodes) {
-
+   
     if(MPI_processes == 1) {
       int index = 1;
       
@@ -124,36 +124,43 @@ namespace Loci{
     fact_db::distribute_infoP df = facts.get_distribute_info() ;
     Map l2g ;
     l2g = df->l2g.Rep() ;
-            
+    
     entitySet gnodes = l2g.image(nodes&l2g.domain()) ;
+    if(nodes.size() != gnodes.size()){
+      debugout<<"ERROR: l2g.domain is smaller than  dom in get_output_node_remap " << endl;
+    }
+    
     entitySet gset = all_collect_entitySet(gnodes) ;
     Map g2f;
     g2f.allocate(gset);
     
-   
+    
     int index = 1; //node index starts with 1
     FORALL(gset, n){
       g2f[n] = index++;
     }ENDFORALL;
-      
+    
     Map newnum ;
     newnum.allocate(nodes) ;
 
     FORALL(nodes,i) {
       newnum[i] = g2f[l2g[i]];
     } ENDFORALL ;
+   
     return newnum.Rep() ;
+    
   }
 
   //return a map from local numbering to output file numbering
-  //the file number starts with 1
-  //input: nodes : the local store domain need to be output,
+  //the file number starts with indexOffset
+  //input: nodeCountRep, a store<int> Rep, the number of nodes for each entity in the local store domain,
   //assume nodes will be written out in the global ordering.   
   storeRepP get_output_node_remap(fact_db &facts, storeRepP nodeCountRep, int indexOffset) {
+   
     store<int> nodeCount;
     nodeCount = nodeCountRep;
-    
-    entitySet local_domain =nodeCount.domain(); 
+    entitySet local_domain =nodeCount.domain();
+         
     if(MPI_processes == 1) {
       int index = indexOffset;
       
@@ -171,31 +178,58 @@ namespace Loci{
     MPI_Comm_size(MPI_COMM_WORLD,&p) ;
     int prank = 0 ;
     MPI_Comm_rank(MPI_COMM_WORLD,&prank) ;
-
+ 
     store<int> gnodeCount;
-    gnodeCount = Local2FileOrder_output(nodeCountRep,  local_domain, 
-                                        facts, MPI_COMM_WORLD);
-
+    storeRepP gnodeCountRep = Local2FileOrder_output(nodeCountRep,  local_domain, 
+                                                     facts, MPI_COMM_WORLD);
+   
+    
+    entitySet gnode_dom = EMPTY;
+    if(gnodeCountRep==NULL){
+      gnodeCount.allocate(EMPTY);
+    }else{
+      gnodeCount =gnodeCountRep;
+      gnode_dom = gnodeCount.domain();
+    }
+    
+    
     vector<entitySet> init_ptn = facts.get_init_ptn() ;
     int offset = init_ptn[prank].Min();
-    vector<int> nodeCountVec(gnodeCount.domain().size()*2);
+    vector<int> nodeCountVec(gnode_dom.size()*2);
     int cnt = 0;
-    FORALL(gnodeCount.domain(), f){
-      nodeCountVec[cnt++] = f+offset;
-      nodeCountVec[cnt++] = gnodeCount[f];
+    FORALL(gnode_dom, f){
+      nodeCountVec[cnt++] = f+offset;//file number of this f
+      nodeCountVec[cnt++] = gnodeCount[f]; //the number of nodes on this f
     }ENDFORALL;
-      
+    
+   
     //get the total number of faces       
-    long long num_faces = gnodeCount.domain().size();
+    long long num_faces = gnode_dom.size();
+ 
     long long total_num_faces = 0;
     MPI_Allreduce(&num_faces,&total_num_faces,1,MPI_LONG_LONG_INT,
                   MPI_SUM,MPI_COMM_WORLD) ;
     
-
-    //all gather the nodeCount
-    vector<int> global2file(total_num_faces*2);
-    MPI_Allgather(&nodeCount[0], num_faces, MPI_INT,
-                  &global2file[0], num_faces, MPI_INT,MPI_COMM_WORLD);
+ 
+    //all gather the nodeCountVec
+    int send_count = nodeCountVec.size();
+    vector<int> recv_count(p) ;
+    MPI_Allgather(&send_count,1,MPI_INT,&recv_count[0],1,MPI_INT,
+                  MPI_COMM_WORLD) ;
+    vector<int> recv_disp(p) ;
+    recv_disp[0] = 0 ;
+    for(int i=1;i<p;++i)
+      recv_disp[i] = recv_disp[i-1]+recv_count[i-1] ;
+    int tot = recv_disp[p-1]+recv_count[p-1] ;
+    if(tot == 0){
+      debugout<<"ERROR: communicate empty dataset in get_output_node_remap()" << endl;
+      return NULL ;
+    }
+   
+    vector<int> global2file(tot);
+    MPI_Allgatherv(&(nodeCountVec[0]), send_count, MPI_INT,
+                   &(global2file[0]),&(recv_count[0]), &(recv_disp[0]), MPI_INT,
+                   MPI_COMM_WORLD) ;
     
     //collect all the global faces 
     //and rewrite the number of inner nodes in global2file as offset of output file number for this face 
@@ -208,9 +242,9 @@ namespace Loci{
       global2file[2*i+1] = offset;
       offset += num_nodes;
     }
-      
+    
     //create the map from global face number to output file numbering offset
-    Map g2o;
+    Map g2o;//global to offset of node file numbering
     g2o.allocate(global_faces);
     for(int i = 0; i < total_num_faces; i++){
       Entity f = global2file[2*i];
@@ -219,7 +253,7 @@ namespace Loci{
     }
     
     
-   
+    
     fact_db::distribute_infoP df = facts.get_distribute_info() ;
     Map l2g ;
     l2g = df->l2g.Rep() ;
@@ -229,6 +263,8 @@ namespace Loci{
     FORALL(local_domain,i) {
       nm[i] = g2o[l2g[i]];
     } ENDFORALL ;
+    
+   
     return nm.Rep() ;
   }
 
@@ -911,7 +947,7 @@ namespace Loci{
     FORALL(boundary_names.domain(),bb) {
       if(boundary_names[bb] == current_bc) {
         found_ref = true ;
-          id = bb ;
+        id = bb ;
       }
     } ENDFORALL ;
     entitySet bfaces ;
@@ -995,11 +1031,11 @@ namespace Loci{
     
     FORALL(bfaces,fc) {
       if(face2node[fc].size() == 3) {
-          Trias[nt][0] = node_remap[face2node[fc][0]] ;
-          Trias[nt][1] = node_remap[face2node[fc][1]] ;
-          Trias[nt][2] = node_remap[face2node[fc][2]] ;
-          tria_ids[nt] = faceorder[fc] ;
-          nt++ ;
+        Trias[nt][0] = node_remap[face2node[fc][0]] ;
+        Trias[nt][1] = node_remap[face2node[fc][1]] ;
+        Trias[nt][2] = node_remap[face2node[fc][2]] ;
+        tria_ids[nt] = faceorder[fc] ;
+        nt++ ;
       } else if(face2node[fc].size() == 4) {
         Quads[nq][0] = node_remap[face2node[fc][0]] ;
         Quads[nq][1] = node_remap[face2node[fc][1]] ;
@@ -1356,14 +1392,18 @@ namespace Loci{
                          const CutPlane& cp,
                          fact_db &facts){ 
    
-   
     Map l2f; //the map from inner_edges index to output file number
     Map node_remap;//map from local numbering to output file numbering for edge entities
     node_remap = get_output_node_remap(facts, cp.edgesCut);
-   
+
+    long long local_inner_edges_size = cp.inner_edges.size();
+    long long total_inner_edges_size = 0;
+    MPI_Allreduce(&local_inner_edges_size,&total_inner_edges_size,1,MPI_LONG_LONG_INT,
+                  MPI_SUM,MPI_COMM_WORLD) ;
+    
     //if there are inner edges, create the l2f map
-    if(cp.inner_edges.size() > 0){
-         
+    if(total_inner_edges_size > 0){
+    
       //step 1.1 get the node index offset for inner_edges
       
       //num_edge_nodes each process written out
@@ -1373,42 +1413,45 @@ namespace Loci{
       long long total_num_edge_nodes = 0 ;
       MPI_Allreduce(&local_num_edge_nodes,&total_num_edge_nodes,1,MPI_LONG_LONG_INT,
                     MPI_SUM,MPI_COMM_WORLD) ;
-      int offset =  total_num_edge_nodes; //the offset for nodes index on inner_edges
-
+      int offset =  total_num_edge_nodes+1; //the offset for nodes index on inner_edges
+      
       //step 1.2 for each disambiguated face, find its start index(index offset) 
       Map face_l2f;//map from local face to output file numbering offset for disambuguated faces
       face_l2f = get_output_node_remap(facts, cp.nodeCount, offset);
-    
+      
       //step 1.3 for each inner edge, find its rank in the face
       //for example, if an edge is the second edge created in a face, then its rank is 2
       vector<int> edge_rank(cp.inner_edges.size());
-      int rank = 1;
-      int prevFace = cp.inner_edges[0].first;
-      edge_rank[0] = rank;
-      for(unsigned int i = 1; i< cp.inner_edges.size(); i++){
-        int currentFace = cp.inner_edges[i].first;
-        if(currentFace == prevFace){
-          rank++;
-        }else{
-          rank = 1;
-          prevFace = currentFace;
+      if(cp.inner_edges.size()>0){
+        int rank = 1;
+        int prevFace = cp.inner_edges[0].first;
+        edge_rank[0] = rank;
+        for(unsigned int i = 1; i< cp.inner_edges.size(); i++){
+          int currentFace = cp.inner_edges[i].first;
+          if(currentFace == prevFace){
+            rank++;
+          }else{
+            rank = 1;
+            prevFace = currentFace;
+          }
+          edge_rank[i] = rank;
         }
-        edge_rank[i] = rank;
       }
-      
       
       //step 1.4 create the map from local index to output file numbering for each inner edge
-      entitySet dom = interval(1, cp.inner_edges.size());
-      l2f.allocate(dom);
-      for(unsigned int i = 1; i <= cp.inner_edges.size(); i++){
-        pair<int, int> edge = (cp.inner_edges)[i-1];
-        int face = edge.first;
-        int offset = face_l2f[face];
-        int rank = edge_rank[i-1];
-        l2f[i] = offset+rank;
+      if(cp.inner_edges.size()){ 
+        entitySet dom = interval(1, cp.inner_edges.size());
+        l2f.allocate(dom);
+        for(unsigned int i = 1; i <= cp.inner_edges.size(); i++){
+          pair<int, int> edge = (cp.inner_edges)[i-1];
+          int face = edge.first;
+          int offset = face_l2f[face];
+          int rank = edge_rank[i-1];
+          l2f[i] = offset+rank;
+        }
       }
     }
-
+    
     //write out the sizes of faceLoops  
     int num_faces = cp.faceLoops.size();
     vector<int> nsizes(num_faces);
@@ -1431,7 +1474,8 @@ namespace Loci{
       }
     }
     
-    writeUnorderedVector(bc_id,"nside_nodes",nsidenodes) ;      
+    writeUnorderedVector(bc_id,"nside_nodes",nsidenodes) ;
+    
   }
   
   namespace {
