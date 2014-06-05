@@ -128,6 +128,7 @@ int main(int argc, char ** argv) {
       cout <<"-o <file> -- output refinement plan file" << endl;
       cout <<"-tol <double> -- tolerance, minimum grid spacing allowed(default value: 1e-10), need to be specified for -xml option" << endl;
       cout <<"-fold <double> -- twist value, maximum face folding allowed(default value: 1.5708)" << endl;
+      cout <<"-factor <double> -- anisotripic factor value, minimum allowed ratio between average edge length in different direction (default value: 2)" << endl;
       cout <<"-levels <int> --  levels of refinement(default value: 1), for anisotropic refinement, levels can only be 1" << endl;
       cout << "-mode <int: 0, 1, 2, 3> -- split mode 0: anisotropic split according to edge length, this is the default value " << endl;
       cout << "                        -- split mode 1: don't refine in z direction" << endl;
@@ -202,7 +203,12 @@ int main(int argc, char ** argv) {
       Globals::fold = strtod(argv[++i], endptr);
       
     }
-
+    else if(arg == "-factor" && (i+1) < argc){
+      //replace the fold(maximum face fold value)with the next argument
+      char** endptr = 0;
+      Globals::factor = strtod(argv[++i], endptr);
+      
+    }
 
     else if(arg == "-mode" && (i+1) < argc){
       //replace the split mode with the next argument

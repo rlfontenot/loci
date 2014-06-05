@@ -26,7 +26,7 @@ public:
   static double fold;
   static double tolerance;
   static int levels;
-  static int factor;
+  static double factor;
   //balance options:
   //0: no edge's depth is greater than 1
   //1: 0 and no cell has more than half of its face split

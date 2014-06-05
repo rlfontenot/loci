@@ -24,7 +24,7 @@
 double Globals::tolerance = 1e-10;
 double  Globals::fold = 90.0*3.1415926/180.0; //90 degree
 int Globals::levels = 1;
-int Globals::factor = 2;
+double Globals::factor = 2;
 //balance options:
 //0: no edge's depth is greater than 1
 //1: 0 and no cell has more than half of its face split
