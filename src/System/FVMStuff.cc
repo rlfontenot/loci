@@ -150,126 +150,6 @@ namespace Loci{
     return newnum.Rep() ;
     
   }
-
-  //return a map from local numbering to output file numbering
-  //the file number starts with indexOffset
-  //input: nodeCountRep, a store<int> Rep, the number of nodes for each entity in the local store domain,
-  //assume nodes will be written out in the global ordering.   
-  storeRepP get_output_node_remap(fact_db &facts, storeRepP nodeCountRep, int indexOffset) {
-   
-    store<int> nodeCount;
-    nodeCount = nodeCountRep;
-    entitySet local_domain =nodeCount.domain();
-         
-    if(MPI_processes == 1) {
-      int index = indexOffset;
-      
-      Map nm ;
-      nm.allocate(local_domain) ;
-      FORALL(local_domain,nd) {
-        nm[nd] = index ;
-        index += nodeCount[nd];
-      } ENDFORALL ;
-      return nm.Rep() ;
-    }
-    
-    // Get number of processors
-    int p = 0 ;
-    MPI_Comm_size(MPI_COMM_WORLD,&p) ;
-    int prank = 0 ;
-    MPI_Comm_rank(MPI_COMM_WORLD,&prank) ;
- 
-    store<int> gnodeCount;
-    storeRepP gnodeCountRep = Local2FileOrder_output(nodeCountRep,  local_domain, 
-                                                     facts, MPI_COMM_WORLD);
-   
-    
-    entitySet gnode_dom = EMPTY;
-    if(gnodeCountRep==NULL){
-      gnodeCount.allocate(EMPTY);
-    }else{
-      gnodeCount =gnodeCountRep;
-      gnode_dom = gnodeCount.domain();
-    }
-    
-    
-    vector<entitySet> init_ptn = facts.get_init_ptn() ;
-    int offset = init_ptn[prank].Min();
-    vector<int> nodeCountVec(gnode_dom.size()*2);
-    int cnt = 0;
-    FORALL(gnode_dom, f){
-      nodeCountVec[cnt++] = f+offset;//file number of this f
-      nodeCountVec[cnt++] = gnodeCount[f]; //the number of nodes on this f
-    }ENDFORALL;
-    
-   
-    //get the total number of faces       
-    long long num_faces = gnode_dom.size();
- 
-    long long total_num_faces = 0;
-    MPI_Allreduce(&num_faces,&total_num_faces,1,MPI_LONG_LONG_INT,
-                  MPI_SUM,MPI_COMM_WORLD) ;
-    
- 
-    //all gather the nodeCountVec
-    int send_count = nodeCountVec.size();
-    vector<int> recv_count(p) ;
-    MPI_Allgather(&send_count,1,MPI_INT,&recv_count[0],1,MPI_INT,
-                  MPI_COMM_WORLD) ;
-    vector<int> recv_disp(p) ;
-    recv_disp[0] = 0 ;
-    for(int i=1;i<p;++i)
-      recv_disp[i] = recv_disp[i-1]+recv_count[i-1] ;
-    int tot = recv_disp[p-1]+recv_count[p-1] ;
-    if(tot == 0){
-      debugout<<"ERROR: communicate empty dataset in get_output_node_remap()" << endl;
-      return NULL ;
-    }
-   
-    vector<int> global2file(tot);
-    MPI_Allgatherv(&(nodeCountVec[0]), send_count, MPI_INT,
-                   &(global2file[0]),&(recv_count[0]), &(recv_disp[0]), MPI_INT,
-                   MPI_COMM_WORLD) ;
-    
-    //collect all the global faces 
-    //and rewrite the number of inner nodes in global2file as offset of output file number for this face 
-    entitySet global_faces;
-    offset = indexOffset;
-    for(int i = 0; i < total_num_faces; i++){
-      Entity f = global2file[2*i];
-      global_faces += f;
-      int num_nodes = global2file[2*i+1];
-      global2file[2*i+1] = offset;
-      offset += num_nodes;
-    }
-    
-    //create the map from global face number to output file numbering offset
-    Map g2o;//global to offset of node file numbering
-    g2o.allocate(global_faces);
-    for(int i = 0; i < total_num_faces; i++){
-      Entity f = global2file[2*i];
-      int offset = global2file[2*i+1];
-      g2o[f] = offset;
-    }
-    
-    
-    
-    fact_db::distribute_infoP df = facts.get_distribute_info() ;
-    Map l2g ;
-    l2g = df->l2g.Rep() ;
-    
-    Map nm ;
-    nm.allocate(local_domain) ;
-    FORALL(local_domain,i) {
-      nm[i] = g2o[l2g[i]];
-    } ENDFORALL ;
-    
-   
-    return nm.Rep() ;
-  }
-
-
-  
   
   int classify_cell(Entity *faces,int nfaces,const_multiMap &face2node) {
     int num_triangles = 0 ;
@@ -1070,14 +950,13 @@ namespace Loci{
   //an inner edge is the edge from facecenter to one of its nodes during face triangulation
   //if the edge already exists, the index is returned
   //otherwise, the edge is created and registered in inner_edges and edgeIndex
-  //the return value is the index of the edge in new_edges, starts with 1
+  //the return value is the index of the edge in inner_edges, starts with 1
   int create_inner_edge(int face, //face id
                         int node, //node id
                         std::map<pair<int, int>, int>& edgeIndex, //map of inner edges to its index in inner_edges, the index starts with 1 
                         vector<pair<int, int> >& inner_edges) //the edges from facecenter and one of its node
   {
     pair<int, int> inner_edge = make_pair(face, node);
-      
     //make sure no duplicate in inner_edges
     if(edgeIndex.find(inner_edge) == edgeIndex.end()){
       inner_edges.push_back(inner_edge);
@@ -1096,13 +975,12 @@ namespace Loci{
                         entitySet& edgesCut, //the edges(node 2 node) cut
                         std::map<pair<int, int>, int >& edgeIndex,//map of inner edges(face 2 node) to its index in inner_edges, the index starts with 1 
                         vector<pair<int, int> >& intersects, //pair of edges, if the second number is negative, it is index to inner_edges
-                        vector<pair<int, int> >& inner_edges, //the edges from facecenter and one of its node 
-                        entitySet& disambiguatedFaces ){
-      
+                        vector<pair<int, int> >& inner_edges //the edges from facecenter and one of its node 
+                        ){
+    
     int nNodes = face2node.num_elems(f);
-    disambiguatedFaces += f;
-
-    //get the pos of face center
+    
+    //get the value of face center
     real_t  newNode = 0.0 ;
     for (int i = 0; i < nNodes; ++i) {
       newNode += val[face2node[f][i]];
@@ -1141,6 +1019,7 @@ namespace Loci{
         cutsFound++;                     
       }
       if (cutsFound == 2) intersects.push_back(make_pair(faceCut[0], faceCut[1]));
+      //else ????holes happen?
     }
   }
 
@@ -1151,10 +1030,9 @@ namespace Loci{
                     const_MapVec<2>& edge2node,
                     const_store<real_t>& val,
                     entitySet& edgesCut,//the edges(node 2 node) cut
-                    std::map<pair<int, int>, int >& edgeIndex,//map of inner edges(face 2 node) to its index in inner_edges, the index starts with 1
-                    vector<pair<int, int> >& intersects, //pair of edges, if the second number is negative, it is index to inner_edges
-                    vector<pair<int, int> >& inner_edges,//the edges from facecenter and one of its node 
-                    entitySet& disambiguatedFaces 
+                    std::map<pair<int, int>, int >& edgeIndex,//map of inner edges(face center 2 node) to its index in inner_edges, the index starts with 1
+                    vector<pair<int, int> >& intersects, //pair of edges, if the value is negative, it is index to inner_edges
+                    vector<pair<int, int> >& inner_edges//pair<face, node>, the edges from facecenter and one of the face node 
                     ){
     
     int faceCut[2];
@@ -1185,14 +1063,14 @@ namespace Loci{
                         edgesCut,
                         edgeIndex,
                         intersects,
-                        inner_edges,
-                        disambiguatedFaces);
+                        inner_edges
+                        );
     return (cutsFound > 0);
   }
     
   //after all the faces of a cell is registered,
   //check the intersects to form the faces in cutting plane
-  void checkLoop( const vector<pair<int, int> >& intersects,//pair of edges, if the second number is negative, it is index to inner_edges
+  void checkLoop( const vector<pair<int, int> >& intersects,//pair of edges, if the value number is negative, it is index to inner_edges
                   vector<vector<int > >& faceLoops,//the loops(faces in cutting plane) formed 
                   int start,//the start index to intersects 
                   int end) { //the end index to intersects
@@ -1246,10 +1124,23 @@ namespace Loci{
     }
       
     if (firstNode != nextNode){
-      cerr << "** Problem cell:  ** (failed loop test)" << endl;
+      debugout << "ERROR: ** Problem cell:  ** (failed loop test)" << endl;
     }
   }
-
+  //after the loops are formed, this function will remove all negative value in loops.
+  vector<vector<int > > remove_inner_edges(const vector<vector<int > >& faceLoops)//the loops(faces in cutting plane) formed 
+  {
+    vector<vector<int > >  new_faceLoops;
+    for(unsigned int i = 0; i < faceLoops.size(); i++){
+      vector<int> loop;
+      for(unsigned int j = 0; j < faceLoops[i].size(); j++){
+        if(faceLoops[i][j] >=0) loop.push_back(faceLoops[i][j]);
+      }
+      if(loop.size() >0)new_faceLoops.push_back(loop);
+    }
+    return new_faceLoops;
+  }
+    
   //return the cutting position of an edge 
   double get_edge_weight(Entity e,
                          const_MapVec<2>& edge2node,
@@ -1261,18 +1152,7 @@ namespace Loci{
   }
  
 
-  //return the cutting position of an inner edge(facecenter to one of its nodes) 
-  double get_inner_edge_weight(Entity f,
-                               int rank, //index of the node in face2node
-                               const_multiMap& face2node,
-                               const_store<real_t> & val){
-   
-    real_t a = get_center_val(f, face2node, val);
-    real_t b = val[face2node[f][rank]];
-    return ((b)/(b - a));
-  }
-  
-  
+  //generate Cutplane
   CutPlane getCutPlane(storeRepP upperRep,
                        storeRepP lowerRep,
                        storeRepP boundary_mapRep,
@@ -1282,26 +1162,21 @@ namespace Loci{
                        storeRepP valRep,
                        entitySet localCells,//all geom_cells
                        fact_db &facts) {
-
+    
     const_multiMap upper(upperRep),lower(lowerRep),
       boundary_map(boundary_mapRep),face2node(face2nodeRep), face2edge(face2edgeRep) ;
     
     const_MapVec<2> edge2node(edge2nodeRep);
     const_store<real_t> val(valRep);
 
-    //cutplane data structure:
-    entitySet edgesCut; //the edges(node 2 node) cut, local numbering
+    // data structure:
+    entitySet edgesCut;
     store<double> edgesWeight; //the weight for interpoplation for each edgesCut, allocated on edgesCut
     vector<pair<int, int> > inner_edges; //the inner edges(facecenter to one of its nodes) cut, the values stored are pair<local_faceid, noderank>  
     vector<vector<int > > faceLoops;  //loops formed, the values stored are edge ids, which is either local edge entity or index to inner_edges
-    entitySet disambiguatedFaces ; //the faces disambiguated, local numbering
-    multiStore<double> facesWeight; //the weight for interpoplation for each local disambiguatedFaces
-    store<int> nodeCount; //store the number of cutplane nodes for each face, allocated on disambiguatedFaces
-    multiStore<int> facesRank;
-
+   
    
     //extra data structure
-   
     vector<pair<int, int> > intersects; //the pairs of edges  or inner edges cut
     std::map<pair<int, int>, int > edgeIndex; //map of inner edges to their indexes in inner_edges
     // for each cell
@@ -1314,7 +1189,7 @@ namespace Loci{
       for(int i=0;i<upper[cc].size();++i)faces += upper[cc][i];
       for(int i=0;i<lower[cc].size();++i)faces += lower[cc][i];
       for(int i=0;i<boundary_map[cc].size();++i)faces += boundary_map[cc][i];
-
+      
       //for each face, find the edges that is cut and register it
       for(entitySet::const_iterator ei = faces.begin(); ei != faces.end(); ei++){
         if (registerFace(*ei,
@@ -1325,8 +1200,8 @@ namespace Loci{
                          edgesCut,
                          edgeIndex,
                          intersects, 
-                         inner_edges, 
-                         disambiguatedFaces)) isCut = true;
+                         inner_edges 
+                         )) isCut = true;
       }
 
       //check the loops formed by this cell and register the loop
@@ -1335,6 +1210,8 @@ namespace Loci{
         intersectStart = intersects.size();
       }
     }ENDFORALL;
+    //remove the inner edges cut from loops
+    vector<vector<int > > new_faceLoops = remove_inner_edges(faceLoops);
     
     //compute the cutting postions of edges 
     edgesWeight.allocate(edgesCut);
@@ -1343,115 +1220,22 @@ namespace Loci{
       edgesWeight[e] = t;
     }ENDFORALL;
     
-    //if there are inner edges, output the cutting positions  
-    if(inner_edges.size() > 0){
-      nodeCount.allocate(disambiguatedFaces);
-      FORALL(disambiguatedFaces, f){
-        int cnt = 0;
-        for(int i = 0; i < face2node.num_elems(f); i++){
-          if( edgeIndex.find(pair<int, int>(f, face2node[f][i]))!=edgeIndex.end()){ //what is in edgeIndex?
-            cnt++;
-          }
-        }
-        nodeCount[f] = cnt;
-      }ENDFORALL;
-    
-      
-      facesRank.allocate(nodeCount);
-      facesWeight.allocate(nodeCount);
-      FORALL(disambiguatedFaces, f){
-        int cnt = 0;
-        for(int i = 0; i < face2node.num_elems(f); i++){
-          if( edgeIndex.find(pair<int, int>(f, face2node[f][i]))!=edgeIndex.end()){ //what is in edgeIndex?
-            facesRank[f][cnt] = i;
-            facesWeight[f][cnt] = get_inner_edge_weight(f, i, face2node, val);
-            cnt++;
-          }
-        }
-      }ENDFORALL;
-    } 
-    
-    return CutPlane( edgesCut,
-                     edgesWeight.Rep(),
-                     inner_edges,
-                     faceLoops,
-                     disambiguatedFaces,
-                     facesWeight.Rep(),
-                     nodeCount.Rep(),
-                     facesRank.Rep());
+   
+    return CutPlane(edgesWeight.Rep(),
+                    new_faceLoops);
+                     
    
   }
-
-
-
-  
-  
 
   
   void writeCutPlaneTopo(hid_t bc_id,
                          const CutPlane& cp,
                          fact_db &facts){ 
-   
-    Map l2f; //the map from inner_edges index to output file number
     Map node_remap;//map from local numbering to output file numbering for edge entities
-    node_remap = get_output_node_remap(facts, cp.edgesCut);
-
-    long long local_inner_edges_size = cp.inner_edges.size();
-    long long total_inner_edges_size = 0;
-    MPI_Allreduce(&local_inner_edges_size,&total_inner_edges_size,1,MPI_LONG_LONG_INT,
-                  MPI_SUM,MPI_COMM_WORLD) ;
+    entitySet edgesCut = (cp.edgesWeight)->domain();
+    node_remap = get_output_node_remap(facts, edgesCut);
     
-    //if there are inner edges, create the l2f map
-    if(total_inner_edges_size > 0){
-    
-      //step 1.1 get the node index offset for inner_edges
-      
-      //num_edge_nodes each process written out
-      int num_edge_nodes = node_remap.domain().size();
-      //get the offset of face inner nodes file numbering, i.e. total number of edges cut
-      long long local_num_edge_nodes = num_edge_nodes ;
-      long long total_num_edge_nodes = 0 ;
-      MPI_Allreduce(&local_num_edge_nodes,&total_num_edge_nodes,1,MPI_LONG_LONG_INT,
-                    MPI_SUM,MPI_COMM_WORLD) ;
-      int offset =  total_num_edge_nodes+1; //the offset for nodes index on inner_edges
-      
-      //step 1.2 for each disambiguated face, find its start index(index offset) 
-      Map face_l2f;//map from local face to output file numbering offset for disambuguated faces
-      face_l2f = get_output_node_remap(facts, cp.nodeCount, offset);
-      
-      //step 1.3 for each inner edge, find its rank in the face
-      //for example, if an edge is the second edge created in a face, then its rank is 2
-      vector<int> edge_rank(cp.inner_edges.size());
-      if(cp.inner_edges.size()>0){
-        int rank = 1;
-        int prevFace = cp.inner_edges[0].first;
-        edge_rank[0] = rank;
-        for(unsigned int i = 1; i< cp.inner_edges.size(); i++){
-          int currentFace = cp.inner_edges[i].first;
-          if(currentFace == prevFace){
-            rank++;
-          }else{
-            rank = 1;
-            prevFace = currentFace;
-          }
-          edge_rank[i] = rank;
-        }
-      }
-      
-      //step 1.4 create the map from local index to output file numbering for each inner edge
-      if(cp.inner_edges.size()){ 
-        entitySet dom = interval(1, cp.inner_edges.size());
-        l2f.allocate(dom);
-        for(unsigned int i = 1; i <= cp.inner_edges.size(); i++){
-          pair<int, int> edge = (cp.inner_edges)[i-1];
-          int face = edge.first;
-          int offset = face_l2f[face];
-          int rank = edge_rank[i-1];
-          l2f[i] = offset+rank;
-        }
-      }
-    }
-    
+   
     //write out the sizes of faceLoops  
     int num_faces = cp.faceLoops.size();
     vector<int> nsizes(num_faces);
@@ -1468,14 +1252,10 @@ namespace Loci{
         int node = cp.faceLoops[i][j];
         if(node >=0){
           nsidenodes.push_back(node_remap[node]); //edge nodes
-        }else{
-          nsidenodes.push_back(l2f[-node]);//inner edge nodes
         }
       }
     }
-    
     writeUnorderedVector(bc_id,"nside_nodes",nsidenodes) ;
-    
   }
   
   namespace {

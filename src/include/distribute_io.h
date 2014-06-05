@@ -135,16 +135,64 @@ namespace Loci {
                                               const char *element_name,
                                               std::vector<T> &v,
                                               MPI_Comm comm) {
-    int rank = 0 ;
-    MPI_Comm_rank(comm,&rank) ;
+    int my_rank = 0 ;
+    MPI_Comm_rank(comm,&my_rank) ;
     int procs = 1 ;
     MPI_Comm_size(comm,&procs) ;
+
+    //serial version
+    if(procs==1){
+      
+      hsize_t array_size_combined = v.size() ;
+      if(array_size_combined == 0)
+        return ;
+     
+      int rank = 1 ;
+      hsize_t dimension = array_size_combined ;
+      hid_t dataspace = H5Screate_simple(rank,&dimension,NULL) ;
+     
+      typedef data_schema_traits<T> traits_type ;
+      DatatypeP dp = traits_type::get_type() ;
+      
+#ifdef H5_INTERFACE_1_6_4
+      hsize_t start = 0 ;
+#else
+      hssize_t start = 0 ;
+#endif
+      hsize_t stride = 1 ;
+      hsize_t count = v.size() ;
+      hid_t datatype = dp->get_hdf5_type() ;
+     
+      hid_t dataset = H5Dcreate(group_id,element_name,datatype,
+                                dataspace, H5P_DEFAULT) ;
+     
+      if(count != 0) {
+     
+        H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
+                            &start, &stride, &count, NULL) ;
+     
+        hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
+     
+        H5Dwrite(dataset,datatype,memspace,dataspace,
+                 H5P_DEFAULT, &v[0]) ;
+     
+        H5Sclose(memspace) ;
+     
+      }
+     
+      
+      H5Dclose(dataset) ;
+      H5Sclose(dataspace) ;
+      H5Tclose(datatype) ;
+      return;
+    }
+
     size_t local_size = v.size() ;
     std::vector<size_t> recv_sizes(procs) ;
     MPI_Gather(&local_size,sizeof(size_t),MPI_BYTE,
                &recv_sizes[0],sizeof(size_t),MPI_BYTE,0,comm) ;
 
-    if(rank == 0) {
+    if(my_rank == 0) {
       hsize_t array_size = 0 ;
       for(int i=0;i<procs;++i)
         array_size += recv_sizes[i] ;
@@ -215,221 +263,7 @@ namespace Loci {
     writeUnorderedVector(group_id,element_name,v,MPI_COMM_WORLD) ;
   }
   
-  template<class T> void combineUnorderedVector(hid_t group_id,
-                                                const char *element_name,
-                                                std::vector<T> &v1,
-                                                std::vector<T> &v2,
-                                                MPI_Comm comm) {
-    int my_rank = 0 ;
-    MPI_Comm_rank(comm,&my_rank) ;
-    int procs = 1 ;
-    MPI_Comm_size(comm,&procs) ;
-    //serial version
-    if(procs==1){
-      
-      hsize_t array_size_combined = v1.size() + v2.size() ;
-      if(array_size_combined == 0)
-        return ;
-     
-      int rank = 1 ;
-      hsize_t dimension = array_size_combined ;
-      hid_t dataspace = H5Screate_simple(rank,&dimension,NULL) ;
-     
-      typedef data_schema_traits<T> traits_type ;
-      DatatypeP dp = traits_type::get_type() ;
-      
-#ifdef H5_INTERFACE_1_6_4
-      hsize_t start = 0 ;
-#else
-      hssize_t start = 0 ;
-#endif
-      hsize_t stride = 1 ;
-      hsize_t count = v1.size() ;
-      hid_t datatype = dp->get_hdf5_type() ;
-     
-      hid_t dataset = H5Dcreate(group_id,element_name,datatype,
-                                dataspace, H5P_DEFAULT) ;
-     
-      if(count != 0) {
-     
-        H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
-                            &start, &stride, &count, NULL) ;
-     
-        hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
-     
-        H5Dwrite(dataset,datatype,memspace,dataspace,
-                 H5P_DEFAULT, &v1[0]) ;
-     
-        H5Sclose(memspace) ;
-     
-      }
-      start += v1.size() ;
-      count = v2.size() ;
-      if(count != 0) {
-        H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
-                            &start, &stride, &count, NULL) ;
-        hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
-        H5Dwrite(dataset,datatype,memspace,dataspace,
-                 H5P_DEFAULT, &v2[0]) ;
-        H5Sclose(memspace) ;
-      }
-      
-      H5Dclose(dataset) ;
-      H5Sclose(dataspace) ;
-      H5Tclose(datatype) ;
-      return;
-    }
-    
-    //parallel version
-    size_t local_size_combined = v1.size() + v2.size() ;
-    std::vector<size_t> recv_sizes_combined(procs) ;
-    MPI_Gather(&local_size_combined,sizeof(size_t),MPI_BYTE,
-               &recv_sizes_combined[0],sizeof(size_t),MPI_BYTE,0,comm) ;
-
-    
-    
-    size_t local_size1 = v1.size();
-    std::vector<size_t> recv_sizes1(procs) ;
-    MPI_Gather(&local_size1,sizeof(size_t),MPI_BYTE,
-               &recv_sizes1[0],sizeof(size_t),MPI_BYTE,0,comm) ;
-
-    
-    
-
-    size_t local_size2 = v2.size();
-    std::vector<size_t> recv_sizes2(procs) ;
-    MPI_Gather(&local_size2,sizeof(size_t),MPI_BYTE,
-               &recv_sizes2[0],sizeof(size_t),MPI_BYTE,0,comm) ;
-    
-    
-
-    if(my_rank == 0) {
-     
-      hsize_t array_size_combined = 0 ;
-      for(int i=0;i<procs;++i){
-        array_size_combined += recv_sizes_combined[i] ;
-      }
-
-      
-      if(array_size_combined == 0) return ;
-      
-      int rank = 1 ;
-      hsize_t dimension = array_size_combined ;
-      hid_t dataspace = H5Screate_simple(rank,&dimension,NULL) ;
-      typedef data_schema_traits<T> traits_type ;
-      DatatypeP dp = traits_type::get_type() ;
-      
-#ifdef H5_INTERFACE_1_6_4
-      hsize_t start = 0 ;
-#else
-      hssize_t start = 0 ;
-#endif
-      hsize_t stride = 1 ;
-      hsize_t count = recv_sizes1[0] ;
-      hid_t datatype = dp->get_hdf5_type() ;
-      hid_t dataset = H5Dcreate(group_id,element_name,datatype,
-                                dataspace, H5P_DEFAULT) ;
-     
-      
-      if(count != 0) {
-      
-        H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
-                            &start, &stride, &count, NULL) ;
-        hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
-        H5Dwrite(dataset,datatype,memspace,dataspace,
-                 H5P_DEFAULT, &v1[0]) ;
-        H5Sclose(memspace) ;
-        
-        
-      }
-      for(int i=1;i<procs;++i) {
-      
-        start += recv_sizes1[i-1] ;
-       
-        if(recv_sizes1[i] == 0)continue ;
-        debugout<<"combine 8: before recv v1 proc " << i  << endl;
-        int flag = 0 ;
-        MPI_Send(&flag,1,MPI_INT,i,0,comm) ;
-      
-        std::vector<T> rv(recv_sizes1[i]) ;
-        MPI_Status mstat ;
-        MPI_Recv(&rv[0],sizeof(T)*recv_sizes1[i],MPI_BYTE,i,1,comm,
-                 &mstat) ;
-       
-        count = recv_sizes1[i] ;
-       
-        H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
-      
-        hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
-        H5Dwrite(dataset,datatype,memspace,dataspace,
-                 H5P_DEFAULT, &rv[0]) ;
-        H5Sclose(memspace) ;
-        
-      }
-      
-      start += recv_sizes1[procs-1] ;
-      count = recv_sizes2[0] ;
-     
-      if(count != 0) {
-       
-        H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
-                            &start, &stride, &count, NULL) ;
-        hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
-        H5Dwrite(dataset,datatype,memspace,dataspace,
-                 H5P_DEFAULT, &v2[0]) ;
-        H5Sclose(memspace) ;
-       
-      }
-      for(int i=1;i<procs;++i) {
-        start += recv_sizes2[i-1] ;
-     
-        if(recv_sizes2[i] == 0)
-          continue ;
-       
-        int flag = 0 ;
-        MPI_Send(&flag,1,MPI_INT,i,2,comm) ;
-        std::vector<T> rv(recv_sizes2[i]) ;
-        MPI_Status mstat ;
-        MPI_Recv(&rv[0],sizeof(T)*recv_sizes2[i],MPI_BYTE,i,3,comm,
-                 &mstat) ;
-        
-        count = recv_sizes2[i] ;
-        H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
-        hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
-        H5Dwrite(dataset,datatype,memspace,dataspace,
-                 H5P_DEFAULT, &rv[0]) ;
-        H5Sclose(memspace) ;
-       
-      }
-
-      H5Dclose(dataset) ;
-      H5Sclose(dataspace) ;
-      H5Tclose(datatype) ;
-     
-    } else {
-      if(local_size_combined == 0)
-        return ;
-     
-      int flag = 0;
-      MPI_Status mstat ;
-      if(local_size1 != 0){
-        MPI_Recv(&flag,1,MPI_INT,0,0,comm,&mstat) ;
-        MPI_Send(&v1[0],sizeof(T)*local_size1,MPI_BYTE,0,1,comm) ;
-      }
-      if(local_size2 != 0){
-        MPI_Recv(&flag,1,MPI_INT,0,2,comm,&mstat) ;
-        MPI_Send(&v2[0],sizeof(T)*local_size2,MPI_BYTE,0,3,comm) ;
-      }
-      
-    }
-  }
-  template<class T> void combineUnorderedVector(hid_t group_id,
-                                                const char *element_name,
-                                                std::vector<T> &v1,
-                                                std::vector<T> &v2) {
-    combineUnorderedVector(group_id,element_name,v1,v2,MPI_COMM_WORLD) ;
-  }
-
+ 
   
   void writeSetIds(hid_t file_id, entitySet local_set, fact_db &facts) ;
   
@@ -528,52 +362,27 @@ namespace Loci {
   }
  
   
-  //return the value at facecenter 
-  template<class T>  T get_center_val(Entity f, //face entity
-                                      const_multiMap& face2node,
-                                      const_store<T>& nodal_val){
-    int nNodes = face2node.num_elems(f);
-    T  a  = nodal_val[face2node[f][0]] ;
-    for (int i = 1; i < nNodes; ++i) {
-      a += nodal_val[face2node[f][i]];
-    }
-    a /= double(nNodes);
-    return a;
-  }
+ 
   
   struct CutPlane {
-    entitySet edgesCut; //the edges cut, 
     storeRepP edgesWeight; //it's a store<double> allocated on edgesCut, containing the weight for interpoplation for each edge in edgesCut
-    std::vector<std::pair<int, int> > inner_edges; //the inner edges(facecenter to one of the face nodes) cut, the values stored are pair<face_entity, node_rank>  
     std::vector<std::vector<int > > faceLoops;  //loops formed, the values stored are edge ids, which is either local edge entity or negated index to inner_edges
-    entitySet disambiguatedFaces ; //the faces disambiguated, 
-    storeRepP facesWeight; // it's a multiStore<double> allocated on disambiguatedFaces, contains the weight for interpoplation. 
-    storeRepP nodeCount; //it's a  store<int> allocated on disambiguatedFaces,store the number of cutplane nodes on a face
-    storeRepP facesRank; //it's a multiStore<int> allocated on disambiguatedFaces, contains the rank of nodes in inner_edges,
-    CutPlane(entitySet eset, storeRepP ew, std::vector<std::pair<int, int> >& ie,
-             std::vector<std::vector<int > >& fl,  entitySet fset,storeRepP fw, storeRepP nc, storeRepP fr){
-      edgesCut = eset;
+    
+    CutPlane( storeRepP ew, 
+              std::vector<std::vector<int > >& fl){
       edgesWeight = ew;
-      inner_edges = ie;
       faceLoops = fl;
-      disambiguatedFaces = fset;
-      facesWeight= fw;
-      nodeCount= nc;
-      facesRank= fr;
     }
+    
     CutPlane(const CutPlane& cp){
-      edgesCut = cp.edgesCut;
       edgesWeight = cp.edgesWeight ;
-      inner_edges = cp.inner_edges ;
       faceLoops =  cp.faceLoops;
-      disambiguatedFaces =  cp.disambiguatedFaces;
-      facesWeight= cp.facesWeight ;
-      nodeCount= cp.nodeCount ;
-      facesRank= cp.facesRank ;
     }
+    
     CutPlane(){}
     
   };
+  
   CutPlane getCutPlane(storeRepP upperRep,
                        storeRepP lowerRep,
                        storeRepP boundary_mapRep,
@@ -618,14 +427,7 @@ namespace Loci {
   // MPI Communicator
   storeRepP Local2FileOrder_output(storeRepP sp, entitySet dom,
                                    fact_db& facts, MPI_Comm comm);
-  // Convert container from local numbering to output file numbering
-  // pass in store rep pointer: sp, multiStoreRep
-  // pass in store rep pointer: cp, the count store for sp
-  // entitySet to write: dom
-  // fact_db pointer  (facts)
-  // MPI Communicator
-  storeRepP Local2FileOrder_output_multiStore(storeRepP sp, storeRepP cp, entitySet dom, 
-                                              fact_db& facts, MPI_Comm comm);
+ 
   template<class T>   void writeCutPlaneNodalVal(hid_t file_id,
                                                  std::string element_name,
                                                  storeRepP face2nodeRep,
@@ -639,23 +441,18 @@ namespace Loci {
     const_multiMap face2node(face2nodeRep) ;
     const_MapVec<2> edge2node(edge2nodeRep);
     const_store<double> edgesWeight(cp.edgesWeight); //the weight for interpoplation for each edgesCut, allocated on edgesCut
-    store<int> nodeCount(cp.nodeCount);
-    multiStore<double> facesWeight(cp.facesWeight); //the weight for interpoplation for each local disambiguatedFaces
-    multiStore<int> facesRank(cp.facesRank); //the weight for interpoplation for each local disambiguatedFaces
-    
+    entitySet edgesCut = edgesWeight.domain();
+        
     
     //check the domain
-    if((cp.edgesCut-edge2node.domain())!=EMPTY){
+    if((edgesCut-edge2node.domain())!=EMPTY){
       debugout<< "ERROR: the domain of edge2node is smaller than cp.edgesCut"<<endl;
-    }
-    if((cp.disambiguatedFaces-face2node.domain())!=EMPTY){
-      debugout<< "ERROR: the domain of face2node is smaller than cp.disambiguatedFaces"<<endl;
     }
     
     //compute the cutting positions of edges 
     store<T> edge_pos;
-    edge_pos.allocate(cp.edgesCut);
-    FORALL(cp.edgesCut, e){
+    edge_pos.allocate(edgesCut);
+    FORALL(edgesCut, e){
       double w =edgesWeight[e];
       T a = pos[edge2node[e][0]];
       T b = pos[edge2node[e][1]];
@@ -666,7 +463,7 @@ namespace Loci {
    
     //transform the store into output order
     store<T> gedge_pos;
-    storeRepP geposRep =  Local2FileOrder_output(edge_pos.Rep(),  cp.edgesCut, 
+    storeRepP geposRep =  Local2FileOrder_output(edge_pos.Rep(),  edgesCut, 
                                                  facts, MPI_COMM_WORLD);
        
     if(geposRep == NULL){
@@ -684,57 +481,9 @@ namespace Loci {
     entitySet::const_iterator ei ;
     for(ei=local_edges_cut.begin();ei!=local_edges_cut.end();++ei)
       vpos[cnt++] = gedge_pos[*ei];
-    
-   
-   
-    std::vector<T>  vpos2;
-    
-    long long local_inner_edges_size = cp.inner_edges.size();
-    long long total_inner_edges_size = 0;
-    MPI_Allreduce(&local_inner_edges_size,&total_inner_edges_size,1,MPI_LONG_LONG_INT,
-                  MPI_SUM,MPI_COMM_WORLD) ;
-   
-   
-    //if there are inner edges, output the cutting positions  
-    if(total_inner_edges_size > 0){
-            
-      multiStore<T> face_pos;
-      face_pos.allocate(nodeCount);
-      FORALL(cp.disambiguatedFaces, f){
-        T facecenter = get_center_val(f, face2node, pos);
-        for(int ei = 0; ei < nodeCount[f]; ei++){
-          double w = facesWeight[f][ei];
-          T a = facecenter;
-          T b = pos[face2node[f][facesRank[f][ei]]];
-          T p = interpolate_val(w, a, b);
-          face_pos[f][ei] = p;
-        }
-      }ENDFORALL;
-     
-
-      //transform the store into output order
-      multiStore<T> gface_pos;
-      storeRepP gfposRep = Local2FileOrder_output_multiStore(face_pos.Rep(), nodeCount.Rep(), cp.disambiguatedFaces, 
-                                                             facts, MPI_COMM_WORLD);
       
-      if(gfposRep == NULL){
-        gface_pos .allocate(EMPTY);
-      }else{
-        gface_pos = gfposRep;
-      }
-     
-      //get positions std::vector
-      entitySet local_faces_cut = gface_pos.domain();
-    
-      FORALL(local_faces_cut, f){
-        for(int ei = 0; ei< gface_pos.vec_size(f); ei++){
-          vpos2.push_back(gface_pos[f][ei]);
-        }
-      }ENDFORALL;
-    }
-   
     //write out the vector
-    combineUnorderedVector(file_id, element_name.c_str(), vpos, vpos2) ;
+    writeUnorderedVector(file_id, element_name.c_str(), vpos) ;
   }
   
   template<class T>   void writeCutPlaneNodalVal(hid_t file_id,
