@@ -87,7 +87,9 @@ namespace fitfunction {
       const int i = max(0,min(int(c),int(fit.size())-1)) ;
       const double t = max(0.0,min(c-double(i),1.0)) ;
       const double f = fit[i].ft(t,fp) ;
-      fp*=rdelta ;
+      //convert derivative to global coordinates (or zero if at endpoints)
+      fp = (c<0.0 || c > double(fit.size()))?0.0:fp*rdelta ;
+
       return f ;
     }
     // Evaluate inverse function
