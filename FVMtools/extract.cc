@@ -1841,6 +1841,7 @@ surfacePartCopy::surfacePartCopy(string name,
                                  vector<int> &gnodes,
                                  vector<int> &gen_ids) {
   error = false ;
+
   vector<int> node_set ;
   for(size_t i=0;i<gnodes.size();++i)
     node_set.push_back(gnodes[i]) ;
@@ -1867,7 +1868,7 @@ surfacePartCopy::surfacePartCopy(string name,
   trifaces = triangles ;
   quadfaces = quads ;
   nfacenodes = genface2n ;
-  gennodes = gennodes ;
+  gennodes = gnodes ;
   triaIds = tria_ids;
   quadIds = quad_ids;
   genIds = gen_ids;
