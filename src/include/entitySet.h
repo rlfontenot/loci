@@ -262,9 +262,9 @@ namespace Loci {
       const Loci::int_type i2 = seq[i].second  ;
       const Loci::int_type start = min(i1,i2) ;
       const Loci::int_type stop = max(i1,i2) ;
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
+      //#ifdef HAVE_IVDEP
+      //#pragma ivdep
+      //#endif
       for(Loci::int_type indx=start;indx!=stop+1;++indx) 
         (cp->*pmf)(indx) ;
     }
@@ -277,9 +277,9 @@ namespace Loci {
       const Loci::int_type i2 = seq[i].second  ;
       const Loci::int_type start = min(i1,i2) ;
       const Loci::int_type stop = max(i1,i2) ;
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
+      //#ifdef HAVE_IVDEP
+      //#pragma ivdep
+      //#endif
       for(Loci::int_type indx=start;indx!=stop+1;++indx) 
         cp->calculate(indx) ;
     }
