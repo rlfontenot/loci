@@ -1,3 +1,4 @@
+
 //#############################################################################
 //#
 //# Copyright 2008, Mississippi State University
@@ -111,27 +112,6 @@ namespace Loci {
   //Following assumption is needed for the next three functions
   //Assumption: We follow the convention that boundary cells are always on right side
   //of a face.
-
-  //Input: Mapping from faces to its right cells.
-  //Output: Entities of boundary cells.
-  entitySet getBoundaryCells(const MapRepP tmp_cr_rep) {
-    entitySet cri = tmp_cr_rep->image(tmp_cr_rep->domain()) ;
-    return(cri & interval(Loci::UNIVERSE_MIN,-1)) ;
-  }
-
-  //Input: Mapping from faces to its right cells.
-  //Output: Entities for the boundary faces in the domain of given map.
-  entitySet getBoundaryFaces(const MapRepP tmp_cr_rep) {
-    entitySet boundary_cells = getBoundaryCells(tmp_cr_rep);
-    return(tmp_cr_rep->preimage(boundary_cells).first);
-  }
-
-  //Input: Mapping from faces to its right cells.
-  //Output: Entities for the interior faces in the domain of given map.
-  entitySet getInteriorFaces(const MapRepP tmp_cr_rep) {
-    return(tmp_cr_rep->domain() - getBoundaryFaces(tmp_cr_rep)) ;
-  }
-
 
   template<class T> void readVectorDist(hid_t group_id,
                                         const char *vector_name,
@@ -503,9 +483,12 @@ namespace Loci {
 		   vector<entitySet> &local_faces,
 		   vector<entitySet> &local_cells,
 		   store<vector3d<real_t> > &pos, Map &cl, Map &cr,
-		   multiMap &face2node, int max_alloc, string filename,
-                   vector<pair<int,string> > &boundary_ids,
-                   vector<pair<string,entitySet> > &volTags) {
+		   multiMap &face2node, 
+		   store<string> &boundary_names,
+		   store<string> &boundary_tags,
+                   vector<pair<string,entitySet> > &volTags,
+		   int max_alloc, string filename) {
+
     local_nodes.resize(Loci::MPI_processes);
     local_faces.resize(Loci::MPI_processes);
     local_cells.resize(Loci::MPI_processes);
@@ -520,6 +503,7 @@ namespace Loci {
     /* Save old error handler */
     herr_t (*old_func)(void*) = 0;
     void *old_client_data = 0 ;
+    vector<pair<int,string> > boundary_ids ;
     if(MPI_rank == 0) {
       H5Eget_auto(&old_func, &old_client_data);
 
@@ -538,7 +522,6 @@ namespace Loci {
       hid_t bc_g = H5Gopen(file_id,"surface_info") ;
 
 
-      boundary_ids.clear() ;
       // If surface info, then check surfaces
       if(bc_g > 0) {
         hsize_t num_bcs = 0 ;
@@ -814,7 +797,7 @@ namespace Loci {
     if(fail_state != 0)
       return false ;
     
-    memSpace("before unpakcing clusters") ;
+    memSpace("before unpacking clusters") ;
     vector<long> cluster_offset(cluster_sizes.size()+1) ;
     cluster_offset[0] = 0 ;
     for(size_t i=0;i<cluster_sizes.size();++i)
@@ -862,7 +845,8 @@ namespace Loci {
 
     for(size_t i=0;i<volTags.size();++i)
       volTags[i].second = (volTags[i].second >> cells_base) ;
-    
+    entitySet boundary_faces ;
+    entitySet boundary_taglist ;
     int max_cell = 0 ;
     FORALL(local_faces[MPI_rank],fc) {
       int fsz = face2node[fc].size() ;
@@ -873,6 +857,10 @@ namespace Loci {
       cl[fc] += cells_base ;
       if(cr[fc] >= 0)
         cr[fc] += cells_base ;
+      else {
+	boundary_faces += fc ;
+	boundary_taglist += cr[fc] ;
+      }
     } ENDFORALL ;
 
     int global_max_cell = max_cell ;
@@ -897,7 +885,59 @@ namespace Loci {
       }
       cell_accum = cell_accum_update ;
     }
+
+    // Now fixup boundary cells
+    boundary_taglist = all_collect_entitySet(boundary_taglist) ;
+    int ref_base = cells_base+ncells ;
+    entitySet refSet = interval(ref_base,ref_base+(boundary_taglist.size()-1)) ;
     
+    store<int> boundary_info ;
+    boundary_info.allocate(refSet) ;
+    map<int,int> boundary_remap ;
+    int cnt = 0 ;
+    FORALL(boundary_taglist,ii) {
+      boundary_remap[ii]=cnt+ref_base ;
+      boundary_info[cnt+ref_base]=ii ;
+      cnt++ ;
+    } ENDFORALL ;
+    
+    FORALL(boundary_faces,fc) {
+      cr[fc] = boundary_remap[cr[fc]] ;
+    } ENDFORALL ;
+
+    boundary_names.allocate(refSet) ;
+    boundary_tags.allocate(refSet) ;
+
+    map<int,int> bcmap ;
+    FORALL(refSet, ii) {
+      int bc = boundary_info[ii] ;
+      char buf[128] ;
+      bzero(buf,128) ;
+      snprintf(buf,127,"BC_%d",-bc) ;
+      bcmap[-bc] = ii ;
+      boundary_tags[ii] = string(buf) ;
+      boundary_names[ii] = string(buf) ;
+    } ENDFORALL ;
+
+    for(size_t i=0;i<boundary_ids.size();++i) {
+      int id = boundary_ids[i].first ;
+      map<int,int>::const_iterator mi = bcmap.find(id) ;
+      if(mi != bcmap.end())
+	boundary_names[mi->second] = boundary_ids[i].second ;
+      else 
+	debugout << "id " << id << " for boundary surface " << boundary_ids[i].second
+	     << " not found!" << endl ;
+    }
+
+      
+    if(Loci::MPI_rank == 0) {
+      Loci::debugout << " boundaries identified as:" ;
+      FORALL(refSet, bc) {
+	debugout << " " << boundary_names[bc] ;
+      } ENDFORALL ;
+      Loci::debugout << endl ;
+    }
+
     memSpace("after unpacking clusters") ;
     return true ;
   }
@@ -909,23 +949,22 @@ namespace Loci {
                                      const std::vector<entitySet> &init_ptn) ;
 
   vector<entitySet> newMetisPartitionOfCells(const vector<entitySet> &local_cells,
-                                             const Map &cl, const Map &cr) {
+                                             const Map &cl, const Map &cr,
+					     const store<string> &boundary_tags) {
 
 
     entitySet dom = cl.domain() & cr.domain() ;
-    entitySet::const_iterator ei ;
-    int cnt = 0 ;
-    for(ei=dom.begin();ei!=dom.end();++ei) {
-      if(cl[*ei] > 0 && cr[*ei]>0)
-        cnt++ ;
-    }
+    entitySet refset = boundary_tags.domain() ;
+    entitySet bcfaces = cr.preimage(refset).first ;
+    dom -= bcfaces ;
+    int cnt = dom.size() ;
+    
     vector<pair<int,int> > rawMap(cnt*2) ;
     int j = 0 ;
+    entitySet::const_iterator ei ;
     for(ei=dom.begin();ei!=dom.end();++ei) {
-      if(cl[*ei] > 0 && cr[*ei]>0) {
-        rawMap[j++] = pair<int,int>(cl[*ei],cr[*ei]) ;
-        rawMap[j++] = pair<int,int>(cr[*ei],cl[*ei]) ;
-      }
+      rawMap[j++] = pair<int,int>(cl[*ei],cr[*ei]) ;
+      rawMap[j++] = pair<int,int>(cr[*ei],cl[*ei]) ;
     }
 
     sort(rawMap.begin(),rawMap.end()) ;
@@ -1210,9 +1249,15 @@ namespace Loci {
                  vector<entitySet> &cell_ptn_t,
                  store<vector3d<real_t> > &t_pos, Map &tmp_cl,
                  Map &tmp_cr, multiMap &tmp_face2node,
+		 vector<entitySet> &bcsurf_ptn,
+		 store<string> &tmp_boundary_names,
+		 store<string> &tmp_boundary_tags,
                  entitySet nodes, entitySet faces, entitySet cells,
                  store<vector3d<real_t> > &pos, Map &cl, Map &cr,
                  multiMap &face2node,
+		 store<string> &boundary_names, 
+		 store<string> &boundary_tags, 
+		 entitySet bcsurfset,
                  fact_db &facts) {
 
     pos.allocate(nodes) ;
@@ -1348,17 +1393,40 @@ namespace Loci {
       } ENDFORALL ;
     }
 
-    entitySet loc_boundary_cells = getBoundaryCells(MapRepP(cr.Rep()));
-    loc_boundary_cells = all_collect_entitySet(loc_boundary_cells) ;
-
-    FORALL(loc_boundary_cells, li) {
-      remap[li] = li;
+    vector<entitySet> bcptn = all_collect_vectors(bcsurf_ptn[MPI_rank],MPI_COMM_WORLD) ;
+    vector<entitySet> bcalloc = all_collect_vectors(bcsurfset,MPI_COMM_WORLD) ;
+    for(int i=0;i<MPI_processes;++i) {
+      if(bcptn[i].size() != bcalloc[i].size()) {
+	cerr << "WARNING, boundary faces information inconsistent in remap"
+	     << endl ;
+      }
+      entitySet::const_iterator fei = bcptn[i].begin() ;
+      entitySet::const_iterator tei = bcalloc[i].begin() ;
+      while(fei!=bcptn[i].end() && tei!=bcalloc[i].end()) {
+	remap[*fei] = * tei ;
+	fei++ ;
+	tei++ ;
+      }
+    }
+    // WARNING currently copying all boundary data  for all processors,
+    // subsequent steps rely on this but it isn't really conforming to 
+    // the way other data is handled.
+    entitySet bcallalloc = bcalloc[0] ;
+    for(int i=1;i<MPI_processes;++i) 
+      bcallalloc += bcalloc[i] ;
+    
+    boundary_names.allocate(bcallalloc) ;
+    boundary_tags.allocate(bcallalloc) ;
+    entitySet bcdom = tmp_boundary_names.domain() ;
+    FORALL(bcdom,ii) {
+      boundary_names[remap[ii]]= tmp_boundary_names[ii] ;
+      boundary_tags[remap[ii]] = tmp_boundary_tags[ii] ;
     } ENDFORALL ;
 
-
+    orig_cells += bcdom ;
     entitySet out_of_dom ;
     MapRepP f2n = MapRepP(face2node.Rep()) ;
-    out_of_dom += cr.image(cr.domain())-(orig_cells+loc_boundary_cells) ;
+    out_of_dom += cr.image(cr.domain())-orig_cells ;
     out_of_dom += cl.image(cl.domain())-orig_cells ;
     out_of_dom += f2n->image(f2n->domain())-old_nodes ;
     entitySet old_dom = orig_cells+old_nodes ;
@@ -1371,7 +1439,7 @@ namespace Loci {
     MapRepP(face2node.Rep())->compose(remap,faces) ;
     MapRepP(cr.Rep())->compose(remap,faces) ;
     MapRepP(cl.Rep())->compose(remap,faces) ;
-
+    
   }
 
   //Note: This function is designed for serial version.
@@ -1383,13 +1451,16 @@ namespace Loci {
   //Output:
   // pos, cl, cr, face2node: static version of structures in the Input
   void copyGridStructures( entitySet nodes, entitySet faces, entitySet cells,
+			   entitySet bcset,
 			   const store<vector3d<real_t> > &t_pos,
 			   const Map &tmp_cl, const Map &tmp_cr,
 			   const multiMap &tmp_face2node,
+			   const store<string> &tmp_boundary_names,
+			   const store<string> &tmp_boundary_tags,
 			   store<vector3d<real_t> > &pos, Map &cl, Map &cr,
-			   multiMap &face2node) {
-
-    entitySet boundary_cells = getBoundaryCells(Loci::MapRepP(tmp_cr.Rep()));
+			   multiMap &face2node,
+			   store<string> &boundary_names,
+			   store<string> &boundary_tags) {
 
     dMap identity_map;
     FORALL(nodes, ei) {
@@ -1401,7 +1472,7 @@ namespace Loci {
     FORALL(cells, ei) {
       identity_map[ei] = ei ;
     } ENDFORALL ;
-    FORALL(boundary_cells, ei) {
+    FORALL(bcset, ei) {
       identity_map[ei] = ei ;
     } ENDFORALL ;
 
@@ -1409,7 +1480,8 @@ namespace Loci {
     cl = tmp_cl.Rep()->remap(identity_map);
     cr = tmp_cr.Rep()->remap(identity_map);
     face2node = MapRepP(tmp_face2node.Rep())->get_map();
-
+    boundary_names = tmp_boundary_names.Rep()->remap(identity_map) ;
+    boundary_tags = tmp_boundary_tags.Rep()->remap(identity_map) ;
   }
 
   void assignOwner(vector<pair<int,pair<int,int> > > &scratchPad,
@@ -1542,7 +1614,8 @@ namespace Loci {
   
 
   vector<entitySet> partitionFaces(vector<entitySet> cell_ptn, const Map &cl,
-                                   const Map &cr) {
+                                   const Map &cr,
+				   const store<string> &boundary_tags) {
     map<int,int> P ;
     entitySet cells ;
     for(int i=0;i<MPI_processes;++i) {
@@ -1555,19 +1628,22 @@ namespace Loci {
     entitySet faces = cl.domain() & cr.domain() ;
     entitySet dom = cl.image(faces) | cr.image(faces) ;
 
-    dom -= interval(UNIVERSE_MIN,-1) ;
+
     dom -= cells ;
     
     fill_clone_proc(P,dom,ptn_cells) ;
 
+    entitySet refset = boundary_tags.domain() ;
+    entitySet bcfaces = cr.preimage(refset).first ;
     vector<entitySet> face_ptn(MPI_processes) ;
+    FORALL(bcfaces,fc) {
+      face_ptn[P[cl[fc]]] += fc ;
+    } ENDFORALL ;
+    faces -= bcfaces ;
+
     entitySet boundary_faces ; // Boundary between processors
     FORALL(faces,fc) {
-      if(cl[fc]<0)
-        face_ptn[P[cr[fc]]] += fc ;
-      else if(cr[fc]<0)
-        face_ptn[P[cl[fc]]] += fc ;
-      else if(P[cl[fc]] == P[cr[fc]])
+      if(P[cl[fc]] == P[cr[fc]])
         face_ptn[P[cl[fc]]] += fc ;
       else
         boundary_faces += fc ;
@@ -1785,6 +1861,7 @@ namespace Loci {
                           const store<vector3d<real_t> > &pos,
                           const Map &cl, const Map &cr,
                           const multiMap &face2node,
+			  const store<string> &boundary_tags,
                           vector<entitySet> &cell_ptn,
                           vector<entitySet> &face_ptn,
                           vector<entitySet> &node_ptn) {
@@ -1838,18 +1915,17 @@ namespace Loci {
     assignOwner(scratchPad,local_nodes,node_ptn) ;
 
 
+    entitySet refset = boundary_tags.domain() ;
     scratchPad.clear() ;
-
     i=0 ;
     FORALL(fdom,fc) {
       pair<int,int> p2i(fprocmap[i++],1) ;
       scratchPad.push_back(pair<int,pair<int,int> >(cl[fc],p2i)) ;
-      if(cr[fc] >=0)
+      if(!refset.inSet(cr[fc]))
         scratchPad.push_back(pair<int,pair<int,int> >(cr[fc],p2i)) ;
     } ENDFORALL ;
 
     assignOwner(scratchPad,local_cells,cell_ptn) ;
-
   }
 
 
@@ -1869,6 +1945,8 @@ namespace Loci {
     store<vector3d<real_t> > t_pos;
     Map tmp_cl, tmp_cr;
     multiMap tmp_face2node;
+    store<string> tmp_boundary_names ;
+    store<string> tmp_boundary_tags ;
 
     int max_alloc = facts.get_max_alloc() ;
 
@@ -1882,12 +1960,13 @@ namespace Loci {
         useVOG = false ;
     }
 
-    vector<pair<int,string> > boundary_ids ;
     vector<pair<string,entitySet> > volTags ;
+
     if(useVOG) {
       if(!readGridVOG(local_nodes, local_faces, local_cells,
                       t_pos, tmp_cl, tmp_cr, tmp_face2node,
-                      max_alloc, filename, boundary_ids,volTags))
+		      tmp_boundary_names,tmp_boundary_tags, volTags,
+                      max_alloc, filename))
         return false;
     } else {
       cerr << "XDR Grid File Reading Support has been removed!!!, convert file to VOG format." << endl ;
@@ -1898,9 +1977,8 @@ namespace Loci {
     memSpace("after reading grid") ;
 
     // Identify boundary tags
-    entitySet local_boundary_cells = getBoundaryCells(MapRepP(tmp_cr.Rep()));
 
-    entitySet global_boundary_cells = all_collect_entitySet(local_boundary_cells) ;
+    entitySet global_boundary_cells = tmp_boundary_tags.domain() ;
     memSpace("after all_collect boundary cells") ;
     
     if(MPI_processes == 1) {
@@ -1908,47 +1986,25 @@ namespace Loci {
       int npnts = local_nodes[0].size();
       int nfaces = local_faces[0].size();
       int ncells = local_cells[0].size();
-
+      int nbcs = global_boundary_cells.size() ;
       entitySet nodes = facts.get_distributed_alloc(npnts).first ;
       entitySet faces = facts.get_distributed_alloc(nfaces).first ;
       entitySet cells = facts.get_distributed_alloc(ncells).first;
+      entitySet bcset = facts.get_distributed_alloc(nbcs).first ;
+
 
       store<vector3d<real_t> > pos ;
       Map cl ;
       Map cr ;
       multiMap face2node ;
-      copyGridStructures(nodes, faces, cells,
-                         t_pos, tmp_cl, tmp_cr, tmp_face2node,
-                         pos, cl, cr, face2node);
-
-
       store<string> boundary_names ;
       store<string> boundary_tags ;
-      boundary_names.allocate(global_boundary_cells) ;
-      boundary_tags.allocate(global_boundary_cells) ;
-      Loci::debugout << " boundaries identified as:" ;
 
-      
-      
-      FORALL(global_boundary_cells, bc) {
-        char buf[128] ;
-	bzero(buf,128) ;
-        snprintf(buf,127,"BC_%d",-bc) ;
-        boundary_tags[bc] = string(buf) ;
-        boundary_names[bc] = string(buf) ;
-	debugout << " " << boundary_names[bc] ;
-      } ENDFORALL ;
-
-      for(size_t i=0;i<boundary_ids.size();++i) {
-        int id = boundary_ids[i].first ;
-        if(global_boundary_cells.inSet(-id))
-          boundary_names[-id] = boundary_ids[i].second ;
-      }
-
-      FORALL(global_boundary_cells, bc) {
-	debugout << " " << boundary_names[bc] ;
-      } ENDFORALL ;
-      Loci::debugout << endl ;
+      copyGridStructures(nodes, faces, cells, bcset,
+                         t_pos, tmp_cl, tmp_cr, tmp_face2node,
+			 tmp_boundary_names,tmp_boundary_tags,
+                         pos, cl, cr, face2node,
+			 boundary_names,boundary_tags);
 
       facts.create_fact("cl", cl) ;
       facts.create_fact("cr", cr) ;
@@ -1976,24 +2032,42 @@ namespace Loci {
     if(use_orb_partition) {
       ORB_Partition_Mesh(local_nodes, local_faces, local_cells,
                          t_pos, tmp_cl, tmp_cr, tmp_face2node,
+			 tmp_boundary_tags,
                          cell_ptn,face_ptn,node_ptn) ;
     } else {
       // Partition Cells
       if(!use_simple_partition) {
-        cell_ptn = newMetisPartitionOfCells(local_cells,tmp_cl,tmp_cr) ;
+        cell_ptn = newMetisPartitionOfCells(local_cells,tmp_cl,tmp_cr,
+					    tmp_boundary_tags) ;
       } else {
         cell_ptn = vector<entitySet>(MPI_processes) ;
         cell_ptn[MPI_rank] = local_cells[MPI_rank] ;
       }
 
       memSpace("mid partitioning") ;
-      face_ptn = partitionFaces(cell_ptn,tmp_cl,tmp_cr) ;
+      face_ptn = partitionFaces(cell_ptn,tmp_cl,tmp_cr,tmp_boundary_tags) ;
       memSpace("after partitionFaces") ;
 
       node_ptn = partitionNodes(face_ptn,
                                 MapRepP(tmp_face2node.Rep()),
                                 t_pos.domain()) ;
     }
+    
+    vector<entitySet> bcsurf_ptn(MPI_processes) ;
+    entitySet refset = tmp_boundary_tags.domain() ;
+    
+    // round robin allocate boundary faces
+    // NOTE!!!! This could be improved.
+    int cnt = 0 ;
+    //    int refsetsz = refset.size() ;
+    FORALL(refset,ii) {
+      if(cnt == MPI_rank)
+	bcsurf_ptn[cnt] += ii ;
+      cnt++ ;
+      if(cnt == MPI_processes)
+	cnt = 0 ;
+    } ENDFORALL ;
+
     memSpace("after partitioning") ;
       
     vector<entitySet> cell_ptn_t = transposePtn(cell_ptn) ;
@@ -2048,58 +2122,27 @@ namespace Loci {
     Loci::debugout << "cells = " << cells << ", size = "
                    << cells.size() << endl ;
 
-
-    vector<std::pair<int, int> > boundary_update;
-    FORALL(local_boundary_cells, li) {
-      boundary_update.push_back(std::make_pair(li, li));
-    }ENDFORALL;
-
-    memSpace("before update_remap") ;
-    facts.update_remap(boundary_update);
-    memSpace("after update_remap") ;
-
+    vector<int> bcsurf_alloc(bcsurf_ptn[MPI_rank].size()) ;
+    i=0 ;
+    FORALL(bcsurf_ptn[MPI_rank],ii) {
+      bcsurf_alloc[i++] = ii ;
+    } ENDFORALL ;
+    
+    entitySet bcsurfset = facts.get_distributed_alloc(bcsurf_alloc).first ;
+    
     memSpace("before remapGridStructures") ;
     Map cl, cr ;
     multiMap face2node ;
     store<vector3d<real_t> > pos ;
-
+    store<string> boundary_names,boundary_tags ;
     remapGrid(node_ptn, face_ptn, cell_ptn,
               node_ptn_t, face_ptn_t, cell_ptn_t,
               t_pos, tmp_cl, tmp_cr, tmp_face2node,
+	      bcsurf_ptn,tmp_boundary_names,tmp_boundary_tags,
               nodes, faces, cells,
-              pos, cl, cr, face2node,facts);
+              pos, cl, cr, face2node,
+	      boundary_names,boundary_tags, bcsurfset, facts);
     memSpace("after remapGridStructures") ;
-
-    local_boundary_cells = getBoundaryCells(Loci::MapRepP(cr.Rep()));
-    entitySet boundary_cells = Loci::all_collect_entitySet(local_boundary_cells) ;
-
-    store<string> boundary_names ;
-    store<string> boundary_tags ;
-    boundary_names.allocate(boundary_cells) ;
-    boundary_tags.allocate(boundary_cells) ;
-    
-
-    FORALL(boundary_cells, bc) {
-      char buf[128] ;
-      bzero(buf,128) ;
-      snprintf(buf,127,"BC_%d",-bc) ;
-      boundary_names[bc] = string(buf) ;
-      boundary_tags[bc] = string(buf) ;
-    } ENDFORALL ;
-
-    for(size_t i=0;i<boundary_ids.size();++i) {
-      int id = boundary_ids[i].first ;
-      if(boundary_cells.inSet(-id))
-        boundary_names[-id] = boundary_ids[i].second ;
-    }
-
-    if(Loci::MPI_rank == 0) {
-      Loci::debugout << "boundaries identified as:" ;
-      FORALL(boundary_cells, bc) {
-        debugout << " " << boundary_names[bc] ;
-      } ENDFORALL ;
-      Loci::debugout << endl ;
-    }
 
     facts.create_fact("cl", cl) ;
     facts.create_fact("cr", cr) ;
@@ -2147,44 +2190,17 @@ namespace Loci {
     Map cr ;
     cr = facts.get_fact("cr") ;
     entitySet bdom = boundary_names.domain() ;
-
-#ifdef DEBUG
-    entitySet bdom2 = all_collect_entitySet(bdom,facts) ;
-    FATAL(bdom2 != bdom) ;
-#endif
-    int ndom = bdom.size() ;
-    int nloc = ndom/Loci::MPI_processes ;
-    if((ndom%MPI_processes) > Loci::MPI_rank)
-      nloc++ ;
-
-    pair<entitySet,entitySet> alloc = facts.get_distributed_alloc(nloc) ;
-    store<string> bn2 ;
-    bn2.allocate(alloc.second) ;
-    store<string> bt2 ;
-    bt2.allocate(alloc.second) ;
     
-    FATAL(bdom.size() != alloc.second.size()) ;
-    Map mp ;
-    mp.allocate(bdom) ;
-    entitySet::const_iterator i1 = bdom.begin() ;
-    entitySet::const_iterator i2 = alloc.second.begin() ;
-    for(;i1!=bdom.end();++i1,++i2)
-      mp[*i1] = *i2 ;
-
-    for(i1=bdom.begin();i1!=bdom.end();++i1) {
-      bn2[mp[*i1]] = boundary_names[*i1] ;
-      bt2[mp[*i1]] = boundary_tags[*i1] ;
-    }
-
-    entitySet refdom = cr.preimage(bdom).first ;
+    constraint boundary_faces ;
+    boundary_faces = facts.get_fact("boundary_faces") ;
+    entitySet refdom = *boundary_faces ;
+    
     Map ref ;
     ref.allocate(refdom) ;
-
-    for(i1=refdom.begin();i1!=refdom.end();++i1)
-      ref[*i1] = mp[cr[*i1]] ;
+    FORALL(refdom,i1) {
+      ref[i1] = cr[i1] ;
+    } ENDFORALL ;
     facts.create_fact("ref",ref) ;
-    facts.update_fact("boundary_names",bn2) ;
-    facts.update_fact("boundary_tags",bt2) ;
   }
 
   void create_ghost_cells(fact_db &facts) {
@@ -2240,10 +2256,13 @@ namespace Loci {
     cr = facts.get_variable("cr") ;
     constraint faces ;
     faces = (cl.domain() & cr.domain()) ;
+    
     //    faces = all_collect_entitySet(*faces) ;
 
     facts.create_fact("faces",faces) ;
-    entitySet bcset = interval(Loci::UNIVERSE_MIN,-1) ;
+    store<int> boundary_info ;
+    boundary_info = facts.get_variable("boundary_names") ;
+    entitySet bcset = boundary_info.domain() ;
     entitySet bcfaces = cr.preimage(bcset).first ;
     constraint boundary_faces ;
     boundary_faces = bcfaces ;

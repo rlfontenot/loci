@@ -1707,6 +1707,10 @@ namespace Loci{
     vector<periodic_info> periodic_data ;
 
     bool fail = false ;
+    // WARNING, boundaryName assignment assuming that boundary
+    // names and tags have been duplicated on all processors (which
+    // they have).  But could break if the grid reader changes to a
+    // more standard implementation.
     for(entitySet::const_iterator ei=dom.begin();ei!=dom.end();++ei) {
       Entity bc = *ei ;
       entitySet bcset = interval(bc,bc) ;

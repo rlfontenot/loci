@@ -50,10 +50,12 @@ namespace Loci {
   extern int MPI_processes ;
   extern int MPI_rank ;
   extern fact_db *exec_current_fact_db;
+  int factdb_allocated_base = 0 ;
+
   fact_db::fact_db() {
     distributed_info = 0 ;
-    maximum_allocated = 0 ;
-    minimum_allocated = -1 ;
+    maximum_allocated = factdb_allocated_base+0 ;
+    minimum_allocated = factdb_allocated_base-1 ;
     for(int i = 0; i < MPI_processes; ++i) {
       init_ptn.push_back(EMPTY) ;
     }

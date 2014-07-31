@@ -156,6 +156,7 @@ namespace Loci {
   bool use_duplicate_model = false;
   bool use_simple_partition = false ;
   bool use_orb_partition = false ;
+  extern int factdb_allocated_base ;
 
 
   char * model_file;
@@ -532,6 +533,9 @@ namespace Loci {
           load_cell_weights = true ;
           cell_weight_file = (*argv)[i+1] ;
           i+=2 ;
+	} else if(!(strcmp((*argv)[i],"--set_4gig_entity_space"))) {
+	  factdb_allocated_base = std::numeric_limits<int>::min() + 256 ;
+	  i++ ;
         } else if(!strcmp((*argv)[i],"--threads")) {
           // determine the number of threads to use.
           // ideally we would like to detect the available
