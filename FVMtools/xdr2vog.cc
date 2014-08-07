@@ -902,7 +902,7 @@ namespace VOG {
     }
 
 
-#define METIS_PARTITIONING
+    //#define METIS_PARTITIONING
 #ifdef METIS_PARTITIONING
     vector<entitySet> cell_ptn ;
     cell_ptn = Loci::newMetisPartitionOfCells(local_cells,tmp_cl,tmp_cr) ;

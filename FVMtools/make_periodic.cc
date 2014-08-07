@@ -7172,13 +7172,15 @@ std::ostream& show_usage(const string& pb, std::ostream& s) {
 }
 
 namespace Loci {
-   bool readGridVOG(vector<entitySet> &local_nodes,
-                    vector<entitySet> &local_faces,
-                    vector<entitySet> &local_cells,
-                    store<vector3d<real_t> > &pos, Map &cl, Map &cr,
-                    multiMap &face2node, int max_alloc, string filename,
-                    vector<pair<int,string> > &boundary_ids,
-                    vector<pair<string,entitySet> > &volTags) ;
+  bool readGridVOG(vector<entitySet> &local_nodes,
+		   vector<entitySet> &local_faces,
+		   vector<entitySet> &local_cells,
+		   store<vector3d<real_t> > &pos, Map &cl, Map &cr,
+		   multiMap &face2node, 
+		   store<string> &boundary_names,
+		   store<string> &boundary_tags,
+                   vector<pair<string,entitySet> > &volTags,
+		   int max_alloc, string filename) ;
 }
 ///////////////////////////////////////////////////////////
 //                      The Main                         //
@@ -7520,10 +7522,15 @@ int main(int ac, char* av[]) {
   multiMap face2node ;
   int max_alloc=0 ;
   vector<pair<string,entitySet> > volTags ;
+  
+  store<string> boundary_names ;
+  store<string> boundary_tags ;
 
   if(!Loci::readGridVOG(local_nodes,local_faces,local_cells,
-                        pos,cl,cr,face2node,max_alloc,gridfile,
-                        boundary_ids,volTags)) {
+                        pos,cl,cr,face2node,
+			boundary_names,boundary_tags,volTags,
+			max_alloc,gridfile)) {
+                        
     if(Loci::MPI_rank == 0) {
       cerr << endl
            << "Reading grid file '" << gridfile <<"' failed in grid reader!"
@@ -7539,12 +7546,24 @@ int main(int ac, char* av[]) {
 
   gettimeofday(&time_essential_start,NULL) ;
   
+  // NOTE this has been revised but not tested after changes to
+  // VOG file reader
+  entitySet dom = boundary_names.domain() ;
+  BC1_id = -1 ;
+  BC2_id = -1 ;
+  FORALL(dom,bc) {
+    if(BC1name == boundary_names[bc])
+      BC1_id = bc ;
+    if(BC2name == boundary_names[bc])
+      BC2_id = bc ;
+  } ENDFORALL ;
+
   entitySet BC1_faces, BC2_faces;
-  entitySet dom = cr.domain() ;
+  dom = cr.domain() ;
   FORALL(dom,fc) {
-    if(cr[fc] == -BC1_id)
+    if(cr[fc] == BC1_id)
       BC1_faces += fc ;
-    if(cr[fc] == -BC2_id)
+    if(cr[fc] == BC2_id)
       BC2_faces += fc ;
   } ENDFORALL ;
    

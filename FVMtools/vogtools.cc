@@ -38,8 +38,7 @@ using std::ios ;
 using Loci::debugout ;
 
 namespace Loci {
-  extern vector<entitySet> newMetisPartitionOfCells(const vector<entitySet> &local_cells,
-                                             const Map &cl, const Map &cr) ;
+
   extern void distributed_inverseMap(multiMap &result,
                                      vector<pair<Entity,Entity> > &input,
                                      entitySet input_image,
