@@ -45,7 +45,7 @@ namespace Loci {
     int sz = list.size() ;
     std::vector<int> sizes(p) ;
     MPI_Allgather(&sz,1,MPI_INT,&sizes[0],1,MPI_INT,comm) ;
-    int tot_size = 0  ;
+    long long tot_size = 0  ;
     for(int i=0;i<p;++i) {
       tot_size += sizes[i] ;
     }
@@ -57,7 +57,7 @@ namespace Loci {
     int r=0 ;
     MPI_Comm_rank(comm,&r) ;
     std::vector<T> recv(bsizes[r]) ;
-    std::vector<int> sdist(p+1),rdist(p+1) ;
+    std::vector<long long> sdist(p+1),rdist(p+1) ;
     sdist[0] = 0 ;
     rdist[0] = 0 ;
     for(int i=0;i<p;++i) {
@@ -68,12 +68,12 @@ namespace Loci {
     // Perform Irecvs
     std::vector<MPI_Request> requests(p) ;
     int req = 0 ;
-    int i1 = rdist[r] ;
-    int i2 = rdist[r+1]-1 ;
+    long long i1 = rdist[r] ;
+    long long i2 = rdist[r+1]-1 ;
     for(int i=0;i<p;++i) {
       if(sdist[i]<=i2 && sdist[i+1]-1>=i1) { // intersection
-        int li = std::max(i1,sdist[i]) ;
-        int ri = std::min(i2,sdist[i+1]-1) ;
+        long long li = std::max(i1,sdist[i]) ;
+        long long ri = std::min(i2,sdist[i+1]-1) ;
         int len = ri-li+1 ;
         FATAL(len <= 0) ;
         int s2 = li-rdist[r] ;
@@ -94,8 +94,8 @@ namespace Loci {
     i2 = sdist[r+1]-1 ;
     for(int i=0;i<p;++i) {
       if(i != r && rdist[i]<=i2 && rdist[i+1]-1>=i1) { // intersection
-        int li = std::max(i1,rdist[i]) ;
-        int ri = std::min(i2,rdist[i+1]-1) ;
+        long long li = std::max(i1,rdist[i]) ;
+        long long ri = std::min(i2,rdist[i+1]-1) ;
         int len = ri-li+1 ;
         int s1 = li-sdist[r] ;
         FATAL(s1 < 0) ;
@@ -221,7 +221,10 @@ namespace Loci {
     MPI_Allreduce(&lsz,&tsz,1,MPI_LONG_LONG,MPI_SUM,comm) ;
     // Compute target number of processors needed to sort this set of numbers
     // ideally this will have p^2 numbers per processor
-    int target_p = int(floor(pow(double(tsz),1./3.))) ;
+    if(tsz == 0)
+      return ;
+    int target_p = max(1,int(floor(pow(double(tsz),1./3.)))) ;
+
     if(target_p < p) { // reduce to subset of processors
       int r = 0 ;
       MPI_Comm_rank(comm,&r) ;
@@ -263,6 +266,7 @@ namespace Loci {
       // Split off smaller group of processors
       MPI_Comm subset ;
       MPI_Comm_split(comm,color,r,&subset) ;
+
       if(color == 0) {
         // sort over subset of processors
         parSampleSort(list, cmp, subset) ;
@@ -282,8 +286,9 @@ namespace Loci {
         return ;
       
       std::vector<T> splitters ;
+
       parGetSplitters(splitters,list,cmp,comm) ;
-      
+
       parSplitSort(list,splitters,cmp,comm) ;
     }
 
@@ -299,8 +304,9 @@ namespace Loci {
 
     splitters = std::vector<T>(p-1) ;
     std::vector<T> allsplits(p*(p-1)) ;
-
+    
     int nlocal = input.size() ;
+
     if(nlocal == 0) {
       cerr << "unable to sort with 0 elements on a processor" << endl ;
       Loci::Abort() ;
@@ -315,15 +321,15 @@ namespace Loci {
         splitters[i] = input[0] ;
     } else 
       for(int i=1;i<p;++i) 
-        splitters[i-1] = input[(i*nlocal)/p] ;
-    for(int i=1;i<p;++i) 
-      splitters[i-1] = input[(i*nlocal)/p] ;
+        splitters[i-1] = input[i*(nlocal/p)] ;
 
     int tsz = sizeof(T) ;
+
     MPI_Allgather(&splitters[0],(p-1)*tsz,MPI_BYTE,
                   &allsplits[0],(p-1)*tsz,MPI_BYTE,comm) ;
-    
+
     std::sort(allsplits.begin(),allsplits.end()) ;
+
     for(int i=1;i<p;++i)
       splitters[i-1] = allsplits[i*(p-1)] ;
     //    splitters[p-1] = std::numeric_limits<T>::max() ;
@@ -359,6 +365,8 @@ namespace Loci {
       sdispls[i] = sdispls[i-1]+scounts[i-1] ;
 
     std::vector<int> rcounts(p) ;
+
+
     MPI_Alltoall(&scounts[0],1,MPI_INT,&rcounts[0],1,MPI_INT,comm) ;
 
     std::vector<int> rdispls(p) ;
@@ -370,11 +378,12 @@ namespace Loci {
     int result_size = (rdispls[p-1]+rcounts[p-1])/sizeof(T) ;
 
     std::vector<T> sorted_pnts(result_size) ;
+    
 
     MPI_Alltoallv(&list[0],&scounts[0],&sdispls[0],MPI_BYTE,
                   &sorted_pnts[0],&rcounts[0],&rdispls[0],MPI_BYTE,
                   comm) ;
-
+    
     list.swap(sorted_pnts) ;
     std::sort(list.begin(),list.end()) ;
     return ;
@@ -391,6 +400,7 @@ namespace Loci {
       return ;
 
     std::vector<T> splitters ;
+
     parGetSplitters(splitters,list,comm) ;
 
     parSplitSort(list,splitters,comm) ;
