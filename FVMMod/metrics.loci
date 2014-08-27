@@ -179,7 +179,12 @@ namespace Loci {
 
 #define STRONG_CHECK
 
-  $rule pointwise(vol<-cellcenter,(upper,lower,boundary_map)->(area,facecenter)),constraint(cartesianCoordinateModel,geom_cells) {
+  $type minVolume param<double> ;
+  $rule default(minVolume) {
+    $minVolume = -1 ;
+  }
+
+  $rule pointwise(vol<-minVolume,cellcenter,(upper,lower,boundary_map)->(area,facecenter)),constraint(cartesianCoordinateModel,geom_cells) {
     real_t sum = 0.0 ;
     vector3d<real_t> dv ;
     for(const Entity* nf=$upper.begin();nf!=$upper.end();++nf) {
@@ -208,7 +213,8 @@ namespace Loci {
     }
     $vol = sum/3.0 ;
     if(sum <= 0.0) {
-      cerr << Loci::MPI_rank << "  Zero or negative volume in grid cell " << _e_ << endl ;
+      cerr << "MPI_rank = " << Loci::MPI_rank << ":  Zero or negative volume in grid cell id :" << _e_ << endl ;
+      cerr << "For more information see debug file." << endl ;
       for(const Entity* nf=$upper.begin();nf!=$upper.end();++nf) {
 	Loci::debugout << "upper facecenter [" << *nf << " ] =  "
                        << nf->$facecenter << endl ;
@@ -232,7 +238,9 @@ namespace Loci {
       Loci::debugout << " volume[ " << _e_ << " ] = "
                      << $vol << endl ;
       
-      exit(-1) ;
+      $vol = max($minVolume,$vol) ;
+      if($vol < 1e-40) 
+	exit(-1) ;
     }
   }
 
@@ -320,8 +328,9 @@ namespace Loci {
     }
 
     if(vol_sum <=0) {
-      cerr << "negative volume in grid" << endl ;
-      Loci::Abort() ;
+      //      cerr << "negative volume in grid" << endl ;
+      //      Loci::Abort() ;
+      volsum = 1e-30 ;
     }
     $vol = (M_PI/3.)*vol_sum ;
 #else
