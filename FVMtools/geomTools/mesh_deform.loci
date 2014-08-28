@@ -9,7 +9,12 @@ $type node2surface Map ;
 $type dwall store<double> ;
 $type blendFunc store<double> ;
 $type newPos store<vector3d<double> > ;
+$type nodeDisp_b  store<vector3d<double> >;
+$type surfaceDeltasAdjust store<vector3d<double> > ;
 
+$rule pointwise(nodeDisp_b<-surfaceDeltas),constraint(boundary_nodes) {
+  $nodeDisp_b = $surfaceDeltas ;
+}
 
 $type stiffness param<double> ;
 
@@ -59,7 +64,6 @@ $rule pointwise(blendFunc<-dwall,maxDeltaX,node2surface->surfaceDeltas,stiffness
   $blendFunc = tanh(((1.-$stiffness)/($maxDeltaX))*$dwall) ;
 }
 
-$type surfaceDeltasAdjust store<vector3d<double> > ;
 
 $rule pointwise(surfaceDeltasAdjust<-surfaceDeltas,maxWallDist) {
   $surfaceDeltasAdjust = $surfaceDeltas ;
@@ -77,10 +81,14 @@ $rule pointwise(surfaceDeltasAdjust<-surfaceDeltas,maxWallDist) {
 }
 
 $type nPos store<vector3d<double> > ;
-$rule pointwise(nPos<-pos,blendFunc,node2surface->surfaceDeltasAdjust) {
-  $nPos = $pos + (1.-$blendFunc)*$node2surface->$surfaceDeltasAdjust ;
-  // cout <<norm($nPos - $pos) << "    "<<  abs(norm($nPos)-50.0) << "         " << abs(norm($pos)-50.0) << endl;
+$type nodeDisp store<vector3d<double> > ;
+$rule pointwise(nPos<-pos,nodeDisp) {
+  $nPos = $pos + $nodeDisp ;
 }
+//$rule pointwise(nPos<-pos,blendFunc,node2surface->surfaceDeltasAdjust) {
+//  $nPos = $pos + (1.-$blendFunc)*$node2surface->$surfaceDeltasAdjust ;
+//  // cout <<norm($nPos - $pos) << "    "<<  abs(norm($nPos)-50.0) << "         " << abs(norm($pos)-50.0) << endl;
+//}
 
 $rule pointwise(newPos<-nPos), option(disable_threading), prelude {
   hid_t file_id = Loci::hdf5CreateFile("newpos.dat",H5F_ACC_TRUNC,

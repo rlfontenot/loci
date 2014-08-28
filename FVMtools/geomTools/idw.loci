@@ -1,0 +1,166 @@
+#include <Loci>
+// Loci facilities
+using Loci::param ;
+using Loci::store ;
+using Loci::const_param ;
+using Loci::const_store ;
+using Loci::Entity ;
+using Loci::pointwise_rule ;
+using Loci::sequence ;
+using Loci::entitySet ;
+using Loci::register_rule ;
+
+#include <iostream>
+using std::cout ;
+#include <vector>
+using std::vector;
+
+#include "gridMotion/nodeData.h"
+#include "gridMotion/rotor.h"
+#include "gridMotion/gridTypes.h"
+#include "gridMotionTraits.h"
+$include "FVM.lh"
+
+using gridMotion::NodeData;
+using gridMotion::Rotor;
+
+
+typedef Loci::real_t real ;
+typedef Loci::vector3d<Loci::real_t> vect3d ;
+
+//====================================================================
+$type participatingCentroid             param<vect3d> ;
+$type nodeDataCollection                param< vector<NodeData> >;
+$type nodeDisp_bc                        store<vect3d>;
+$type nodeDisp                          store<vect3d>;
+//====================================================================
+
+//--------------------------------------------------------------------
+$type gridMotionExpA                    param<int> ;
+//--------------------------------------------------------------------
+$rule default(gridMotionExpA) {
+  $gridMotionExpA = 3 ;
+}
+
+//--------------------------------------------------------------------
+$type gridMotionExpB                    param<int> ;
+//--------------------------------------------------------------------
+$rule default(gridMotionExpB) {
+  $gridMotionExpB = 5 ;
+}
+
+//--------------------------------------------------------------------
+$type gridMotionLref                    param<real>  ;
+//--------------------------------------------------------------------
+$rule default( gridMotionLref ) {
+  $gridMotionLref = -1 ;
+}
+
+//--------------------------------------------------------------------
+// NOTE: The distance comptued in the following rules is roughly the
+// radius of the domain around all of the participating nodes.
+//--------------------------------------------------------------------
+$type gridMotionLrefDefault             param<real>;
+//--------------------------------------------------------------------
+$rule unit( gridMotionLrefDefault ),
+constraint( UNIVERSE ) {
+  $gridMotionLrefDefault = 0.0;
+}
+//--------------------------------------------------------------------
+$rule apply( gridMotionLrefDefault <- pos,
+	     participatingCentroid )[Loci::Maximum],
+constraint( participatingNodes ) {
+  join( $gridMotionLrefDefault, norm($pos-$participatingCentroid) );
+}
+
+//------------------------------------------------------------------
+$type gridMotionGlobalLref                    param<real>;
+//------------------------------------------------------------------
+$rule singleton( gridMotionGlobalLref <- gridMotionLref,
+		 gridMotionLrefDefault ) {
+  if ($gridMotionLref > 0) {
+    $gridMotionGlobalLref = $gridMotionLref;
+  }
+  else {
+    $gridMotionGlobalLref = $gridMotionLrefDefault;
+  }
+  Loci::debugout << "gridMotionGlobalLref: " << $gridMotionGlobalLref << endl;
+  if (Loci::MPI_rank == 0) {
+    cout << "gridMotionGlobalLref: " << $gridMotionGlobalLref << endl;
+  }
+}
+
+//--------------------------------------------------------------------
+$type gridMotionAlpha                   param<real> ;
+//--------------------------------------------------------------------
+$rule default( gridMotionAlpha ) {
+  $gridMotionAlpha = -1 ;
+}
+
+//--------------------------------------------------------------------
+$type gridMotionAlphaFactor             param<real> ;
+//--------------------------------------------------------------------
+$rule default(gridMotionAlphaFactor) {
+  $gridMotionAlphaFactor = 5.0 ;
+}
+
+//--------------------------------------------------------------------
+$type gridMotionAlphaFloor              param<real> ;
+//--------------------------------------------------------------------
+$rule default(gridMotionAlphaFloor) {
+  $gridMotionAlphaFloor = 0.1;
+}
+
+//--------------------------------------------------------------------
+$type gridMotionGlobalAlpha             param<real> ;
+//--------------------------------------------------------------------
+$rule singleton( gridMotionGlobalAlpha <- gridMotionAlpha ),
+constraint( useConstantAlpha ) {
+  $gridMotionGlobalAlpha = $gridMotionAlpha;
+  Loci::debugout << "gridMotionGlobalAlpha: "
+                 << $gridMotionGlobalAlpha << endl;
+  if (Loci::MPI_rank == 0) {
+    cout << "gridMotionGlobalAlpha: "
+         << $gridMotionGlobalAlpha << endl;
+  }
+}
+//--------------------------------------------------------------------
+$rule singleton( gridMotionGlobalAlpha <- nodeDataCollection,
+                 gridMotionGlobalLref, gridMotionAlphaFloor,
+                 gridMotionAlphaFactor ),
+constraint( useVariableAlpha ) {
+  const size_t N = $nodeDataCollection.size();
+  const double L = $gridMotionGlobalLref ;
+  vect3d meanDisp(0,0,0) ;
+  double wsum = 0 ;
+  for (size_t i=0; i<N; ++i) {
+    const double w = $nodeDataCollection[i].weight ;
+    const vect3d ndisp  = to_Loci($nodeDataCollection[i].disp);
+    meanDisp += ndisp*w;
+    wsum += w;
+  }
+  meanDisp *= 1.0/wsum ;
+  double maxAlpha = $gridMotionAlphaFloor ;
+  for (size_t i=0; i<N; ++i) {
+    const vect3d ndisp  = to_Loci($nodeDataCollection[i].disp);
+    const double alpha = $gridMotionAlphaFactor*norm(ndisp-meanDisp)/L ;
+    maxAlpha = max(maxAlpha, alpha) ;
+  }
+  $gridMotionGlobalAlpha = maxAlpha;
+  Loci::debugout << "gridMotionGlobalAlpha: "
+                 << $gridMotionGlobalAlpha << endl;
+  if (Loci::MPI_rank == 0) {
+    cout << "gridMotionGlobalAlpha: "
+         << $gridMotionGlobalAlpha << endl;
+  }
+}
+
+//--------------------------------------------------------------------
+// Update the mesh node positions
+//--------------------------------------------------------------------
+//$rule pointwise(pos{n,it} <- pos{n},pos, nodeDisp{n} ),
+//constraint( UNIVERSE{n,it}, pos ) {
+//  $pos{n,it} = $pos + $nodeDisp{n};
+//}
+
+

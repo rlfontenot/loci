@@ -3,7 +3,7 @@
 include $(LOCI_BASE)/Loci.conf
 
 #COPTLESS=-g
-COPT = $(COPTLESS)
+#COPT = $(COPTLESS)
 
 INCLUDES = -I../src/include
 
@@ -13,7 +13,9 @@ JUNK = *~ core ti_files ii_files rii_files
 
 GEOMOBJS = compute_geom.o svdcmp.o
 
-OBJS = adjust_pos.o surface_delta.o mesh_deform.o geomRep.o
+
+OBJS = adjust_pos.o surface_delta.o mesh_deform.o approx.o nodeData.o constraints.o idw.o rotor.o treeApprox.o geomRep.o
+
 
 default: computegeom adjustpos getgeom viscousFix
 

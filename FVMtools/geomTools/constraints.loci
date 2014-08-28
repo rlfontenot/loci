@@ -1,0 +1,310 @@
+#include <Loci.h>
+$include "FVM.lh"
+#include <iostream>
+using std::cerr ;
+using std::cout ;
+using std::endl ;
+typedef Loci::real_t real ;
+
+//====================================================================
+$type gridMotionRefNodes                param<string>;
+$type gridDeformationPlane              param<string>;
+$type gridDeformationSymmetry           param<string>;
+$type gridMotionLref                    param<real> ;
+$type gridMotionAlpha                   param<real> ;
+//====================================================================
+
+//--------------------------------------------------------------------
+$type allNodes                          store<bool>;
+//--------------------------------------------------------------------
+$rule pointwise( allNodes ),
+constraint( pos ),
+prelude {
+};
+
+//--------------------------------------------------------------------
+$type boundaryNodes                     store<bool>;
+//--------------------------------------------------------------------
+$rule pointwise( face2node->boundaryNodes ),
+constraint( boundary_faces ),
+prelude {
+};
+//------------------------------------------------------------------
+$type numBoundaryNodes                param<size_t>;
+//------------------------------------------------------------------
+$rule unit( numBoundaryNodes ),
+constraint( UNIVERSE ) {
+  $numBoundaryNodes = 0;
+}
+//------------------------------------------------------------------
+$rule apply( numBoundaryNodes <- pos )[Loci::Summation],
+constraint( boundaryNodes ) {
+  $numBoundaryNodes++;
+}
+
+//------------------------------------------------------------------
+$type fixedBoundaryNodes              store<bool>;
+//------------------------------------------------------------------
+$rule pointwise( face2node->fixedBoundaryNodes ),
+constraint( ref->fixed_BCoption ),
+prelude {
+};
+//------------------------------------------------------------------
+$type numFixedBoundaryNodes           param<size_t>;
+//------------------------------------------------------------------
+$rule unit( numFixedBoundaryNodes ),
+constraint( UNIVERSE ) {
+  $numFixedBoundaryNodes = 0;
+}
+//------------------------------------------------------------------
+$rule apply( numFixedBoundaryNodes <- pos )[Loci::Summation],
+constraint( fixedBoundaryNodes ) {
+  $numFixedBoundaryNodes++;
+}
+
+$type constrainedBoundaryNodes        store<bool> ;
+
+$rule pointwise(face2node->constrainedBoundaryNodes),
+  constraint(ref->constrainedMotion_BCoption) {
+} ;
+  
+//------------------------------------------------------------------
+$type movingBoundaryNodes             store<bool>;
+//------------------------------------------------------------------
+$rule pointwise( face2node->movingBoundaryNodes ),
+constraint( ref->moving_BCoption ),
+prelude {
+};
+
+$rule pointwise( movingBoundaryNodes ),
+constraint(boundary_nodes),
+prelude {
+};
+//------------------------------------------------------------------
+$type numMovingBoundaryNodes          param<size_t>;
+//------------------------------------------------------------------
+$rule unit( numMovingBoundaryNodes ),
+constraint( UNIVERSE ) {
+  $numMovingBoundaryNodes = 0;
+}
+//------------------------------------------------------------------
+$rule apply( numMovingBoundaryNodes <- pos )[Loci::Summation],
+constraint( movingBoundaryNodes ) {
+  $numMovingBoundaryNodes++;
+}
+
+//------------------------------------------------------------------
+$type participatingNodes                 store<bool> ;
+//------------------------------------------------------------------
+$rule pointwise(participatingNodes),
+constraint(movingBoundaryNodes) {
+  $participatingNodes = true ;
+}
+//------------------------------------------------------------------
+$rule pointwise(fixed::participatingNodes),
+constraint(fixedBoundaryNodes) {
+  $participatingNodes = true ;
+}
+$rule pointwise(constrained::fixed::participatingNodes),
+constraint(constrainedBoundaryNodes) {
+  $participatingNodes = true ;
+}
+
+//------------------------------------------------------------------
+$type prescribedMotionNodes                 store<bool> ;
+//------------------------------------------------------------------
+$rule pointwise(prescribedMotionNodes),
+constraint(movingBoundaryNodes) {
+  $prescribedMotionNodes = true ;
+}
+//------------------------------------------------------------------
+$rule pointwise(fixed::prescribedMotionNodes),
+constraint(fixedBoundaryNodes) {
+  $prescribedMotionNodes = true ;
+}
+//------------------------------------------------------------------
+$type numParticipatingBoundaryNodes          param<size_t>;
+//------------------------------------------------------------------
+$rule unit( numParticipatingBoundaryNodes ),
+constraint( UNIVERSE ) {
+  $numParticipatingBoundaryNodes = 0;
+}
+//------------------------------------------------------------------
+$rule apply( numParticipatingBoundaryNodes <- pos )[Loci::Summation],
+constraint( participatingBoundaryNodes ) {
+  $numParticipatingBoundaryNodes++;
+}
+
+//------------------------------------------------------------------
+$type sharedBoundaryNodes             store<bool>;
+//------------------------------------------------------------------
+$rule pointwise( face2node->sharedBoundaryNodes ),
+constraint( ref->fixed_BCoption, ref->moving_BCoption ),
+prelude {
+};
+//------------------------------------------------------------------
+$type numSharedBoundaryNodes          param<size_t>;
+//------------------------------------------------------------------
+$rule unit( numSharedBoundaryNodes ),
+constraint( UNIVERSE ) {
+  $numSharedBoundaryNodes = 0;
+}
+//------------------------------------------------------------------
+$rule apply( numSharedBoundaryNodes <- pos )[Loci::Summation],
+constraint( sharedBoundaryNodes ) {
+  $numSharedBoundaryNodes++;
+}
+
+//------------------------------------------------------------------
+$type fixedBoundaryFaces              store<bool>;
+//------------------------------------------------------------------
+$rule pointwise( fixedBoundaryFaces ),
+constraint( ref->fixed_BCoption ),
+prelude {
+};
+//------------------------------------------------------------------
+$type numFixedBoundaryFaces                param<size_t>;
+//------------------------------------------------------------------
+$rule unit( numFixedBoundaryFaces ),
+constraint( UNIVERSE ) {
+  $numFixedBoundaryFaces = 0;
+}
+//------------------------------------------------------------------
+$rule apply( numFixedBoundaryFaces <- facecenter )[Loci::Summation],
+  constraint( fixedBoundaryFaces ) {
+  $numFixedBoundaryFaces++;
+}
+//------------------------------------------------------------------
+$type numAdjFixedBoundaryFaces             store<int>;
+//------------------------------------------------------------------
+$rule unit( numAdjFixedBoundaryFaces ),
+  constraint( fixedBoundaryNodes ) {
+  $numAdjFixedBoundaryFaces = 0;
+}
+//------------------------------------------------------------------
+$rule apply( face2node->numAdjFixedBoundaryFaces <- facecenter )[Loci::Summation],
+  constraint( fixedBoundaryFaces ) {
+  const int N = $face2node.size();
+  for (int i=0; i<N; ++i) {
+    $face2node[i]->$numAdjFixedBoundaryFaces++;
+  }
+}
+
+//------------------------------------------------------------------
+$type movingBoundaryFaces              store<bool>;
+//------------------------------------------------------------------
+$rule pointwise( movingBoundaryFaces ),
+  constraint( ref->moving_BCoption ),
+  prelude {
+};
+//------------------------------------------------------------------
+$type numMovingBoundaryFaces                param<size_t>;
+//------------------------------------------------------------------
+$rule unit( numMovingBoundaryFaces ),
+  constraint( UNIVERSE ) {
+  $numMovingBoundaryFaces = 0;
+}
+//------------------------------------------------------------------
+$rule apply( numMovingBoundaryFaces <- facecenter )[Loci::Summation],
+  constraint( movingBoundaryFaces ) {
+  $numMovingBoundaryFaces++;
+}
+//------------------------------------------------------------------
+$type numAdjMovingBoundaryFaces             store<int>;
+//------------------------------------------------------------------
+$rule unit( numAdjMovingBoundaryFaces ),
+  constraint( movingBoundaryNodes ) {
+  $numAdjMovingBoundaryFaces = 0;
+}
+//------------------------------------------------------------------
+$rule apply( face2node->numAdjMovingBoundaryFaces <- facecenter )[Loci::Summation],
+  constraint( movingBoundaryFaces ) {
+  const int N = $face2node.size();
+  for (int i=0; i<N; ++i) {
+    $face2node[i]->$numAdjMovingBoundaryFaces++;
+  }
+}
+
+//--------------------------------------------------------------------
+$type useMovingNodesOnly                Constraint;
+$type useParticipatingNodesOnly         Constraint;
+$type useAllNodes                       Constraint;
+//--------------------------------------------------------------------
+$rule constraint( useMovingNodesOnly, useParticipatingNodesOnly, useAllNodes <-
+                  gridMotionRefNodes ) {
+  $useMovingNodesOnly = EMPTY;
+  $useParticipatingNodesOnly = EMPTY;
+  $useAllNodes = EMPTY;
+  if ($gridMotionRefNodes == "moving") {
+    $useMovingNodesOnly = ~EMPTY;
+  }
+  else if ($gridMotionRefNodes == "participating") {
+    $useParticipatingNodesOnly = ~EMPTY;
+  }
+  else {
+    $useAllNodes = ~EMPTY;
+  }
+}
+
+//--------------------------------------------------------------------
+$type gridDeformationXSymmetry          Constraint ;
+$type gridDeformationYSymmetry          Constraint ;
+$type gridDeformationZSymmetry          Constraint ;
+//--------------------------------------------------------------------
+$rule constraint( gridDeformationXSymmetry,
+                  gridDeformationYSymmetry,
+                  gridDeformationZSymmetry <- gridDeformationSymmetry) {
+  $gridDeformationXSymmetry = EMPTY ;
+  $gridDeformationYSymmetry = EMPTY ;
+  $gridDeformationZSymmetry = EMPTY ;
+  if($gridDeformationSymmetry == "x" || $gridDeformationSymmetry == "X")
+    $gridDeformationXSymmetry = ~EMPTY ;
+  else if($gridDeformationSymmetry == "y" || $gridDeformationSymmetry == "Y")
+    $gridDeformationYSymmetry = ~EMPTY ;
+  else if($gridDeformationSymmetry == "z" || $gridDeformationSymmetry == "Z")
+    $gridDeformationZSymmetry = ~EMPTY ;
+  else {
+    cerr << "unable to interpret gridDeformationSymmetry: " << $gridDeformationSymmetry
+         << endl ;
+    Loci::Abort() ;
+  }
+}  
+
+//--------------------------------------------------------------------
+$type useConstantLref                   Constraint;
+$type useVariableLref                   Constraint;
+//--------------------------------------------------------------------
+$rule constraint( useConstantLref, useVariableLref <- gridMotionLref ) {
+  $useConstantLref = EMPTY;
+  $useVariableLref = EMPTY;
+  if ($gridMotionLref > 0.0) {
+    $useConstantLref = ~EMPTY;
+    if(Loci::MPI_rank == 0)
+      cout << "Using constant Lref" << endl;
+  }
+  else {
+    $useVariableLref = ~EMPTY;
+    if(Loci::MPI_rank == 0)
+      cout << "Using variable Lref" << endl;
+  }
+}
+
+//--------------------------------------------------------------------
+$type useConstantAlpha                  Constraint;
+$type useVariableAlpha                  Constraint;
+//--------------------------------------------------------------------
+$rule constraint( useConstantAlpha, useVariableAlpha <- gridMotionAlpha ) {
+  $useConstantAlpha = EMPTY;
+  $useVariableAlpha = EMPTY;
+  if ($gridMotionAlpha > 0.0) {
+    $useConstantAlpha = ~EMPTY;
+    if(Loci::MPI_rank==0)
+      cout << "Using constant alpha" << endl;
+  }
+  else {
+    $useVariableAlpha = ~EMPTY;
+    if(Loci::MPI_rank==0)
+      cout << "Using variable alpha" << endl;
+  }
+}
+

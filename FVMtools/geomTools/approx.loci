@@ -1,0 +1,135 @@
+#include <Loci.h>
+
+#include "gridMotion/treeApprox.h"
+#include "gridMotion/gridTypes.h"
+#include "gridMotionTraits.h"
+$include "FVM.lh"
+
+typedef Loci::real_t real ;
+typedef Loci::vector3d<real> vect3d ;
+
+//====================================================================
+$type gridMotionExpA                    param<int> ;
+$type gridMotionExpB                    param<int> ;
+$type gridMotionGlobalAlpha             param<real> ;
+$type gridMotionGlobalLref              param<real>;
+$type nodeDataCollection                param< vector<gridMotion::NodeData> >;
+
+$type nodeAreaWeight                    store<real>;
+$type nodeDisp                          store<vect3d>;
+//$type nodeDisp_b                        store<vect3d>;
+$type nodeDisp_bc                        store<vect3d>;
+$type nodeRot_b                         store<Rotor>;
+//====================================================================
+ 
+
+$type approxTree blackbox<gridMotion::deformApproxTree> ;
+
+$rule blackbox( approxTree<-nodeDataCollection,
+                 gridMotionGlobalLref),
+  option(disable_threading ), prelude {
+  vector<gridMotion::NodeData> nodeData = *($nodeDataCollection) ;
+  int sz = nodeData.size() ;
+  //  std::cout << "sz =" << sz << endl;
+#ifdef DEBUG
+  for(int i=0;i<sz;++i) {
+    std::cout << "i="<<i<< ","<< nodeData[i].pos << "," 
+	      << nodeData[i].disp << ","
+	      << nodeData[i].rot  << ","
+	      << nodeData[i].weight
+	 << endl ;
+  }
+#endif
+  //  int sz = nodeData.size()*sizeof(gridMotion::NodeData) ;
+  // Make sure all processors use the same data ordering
+  //  MPI_Bcast(&nodeData[0],sz,MPI_BYTE,0,MPI_COMM_WORLD) ;
+
+  buildDeformApprox(*($approxTree),nodeData,MPI_COMM_WORLD) ;
+  
+} ;
+
+//--------------------------------------------------------------------
+$type gridMoveErrorTol                  param<real> ;
+//--------------------------------------------------------------------
+// Setup reporter function
+
+void reportToDebug(string s) {
+  Loci::debugout << s ;
+  Loci::debugout.flush() ;
+}
+
+
+$rule default(gridMoveErrorTol) {
+  gridMotion::registerReporterFunction(reportToDebug) ;
+  $gridMoveErrorTol = 0.1 ;
+}
+
+
+// Compute edge length
+$type minEdgeLength store<float> ;
+
+$rule unit(minEdgeLength),constraint(pos) {
+  $minEdgeLength=1e30 ;
+}
+
+$rule apply(face2node->minEdgeLength<-face2node->pos)[Loci::Minimum] {
+  int fsz = $face2node.size() ;
+  for(int i=0;i<fsz;++i) {
+    int n2 = (i+1)==fsz?0:i+1 ;
+    float len = norm($face2node[i]->$pos-$face2node[n2]->$pos) ;
+    join($face2node[i]->$minEdgeLength,len) ;
+    join($face2node[n2]->$minEdgeLength,len) ;
+  }
+}
+
+$rule apply(face2node->minEdgeLength<-area,cl->vol)[Loci::Minimum] {
+  float len = $cl->$vol/$area.sada ;
+  int fsz = $face2node.size() ;
+  for(int i=0;i<fsz;++i)
+    join($face2node[i]->$minEdgeLength,len) ;
+}
+$rule apply(face2node->minEdgeLength<-area,cr->vol)[Loci::Minimum] {
+  float len = $cr->$vol/$area.sada ;
+  int fsz = $face2node.size() ;
+  for(int i=0;i<fsz;++i)
+    join($face2node[i]->$minEdgeLength,len) ;
+}
+  
+
+//--------------------------------------------------------------------
+$rule pointwise(nodeDisp<-approxTree,pos,
+		gridMotionGlobalAlpha, gridMotionGlobalLref, gridMotionExpA,
+		gridMotionExpB,gridMoveErrorTol,minEdgeLength ),
+  option(enable_dynamic_scheduling),
+  prelude {
+  entitySet dom = entitySet(seq) ;
+
+  const float L = *($gridMotionGlobalLref) ;
+  const int a = *($gridMotionExpA) ;
+  const int b = *($gridMotionExpB) ;
+  const float alpha = *($gridMotionGlobalAlpha) ;
+  const float aL = alpha*L ;
+  const float errpn = *($gridMoveErrorTol) ;
+  
+  FORALL(dom,ii) {
+    float err_abs = errpn*$minEdgeLength[ii] ;
+    gridMotion::vector3d<double> gpos = to_gridMotion($pos[ii]) ;
+    $nodeDisp[ii] = to_Loci(approxDisplacement(gpos,*($approxTree),
+						  a,b,L,aL,err_abs)) ;
+//    std::cout << "L=" << L << ",a=" << a << ",b=" << b << "aL=" << aL << "err_abs=" << err_abs << ",nodeDisp=" << $nodeDisp[ii] << endl;
+  } ENDFORALL ;
+    
+} ;
+
+//--------------------------------------------------------------------
+$rule pointwise( override::nodeDisp <- pos, nodeDisp_bc ),
+constraint( participatingNodes ) {
+  $nodeDisp = $nodeDisp_bc ;
+}
+
+$type surfaceMotionConstraintIdNode store<int> ;
+
+
+
+
+
