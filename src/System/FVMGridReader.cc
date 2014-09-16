@@ -61,10 +61,13 @@ using std::istringstream ;
 #include <stdio.h>
 #include <strings.h>
 
-extern "C" {
-  typedef int idxtype ;
-  void ParMETIS_V3_PartKway(idxtype *, idxtype *, idxtype *, idxtype *, idxtype *, int *, int *, int *, int *, float *, float *, int *, int *, idxtype *, MPI_Comm *);
-}
+#include <parmetis.h>
+
+#if REALTYPEWIDTH == 32
+typedef float metisreal_t ;
+#else
+typedef double metisreal_t ;
+#endif
 
 namespace Loci {
   //#define MEMDIAG
@@ -1054,17 +1057,17 @@ namespace Loci {
         wgtflag = 2 ;           // weights on the vertices only
         int ncon = 2 ;          // number of weights per vertex
         int tpwgts_len = ncon*nparts ;
-        vector<float> tpwgts(tpwgts_len) ;
+        vector<metisreal_t> tpwgts(tpwgts_len) ;
 
         for(int i=0;i<tpwgts_len;++i)
           tpwgts[i] = 1.0 / double(nparts) ;
         
-        vector<float> ubvec(ncon) ;
+        vector<metisreal_t> ubvec(ncon) ;
         for(int i=0;i<ncon;++i)
           ubvec[i] = 1.05 ;     // as recommended by the ParMETIS manual
 
         // now construct the vertex weights
-        vector<idxtype> vwgt(ncon*size_map) ;
+        vector<idx_t> vwgt(ncon*size_map) ;
         int cnt = 0 ;
         for(entitySet::const_iterator
               ei=local_cells[Loci::MPI_rank].begin();
@@ -1091,12 +1094,12 @@ namespace Loci {
         }
         int ncon = 1 ;
         int tpwgts_len = ncon*nparts ;
-        vector<float> tpwgts(tpwgts_len) ;
+        vector<metisreal_t> tpwgts(tpwgts_len) ;
         for(int i=0;i<tpwgts_len;++i)
           tpwgts[i] = 1.0 / double(nparts) ;
         
         
-        float ubvec = 1.05 ;
+        metisreal_t ubvec = 1.05 ;
         wgtflag = 0 ;
         ParMETIS_V3_PartKway(&vdist[0],&xadj[0],&adjncy[0],NULL,NULL,
                              &wgtflag,&numflag,&ncon,&nparts,
@@ -1107,11 +1110,11 @@ namespace Loci {
     } else {
       int ncon = 1 ;
       int tpwgts_len = ncon*nparts ;
-      vector<float> tpwgts(tpwgts_len) ;
+      vector<metisreal_t> tpwgts(tpwgts_len) ;
       for(int i=0;i<tpwgts_len;++i)
         tpwgts[i] = 1.0 / double(nparts) ;
 
-      float ubvec = 1.05 ;
+      metisreal_t ubvec = 1.05 ;
       wgtflag = 0 ;
       ParMETIS_V3_PartKway(&vdist[0],&xadj[0],&adjncy[0],NULL,NULL,
                            &wgtflag,&numflag,&ncon,&nparts,
