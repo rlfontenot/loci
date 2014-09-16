@@ -371,7 +371,7 @@ int scanFluentFile(string filename,
                 cr[i] = getHex(s) ;
                 if(cr[i] == 0) {
                   cr[i] = -zone ;
-                  zone_map[i] = 1 ;
+                  zone_map[zone] = 1 ;
                 } else if(cl[i] == 0) {
                   cl[i] = -zone ;
                   zone_map[zone] = 1 ;
@@ -390,7 +390,7 @@ int scanFluentFile(string filename,
                 cr[i] = getHex(s) ;
                 if(cr[i] == 0) {
                   cr[i] = -zone ;
-                  zone_map[i] = 1 ;
+                  zone_map[zone] = 1 ;
                 } else if(cl[i] == 0) {
                   cl[i] = -zone ;
                   zone_map[zone] = 1 ;
