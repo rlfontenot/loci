@@ -4,7 +4,7 @@
  *
 \author George
 \date   Started 8/9/02
-\version\verbatim $Id$\endverbatim
+\version\verbatim $Id: metis.h,v 1.1 2011/08/18 02:18:46 lush Exp $\endverbatim
 */
 
 #ifndef _METIS_H_
@@ -40,7 +40,7 @@
    32 : single precission floating point (float)
    64 : double precission floating point (double)
 --------------------------------------------------------------------------*/
-#define REALTYPEWIDTH 32
+#define REALTYPEWIDTH 64
 
 
 
