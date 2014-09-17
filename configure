@@ -23,6 +23,10 @@
 LD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:$LD_LIBRARY_PATH:/:/usr:/usr/local:/opt:/opt/local
 PETSC_BASE=$PETSC_DIR
 
+METIS_BASE="\$(LOCI_BASE)/ParMetis-4.0"
+METIS_LIBS="-lparmetis -lmetis -gk"
+METIS_INCLUDE="-I\$(METIS_BASE) -DLOCI_USE_METIS"
+
 set +e
 set -u
 set -f
@@ -405,6 +409,13 @@ else
 fi
 echo >> sys.conf
 
+echo \# METIS Library Setup >> sys.conf
+echo METIS_BASE= $METIS_BASE >> sys.conf
+echo METIS_LIBS= $METIS_LIBS >> sys.conf
+echo METIS_INCLUDE= $METIS_INCLUDE >> sys.conf
+echo >> sys.conf
+
+
 echo \# PETSc Library Setup >> sys.conf
 
 if [ ! -d $PETSC_BASE ]; then
@@ -578,10 +589,10 @@ echo "# No need to change things below this line" >> sys.conf
 echo >> sys.conf
 
 echo "MACHINE_SPECIFIC = \$(PETSC_DEFINE) \$(PETSC_INCLUDE) \$(HDF5_INCLUDE)\\">> sys.conf
-echo "                   \$(MPI_INCLUDE) \$(MISC)\\" >> sys.conf
+echo "                   \$(MPI_INCLUDE) \$(METIS_INCLUDE) \$(MISC)\\" >> sys.conf
 echo "                   \$(DYNAMIC_LOADING_DEFINES)" >> sys.conf
 echo >> sys.conf
-echo "BASE_LIBS = \$(HDF5_LIBS) \$(PETSC_LIBS) \$(MPI_LIBS) \\" >> sys.conf
+echo "BASE_LIBS = \$(HDF5_LIBS) \$(PETSC_LIBS) \$(MPI_LIBS) \$(METIS_LIBS) \\" >> sys.conf
 echo "            \$(MISC_LIBS) \$(DYNAMIC_LOADING_LINK)" >> sys.conf
 
 
