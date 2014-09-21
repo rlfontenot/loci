@@ -24,7 +24,7 @@ LD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:$LD_LIBRARY_PATH:/:/usr:/usr/local:/opt:/opt/
 PETSC_BASE=$PETSC_DIR
 
 METIS_BASE="\$(LOCI_BASE)/ParMetis-4.0"
-METIS_LIBS="-lparmetis -lmetis -gk"
+METIS_LIBS="-lparmetis -lmetis -lgk"
 METIS_INCLUDE="-I\$(METIS_BASE) -DLOCI_USE_METIS"
 
 set +e
