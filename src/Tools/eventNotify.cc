@@ -53,6 +53,7 @@ namespace Loci {
         
     if(*nlp == p)
       notify_group.erase(nlp) ;
+
   }    
 
   void eventDispatcher::dispatch_notify() {

@@ -788,6 +788,7 @@ namespace Loci {
 #endif
       }
     }
+    
     return compute ;
   }
 
@@ -2380,7 +2381,7 @@ namespace Loci {
         vi!=allocate_vars.end();++vi) {
       storeRepP srp = facts.get_variable(*vi) ;
       entitySet alloc_dom = v_requests[*vi] + srp->domain() ;
-
+      
       if(srp->domain() == EMPTY) {
 #ifdef VERBOSE
 	debugout << "allocate " << *vi << ", alloc_dom =" << alloc_dom << endl ;

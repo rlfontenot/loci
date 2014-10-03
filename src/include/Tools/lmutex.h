@@ -25,6 +25,72 @@
 
 #ifdef PTHREADS
 #include <pthread.h>
+namespace Loci {
+  // class lmutex {
+  // public:
+  //   lmutex() {}
+  //   void lock() {}
+  //   void unlock() {}
+  // } ;
+
+  // class bmutex {
+  // public:
+  //   bmutex(lmutex &m) {}
+  // } ;
+
+  // class lmutex {
+  //   pthread_mutex_t m;
+  //   pthread_mutexattr_t at;
+  // public:
+  //   lmutex() { pthread_mutexattr_init(&at); pthread_mutex_init(&m,NULL); }
+  //   void lock() { pthread_mutex_lock(&m); }
+  //   void unlock() { pthread_mutex_unlock(&m); }
+  //   ~lmutex() { pthread_mutex_destroy(&m); pthread_mutexattr_destroy(&at); }
+  // } ;
+  
+  // class bmutex {
+  //   lmutex &mutex ;
+  // public:
+  //   bmutex(lmutex &m) : mutex(m) { mutex.lock() ; }
+  //   ~bmutex() { mutex.unlock() ; }
+  // } ;
+
+  class lmutex {
+    pthread_spinlock_t m;
+  public:
+    lmutex() { pthread_spin_init(&m,0); }
+    void lock() { pthread_spin_lock(&m); }
+    void unlock() { pthread_spin_unlock(&m); }
+    ~lmutex() { pthread_spin_destroy(&m); }
+  } ;
+  
+  class bmutex {
+    lmutex &mutex ;
+  public:
+    bmutex(lmutex &m) : mutex(m) { mutex.lock() ; }
+    ~bmutex() { mutex.unlock() ; }
+  } ;
+}
+#else
+namespace Loci {
+  class lmutex {
+  public:
+    lmutex() {}
+    void lock() {}
+    void unlock() {}
+  } ;
+
+  class bmutex {
+  public:
+    bmutex(lmutex &m) {}
+  } ;
+}
+#endif
+
+#ifdef USETHREADS
+
+#ifdef PTHREADS
+#include <pthread.h>
 #include <errno.h>
 
 
@@ -42,7 +108,8 @@ namespace Loci {
       pthread_mutexattr_setpshared(&mattr, PTHREAD_PROCESS_SHARED) ;
 #endif
       //      pthread_mutexattr_settype(&mattr, PTHREAD_MUTEX_RECURSIVE) ;
-      pthread_mutex_init(&mutex,&mattr) ;
+      //pthread_mutex_init(&mutex,&mattr) ;
+      pthread_mutex_init(&mutex,NULL) ;
     }
     ~lmutex() {
 #ifdef DEBUG
@@ -94,5 +161,7 @@ namespace Loci {
   } ;
 }
 #endif    
+
+#endif
 
 #endif

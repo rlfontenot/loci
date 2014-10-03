@@ -205,6 +205,17 @@ namespace Loci {
     int tid = targ->tid;
     ThreadControl_pthread* self = targ->self;
 
+    // // we want to set the CPU affinity of threads so that
+    // // each thread is attached to a specific CPU and wont migrate (hopefully)
+    // cpu_set_t cpuset;
+    
+    // CPU_ZERO(&cpuset);
+    // CPU_SET(Loci::MPI_rank*self->tnum + tid, &cpuset);
+    
+    // if( (pthread_setaffinity_np(pthread_self(),
+    //                             sizeof(cpu_set_t), &cpuset)) != 0)
+    //   cerr << "WARNING: pthread CPU affinity setting failed!" << endl;
+
     // this holds the pointer to the next work module
     ThreadedEMP w = 0;
 
@@ -776,6 +787,14 @@ namespace Loci {
                                 fact_db& facts, sched_db& scheds,
                                 const entitySet& context, UDG& g)
   {
+    // DEBUG
+    // double s = 0, t1 = 0, t2 = 0, t3 = 0;
+    ////////
+
+    // DEBUG
+    // s = MPI_Wtime();
+    ////////
+    
     // first we need to get the mapping info in the targets of the rule
     const rule_impl::info& rinfo = r.get_info().desc;
     // build a mapping from each entity in the context to all the
@@ -786,6 +805,12 @@ namespace Loci {
       entitySet input; input += *ei;
       s2t[*ei] = vmap_target_exist(*vmi, facts, input, scheds);
     }
+
+    // DEBUG
+    // t1 = MPI_Wtime() - s;
+    // s = MPI_Wtime();
+    ////////
+    
     // we then build an inverse map of "s2t", that is, for each entity (e)
     // in the target's domain, we will get what the input entities are
     // responsible to write to "e"
@@ -802,13 +827,36 @@ namespace Loci {
         t2s[*ei] += ss;
       }
     }
+
+    // DEBUG
+    // t2 = MPI_Wtime() - s;
+    // s = MPI_Wtime();
+    ////////
+    
     // we are now ready to generate the interference graph.
     // all the clusters in each entry in the mapping "t2s" are connected
     // in the final graph.
+
+    // DEBUG
+    // int max_s = 0;
+    //
+    
     for(map<Entity,entitySet>::const_iterator
           mi=t2s.begin();mi!=t2s.end();++mi) {
       g.add_edges(mi->second);
+      // DEBUG
+      //if(mi->second.size() > max_s)
+      //  max_s = mi->second.size();
+      //
     }
+
+    // DEBUG
+    // t3 = MPI_Wtime() - s;
+    // cout << "max partial reduction domain size: " << max_s << endl;
+    // cout << "t1 = " << t1 << endl;
+    // cout << "t2 = " << t2 << endl;
+    // cout << "t3 = " << t3 << endl;
+    // 
   }
 
   // partition entity set based on colors

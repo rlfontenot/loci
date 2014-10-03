@@ -34,13 +34,19 @@ using std::string;
 
 #include <Config/conf.h>
 #include <Tools/cptr.h>
-
+#include <Tools/intervalSet.h>
 #include <mpi.h>
 
 #define PROFILER
 #ifdef USE_PAPI
 #include <papi.h>
 #include <papiStdEventDefs.h>
+#endif
+
+#ifdef PAPI_DEBUG
+#include <papi.h>
+#else
+#define long_long long
 #endif
 
 namespace Loci {
@@ -156,6 +162,10 @@ namespace Loci {
                                   allocEventType t,
                                   double maxMallocMemory,
                                   double maxBeanMemory) = 0 ;
+    virtual void accumulateSchedMemory(const std::string& eventName,
+                                       double bytes) = 0;
+    virtual void accumulateDCM(const std::string& eventName,
+                               long_long l1_dcm, long_long l2_dcm) = 0;
   } ;
   
     
@@ -167,6 +177,9 @@ namespace Loci {
     execute_modules() {}
     virtual ~execute_modules() {}
     virtual void execute(fact_db &facts, sched_db &scheds) = 0 ;
+    virtual void execute_kernel(const sequence&) {}
+    virtual void execute_prelude(const sequence&) {}
+    virtual void execute_postlude(const sequence&) {}
     virtual void Print(std::ostream &s) const = 0 ;
     virtual string getName() = 0;
     virtual void dataCollate(collectData &data_collector) const = 0 ;

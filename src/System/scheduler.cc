@@ -52,15 +52,11 @@ using std::ostream ;
 
 #define PROFILE_CODE
 
-
-
 #ifdef USE_PAPI
 #include "papi.h"
 #define N 64*64
 #define NCOUNTS 6
 #endif
-
-
 
 namespace Loci {
   //#define DYNAMIC_TIMING
@@ -1028,6 +1024,25 @@ namespace Loci {
       }
     } ;
     std::list<timingData>  timing_data ;
+    struct schedData {
+      std::string eventName;
+      double bytes;
+      bool operator<(const schedData& s) const
+      { return bytes < s.bytes; }
+    };
+    std::list<schedData> sched_data;
+    struct cmpSchedName {
+      bool operator()(const schedData& s1, const schedData& s2) const
+      { return s1.eventName < s2.eventName; }
+    };
+    struct cacheData {
+      std::string eventName;
+      long_long l1_dcm;
+      long_long l2_dcm;
+      bool operator<(const cacheData& c) const
+      { return l1_dcm < c.l1_dcm; }
+    };
+    std::list<cacheData> cache_data;
   public:
 
     void accumulateTime(const timeAccumulator &ta, executeEventType t,
@@ -1036,6 +1051,10 @@ namespace Loci {
                           allocEventType t,
                           double maxMallocMemory,
                           double maxBeanMemory) ;
+    void accumulateSchedMemory(const std::string& eventName,
+                               double bytes);
+    void accumulateDCM(const std::string& eventName,
+                       long_long l1_dcm, long_long l2_dcm);
       
     double getComputeTime() ;
     double getTotalTime() ;
@@ -1063,6 +1082,25 @@ namespace Loci {
                                        allocEventType t,
                                        double maxMallocMemory,
                                        double beanMemory) {
+  }
+
+  void collectTiming::accumulateSchedMemory(const std::string& eventName,
+                                            double bytes)
+  {
+    schedData sd;
+    sd.eventName = eventName;
+    sd.bytes = bytes;
+    sched_data.push_back(sd);
+  }
+
+  void collectTiming::accumulateDCM(const std::string& eventName,
+                                    long_long l1_dcm, long_long l2_dcm)
+  {
+    cacheData cd;
+    cd.eventName = eventName;
+    cd.l1_dcm = l1_dcm;
+    cd.l2_dcm = l2_dcm;
+    cache_data.push_back(cd);
   }
   
   ostream &collectTiming::PrintSummary(ostream &s) {
@@ -1156,6 +1194,60 @@ namespace Loci {
         << ceil(1000.0*t/totTime)/10.0 << "% of total" << endl ;
     }    
     s << "------------------------------------------------------------------------------" << endl ;
+
+    // display the schedule memory consumption
+    // first collapse the list by merging names together
+    sched_data.sort(cmpSchedName());
+    std::list<schedData>::iterator si = sched_data.begin();
+    std::list<schedData>::iterator si2 = si; ++si2;
+    while(si!=sched_data.end()) {
+      if(si2 == sched_data.end())
+        break;
+      if(si->eventName == si2->eventName) {
+        si->bytes += si2->bytes;
+        si2 = sched_data.erase(si2);
+      } else {
+        si = si2;
+        ++si2;
+      }
+    }
+    // then sort based on bytes size
+    sched_data.sort();
+    double total_mem = 0;
+    for(si=sched_data.begin();si!=sched_data.end();++si)
+      total_mem += si->bytes;
+    s << "Total scheduler bean-counting memory: " << total_mem << " bytes"
+      << endl;
+    
+    std::list<schedData>::const_reverse_iterator rsi = sched_data.rbegin();
+    lcnt = 10 ;
+    if(verbose)
+      lcnt = sched_data.size() ;
+    s << "Top " << lcnt << " Steps with Most Scheduler Memory:" << endl;
+    lcnt = min(int(sched_data.size()),lcnt);
+    for(int i =0;i<lcnt;++i,++rsi) {
+      s << i << "- " << rsi->eventName
+        << " | " << rsi->bytes << " bytes" << endl ;
+      s << "------------------------------------------------------------------------------" << endl ;
+    }
+    
+#ifdef PAPI_DEBUG
+    // display the cache misses
+    cache_data.sort();
+    std::list<cacheData>::const_reverse_iterator rci = cache_data.rbegin();
+    lcnt = 10 ;
+    if(verbose)
+      lcnt = cache_data.size() ;
+    s << "Top " << lcnt << " Steps with Most Data Cache Misses:" << endl;
+    lcnt = min(int(cache_data.size()),lcnt);
+    for(int i =0;i<lcnt;++i,++rci) {
+      s << i << "- " << rci->eventName
+        << " | L1 DCM: " << rci->l1_dcm
+        << " | L2 DCM: " << rci->l2_dcm << endl ;
+      s << "------------------------------------------------------------------------------" << endl ;
+    }
+#endif
+    
     return s ;
   }
   
@@ -1216,6 +1308,11 @@ namespace Loci {
                           double maxMallocMemory,
                           double maxBeanMemory) ;
       
+    void accumulateSchedMemory(const std::string& eventName,
+                               double bytes) {}
+    void accumulateDCM(const std::string& eventName,
+                       long_long l1_dcm, long_long l2_dcm) {}
+
     double getComputeTime() ;
     double getTotalTime() ;
     ostream &PrintSummary(ostream &s) ;

@@ -83,6 +83,10 @@ using std::bad_alloc ;
 #include <fstream>
 #include <vector>
 
+#ifdef PAPI_DEBUG
+#include <papi.h>
+#endif
+
 using std::cout ;
 using std::cerr ;
 using std::endl ;
@@ -551,8 +555,8 @@ namespace Loci {
           if(num_threads > 1) {
             threading_pointwise = true;
             threading_global_reduction = true;
-            threading_local_reduction = true;
-            threading_chomping = true;
+            threading_local_reduction = false;//true;
+            threading_chomping = false;//true;
           }
           i+=2;
         } else if(!strcmp((*argv)[i],"--no_threading_pointwise")) {
@@ -623,6 +627,18 @@ namespace Loci {
       Loci::Abort() ;
     }
     register_closing_function(closeoutMPI) ;
+
+#ifdef PAPI_DEBUG
+    // // initialize PAPI
+    if( (PAPI_library_init(PAPI_VER_CURRENT)) != PAPI_VER_CURRENT)
+      cerr << "PAPI library init error!" << endl;
+    // if(num_threads > 0) {
+    //   if (PAPI_thread_init(pthread_self) != PAPI_OK) {
+    //     cerr << "PAPI library thread init error!" << endl;
+    //     Loci::Abort();
+    //   }
+    // }
+#endif
   }
   //All Loci programs must end with this call.
   extern void call_closing_functions(int code) ;

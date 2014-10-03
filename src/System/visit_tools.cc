@@ -237,8 +237,9 @@ namespace Loci {
     set<int> subnode ;
     for(ruleSet::const_iterator ruleIter=rules.begin();
         ruleIter!=rules.end();++ruleIter) {
-      if(is_super_node(ruleIter))
+      if(is_super_node(ruleIter)) {
         subnode.insert(get_supernode_num(*ruleIter)) ;
+      }
     }
     subnode_table[id] = subnode ;
   }

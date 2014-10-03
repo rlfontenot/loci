@@ -1084,6 +1084,13 @@ namespace Loci {
     rp->initialize(facts) ;
     exec_seq = seq ;
     exec_size = seq.size() ;
+    //
+#ifdef PAPI_DEBUG
+    papi_events[0] = PAPI_L1_DCM;
+    papi_events[1] = PAPI_L2_DCM;
+    papi_values[0] = papi_values[1] = 0;
+    l1_dcm = l2_dcm = 0;
+#endif
   }
 
   execute_rule::execute_rule(rule fi, sequence seq, fact_db &facts,
@@ -1094,19 +1101,55 @@ namespace Loci {
     rp->set_store(v,p) ;
     exec_seq = seq ;
     exec_size = seq.size() ;
+#ifdef PAPI_DEBUG
+    papi_events[0] = PAPI_L1_DCM;
+    papi_events[1] = PAPI_L2_DCM;
+    papi_values[0] = papi_values[1] = 0;
+    l1_dcm = l2_dcm = 0;
+#endif
   }
 
   void execute_rule::execute(fact_db &facts, sched_db &scheds) {
+#ifdef PAPI_DEBUG
+    if( (PAPI_start_counters(papi_events,2)) != PAPI_OK) {
+      cerr << "PAPI failed to start counters" << endl;
+      Loci::Abort();
+    }
+#endif
+
     stopWatch s ;
     s.start() ;
     current_rule_id = rule_tag.ident() ;
 #ifdef VERBOSE
     Loci::debugout << "executing " << rule_tag << endl ;
 #endif
-    rp->compute(exec_seq);
+    //rp->compute(exec_seq);
+    execute_prelude(exec_seq);
+    execute_kernel(exec_seq);
+    execute_postlude(exec_seq);
     current_rule_id = 0 ;
     timer.addTime(s.stop(),exec_size) ;
+#ifdef PAPI_DEBUG
+    if( (PAPI_stop_counters(papi_values,2)) != PAPI_OK) {
+      cerr << "PAPI failed to read counters" << endl;
+      Loci::Abort();
+    }
+    l1_dcm += papi_values[0];
+    l2_dcm += papi_values[1];
+#endif
   }
+
+  inline void 
+  execute_rule::execute_kernel(const sequence& seq)
+  { rp->compute(seq); }
+  
+  inline void
+  execute_rule::execute_prelude(const sequence& seq)
+  { rp->prelude(seq); }
+
+  inline void
+  execute_rule::execute_postlude(const sequence& seq)
+  { rp->postlude(seq); }
 
   void execute_rule::Print(ostream &s) const {
     printIndent(s) ;
@@ -1118,14 +1161,20 @@ namespace Loci {
     }
   }
 
-  
   void execute_rule::dataCollate(collectData &data_collector) const {
     ostringstream oss ;
     oss << "rule: "<<rule_tag ;
 
     data_collector.accumulateTime(timer,EXEC_COMPUTATION,oss.str()) ;
-  }
 
+#ifdef PAPI_DEBUG
+    data_collector.accumulateSchedMemory(oss.str(),
+                                         8*exec_seq.num_intervals());
+
+    data_collector.accumulateDCM(oss.str(),
+                                 papi_values[0], papi_values[1]);
+#endif
+  }
 
   void impl_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
     existential_rule_analysis(impl,facts, scheds) ;

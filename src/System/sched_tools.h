@@ -43,6 +43,12 @@
 #include "Loci_types.h"
 using std::vector;
 
+#ifdef PAPI_DEBUG
+#include <papi.h>
+#else
+#define long_long long
+#endif
+
 namespace Loci {
   void extract_rule_sequence(std::vector<rule> &rule_seq,
                              const std::vector<digraph::vertexSet> &v) ;
@@ -56,10 +62,24 @@ namespace Loci {
     sequence exec_seq ;
     size_t exec_size ;
     timeAccumulator timer ;
+#ifdef PAPI_DEBUG
+    int papi_events[2];
+    long_long papi_values[2];
+    long_long l1_dcm;
+    long_long l2_dcm;
+#endif
   public:
     execute_rule(rule fi, sequence seq, fact_db &facts, const sched_db &scheds);
     execute_rule(rule fi, sequence seq, fact_db &facts, variable v, const storeRepP &p, const sched_db &scheds);
+    // this method executes the prelude (if any), the kernel,
+    // and the postlude (if any) of a rule
     virtual void execute(fact_db &facts, sched_db &scheds) ;
+    // this method executes the computation kernel of a rule
+    virtual void execute_kernel(const sequence&);
+    // this method executes the prelude 
+    virtual void execute_prelude(const sequence&);
+    // this one executes the postlude
+    virtual void execute_postlude(const sequence&);
     virtual void Print(std::ostream &s) const ;
     virtual string getName() {return "execute_rule";};
     virtual void dataCollate(collectData &data_collector) const ;

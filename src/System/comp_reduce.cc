@@ -100,13 +100,49 @@ namespace Loci {
            exec_seq.size() < tnum*minw)
           return new execute_rule(apply,sequence(exec_seq),facts,scheds);
         else {
+          // DEBUG
+          // double s = 0, tb = 0, tc = 0, tp = 0;
+          ////////
+          
           // first we need to build an interference graph
           UDG itg;
+
+          // DEBUG
+          // s = MPI_Wtime();
+          ////////
           build_interference_graph(apply,facts,scheds,exec_seq,itg);
+          // DEBUG
+          // tb = MPI_Wtime() - s;
+          // s = MPI_Wtime();
+          ////////
+          
           // then color it
           map<int,int> color = lf_color(itg);
+          // DEBUG
+          // tc = MPI_Wtime() - s;
+          // s = MPI_Wtime();
+          ////////
           // then partition the entities.
           vector<entitySet> partition = partition_color(color);
+
+          // DEBUG
+          // tp = MPI_Wtime() - s;
+          // std::cout << "++++++++" << endl;
+          // std::cout << "tb = " << tb << endl;
+          // std::cout << "tc = " << tc << endl;
+          // std::cout << "tp = " << tp << endl;
+          // std::cout << "interference graph stats: " << endl;
+          // itg.show_stats(std::cout);
+          // std::cout << "coloring results: " << endl;
+          // std::cout << "total entities: " << exec_seq.size() << endl;
+          // std::cout << "total color steps: " << partition.size() << endl;
+          // for(size_t i=0;i<partition.size();++i) {
+          //   std::cout << "step " << i << ": " << partition[i].size()
+          //             << " entities" << endl;
+          // }
+          // std::cout << "========" << endl;
+          // 
+
           // finally generate a list of threaded schedules
           CPTR<execute_list> schedule = new execute_list ;
           for(size_t p=0;p<partition.size();++p) {

@@ -476,8 +476,9 @@ namespace Loci {
     digraph::vertexSet allvertices = gr.get_all_vertices() ;
     ruleSet rules = extract_rules(allvertices) ;
 
-    for(ruleSet::const_iterator ri=rules.begin();ri!=rules.end();++ri)
+    for(ruleSet::const_iterator ri=rules.begin();ri!=rules.end();++ri) {
       working_vars += ri->sources() ;
+    }
     
     working_vars += extract_vars(allvertices) ;
 
@@ -620,7 +621,7 @@ namespace Loci {
     // we don't delete variabls in rotate lists, we defer that until
     // the last iteration finishes
     working_vars -= rotate_vars ;
-    
+
     looping_algr(working_vars,lc.collapse_gr,-lc.cid,0) ;
     
     // we gather deletion information for the advance part
@@ -649,7 +650,6 @@ namespace Loci {
     working_vars -= deleted_vars ;
     // we need to add those deleted shared vars
     working_vars += variableSet(before - after) ;
-
     looping_algr(working_vars,lc.loop_gr,collapse_id,2) ;
 
   }
@@ -760,7 +760,6 @@ namespace Loci {
       delete_table[id] += variableSet(EMPTY) ;
       return ;
     }
-    
     // the looping algorithm
     int loop_num = start_loop_num ;
     int found_loop_id, last_loop_id ;

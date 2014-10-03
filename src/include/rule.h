@@ -100,6 +100,10 @@ namespace Loci {
     // bit indicates whether keyspace (the one this rule is in)
     // distribution should be considered after this rule's execution
     bool space_dist ;
+    // these flags record whether the rule has pre- and postlude methods
+    // defaults would be false for both
+    bool use_prelude;
+    bool use_postlude;
   protected:
     rule_impl(rule_impl &f) { fatal(true) ; }
     void rule_class(rule_impl_type ft) { rule_impl_class = ft ; }
@@ -112,6 +116,9 @@ namespace Loci {
       use_parametric_variable = true ;
       ParametricVariable = variable(name) ;
     }
+    // these should be called if the pre- and postlude methods are present
+    void enable_prelude() { use_prelude = true; }
+    void enable_postlude() { use_postlude = true; }
     void rule_name(const std::string &name) ;
     void name_store(const std::string &name,store_instance &si) ;
     void input(const std::string &invar) { source(invar) ; }
@@ -131,6 +138,9 @@ namespace Loci {
     bool is_relaxed() const { return relaxed_recursion ; }
     bool is_specialized() { return specialized_parametric; }
     bool is_parametric_provided() { return use_parametric_variable ; }
+    // check if pre- and postlude methods are present
+    bool has_prelude() const { return use_prelude; }
+    bool has_postlude() const { return use_postlude; }
     variable get_parametric_variable() { return ParametricVariable ; }
     void initialize(fact_db &facts) ;
     // this method returns all the keyspaces involved in a rule
@@ -194,7 +204,16 @@ namespace Loci {
     variableSet get_var_list() ;
 
     virtual rule_implP new_rule_impl() const ;
+    // the compute method handles the kernel computation
     virtual void compute(const sequence &) = 0 ;
+    // the prelude method is intended to be used to setup
+    // global parameters (such as the vec size of a store)
+    // it is not required to define such method when creating
+    // a rule and the preprocessor might optimize away this
+    // method if a user does not define it in a rule
+    virtual void prelude(const sequence&) {}
+    // the postlude is similarly defined as the prelude method
+    virtual void postlude(const sequence&) {}
     virtual CPTR<joiner> get_joiner() = 0 ;
     virtual rule_implP add_namespace(const std::string& n) const ;
     std::string get_comments() const {return rule_comments ;}

@@ -462,6 +462,7 @@ namespace Loci {
         return
           new execute_chomp(total,chomp_comp,rule_seq,chomp_vars,facts);
       else {
+#ifdef THREAD_CHOMP
         // generate multithreaded execution module
         vector<rule> rs;
         for(size_t i=0;i<chomp_comp.size();++i)
@@ -471,6 +472,10 @@ namespace Loci {
           Threaded_execute_chomp(sequence(total),rs,
                                  chomp_comp,rule_seq,
                                  chomp_vars,facts,scheds);
+#else
+        return
+          new execute_chomp(total,chomp_comp,rule_seq,chomp_vars,facts);
+#endif
       }      
     } else {
 #endif

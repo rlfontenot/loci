@@ -197,6 +197,8 @@ namespace Loci {
     relaxed_recursion = false ;
     specialized_parametric = false ;
     use_parametric_variable = false ;
+    use_prelude = false;
+    use_postlude = false;
     // setting the keyspace tag to "main"
     // this is a temporary solution. in the
     // future, we would need a more systematic
@@ -1749,7 +1751,6 @@ namespace Loci {
         cerr << "WARNING, rule " << f << " has no targets" << endl ;
       // now add rules to corresponding keyspace partition
       keyspace2rule[f.get_info().rule_impl->get_keyspace_tag()] += f ;
-      // finally add it to the known_rules set
       known_rules += f ;
     }
   }

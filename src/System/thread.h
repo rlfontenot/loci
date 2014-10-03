@@ -32,6 +32,7 @@
 
 #include <pthread.h>
 #include <semaphore.h>
+#include <sched.h>
 
 #include <vector>
 #include <map>
@@ -46,7 +47,13 @@
 #include "sched_tools.h"
 #include "loci_globs.h"
 
+#ifndef PAPI_DEBUG
+#define long_long long
+#endif
+
 namespace Loci {
+
+  extern int current_rule_id;
 
   // a simple thread exception
   struct ThreadException : public std::exception {
@@ -67,6 +74,11 @@ namespace Loci {
     virtual void execute(fact_db& facts, sched_db& scheds) = 0;
     // print execution sequence for the current thread
     virtual void print_seq(std::ostream& s) const = 0;
+    // return the timing information of this execution module
+    virtual double get_time() const = 0;
+    // get cache misses
+    virtual long_long get_l1_dcm() const = 0;
+    virtual long_long get_l2_dcm() const = 0;
     virtual ~ThreadedExecutionModule() {}
   };
   typedef CPTR<ThreadedExecutionModule> ThreadedEMP;
@@ -294,7 +306,10 @@ namespace Loci {
     StartThreads() {}
     void execute(fact_db& facts, sched_db& scheds)
     {
+      stopWatch s;
+      s.start();
       thread_control->create_threads();
+      timer.addTime(s.stop(),1);
     }
     void Print(std::ostream& s) const
     {
@@ -302,7 +317,8 @@ namespace Loci {
       s << "starting threads" << std::endl;
     }
     std::string getName() { return "StartThreads"; }
-    void dataCollate(collectData& data_collector) const {}
+    void dataCollate(collectData& data_collector) const
+    {data_collector.accumulateTime(timer,EXEC_CONTROL,"start_threads");}
   protected:
     timeAccumulator timer;
   };
@@ -313,9 +329,12 @@ namespace Loci {
   public:
     void execute(fact_db& facts, sched_db& scheds)
     {
+      stopWatch s;
+      s.start();
       thread_control->shutdown();
       delete thread_control;
       thread_control = 0;
+      timer.addTime(s.stop(),1);
     }
     void Print(std::ostream& s) const
     {
@@ -324,7 +343,7 @@ namespace Loci {
     }
     std::string getName() { return "ShutDownThreads"; }
     void dataCollate(collectData& data_collector) const
-    {}
+    {data_collector.accumulateTime(timer,EXEC_CONTROL,"shutdown_threads");}
   protected:
     timeAccumulator timer;
   };
@@ -336,9 +355,14 @@ namespace Loci {
   class ExecuteThreaded_pointwise: public ThreadedExecutionModule {
   public:
     ExecuteThreaded_pointwise(const sequence& s, executeP er)
-      :seq(s), exec_rule(er) {}
+      :seq(s), exec_size(s.size()), exec_rule(er) {}
     void execute(fact_db& facts, sched_db& scheds)
-    { exec_rule->execute(facts,scheds); }
+    { 
+      stopWatch s;
+      s.start();
+      exec_rule->execute_kernel(seq);
+      timer.addTime(s.stop(), exec_size);
+    }
     void print_seq(std::ostream& s) const
     {
       if(verbose || seq.num_intervals() < 4) {
@@ -347,12 +371,18 @@ namespace Loci {
         s << "{" << seq[0] << "...}";
       }
     }
+    double get_time() const { return timer.getTime(); }
+    long_long get_l1_dcm() const { return 0; } // to be implemented!!
+    long_long get_l2_dcm() const { return 0; } // to be implemented!!
   private:
-    // the execution sequence (for printing purpose only)
+    // the execution sequence
     sequence seq;
-    // we will just delegate the execution to the underlying
-    // execution modules for a concrete rule.
+    // the size of the execution sequence
+    size_t exec_size;
+    // we will just delegate the execution to the underlying concrete rule
     executeP exec_rule;
+    // a timer to record the execution time
+    timeAccumulator timer;
   };
 
   // this is a module that hooks up the compiler and the threaded
@@ -363,19 +393,47 @@ namespace Loci {
                           fact_db& facts, sched_db& scheds)
       :rule_name(r), seq(s)
     {
+      exec_rule = new execute_rule(r, s, facts, scheds);
       int tnum = thread_control->num_threads();
       std::vector<sequence> partition = partition_seq(seq, tnum);
-      for(int i=0;i<tnum;++i)
-        texec.push_back
-          (new ExecuteThreaded_pointwise
-           (partition[i],
-            new execute_rule(rule_name,partition[i],facts,scheds)));
+      tot_mem = 0;
+      for(int i=0;i<tnum;++i) {
+        texec.push_back(new ExecuteThreaded_pointwise(partition[i], 
+                                                      exec_rule));
+        tot_mem += 16*partition[i].num_intervals();
+      }
+      tot_mem += 8*seq.num_intervals();
+      // DEBUG
+      // Loci::debugout << "--------" << r << std::endl;
+      // Loci::debugout << "total seq intervals: "
+      //                << seq.num_intervals()
+      //                << " size: " << seq.size() << std::endl;
+      // for(int i=0;i<tnum;++i)
+      //   Loci::debugout << "thread " << i << " intervals: "
+      //                  << partition[i].num_intervals()
+      //                  << " size: " << partition[i].size() << std::endl;
+      ////////
     }
     void execute(fact_db& facts, sched_db& scheds)
     {
+      current_rule_id = rule_name.ident();
+      stopWatch s;
+      s.start();
+
+      exec_rule->execute_prelude(seq);
+      timer_comp.addTime(s.stop(), seq.size());
+
+      s.start();
       thread_control->setup_facts_scheds(facts,scheds);
       thread_control->restart(texec);
+      timer_ctrl.addTime(s.stop(),seq.size());
+
       thread_control->wait_threads();
+
+      s.start();
+      exec_rule->execute_postlude(seq);
+      timer_comp.addTime(s.stop(), seq.size());
+      current_rule_id = 0;
     }
     void Print(std::ostream& s) const
     {
@@ -398,18 +456,61 @@ namespace Loci {
       }
       s << std::endl;
     }
+
     std::string getName() { return "Threaded_execute_rule"; }
+
     void dataCollate(collectData& data_collector) const
     {
       std::ostringstream oss;
       oss << "rule: " << rule_name;
-      data_collector.accumulateTime(timer, EXEC_COMPUTATION, oss.str());
+      // control time
+      data_collector.accumulateTime(timer_ctrl, EXEC_CONTROL, oss.str());
+      // we also need to add the computation time, which is the max
+      // time from all threads plus the compute time at this level
+      double mt = 0;
+      for(size_t i=0;i<texec.size();++i) {
+        double lt = texec[i]->get_time();
+        if (lt > mt)
+          mt = lt;
+      }
+      timeAccumulator new_comp = timer_comp;
+      new_comp.addTime(mt, seq.size());
+      data_collector.accumulateTime(new_comp, 
+                                    EXEC_COMPUTATION, oss.str());
+      // collect scheduling memory footprint size
+      data_collector.accumulateSchedMemory(oss.str(),tot_mem);
+      // DEBUG (report individual thread timing in debug file
+      Loci::debugout << "--------" << rule_name << std::endl;
+      for(size_t i=0;i<texec.size();++i) {
+        Loci::debugout << "thread " << i << " time: "
+                       << texec[i]->get_time() << std::endl;
+      }
+      ////////
+      // collect cache misses
+      long_long total_l1_dcm = 0;
+      long_long total_l2_dcm = 0;
+      for(size_t i=0;i<texec.size();++i) {
+        total_l1_dcm += texec[i]->get_l1_dcm();
+        total_l2_dcm += texec[i]->get_l2_dcm();
+      }
+      data_collector.accumulateDCM(oss.str(),total_l1_dcm,total_l2_dcm);
+      // report individual thread cache misses in debug file
+      Loci::debugout << "********" << rule_name << std::endl;
+      for(size_t i=0;i<texec.size();++i) {
+        long_long l1 = texec[i]->get_l1_dcm();
+        long_long l2 = texec[i]->get_l2_dcm();
+        Loci::debugout << "thread " << i << " L1 DCM: " << l1
+                       << ", L2 DCM: " << l2 << std::endl;
+      }
     }
   protected:
-    timeAccumulator timer;
+    timeAccumulator timer_comp; // computatation timer
+    timeAccumulator timer_ctrl; // control timer
     rule rule_name;
     sequence seq;
     std::vector<ThreadedEMP> texec;
+    double tot_mem;             // tabulating the total memory
+    executeP exec_rule; // the serial execution module
   };
 
   // a type used in threaded global reduction
@@ -426,16 +527,20 @@ namespace Loci {
      CPTR<joiner> jop, const std::vector<int>& rp,
      std::vector<ParamReductionSignal>& ds,
      std::vector<storeRepP>& pr, storeRepP f)
-      :tid(i),seq(s),exec_rule(er),join_op(jop),partners(rp),
-       done_signals(ds),partial(pr),final(f) {}
+      :tid(i),seq(s),exec_size(s.size()),exec_rule(er),
+       join_op(jop),partners(rp),done_signals(ds),partial(pr),
+       final_s(f) {}
+    
     void execute(fact_db& facts, sched_db& scheds)
     {
+      stopWatch s;
+      s.start();
       // it is important that we should copy the unit (initial) value
       // to the local partial result before executing the rule
-      partial[tid]->fast_copy(final, EMPTY);//final->domain());//entitySet(seq));
-      //partial[tid]->copy(final, final->domain());//entitySet(seq));
+      partial[tid]->fast_copy(final_s, EMPTY);//final_s->domain());//entitySet(seq));
+      //partial[tid]->copy(final_s, final_s->domain());//entitySet(seq));
       // we will then execute the rule
-      exec_rule->execute(facts,scheds);
+      exec_rule->execute_kernel(seq);
       // then we will need to perform the reduction in parallel.
       // we will just need to reverse the termination tree order
       // to perform the reduction
@@ -461,6 +566,7 @@ namespace Loci {
       pthread_spin_lock(&(done_signals[tid].done_lock));
       done_signals[tid].done = true;
       pthread_spin_unlock(&(done_signals[tid].done_lock));
+      timer.addTime(s.stop(),exec_size);
     }
     void print_seq(std::ostream& s) const
     {
@@ -470,13 +576,17 @@ namespace Loci {
         s << "{" << seq[0] << "...}";
       }
     }
+    double get_time() const { return timer.getTime(); }
+    long_long get_l1_dcm() const { return 0; } // not implemented yet
+    long_long get_l2_dcm() const { return 0; }
   private:
     // thread id
     int tid;
     // the execution sequence (for printing purpose only)
     sequence seq;
+    size_t exec_size;
     // we will just delegate the main computation to the underlying
-    // execution modules for a concrete rule.
+    // concrete rule.
     executeP exec_rule;
     // the join operator
     CPTR<joiner> join_op;
@@ -488,7 +598,8 @@ namespace Loci {
     std::vector<storeRepP>& partial;
     // this is the pointer to the store that the final result should go
     // here it is used to copy the initial value
-    storeRepP final;
+    storeRepP final_s;
+    timeAccumulator timer;
   };  
 
   // this is a module that hooks up the compiler and the
@@ -501,6 +612,7 @@ namespace Loci {
                                      fact_db& facts, sched_db& scheds)
       :rule_name(r), seq(s)
     {
+      exec_rule = new execute_rule(r, s, facts, scheds);
       int tnum = thread_control->num_threads();
       done_signals.resize(tnum);
       for(int i=0;i<tnum;++i) {
@@ -511,28 +623,30 @@ namespace Loci {
         }
       }
 
-      final = facts.get_variable(target);
+      final_s = facts.get_variable(target);
       std::vector<sequence> partition = partition_seq(seq, tnum);
       rule_implP ar = rule_name.get_info().rule_impl;
       CPTR<joiner> jop = ar->get_joiner();
       
       for(int i=0;i<tnum;++i) {
-        storeRepP sp = final->new_store(EMPTY);
+        storeRepP sp = final_s->new_store(EMPTY);
         //s->allocate(entitySet(partition[i]));
-        sp->allocate(final->domain());
+        sp->allocate(final_s->domain());
         partial.push_back(sp);
       }
 
+      tot_mem = 0;
       for(int i=0;i<tnum;++i) {
         texec.push_back
           (new ExecuteThreaded_param_reduction
-           (i, partition[i],
+           (i, partition[i], //exec_rule,
             new execute_rule(rule_name,partition[i],
                              facts,target,partial[i],scheds),
             jop,thread_control->get_reduction_partners(i),
-            done_signals,partial,final));
-           
+            done_signals,partial,final_s));
+        tot_mem += 16*partition[i].num_intervals();
       }
+      tot_mem += 8*seq.num_intervals();
 
       reduction_root = thread_control->get_reduction_root();
     }
@@ -541,12 +655,25 @@ namespace Loci {
     {
       for(size_t i=0;i<done_signals.size();++i)
         pthread_spin_destroy(&(done_signals[i].done_lock));
+      // destroy the local storage
+      for(size_t i=0;i<partial.size();++i)
+        partial[i]->allocate(EMPTY);
     }
     
     void execute(fact_db& facts, sched_db& scheds)
     {
+      current_rule_id = rule_name.ident();
+      stopWatch s;
+      s.start();
+
+      exec_rule->execute_prelude(seq);
+      timer_comp.addTime(s.stop(), seq.size());
+
+      s.start();
       thread_control->setup_facts_scheds(facts,scheds);
       thread_control->restart(texec);
+      timer_ctrl.addTime(s.stop(), seq.size());
+
       thread_control->wait_threads();
       // there are two things to do upon resuming the main thread:
       // 1) reset the done signal of the first work thread so that
@@ -554,8 +681,13 @@ namespace Loci {
       //    anyway since no one is going to examine the reduction root's
       //    done flag)
       // 2) store the reduction result into the final place
+      s.start();
       done_signals[reduction_root].done = false;
-      final->copy(partial[reduction_root], final->domain());
+      final_s->copy(partial[reduction_root], final_s->domain());
+      // finally execute the postlude
+      exec_rule->execute_postlude(seq);
+      timer_comp.addTime(s.stop(), seq.size());
+      current_rule_id = 0;
     }
 
     void Print(std::ostream& s) const
@@ -586,10 +718,27 @@ namespace Loci {
     {
       std::ostringstream oss;
       oss << "rule: " << rule_name;
-      data_collector.accumulateTime(timer, EXEC_COMPUTATION, oss.str());
+      // we will need to collect the control time, which is
+      // the control time at this level and the maximum control
+      // time spent in any thread
+      data_collector.accumulateTime(timer_ctrl, EXEC_CONTROL, oss.str());
+
+      double mt = 0;
+      for(size_t i=0;i<texec.size();++i) {
+        double lt = texec[i]->get_time();
+        if (lt > mt)
+          mt = lt;
+      }
+      timeAccumulator new_comp = timer_comp;
+      new_comp.addTime(mt, seq.size());
+      data_collector.accumulateTime(new_comp,
+                                    EXEC_COMPUTATION, oss.str());
+      //
+      data_collector.accumulateSchedMemory(oss.str(), tot_mem);
     }
   protected:
-    timeAccumulator timer;
+    timeAccumulator timer_comp;
+    timeAccumulator timer_ctrl;
     rule rule_name;
     sequence seq;
     std::vector<ThreadedEMP> texec;
@@ -599,18 +748,26 @@ namespace Loci {
     // a vector of reduction signals for the work threads to use
     std::vector<ParamReductionSignal> done_signals;
     // the store in the fact database that the final result will go
-    storeRepP final;
+    storeRepP final_s;
     // the root thread id of the reduction tree
     int reduction_root;
+    double tot_mem;             // tabulate the scheduler memory
+    executeP exec_rule;
   };
 
+#ifdef THREAD_CHOMP
   // this is the module for threading chomped rules
   class ExecuteThreaded_chomp: public ThreadedExecutionModule {
   public:
-    ExecuteThreaded_chomp(const sequence& s, executeP er)
-      :seq(s), exec_chomp(er) {}
+    ExecuteThreaded_chomp(const sequence& s, rule_implP rp)
+      :seq(s), exec_size(s.size()), exec_chomp(rp) {}
     void execute(fact_db& facts, sched_db& scheds)
-    { exec_chomp->execute(facts,scheds); }
+    { 
+      stopWatch s;
+      s.start();
+      exec_chomp->compute(seq); 
+      timer.addTime(s.stop(), exec_size);
+    }
     void print_seq(std::ostream& s) const
     {
       if(verbose || seq.num_intervals() < 4) {
@@ -619,12 +776,17 @@ namespace Loci {
         s << "{" << seq[0] << "...}";
       }
     }
+    double get_time() const { return timer.getTime(); }
+    long_long get_l1_dcm() const { 0; }
+    long_long get_l2_dcm() const { 0; }
   private:
     // the execution sequence (for printing purpose only)
     sequence seq;
+    size_t exec_size;
     // we will just delegate the execution to the underlying
-    // execution modules for a concrete rule.
-    executeP exec_chomp;
+    // concrete rule.
+    rule_implP exec_chomp;
+    timeAccumulator timer;
   };
 
   // this is a module that hooks up the compiler and the threaded
@@ -713,7 +875,7 @@ namespace Loci {
     std::string getName() { return "Threaded_execute_chomp"; }
 
     void dataCollate(collectData& data_collector) const
-    {
+    { // TO BE REVISED...
       std::ostringstream oss ;
       oss <<"chomp: " ;
       for(size_t i=0;i<chomp_rules.size();++i) 
@@ -721,7 +883,8 @@ namespace Loci {
       data_collector.accumulateTime(timer,EXEC_COMPUTATION,oss.str()) ;
     }
   private:
-    timeAccumulator timer;
+    timeAccumulator timer_comp;
+    timeAccumulator timer_ctrl;
     std::vector<rule> chomp_rules;
     std::vector<std::pair<rule,rule_compilerP> > rule_compilers;
     std::deque<entitySet> rule_seqs;
@@ -730,6 +893,7 @@ namespace Loci {
     int seq_size;
     std::vector<ThreadedEMP> texec;
   };
+#endif
   
 } // end of namespace Loci
 
