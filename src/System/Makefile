@@ -28,7 +28,7 @@ LOCI_COMPILE = true
 include $(LOCI_BASE)/Loci.conf
 
 TARGET = libLoci.a #libLoci.so
-INCLUDES = -I$(LOCI_BASE)/sprng/include -I$(LOCI_BASE)/ParMetis-4.0
+INCLUDES = -I$(LOCI_BASE)/sprng/include
 
 OBJS = Loci_version.o  Initialize.o Loci_Datatypes.o variable.o \
        store_rep.o Map.o constraint.o DMap.o DMultiMap.o \
