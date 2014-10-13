@@ -615,7 +615,7 @@ namespace {
 
 void parseFile::process_Prelude(std::ostream &outputFile,
                                 const map<variable,string> &vnames) {
-  outputFile << "    void prelude(const Loci::sequence &seq) { " ;
+  outputFile << "    virtual void prelude(const Loci::sequence &seq) { " ;
   is.get() ;
   
   int openbrace = 1 ;
@@ -1810,10 +1810,10 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
 
     outputFile <<   "    void compute(const Loci::sequence &seq) { " << endl ;
     syncFile(outputFile) ;
-    if(use_prelude) {
-      outputFile <<   "      prelude(seq) ;" << endl ;
-      syncFile(outputFile) ;
-    }
+//     if(use_prelude) {
+//       outputFile <<   "      prelude(seq) ;" << endl ;
+//       syncFile(outputFile) ;
+//     }
     if(use_compute) {
       if(singletonApply) {
         cerr << "NOTE: parameter only apply rule on '" << output << "' now executes single instance." << endl ;
