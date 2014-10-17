@@ -160,15 +160,16 @@ namespace Loci {
   void execute_chomp::execute(fact_db& facts, sched_db &scheds) {
     stopWatch stot ;
     stot.start() ;
-    if(total_domain == EMPTY) {
-      // call the compute() method at least once
-      vector<pair<int,rule_implP> >::iterator vri ;
-      for(vri=chomp_compP.begin();vri!=chomp_compP.end();++vri) {
-        vri->second->compute(sequence(EMPTY)) ;
-      }
-      timer.addTime(stot.stop(),1) ;
-      return ;
-    }
+
+    // if(total_domain == EMPTY) {
+    //   // call the compute() method at least once
+    //   vector<pair<int,rule_implP> >::iterator vri ;
+    //   for(vri=chomp_compP.begin();vri!=chomp_compP.end();++vri) {
+    //     vri->second->compute(sequence(EMPTY)) ;
+    //   }
+    //   timer.addTime(stot.stop(),1) ;
+    //   return ;
+    // }
 
     {
       entitySet first_alloc =
@@ -193,6 +194,13 @@ namespace Loci {
     }
    
     // begin execution, the loop number would be seq_table.size()
+
+    // first call prelude
+    vector<pair<int,rule_implP> >::iterator vri ;
+    for(vri=chomp_compP.begin();vri!=chomp_compP.end();++vri) {
+      vri->second->prelude(sequence(EMPTY)) ;
+    }
+    
     vector<vector<entitySet> >::const_iterator vvi ;
     int count = 0 ;
     for(vvi=seq_table.begin();vvi!=seq_table.end();++vvi,++count) {
