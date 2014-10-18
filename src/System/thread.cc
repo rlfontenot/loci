@@ -23,6 +23,8 @@
 #ifdef PTHREADS
 
 #include "thread.h"
+#include <sstream>
+using std::stringstream;
 
 using std::cout;
 using std::cerr;
@@ -39,6 +41,58 @@ using std::deque;
 namespace Loci {
 
   ThreadControl* thread_control = 0;
+
+  // this implements the leading execution predicate
+  bool is_leading_execution()
+  {
+    bool lp = MPI_processes>1 ? MPI_rank==0 : true;
+    bool lt = thread_control ? thread_control->is_leading_thread() : true;
+    return lp && lt;
+  }
+
+  // these two functions are intended to provide a global atomic
+  // region of execution (the ideal use of them is to use the 
+  // Loci preprocessor to hide these calls from the users)
+  void global_atomic_region_begin()
+  {
+    if (thread_control)
+      thread_control->atomic_begin();
+  }
+
+  void global_atomic_region_end()
+  {
+    if (thread_control)
+      thread_control->atomic_end();
+  }
+  
+  // this function generates a unique name on each process/thread
+  std::string gen_local_name(const string& prefix,
+                             const string& suffix)
+  {
+    string mpi_id = "";
+    string thread_id = "";
+    if (MPI_processes > 1) {
+      stringstream ss; ss << MPI_rank;
+      mpi_id += ss.str();
+    }
+    if (thread_control) {
+      thread_id += thread_control->get_local_id();
+    }
+    string name = prefix;
+    if (!mpi_id.empty()) {
+      name += ".";
+      name += mpi_id;
+    }
+    if (!thread_id.empty()) {
+      name += ".";
+      name += thread_id;
+    }
+    if (!suffix.empty()) {
+      name += ".";
+      name += suffix;
+    }
+    return name;
+  }
 
   // this function partitions a sequence into n parts
   std::vector<sequence> partition_seq(const sequence& s, int n)
@@ -175,6 +229,9 @@ namespace Loci {
   
   void ThreadControl_pthread::create_threads()
   {
+    // first record the main control thread id
+    main_pid = pthread_self();
+    id_map[main_pid] = "tmain";
     // creating threads
     for(int i=0;i<tnum;++i) {
       thread_args[i].tid = i;
@@ -185,7 +242,35 @@ namespace Loci {
         // need to handle errors better later...
         Loci::Abort();
       }
+      string id = "t";
+      stringstream ss; ss << i;
+      id += ss.str();
+      id_map[thread_args[i].ptid] = id;
     }
+    // record the leading work thread id
+    lead_work_pid = thread_args[0].ptid;
+  }
+
+  string ThreadControl_pthread::get_local_id() const
+  {
+    pthread_t self = pthread_self();
+    map<pthread_t,string>::const_iterator mi = id_map.find(self);
+    if (mi != id_map.end())
+      return mi->second;
+    else
+      return "tUNKNOWN";
+  }
+
+  // determine if the calling thread is leading thread or not.
+  // the leading thread in the pthread implementation is defined
+  // to be either the main control thread or the leading work 
+  // thread.  This is valid since in our design, the main control
+  // thread will never work together with any of the work threads.
+  bool ThreadControl_pthread::is_leading_thread() const
+  {
+    pthread_t sid = pthread_self();
+    return (pthread_equal(sid,main_pid) || 
+            pthread_equal(sid,lead_work_pid));
   }
 
   const vector<int>& ThreadControl_pthread::

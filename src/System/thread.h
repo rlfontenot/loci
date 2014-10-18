@@ -129,6 +129,17 @@ namespace Loci {
     // returns the thread id of the reduction tree root
     virtual int get_reduction_root() const = 0;
 
+    // this one determines if a calling thread is the leading thread
+    virtual bool is_leading_thread() const = 0;
+
+    // these provide a global lock on all threads managed by 
+    // the thread control
+    virtual void atomic_begin() = 0;
+    virtual void atomic_end() = 0;
+
+    // this method provides the local ID for each calling thread
+    virtual std::string get_local_id() const = 0;
+
     virtual ~ThreadControl() {}
   };
 
@@ -156,6 +167,10 @@ namespace Loci {
     int min_work_per_thread() const { return 10; }
     const std::vector<int>& get_reduction_partners(int id) const;
     int get_reduction_root() const { return 0; }
+    bool is_leading_thread() const;
+    void atomic_begin() { global_spin.lock(); }
+    void atomic_end()  { global_spin.unlock(); }
+    std::string get_local_id() const;
   private:
     // disable copy and assignment
     ThreadControl_pthread(const ThreadControl_pthread&);
@@ -200,6 +215,11 @@ namespace Loci {
     };
     std::vector<Terminate> finish_notification;
     std::vector<vector<int> > reduction_partners;
+    // the pthread id of the main and the leading work thread
+    pthread_t main_pid;
+    pthread_t lead_work_pid;
+    lmutex global_spin;
+    std::map<pthread_t,std::string> id_map;
     void build_term_tree(int pid, int depth, size_t& myid);
   };
 

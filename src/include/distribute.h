@@ -32,6 +32,7 @@
 #include <istream>
 #include <ostream>
 #include <fstream>
+#include <string>
 #include <mpi.h>
 
 #include <Map.h>
@@ -254,6 +255,22 @@ namespace Loci {
                const entitySet& request,
                CPTR<joiner> join_op,
                const std::vector<entitySet>& dst_ptn, MPI_Comm comm) ;
+
+  // this function provides a way to determine if an execution 
+  // thread is the leading execution unit in the system.  for threads,
+  // this is similar to determine if the calling process is ranked 0
+  // in the MPI communication world.
+  bool is_leading_execution();
+
+  // these two functions are intended to provide a global atomic
+  // region of execution (the ideal use of them is to use the 
+  // Loci preprocessor to hide these calls from the users)
+  void global_atomic_region_begin();
+  void global_atomic_region_end();
+
+  // this function generates a unique name on each process/thread
+  std::string gen_local_name(const std::string& prefix,
+                             const std::string& suffix="");
 }
 
 #endif
