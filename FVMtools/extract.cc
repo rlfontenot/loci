@@ -784,37 +784,39 @@ void volumePart::getGenCell(vector<int> &genCellNfaces,
     genCellNodes.swap(GeneralCellNodes) ;
     return ;
   }
-  int cnt1 = 0 ;
-  int cnt2 = 0 ;
+  int currentFaceOffset = 0 ;
+  int currentNodeOffset = 0 ;
   int skip_cells = 0;
   int skip_faces = 0 ;
   int skip_nodes = 0 ;
-  for(size_t i=0;i<ngenc;++i) {
+  for(size_t i=0;i<ngenc_orig;++i) {
     bool blank = gencIblanked.inSet(i) ;
+    // nf is number of faces for this general cell
     int nf = GeneralCellNfaces[i] ;
-    int cnt1s = cnt1 ;
-    int cnt2s = cnt2 ;
+    // nn is the number of nodes firthis general cell
+    int nn = 0 ;
     for(int f=0;f<nf;++f) {
-      int fs = GeneralCellNsides[cnt1++] ;
-      cnt2 += fs ;
+      nn += GeneralCellNsides[currentFaceOffset+f] ;
     }
     if(blank) {
       skip_cells += 1 ;
-      skip_faces += cnt1-cnt1s ;
-      skip_nodes += cnt2-cnt2s ;
+      skip_faces += nf ;
+      skip_nodes += nn ;
     } else {
       if(skip_cells > 0) {
 	GeneralCellNfaces[i-skip_cells] = GeneralCellNfaces[i] ;
-	for(int j=0;j<cnt1-cnt1s;++j)
-	  GeneralCellNsides[cnt1s+j-skip_faces] =
-	    GeneralCellNsides[cnt1s+j] ;
-	for(int j=0;j<cnt2-cnt2s;++j)
-	  GeneralCellNodes[cnt2s+j-skip_nodes] =
-	    GeneralCellNodes[cnt2s+j] ;
+	for(int f=0;f<nf;++f)
+	  GeneralCellNsides[currentFaceOffset-skip_faces+f] =
+	    GeneralCellNsides[currentFaceOffset+f] ;
+	for(int n=0;n<nn;++n)
+	  GeneralCellNodes[currentNodeOffset-skip_nodes+n] =
+	    GeneralCellNodes[currentNodeOffset+n] ;
       }
     }
-    
+    currentFaceOffset += nf ;
+    currentNodeOffset += nn ;
   }
+
   GeneralCellNfaces.resize(GeneralCellNfaces.size()-skip_cells) ;
   GeneralCellNsides.resize(GeneralCellNsides.size()-skip_faces) ;
   GeneralCellNodes.resize(GeneralCellNodes.size()-skip_nodes) ;
@@ -2637,7 +2639,7 @@ void extractVolumeSurfaces(vector<surfacePartP> &volSurface,
 	  cnt2 += nside_sizes[i] ;
 	} else {
 	  if(cnt != 0) {
-	    nside_nodes[i-cnt] = nside_nodes[i] ;
+	    nside_sizes[i-cnt] = nside_sizes[i] ;
 	    nside_id[i-cnt] = nside_id[i] ;
 	    for(int j=0;j<nside_sizes[i];++j)
 	      nside_nodes[nside_off-cnt2+j] = nside_nodes[nside_off+j] ;
