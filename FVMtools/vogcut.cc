@@ -448,15 +448,113 @@ void Usage() {
        <<  endl ;
   cout << "  -g <inputfile>           | Specify input grid filename " << endl
        << "  -o <outputfile>          | Specify output grid filename" << endl
-       << "  -center <x0 y0 z0>       | Specify center of sphere" << endl
        << "  -r <value>               | Specify radius of sphere" << endl
-       << "  -tag <tagfile>           | Specify tag filename " <<endl<<endl;
-       
-  cout << "example1: vogcut -g grid.vog -o grid_cut.vog -center 0 0 0 -r 1"<<endl;
+       << "  -tag <tagfile>           | Specify nodal cut tag filename " <<endl
+       << "  -sphere <args>           | Specify sphere geometry" << endl
+       << "  -cylinder <args>         | Specify cylinder geometry" << endl
+       << "  -cone <args>             | Specify cone geometry" << endl
+       << "  -box <args>              | Specify box geometry" << endl << endl ;
+  cout << "geometry arguments are as follows:" << endl << endl
+       << " for -sphere:" << endl
+       << "      -center <x> <y> <z> " << endl
+       << "      -radius <r> << endl " << endl << endl
+       << " for -cylinder:" << endl 
+       << "      -pt1 <x> <y> <z> " << endl
+       << "      -pt2 <x> <y> <z> " << endl
+       << "      -radius <r> << endl " << endl << endl
+       << " for -cone:" << endl 
+       << "      -pt1 <x> <y> <z> " << endl
+       << "      -pt2 <x> <y> <z> " << endl
+       << "      -r1 <r> << endl " << endl 
+       << "      -r2 <r> << endl " << endl << endl
+       << " for -box:" << endl 
+       << "      -pt1 <x> <y> <z> " << endl
+       << "      -pt2 <x> <y> <z> " << endl << endl ;
+
+  
+  cout << "Note multiple geometries can be specified and the union of all of the" << endl 
+       << " geometric entities will define the region to be cut." <<endl
+       << " For more complex cases a nodal tag file can be used to control the mesh cut." << endl << endl ;
+  
+  cout << "example1: vogcut -g grid.vog -o grid_cut.vog -sphere -center 0 0 0 -radius 1"<<endl;
   cout << "example2: vogcut -g grid.vog -o grid_cut.vog -tag grid.tag"<<endl<<endl;
   cout << "******************************************************************************" << endl ;
 }
-  
+
+
+typedef enum {SPHERE,CYLINDER,CONE,BOX} geoType ;
+struct geoInfo {
+  geoType type ;
+  vect3d pt1, pt2 ;
+  double r1, r2 ;
+  void setSphere(vect3d pt, double r) {
+    type = SPHERE ;
+    pt1 = pt ;
+    pt2 = pt ;
+    r1 = r ;
+    r2 = r ;
+  }
+  void setCylinder(vect3d pti1, vect3d pti2, double r) {
+    type = CYLINDER ;
+    pt1 = pti1 ;
+    pt2 = pti2 ;
+    r1 = r ;
+    r2 = r ;
+  }
+  void setCone(vect3d pti1, vect3d pti2, double ri1, double ri2 ) {
+    type = CONE ;
+    pt1 = pti1 ;
+    pt2 = pti2 ;
+    r1 = ri1 ;
+    r2 = ri2 ;
+  }
+  void setBox(vect3d pti1, vect3d pti2) {
+    type = BOX ;
+    pt1 = pti1 ;
+    pt2 = pti2 ;
+    r1 = 0 ;
+    r2 = 0 ;
+  }    
+  geoInfo() {
+    type = SPHERE ;
+    pt1=vect3d(0,0,0) ;
+    pt2=pt1 ;
+    r1 = 0 ;
+    r2 = 0 ;
+  }
+
+} ;
+
+bool inGeo(const geoInfo &geo, const vect3d pt) {
+  vect3d ptaxis(0,0,0),n(0,0,0) ;
+  double r = 0,t = 0,alen = 1 ;
+  switch(geo.type) {
+  case SPHERE:
+    return (norm(pt-geo.pt1) <= geo.r1) ;
+  case CYLINDER:
+  case CONE:
+    n = geo.pt2-geo.pt1 ;
+    alen = norm(n) ;
+    n *= 1./alen ;
+    // check endcaps
+    if(dot(n,pt-geo.pt1) < 0 || dot(n,pt-geo.pt2)>0)
+      return false ;
+    t = dot(pt-geo.pt1,n)/alen ;
+    r = geo.r1*(1.-t)+geo.r2*t ;
+    ptaxis = geo.pt1*(1.-t)+geo.pt2*t ;
+    return (norm(pt-ptaxis) <= r ) ;
+  case BOX:
+    return (pt.x <= max(geo.pt1.x,geo.pt2.x) &&
+            pt.x >= min(geo.pt1.x,geo.pt2.x) &&
+            pt.y <= max(geo.pt1.y,geo.pt2.y) &&
+            pt.y >= min(geo.pt1.y,geo.pt2.y) &&
+            pt.z <= max(geo.pt1.z,geo.pt2.z) &&
+            pt.z >= min(geo.pt1.z,geo.pt2.z)) ;
+  }
+  return false ;
+}
+
+
 int main(int ac, char *av[]) {
   using Loci::entitySet ;
   using Loci::vector3d ;
@@ -468,8 +566,8 @@ int main(int ac, char *av[]) {
   string output_file="";
   string input_file="" ;
   string tag_file="";
-  vect3d center = vect3d(0.0, 0.0, 0.0);//center of sphere
-  double radius  = 1;//radius of sphere
+  vector<geoInfo> vecGeoInfo ;
+  
   bool tag_opt = false;
   
   for(int i=1;i<ac;++i) {
@@ -483,20 +581,215 @@ int main(int ac, char *av[]) {
       }
     }
     
-    if(opt == "-center") {
-      i++ ;
-      if((i+2)<ac) {
-        center = vect3d(atof(av[i]), atof(av[i+1]), atof(av[i+2])) ;
-        parsed = true ;
-        i = i+2;
+    if(opt == "-sphere") {
+      bool haspt = false ;
+      bool hasr = false ;
+      vect3d pt(0,0,0) ;
+      double r=0 ;
+      while(i+1 < ac) {
+        string arg = av[i+1] ;
+        if(arg == "-center") {
+          if(i+4 < ac) {
+            pt.x = atof(av[i+2]) ;
+            pt.y = atof(av[i+3]) ;
+            pt.z = atof(av[i+4]) ;
+            haspt = true ;
+            i = i+4 ;
+          } else {
+            cerr << "unable to parse center after '-sphere'" << endl ;
+            Usage() ;
+            exit(-1) ;
+          }
+        } else if(arg == "-radius") {
+          if(i+2 < ac) {
+            r = atof(av[i+2]) ;
+            hasr = true ;
+            i = i+2 ;
+          } else {
+            cerr << "unable to parse radius after '-sphere'" << endl ;
+            Usage() ;
+            exit(-1) ;
+          }
+        } else {
+          break ;
+        }
       }
+      if(haspt && hasr) {
+        geoInfo sphere ;
+        sphere.setSphere(pt,r);
+        vecGeoInfo.push_back(sphere) ;
+      } else {
+        cerr << "expected -center and -radius after -sphere" << endl ;
+        Usage() ;
+        exit(-1) ;
+      }
+      parsed = true ;
     }
-    if(opt == "-r") {
-      i++ ;
-      if(i<ac) {
-        radius = atof(av[i]) ;
-        parsed = true ;
+    if (opt == "-cylinder") {
+      bool haspt1 = false,haspt2 = false ; 
+      bool hasr = false ;
+      vect3d pt1(0,0,0) ,pt2(0,0,0) ;
+      double r=0 ;
+      while(i+1 < ac) {
+        string arg = av[i+1] ;
+        if(arg == "-pt1") {
+          if(i+4 < ac) {
+            pt1.x = atof(av[i+2]) ;
+            pt1.y = atof(av[i+3]) ;
+            pt1.z = atof(av[i+4]) ;
+            haspt1 = true ;
+            i = i+4 ;
+          } else {
+            cerr << "unable to parse pt1 after '-cylinder'" << endl ;
+            Usage() ;
+            exit(-1) ;
+          }
+        } else if(arg == "-pt2") {
+          if(i+4 < ac) {
+            pt2.x = atof(av[i+2]) ;
+            pt2.y = atof(av[i+3]) ;
+            pt2.z = atof(av[i+4]) ;
+            haspt2 = true ;
+            i = i+4 ;
+          } else {
+            cerr << "unable to parse pt2 after '-cylinder'" << endl ;
+            Usage() ;
+            exit(-1) ;
+          }
+        } else if(arg == "-radius") {
+          if(i+2 < ac) {
+            r = atof(av[i+2]) ;
+            hasr = true ;
+            i = i+2 ;
+          } else {
+            cerr << "unable to parse radius after '-cylinder'" << endl ;
+            Usage() ;
+            exit(-1) ;
+          }
+        } else {
+          break ;
+        }
       }
+      if(haspt1 && haspt2 && hasr) {
+        geoInfo cylinder ;
+        cylinder.setCylinder(pt1,pt2,r);
+        vecGeoInfo.push_back(cylinder) ;
+      } else {
+        cerr << "expected -pt1, -pt2,  and -radius after -cylinder" << endl ;
+        Usage() ;
+        exit(-1) ;
+      }
+      parsed = true ;
+    }
+    if (opt == "-cone") {
+      bool haspt1 = false,haspt2 = false ; 
+      bool hasr1,hasr2 = false ;
+      vect3d pt1(0,0,0) ,pt2(0,0,0) ;
+      double r1=0,r2=0 ;
+      while(i+1 < ac) {
+        string arg = av[i+1] ;
+        if(arg == "-pt1") {
+          if(i+4 < ac) {
+            pt1.x = atof(av[i+2]) ;
+            pt1.y = atof(av[i+3]) ;
+            pt1.z = atof(av[i+4]) ;
+            haspt1 = true ;
+            i = i+4 ;
+          } else {
+            cerr << "unable to parse pt1 after '-cone'" << endl ;
+            Usage() ;
+            exit(-1) ;
+          }
+        } else if(arg == "-pt2") {
+          if(i+4 < ac) {
+            pt2.x = atof(av[i+2]) ;
+            pt2.y = atof(av[i+3]) ;
+            pt2.z = atof(av[i+4]) ;
+            haspt2 = true ;
+            i = i+4 ;
+          } else {
+            cerr << "unable to parse pt2 after '-cone'" << endl ;
+            Usage() ;
+            exit(-1) ;
+          }
+        } else if(arg == "-r1") {
+          if(i+2 < ac) {
+            r1 = atof(av[i+2]) ;
+            hasr1 = true ;
+            i = i+2 ;
+          } else {
+            cerr << "unable to parse r1 after '-cylinder'" << endl ;
+            Usage() ;
+            exit(-1) ;
+          }
+        } else if(arg == "-r2") {
+          if(i+2 < ac) {
+            r2 = atof(av[i+2]) ;
+            hasr2 = true ;
+            i = i+2 ;
+          } else {
+            cerr << "unable to parse r2 after '-cylinder'" << endl ;
+            Usage() ;
+            exit(-1) ;
+          }
+        } else {
+          break ;
+        }
+      }
+      if(haspt1 && haspt2 && hasr1 && hasr2) {
+        geoInfo cone ;
+        cone.setCone(pt1,pt2,r1,r2);
+        vecGeoInfo.push_back(cone) ;
+      } else {
+        cerr << "expected -pt1, -pt2, -r1, and -r2 after -cone" << endl ;
+        Usage() ;
+        exit(-1) ;
+      }
+      parsed = true ;
+    }
+    if (opt == "-box") {
+      bool haspt1 = false,haspt2 = false ; 
+      vect3d pt1(0,0,0) ,pt2(0,0,0) ;
+      while(i+1 < ac) {
+        string arg = av[i+1] ;
+        if(arg == "-pt1") {
+          if(i+4 < ac) {
+            pt1.x = atof(av[i+2]) ;
+            pt1.y = atof(av[i+3]) ;
+            pt1.z = atof(av[i+4]) ;
+            haspt1 = true ;
+            i = i+4 ;
+          } else {
+            cerr << "unable to parse pt1 after '-box'" << endl ;
+            Usage() ;
+            exit(-1) ;
+          }
+        } else if(arg == "-pt2") {
+          if(i+4 < ac) {
+            pt2.x = atof(av[i+2]) ;
+            pt2.y = atof(av[i+3]) ;
+            pt2.z = atof(av[i+4]) ;
+            haspt2 = true ;
+            i = i+4 ;
+          } else {
+            cerr << "unable to parse pt2 after '-box'" << endl ;
+            Usage() ;
+            exit(-1) ;
+          }
+        } else {
+          break ;
+        }
+      }
+      if(haspt1 && haspt2) {
+        geoInfo box ;
+        box.setBox(pt1,pt2);
+        vecGeoInfo.push_back(box) ;
+      } else {
+        cerr << "expected -pt1 and -pt2 -box" << endl ;
+        Usage() ;
+        exit(-1) ;
+      }
+      parsed = true ;
     }
     
     if(opt == "-tag") {
@@ -573,12 +866,19 @@ int main(int ac, char *av[]) {
  
   //mark the nodes
   unsigned long inNumNodes = pos.size();
-  vector<bool> nodestat(inNumNodes, false);
+  // note nodestat is true for nodes we wish to CUT out of the grid
+  vector<bool> nodestat(inNumNodes, true);
   if(tag_opt)readTags(tag_file, nodestat);
-  else{
-    for(unsigned long i = 0; i < inNumNodes; i++)
-      nodestat[i] = mark_node(pos[i], center, radius);
-    //writeTags(string("grid.tag"), nodestat); 
+
+  if(vecGeoInfo.size() > 0) {
+    for(unsigned long i = 0; i < inNumNodes; i++) {
+      bool inGeom = false ;
+      for(size_t j=0;j<vecGeoInfo.size();++j) 
+        inGeom = inGeom || inGeo(vecGeoInfo[j],pos[i]) ;
+      bool cut = !inGeom ;
+      
+      nodestat[i] = nodestat[i] & cut ;
+    }
   }
   
   vector<int> nodeMap;
@@ -596,8 +896,8 @@ int main(int ac, char *av[]) {
                  face_data,
                  bc_ids
                  )){
-    cerr<<"ERROR: nothing in the sphere"<< endl;
-    return 0;
+    cerr<<"ERROR: nothing to cut!"<< endl;
+    return -1;
   }
 
    
@@ -613,7 +913,7 @@ int main(int ac, char *av[]) {
     }
   } 
     
-  //define the new boudnary id
+  //define the new boundary id
     
   int new_bc_id = 1;
   if(bc_ids.size()>0)new_bc_id = bc_ids.Max()+1;
