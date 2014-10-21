@@ -178,8 +178,9 @@ public:
 
 
 void output_grid_topology::compute(const sequence &seq) {
-  if(Loci::MPI_rank == 0)
+  if(Loci::is_leading_execution()) {
     Loci::debugout<< "calling write grid topology" << endl ;
+  }
   string filename = "output/"+*modelName+".topo" ;
   Loci::parallelWriteGridTopology(filename.c_str(),
                                   upper.Rep(),lower.Rep(),boundary_map.Rep(),
@@ -201,9 +202,9 @@ void dump_pos(const sequence &seq,const_store<vector3d<double> > &pos,
   oss << "output/grid_pos." << cycle << "_" << *modelName ;
   string filename = oss.str() ;
 
-  if(Loci::MPI_rank == 0)
+  $[Once] {
     Loci::debugout << "writing file " << filename << endl ;
-
+  }
 
   hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
                                         H5P_DEFAULT, H5P_DEFAULT) ;
@@ -268,7 +269,7 @@ $rule apply(numNodes<-pos)[Loci::Summation] {
 
 $rule apply(topo<-numNodes,numAccessedNodes)[Loci::Maximum], prelude {
   if(*$numNodes != *$numAccessedNodes) {
-    if(Loci::MPI_rank == 0) {
+     $[Once]{
       cerr << "Warning: "
            << *$numNodes-*$numAccessedNodes
            << " unreferenced nodes in grid." << endl ;
@@ -449,7 +450,7 @@ $type modelName param<string> ;
 $type convexCell param<int> ;
 
 $rule singleton(report<-volRatio,maxCellAngle,minVol,maxTwist,maxShearTwist,topo,modelName,convexCell) {
-  if(Loci::MPI_rank == 0) {
+  $[Once] {
     if($minVol <= 0) {
       cerr << "Negative or zero volume cell!  The grid quality is too poor to use." << endl ;
     }
@@ -582,16 +583,17 @@ void dump_scalar(const sequence &seq,const_store<float> &c2n,
       << "_" << *modelName ;
   string filename = oss.str() ;
 
-  if(Loci::MPI_rank == 0)
+  $[Once] {
     Loci::debugout << "writing file " << filename << endl ;
-
-
+  }
+  
   hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
 
   Loci::writeContainer(file_id,sname,c2n.Rep()) ;
 
   Loci::hdf5CloseFile(file_id) ;
+
 }
   
 scalar_node_output::scalar_node_output(const char *vname,
@@ -667,8 +669,9 @@ $type topo param<int> ;
 $rule apply(topo<-volumeTag(X),volumeComponent_X)[Loci::Maximum],
   parametric(volumeTag(X)),option(disable_threading), prelude {
 
-  if(Loci::MPI_rank == 0)
+  $[Once] {
     cout << "Volume of component " << *$volumeTag(X) << " is " << *$volumeComponent_X << endl ;
+  }
 } ;
 
 
@@ -702,7 +705,7 @@ $rule apply(convexCell<-cellcenter,(upper,lower,boundary_map)->(area,facecenter)
 $rule apply(topo<-convexCell)[Loci::Maximum],
   option(disable_threading), prelude {
 
-  if(Loci::MPI_rank == 0) {
+  $[Once] {
     if(*$convexCell > 0) {
       cerr << "WARNING: there are " << *$convexCell << " non-convex cells in the mesh." << endl ;
     } else {
@@ -770,10 +773,11 @@ $rule apply(faceGeometryInconsistent<-ci->cellcenter,facecenter,area)[Loci::Summ
 $rule apply(topo<-faceGeometryInconsistent)[Loci::Maximum],
   option(disable_threading), prelude {
 
-  if(Loci::MPI_rank == 0)
+  $[Once] {
     if(*$faceGeometryInconsistent > 0) {
       cerr << "WARNING: there are " << *$faceGeometryInconsistent << " faces with inconsistent geometry!" << endl ;
     }
+  }
 } ;
 
 using namespace Loci ;
