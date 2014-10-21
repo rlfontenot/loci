@@ -963,4 +963,24 @@ namespace Loci {
   
 } // end of namespace Loci
 
+#else
+#include "distribute.h"
+namespace Loci {
+  // this implements the leading execution predicate
+  bool is_leading_execution()
+  {
+    return MPI_rank==0 ;
+  }
+
+  // these two functions are intended to provide a global atomic
+  // region of execution (the ideal use of them is to use the 
+  // Loci preprocessor to hide these calls from the users)
+  void global_atomic_region_begin()
+  {
+  }
+
+  void global_atomic_region_end()
+  {
+  }
+}
 #endif

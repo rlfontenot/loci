@@ -268,6 +268,12 @@ namespace Loci {
   void global_atomic_region_begin();
   void global_atomic_region_end();
 
+  class atomic_region_helper {
+  public:
+    atomic_region_helper() { global_atomic_region_begin() ; }
+    ~atomic_region_helper() { global_atomic_region_end() ; }
+  } ;
+
   // this function generates a unique name on each process/thread
   std::string gen_local_name(const std::string& prefix,
                              const std::string& suffix="");
