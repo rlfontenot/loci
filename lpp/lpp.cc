@@ -612,6 +612,46 @@ namespace {
   }
 }
 
+void parseFile::process_SpecialCommand(std::ostream &outputFile,
+                                       const map<variable,string> &vnames,
+                                       int &openbrace) {
+  is.get() ; // get leading [
+  string name = get_name(is) ;
+  if(is.peek() != ']') {
+    cerr << "expecting ']' to close special command '" << name << "'" << endl ;
+    throw parseError("syntax error") ;
+  }
+  is.get() ;
+
+  int nsz = name.size() ;
+  for(int i=0;i<nsz;++i)
+    if(name[i] >= 'A' || name[i] <= 'Z')
+      name[i] = std::tolower(name[i]) ;
+  
+  if(name == "once") {
+    killsp() ;
+    if(is.peek() != '{') {
+      cerr << "expecting '{' after $[Once] command" << endl ;
+      cerr << "found " << char(is.peek()) << " instead." <<endl ;
+      throw parseError("syntax error") ;
+    }
+    outputFile << "if(Loci::is_leading_execution()) " ;
+
+  } else if(name == "atomic") {
+    killsp() ;
+    if(is.peek() != '{') {
+      cerr << "expecting '{' after $[Atomic] command" << endl ;
+      cerr << "found " << char(is.peek()) << " instead." <<endl ;
+      throw parseError("syntax error") ;
+    }
+    is.get() ;
+    openbrace++ ;
+    outputFile << "{ Loci::atomic_region_helper L__ATOMIC_REGION ; " << endl ;
+  } else {
+    cerr << "unknown special command '[" << name << "]' !" << endl ;
+    throw parseError("syntax error") ;
+  }
+}
 
 void parseFile::process_Prelude(std::ostream &outputFile,
                                 const map<variable,string> &vnames) {
@@ -642,10 +682,14 @@ void parseFile::process_Prelude(std::ostream &outputFile,
       string name ;
       variable v ;
       is.get() ;
+      if(is.peek() == '[') {
+        process_SpecialCommand(outputFile,vnames,openbrace) ;
+        continue ;
+      } 
       var vin ;
       vin.get(is) ;
       v = variable(vin.str()) ;
-
+        
       map<variable,string>::const_iterator vmi = vnames.find(v) ;
       if(vmi == vnames.end()) {
         cerr << "variable " << v << " is unknown to this rule!" << endl ;
@@ -653,6 +697,7 @@ void parseFile::process_Prelude(std::ostream &outputFile,
       }
       outputFile << vmi->second  ;
     }
+  
     char c = is.get() ;
     if(c == '\n')
       line_no++ ;
@@ -710,6 +755,10 @@ void parseFile::process_Compute(std::ostream &outputFile,
     if(is.peek() == '$') {
       variable v ;
       is.get() ;
+      if(is.peek() == '[') {
+        process_SpecialCommand(outputFile,vnames,openbrace) ;
+        continue ;
+      }
       bool deref = true ;
       if(is.peek() == '*') {
         is.get() ;
@@ -733,12 +782,13 @@ void parseFile::process_Compute(std::ostream &outputFile,
       } else {
         outputFile << "(*" << vmi->second << ')' ;
       }
+      
     }
     char c = is.get() ;
     if(c == '\n')
       line_no++ ;
     outputFile << c ;
-  } ;
+  } 
 }
 
 string getNumber(std::istream &is) {
@@ -1046,17 +1096,23 @@ void parseFile::process_Calculate(std::ostream &outputFile,
       outputFile << getNumber(is) ;
       continue ;
     }
-
+    
     if(is_name(is) || is.peek() == '$') {
       int lcount = 0 ;
       bool first_name = is_name(is) ;
+      if(!first_name) {
+        is.get() ;
+        if(is.peek() == '[') { // special command
+          process_SpecialCommand(outputFile,vnames,openbrace) ;
+          continue ;
+        }
+      }
       string name ;
       variable v ;
       string brackets ;
       if(first_name) 
         name = get_name(is) ;
       else {
-        is.get() ;
         if(is.peek() == '*') {
           is.get() ;
           var vin ;
@@ -1199,8 +1255,9 @@ void parseFile::process_Calculate(std::ostream &outputFile,
       for(int i=0;i<lcount;++i)
         outputFile << endl ;
       continue ;
+      
     }
-
+    
     char c = is.get() ;
     if(c == '\n')
       line_no++ ;
@@ -1879,7 +1936,11 @@ void parseFile::processFile(string file, ostream &outputFile) {
     try {
       if(is.peek() == '$') { // Loci specific code!
         is.get(c) ; // get the $
-        if(is_name(is)) {
+        if(is.peek() == '[') {
+          map<variable,string> vnames ;
+          int openbrace = 0 ;
+          process_SpecialCommand(outputFile,vnames,openbrace) ;
+        } else  if(is_name(is)) {
           std::string key = get_name(is) ;
           if(key == "type") {
             setup_Type(outputFile) ;
@@ -1903,9 +1964,7 @@ void parseFile::processFile(string file, ostream &outputFile) {
             throw parseError("syntax error: unknown key") ;
           }
         } else {
-          cerr << filename << ':' << line_no << " syntax error" << endl ;
-          string s ;
-          is >> s ;
+          throw parseError("unable to process '$' command") ;
         }
       } else {
 	bool foundComment = false ;
