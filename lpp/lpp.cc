@@ -1385,6 +1385,42 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
       }
       conditional = con.str() ;
       line_no += con.num_lines() ;
+      // Check variable
+      variable v(conditional) ;
+      v = convertVariable(v) ;
+      map<variable,pair<string,string> >::const_iterator mi ;
+      if((mi = type_map.find(v)) == type_map.end()) {
+        
+        v = v.new_offset(0) ;
+        v = v.drop_assign() ;
+        while(v.time() != time_ident())
+          v = v.parent() ;
+        
+        if((mi = type_map.find(v)) == type_map.end()) {
+          while(v.get_info().namespac.size() != 0)
+            v = v.drop_namespace() ;
+          mi = type_map.find(v) ;
+        }
+      }
+      if(mi == type_map.end()) {
+        cerr << "Warning: type of conditional variable '" << v << "'not found!"  << endl 
+	     << "File: " << filename << ", line #" << line_no << endl ;
+      } else {
+        //        cout << "mi->first=" << mi->first << endl ;
+        //        cout << "mi->second.first=" << mi->second.first
+        //             << "mi->second.second='" << mi->second.second <<"'"<< endl ;
+        // clean up type string
+        string val = mi->second.first + mi->second.second ;
+        string val2 ;
+        int valsz = val.size() ;
+        for(int i=0;i<valsz;++i)
+          if(val[i] != ' ' && val[i] != '\t' && val[i] != '\r' && val[i] != '\n')
+            val2 += val[i] ;
+        
+        if(val2 != "param<bool>") {
+          throw(parseError("conditional variable must be typed as a param<bool>")) ;
+        }
+      }
     } else if(s == "inplace") {
       nestedparenstuff ip ;
       ip.get(is) ;
