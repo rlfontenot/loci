@@ -109,6 +109,8 @@ namespace Loci {
 #endif
 
   extern bool threading_pointwise;
+  extern int num_threaded_pointwise;
+  extern int num_total_pointwise;
 
   int current_rule_id = 0 ;
   int rule_count = 0;
@@ -1140,16 +1142,16 @@ namespace Loci {
   }
 
   inline void 
-  execute_rule::execute_kernel(const sequence& seq)
-  { rp->compute(seq); }
+  execute_rule::execute_kernel(const sequence& s)
+  { rp->compute(s); }
   
   inline void
-  execute_rule::execute_prelude(const sequence& seq)
-  { rp->prelude(seq); }
+  execute_rule::execute_prelude(const sequence& s)
+  { rp->prelude(s); }
 
   inline void
-  execute_rule::execute_postlude(const sequence& seq)
-  { rp->postlude(seq); }
+  execute_rule::execute_postlude(const sequence& s)
+  { rp->postlude(s); }
 
   void execute_rule::Print(ostream &s) const {
     printIndent(s) ;
@@ -1204,17 +1206,33 @@ namespace Loci {
     }
 
 #ifdef PTHREADS
-    if(threading_pointwise) {
+    ++num_total_pointwise;
+    bool threadable = 
+      impl.get_info().rule_impl->thread_rule() &&
+      (impl.get_info().rule_impl->get_rule_class() 
+                       == rule_impl::POINTWISE ||
+       impl.get_info().rule_impl->get_rule_class()
+                       == rule_impl::UNIT);
+    rule_implP ti = impl.get_rule_implP() ;
+    for (variableSet::const_iterator vi=targets.begin();
+        vi!=targets.end();++vi) {
+      storeRepP tr = ti->get_store(*vi);
+      if (tr->RepType() == PARAMETER) {
+        threadable = false;
+        break;
+      }
+    }
+    if(threading_pointwise && threadable) {
       int tnum = thread_control->num_threads();
       int minw = thread_control->min_work_per_thread();
       // if a rule is not for threading, then generate a normal module,
       // also no multithreading if the execution sequence is too small
-      if(!impl.get_info().rule_impl->thread_rule() ||
-         exec_seq.size() < tnum*minw)
+      if(exec_seq.size() < tnum*minw)
         // normal case
         return new execute_rule(impl,sequence(exec_seq),facts, scheds);
       else {
         // generate multithreaded execution module
+        ++num_threaded_pointwise;
         return new Threaded_execute_rule(impl, exec_seq, facts, scheds);
       }
     }

@@ -64,6 +64,8 @@ namespace Loci {
   }
 
   extern bool threading_chomping;
+  extern int num_total_chomping;
+  extern int num_threaded_chomping;
 
   execute_chomp::execute_chomp
   (const entitySet& td,

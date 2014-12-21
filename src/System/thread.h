@@ -915,6 +915,280 @@ namespace Loci {
   };
 #endif
   
+  // threaded execution module for local reduction computation
+  // this is the computation part
+  class ExecuteThreaded_local_reduction_comp: 
+    public ThreadedExecutionModule {
+  public:
+    ExecuteThreaded_local_reduction_comp
+    (int i, const sequence& s, executeP ue, executeP er)
+    :tid(i),seq(s),exec_size(s.size()),unit_exec(ue),exec_rule(er) {}
+    
+    void execute(fact_db& facts, sched_db& scheds)
+    {
+      stopWatch s;
+      s.start();
+      // first execute the unit rule to fill the unit values
+      unit_exec->execute(facts,scheds);
+      // we will then execute the rule
+      exec_rule->execute_kernel(seq);
+      timer.addTime(s.stop(),exec_size);
+    }
+    void print_seq(std::ostream& s) const
+    {
+      if(verbose || seq.num_intervals() < 4) {
+        s << seq;
+      } else {
+        s << "{" << seq[0] << "...}";
+      }
+    }
+    double get_time() const { return timer.getTime(); }
+    long_long get_l1_dcm() const { return 0; } // not implemented yet
+    long_long get_l2_dcm() const { return 0; }
+  private:
+    // thread id
+    int tid;
+    // the execution sequence (note it is a reference)
+    const sequence& seq;
+    size_t exec_size;
+    // this is the unit rule's execution module, we need it 
+    // to set the unit value in the private storage
+    executeP unit_exec;
+    // we will just delegate the main computation to the underlying
+    // concrete rule.
+    executeP exec_rule;
+    timeAccumulator timer;
+  };  
+
+  // threaded execution module for local reduction computation
+  // this is the reduction part
+  class ExecuteThreaded_local_reduction_combine: 
+    public ThreadedExecutionModule {
+  public:
+    ExecuteThreaded_local_reduction_combine
+    (int i, const std::vector<sequence>& rdom,
+     CPTR<joiner> jop, std::vector<storeRepP>& pr, storeRepP t)
+      :tid(i),reduction_dom(rdom),join_op(jop),partial(pr),target(t) {}
+    
+    void execute(fact_db& facts, sched_db& scheds)
+    {
+      stopWatch s;
+      s.start();
+      // we will need to perform the reduction in parallel.
+      for(size_t i=0;i<partial.size();++i) {
+        // perform the join operation
+        join_op->SetArgs(target, partial[i]);
+        join_op->Join(reduction_dom[tid]);
+      }
+      timer.addTime(s.stop(),reduction_dom[tid].size());
+    }
+    void print_seq(std::ostream& s) const
+    { /* no need to print in the combine module... */ }
+    double get_time() const { return timer.getTime(); }
+    long_long get_l1_dcm() const { return 0; } // not implemented yet
+    long_long get_l2_dcm() const { return 0; }
+  private:
+    // thread id
+    int tid;
+    // this is sequence used in reduction
+    const std::vector<sequence>& reduction_dom;
+    // the join operator
+    CPTR<joiner> join_op;
+    // pointer to the partial results of every thread
+    std::vector<storeRepP>& partial;
+    // this is the original target of the rule
+    storeRepP target;
+    timeAccumulator timer;
+  };  
+
+  // this is a module that hooks up the compiler and the
+  // threaded execution module for param reduction rule defined above
+  class Threaded_execute_local_reduction: public execute_modules {
+  public:
+    Threaded_execute_local_reduction(rule r, rule u, const sequence& s,
+                                     // target is the name of 
+                                     // the final result
+                                     const variable& target,
+                                     fact_db& facts, sched_db& scheds)
+      :rule_name(r), unit_rule(u), seq(s), tvar(target)
+    {
+      // creates a real rule execution module
+      exec_rule = new execute_rule(r, s, facts, scheds);
+      int tnum = thread_control->num_threads();
+      // partition the execution sequence among the threads
+      thread_seqs = partition_seq(seq, tnum);
+      // obtain the rep of the target of the rule
+      final_s = facts.get_variable(target);
+      // obtain the join operator of the rule
+      rule_implP ar = rule_name.get_info().rule_impl;
+      CPTR<joiner> jop = ar->get_joiner();
+      // figuring out the computed domain of the target
+      entitySet context;
+      for (sequence::const_iterator si=seq.begin();si!=seq.end();++si)
+        context += *si;
+      const rule_impl::info& rinfo = rule_name.get_info().desc;
+      tvar_exist = vmap_target_exist(*rinfo.targets.begin(),
+          facts,context,scheds);
+      
+      // create all the private storage for work threads
+      for(int i=0;i<tnum;++i) {
+        storeRepP sp = final_s->new_store(EMPTY);
+        partial.push_back(sp);
+      }
+
+      tot_mem = seq.num_intervals(); 
+      // create the computation and reduction thread module
+      for(int i=0;i<tnum;++i) {
+        texec_comp.push_back
+          (new ExecuteThreaded_local_reduction_comp
+           (i, thread_seqs[i],
+            new execute_rule(unit_rule,tvar_exist,
+                             facts,target,partial[i],scheds),
+            new execute_rule(rule_name,thread_seqs[i],
+                             facts,target,partial[i],scheds)));
+        texec_combine.push_back
+          (new ExecuteThreaded_local_reduction_combine
+           (i, reduction_dom, jop->clone(), partial, final_s));
+      }
+    }
+
+    ~Threaded_execute_local_reduction()
+    {
+      // destroy the local storage
+      for(size_t i=0;i<partial.size();++i)
+        partial[i]->allocate(EMPTY);
+    }
+    
+    void execute(fact_db& facts, sched_db& scheds)
+    {
+      current_rule_id = rule_name.ident();
+      stopWatch s;
+      s.start();
+      exec_rule->execute_prelude(seq);
+      timer_comp.addTime(s.stop(), seq.size());
+
+      // first start the computation part
+      for (size_t i=0;i<partial.size();++i) {
+        partial[i]->allocate(final_s->domain());
+      }
+
+      s.start();
+      thread_control->setup_facts_scheds(facts,scheds);
+      thread_control->restart(texec_comp);
+      timer_ctrl.addTime(s.stop(), seq.size());
+
+      thread_control->wait_threads();
+
+      // then start the reduction part
+      s.start();
+      // this step is to generate the parallel reduction sequence
+      // for each of the work thread (before starting the threads)
+      // we need to do it here because we only get to know the
+      // domain of the target at execution time
+      if (reduction_dom.empty()) {
+        int tnum = thread_control->num_threads();
+        reduction_dom = partition_seq(tvar_exist, tnum);
+      }
+
+      thread_control->setup_facts_scheds(facts,scheds);
+      thread_control->restart(texec_combine);
+      timer_ctrl.addTime(s.stop(), seq.size());
+
+      thread_control->wait_threads();
+
+      // destroy the local storage
+      for(size_t i=0;i<partial.size();++i)
+        partial[i]->allocate(EMPTY);
+
+      s.start();
+      // finally execute the postlude
+      exec_rule->execute_postlude(seq);
+      timer_comp.addTime(s.stop(), seq.size());
+      current_rule_id = 0;
+    }
+
+    void Print(std::ostream& s) const
+    {
+      printIndent(s);
+      s << rule_name << " over sequence ";
+      if(verbose || seq.num_intervals() < 4)
+        s << seq;
+      else
+        s << "{" << seq[0] << "...}";
+      s << " using " << texec_comp.size() << " threads";
+      if(verbose) {
+        s << " (";
+        s << "thread " << 0 << ": ";
+        texec_comp[0]->print_seq(s);
+        for(size_t i=1;i<texec_comp.size();++i) {
+          s << ", thread " << i << ": " ;
+          texec_comp[i]->print_seq(s);
+        }
+        s << ")";
+      }
+      s << std::endl;
+    }
+
+    std::string getName() { return "Threaded_execute_local_reduction"; }
+
+    void dataCollate(collectData& data_collector) const
+    {
+      std::ostringstream oss;
+      oss << "rule: " << rule_name;
+      // we will need to collect the control time, which is
+      // the control time at this level and the maximum control
+      // time spent in any thread
+      data_collector.accumulateTime(timer_ctrl, EXEC_CONTROL, oss.str());
+
+      double mt = 0;
+      for(size_t i=0;i<texec_comp.size();++i) {
+        double lt = texec_comp[i]->get_time();
+        if (lt > mt)
+          mt = lt;
+      }
+      timeAccumulator new_comp = timer_comp;
+      new_comp.addTime(mt, seq.size());
+
+      mt = 0;
+      for(size_t i=0;i<texec_combine.size();++i) {
+        double lt = texec_combine[i]->get_time();
+        if (lt > mt)
+          mt = lt;
+      }
+      new_comp.addTime(mt, seq.size());
+
+      data_collector.accumulateTime(new_comp,
+                                    EXEC_COMPUTATION, oss.str());
+      //
+      data_collector.accumulateSchedMemory(oss.str(), tot_mem);
+    }
+  protected:
+    timeAccumulator timer_comp;
+    timeAccumulator timer_ctrl;
+    // this is the unit rule associated with this apply rule
+    rule rule_name;
+    rule unit_rule;
+    sequence seq;
+    // the computation thread module
+    std::vector<ThreadedEMP> texec_comp;
+    // the reduction thread module
+    std::vector<ThreadedEMP> texec_combine;
+    // the partition of the execution sequence for threads
+    std::vector<sequence> thread_seqs;
+    // here is a vector of partial results for the threads to fill
+    std::vector<storeRepP> partial;
+    // the parallel reduction domain for each thread
+    // this is to be filled at execution time
+    std::vector<sequence> reduction_dom;
+    // the store in the fact database that the final result will go
+    storeRepP final_s; 
+    double tot_mem;             // tabulate the scheduler memory
+    executeP exec_rule;
+    variable tvar;
+    // the computed domain of the target variable in this rule
+    entitySet tvar_exist;
+  };
+  
 } // end of namespace Loci
 
 #endif  // end #ifdef PTHREADS

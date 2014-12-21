@@ -22,6 +22,7 @@
 #include "comp_tools.h"
 #include "dist_tools.h"
 #include "visitorabs.h"
+#include "thread.h"
 #include <vector>
 using std::vector ;
 #include <map>
@@ -35,6 +36,10 @@ using std::set ;
 //#define VERBOSE
 
 namespace Loci {
+  extern bool threading_recursion;
+  extern int num_total_recursion;
+  extern int num_threaded_recursion;
+
   void impl_recurse_compiler::accept(visitor& v) {
     v.visit(*this) ;
   }
@@ -874,6 +879,10 @@ namespace Loci {
   }
 
   executeP recurse_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds ) {
+#ifdef PTHREADS
+    ++num_total_recursion;
+    bool num_threads_counted = false;
+#endif
     CPTR<execute_sequence> el = new execute_sequence ;
     if(facts.isDistributed()) {
       list<comm_info> pre_clist =  scheds.get_comm_info_list(recurse_vars, facts, sched_db::RECURSE_PRE_CLIST);
@@ -928,8 +937,27 @@ namespace Loci {
           finished = true ;
         else {
           if(li->size() != 0) {
-
-            executeP exec_rule = new execute_rule(*ri,sequence(*li),facts, scheds) ;
+            executeP exec_rule;
+#ifdef PTHREADS
+            if (threading_recursion) {
+              int tnum = thread_control->num_threads();
+              int minw = thread_control->min_work_per_thread();
+              if (!num_threads_counted) {
+                ++num_threaded_recursion;
+                num_threads_counted = true;
+              }
+              if (li->size() >= tnum*minw)
+                exec_rule = new Threaded_execute_rule
+                  (*ri, sequence(*li), facts, scheds);
+              else
+                exec_rule = new execute_rule
+                  (*ri, sequence(*li), facts, scheds);
+            } else
+              exec_rule = new execute_rule
+                (*ri,sequence(*li),facts, scheds);
+#else
+            exec_rule = new execute_rule(*ri,sequence(*li),facts,scheds);
+#endif
             el->append_list(exec_rule);
           }
           li++ ;

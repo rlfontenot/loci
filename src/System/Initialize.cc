@@ -176,6 +176,7 @@ namespace Loci {
   bool threading_global_reduction = false;
   bool threading_local_reduction = false;
   bool threading_chomping = false;
+  bool threading_recursion = false;
   int num_threads = 0;
 
 
@@ -555,8 +556,9 @@ namespace Loci {
           if(num_threads > 1) {
             threading_pointwise = true;
             threading_global_reduction = true;
-            threading_local_reduction = false;//true;
+            threading_local_reduction = true;
             threading_chomping = false;//true;
+            threading_recursion = true;
           }
           i+=2;
         } else if(!strcmp((*argv)[i],"--no_threading_pointwise")) {
@@ -570,6 +572,9 @@ namespace Loci {
           i++;
         } else if(!strcmp((*argv)[i],"--no_threading_chomp")) {
           threading_chomping = false;
+          i++;
+        } else if(!strcmp((*argv)[i],"--no_threading_recursion")) {
+          threading_recursion = false;
           i++;
         }
         else

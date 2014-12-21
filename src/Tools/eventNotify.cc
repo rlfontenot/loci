@@ -30,13 +30,16 @@ namespace Loci {
   }
 
   void eventDispatcher::engage(eventNotify *p) {
-    bmutex l(mutex) ;
+    //bmutex l(mutex) ;
+    mutex.lock();
     warn(!p) ;
     notify_group.push_back(p) ;
+    mutex.unlock();
   }
 
   void eventDispatcher::disengage(eventNotify *p) {
-    bmutex l(mutex) ;
+    //bmutex l(mutex) ;
+    mutex.lock();
     
     warn(!p) ;
 
@@ -54,17 +57,19 @@ namespace Loci {
     if(*nlp == p)
       notify_group.erase(nlp) ;
 
+    mutex.unlock();
   }    
 
   void eventDispatcher::dispatch_notify() {
     mutex.lock() ;
-    notify_list copy ;
+    // notify_list copy ;
     notify_list::iterator nlp ;
     for(nlp=notify_group.begin();nlp!=notify_group.end();++nlp)
-      copy.push_back(*nlp) ;
+      (*nlp)->notification();
+      //copy.push_back(*nlp) ;
     mutex.unlock() ;
-    for(nlp=copy.begin();nlp!=copy.end();++nlp) 
-      (*nlp)->notification() ;
+    // for(nlp=copy.begin();nlp!=copy.end();++nlp) 
+    //   (*nlp)->notification() ;
   }
 
   eventNotify::~eventNotify() {}

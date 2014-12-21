@@ -45,6 +45,11 @@ namespace Loci {
   extern bool threading_global_reduction;
   extern bool threading_local_reduction;
 
+  extern int num_threaded_global_reduction;
+  extern int num_total_global_reduction;
+  extern int num_threaded_local_reduction;
+  extern int num_total_local_reduction;
+
   entitySet vmap_source_exist_apply(const vmap_info &vmi, fact_db &facts,
                                     variable reduce_var, sched_db &scheds) {
     variableSet::const_iterator vi ;
@@ -77,6 +82,7 @@ namespace Loci {
     entitySet exec_seq = scheds.get_exec_seq(apply);
 #ifdef PTHREADS
     if(apply.get_info().output_is_parameter) { // global reduction
+      ++num_total_global_reduction;
       if(threading_global_reduction) {
         int tnum = thread_control->num_threads();
         int minw = thread_control->min_work_per_thread();
@@ -85,77 +91,45 @@ namespace Loci {
           return new execute_rule(apply,sequence(exec_seq),facts,scheds);
         else {
           variableSet targets = apply.targets() ;
-          fatal(target.size() != 1) ;
+          if (targets.size() != 1) {
+            cerr << "Apply rule has more than one target variables!!"
+              << " threading schedule fails!!!" << endl;
+            Loci::Abort();
+          }
           variable t = *(targets.begin()) ;
+          ++num_threaded_global_reduction;
           return new Threaded_execute_param_reduction
             (apply, exec_seq, t, facts, scheds);
         }
       } else
         return new execute_rule(apply,sequence(exec_seq),facts,scheds);
     } else { // local reduction
+      ++num_total_local_reduction;
       if(threading_local_reduction) {
         int tnum = thread_control->num_threads();
         int minw = thread_control->min_work_per_thread();
-        if(!apply.get_info().rule_impl->thread_rule() ||
-           exec_seq.size() < tnum*minw)
+        bool threadable = apply.get_info().rule_impl->thread_rule()
+          && exec_seq.size() >= tnum*minw;
+        {
+          rule_implP ti = apply.get_rule_implP() ;
+          variableSet targets = apply.targets();
+          storeRepP tr = ti->get_store(*(targets.begin()));
+          if (tr->RepType() == BLACKBOX)
+           threadable = false; 
+        }
+        if(!threadable) {
           return new execute_rule(apply,sequence(exec_seq),facts,scheds);
-        else {
-          // DEBUG
-          // double s = 0, tb = 0, tc = 0, tp = 0;
-          ////////
-          
-          // first we need to build an interference graph
-          UDG itg;
-
-          // DEBUG
-          // s = MPI_Wtime();
-          ////////
-          build_interference_graph(apply,facts,scheds,exec_seq,itg);
-          // DEBUG
-          // tb = MPI_Wtime() - s;
-          // s = MPI_Wtime();
-          ////////
-          
-          // then color it
-          map<int,int> color = lf_color(itg);
-          // DEBUG
-          // tc = MPI_Wtime() - s;
-          // s = MPI_Wtime();
-          ////////
-          // then partition the entities.
-          vector<entitySet> partition = partition_color(color);
-
-          // DEBUG
-          // tp = MPI_Wtime() - s;
-          // std::cout << "++++++++" << endl;
-          // std::cout << "tb = " << tb << endl;
-          // std::cout << "tc = " << tc << endl;
-          // std::cout << "tp = " << tp << endl;
-          // std::cout << "interference graph stats: " << endl;
-          // itg.show_stats(std::cout);
-          // std::cout << "coloring results: " << endl;
-          // std::cout << "total entities: " << exec_seq.size() << endl;
-          // std::cout << "total color steps: " << partition.size() << endl;
-          // for(size_t i=0;i<partition.size();++i) {
-          //   std::cout << "step " << i << ": " << partition[i].size()
-          //             << " entities" << endl;
-          // }
-          // std::cout << "========" << endl;
-          // 
-
-          // finally generate a list of threaded schedules
-          CPTR<execute_list> schedule = new execute_list ;
-          for(size_t p=0;p<partition.size();++p) {
-            sequence seq = sequence(partition[p]);
-            if(seq.size() < tnum*minw)
-              schedule->append_list
-                (new execute_rule(apply, seq, facts, scheds));
-            else
-              schedule->append_list
-                (new Threaded_execute_rule(apply, seq, facts, scheds));
+        } else {
+          variableSet targets = apply.targets();
+          if (targets.size() != 1) {
+            cerr << "Apply rule has more than one target variables!!"
+              << " threading schedule fails!!!" << endl;
+            Loci::Abort();
           }
-
-          return executeP(schedule);
+          variable t = *(targets.begin());
+          ++num_threaded_local_reduction;
+          return new Threaded_execute_local_reduction
+            (apply,unit_tag,sequence(exec_seq),t,facts,scheds);
         }        
       } else
         return new execute_rule(apply,sequence(exec_seq),facts,scheds);

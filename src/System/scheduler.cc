@@ -136,8 +136,23 @@ namespace Loci {
   extern bool threading_global_reduction;
   extern bool threading_local_reduction;
   extern bool threading_chomping;
+  extern bool threading_recursion;
   extern int num_threads;  
   // 
+  int num_threaded_pointwise = 0;
+  int num_total_pointwise = 0;
+
+  int num_threaded_global_reduction = 0;
+  int num_total_global_reduction = 0;
+
+  int num_threaded_local_reduction = 0;
+  int num_total_local_reduction = 0;
+
+  int num_threaded_chomping = 0;
+  int num_total_chomping = 0;
+
+  int num_threaded_recursion = 0;
+  int num_total_recursion = 0;
   ////////////////////////////
 
   namespace {
@@ -959,10 +974,11 @@ namespace Loci {
     if(Loci::MPI_rank==0)
 #ifdef PTHREADS
       if(threading_pointwise || threading_global_reduction
-         || threading_local_reduction || threading_chomping) {
+         || threading_local_reduction || threading_chomping 
+         || threading_recursion) {
         cout << "creating multithreaded execution schedule ("
              << num_threads << " threads per MPI process)" << endl;
-        cout << "--threading all ";
+        cout << "--threading suitable ";
         if(threading_pointwise)
           cout << "[pointwise] ";
         if(threading_global_reduction)
@@ -971,6 +987,8 @@ namespace Loci {
           cout << "[local reduction] ";
         if(threading_chomping)
           cout << "[chomping] ";
+        if(threading_recursion)
+          cout << "[recursive] ";
         cout << "rules" << endl;
       } else
 #endif
@@ -1714,6 +1732,24 @@ namespace Loci {
       // If a schedule was generated, execute it
       if(MPI_rank == 0)
         cout << "begin execution" << endl ;
+
+      if (threading_pointwise)
+        cout << "--threading " << num_threaded_pointwise
+          << "/" << num_total_pointwise << " pointwise rules" << endl;
+      if (threading_global_reduction)
+        cout << "--threading " << num_threaded_global_reduction
+          << "/" << num_total_global_reduction 
+          << " global reduction rules" << endl;
+      if (threading_local_reduction)
+        cout << "--threading " << num_threaded_local_reduction
+          << "/" << num_total_local_reduction 
+          << " local reduction rules" << endl;
+      if (threading_chomping)
+        cout << "--threading " << num_threaded_chomping
+          << "/" << num_total_chomping << " chomping rules" << endl;
+      if (threading_recursion)
+        cout << "--threading " << num_threaded_recursion
+          << "/" << num_total_recursion << " recursive rules" << endl;
 
       if(schedule_output) {
         // Save the schedule in the file .schedule for reference
