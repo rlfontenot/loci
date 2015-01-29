@@ -331,10 +331,14 @@ queried.
 There are several other details concerning the container type that we
 are not very clear at the moment.  They will need to be addressed in the
 future when we have more experience.  Some of these issues include 1)
-how to introduce the key-space concept into the container type 2) we
-will need to have each container aware of their own data distribution
-for the ultimate flexibility.  Then how do we incorporate such
-information into the container type?
+how to introduce the key-space concept into the container types
+(existing code inside the \texttt{include/keyspace.h} and
+\texttt{System/keyspace.cc} files can perhaps be borrowed or referenced,
+however these codes are experimental and they have a different purpose
+and are also perhaps somewhat dated and more complex than is needed in
+this case) 2) we will need to have each container aware of their own
+data distribution for the ultimate flexibility.  Then how do we
+incorporate such information into the container type?
 
 Besides these issues, we also need several global functions that
 operate on these container types.  For now, we will want to implement
