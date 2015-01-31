@@ -489,7 +489,7 @@ namespace Loci {
 
   template <class T,size_t n> inline std::istream &
     operator>>(std::istream &s, Array<T,n> &v) {
-    for(int i=0;i<n;++i)
+    for(size_t i=0;i<n;++i)
       s >> v[i] ;
     return s ;
   }
