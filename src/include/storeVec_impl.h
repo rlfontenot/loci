@@ -764,7 +764,8 @@ namespace Loci {
 	hid_t err = H5Dread(dataset,  datatype, memspace, dataspace,
 			    H5P_DEFAULT, tmp_array) ;
 	if(err < 0) {
-	  cerr << "H5Dread() failed" << endl ;
+	  std::string error = "H5Dread: failed" ;
+	  throw StringError(error) ;
 	}
 
 	for(entitySet::const_iterator si = eset.begin(); si != eset.end();++si) 
@@ -795,7 +796,8 @@ namespace Loci {
 	hid_t err = H5Dread(dataset,  datatype, memspace, dataspace,
 			    H5P_DEFAULT, tmp_array) ;
 	if(err < 0) {
-	  cerr << "H5Dread() failed" << endl ;
+	  std::string error = "H5Dread: failed" ;
+	  throw StringError(error) ;
 	}
 	int qs = fi.size ;
 	size_t tmp = 0 ;
