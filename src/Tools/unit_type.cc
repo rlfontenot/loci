@@ -633,7 +633,7 @@ namespace Loci {
   void UNIT_type::change_to_basic_unit(map<string,int>initial_map,map<string,int>&num_map,map<string,int>&den_map,double &conv_factor)
     {
       map<string,int>::iterator mi;
-      exprP exp2;
+      exprP exp2 = 0 ;
       exprList numerator, denominator;
       conv_factor=1;
       //for MKS system
@@ -799,7 +799,7 @@ namespace Loci {
 
   //------input the expression-------//
   exprP UNIT_type::input(istream &in){
-    exprP exp;
+    exprP exp = 0 ;
     
     if(check_unit(in, value)){
       in>>input_unit;
@@ -928,7 +928,7 @@ namespace Loci {
   //compare the two units, check if they are comparable
   bool UNIT_type::is_compatible(const std::string unit_str){
     UNIT_type sec_unit;
-    exprP sec_exp;
+    exprP sec_exp = 0;
     std::map<std::string,int>::iterator fst_mi;
     std::map<std::string,int> fst_n_map=(*this).unit_num_map,fst_d_map=(*this).unit_den_map;
     sec_unit.mode=(*this).mode;
@@ -968,7 +968,7 @@ namespace Loci {
 
   //compare the input unit with the default unit, check if they are comparable
   bool UNIT_type::private_is_compatible(){
-    exprP exp;
+    exprP exp = 0;
     string str;
     if(mode!=check_available){
       set_default_unit(exp);
@@ -983,7 +983,7 @@ namespace Loci {
 
   double UNIT_type::get_value_in(const std::string unit_str){
     UNIT_type sec_unit;
-    exprP sec_exp;
+    exprP sec_exp = 0 ;
 
     sec_unit.mode=(*this).mode;
     sec_unit.unit_kind=(*this).unit_kind;

@@ -22,6 +22,8 @@
 #include <Tools/parse.h>
 #include <Tools/debug.h>
 #include <Tools/except.h>
+#include <Tools/tools.h>
+
 #include <sstream>
 
 using std::string ;
@@ -120,6 +122,145 @@ namespace Loci {
 
   }
 
+  void options_list::getOptionUnits(const std::string &vname, 
+				    const std::string &units,
+				    vector3d<double> &vec, 
+				    double scale) const {
+    Loci::option_value_type ovt= getOptionValueType(vname) ;
+    if(ovt == Loci::REAL) {
+      double v ;
+      getOption(vname,v) ;
+      vec = vector3d<double>(v*scale,0,0) ;
+    } else if(getOptionValueType(vname) == Loci::UNIT_VALUE) {
+      Loci::UNIT_type vu ;
+      getOption(vname,vu) ;
+      if(!vu.is_compatible(units)) {
+	ostringstream oss ;
+        oss << "wrong type of units for vector " << vname
+	    << ": " << vu << std::endl ;
+	throw StringError(oss.str()) ;
+      } else {
+        double v ;
+        v = vu.get_value_in(units) ;
+        vec = vector3d<double>(v,0,0) ;
+      }
+    } else if(ovt == Loci::LIST) {
+      Loci::options_list::arg_list value_list ;
+      getOption(vname,value_list) ;
+      if(value_list.size() != 3) {
+	ostringstream oss ;
+        oss << "error on reading '" << vname
+	    <<"': vector input must contain 3 terms"
+	    << std::endl ;
+	throw StringError(oss.str()) ;
+      }
+      for(int i=0;i<3;++i)
+        if(value_list[i].type_of() != Loci::REAL &&
+           value_list[i].type_of() != Loci::UNIT_VALUE) {
+	  ostringstream oss ;
+          oss << "improper vector specification for '"
+	      << vname << std::endl ;
+	  throw StringError(oss.str()) ;
+        }
+      double vecval[3] ;
+      for(int i=0;i<3;++i) {
+        if(value_list[i].type_of() == Loci::UNIT_VALUE) {
+          Loci::UNIT_type vu ;
+          value_list[i].get_value(vu) ;
+          if(!vu.is_compatible(units)) {
+	    ostringstream oss ;
+            oss << "wrong type of units for vector " << vname
+		<< ": " << vu << std::endl ;
+	    throw StringError(oss.str()) ;
+          }
+          vecval[i] = vu.get_value_in(units) ;
+        } else {
+          value_list[i].get_value(vecval[i]) ;
+          vecval[i] *= scale ;
+        }
+      }
+      vec.x = vecval[0] ;
+      vec.y = vecval[1] ;
+      vec.z = vecval[2] ;
+    } else if(ovt == Loci::FUNCTION) {
+      string name ;
+      Loci::options_list::arg_list value_list ;
+      getOption(vname,name,value_list) ;
+      if(name != "polar") {
+	ostringstream oss ;
+        oss << "don't know coordinate function '" << name
+	    <<"', defaulting to polar" << std::endl ;
+	throw StringError(oss.str()) ;
+      }
+      if(value_list.size() != 3) {
+	ostringstream oss ;
+        oss << "error on reading '"
+	    << vname << "': vector input must contain 3 terms"
+	    << std::endl ;
+	throw StringError(oss.str()) ;
+      }
+      for(int i=0;i<3;++i)
+        if(value_list[i].type_of() != Loci::REAL &&
+           value_list[i].type_of() != Loci::UNIT_VALUE) {
+	  ostringstream oss ;
+          oss << "improper vector specification for '"
+	      << vname << std::endl ;
+	  throw StringError(oss.str()) ;
+        }
+      double r=1 ,theta=0 ,eta=0 ;
+      double conv = M_PI/180.0 ;
+      if(value_list[0].type_of() == Loci::UNIT_VALUE) {
+        Loci::UNIT_type vu ;
+        value_list[0].get_value(vu) ;
+        if(!vu.is_compatible(units)) {
+	  ostringstream oss ;
+          oss << "wrong type of units for vector " << vname
+	      << ": " << vu << std::endl ;
+	  throw StringError(oss.str()) ;
+        }
+        r = vu.get_value_in(units) ;
+      } else {
+        value_list[0].get_value(r) ;
+        r *= scale ;
+      }
+      if(value_list[1].type_of() == Loci::UNIT_VALUE) {
+        Loci::UNIT_type vu ;
+        value_list[1].get_value(vu) ;
+        if(!vu.is_compatible("radians")) {
+	  ostringstream oss ;
+          oss << "wrong type of units for vector " << vname
+                    << ": " << vu << std::endl ;
+	  throw StringError(oss.str()) ;
+        }
+        theta = vu.get_value_in("radians") ;
+      } else {
+        value_list[1].get_value(theta) ;
+        theta *= conv  ;
+      }
+      if(value_list[2].type_of() == Loci::UNIT_VALUE) {
+        Loci::UNIT_type vu ;
+        value_list[2].get_value(vu) ;
+        if(!vu.is_compatible("radians")) {
+	  ostringstream oss ;
+          oss << "wrong type of units for vector " << vname
+                    << ": " << vu << std::endl ;
+	  throw StringError(oss.str()) ;
+        }
+        eta = vu.get_value_in("radians") ;
+      } else {
+        value_list[2].get_value(eta) ;
+        eta *= conv  ;
+      }
+
+      vec.x = r*cos(theta)*cos(eta) ;
+      vec.y = r*sin(theta)*cos(eta) ;
+      vec.z = r*sin(eta) ;
+    } else {
+      ostringstream oss ;
+      oss << "unable to get vector type!" << std::endl ;
+      throw StringError(oss.str()) ;
+    }
+  }
   void options_list::getOption(const string &option, double &value) const {
     option_map::const_iterator tmp ;
     if((tmp = options_db.find(option)) == options_db.end()) {

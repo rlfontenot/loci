@@ -34,6 +34,7 @@
 #include <vector>
 #include <set>
 #include <map>
+#include <Tools/basic_types.h>
 
 namespace Loci {
   class options_list ;
@@ -111,6 +112,8 @@ namespace Loci {
                    arg_list &value_list) const ;
     void getOptionUnits(const std::string &option, const std::string &units,
                         double &value) const ;
+    void getOptionUnits(const std::string &option, const std::string &units,
+			vector3d<double> &value, double scale=1.0) const ;
 
     void setOption(const std::string &option, bool value) ;
     void setOption(const std::string &option, double value) ;
