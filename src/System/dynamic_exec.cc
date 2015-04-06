@@ -617,7 +617,9 @@ namespace Loci
       int ch = selfChunks[i] ;
       stopWatch s ;
       s.start() ;
-      main_comp->compute(sequence(chunkData[ch].chunkDef));
+      sequence seq(chunkData[ch].chunkDef) ;
+      main_comp->prelude(seq) ;
+      main_comp->compute(seq) ;
       double elapsed_time = s.stop() ;
       chunkData[ch].chunkTime[0] += elapsed_time ;
       comp_timer.addTime(elapsed_time,1) ;
@@ -628,7 +630,9 @@ namespace Loci
     for(int i=0;i<numRemoteChunks;++i) {
       stopWatch s ;
       s.start() ;
-      local_comp1->compute(sequence(interval(cnt,cnt+skip-1))) ;
+      sequence seq(interval(cnt,cnt+skip-1)) ;
+      local_comp1->prelude(seq) ;
+      local_comp1->compute(seq) ;
       double elapsed_time = s.stop() ;
       remote_times[i] = elapsed_time;
       comp_timer.addTime(elapsed_time,1) ;
@@ -1553,7 +1557,7 @@ namespace Loci
 
    
     while (gotWork + localSize + remoteSize + incoming + returns) {
-
+      sequence seq ;
       switch (action) {
 
         // =======================================================
@@ -1722,7 +1726,9 @@ namespace Loci
         }
 
         sc.start() ;
-        main_comp->compute(sequence(interval (localStart, localStart + tSize - 1)));
+	seq = sequence(interval (localStart, localStart + tSize - 1)) ;
+        main_comp->prelude(seq) ;
+        main_comp->compute(seq) ;
         timerDiff = sc.stop() ;
         comp_timer.addTime(timerDiff,1) ;
         workTime[myRank] += timerDiff;
@@ -1759,8 +1765,13 @@ namespace Loci
         tSize = min (remoteSize, MIN_PROBE_FREQ);
 
         sc.start() ;
-        local_comp1-> compute (sequence (interval (remoteStart,
-                                                   remoteStart + tSize - 1)));
+
+	seq = sequence(interval (remoteStart,remoteStart + tSize - 1)) ;
+
+	local_comp1-> prelude (seq) ;
+	local_comp1-> compute (seq) ;
+
+
         timerDiff = sc.stop() ;
         comp_timer.addTime(timerDiff,1) ;
         currentChunkTime += timerDiff;
@@ -1797,7 +1808,10 @@ namespace Loci
 
       case EXEC_REMOTE_WHOLE:	// execute remote chunk, send output, request
         sc.start() ;
-        local_comp1->compute (sequence (interval (0, remoteSize - 1)));
+	seq = sequence(interval (0, remoteSize - 1));
+	local_comp1->prelude (seq) ;
+	local_comp1->compute (seq) ;
+
         currentChunkTime = sc.stop() ;
         comp_timer.addTime(currentChunkTime,1) ;
         workTime[saveSrc] += currentChunkTime;
@@ -2011,7 +2025,9 @@ namespace Loci
     if (LBMethod == NLB) {
       stopWatch sc ;
       sc.start() ;
-      main_comp->compute (sequence (exec_set));
+      sequence seq(exec_set);
+      main_comp->prelude (seq) ;
+      main_comp->compute (seq) ;
       comp_timer.addTime(sc.stop(),1) ;
       wall1 = MPI_Wtime () - wall1;
       local1 = wall1;
