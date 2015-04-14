@@ -22,7 +22,6 @@
 #include "vogtools.h"
 #include <map>
 
-#include <Tools/xdr.h>
 #include <sstream>
 using std::istringstream ;
 #include <list>
@@ -181,7 +180,7 @@ int main(int ac, char *av[]) {
 
 
   if(ac != 2) {
-    cerr << "Usage: xdr2vog <options> <file>" << endl
+    cerr << "Usage: cobalt2vog <options> <file>" << endl
          << "Where options are listed below and <file> is the filename sans postfix" << endl
          << "flags:" << endl
          << "  -o  : disable optimization that reorders nodes and faces" << endl
