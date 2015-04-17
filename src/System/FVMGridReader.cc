@@ -648,7 +648,7 @@ namespace Loci {
 
       // now read in remaining processor segments and send to corresponding
       // processor
-      int mxsz = local_nodes[0].size() ;
+      size_t mxsz = local_nodes[0].size() ;
       for(int i=0;i<MPI_processes;++i)
         mxsz = max(local_nodes[i].size(),mxsz) ;
       
