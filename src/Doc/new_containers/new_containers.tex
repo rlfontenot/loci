@@ -410,4 +410,53 @@ stay stable.  For example, if we commit to certain design schemes and
 produced some codes, then we can put comments and documents here in this
 section.
 
+\section{Implementation progress}
+\subsection{genIntevalSet}
+In files \texttt{intervalSet.h} \texttt{intervalSet\_def.h} and \texttt{intervalSet\_impl.h},
+class \texttt{intervalSet} is parameterized and turn into template class
+\texttt{genIntervalSet}. 
+
+\texttt{int\_type} is used to represent 32-bit integer, and \texttt{GEntity} is used to
+represent 64-bit integer. The corresponding MPI data type and hdf5
+data type for \texttt{GEntity} are defined using \texttt{typedef}. macro \texttt{GFORALL}
+is also added for \texttt{genIntervalSet<GEntity>}.
+
+To avoid
+polluting code in large amount of files, new files
+\texttt{Tools/simple\_partition\_long.h}, \texttt{hdf5\_readwrite\_long.h} and
+\texttt{distribute\_long.h} are added to deal with communication and io operation of
+\texttt{GEntity}.
+
+  
+\subsection{GStore}
+The new container class \texttt{GStore} is partially implemented in \texttt{gstore.h},
+\texttt{gstore\_def.h} and \texttt{gstore\_impl.h}. 
+std iterator for \texttt{vector} are used for \texttt{GStore} so that the std iterator functions
+can be used. A local binary search function is added for the \texttt{retrieve}
+function, which will be implemented later.
+
+Two member function \texttt{copy2store} and \texttt{copy2map} are added to move the
+contents of \texttt{GStore} into traditional Loci stores or maps. These two
+functions will be modified later so that the mapping information
+between different numbering scheme can also be generated. 
+
+Up to now, the \texttt{sort} and \texttt{make\_consistent} functions are ignored because
+they are not needed yet.  
+
+ 
+\subsection{FVMGridReader}  
+  In the current version of \texttt{FVMGridReader\_long.cc}, \texttt{readGridVOG} calls function \texttt{readGridVOG\_raw}
+  first,  which reads \texttt{pos}, \texttt{cl}, \texttt{cr}, \texttt{face2node} information into \texttt{GStore}
+  containers. \texttt{readGridVOG} function then  copys the information from new
+  containers into traditional Loci stores and maps.
+
+  While reading from VOG files, the local variables need to be modified
+  to fit for larger integers, so are MPI communication functions and hdf5 io
+  functions. 
+   
+\subsection{Next step}        
+ so far, Loci is tested with \texttt{GEntity} is defined as c++ int. Next step,
+ partition functions will be modified in \texttt{FVMGridReader\_long.cc}.
+
+
 \end{document}
