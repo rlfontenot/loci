@@ -46,7 +46,7 @@
 #include <multiStore.h>
 #include <storeMat.h>
 #include <mod_db.h>
-
+#include <gstore.h>
 #include <DStore.h>
 #include <DStoreVec.h>
 //#include <DStoreMat.h>
