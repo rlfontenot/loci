@@ -24,7 +24,7 @@
 
 include $(LOCI_BASE)/Loci.conf
 
-TARGET = libTools.a #libTools.so
+TARGET = libTools.a libTools.so
 
 COPT = $(CC_DEBUG) $(CC_LIB_FLAGS) $(CC_OPT)
 
@@ -32,8 +32,8 @@ COPT = $(CC_DEBUG) $(CC_LIB_FLAGS) $(CC_OPT)
 INCLUDES = 
 
 OBJS = fpe.o ftrn_reader.o identity.o eventNotify.o debugger.o \
-       parse.o options_list.o expr.o intervalSet.o digraph.o unit_type.o \
-	fpe_sun.o mpi_stubb.o
+       parse.o options_list.o expr.o  digraph.o unit_type.o \
+	fpe_sun.o mpi_stubb.o intervalSet.o
 
 default:
 	cd .. ; make -f Makefile Tools
