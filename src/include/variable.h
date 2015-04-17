@@ -217,7 +217,7 @@ namespace Loci {
   inline std::ostream &operator<<(std::ostream &s, const variable &v)
     { return v.Print(s) ; }
 
-  class variableSet : public intervalSet {
+  class variableSet : public genIntervalSet<int_type> {
   public:
     variableSet() {}
     explicit variableSet(const exprP &e) ;
