@@ -124,7 +124,7 @@ namespace Loci {
     for(mi=vm.begin();mi!=vm.end();++mi) {
       entitySet s = mi->second ; 
       totSet += s ;
-      for(int i = 0;i < s.num_intervals(); ++i) {
+      for(size_t i = 0;i < s.num_intervals(); ++i) {
 	vals.push_back(s[i].first-1) ;
 	vals.push_back(s[i].first) ;
 	vals.push_back(s[i].second) ;

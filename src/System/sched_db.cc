@@ -55,7 +55,7 @@ namespace Loci {
   void
   sched_db::init(fact_db &facts) {
     variableSet tmp_all_vars = facts.get_typed_variables() ;
-    for(int i = 0; i < tmp_all_vars.size(); i++)
+    for(size_t i = 0; i < tmp_all_vars.size(); i++)
       sched_infov.push_back(sched_data()) ;
     int sched_alloc = 0 ;
     for(variableSet::const_iterator vi = tmp_all_vars.begin(); vi != tmp_all_vars.end(); ++vi) {

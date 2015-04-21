@@ -198,7 +198,7 @@ namespace Loci {
         // packing intervals
         send_buf[buf_idx++] = 1 ; // set flag to indicate
                                   // that this is intervals packed
-        for(int k=0;k<eset.num_intervals();++k) {
+        for(size_t k=0;k<eset.num_intervals();++k) {
           send_buf[buf_idx++] = eset[k].first ;
           send_buf[buf_idx++] = eset[k].second ;
         }
@@ -314,7 +314,7 @@ namespace Loci {
         // packing intervals
         send_buf[buf_idx++] = 1 ; // set flag to indicate
                                   // that this is intervals packed
-        for(int k=0;k<seq.num_intervals();++k) {
+        for(size_t k=0;k<seq.num_intervals();++k) {
           send_buf[buf_idx++] = seq[k].first ;
           send_buf[buf_idx++] = seq[k].second ;
         }
@@ -402,7 +402,7 @@ namespace Loci {
     int * send_set_buf = new int[send_sizes] ;
     int * recv_set_buf = new int[recv_sizes] ;
     for(int i=0;i<MPI_processes;++i) {
-      for(int j=0;j<recv_req[i].num_intervals();++j) {
+      for(size_t j=0;j<recv_req[i].num_intervals();++j) {
         send_set_buf[send_displacement[i]+j*2  ] = recv_req[i][j].first ;
         send_set_buf[send_displacement[i]+j*2+1] = recv_req[i][j].second ;
       }
@@ -939,7 +939,7 @@ namespace Loci {
     
     // Communicate the largest interval to eliminate redundant communication
     interval iset(1,-1) ;
-    for(int i=0;i<retval.num_intervals();++i)
+    for(size_t i=0;i<retval.num_intervals();++i)
       if((iset.second-iset.first) < (retval[i].second-retval[i].first))
         iset = retval[i] ;
     vector<interval> rset(p) ;
@@ -960,7 +960,7 @@ namespace Loci {
 
     // Remove second largest interval
     interval iset2(1,-1) ;
-    for(int i=0;i<retval.num_intervals();++i)
+    for(size_t i=0;i<retval.num_intervals();++i)
       if(iset != retval[i] &&
          (iset2.second-iset2.first) < (retval[i].second-retval[i].first))
         iset2 = retval[i] ;
@@ -1013,7 +1013,7 @@ namespace Loci {
       recv_displacement[i] = recv_displacement[i-1] + recv_sz[i-1] ;
     }
     for(int i = 0; i <  p; ++i)
-      for(int j=0;j<distSet[i].num_intervals();++j) {
+      for(size_t j=0;j<distSet[i].num_intervals();++j) {
         send_store[send_displacement[i]+j] = distSet[i][j] ;
       }
     
@@ -1183,7 +1183,7 @@ namespace Loci {
       int cp = (i*p1+r*p2)%p ; // processor to send data this iteration
       if(send_count[cp] > 0) {
         vector<interval> tmp(parts[cp].num_intervals()) ;
-        for(int k=0;k<parts[cp].num_intervals();++k)
+        for(size_t k=0;k<parts[cp].num_intervals();++k)
           tmp[k] = parts[cp][k] ;
         
         MPI_Send(&(tmp[0]),2*send_count[cp],MPI_INT,cp,0,MPI_COMM_WORLD) ;
@@ -1560,7 +1560,7 @@ namespace Loci {
           buf[0] = 1 ;    // indicate following contents are intervals
           int count = 1 ;
           const sequence& seq = pack_seq[i] ;
-          for(int k=0;k<seq.num_intervals();++k) {
+          for(size_t k=0;k<seq.num_intervals();++k) {
             buf[count++] = seq[k].first ;
             buf[count++] = seq[k].second ;
           }
@@ -1853,7 +1853,7 @@ namespace Loci {
           buf[0] = 1 ;    // indicate following contents are intervals
           int count = 1 ;
           const sequence& seq = pack_seq[i] ;
-          for(int k=0;k<seq.num_intervals();++k) {
+          for(size_t k=0;k<seq.num_intervals();++k) {
             buf[count++] = seq[k].first ;
             buf[count++] = seq[k].second ;
           }
@@ -2176,7 +2176,7 @@ namespace Loci {
           buf[0] = 1 ;    // indicate following contents are intervals
           int count = 1 ;
           const sequence& seq = pack_seq[i] ;
-          for(int k=0;k<seq.num_intervals();++k) {
+          for(size_t k=0;k<seq.num_intervals();++k) {
             buf[count++] = seq[k].first ;
             buf[count++] = seq[k].second ;
           }
@@ -2499,7 +2499,7 @@ namespace Loci {
             // pack intervals
             buf[buf_idx++] = 1 ;// indicate following contents are intervals
             const sequence& seq = pack_seq[ik] ;
-            for(int j=0;j<seq.num_intervals();++j) {
+            for(size_t j=0;j<seq.num_intervals();++j) {
               buf[buf_idx++] = seq[j].first ;
               buf[buf_idx++] = seq[j].second ;
             }
@@ -2831,7 +2831,7 @@ namespace Loci {
           buf[0] = 1 ;    // indicate following contents are intervals
           int count = 1 ;
           const sequence& seq = pack_seq[i] ;
-          for(int k=0;k<seq.num_intervals();++k) {
+          for(size_t k=0;k<seq.num_intervals();++k) {
             buf[count++] = seq[k].first ;
             buf[count++] = seq[k].second ;
           }

@@ -186,7 +186,7 @@ namespace Loci {
         if(pack_interval) {
           local_keys[0] = 1 ;   // signals we're packing intervals
           int count = 1 ;
-          for(int i=0;i<keys.num_intervals();++i) {
+          for(size_t i=0;i<keys.num_intervals();++i) {
             local_keys[count++] = keys[i].first ;
             local_keys[count++] = keys[i].second ;
           }

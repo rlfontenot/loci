@@ -784,7 +784,7 @@ namespace Loci {
     std::sort(idmap.begin(),idmap.end()) ;
     vector<int> acmap(locdom.size(),-1) ;
     size_t cnt = 0 ;
-    for(int i=0;i<locdom.size();++i) {
+    for(size_t i=0;i<locdom.size();++i) {
       if(cnt >= access.size())
         break ;
       if(access[cnt] == idmap[i].first)

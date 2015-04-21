@@ -34,7 +34,7 @@ std::vector<Entity> reorder_nodes(const const_store<int>& node_remap, const enti
   }
   std::sort(node_f2l.begin(), node_f2l.end());
   std::vector<Entity> orderedSet(localSet.size());
-  for( int i= 0; i < localSet.size(); i++){
+  for( size_t i= 0; i < localSet.size(); i++){
     orderedSet[i] = node_f2l[i].second;
   }
   return orderedSet;
@@ -56,7 +56,7 @@ std::vector<Entity> reorder_edges(const const_store<int>& node_remap,const const
   }
   std::sort(node_f2l.begin(), node_f2l.end());
   std::vector<Entity> orderedSet(localSet.size());
-  for( int i= 0; i < localSet.size(); i++){
+  for( size_t i= 0; i < localSet.size(); i++){
     orderedSet[i] = node_f2l[i].second;
   }
   return orderedSet;

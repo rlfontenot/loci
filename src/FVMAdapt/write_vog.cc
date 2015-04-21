@@ -245,7 +245,7 @@ namespace Loci {
     // check local_cells to be consistent with parmetis partitioning
     for(int i=0;i<Loci::MPI_processes;++i) {
       if(local_cells[i].size() == 0 ||
-         local_cells[i].size() != local_cells[i].Max()-local_cells[i].Min()+1) {
+         (int)local_cells[i].size() != local_cells[i].Max()-local_cells[i].Min()+1) {
         cerr << "invalid local cell set, p=" << i
              << ", local_cells=" << local_cells[i] << endl ;
       }

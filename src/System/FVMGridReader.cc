@@ -1001,7 +1001,7 @@ namespace Loci {
     // check local_cells to be consistent with parmetis partitioning
     for(int i=0;i<Loci::MPI_processes;++i) {
       if(local_cells[i].size() == 0 ||
-         local_cells[i].size() != local_cells[i].Max()-local_cells[i].Min()+1) {
+         (int)local_cells[i].size() != local_cells[i].Max()-local_cells[i].Min()+1) {
         cerr << "invalid local cell set, p=" << i
              << ", local_cells=" << local_cells[i] << endl ;
       }
@@ -1524,7 +1524,7 @@ namespace Loci {
     int * recv_set_buf = new int[recv_sizes] ;
 
     for(int i=0;i<MPI_processes;++i) {
-      for(int j=0;j<recv_req[i].num_intervals();++j) {
+      for(size_t j=0;j<recv_req[i].num_intervals();++j) {
         send_set_buf[send_displacement[i]+j*2  ] = recv_req[i][j].first ;
         send_set_buf[send_displacement[i]+j*2+1] = recv_req[i][j].second ;
       }
@@ -1759,7 +1759,7 @@ namespace Loci {
       recv_displacement[i] = recv_displacement[i-1] + recv_sz[i-1] ;
     }
     for(int i = 0; i <  MPI_processes; ++i)
-      for(int j=0;j<ptn[i].num_intervals();++j) {
+      for(size_t j=0;j<ptn[i].num_intervals();++j) {
         send_store[send_displacement[i]+j*2] = ptn[i][j].first ;
         send_store[send_displacement[i]+j*2+1] = ptn[i][j].second ;
       }

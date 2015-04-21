@@ -388,7 +388,7 @@ volumePart::volumePart(string out_dir, string iteration, string casename,
       int cnt1 = 0 ;
       int cnt2 = 0 ;
       int cnt = 0 ;
-      for(int i=0;i<ngenc;++i) {
+      for(size_t i=0;i<ngenc;++i) {
         bool blank = true ;
         int nf = GeneralCellNfaces[i] ;
         for(int f=0;f<nf;++f) {
@@ -402,7 +402,7 @@ volumePart::volumePart(string out_dir, string iteration, string casename,
         if(!blank)
           cnt++ ;
         else
-          gencIblanked += i ;
+          gencIblanked += (int)i ;
       }
       ngenc_b = cnt ;
       if(ngenc-ngenc_b > 0)

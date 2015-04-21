@@ -2184,7 +2184,7 @@ namespace Loci {
       int loc_unpack = 0;
       for(size_t j=0;j<recv_info[i].second.size();++j) {
         sequence seq ;
-        for(int k=0;k<recv_info[i].second[j].seq.size();++k) {
+        for(size_t k=0;k<recv_info[i].second[j].seq.size();++k) {
 	  seq += d->g2l[recv_ptr[i][loc_unpack++]] ;
 	}
 	comm_info ci ;

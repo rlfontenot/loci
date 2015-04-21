@@ -459,7 +459,7 @@ namespace Loci {
   {
 
     const int M = get_size() ;
-    for(int i = 0; i < eset.num_intervals(); ++i) {
+    for(size_t i = 0; i < eset.num_intervals(); ++i) {
       Loci::int_type indx1 = eset[i].first ;
       Loci::int_type stop  = eset[i].second ;
       T *p = alloc_ptr + M * (indx1 -base_offset);
@@ -540,7 +540,7 @@ namespace Loci {
                                            const sequence &seq)
   {
     const int M = get_size() ;
-    for(int i = 0; i < seq.num_intervals(); ++i) {
+    for(size_t i = 0; i < seq.num_intervals(); ++i) {
       if(seq[i].first > seq[i].second) {
         const Loci::int_type indx1 = seq[i].first ;
         const Loci::int_type stop =  seq[i].second ;

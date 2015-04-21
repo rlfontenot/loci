@@ -182,7 +182,7 @@ namespace Loci {
   inline std::ostream & operator<<(std::ostream &s, const const_Map &m)
   { return m.Print(s) ; }
 
-  const int IMAGE_THRESHOLD = 4 ; 
+  const size_t IMAGE_THRESHOLD = 4 ; 
 
   inline entitySet remapSet(entitySet s, const Map &m) {
     entitySet t ;

@@ -588,14 +588,14 @@ namespace Loci {
         const entitySet& cached_domain = dom ;
         int available_size = unit->dst_reserve_size -
           cached_domain.size() ;
-        if(missing.size() > available_size) {
+        if((int)missing.size() > available_size) {
           // need to purge all old data
           entitySet invalid = cached_domain - needed ;
           unit->dst->erase(invalid) ;
           available_size += invalid.size() ;
           // if still not enough space, then we need
           // to increase our reservation limit by a factor of 2
-          if(missing.size() > available_size) {
+          if((int)missing.size() > available_size) {
             unit->dst_reserve_size = needed.size() * 2 ;
           }
         }
@@ -665,14 +665,14 @@ namespace Loci {
         const entitySet& cached_domain = dom ;
         int available_size = unit->dst_reserve_size -
           cached_domain.size() ;
-        if(missing.size() > available_size) {
+        if((int)missing.size() > available_size) {
           // need to purge all old data
           entitySet invalid = cached_domain - needed ;
           unit->dst->erase(invalid) ;
           available_size += invalid.size() ;
           // if still not enough space, then we need
           // to increase our reservation limit by a factor of 2
-          if(missing.size() > available_size) {
+          if((int)missing.size() > available_size) {
             unit->dst_reserve_size = needed.size() * 2 ;
           }
         }

@@ -131,7 +131,7 @@ namespace Loci {
   
   void MapRepI::pack(void *outbuf, int &position, int &outcount, const entitySet &eset) 
   {
-    for( int i = 0; i < eset.num_intervals(); i++) {
+    for( size_t i = 0; i < eset.num_intervals(); i++) {
       const Loci::int_type begin = eset[i].first ;
       int t = eset[i].second - eset[i].first + 1 ;
       MPI_Pack( &base_ptr[begin], t, MPI_INT, outbuf, outcount, 
@@ -142,7 +142,7 @@ namespace Loci {
   void MapRepI::pack(void *outbuf, int &position,
                      int &outcount, const entitySet &eset, const Map& remap) 
   {
-    for( int i = 0; i < eset.num_intervals(); i++) {
+    for( size_t i = 0; i < eset.num_intervals(); i++) {
       const Loci::int_type begin = eset[i].first ;
       int t = eset[i].second - eset[i].first + 1 ;
       int* img = new int[t] ;
@@ -155,7 +155,7 @@ namespace Loci {
   
   void MapRepI::unpack(void *inbuf, int &position, int &insize, const sequence &seq) {
 
-    for(int i = 0; i < seq.num_intervals(); ++i) {
+    for(size_t i = 0; i < seq.num_intervals(); ++i) {
       if(seq[i].first > seq[i].second) {
         const Loci::int_type stop = seq[i].second ;
         for(Loci::int_type indx = seq[i].first; indx != stop-1; --indx)
@@ -173,7 +173,7 @@ namespace Loci {
   void MapRepI::unpack(void *inbuf, int &position,
                        int &insize, const sequence &seq, const dMap& remap) {
 
-    for(int i = 0; i < seq.num_intervals(); ++i) {
+    for(size_t i = 0; i < seq.num_intervals(); ++i) {
       if(seq[i].first > seq[i].second) {
         const Loci::int_type stop = seq[i].second ;
         for(Loci::int_type indx = seq[i].first; indx != stop-1; --indx)
@@ -351,13 +351,13 @@ namespace Loci {
     entitySet d = domain & store_domain ;
     entitySet codomain ;
     if(d.num_intervals() < IMAGE_THRESHOLD) {
-      for(int i=0;i<d.num_intervals();++i)
+      for(size_t i=0;i<d.num_intervals();++i)
         codomain += image_section(base_ptr+d[i].first,
                                   base_ptr+(d[i].second+1)) ;
     } else {
       std::vector<int> img(d.size()) ;
       std::vector<int>::iterator ins = img.begin() ;
-      for(int i=0;i<d.num_intervals();++i)
+      for(size_t i=0;i<d.num_intervals();++i)
         for(int j=d[i].first;j!=d[i].second+1;++j) {
           *ins = base_ptr[j] ;
           ++ins ;
@@ -770,7 +770,7 @@ namespace Loci {
       } ENDFORALL ;
       alloc_pointer = new int[sz+1] ;
       sz = 0 ;
-      for(int ivl=0;ivl<ptn.num_intervals();++ivl) {
+      for(size_t ivl=0;ivl<ptn.num_intervals();++ivl) {
         int i = ptn[ivl].first ;
         base_ptr[i] = alloc_pointer + sz ;
         while(i<=ptn[ivl].second) {
@@ -843,7 +843,7 @@ namespace Loci {
     } ENDFORALL ;
     int *new_alloc_pointer = new int[sz+1] ;
     sz = 0 ;
-    for(int ivl=0;ivl<ptn.num_intervals();++ivl) {
+    for(size_t ivl=0;ivl<ptn.num_intervals();++ivl) {
       int i = ptn[ivl].first ;
       new_base_ptr[i] = new_alloc_pointer + sz ;
       while(i<=ptn[ivl].second) {
@@ -1074,16 +1074,16 @@ namespace Loci {
     entitySet d = domain & store_domain ;
     entitySet codomain ;
     if(d.num_intervals() < IMAGE_THRESHOLD) {
-      for(int i=0;i<d.num_intervals();++i)
+      for(size_t i=0;i<d.num_intervals();++i)
         codomain += image_section(begin(d[i].first),end(d[i].second)) ;
     } else {
       size_t sz = 0 ;
-      for(int i=0;i<d.num_intervals();++i)
+      for(size_t i=0;i<d.num_intervals();++i)
         sz += end(d[i].second)-begin(d[i].first) ;
 
       std::vector<int> img(sz) ;
       std::vector<int>::iterator ins = img.begin() ;
-      for(int i=0;i<d.num_intervals();++i)
+      for(size_t i=0;i<d.num_intervals();++i)
         for(const int *j=begin(d[i].first);j!=end(d[i].second);++j) {
           *ins = *j ;
           ++ins ;

@@ -113,7 +113,7 @@ namespace Loci {
     if(scale <= 1.0)
       chomp_size = 1 ;
     else
-      chomp_size = (int)scale ;
+      chomp_size = (size_t)(scale+.5) ;
     
     // this is to check that the allocated chomping domain
     // cannot exceed the original total domain of these rules

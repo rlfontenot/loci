@@ -40,7 +40,7 @@ namespace Loci {
 
     intervalSet allocated_set ;
     intervalSet cached_erase_set ;
-    int erase_threshold ;
+    size_t erase_threshold ;
   
   public:
     block_hash():allocated_set(EMPTY),

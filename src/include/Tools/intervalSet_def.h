@@ -766,7 +766,7 @@ namespace Loci {
   
 #define FORALL(var,indx)                                                \
   {  const Loci::genIntervalSet<int> &__p = var ;                       \
-  for(int __ii=0;__ii<__p.num_intervals();++__ii)                       \
+  for(size_t __ii=0;__ii<__p.num_intervals();++__ii)                       \
     for(Loci::int_type indx=__p[__ii].first;indx<=__p[__ii].second;++indx)
       
 #define ENDFORALL }

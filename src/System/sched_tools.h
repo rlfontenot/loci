@@ -703,7 +703,7 @@ namespace Loci {
     std::deque<entitySet> rule_seq ;
     variableSet chomp_vars ;
     vector<vector<entitySet> > seq_table ;
-    int_type chomp_size ;
+    size_t chomp_size ;
     int_type chomp_iter ;
     vector<int_type> chomp_offset ;
     vector<storeRepP> chomp_vars_rep ;

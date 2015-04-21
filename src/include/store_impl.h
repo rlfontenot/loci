@@ -314,7 +314,7 @@ namespace Loci {
                                      int &position, int outcount,
                                      const entitySet &eset )
     {
-      for( int i = 0; i < eset.num_intervals(); i++) {
+      for( size_t i = 0; i < eset.num_intervals(); i++) {
 	const Loci::int_type begin = eset[i].first ;
 	int t = eset[i].second - eset[i].first + 1 ;
 	MPI_Pack( &base_ptr[begin], t*sizeof(T), MPI_BYTE, outbuf,outcount,
@@ -395,7 +395,7 @@ namespace Loci {
                                 const sequence &seq)
   {
 
-    for(int i = 0; i < seq.num_intervals(); ++i) {
+    for(size_t i = 0; i < seq.num_intervals(); ++i) {
       if(seq[i].first > seq[i].second) {
         const Loci::int_type stop = seq[i].second ;
         for(Loci::int_type indx = seq[i].first; indx != stop-1; --indx)

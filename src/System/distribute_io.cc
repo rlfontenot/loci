@@ -632,9 +632,9 @@ namespace Loci {
                 fi.second_level = vint ;
               }
             } else {
-              for(int i = 0; i < local_set.size(); ++i)
+              for(size_t i = 0; i < local_set.size(); ++i)
                 fvint.push_back(tmp_int[t++]) ;
-              for(int i = 0; i < tmp_sizes[p]-local_set.size(); ++i)
+              for(size_t i = 0; i < tmp_sizes[p]-local_set.size(); ++i)
                 vint.push_back(tmp_int[t++]) ;
               fi.first_level = fvint ;
               fi.second_level = vint ;
@@ -728,7 +728,7 @@ namespace Loci {
       recv_displacement[i] = recv_displacement[i-1] + recv_sz[i-1] ;
     }
     for(int i = 0; i <  MPI_processes; ++i)
-      for(int j=0;j<sv[i].num_intervals();++j) {
+      for(size_t j=0;j<sv[i].num_intervals();++j) {
         send_store[send_displacement[i]+j*2] = sv[i][j].first ;
         send_store[send_displacement[i]+j*2+1] = sv[i][j].second ;
       }

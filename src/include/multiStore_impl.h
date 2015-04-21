@@ -91,7 +91,7 @@ namespace Loci {
 
       alloc_pointer = new T[sz+1] ;
       sz = 0 ;
-      for(int ivl=0;ivl< ptn.num_intervals(); ++ivl) {
+      for(size_t ivl=0;ivl< ptn.num_intervals(); ++ivl) {
         int i       = ptn[ivl].first ;
         base_ptr[i] = alloc_pointer + sz ;
         while(i<=ptn[ivl].second) {
@@ -124,7 +124,7 @@ namespace Loci {
     T *new_alloc_pointer = new T[sz + 1] ;
     sz = 0 ;
     
-    for(int ivl = 0; ivl < ptn.num_intervals(); ++ivl) {
+    for(size_t ivl = 0; ivl < ptn.num_intervals(); ++ivl) {
       int i = ptn[ivl].first ;
       new_base_ptr[i] = new_alloc_pointer + sz ;
       while(i <= ptn[ivl].second) {

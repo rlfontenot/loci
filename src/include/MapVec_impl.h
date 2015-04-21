@@ -86,13 +86,13 @@ namespace Loci {
     entitySet d = domain & store_domain ;
     entitySet codomain ;
     if(d.num_intervals() < IMAGE_THRESHOLD) {
-      for(int i=0;i<d.num_intervals();++i)
+      for(size_t i=0;i<d.num_intervals();++i)
         codomain += Loci::image_section(&base_ptr[d[i].first][0],
                                         &base_ptr[d[i].second+1][0]) ;
     } else {
       std::vector<int> img(d.size()*M) ;
       std::vector<int>::iterator ins = img.begin() ;
-      for(int i=0;i<d.num_intervals();++i)
+      for(size_t i=0;i<d.num_intervals();++i)
         for(int j=d[i].first;j!=d[i].second+1;++j) {
           for(int k=0;k<M;++k) {
             *ins = base_ptr[j][k] ;
