@@ -52,12 +52,10 @@ cp FVMtools/cobalt2vog $INSTALL_PATH/bin
 cp FVMtools/extract $INSTALL_PATH/bin
 cp FVMtools/make_periodic $INSTALL_PATH/bin
 cp FVMtools/plot3d2vog $INSTALL_PATH/bin
-cp FVMtools/xdr2vog $INSTALL_PATH/bin
 cp FVMtools/vog2surf $INSTALL_PATH/bin
 cp FVMtools/ugrid2vog $INSTALL_PATH/bin
 cp FVMtools/fluent2vog $INSTALL_PATH/bin
 cp FVMtools/ccm2vog $INSTALL_PATH/bin
-cp FVMtools/cfd++2xdr $INSTALL_PATH/bin
 cp FVMtools/vogmerge $INSTALL_PATH/bin
 cp FVMtools/vogcheck $INSTALL_PATH/bin
 cp FVMtools/vogcut $INSTALL_PATH/bin
