@@ -24,6 +24,7 @@
 #include <sstream>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <vector>
 $include "FVM.lh"
 
 namespace Loci {
@@ -35,7 +36,7 @@ using std::endl ;
 using std::cerr ;
 using std::cout ;
 using std::ostringstream ;
-
+using std::vector ;
 
 int main(int ac, char *av[]) {
   Loci::Init(&ac, &av) ;
@@ -440,7 +441,79 @@ $rule apply(cr->cellShearTwist<-faceShearTwist)[Loci::Maximum] {
   join($cr->$cellShearTwist,$faceShearTwist) ;
 }
 
+$type topocheck param<int> ;
+
+inline bool edgeCompare(const Array<int,3> &e1, const Array<int,3> &e2) {
+  return (e1[0] < e2[0] || (e1[0]==e2[0] && e1[1]<e2[1])) ;
+}
+
+$rule unit(topocheck),constraint(geom_cells) {
+  $topocheck = 0 ;
+}
+
+$rule apply(topocheck<-(upper,lower,boundary_map)->face2node->pos)[Loci::Summation] {
+  int topok = 0 ;
+  vector<Array<int,3> > edges ;
+  int usz = $upper.size() ;
+  for(int i=0;i<usz;++i) {
+    int fsz = $upper[i]->$face2node.size() ;
+    for(int j=0;j<fsz;++j) {
+      int jm = (j==0)? fsz-1:j-1 ;
+      int e1 = $upper[i]->$face2node[jm] ;
+      int e2 = $upper[i]->$face2node[j] ;
+      Array<int,3> tmp ;
+      tmp[0] = min(e1,e2) ;
+      tmp[1] = max(e1,e2) ;
+      tmp[2] = (tmp[0]==e1)?1:0 ;
+      edges.push_back(tmp) ;
+    }
+  }
   
+  int lsz = $lower.size() ;
+  for(int i=0;i<lsz;++i) {
+    int fsz = $lower[i]->$face2node.size() ;
+    for(int j=0;j<fsz;++j) {
+      int jm = (j==0)? fsz-1:j-1 ;
+      int e1 = $lower[i]->$face2node[jm] ;
+      int e2 = $lower[i]->$face2node[j] ;
+      Array<int,3> tmp ;
+      tmp[0] = min(e1,e2) ;
+      tmp[1] = max(e1,e2) ;
+      tmp[2] = (tmp[0]==e1)?0:1 ;
+      edges.push_back(tmp) ;
+    }
+  }
+  
+  int bsz = $boundary_map.size() ;
+  for(int i=0;i<bsz;++i) {
+    int fsz = $boundary_map[i]->$face2node.size() ;
+    for(int j=0;j<fsz;++j) {
+      int jm = (j==0)? fsz-1:j-1 ;
+      int e1 = $boundary_map[i]->$face2node[jm] ;
+      int e2 = $boundary_map[i]->$face2node[j] ;
+      Array<int,3> tmp ;
+      tmp[0] = min(e1,e2) ;
+      tmp[1] = max(e1,e2) ;
+      tmp[2] = tmp[0]==e1?1:0 ;
+      edges.push_back(tmp) ;
+    }
+  }
+  int esz = edges.size() ;
+  if((esz & 0x1) == 1) {
+    topok = 1 ;
+  }
+  sort(edges.begin(),edges.end(),edgeCompare) ;
+  int edge_missed = 0 ;
+  for(int i=0;i<esz;i+=2) {
+    if(edges[i][0] != edges[i+1][0] ||
+       edges[i][1] != edges[i+1][1] ||
+       (edges[i][2]+edges[i+1][2]) != 1) {
+      topok=1 ;
+      edge_missed++ ;
+    }
+  }
+  join($topocheck,topok) ;
+}
 
 $type report param<bool> ;
 $type minVol param<double> ;
@@ -449,7 +522,7 @@ $type maxShearTwist param<double> ;
 $type modelName param<string> ;
 $type convexCell param<int> ;
 
-$rule singleton(report<-volRatio,maxCellAngle,minVol,maxTwist,maxShearTwist,topo,modelName,convexCell) {
+$rule singleton(report<-volRatio,maxCellAngle,minVol,maxTwist,maxShearTwist,topo,modelName,convexCell,topocheck) {
   $[Once] {
     if($minVol <= 0) {
       cerr << "Negative or zero volume cell!  The grid quality is too poor to use." << endl ;
@@ -494,6 +567,11 @@ $rule singleton(report<-volRatio,maxCellAngle,minVol,maxTwist,maxShearTwist,topo
     if($volRatio > 1000 || $maxCellAngle > 179 ||
        $maxTwist > 0.8 || $maxShearTwist > 0.8 || $minVol < 0 || $convexCell > 0 )
       quality = -1 ;
+
+    if($topocheck > 0) {
+      cout << "WARNING: " << $topocheck << " cells have invalid topology" << endl ;
+      quality = -1 ;
+    }
     
     string quality_report = "undetermined" ;
     switch(quality) {
