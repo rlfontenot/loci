@@ -1238,7 +1238,7 @@ void convert2face(store<vector3d<double> > &pos,
     Loci::Abort() ;
   }
   if((quad.size() & 1 ) == 1) {
-    cerr << "non-even number of quad faces! inconcistent!" << endl ;
+    cerr << "non-even number of quad faces! inconsistent!" << endl ;
     Loci::Abort() ;
   }
   
@@ -1559,28 +1559,38 @@ void convert2cellVertexface(store<vector3d<double> > &pos,
   // number of edges
   int ecount = edgeData.size() ;
 
-  int num_nodes = pos.domain().size() ;
-  // count tetrahedra around nodes
-  vector<int> ntcount(num_nodes,0) ;
-  for(size_t i=0;i<tets.size();++i) 
-    for(int j=0;j<4;++j) 
-      ntcount[tets[i][j]-1]++ ;
 
-  vector<int> ntoffsets(num_nodes+1,0) ;
-  int nodecells = 0 ;
-  for(int i=0;i<num_nodes;++i) {
-    ntoffsets[i+1] = ntoffsets[i]+ntcount[i] ;
-    if(ntcount[i] >0)
-      nodecells++ ;
-  }
+  //-------------------------------------------------------------------------
+  // Identify new control volumes
+  //-------------------------------------------------------------------------
+
+  vector<int> tet_cnts(pos.domain().size(),0) ;
   
-  // Now we collect the triangluar facets that go to each node
-  // the data will include the node number, the contibuting cell number
+  // count tets that neighbor node
+  for(size_t i=0;i<tets.size();++i) 
+    for(int j=0;j<4;++j)  
+      tet_cnts[tets[i][j]-1]++ ;
+  // Find all vertexes that convert to control volumes
+  entitySet vertexCVs, notVertexCVs ;
+  for(size_t i=0;i<tet_cnts.size();++i) {
+    if(tet_cnts[i] > 1)
+      vertexCVs += i ;
+    else
+      notVertexCVs += i ;
+  }
+
+  cout << "notVertexCVs = " << notVertexCVs << endl ;
+ 
+  //-------------------------------------------------------------------------
+  // Break corners off of tets
+  //-------------------------------------------------------------------------
+ 
+  // Now we collect the triangular facets that go to each node
+  // the data will include the node number, the contributing cell number
   // and the numbering face nodes that form the triangular face
-  vector<Array<int,5> > nodefacets(tets.size()*4) ;
+  vector<Array<int,5> > nodefacets ;
   
   // now loop over tets and gather and break them down
-  int cnt = 0 ;
   for(size_t i=0;i<tets.size();++i) {
     // edges of tets, e0 = t0-t1, e1 = t0-t2, e2=t0-t3
     //                e3 = t1-t2, e4 = t1-t3, e5=t2-t3
@@ -1610,39 +1620,48 @@ void convert2cellVertexface(store<vector3d<double> > &pos,
     find_edge(el[5],eo[5],edgeData,
 	      &node2edge[no],nsearch,tets[i][2],tets[i][3]) ;
     // now output corner 0
-    Array<int,5> facet ;
-    facet[0] = tets[i][0]-1 ;
-    facet[1] = i ; // number tets first
-    facet[2] = el[0]*2+((eo[0]>0)?0:1) ;
-    facet[3] = el[1]*2+((eo[1]>0)?0:1) ;
-    facet[4] = el[2]*2+((eo[2]>0)?0:1) ;
-    nodefacets[cnt] = facet ;
-    cnt++ ;
+    if(vertexCVs.inSet(tets[i][0]-1)) {
+      Array<int,5> facet ;
+      facet[0] = tets[i][0]-1 ;
+      facet[1] = i ; // number tets first
+      facet[2] = el[0]*2+((eo[0]>0)?0:1) ;
+      facet[3] = el[1]*2+((eo[1]>0)?0:1) ;
+      facet[4] = el[2]*2+((eo[2]>0)?0:1) ;
+      nodefacets.push_back(facet) ;
+    }
     // now output corner 1
-    facet[0] = tets[i][1]-1 ;
-    facet[3] = el[0]*2+((eo[0]>0)?1:0) ;
-    facet[2] = el[3]*2+((eo[3]>0)?0:1) ;
-    facet[4] = el[4]*2+((eo[4]>0)?0:1) ;
-    nodefacets[cnt] = facet ;
-    cnt++ ;
+    if(vertexCVs.inSet(tets[i][1]-1) ) {
+      Array<int,5> facet ;
+      facet[0] = tets[i][1]-1 ;
+      facet[1] = i ; // number tets first
+      facet[3] = el[0]*2+((eo[0]>0)?1:0) ;
+      facet[2] = el[3]*2+((eo[3]>0)?0:1) ;
+      facet[4] = el[4]*2+((eo[4]>0)?0:1) ;
+      nodefacets.push_back(facet) ;
+    }
     // now output corner 2
-    facet[0] = tets[i][2]-1 ;
-    facet[2] = el[1]*2+((eo[1]>0)?1:0) ;
-    facet[3] = el[3]*2+((eo[3]>0)?1:0) ;
-    facet[4] = el[5]*2+((eo[5]>0)?0:1) ;
-    nodefacets[cnt] = facet ;
-    cnt++ ;
+    if(vertexCVs.inSet(tets[i][2]-1) ) {
+      Array<int,5> facet ;
+      facet[0] = tets[i][2]-1 ;
+      facet[1] = i ; // number tets first
+      facet[2] = el[1]*2+((eo[1]>0)?1:0) ;
+      facet[3] = el[3]*2+((eo[3]>0)?1:0) ;
+      facet[4] = el[5]*2+((eo[5]>0)?0:1) ;
+      nodefacets.push_back(facet) ;
+    }
     // now output corner 3
-    facet[0] = tets[i][3]-1 ;
-    facet[3] = el[2]*2+((eo[2]>0)?1:0) ;
-    facet[2] = el[4]*2+((eo[4]>0)?1:0) ;
-    facet[4] = el[5]*2+((eo[5]>0)?1:0) ;
-    nodefacets[cnt] = facet ;
-    cnt++ ;
+    if(vertexCVs.inSet(tets[i][3]-1) ) {
+      Array<int,5> facet ;
+      facet[0] = tets[i][3]-1 ;
+      facet[1] = i ; // number tets first
+      facet[3] = el[2]*2+((eo[2]>0)?1:0) ;
+      facet[2] = el[4]*2+((eo[4]>0)?1:0) ;
+      facet[4] = el[5]*2+((eo[5]>0)?1:0) ;
+      nodefacets.push_back(facet) ;
+    }
   }
   
-  vector<Loci::Array<int,4> > bfaceinfo(tfaces.size()*3) ;
-  cnt = 0 ;
+  vector<Loci::Array<int,4> > bfaceinfo ;
   // process boundary faces
   for(size_t i=0;i<tfaces.size();++i) {
     int n1 = tfaces[i][0] ;
@@ -1660,32 +1679,35 @@ void convert2cellVertexface(store<vector3d<double> > &pos,
     nsearch = node2edge_off[n2]-no ;
     find_edge(el[1],eo[1],edgeData,
 	      &node2edge[no],nsearch,n2,n3) ;
-    bfaceinfo[cnt][0] = n1-1 ;
-    bfaceinfo[cnt][1] = el[2]*2+((eo[2]>0)?1:0) ;
-    bfaceinfo[cnt][2] = el[0]*2+((eo[0]>0)?0:1) ;
-    bfaceinfo[cnt][3] = tfaces[i][3] ;
-    cnt++ ;
-    bfaceinfo[cnt][0] = n2-1 ;
-    bfaceinfo[cnt][1] = el[0]*2+((eo[0]>0)?1:0) ;
-    bfaceinfo[cnt][2] = el[1]*2+((eo[1]>0)?0:1) ;
-    bfaceinfo[cnt][3] = tfaces[i][3] ;
-    cnt++ ;
-    bfaceinfo[cnt][0] = n3-1 ;
-    bfaceinfo[cnt][1] = el[1]*2+((eo[1]>0)?1:0) ; 
-    bfaceinfo[cnt][2] = el[2]*2+((eo[2]>0)?0:1) ;
-    bfaceinfo[cnt][3] = tfaces[i][3] ;
-    cnt++ ;
+    if(vertexCVs.inSet(n1-1)) {
+      Loci::Array<int,4> tmpface ;
+      tmpface[0] = n1-1 ;
+      tmpface[1] = el[2]*2+((eo[2]>0)?1:0) ;
+      tmpface[2] = el[0]*2+((eo[0]>0)?0:1) ;
+      tmpface[3] = tfaces[i][3] ;
+      bfaceinfo.push_back(tmpface) ;
+    }
+    if(vertexCVs.inSet(n2-1)) {
+      Loci::Array<int,4> tmpface ;
+      tmpface[0] = n2-1 ;
+      tmpface[1] = el[0]*2+((eo[0]>0)?1:0) ;
+      tmpface[2] = el[1]*2+((eo[1]>0)?0:1) ;
+      tmpface[3] = tfaces[i][3] ;
+      bfaceinfo.push_back(tmpface) ;
+    }
+    if(vertexCVs.inSet(n3-1)) {
+      Loci::Array<int,4> tmpface ;
+      tmpface[0] = n3-1 ;
+      tmpface[1] = el[1]*2+((eo[1]>0)?1:0) ; 
+      tmpface[2] = el[2]*2+((eo[2]>0)?0:1) ;
+      tmpface[3] = tfaces[i][3] ;
+      bfaceinfo.push_back(tmpface) ;
+    }
   }
   
   sort(bfaceinfo.begin(),bfaceinfo.end(),SpecialFaceCompare) ;
 
   
-  vector<int> tet_cnts(pos.domain().size(),0) ;
-  
-  // count tets that neighbor node
-  for(size_t i=0;i<tets.size();++i) 
-    for(int j=0;j<4;++j)  
-      tet_cnts[tets[i][j]-1]++ ;
   
   entitySet new_bnodes ;
   vector<int> nodecounts ;
@@ -1772,17 +1794,15 @@ void convert2cellVertexface(store<vector3d<double> > &pos,
   }
   
 
+  entitySet keep_nodes = notVertexCVs + new_bnodes ;
+  int numnewnodes = ecount*2 + keep_nodes.size() ;
   
-  vector<int> nodeids(pos.domain().size(),-1) ;
-  cnt = 2*ecount  ;
-  FORALL(new_bnodes,ii) {
-    nodeids[ii] = cnt ;
-    cnt++ ;
-  } ENDFORALL ;
-  
-  int numnewnodes = ecount*2 + new_bnodes.size() ;
-  
-  // compute an average radius for each node to determin
+
+  //-------------------------------------------------------------------------
+  // Compute positions of nodes in new polyhedral mesh
+  //-------------------------------------------------------------------------
+
+  // compute an average radius for each node to determine
   // optimal splitting locations for edge
   vector<int> edge_cnts(pos.domain().size(),0) ;
   vector<double> edge_radius(pos.domain().size(),0) ;
@@ -1817,19 +1837,35 @@ void convert2cellVertexface(store<vector3d<double> > &pos,
     newpos[i*2+0] = p1+r1*dv ; //(2.*pos[n1]+pos[n2])/3.0 ;
     newpos[i*2+1] = p2-r2*dv ; //(pos[n1]+2.0*pos[n2])/3.0 ;
   }
-  cnt = 0 ;
-  //  cout << "pos.domain()=" << pos.domain() << endl ;
-
-  FORALL(new_bnodes,ii) {
+  vector<int> nodeids(pos.domain().size(),-1) ;
+  int cnt = 0 ;
+  FORALL(keep_nodes,ii) {
     newpos[cnt+2*ecount] = pos[ii] ;
+    nodeids[ii] = cnt+2*ecount ;
     cnt++ ;
   } ENDFORALL;
-  
-  cout << "nodecells=" << nodecells << endl ;
+
+  //-------------------------------------------------------------------------
+  // Establish cell numbering
+  //-------------------------------------------------------------------------
+  int norig_cells = tets.size()+pyramids.size()+prisms.size()+hexs.size() ;
+  vector<int> vertexIds(pos.domain().size(),-1) ;
   int cellid = numnewnodes ; // id of cells base
-  int ncells = tets.size()+pyramids.size()+prisms.size()+hexs.size()+ nodecells;
-  cout << "numnodes = " << numnewnodes << ", nodeCells=" << nodecells
+  cnt = numnewnodes+norig_cells ; // start numbering vertexCVs after maincells
+  FORALL(vertexCVs,ii) {
+    vertexIds[ii] = cnt ;
+    cnt++ ;
+  } ENDFORALL ;
+  int ncells = norig_cells+vertexCVs.size() ;
+
+  cout << "numnodes = " << numnewnodes << ", vertexCVs=" << vertexCVs.size()
        << ", ncells=" << ncells << endl;
+
+
+  //-------------------------------------------------------------------------
+  // Establish faces of new mesh
+  //-------------------------------------------------------------------------
+
   // Now we need to make the faces, first we will convert the baseline mesh to faces, and
   // the triangular faces will change to hexagons
   vector<Array<int,5> > triangles ;
@@ -1841,9 +1877,46 @@ void convert2cellVertexface(store<vector3d<double> > &pos,
     cerr << "unable to process unbound triangle faces" << endl ;
     exit(-1) ;
   }
-  vector<Array<int,8> > hexfaces(triangles.size()) ;
+  
+  cout << triangles.size() << " hexagonal faces generated" << endl ;
+
+  cout << nodefacets.size() << " node faces " << endl ;
+
+  cout << bface_sizes.size() << " boundary node faces " << endl ;
+  cout << triangles.size()+nodefacets.size()+bface_sizes.size() << " total faces"<< endl ;
+    
+
+  int nfaces = triangles.size()+nodefacets.size()+bface_sizes.size() ;
+  
+  entitySet fdom = interval(cellid+ncells,cellid+ncells+nfaces-1) ;
+  Map ncl,ncr ;
+  store<int> count ;
+  ncl.allocate(fdom) ;
+  ncr.allocate(fdom) ;
+  count.allocate(fdom) ;
+  int fbase = cellid+ncells ;
   for(size_t i=0;i<triangles.size();++i) {
-    Array<int,8> hface ;
+    count[i+fbase] = 6 ;
+    for(int j=0;j<3;++j)
+      if(!vertexCVs.inSet(triangles[i][j])) 
+	count[i+fbase]++ ;
+  }
+  fbase += triangles.size() ;
+  for(size_t i=0;i<nodefacets.size();++i)
+    count[i+fbase] = 3 ;
+  fbase += nodefacets.size() ;
+
+  for(size_t i=0;i<bface_sizes.size();++i) {
+    count[i+fbase] = bface_sizes[i] ;
+    if(bface_type[i] > 0)
+      count[i+fbase] = bface_sizes[i]+2 ;
+  }
+
+  multiMap nface2node ;
+  nface2node.allocate(count) ;
+  int fcnt =  cellid+ncells ;
+  // first fill in hex faces
+  for(size_t i=0;i<triangles.size();++i) {
     int n1 = triangles[i][0]+1 ;
     int n2 = triangles[i][1]+1 ;
     int n3 = triangles[i][2]+1 ;
@@ -1859,59 +1932,23 @@ void convert2cellVertexface(store<vector3d<double> > &pos,
     nsearch = node2edge_off[n2]-no ;
     find_edge(el[1],eo[1],edgeData,
 	      &node2edge[no],nsearch,n2,n3) ;
-      
-    hface[0] = el[0]*2+((eo[0]>0)?0:1) ;
-    hface[1] = el[0]*2+((eo[0]>0)?1:0) ;
-    hface[2] = el[1]*2+((eo[1]>0)?0:1) ;
-    hface[3] = el[1]*2+((eo[1]>0)?1:0) ;
-    hface[4] = el[2]*2+((eo[2]>0)?0:1) ;
-    hface[5] = el[2]*2+((eo[2]>0)?1:0) ;
-    hface[6] = triangles[i][3] ;
-    hface[7] = triangles[i][4] ;
-    hexfaces[i] = hface ;
-  }
-  
-  cout << hexfaces.size() << " hexagonal faces generated" << endl ;
-
-  cout << nodefacets.size() << " node faces " << endl ;
-  //  cout << tfaces.size()*3 << " triangle boundary faces" << endl ;
-  //  cout << hexfaces.size()+nodefacets.size()+tfaces.size()*3 << " total faces"
-  //       << endl;
-  cout << bface_sizes.size() << " boundary node faces " << endl ;
-  cout << hexfaces.size()+nodefacets.size()+bface_sizes.size() << " total faces"<< endl ;
     
+    int lcnt = 0 ;
+    if(!vertexCVs.inSet(triangles[i][0]))
+	nface2node[fcnt][lcnt++] = nodeids[triangles[i][0]] ;
+    nface2node[fcnt][lcnt++] = el[0]*2+((eo[0]>0)?0:1) ;
+    nface2node[fcnt][lcnt++] = el[0]*2+((eo[0]>0)?1:0) ;
+    if(!vertexCVs.inSet(triangles[i][1]))
+	nface2node[fcnt][lcnt++] = nodeids[triangles[i][1]] ;
+    nface2node[fcnt][lcnt++] = el[1]*2+((eo[1]>0)?0:1) ;
+    nface2node[fcnt][lcnt++] = el[1]*2+((eo[1]>0)?1:0) ;
+    if(!vertexCVs.inSet(triangles[i][2]))
+	nface2node[fcnt][lcnt++] = nodeids[triangles[i][2]] ;
+    nface2node[fcnt][lcnt++] = el[2]*2+((eo[2]>0)?0:1) ;
+    nface2node[fcnt][lcnt++] = el[2]*2+((eo[2]>0)?1:0) ;
 
-  int nfaces = hexfaces.size()+nodefacets.size()+bface_sizes.size() ;
-  
-  entitySet fdom = interval(cellid+ncells,cellid+ncells+nfaces-1) ;
-  Map ncl,ncr ;
-  store<int> count ;
-  ncl.allocate(fdom) ;
-  ncr.allocate(fdom) ;
-  count.allocate(fdom) ;
-  size_t fcnt = 0 ;
-  FORALL(fdom,ii) {
-    count[ii] = 3 ;
-    if(fcnt < hexfaces.size()) 
-      count[ii] = 6 ;
-    fcnt++ ;
-  } ENDFORALL ;
-  for(size_t i=0;i<bface_sizes.size();++i) {
-    int ii = i+cellid+ncells+nfaces-bface_sizes.size() ;
-    count[ii] = bface_sizes[i] ;
-    if(bface_type[i] > 0)
-      count[ii] = bface_sizes[i]+2 ;
-  }
-  multiMap nface2node ;
-  nface2node.allocate(count) ;
-  fcnt =  cellid+ncells ;
-  // first fill in hex faces
-  for(size_t i=0;i<hexfaces.size();++i) {
-    for(int j=0;j<6;++j) {
-      nface2node[fcnt][j] = hexfaces[i][j] ;
-    }
-    ncl[fcnt] = hexfaces[i][6] ;
-    ncr[fcnt] = hexfaces[i][7] ;
+    ncl[fcnt] = triangles[i][3] ;
+    ncr[fcnt] = triangles[i][4] ;
     fcnt++ ;
   }
   // now fill in node cells from tetrahedra faces
@@ -1919,7 +1956,7 @@ void convert2cellVertexface(store<vector3d<double> > &pos,
     nface2node[fcnt][0] = nodefacets[i][2] ;
     nface2node[fcnt][1] = nodefacets[i][3] ;
     nface2node[fcnt][2] = nodefacets[i][4] ;
-    ncl[fcnt] = nodefacets[i][0]+cellid+ncells-nodecells ;
+    ncl[fcnt] = vertexIds[nodefacets[i][0]] ;
     ncr[fcnt] = nodefacets[i][1]+cellid ;
     fcnt++ ;
   }
@@ -1935,9 +1972,9 @@ void convert2cellVertexface(store<vector3d<double> > &pos,
       nface2node[fcnt][bs] = bfaceinfo[cnt+bs-1][2] ;
       nface2node[fcnt][bs+1] = nodeids[bfaceinfo[cnt][0]] ;
       if(nodeids[bfaceinfo[cnt][0]] < 0)
-        cerr << "nodids not set for boundary node" << endl ;
+        cerr << "nodeids not set for boundary node" << endl ;
     }
-    ncl[fcnt] = bfaceinfo[cnt][0]+cellid+ncells-nodecells ;
+    ncl[fcnt] = vertexIds[bfaceinfo[cnt][0]] ;
     ncr[fcnt] = bfaceinfo[cnt][3] ;
     fcnt++ ;
     cnt += bs ;
