@@ -1574,9 +1574,9 @@ void convert2cellVertexface(store<vector3d<double> > &pos,
   entitySet vertexCVs, notVertexCVs ;
   for(size_t i=0;i<tet_cnts.size();++i) {
     if(tet_cnts[i] > 1)
-      vertexCVs += i ;
+      vertexCVs += int(i) ;
     else
-      notVertexCVs += i ;
+      notVertexCVs += int(i) ;
   }
 
   cout << "notVertexCVs = " << notVertexCVs << endl ;
