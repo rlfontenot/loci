@@ -1679,6 +1679,14 @@ void convert2cellVertexface(store<vector3d<double> > &pos,
   
   sort(bfaceinfo.begin(),bfaceinfo.end(),SpecialFaceCompare) ;
 
+  
+  vector<int> tet_cnts(pos.domain().size(),0) ;
+  
+  // count tets that neighbor node
+  for(size_t i=0;i<tets.size();++i) 
+    for(int j=0;j<4;++j)  
+      tet_cnts[tets[i][j]-1]++ ;
+  
   entitySet new_bnodes ;
   vector<int> nodecounts ;
   vector<int> bface_sizes ;
@@ -1772,19 +1780,45 @@ void convert2cellVertexface(store<vector3d<double> > &pos,
     cnt++ ;
   } ENDFORALL ;
   
-  // For now we assume all boundary nodes will remain (this means that boundary triangluar facets will not be combined.
-
   int numnewnodes = ecount*2 + new_bnodes.size() ;
   
+  // compute an average radius for each node to determin
+  // optimal splitting locations for edge
+  vector<int> edge_cnts(pos.domain().size(),0) ;
+  vector<double> edge_radius(pos.domain().size(),0) ;
+  
+  for(int i=0;i<ecount;++i) {
+    int n1 = edgeData[i].nodes.first-1 ;
+    int n2 = edgeData[i].nodes.second-1 ;
+    vector3d<double> p1 = pos[n1] ;
+    vector3d<double> p2 = pos[n2] ;
+    double el = norm(p1-p2)/3.0 ; // individual optimal split edge into 3 parts
+    edge_cnts[n1]++ ;
+    edge_cnts[n2]++ ;
+    edge_radius[n1] += el ;
+    edge_radius[n2] += el ;
+  }
+  for(size_t i=0;i<edge_radius.size();++i)
+    edge_radius[i] *= 1./double(edge_cnts[i]) ;
+
   store<vector3d<double> > newpos ;
   entitySet newdom = interval(0,numnewnodes-1) ;
   newpos.allocate(newdom) ;
   for(int i=0;i<ecount;++i) {
-    newpos[i*2+0] = (2.*pos[edgeData[i].nodes.first-1]+pos[edgeData[i].nodes.second-1])/3.0 ;
-    newpos[i*2+1] = (pos[edgeData[i].nodes.first-1]+2.0*pos[edgeData[i].nodes.second-1])/3.0 ;
+    int n1 = edgeData[i].nodes.first-1 ;
+    int n2 = edgeData[i].nodes.second-1 ;
+    vector3d<double> p1 = pos[n1] ;
+    vector3d<double> p2 = pos[n2] ;
+    vector3d<double> dv = p2-p1 ;
+    double el = norm(dv) ;
+    // bound the nodal radius so it still makes sense for this edge
+    double r1 = max(min(edge_radius[n1]/el,0.45),0.1) ;
+    double r2 = max(min(edge_radius[n2]/el,0.45),0.1) ;
+    newpos[i*2+0] = p1+r1*dv ; //(2.*pos[n1]+pos[n2])/3.0 ;
+    newpos[i*2+1] = p2-r2*dv ; //(pos[n1]+2.0*pos[n2])/3.0 ;
   }
   cnt = 0 ;
-  cout << "pos.domain()=" << pos.domain() << endl ;
+  //  cout << "pos.domain()=" << pos.domain() << endl ;
 
   FORALL(new_bnodes,ii) {
     newpos[cnt+2*ecount] = pos[ii] ;
