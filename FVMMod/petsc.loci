@@ -64,6 +64,10 @@ $include "FVM.lh"
 #define PETSC_33_API
 #endif
 
+#if ((PETSC_VERSION_MAJOR > 3) || (PETSC_VERSION_MAJOR == 3) && (PETSC_VERSION_MINOR > 4))
+#define PETSC_35_API
+#endif
+
 // Create a namespace for the PETSC objects so there is no confusion. Note that
 // there is already a type "Mat" defined by Loci.
 namespace Petsc {
@@ -276,11 +280,19 @@ namespace Loci {
       int ierr=KSPSetFromOptions(ksp) ; CHKERRQ(ierr) ; return 0 ;
     }
     int SetOperators(const PETSCBlockMatrix &m) const {
+#ifdef PETSC_35_API
+      int ierr=KSPSetOperators(ksp,m.Data(),m.Data()) ;
+#else
       int ierr=KSPSetOperators(ksp,m.Data(),m.Data(),SAME_NONZERO_PATTERN) ;
+#endif
       CHKERRQ(ierr) ; return 0 ;
     }
     int SetOperators(const PETSCMatrix &m) const {
+#ifdef PETSC_35_API
+      int ierr=KSPSetOperators(ksp,m.Data(),m.Data()) ;
+#else
       int ierr=KSPSetOperators(ksp,m.Data(),m.Data(),SAME_NONZERO_PATTERN) ;
+#endif
       CHKERRQ(ierr) ; return 0 ;
     }
     int SetTolerances(real relativeTolerance,real absoluteTolerance,int
