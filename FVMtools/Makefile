@@ -68,6 +68,9 @@ extract_chem: extract_chem.o
 ugrid2vog: ugrid2vog.o vogtools.o
 	$(LD) -o ugrid2vog ugrid2vog.o vogtools.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
+ugridmirror: ugridmirror.o vogtools.o
+	$(LD) -o ugridmirror ugridmirror.o vogtools.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+
 cobalt2vog: cobalt2vog.o vogtools.o
 	$(LD) -o cobalt2vog cobalt2vog.o vogtools.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
