@@ -21,6 +21,28 @@
 
 #include <Tools/intervalSet.h>
 namespace Loci {
+  // provide generic int pair<int,int> output
+  std::ostream & operator <<(std::ostream &s, const std::pair<int,int> &p) {
+    s << '(' << p.first <<',' << p.second << ')' ;
+    return s ;
+  }
+  std::istream &operator >>(std::istream &s, std::pair<int,int> &p) {
+    while(s.peek() == ' ')
+      s.get() ;
+    if(s.peek() == '(')
+      s.get() ;
+    s >> p.first  ;
+    while(s.peek() == ' ')
+      s.get() ;
+    if(s.peek() == ',')
+      s.get() ;
+    s >> p.second ;
+    while(s.peek() == ' ')
+      s.get() ;
+    if(s.peek() == ')')
+      s.get() ;
+    return s ;
+  }
   
   const genIntervalSet<int_type> EMPTY = genIntervalSet<int_type>::EMPTY;
   const int_type UNIVERSE_MIN = genIntervalSet<int_type>::UNIVERSE_MIN;

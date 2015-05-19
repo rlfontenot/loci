@@ -32,24 +32,15 @@
 #include <istream>
 #include <ostream>
 #include <iostream>
-using std::istream ;
-using std::ostream ;
-using std::endl ;
-using std::cerr ;
-
 #include <ctype.h>
 
 
-//using namespace std::rel_ops ;
-using std::pair ;
-
-using std::binary_search ;
-using std::equal_range ;
-using std::reverse ;
-using std::swap ;
-
-
 namespace Loci {
+  // provide generic int pair<int,int> output
+  std::ostream & operator <<(std::ostream &s, const std::pair<int,int> &p) ;
+  std::istream &operator >>(std::istream &s, std::pair<int,int> &p) ;
+
+
   template<class T> typename genIntervalSet<T>::rep_holder* genIntervalSet<T>::rhp = 0 ;
   template<class T> typename genSequence<T>::rep_holder* genSequence<T>::rhp = 0 ;
  
@@ -57,7 +48,7 @@ namespace Loci {
   /* The genIntervalSetRep class does all of the work for the genIntervalSet class.
    * It is referenced through a counted pointer (Handle) template.
    */
-  template<class T> ostream &operator<<(ostream &s, const std::pair<T, T> &i) {
+  template<class T> std::ostream &outputInterval(std::ostream &s, const std::pair<T, T> &i) {
     s << '[' ;
     if(i.first==genIntervalSet<T>::UNIVERSE_MIN)
       s << '#' ;
@@ -73,14 +64,14 @@ namespace Loci {
   }
 
 
-  template<class T> istream &operator>>(istream &s, std::pair<T, T> &i) {
+  template<class T> std::istream &inputInterval(std::istream &s, std::pair<T, T> &i) {
     char ch ;
     do{
       ch = s.get() ;
     } while(ch==' ' || ch=='\n') ;
     if(ch!='[') {
-      cerr << "Incorrect format when reading genInterval" << endl ;
-      cerr << "expected a '[' but got a '" << ch << "'" << endl ;
+      std::cerr << "Incorrect format when reading genInterval" << std::endl ;
+      std::cerr << "expected a '[' but got a '" << ch << "'" << std::endl ;
       s.putback(ch) ;
       return s ;
     }
@@ -93,8 +84,8 @@ namespace Loci {
       ch = s.get() ;
     } while(ch==' ' || ch=='\n') ;
     if(ch!=',') {
-      cerr << "Incorrect format when reading genInterval" << endl ;
-      cerr << "expected a ',' but got a '" << ch << "'" << endl ;
+      std::cerr << "Incorrect format when reading genInterval" << std::endl ;
+      std::cerr << "expected a ',' but got a '" << ch << "'" << std::endl ;
       s.putback(ch) ;
       return s ;
     }
@@ -108,8 +99,8 @@ namespace Loci {
       ch = s.get() ;
     } while(ch==' ' || ch=='\n') ;
     if(ch!=']') {
-      cerr << "Incorrect format when reading genInterval" << endl ;
-      cerr << "expected a ']' but got a '" << ch << "'" << endl ;
+      std::cerr << "Incorrect format when reading genInterval" << std::endl ;
+      std::cerr << "expected a ']' but got a '" << ch << "'" << std::endl ;
       s.putback(ch) ;
       return s ;
     }
@@ -122,15 +113,16 @@ namespace Loci {
    
   */
 
-  template<class T> ostream &genIntervalSet<T>::Print(ostream &s) const {
+  template<class T> std::ostream &genIntervalSet<T>::Print(std::ostream &s) const {
     s << "(" ;
-    for(size_t i=0;i<num_intervals();++i)
-      s << (*Rep)[i] ;
+    for(size_t i=0;i<num_intervals();++i) {
+      outputInterval(s,(*Rep)[i]) ;
+    } //      s << (*Rep)[i] ;
     s << ")" ;
     return s ;
   }
 
-  template<class T> istream &genIntervalSet<T>::Input(istream &s) {
+  template<class T> std::istream &genIntervalSet<T>::Input(std::istream &s) {
     Rep.New() ;
 
     char ch ;
@@ -143,7 +135,7 @@ namespace Loci {
 
     // Check for correct startup character
     if(ch != '(') {
-      cerr << "Incorrect format when reading genIntervalSet" << endl ;
+      std::cerr << "Incorrect format when reading genIntervalSet" << std::endl ;
       s.putback(ch) ;
       return s ;
     }
@@ -158,14 +150,15 @@ namespace Loci {
         break ;
       // grab genInterval from input
       std::pair<T, T> ivl  ;
-      s >> ivl ;
+      inputInterval(s,ivl) ;
+      //      s >> ivl ;
       // Add it up
       Union(ivl) ;
     }
     // Check that everything finished ok, then finish
     ch = s.get() ;
     if(ch!=')') {
-      cerr << "Incorrect format when reading genIntervalSet" << endl ;
+      std::cerr << "Incorrect format when reading genIntervalSet" << std::endl ;
       s.putback(ch) ;
     }
       
@@ -206,8 +199,8 @@ namespace Loci {
       Rep->push_back(i) ;
       return ;
     }
-    pair< typename std::vector<std::pair<T, T> >::iterator, typename std::vector<std::pair<T, T> >::iterator> range ;
-    range = equal_range(Rep->begin(),Rep->end(),ivl,
+    std::pair< typename std::vector<std::pair<T, T> >::iterator, typename std::vector<std::pair<T, T> >::iterator> range ;
+    range = std::equal_range(Rep->begin(),Rep->end(),ivl,
                         genInterval_porder_union<T>) ;
     T range_size = range.second - range.first ;
     FATAL(range_size<0) ;
@@ -292,7 +285,7 @@ namespace Loci {
       return ;
     }
     std::pair<typename genIntervalSetRep::iterator, typename genIntervalSetRep::iterator> range ;
-    range = equal_range(Rep->begin(),Rep->end(),i,
+    range = std::equal_range(Rep->begin(),Rep->end(),i,
                         genInterval_porder_union<T>) ;
     T range_size = range.second - range.first ;
     fatal(range_size<0) ;
@@ -471,8 +464,8 @@ namespace Loci {
   //  the equivalence set for under the partial ordering for overlaping
   //  genIntervals and then truncating the range to the std::pair<T, T> bounds.
   template<class T> void genIntervalSet<T>::Intersection(const std::pair<T,T> &ivl) {
-    pair<typename genIntervalSetRep::iterator, typename genIntervalSetRep::iterator> range ;
-    range = equal_range(Rep->begin(),Rep->end(),ivl,
+    std::pair<typename genIntervalSetRep::iterator, typename genIntervalSetRep::iterator> range ;
+    range = std::equal_range(Rep->begin(),Rep->end(),ivl,
                         genInterval_porder_intersect<T>) ;
     T range_size = range.second-range.first ;
     fatal(range_size<0) ;
@@ -540,7 +533,7 @@ namespace Loci {
     return result ;
   }
   
-  template<class T>  ostream &genSequence<T>::Print(ostream &s) const {
+  template<class T>  std::ostream &genSequence<T>::Print(std::ostream &s) const {
     s << "(" ;
     for(size_t i=0;i<num_intervals();++i)
       s << (*Rep)[i] ;
@@ -548,7 +541,7 @@ namespace Loci {
     return s ;
   }
   
-  template<class T> istream &genSequence<T>::Input(istream &s) {
+  template<class T> std::istream &genSequence<T>::Input(std::istream &s) {
     Rep.New() ;
     
     char ch ;
@@ -561,7 +554,7 @@ namespace Loci {
 
     // Check for correct startup character
     if(ch != '(') {
-      cerr << "Incorrect format when reading genIntervalSet" << endl ;
+      std::cerr << "Incorrect format when reading genIntervalSet" << std::endl ;
       s.putback(ch) ;
       return s ;
     }
@@ -583,7 +576,7 @@ namespace Loci {
     // Check that everything finished ok, then finish
     ch = s.get() ;
     if(ch!=')') {
-      cerr << "Incorrect format when reading genIntervalSet" << endl ;
+      std::cerr << "Incorrect format when reading genIntervalSet" << std::endl ;
       s.putback(ch) ;
     }
       
@@ -628,9 +621,9 @@ namespace Loci {
 
   template<class T> genSequence<T> & genSequence<T>::Reverse() {
     Rep.MakeUnique() ;
-    reverse(Rep->begin(),Rep->end()) ;
+    std::reverse(Rep->begin(),Rep->end()) ;
     for(typename genSequenceRep::iterator i=Rep->begin();i!=Rep->end();++i)
-      swap(i->first,i->second) ;
+      std::swap(i->first,i->second) ;
     return *this ;
   }
   

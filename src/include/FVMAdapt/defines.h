@@ -444,6 +444,25 @@ namespace Loci {
                                  std::vector<pair<int,string> >& boundary_ids,
                                  std::vector<pair<string,entitySet> >& volTags ) ;
   
+  
+  inline std::ostream &operator <<(std::ostream &s, const std::vector<std::pair<int32,int32> > &v) {
+    s << v.size() << endl ;
+    for(size_t i=0;i<v.size();++i) {
+      s << v[i].first << ' ' << v[i].second << endl ;
+    }
+    return s ;
+  }
+  
+  inline std::istream &operator >>(std::istream &s, std::vector<std::pair<int32,int32> > &v) {
+    size_t sz ;
+    s >> sz ;
+    std::vector<std::pair<int32,int32> > tmp(sz) ;
+    v.swap(tmp) ;
+    for(size_t i=0;i<sz;++i) {
+      s >> v[i].first >> v[i].second ;
+    }
+    return s ;
+  }
 }
 
 #endif
