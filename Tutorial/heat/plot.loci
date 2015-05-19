@@ -18,27 +18,159 @@ $rule singleton(doPlot<-$n,plot_freq) {
 // option(disable_threading) tells Loci that we are doing special computations
 // that may be sensitive to computation order, so don't do fancy optimizations
 // on this rule, just make one call and evaluate all entities at one time.
-$rule pointwise(OUTPUT<-cell2node(temperature),$n,plot_modulo),
-  constraint(pos),conditional(doPlot), option(disable_threading),
-  prelude {
-  int iter = *$$n % *$plot_modulo ;
+$type plot_postfix param<std::string> ;
+$type modelName param<std::string> ;
+$rule singleton(plot_postfix<-$n,plot_modulo) {
+  $plot_postfix = "" ;
+  int cycle = $$n ;
+  if($plot_modulo != 0) 
+    cycle = cycle % $plot_modulo ;
   ostringstream oss ;
-  string varname = "temperature" ;
-  oss << "output/" << varname << "_hdf5." << iter ;
-  string filename = oss.str() ;
+  oss << cycle ;
+  $plot_postfix = oss.str() ;
+}
 
+void dump_pos(const sequence &seq,const_store<vector3d<double> > &pos,
+	      string plot_postfix, string modelName) {
+  ostringstream oss ;
+  
+  if(plot_postfix != "") 
+    oss << "output/grid_pos." << plot_postfix << "_" << modelName ;
+  else
+    oss << "output/grid_pos." << modelName ;
+  
+  string filename = oss.str() ;
+  
+#ifdef VERBOSE
   if(Loci::MPI_rank == 0)
     cout << "writing file " << filename << endl ;
-
-  // Create an hdf5 file
+#endif
+  
+  
   hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
-                                       H5P_DEFAULT,H5P_DEFAULT) ;
-
-  // Write the values of the nodal temperatures into the file
-  Loci::writeContainer(file_id,varname,$cell2node(temperature).Rep()) ;
-
-  // Close the hdf5 file
+				       H5P_DEFAULT, H5P_DEFAULT) ;
+  
+  Loci::writeContainer(file_id,"pos",pos.Rep()) ;
+  
   Loci::hdf5CloseFile(file_id) ;
+}
+
+class output_grid_topology : public pointwise_rule {
+  param<bool> OUTPUT ;
+  const_multiMap upper,lower,boundary_map,face2node ;
+  const_store<vector3d<double> > pos ;
+  const_Map ref ;
+  const_store<string> boundary_names ;
+  const_param<string> modelName ;
+  const_param<bool> firstPlot ;
+  const_param<string> plot_postfix ;
+public:
+  output_grid_topology() {
+    name_store("OUTPUT{n}",OUTPUT) ;
+    name_store("upper",upper) ;
+    name_store("lower",lower) ;
+    name_store("boundary_map",boundary_map) ;
+    name_store("face2node",face2node) ;
+    name_store("ref",ref) ;
+    name_store("boundary_names{n}",boundary_names) ;
+    name_store("modelName",modelName) ;
+    name_store("pos{n}",pos) ;
+    name_store("plot_postfix{n}",plot_postfix) ;
+    input("plot_postfix{n}") ;
+    input("modelName") ;
+    input("(upper,lower,boundary_map)->face2node->pos{n}") ;
+    input("boundary_map->ref->boundary_names{n}") ;
+    conditional("doPlot{n}") ;
+    output("OUTPUT{n}") ;
+    disable_threading() ;
+  }
+    
+  void compute(const sequence &seq) ;
+} ;
+
+
+  void output_grid_topology::compute(const sequence &seq) {
+    string basename = *modelName + ".topo" ;
+    string filename = "output/"+basename ;
+    
+    string topolink = string("output/topo_file.") +
+      *plot_postfix + string("_") + *modelName ;
+    ofstream file(topolink.c_str(),ios::trunc) ;
+    file << basename << endl ;
+    //    if(*firstPlot) {
+    if(Loci::MPI_rank == 0)
+      cout << "writing grid topology file: " << basename << endl ;
+
+    Loci::parallelWriteGridTopology(filename.c_str(),
+				    upper.Rep(),lower.Rep(),
+				    boundary_map.Rep(),
+				    face2node.Rep(),
+				    ref.Rep(),
+				    boundary_names.Rep(),
+				    pos.Rep(),
+				    entitySet(seq)) ;
+  }
+
+  register_rule<output_grid_topology> register_output_grid_topology ;
+  class output_grid_positions_topo: public pointwise_rule {
+    const_store<vector3d<double> > pos ;
+    const_param<string> plot_postfix ;
+    const_param<string> modelName ;
+    param<bool> OUTPUT ;
+  public:
+    output_grid_positions_topo() {
+      name_store("pos",pos) ;
+      name_store("modelName",modelName) ;
+      name_store("OUTPUT",OUTPUT) ;
+      name_store("plot_postfix",plot_postfix) ;
+      conditional("doPlot") ;
+      constraint("pos") ;
+      input("pos") ;
+      input("modelName") ;
+      input("plot_postfix") ;
+      output("OUTPUT") ;
+    }
+    void compute(const sequence &seq) {
+      dump_pos(seq,pos,string(""),*modelName) ;
+      if(Loci::MPI_rank==0) {
+	string filename = string("output/grid_pos.") +
+	  *plot_postfix + string("_") + *modelName ;
+	cout << "unlink filename = " << filename << endl ;
+	::unlink(filename.c_str()) ;
+      }
+    }
+  } ;
+  register_rule<output_grid_positions_topo> register_output_grid_positions_topo ;
+
+  void dump_scalar(const sequence &seq,const_store<float> &c2n,
+                   string plot_postfix,
+                   string modelName,
+                   string type,
+                   string sname) {
+
+    ostringstream oss ;
+    oss << "output/" << sname << "_" << type << "." << plot_postfix
+        << "_" << modelName ;
+    string filename = oss.str() ;
+#ifdef VERBOSE
+    if(Loci::MPI_rank == 0)
+      cout << "writing file " << filename << endl ;
+#endif
+
+
+   hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
+                                        H5P_DEFAULT, H5P_DEFAULT) ;
+
+   Loci::writeContainer(file_id,sname,c2n.Rep()) ;
+
+   Loci::hdf5CloseFile(file_id) ;
+  }
+
+$rule pointwise(OUTPUT<-cell2node(temperature),plot_postfix,modelName),
+  constraint(pos),conditional(doPlot), option(disable_threading),
+  prelude {
+  dump_scalar(seq,$cell2node(temperature),*$plot_postfix,*$modelName,
+	      "sca","temperature") ;
 } ;
 
 // Here we check the MPI_rank so that we only output from processor

@@ -1,5 +1,5 @@
 # This is the Loci base directory.
-LOCI_BASE = /usr/tmp/lush/Loci
+LOCI_BASE ?= /Users/lush/Work/Loci/OBJ
 # List your object files here
 OBJS  =  main.o residual.o matrix.o euler.o varFileInputs.o plot.o 
 # List the name of your compiled program here

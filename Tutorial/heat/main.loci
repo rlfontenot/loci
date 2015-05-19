@@ -1,5 +1,8 @@
 #include <Loci.h>
 #include <iostream>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 using namespace std ;
 
@@ -29,11 +32,26 @@ int main(int argc, char *argv[])
     }
   }      
 
+  // if output directory doesn't exist, create one
+  struct stat statbuf ;
+  int fid = open("output",O_RDONLY) ;
+  if(fid < 0) {
+    mkdir("output",0755) ;
+  } else {
+    fstat(fid,&statbuf) ;
+    if(!S_ISDIR(statbuf.st_mode)) {
+      cerr << "file 'output' should be a directory!, rename 'output' and start again."
+           << endl ;
+      Loci::Abort() ;
+    }
+    close(fid) ;
+  }
   try {
     //-----------------------------------------------------------------
     // Create Rule Database
     //-----------------------------------------------------------------
     rule_db rdb ;
+    cerr << "creating rule database" << endl ;
     rdb.add_rules(global_rule_list) ;
     // Load module of finite-volume helper rules
     Loci::load_module("fvm",rdb) ;
@@ -50,8 +68,9 @@ int main(int argc, char *argv[])
     string casename = argv[1] ;
     string varsFile = casename + ".vars" ;
     facts.read_vars(varsFile,rdb) ;
-    
-    // Read in the XDR file
+    param<std::string> modelName ;
+    *modelName = casename ;
+    facts.create_fact("modelName",modelName) ;
     string gridFile = casename + ".vog" ;
     if(!Loci::setupFVMGrid(facts,gridFile)) {
       cerr << "unable to read grid file '" << gridFile << "'" << endl ;
