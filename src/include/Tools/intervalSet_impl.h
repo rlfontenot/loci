@@ -41,14 +41,14 @@ namespace Loci {
   std::istream &operator >>(std::istream &s, std::pair<int,int> &p) ;
 
 
-  template<class T> typename genIntervalSet<T>::rep_holder* genIntervalSet<T>::rhp = 0 ;
-  template<class T> typename genSequence<T>::rep_holder* genSequence<T>::rhp = 0 ;
+  template<typename T> typename genIntervalSet<T>::rep_holder* genIntervalSet<T>::rhp = 0 ;
+  template<typename T> typename genSequence<T>::rep_holder* genSequence<T>::rhp = 0 ;
  
  
   /* The genIntervalSetRep class does all of the work for the genIntervalSet class.
    * It is referenced through a counted pointer (Handle) template.
    */
-  template<class T> std::ostream &outputInterval(std::ostream &s, const std::pair<T, T> &i) {
+  template<typename T> std::ostream &outputInterval(std::ostream &s, const std::pair<T, T> &i) {
     s << '[' ;
     if(i.first==genIntervalSet<T>::UNIVERSE_MIN)
       s << '#' ;
@@ -64,7 +64,7 @@ namespace Loci {
   }
 
 
-  template<class T> std::istream &inputInterval(std::istream &s, std::pair<T, T> &i) {
+  template<typename T> std::istream &inputInterval(std::istream &s, std::pair<T, T> &i) {
     char ch ;
     do{
       ch = s.get() ;
@@ -113,7 +113,7 @@ namespace Loci {
    
   */
 
-  template<class T> std::ostream &genIntervalSet<T>::Print(std::ostream &s) const {
+  template<typename T> std::ostream &genIntervalSet<T>::Print(std::ostream &s) const {
     s << "(" ;
     for(size_t i=0;i<num_intervals();++i) {
       outputInterval(s,(*Rep)[i]) ;
@@ -122,7 +122,7 @@ namespace Loci {
     return s ;
   }
 
-  template<class T> std::istream &genIntervalSet<T>::Input(std::istream &s) {
+  template<typename T> std::istream &genIntervalSet<T>::Input(std::istream &s) {
     Rep.New() ;
 
     char ch ;
@@ -168,13 +168,13 @@ namespace Loci {
   // This partial ordering function defines an implicit equivalence
   // relation between genIntervals if they intersect one another
   namespace {
-    template<class T> inline  bool genInterval_porder_intersect(const std::pair<T, T>& i1, 
+    template<typename T> inline  bool genInterval_porder_intersect(const std::pair<T, T>& i1, 
                                                                 const std::pair<T, T>& i2) {
       return (i1.first < i2.first) && (i1.second < i2.first)  ;
     }
   }
 
-  template<class T> bool genIntervalSet<T>::inSet(T indx) const {
+  template<typename T> bool genIntervalSet<T>::inSet(T indx) const {
     return std::binary_search(Rep->begin(),Rep->end(),std::pair<T, T>(indx,indx),
                               genInterval_porder_intersect<T>) ;
   }
@@ -184,14 +184,14 @@ namespace Loci {
   // so that if they intersect or they touch they are in the same equivalence
   // relation.
   namespace {
-    template<class T> inline  bool genInterval_porder_union(const std::pair<T, T> &i1, 
+    template<typename T> inline  bool genInterval_porder_union(const std::pair<T, T> &i1, 
                                                             const std::pair<T, T> &i2) {
       return i1.second+1 < i2.first ;
     }
   }
   
 #ifdef ENTITY
-  template<class T> void Union_inplace (Handle<std::vector<std::pair<T, T> > > &Rep, const std::pair<T, T> &ivl) {
+  template<typename T> void Union_inplace (Handle<std::vector<std::pair<T, T> > > &Rep, const std::pair<T, T> &ivl) {
     Rep.MakeUnique() ;
     std::pair<T, T> i(min(ivl.first,ivl.second),
                       max(ivl.first,ivl.second)) ;
@@ -223,7 +223,7 @@ namespace Loci {
   }
 
 
-  template<class T> Handle<std::vector<std::pair<T, T> > > Union(const Handle<std::vector<std::pair<T, T> > > &Rep1,
+  template<typename T> Handle<std::vector<std::pair<T, T> > > Union(const Handle<std::vector<std::pair<T, T> > > &Rep1,
                                                                  const Handle<std::vector<std::pair<T, T> > > &Rep2) {
     typename std::vector<std::pair<T, T> >::const_iterator i1 = Rep1->begin() ;
     typename std::vector<std::pair<T, T> >::const_iterator i2 = Rep2->begin() ;
@@ -276,7 +276,7 @@ namespace Loci {
 #endif
 
 #ifndef ENTITY
-  template<class T> void genIntervalSet<T>::Union(const std::pair<T, T> &ivl) {
+  template<typename T> void genIntervalSet<T>::Union(const std::pair<T, T> &ivl) {
     Rep.MakeUnique() ;
     std::pair<T, T> i(min(ivl.first,ivl.second),
                       max(ivl.first,ivl.second)) ;
@@ -308,14 +308,14 @@ namespace Loci {
   }
 
 
-  template<class T> void genIntervalSet<T>::Union(const genIntervalSet<T> &ptn) {
+  template<typename T> void genIntervalSet<T>::Union(const genIntervalSet<T> &ptn) {
     genIntervalSet<T> tmp = genIntervalSet<T>::Union(*this,ptn) ;
     Rep = tmp.Rep ;
   }
 
 
 
-  template<class T> genIntervalSet<T> genIntervalSet<T>::Union(const genIntervalSet<T> &set1,
+  template<typename T> genIntervalSet<T> genIntervalSet<T>::Union(const genIntervalSet<T> &set1,
                                                                const genIntervalSet<T> &set2) {
     typename genIntervalSetRep::const_iterator i1 = set1.Rep->begin() ;
     typename genIntervalSetRep::const_iterator i2 = set2.Rep->begin() ;
@@ -371,7 +371,7 @@ namespace Loci {
 
 #endif
 
-  template<class T> void genIntervalSet<T>::Complement() {
+  template<typename T> void genIntervalSet<T>::Complement() {
     Rep.MakeUnique() ;
     if(Rep->size() == 0) {
       Rep->push_back(std::pair<T, T>(genIntervalSet<T>::UNIVERSE_MIN,genIntervalSet<T>::UNIVERSE_MAX)) ;
@@ -411,7 +411,7 @@ namespace Loci {
     return ;
   }
 
-  template<class T> genIntervalSet<T> genIntervalSet<T>::Complement(const genIntervalSet<T> &set) {
+  template<typename T> genIntervalSet<T> genIntervalSet<T>::Complement(const genIntervalSet<T> &set) {
     const size_t size = set.Rep->size() ;
     Handle<genIntervalSetRep> Rep ;
     Rep->reserve(size+1) ;
@@ -437,7 +437,7 @@ namespace Loci {
     return result ;
   }
 
-  template<class T>  genIntervalSet<T> &genIntervalSet<T>::operator>>=(T rotval) {
+  template<typename T>  genIntervalSet<T> &genIntervalSet<T>::operator>>=(T rotval) {
     Rep.MakeUnique() ;
     for(typename genIntervalSetRep::iterator i = Rep->begin();i!=Rep->end();++i) {
       if(i->first != genIntervalSet<T>::UNIVERSE_MIN)
@@ -448,7 +448,7 @@ namespace Loci {
     return *this ;
   }
 
-  template<class T> genIntervalSet<T> &genIntervalSet<T>::operator<<=(T rotval) {
+  template<typename T> genIntervalSet<T> &genIntervalSet<T>::operator<<=(T rotval) {
     Rep.MakeUnique() ;
     for(typename genIntervalSetRep::iterator i = Rep->begin();i!=Rep->end();++i) {
       if(i->first != genIntervalSet<T>::UNIVERSE_MIN)
@@ -463,7 +463,7 @@ namespace Loci {
   //  Finding an intersection to an std::pair<T, T> is a simple matter of extracting
   //  the equivalence set for under the partial ordering for overlaping
   //  genIntervals and then truncating the range to the std::pair<T, T> bounds.
-  template<class T> void genIntervalSet<T>::Intersection(const std::pair<T,T> &ivl) {
+  template<typename T> void genIntervalSet<T>::Intersection(const std::pair<T,T> &ivl) {
     std::pair<typename genIntervalSetRep::iterator, typename genIntervalSetRep::iterator> range ;
     range = std::equal_range(Rep->begin(),Rep->end(),ivl,
                         genInterval_porder_intersect<T>) ;
@@ -493,13 +493,13 @@ namespace Loci {
   }
 
 
-  template<class T> void genIntervalSet<T>::Intersection(const genIntervalSet<T> &ptn) {
+  template<typename T> void genIntervalSet<T>::Intersection(const genIntervalSet<T> &ptn) {
     genIntervalSet<T> tmp = genIntervalSet<T>::Intersection(*this,ptn) ;
     Rep = tmp.Rep ; 
   }
   
  
-  template<class T> genIntervalSet<T> genIntervalSet<T>::Intersection(const genIntervalSet<T> &set1,
+  template<typename T> genIntervalSet<T> genIntervalSet<T>::Intersection(const genIntervalSet<T> &set1,
                                                                       const genIntervalSet<T> &set2)
   {
     if(set1 == genIntervalSet<T>::EMPTY || set2 == genIntervalSet<T>::EMPTY)
@@ -533,7 +533,7 @@ namespace Loci {
     return result ;
   }
   
-  template<class T>  std::ostream &genSequence<T>::Print(std::ostream &s) const {
+  template<typename T>  std::ostream &genSequence<T>::Print(std::ostream &s) const {
     s << "(" ;
     for(size_t i=0;i<num_intervals();++i)
       s << (*Rep)[i] ;
@@ -541,7 +541,7 @@ namespace Loci {
     return s ;
   }
   
-  template<class T> std::istream &genSequence<T>::Input(std::istream &s) {
+  template<typename T> std::istream &genSequence<T>::Input(std::istream &s) {
     Rep.New() ;
     
     char ch ;
@@ -583,7 +583,7 @@ namespace Loci {
     return s ;
   }
    
-  template<class T> void genSequence<T>::Append(const std::pair<T, T> &ivl) {
+  template<typename T> void genSequence<T>::Append(const std::pair<T, T> &ivl) {
     Rep.MakeUnique() ;
     if(Rep->size() == 0) {
       Rep->push_back(ivl) ;
@@ -604,7 +604,7 @@ namespace Loci {
     Rep->push_back(ivl) ;
   }
 
-  template<class T> void genSequence<T>::Append(const genSequence<T> &seq) {
+  template<typename T> void genSequence<T>::Append(const genSequence<T> &seq) {
     if(seq.Rep->size() == 0)
       return ;
     Rep.MakeUnique() ;
@@ -614,12 +614,12 @@ namespace Loci {
     Rep->insert(Rep->end(),i,seq.Rep->end()) ;
   }
 
-  template<class T> void genSequence<T>::Append(const genIntervalSet<T> &ptn) {
+  template<typename T> void genSequence<T>::Append(const genIntervalSet<T> &ptn) {
     genSequence<T> seq(ptn) ;
     Append(seq) ;
   }
 
-  template<class T> genSequence<T> & genSequence<T>::Reverse() {
+  template<typename T> genSequence<T> & genSequence<T>::Reverse() {
     Rep.MakeUnique() ;
     std::reverse(Rep->begin(),Rep->end()) ;
     for(typename genSequenceRep::iterator i=Rep->begin();i!=Rep->end();++i)
@@ -627,7 +627,7 @@ namespace Loci {
     return *this ;
   }
   
-  template<class T> genSequence<T> &genSequence<T>::operator>>=(T rotval) {
+  template<typename T> genSequence<T> &genSequence<T>::operator>>=(T rotval) {
     Rep.MakeUnique() ;
     for(typename genSequenceRep::iterator i = Rep->begin();i!=Rep->end();++i) {
       if(i->first != genIntervalSet<T>::UNIVERSE_MIN)
@@ -638,7 +638,7 @@ namespace Loci {
     return *this ;
   }
 
-  template<class T> genSequence<T> &genSequence<T>::operator<<=(T rotval) {
+  template<typename T> genSequence<T> &genSequence<T>::operator<<=(T rotval) {
     Rep.MakeUnique() ;
     for(typename genSequenceRep::iterator i = Rep->begin();i!=Rep->end();++i) {
       if(i->first != genIntervalSet<T>::UNIVERSE_MIN)

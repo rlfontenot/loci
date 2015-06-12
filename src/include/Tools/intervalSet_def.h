@@ -76,7 +76,7 @@ namespace Loci {
     return Rep->size();
   } 
         
-  template<class T>  class genIntervalSet {
+  template<typename T>  class genIntervalSet {
   public:
     
     typedef typename std::pair<T, T> genInterval;
@@ -249,231 +249,231 @@ namespace Loci {
   } ;
 
 
-  template<class T> T genIntervalSet<T>::UNIVERSE_MAX = std::numeric_limits<T>::max() - 1 ;
-  template<class T> T genIntervalSet<T>::UNIVERSE_MIN = std::numeric_limits<T>::min() + 1 ;
-  template<class T> genIntervalSet<T> genIntervalSet<T>::EMPTY = genIntervalSet<T>() ;
+  template<typename T> T genIntervalSet<T>::UNIVERSE_MAX = std::numeric_limits<T>::max() - 1 ;
+  template<typename T> T genIntervalSet<T>::UNIVERSE_MIN = std::numeric_limits<T>::min() + 1 ;
+  template<typename T> genIntervalSet<T> genIntervalSet<T>::EMPTY = genIntervalSet<T>() ;
 
-  template<class T> inline genIntervalSet<T> operator~(const genIntervalSet<T> &e) {
+  template<typename T> inline genIntervalSet<T> operator~(const genIntervalSet<T> &e) {
     return genIntervalSet<T>::Complement(e) ;
   }
 
-  template<class T> inline genIntervalSet<T> & operator+=(genIntervalSet<T> &e, T ival) 
+  template<typename T> inline genIntervalSet<T> & operator+=(genIntervalSet<T> &e, T ival) 
   { e.Union(std::pair<T, T>(ival,ival)) ; return e ; }
 
-  template<class T> inline genIntervalSet<T> & operator+=(genIntervalSet<T> &e, const std::pair<T, T> &ivl)
+  template<typename T> inline genIntervalSet<T> & operator+=(genIntervalSet<T> &e, const std::pair<T, T> &ivl)
   { e.Union(ivl) ; return e; }
 
-  template<class T> inline genIntervalSet<T> & operator+=(genIntervalSet<T> &e, const genIntervalSet<T> &ptn)
+  template<typename T> inline genIntervalSet<T> & operator+=(genIntervalSet<T> &e, const genIntervalSet<T> &ptn)
   { e.Union(ptn) ; return e ; }
 
-  template<class T> inline genIntervalSet<T> & operator|=(genIntervalSet<T> &e, T ival)
+  template<typename T> inline genIntervalSet<T> & operator|=(genIntervalSet<T> &e, T ival)
   { e.Union(std::pair<T, T>(ival,ival)) ; return e ; }
 
-  template<class T> inline genIntervalSet<T> & operator|=(genIntervalSet<T> &e, const std::pair<T, T> &ivl)
+  template<typename T> inline genIntervalSet<T> & operator|=(genIntervalSet<T> &e, const std::pair<T, T> &ivl)
   { e.Union(ivl) ; return e ; }
 
-  template<class T> inline genIntervalSet<T> & operator|=(genIntervalSet<T> &e, const genIntervalSet<T> &ptn)
+  template<typename T> inline genIntervalSet<T> & operator|=(genIntervalSet<T> &e, const genIntervalSet<T> &ptn)
   { e.Union(ptn) ; return e ; }
 
-  template<class T> inline genIntervalSet<T> & operator&=(genIntervalSet<T> &e, T ival)
+  template<typename T> inline genIntervalSet<T> & operator&=(genIntervalSet<T> &e, T ival)
   { e.Intersection(std::pair<T, T>(ival,ival)) ;
     return e; }
 
-  template<class T> inline genIntervalSet<T> & operator&=(genIntervalSet<T> &e, const std::pair<T, T> &ivl)
+  template<typename T> inline genIntervalSet<T> & operator&=(genIntervalSet<T> &e, const std::pair<T, T> &ivl)
   { e.Intersection(ivl) ; return e ; }
 
-  template<class T> inline genIntervalSet<T> & operator&=(genIntervalSet<T> &e, const genIntervalSet<T> &ptn)
+  template<typename T> inline genIntervalSet<T> & operator&=(genIntervalSet<T> &e, const genIntervalSet<T> &ptn)
   { e.Intersection(ptn) ; return e ; }
 
-  template<class T> inline genIntervalSet<T> operator+(const genIntervalSet<T> & e, T ival) {
+  template<typename T> inline genIntervalSet<T> operator+(const genIntervalSet<T> & e, T ival) {
     genIntervalSet<T> retp = e ;
     retp.Union(genInterval(ival,ival)) ;
     return retp ;
   }
 
-  template<class T> inline genIntervalSet<T> operator+(const T &ival, const genIntervalSet<T> &e) {
+  template<typename T> inline genIntervalSet<T> operator+(const T &ival, const genIntervalSet<T> &e) {
     genIntervalSet<T> retp = e ;
     retp.Union(genInterval(ival,ival)) ;
     return retp ;
   }
 
-  template<class T> inline genIntervalSet<T> operator+(const genIntervalSet<T> &e, const std::pair<T, T> &ivl) {
+  template<typename T> inline genIntervalSet<T> operator+(const genIntervalSet<T> &e, const std::pair<T, T> &ivl) {
     genIntervalSet<T> retp = e ;
     retp.Union(ivl) ;
     return retp ;
   }
 
-  template<class T> inline genIntervalSet<T> operator+(const std::pair<T, T> &ivl, const genIntervalSet<T> &e) {
+  template<typename T> inline genIntervalSet<T> operator+(const std::pair<T, T> &ivl, const genIntervalSet<T> &e) {
     genIntervalSet<T> retp = e ;
     retp.Union(ivl) ;
     return retp ;
   }
 
-  template<class T> inline genIntervalSet<T> operator+(const genIntervalSet<T> &e, const genIntervalSet<T> &ptn) {
+  template<typename T> inline genIntervalSet<T> operator+(const genIntervalSet<T> &e, const genIntervalSet<T> &ptn) {
     genIntervalSet<T> retp = e ;
     retp.Union(ptn) ;
     return retp ;
   }
 
-  template<class T> inline genIntervalSet<T> operator|(const genIntervalSet<T> &e, T ival) {
+  template<typename T> inline genIntervalSet<T> operator|(const genIntervalSet<T> &e, T ival) {
     genIntervalSet<T> retp = e ;
     retp.Union(genInterval(ival,ival)) ;
     return retp ;
   }
 
-  template<class T> inline genIntervalSet<T> operator|(T ival, const genIntervalSet<T> &e) {
+  template<typename T> inline genIntervalSet<T> operator|(T ival, const genIntervalSet<T> &e) {
     genIntervalSet<T> retp = e ;
     retp.Union(genInterval(ival,ival)) ;
     return retp ;
   }
 
-  template<class T> inline genIntervalSet<T> operator|(const genIntervalSet<T> &e, const std::pair<T, T> &ivl) {
+  template<typename T> inline genIntervalSet<T> operator|(const genIntervalSet<T> &e, const std::pair<T, T> &ivl) {
     genIntervalSet<T> retp = e ;
     retp.Union(ivl) ;
     return retp ;
   }
 
-  template<class T> inline genIntervalSet<T> operator|(const std::pair<T,T> &ivl,const genIntervalSet<T> &e) {
+  template<typename T> inline genIntervalSet<T> operator|(const std::pair<T,T> &ivl,const genIntervalSet<T> &e) {
     genIntervalSet<T> retp = e ;
     retp.Union(ivl) ;
     return retp ;
   }
 
-  template<class T> inline genIntervalSet<T> operator|(const genIntervalSet<T> &e, const genIntervalSet<T> &ptn) {
+  template<typename T> inline genIntervalSet<T> operator|(const genIntervalSet<T> &e, const genIntervalSet<T> &ptn) {
     genIntervalSet<T> retp = e ;
     retp.Union(ptn) ;
     return retp ;
   }
 
-  template<class T> inline genIntervalSet<T> operator&(const genIntervalSet<T> &e, T ival)  {
+  template<typename T> inline genIntervalSet<T> operator&(const genIntervalSet<T> &e, T ival)  {
     return genIntervalSet<T>::Intersection(e,genIntervalSet<T>(std::pair<T, T>(ival,ival))) ;
   }
 
-  template<class T> inline genIntervalSet<T> operator&(T ival,const genIntervalSet<T> &e)  {
+  template<typename T> inline genIntervalSet<T> operator&(T ival,const genIntervalSet<T> &e)  {
     return genIntervalSet<T>::Intersection(e,genIntervalSet<T>(std::pair<T, T>(ival,ival))) ;
   }
 
-  template<class T> inline genIntervalSet<T> operator&(const genIntervalSet<T> &e, const std::pair<T, T> &ivl) {
+  template<typename T> inline genIntervalSet<T> operator&(const genIntervalSet<T> &e, const std::pair<T, T> &ivl) {
     return genIntervalSet<T>::Intersection(e,genIntervalSet<T>(ivl)) ;
   }
 
-  template<class T> inline genIntervalSet<T> operator&(const std::pair<T, T> &ivl,const genIntervalSet<T> &e) {
+  template<typename T> inline genIntervalSet<T> operator&(const std::pair<T, T> &ivl,const genIntervalSet<T> &e) {
     return genIntervalSet<T>::Intersection(e,genIntervalSet<T>(ivl)) ;
   }
 
-  template<class T>  inline genIntervalSet<T> operator&(const genIntervalSet<T> &e, const genIntervalSet<T> &ptn) {
+  template<typename T>  inline genIntervalSet<T> operator&(const genIntervalSet<T> &e, const genIntervalSet<T> &ptn) {
     return genIntervalSet<T>::Intersection(e,ptn) ;
   }
 
-  template<class T> inline genIntervalSet<T> operator-(const genIntervalSet<T> &e, T &ival) {
+  template<typename T> inline genIntervalSet<T> operator-(const genIntervalSet<T> &e, T &ival) {
     return genIntervalSet<T>::Intersection(e,~genIntervalSet<T>(std::pair<T, T>(ival,ival))) ;
   }
 
-  template<class T> inline genIntervalSet<T> operator-(const genIntervalSet<T> &e, const std::pair<T, T> &ivl) {
+  template<typename T> inline genIntervalSet<T> operator-(const genIntervalSet<T> &e, const std::pair<T, T> &ivl) {
     return genIntervalSet<T>::Intersection(e,~genIntervalSet<T>(ivl)) ;
   }
 
-  template<class T>  inline genIntervalSet<T> operator-(const std::pair<T, T> &ivl, const genIntervalSet<T> &e) {
+  template<typename T>  inline genIntervalSet<T> operator-(const std::pair<T, T> &ivl, const genIntervalSet<T> &e) {
     return genIntervalSet<T>::Intersection(genIntervalSet<T>(ivl),~e) ;
   }
 
 
-  template<class T> inline genIntervalSet<T> operator-(const genIntervalSet<T> &e, const genIntervalSet<T> &ptn) {
+  template<typename T> inline genIntervalSet<T> operator-(const genIntervalSet<T> &e, const genIntervalSet<T> &ptn) {
     return genIntervalSet<T>::Intersection(e,~ptn) ;
   }
 
-  template<class T> inline genIntervalSet<T> operator^(const genIntervalSet<T> &e, const genIntervalSet<T> &ptn) {
+  template<typename T> inline genIntervalSet<T> operator^(const genIntervalSet<T> &e, const genIntervalSet<T> &ptn) {
     genIntervalSet<T> retp = ((e|ptn) & ~(e & ptn)) ;
     return retp ;
   }
-  template<class T> inline genIntervalSet<T> operator^(const genIntervalSet<T> &e, T ival) {
+  template<typename T> inline genIntervalSet<T> operator^(const genIntervalSet<T> &e, T ival) {
     genIntervalSet<T> ivlp = genInterval(ival,ival) ;
     genIntervalSet<T> retp = e^ivlp ;
     return retp ;
   }
 
-  template<class T> inline genIntervalSet<T> operator^(T ival, const genIntervalSet<T> &e) {
+  template<typename T> inline genIntervalSet<T> operator^(T ival, const genIntervalSet<T> &e) {
     genIntervalSet<T> ivlp = genInterval(ival,ival) ;
     genIntervalSet<T> retp = e^ivlp ;
     return retp ;
   }
 
-  template<class T> inline genIntervalSet<T> operator^(const genIntervalSet<T> &e, const std::pair<T, T> &ivl) {
+  template<typename T> inline genIntervalSet<T> operator^(const genIntervalSet<T> &e, const std::pair<T, T> &ivl) {
     genIntervalSet<T> ivlp = ivl ;
     genIntervalSet<T> retp = e^ivlp ;
     return retp ;
   }
 
-  template<class T> inline genIntervalSet<T> operator^(const std::pair<T, T> &ivl, const genIntervalSet<T> &e) {
+  template<typename T> inline genIntervalSet<T> operator^(const std::pair<T, T> &ivl, const genIntervalSet<T> &e) {
     genIntervalSet<T> ivlp = ivl ;
     genIntervalSet<T> retp = e^ivlp ;
     return retp ;
   }
 
 
-  template<class T> inline bool operator==(const genIntervalSet<T> &es1, const genIntervalSet<T> &es2) {
+  template<typename T> inline bool operator==(const genIntervalSet<T> &es1, const genIntervalSet<T> &es2) {
     return es1.Equal(es2) ;
   }
 
-  template<class T> inline bool operator!=(const genIntervalSet<T> &es1, const genIntervalSet<T> &es2) {
+  template<typename T> inline bool operator!=(const genIntervalSet<T> &es1, const genIntervalSet<T> &es2) {
     return !es1.Equal(es2) ;
   }
 
-  template<class T> inline bool operator<(const genIntervalSet<T> &es1, const genIntervalSet<T> &es2) {
+  template<typename T> inline bool operator<(const genIntervalSet<T> &es1, const genIntervalSet<T> &es2) {
     return es1.less_than(es2) ;
   }
 
-  template<class T> inline bool operator>(const genIntervalSet<T> &es1, const genIntervalSet<T> &es2) {
+  template<typename T> inline bool operator>(const genIntervalSet<T> &es1, const genIntervalSet<T> &es2) {
     return es1.greater_than(es2) ;
   }
 
-  template<class T> inline bool operator<=(const genIntervalSet<T> &es1, const genIntervalSet<T> &es2) {
+  template<typename T> inline bool operator<=(const genIntervalSet<T> &es1, const genIntervalSet<T> &es2) {
     return !(es1.greater_than(es2)) ;
   }
 
-  template<class T> inline bool operator>=(const genIntervalSet<T> &es1, const genIntervalSet<T> &es2) {
+  template<typename T> inline bool operator>=(const genIntervalSet<T> &es1, const genIntervalSet<T> &es2) {
     return !(es1.less_than(es2)) ;
   }
 
-  template<class T> inline genIntervalSet<T> genIntervalSet<T>::operator>>(T rotval) const  {
+  template<typename T> inline genIntervalSet<T> genIntervalSet<T>::operator>>(T rotval) const  {
     genIntervalSet<T> retp = (*this) ;
     retp >>= rotval ;
     return retp ;
   }
 
-  template<class T> inline genIntervalSet<T> genIntervalSet<T>::operator<<(T rotval) const {
+  template<typename T> inline genIntervalSet<T> genIntervalSet<T>::operator<<(T rotval) const {
     genIntervalSet<T> retp = (*this) ;
     retp <<= rotval ;
     return retp ;
   }
 
 
-  template<class T> inline genIntervalSet<T> & operator^=(genIntervalSet<T> &e, const genIntervalSet<T> &ptn) {
+  template<typename T> inline genIntervalSet<T> & operator^=(genIntervalSet<T> &e, const genIntervalSet<T> &ptn) {
     e =  e^ptn ;
     return e ;
   }
     
-  template<class T> inline genIntervalSet<T> & operator^=(genIntervalSet<T> &e, const std::pair<T, T> &ivl) {
+  template<typename T> inline genIntervalSet<T> & operator^=(genIntervalSet<T> &e, const std::pair<T, T> &ivl) {
     genIntervalSet<T> ivlp ;
     ivlp = ivl ;
     e ^= ivlp ;
     return e ;
   }
 
-  template<class T> inline genIntervalSet<T> & operator^=(genIntervalSet<T> &e, T ival) {
+  template<typename T> inline genIntervalSet<T> & operator^=(genIntervalSet<T> &e, T ival) {
     genIntervalSet<T> ivlp ;
     ivlp = genInterval(ival,ival) ;
     e ^= ivlp ;
     return e ;
   }
 
-  template<class T> inline genIntervalSet<T> & operator-=(genIntervalSet<T> &e, const genIntervalSet<T> &ptn) {
+  template<typename T> inline genIntervalSet<T> & operator-=(genIntervalSet<T> &e, const genIntervalSet<T> &ptn) {
     genIntervalSet<T> ptnc = genIntervalSet<T>::Complement(ptn);
     e &= ptnc ;
     return e ;
   }
     
-  template<class T> inline genIntervalSet<T> & operator-=(genIntervalSet<T> &e, const std::pair<T, T> &ivl) {
+  template<typename T> inline genIntervalSet<T> & operator-=(genIntervalSet<T> &e, const std::pair<T, T> &ivl) {
     genIntervalSet<T> ptnc ;
     ptnc = ivl ;
     ptnc.Complement() ;
@@ -481,7 +481,7 @@ namespace Loci {
     return e ;
   }
 
-  template<class T> inline genIntervalSet<T> & operator-=(genIntervalSet<T> &e, T ival) {
+  template<typename T> inline genIntervalSet<T> & operator-=(genIntervalSet<T> &e, T ival) {
     genIntervalSet<T> ptnc;
     ptnc = std::pair<T, T>(ival,ival) ;
     ptnc.Complement() ;
@@ -490,10 +490,10 @@ namespace Loci {
   }
 
     
-  template<class T> inline std::ostream & operator<<(std::ostream &s, const genIntervalSet<T> &e)
+  template<typename T> inline std::ostream & operator<<(std::ostream &s, const genIntervalSet<T> &e)
   { return e.Print(s) ; }
     
-  template<class T> inline std::istream & operator>>(std::istream &s, genIntervalSet<T> &e)
+  template<typename T> inline std::istream & operator>>(std::istream &s, genIntervalSet<T> &e)
   { return e.Input(s) ;}
 
 
@@ -501,7 +501,7 @@ namespace Loci {
 
 
     
-  template<class T> class genSequence {
+  template<typename T> class genSequence {
 
   public:
     typedef typename genIntervalSet<T>::genIntervalSetRep genSequenceRep ;//typename is mandatory before a qualified , dependent names 
@@ -631,112 +631,112 @@ namespace Loci {
     std::istream &Input(std::istream &s) ;
   } ;
 
-  template<class T> inline genSequence<T> & operator+=(genSequence<T> &e, T ival) 
+  template<typename T> inline genSequence<T> & operator+=(genSequence<T> &e, T ival) 
   { e.Append(std::pair<T, T>(ival,ival)) ; return e ; }
 
-  template<class T> inline genSequence<T> & operator+=(genSequence<T> &e, const std::pair<T, T> &ivl)
+  template<typename T> inline genSequence<T> & operator+=(genSequence<T> &e, const std::pair<T, T> &ivl)
   { e.Append(ivl) ; return e; }
 
-  template<class T> inline genSequence<T> & operator+=(genSequence<T> &e, const genSequence<T> &seq)
+  template<typename T> inline genSequence<T> & operator+=(genSequence<T> &e, const genSequence<T> &seq)
   { e.Append(seq) ; return e ; }
 
-  template<class T> inline genSequence<T> & operator+=(genSequence<T> &e, const genIntervalSet<T> &ptn)
+  template<typename T> inline genSequence<T> & operator+=(genSequence<T> &e, const genIntervalSet<T> &ptn)
   { e.Append(ptn) ; return e ; }
 
-  template<class T> inline genSequence<T> operator+(const genSequence<T> & e, T ival) {
+  template<typename T> inline genSequence<T> operator+(const genSequence<T> & e, T ival) {
     genSequence<T> retp = e ;
     retp.Append(std::pair<T, T>(ival,ival)) ;
     return retp ;
   }
 
-  template<class T> inline genSequence<T> operator+(const T &ival, const genSequence<T> &e) {
+  template<typename T> inline genSequence<T> operator+(const T &ival, const genSequence<T> &e) {
     genSequence<T> retp = std::pair<T, T>(ival,ival) ;
     retp.Append(e) ;
     return retp ;
   }
 
-  template<class T> inline genSequence<T> operator+(const genSequence<T> &e, const std::pair<T, T> &ivl) {
+  template<typename T> inline genSequence<T> operator+(const genSequence<T> &e, const std::pair<T, T> &ivl) {
     genSequence<T> retp = e ;
     retp.Append(ivl) ;
     return retp ;
   }
 
-  template<class T> inline genSequence<T> operator+(const std::pair<T, T> &ivl, const genSequence<T> &e) {
+  template<typename T> inline genSequence<T> operator+(const std::pair<T, T> &ivl, const genSequence<T> &e) {
     genSequence<T> retp = ivl ;
     retp.Append(e) ;
     return retp ;
   }
 
-  template<class T> inline genSequence<T> operator+(const genSequence<T> &e, const genSequence<T> &ptn) {
+  template<typename T> inline genSequence<T> operator+(const genSequence<T> &e, const genSequence<T> &ptn) {
     genSequence<T> retp = e ;
     retp.Append(ptn) ;
     return retp ;
   }
 
-  template<class T> inline genSequence<T> operator+(const genSequence<T> &e, const genIntervalSet<T> &ptn) {
+  template<typename T> inline genSequence<T> operator+(const genSequence<T> &e, const genIntervalSet<T> &ptn) {
     genSequence<T> retp = e ;
     retp.Append(ptn) ;
     return retp ;
   }
 
-  template<class T> inline bool operator==(const genSequence<T> &es1, const genSequence<T> &es2) {
+  template<typename T> inline bool operator==(const genSequence<T> &es1, const genSequence<T> &es2) {
     return es1.Equal(es2) ;
   }
 
-  template<class T> inline bool operator!=(const genSequence<T> &es1, const genSequence<T> &es2) {
+  template<typename T> inline bool operator!=(const genSequence<T> &es1, const genSequence<T> &es2) {
     return !es1.Equal(es2) ;
   }
 
   //add comparison between sequence and genIntervalSet
-  template<class T> inline bool operator==(const genSequence<T> &es1, const genIntervalSet<T> &es2) {
+  template<typename T> inline bool operator==(const genSequence<T> &es1, const genIntervalSet<T> &es2) {
     return es1.Equal(es2) ;
   }
   
-  template<class T> inline bool operator!=(const genSequence<T> &es1, const genIntervalSet<T> &es2) {
+  template<typename T> inline bool operator!=(const genSequence<T> &es1, const genIntervalSet<T> &es2) {
     return !es1.Equal(es2) ;
   }
 
   
-  template<class T> inline bool operator<(const genSequence<T> &es1, const genSequence<T> &es2) {
+  template<typename T> inline bool operator<(const genSequence<T> &es1, const genSequence<T> &es2) {
     return es1.less_than(es2) ;
   }
 
-  template<class T> inline bool operator>(const genSequence<T> &es1, const genSequence<T> &es2) {
+  template<typename T> inline bool operator>(const genSequence<T> &es1, const genSequence<T> &es2) {
     return es1.greater_than(es2) ;
   }
 
-  template<class T> inline bool operator<=(const genSequence<T> &es1, const genSequence<T> &es2) {
+  template<typename T> inline bool operator<=(const genSequence<T> &es1, const genSequence<T> &es2) {
     return !(es1.greater_than(es2)) ;
   }
 
-  template<class T> inline bool operator>=(const genSequence<T> &es1, const genSequence<T> &es2) {
+  template<typename T> inline bool operator>=(const genSequence<T> &es1, const genSequence<T> &es2) {
     return !(es1.less_than(es2)) ;
   }
 
-  template<class T> inline genSequence<T> genSequence<T>::operator>>(T rotval) const  {
+  template<typename T> inline genSequence<T> genSequence<T>::operator>>(T rotval) const  {
     genSequence<T> retp = (*this) ;
     retp >>= rotval ;
     return retp ;
   }
 
-  template<class T> inline genSequence<T> genSequence<T>::operator<<(T rotval) const {
+  template<typename T> inline genSequence<T> genSequence<T>::operator<<(T rotval) const {
     genSequence<T> retp = (*this) ;
     retp >>= rotval ;
     return retp ;
   }
 
-  template<class T> inline std::ostream & operator<<(std::ostream &s, const genSequence<T> &e)
+  template<typename T> inline std::ostream & operator<<(std::ostream &s, const genSequence<T> &e)
   { return e.Print(s) ; }
     
-  template<class T> inline std::istream & operator>>(std::istream &s, genSequence<T> &e)
+  template<typename T> inline std::istream & operator>>(std::istream &s, genSequence<T> &e)
   { return e.Input(s) ;}
 
-  template<class T> inline genIntervalSet<T>::genIntervalSet(const genSequence<T> &seq) {
+  template<typename T> inline genIntervalSet<T>::genIntervalSet(const genSequence<T> &seq) {
     for(size_t i=0;i<seq.num_intervals();++i)
       Union(seq[i]) ;
   }
 
-  template<class T> inline genIntervalSet<int_type> create_intervalSet(T start, T end) {
+  template<typename T> inline genIntervalSet<int_type> create_intervalSet(T start, T end) {
     if(start==end)
       return genIntervalSet<int_type>::EMPTY ;
     std::sort(start,end) ;
@@ -754,7 +754,7 @@ namespace Loci {
     return r ;
   }
 
-  template<class T> inline genSequence<int_type> create_sequence(T start, T end) {
+  template<typename T> inline genSequence<int_type> create_sequence(T start, T end) {
     genSequence<int_type> s ;
     for(T p=start;p!=end;++p) {
       s += *p ;
