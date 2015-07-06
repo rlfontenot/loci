@@ -54,26 +54,24 @@ public:
   
   //destructor
   ~Face(){
-    if(this != 0){
-      if(child!= 0){
-        for(int i = 0; i < numEdge; i++){
-          if(child[i] != 0) {
-            delete child[i];
-            child[i] = 0;
-          }
-        }
-        delete [] child;
-        child = 0;
+    if(child!= 0){
+      for(int i = 0; i < numEdge; i++){
+	if(child[i] != 0) {
+	  delete child[i];
+	  child[i] = 0;
+	}
       }
-      if(edge!=0){
-        delete [] edge;
-        edge = 0;
-      }
+      delete [] child;
+      child = 0;
+    }
+    if(edge!=0){
+      delete [] edge;
+      edge = 0;
+    }
     
-      if(needReverse !=0){
-        delete [] needReverse;
-        needReverse = 0;
-      }
+    if(needReverse !=0){
+      delete [] needReverse;
+      needReverse = 0;
     }
   }
 

@@ -42,14 +42,57 @@
 namespace Loci {
 
   //-----------STD pair-------------------------------//
-  template<class T1,class T2> std::ostream &
+  template<class T1,class T2> inline std::ostream &
     operator<<(std::ostream &s, const std::pair<T1,T2> &v) {
     s<<"["<<v.first<<","<<v.second<<"]";
     return s;
   }
 
-  template<class T1,class T2> std::istream &
+  template<class T1,class T2> inline std::istream &
     operator>>(std::istream &s, std::pair<T1,T2> &i) {
+    char ch ;
+    do{
+      ch = s.get() ;
+    } while(ch==' ' || ch=='\n') ;
+    if(ch!='[') {
+      std::cerr << "Incorrect format when reading interval" << std::endl ;
+      std::cerr << "expected a '[' but got a '" << ch << "'" << std::endl ;
+      s.putback(ch) ;
+      return s ;
+    }
+    s >> i.first ;
+    do{
+      ch = s.get() ;
+    } while(ch==' ' || ch=='\n') ;
+    if(ch!=',') {
+      std::cerr << "Incorrect format when reading interval" << std::endl ;
+      std::cerr << "expected a ',' but got a '" << ch << "'" << std::endl ;
+      s.putback(ch) ;
+      return s ;
+    }
+    s >> i.second ;
+    
+    do{
+      ch = s.get() ;
+    } while(ch==' ' || ch=='\n') ;
+    if(ch!=']') {
+      std::cerr << "Incorrect format when reading interval" << std::endl ;
+      std::cerr << "expected a ']' but got a '" << ch << "'" << std::endl ;
+      s.putback(ch) ;
+      return s ;
+    }
+    return s;
+  }
+
+  //-----------STD pair unsigned int specializations---------------------//
+  template<> inline std::ostream &
+    operator<<(std::ostream &s, const std::pair<unsigned int,unsigned int> &v) {
+    s<<"["<<v.first<<","<<v.second<<"]";
+    return s;
+  }
+
+  template<> inline std::istream &
+    operator>>(std::istream &s, std::pair<unsigned int,unsigned int> &i) {
     char ch ;
     do{
       ch = s.get() ;

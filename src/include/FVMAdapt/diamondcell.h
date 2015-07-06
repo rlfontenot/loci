@@ -62,35 +62,33 @@ public:
   
   //destructor
   ~DiamondCell(){
-    if(this != 0 ){
-      if(childCell != 0){
-        for(int i = 0; i < 2*nfold +2; i++){
-          if(childCell[i] != 0){
-            delete  childCell[i];
-            childCell[i] = 0;
-          }
-        }
-        delete [] childCell;
-        childCell = 0;
+    if(childCell != 0){
+      for(int i = 0; i < 2*nfold +2; i++){
+	if(childCell[i] != 0){
+	  delete  childCell[i];
+	  childCell[i] = 0;
+	}
       }
-      
-      if(faceMarked != 0){
-        delete[] faceMarked;
-        faceMarked = 0;
-      }
-      
-      if(faceOrient!=0){
-        delete [] faceOrient;
-        faceOrient =0;
-      }
-      
-      if(face != 0){
-        delete [] face;
-        face = 0;
-      }
-      
-      parentCell = 0;
+      delete [] childCell;
+      childCell = 0;
     }
+    
+    if(faceMarked != 0){
+      delete[] faceMarked;
+      faceMarked = 0;
+    }
+    
+    if(faceOrient!=0){
+      delete [] faceOrient;
+      faceOrient =0;
+    }
+    
+    if(face != 0){
+      delete [] face;
+      face = 0;
+    }
+    
+    parentCell = 0;
   }
   //if all children are tagged as 2, remove all children
   void derefine();
@@ -326,34 +324,32 @@ public:
 
   //destructor
   ~Cell(){
-    if(this !=0){
-      if(child!= 0){
-        for(int i = 0; i < numNode; i++){
-          if(child[i] != 0){
-            delete child[i];
-            child[i] = 0;
-          }
-        }
-        delete [] child;
-        child = 0;
+    if(child!= 0){
+      for(int i = 0; i < numNode; i++){
+	if(child[i] != 0){
+	  delete child[i];
+	  child[i] = 0;
+	}
       }
-      if(faceOrient !=0){
-        delete [] faceOrient;
-        faceOrient = 0;
-      }
-      if(face!=0){
-        delete [] face;
-        face = 0;
-      }
-      
-      if(edge !=0){
-        delete [] edge;
-        edge = 0;
-      }
-      if(node !=0){
-        delete [] node;
-        node = 0;
-      }
+      delete [] child;
+      child = 0;
+    }
+    if(faceOrient !=0){
+      delete [] faceOrient;
+      faceOrient = 0;
+    }
+    if(face!=0){
+      delete [] face;
+      face = 0;
+    }
+    
+    if(edge !=0){
+      delete [] edge;
+      edge = 0;
+    }
+    if(node !=0){
+      delete [] node;
+      node = 0;
     }
   }
 

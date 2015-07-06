@@ -71,29 +71,27 @@ public:
   
   //destructor
   ~Prism(){
-      if(this != 0 ){
-      if(childCell != 0){
-        int nc =  numChildren();
-        for(int i = 0; i < nc; i++){
-          if(childCell[i] != 0){
-            delete  childCell[i];
-            childCell[i] = 0;
-          }
-        }
-        delete[] childCell;
-        childCell = 0;
+    if(childCell != 0){
+      int nc =  numChildren();
+      for(int i = 0; i < nc; i++){
+	if(childCell[i] != 0){
+	  delete  childCell[i];
+	  childCell[i] = 0;
+	}
       }
-      parentCell = 0;
+      delete[] childCell;
+      childCell = 0;
+    }
+    parentCell = 0;
     
-      if(gnrlface != 0){
-        delete[] gnrlface;
-        gnrlface = 0;
-      }
-      
-      if(quadface != 0){
-        delete[] quadface;
-        quadface = 0;
-      }
+    if(gnrlface != 0){
+      delete[] gnrlface;
+      gnrlface = 0;
+    }
+    
+    if(quadface != 0){
+      delete[] quadface;
+      quadface = 0;
     }
   }
   

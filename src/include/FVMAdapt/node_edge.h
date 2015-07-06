@@ -58,19 +58,17 @@ public:
   Edge():child(0), parent(0),level(0){}
   //destructor
   ~Edge(){
-    if(this != 0){
-      if(child!=0){
-        if(child[1] != 0){
-          delete child[1];
-          child[1] = 0;
-        }
-        if(child[0] != 0){
-          delete child[0];
-          child[0] = 0;
-        }
-        delete[] child;
-        child = 0;
+    if(child!=0){
+      if(child[1] != 0){
+	delete child[1];
+	child[1] = 0;
       }
+      if(child[0] != 0){
+	delete child[0];
+	child[0] = 0;
+      }
+      delete[] child;
+      child = 0;
     }
   }
   //calculate the middle point of the edge

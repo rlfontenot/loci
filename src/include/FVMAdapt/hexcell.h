@@ -59,25 +59,24 @@ public:
                         childCell(0),tag(0){}  
   //destructor
   ~HexCell(){
-    if(this != 0 ){
-      if(childCell != 0){
-        for(int i = 0; i < numChildren(); i++){
-          if(childCell[i] != 0){
-            delete  childCell[i];
-            childCell[i] = 0;
-          }
-        }
-        delete[] childCell;
-        childCell = 0;
+    if(childCell != 0){
+      for(int i = 0; i < numChildren(); i++){
+	if(childCell[i] != 0){
+	  delete  childCell[i];
+	  childCell[i] = 0;
+	}
       }
-      parentCell = 0;
+      delete[] childCell;
+      childCell = 0;
+    }
+    parentCell = 0;
     
     if(face != 0){
       delete[] face;
       face = 0;
     }
-    }
   }
+
   //if all children are tagged as 2, remove all children
   void derefine();
   bool needDerefine();

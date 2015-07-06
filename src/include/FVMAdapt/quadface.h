@@ -169,74 +169,70 @@ public:
 //   }
  //destructor, it works this way without memory leakage
   ~QuadFace(){
-    if(this != 0){
-      switch(code){
-      case 3:
+    switch(code){
+    case 3:
        
-        if(childx != 0){
-          for(int i = 0; i < 2; i++){
-            if(childx[i] != 0){
-              delete childx[i];
-              childx[i] = 0;
-            }
-          }
-          delete[] childx;
-          childx = 0;
-        }
-        if(childy != 0){
-          for(int i = 0; i < 2; i++){
-            if(childy[i] != 0) {
-              delete[] childy[i]->childx;
-              childy[i]->childx = 0;
-              delete childy[i];
-              childy[i] = 0;
-            }
-          }
-          delete[] childy;
-          childy = 0;
-        }
-
-
-        if(child!= 0){
-          delete[] child;
-          child = 0;
-        }
-        break;
-      case 2:
-        if(childx != 0){
-          for(int i = 0; i < 2; i++){
-            if(childx[i] != 0){
-              delete childx[i];
-              childx[i] = 0;
-            }
-          }
-          delete[] childx;
-          childx = 0;
-        }
-        break;
-      case 1:
-        if(childy != 0){
-          for(int i = 0; i < 2; i++){
-            if(childy[i] != 0){
-              delete childy[i];
-              childy[i] = 0;
-            }
-          }
-          delete[] childy;
-          childy = 0;
-        }
-        break;
-      default:
-        break;
+      if(childx != 0){
+	for(int i = 0; i < 2; i++){
+	  if(childx[i] != 0){
+	    delete childx[i];
+	    childx[i] = 0;
+	  }
+	}
+	delete[] childx;
+	childx = 0;
       }
-      if(edge != 0){
-        delete [] edge;
-        edge = 0;
+      if(childy != 0){
+	for(int i = 0; i < 2; i++){
+	  if(childy[i] != 0) {
+	    delete[] childy[i]->childx;
+	    childy[i]->childx = 0;
+	    delete childy[i];
+	    childy[i] = 0;
+	  }
+	}
+	delete[] childy;
+	childy = 0;
       }
+      
+      
+      if(child!= 0){
+	delete[] child;
+	child = 0;
+      }
+      break;
+    case 2:
+      if(childx != 0){
+	for(int i = 0; i < 2; i++){
+	  if(childx[i] != 0){
+	    delete childx[i];
+	    childx[i] = 0;
+	  }
+	}
+	delete[] childx;
+	childx = 0;
+      }
+      break;
+    case 1:
+      if(childy != 0){
+	for(int i = 0; i < 2; i++){
+	  if(childy[i] != 0){
+	    delete childy[i];
+	    childy[i] = 0;
+	  }
+	}
+	delete[] childy;
+	childy = 0;
+      }
+      break;
+    default:
+      break;
+    }
+    if(edge != 0){
+      delete [] edge;
+      edge = 0;
     }
   }
-
- 
  
   inline double area(){
     Node* c = simple_center();
