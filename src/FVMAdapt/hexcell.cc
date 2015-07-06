@@ -1109,19 +1109,16 @@ int HexCell::get_num_fine_faces()const{
 }
 
 int HexCell::get_tagged(){
-  if(this !=0){ 
-    std::vector<Node*> nodes(8);
-    get_nodes(nodes);
-    //if all nodes get detagged, the cell is detagged
-    bool detagged = true;
-    for(std::vector<Node*>::const_iterator np = nodes.begin(); np != nodes.end(); np++){
-      if((*np)->tag != 2)detagged = false;
-    }
-    if(detagged) return 2;
-    for(std::vector<Node*>::const_iterator np = nodes.begin(); np != nodes.end(); np++){
-      if((*np)->tag == 1)return 1;
-    }
-    
+  std::vector<Node*> nodes(8);
+  get_nodes(nodes);
+  //if all nodes get detagged, the cell is detagged
+  bool detagged = true;
+  for(std::vector<Node*>::const_iterator np = nodes.begin(); np != nodes.end(); np++){
+    if((*np)->tag != 2)detagged = false;
+  }
+  if(detagged) return 2;
+  for(std::vector<Node*>::const_iterator np = nodes.begin(); np != nodes.end(); np++){
+    if((*np)->tag == 1)return 1;
   }
   
   //otherwise, the cell remains unchanged
@@ -1129,18 +1126,16 @@ int HexCell::get_tagged(){
 }
       
 int HexCell::get_tagged(const vector<source_par>& sources){
-  if(this !=0){ 
-    std::vector<Node*> nodes(8);
-    get_nodes(nodes);
-
-    double min_len = get_min_edge_length();
-    if(tag_cell(nodes, sources, min_len)){
-      mySplitCode = 7;
-      return 1;
-    }else{
-      mySplitCode = 0;
-      return 0;
-    }
+  std::vector<Node*> nodes(8);
+  get_nodes(nodes);
+  
+  double min_len = get_min_edge_length();
+  if(tag_cell(nodes, sources, min_len)){
+    mySplitCode = 7;
+    return 1;
+  }else{
+    mySplitCode = 0;
+    return 0;
   }
   return 0;
 } 
@@ -1689,39 +1684,35 @@ int32 HexCell::traverse(const std::vector<char>& parentPlan,  vector<pair<int32,
   
 //assume with derefinement, the balance option is always no edge has levels greater than 1 
 bool HexCell::needDerefine(){
-  if(this != 0 ){
-    if(childCell != 0){
-      bool derefine = true;
-      for(int i = 0; i < numChildren(); i++){
-        if( (childCell[i] ->get_tagged()) != 2)return false;
-        if(childCell[i]->childCell!=0) return false;
+  if(childCell != 0){
+    bool derefine = true;
+    for(int i = 0; i < numChildren(); i++){
+      if( (childCell[i] ->get_tagged()) != 2)return false;
+      if(childCell[i]->childCell!=0) return false;
+    }
+    if(derefine){
+      std::vector<Edge*> edge = get_edges();
+      for(int i = 0; i < 12; i++){
+	if( edge[i]->depth_greater_than_1())return false;
       }
-      if(derefine){
-        std::vector<Edge*> edge = get_edges();
-        for(int i = 0; i < 12; i++){
-          if( edge[i]->depth_greater_than_1())return false;
-        }
-        return true;
-      }
+      return true;
     }
   }
   return false;
 }
 bool HexCell::needDerefine_ctag(){
-  if(this != 0 ){
-    if(childCell != 0){
-      bool derefine = true;
-      for(int i = 0; i < numChildren(); i++){
-        if( (childCell[i] ->getTag()) != 2)return false;
-        if(childCell[i]->childCell!=0) return false;
+  if(childCell != 0){
+    bool derefine = true;
+    for(int i = 0; i < numChildren(); i++){
+      if( (childCell[i] ->getTag()) != 2)return false;
+      if(childCell[i]->childCell!=0) return false;
+    }
+    if(derefine){
+      std::vector<Edge*> edge = get_edges();
+      for(int i = 0; i < 12; i++){
+	if( edge[i]->depth_greater_than_1())return false;
       }
-      if(derefine){
-        std::vector<Edge*> edge = get_edges();
-        for(int i = 0; i < 12; i++){
-          if( edge[i]->depth_greater_than_1())return false;
-        }
-        return true;
-      }
+      return true;
     }
   }
   return false;
@@ -1730,18 +1721,16 @@ bool HexCell::needDerefine_ctag(){
 
       
 void HexCell::derefine(){
-  if(this != 0 ){
-    if(childCell != 0){
-      for(int i = 0; i < numChildren(); i++){
-        if(childCell[i] != 0){
-          delete  childCell[i];
-          childCell[i] = 0;
-        }
+  if(childCell != 0){
+    for(int i = 0; i < numChildren(); i++){
+      if(childCell[i] != 0){
+	delete  childCell[i];
+	childCell[i] = 0;
       }
-      delete [] childCell;
-      childCell = 0;
-      mySplitCode = 0;
     }
+    delete [] childCell;
+    childCell = 0;
+    mySplitCode = 0;
   }
 }
 void reorder_faces(const const_store<int>& node_remap, std::vector<Entity>& lower){

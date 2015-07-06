@@ -910,40 +910,35 @@ int Prism::get_num_fine_faces(){
 
 
 int Prism::get_tagged(){
-  if(this !=0){ 
-    std::vector<Node*> nodes(2*nfold);
-    get_nodes(nodes); 
+  std::vector<Node*> nodes(2*nfold);
+  get_nodes(nodes); 
     
-    //if all nodes get detagged, the cell is detagged
-    bool detagged = true;
-    for(std::vector<Node*>::const_iterator np = nodes.begin(); np != nodes.end(); np++){
-      if((*np)->tag != 2)detagged = false;
-    }
-    if(detagged) return 2;
-    for(std::vector<Node*>::const_iterator np = nodes.begin(); np != nodes.end(); np++){
-      if((*np)->tag == 1)return 1;
-      
-    }
+  //if all nodes get detagged, the cell is detagged
+  bool detagged = true;
+  for(std::vector<Node*>::const_iterator np = nodes.begin(); np != nodes.end(); np++){
+    if((*np)->tag != 2)detagged = false;
   }
-  
+  if(detagged) return 2;
+  for(std::vector<Node*>::const_iterator np = nodes.begin(); np != nodes.end(); np++){
+    if((*np)->tag == 1)return 1;
+    
+  }
   //otherwise, the cell remains unchanged
   return 0;
 } 
   
 
 int Prism::get_tagged(const vector<source_par>& sources){
-  if(this !=0){ 
-    std::vector<Node*> nodes(2*nfold);
-    get_nodes(nodes); 
-   
-    double min_len = get_min_edge_length();
-    if(tag_cell(nodes, sources, min_len)){
-      mySplitCode = 3;
-      return 1;
-    }else{
-      mySplitCode = 0;
-      return 0;
-    }
+  std::vector<Node*> nodes(2*nfold);
+  get_nodes(nodes); 
+  
+  double min_len = get_min_edge_length();
+  if(tag_cell(nodes, sources, min_len)){
+    mySplitCode = 3;
+    return 1;
+  }else{
+    mySplitCode = 0;
+    return 0;
   }
   return 0;
 }
@@ -1311,39 +1306,35 @@ int32 Prism::traverse(const std::vector<char>& parentPlan,  vector<pair<int32, i
 }
 
 bool Prism::needDerefine(){
-  if(this != 0 ){
-    if(childCell != 0){
-      bool derefine = true;
-      for(int i = 0; i < numChildren(); i++){
-        if( (childCell[i] ->get_tagged()) != 2) return false;
-        if (childCell[i]->childCell !=0)return false;
+  if(childCell != 0){
+    bool derefine = true;
+    for(int i = 0; i < numChildren(); i++){
+      if( (childCell[i] ->get_tagged()) != 2) return false;
+      if (childCell[i]->childCell !=0)return false;
+    }
+    if(derefine){
+      std::vector<Edge*> edge= get_edges();
+      for(unsigned int i = 0; i < edge.size(); i++){
+	if(edge[i]->depth_greater_than_1())return false;
       }
-      if(derefine){
-        std::vector<Edge*> edge= get_edges();
-        for(unsigned int i = 0; i < edge.size(); i++){
-          if(edge[i]->depth_greater_than_1())return false;
-        }
-        return true;
-      }
+      return true;
     }
   }
   return false;
 }
 bool Prism::needDerefine_ctag(){
-  if(this != 0 ){
-    if(childCell != 0){
-      bool derefine = true;
-      for(int i = 0; i < numChildren(); i++){
-        if( (childCell[i] ->getTag()) != 2) return false;
-        if (childCell[i]->childCell !=0)return false;
+  if(childCell != 0){
+    bool derefine = true;
+    for(int i = 0; i < numChildren(); i++){
+      if( (childCell[i] ->getTag()) != 2) return false;
+      if (childCell[i]->childCell !=0)return false;
+    }
+    if(derefine){
+      std::vector<Edge*> edge= get_edges();
+      for(unsigned int i = 0; i < edge.size(); i++){
+	if(edge[i]->depth_greater_than_1())return false;
       }
-      if(derefine){
-        std::vector<Edge*> edge= get_edges();
-        for(unsigned int i = 0; i < edge.size(); i++){
-          if(edge[i]->depth_greater_than_1())return false;
-        }
-        return true;
-      }
+      return true;
     }
   }
   return false;
@@ -1351,19 +1342,17 @@ bool Prism::needDerefine_ctag(){
 
 
 void Prism::derefine(){
-  if(this != 0 ){
-    if(childCell != 0){
-      int nc = numChildren();
-      for(int i = 0; i < nc; i++){
-        if(childCell[i] != 0){
-          delete  childCell[i];
-          childCell[i] = 0;
-        }
+  if(childCell != 0){
+    int nc = numChildren();
+    for(int i = 0; i < nc; i++){
+      if(childCell[i] != 0){
+	delete  childCell[i];
+	childCell[i] = 0;
       }
-      delete [] childCell;
-      childCell = 0;
-      mySplitCode = 0;
     }
+    delete [] childCell;
+    childCell = 0;
+    mySplitCode = 0;
   }
 }
 
