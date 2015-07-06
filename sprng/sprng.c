@@ -30,7 +30,7 @@
 #include "sprng/lcg64.h"
 #include "sprng/cmrg.h"
 #include "sprng/mlfg.h"
-
+#include "sprng/store.h"
 #ifdef USE_PMLCG
 #include "sprng/pmlcg.h"
 #endif
