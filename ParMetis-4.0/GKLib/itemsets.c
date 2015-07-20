@@ -7,7 +7,7 @@
  *
  * \date 6/13/2008
  * \author George Karypis
- * \version\verbatim $Id: itemsets.c 7915 2010-02-01 23:35:28Z karypis $ \endverbatim
+ * \version\verbatim $Id: itemsets.c 11075 2011-11-11 22:31:52Z karypis $ \endverbatim
  */
 
 #include <GKlib.h>
@@ -44,12 +44,13 @@ gk_csr_t *itemsets_project_matrix(isparams_t *param, gk_csr_t *mat, int cid);
 /*************************************************************************/
 /*! The entry point of the frequent itemset discovery code */
 /*************************************************************************/
-void gk_find_frequent_itemsets(int ntrans, int *tranptr, int *tranind, 
+void gk_find_frequent_itemsets(int ntrans, ssize_t *tranptr, int *tranind, 
         int minfreq, int maxfreq, int minlen, int maxlen, 
         void (*process_itemset)(void *stateptr, int nitems, int *itemids, 
                                 int ntrans, int *transids),
         void *stateptr)
 {
+  ssize_t i;
   gk_csr_t *mat, *pmat;
   isparams_t params;
   int *pattern;
@@ -58,7 +59,7 @@ void gk_find_frequent_itemsets(int ntrans, int *tranptr, int *tranind,
   mat = gk_csr_Create();
   mat->nrows  = ntrans;
   mat->ncols  = tranind[gk_iargmax(tranptr[ntrans], tranind)]+1;
-  mat->rowptr = gk_icopy(ntrans+1, tranptr, gk_imalloc(ntrans+1, "gk_find_frequent_itemsets: mat.rowptr"));
+  mat->rowptr = gk_zcopy(ntrans+1, tranptr, gk_zmalloc(ntrans+1, "gk_find_frequent_itemsets: mat.rowptr"));
   mat->rowind = gk_icopy(tranptr[ntrans], tranind, gk_imalloc(tranptr[ntrans], "gk_find_frequent_itemsets: mat.rowind"));
   mat->colids = gk_iincset(mat->ncols, 0, gk_imalloc(mat->ncols, "gk_find_frequent_itemsets: mat.colids"));
 
@@ -94,7 +95,7 @@ void gk_find_frequent_itemsets(int ntrans, int *tranptr, int *tranind,
 void itemsets_find_frequent_itemsets(isparams_t *params, gk_csr_t *mat, 
          int preflen, int *prefix)
 {
-  int i;
+  ssize_t i;
   gk_csr_t *cmat;
 
   /* Project each frequent column */
@@ -126,10 +127,10 @@ void itemsets_find_frequent_itemsets(isparams_t *params, gk_csr_t *mat,
 /*******************************************************************************/
 gk_csr_t *itemsets_project_matrix(isparams_t *params, gk_csr_t *mat, int cid)
 {
-  int i, j, k, ii, nrows, ncols, pnrows, pncols, pnnz;
-  int *colptr, *colind, *colids;
-  int *pcolptr, *pcolind, *pcolids;
-  int *rmarker;
+  ssize_t i, j, k, ii, pnnz;
+  int nrows, ncols, pnrows, pncols;
+  ssize_t *colptr, *pcolptr;
+  int *colind, *colids, *pcolind, *pcolids, *rmarker;
   gk_csr_t *pmat;
   gk_ikv_t *cand;
 
@@ -177,7 +178,7 @@ gk_csr_t *itemsets_project_matrix(isparams_t *params, gk_csr_t *mat, int cid)
   /* Allocate space for the remaining fields of the projected matrix */
   pmat->ncols  = pncols;
   pmat->colids = pcolids = gk_imalloc(pncols, "itemsets_project_matrix: pcolids");
-  pmat->colptr = pcolptr = gk_imalloc(pncols+1, "itemsets_project_matrix: pcolptr");
+  pmat->colptr = pcolptr = gk_zmalloc(pncols+1, "itemsets_project_matrix: pcolptr");
   pmat->colind = pcolind = gk_imalloc(pnnz, "itemsets_project_matrix: pcolind");
 
 

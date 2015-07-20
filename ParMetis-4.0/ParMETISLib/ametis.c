@@ -8,7 +8,7 @@
  * Started 10/19/96
  * George
  *
- * $Id: ametis.c 10612 2011-07-21 20:09:05Z karypis $
+ * $Id: ametis.c 10757 2011-09-15 22:07:47Z karypis $
  *
  */
 
@@ -171,6 +171,9 @@ void Adaptive_Partition(ctrl_t *ctrl, graph_t *graph)
       for (i=0; i<graph->ncon; i++) 
         rprintf(ctrl, "%.3"PRREAL" ", lbvec[i]);
       rprintf(ctrl, "\n");
+
+      /* free memory allocated by ComputePartitionParams */
+      gk_free((void **)&graph->ckrinfo, &graph->lnpwgts, &graph->gnpwgts, LTERM);
     }
 
     /* check if no coarsening took place */

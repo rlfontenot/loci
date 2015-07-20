@@ -4,7 +4,7 @@
 
 \date   Started 4/12/2007
 \author George
-\version\verbatim $Id: timers.c 10643 2011-07-28 16:39:31Z benjamin $ \endverbatim
+\version\verbatim $Id: timers.c 10711 2011-08-31 22:23:04Z karypis $ \endverbatim
 */
 
 

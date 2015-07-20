@@ -6,7 +6,7 @@
  * Started 7/28/97
  * George
  *
- * $Id: serial.c 10542 2011-07-11 16:56:22Z karypis $
+ * $Id: serial.c 13927 2013-03-27 22:42:41Z karypis $
  *
  */
 
@@ -195,7 +195,7 @@ void Mc_SerialKWayAdaptRefine(ctrl_t *ctrl, graph_t *graph, idx_t nparts,
                                   maxwgt+to*ncon);
           better_balance_ft = IsHBalanceBetterFT(ncon, npwgts+from*ncon,
                                   npwgts+to*ncon, nvwgt, ubvec);
-          better_balance_tt = IsHBalanceBetterTT(ncon, npwgts+mynbrs[k].ed*ncon,
+          better_balance_tt = IsHBalanceBetterTT(ncon, npwgts+mynbrs[k].pid*ncon,
                                   npwgts+to*ncon,nvwgt,ubvec);
 
           if (

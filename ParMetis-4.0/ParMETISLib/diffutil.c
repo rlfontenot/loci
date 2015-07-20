@@ -8,7 +8,7 @@
  *
  * Started 5/19/97, Kirk, George
  *
- * $Id: diffutil.c 10057 2011-06-02 13:44:44Z karypis $
+ * $Id: diffutil.c 13946 2013-03-30 15:51:45Z karypis $
  *
  */
 
@@ -27,18 +27,18 @@ void SetUpConnectGraph(graph_t *graph, matrix_t *matrix, idx_t *workspace)
   idx_t *pcounts, *perm, *marker;
   real_t *values;
 
-  nvtxs = graph->nvtxs;
-  xadj = graph->xadj;
+  nvtxs  = graph->nvtxs;
+  xadj   = graph->xadj;
   adjncy = graph->adjncy;
-  where = graph->where;
+  where  = graph->where;
 
-  nrows = matrix->nrows;
+  nrows  = matrix->nrows;
   rowptr = matrix->rowptr;
   colind = matrix->colind;
   values = matrix->values;
 
-  perm = workspace;
-  marker = iset(nrows, -1, workspace+nvtxs);
+  perm    = workspace;
+  marker  = iset(nrows, -1, workspace+nvtxs);
   pcounts = iset(nrows+1, 0, workspace+nvtxs+nrows);
 
   for (i=0; i<nvtxs; i++)
@@ -125,6 +125,7 @@ void Mc_ComputeMoveStatistics(ctrl_t *ctrl, graph_t *graph, idx_t *nmoved, idx_t
   gk_free((void **)&lstart, (void **)&gstart, (void **)&lleft, (void **)&gleft, (void **)&lend, (void **)&gend, LTERM);
 }
 
+
 /*************************************************************************
 *  This function computes the TotalV of a serial graph.
 **************************************************************************/
@@ -140,7 +141,6 @@ idx_t Mc_ComputeSerialTotalV(graph_t *graph, idx_t *home)
 
   return totalv;
 }
-
 
 
 /*************************************************************************
@@ -184,7 +184,7 @@ void ConjGrad2(matrix_t *A, real_t *b, real_t *x, real_t tol, real_t *workspace)
   idx_t *rowptr, *colind;
   real_t *values;
 
-  n = A->nrows;
+  n      = A->nrows;
   rowptr = A->rowptr;
   colind = A->colind;
   values = A->values;

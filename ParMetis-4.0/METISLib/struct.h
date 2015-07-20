@@ -8,7 +8,7 @@
  * Started 9/26/95
  * George
  *
- * $Id: struct.h 10513 2011-07-07 22:06:03Z karypis $
+ * $Id: struct.h 13900 2013-03-24 15:27:07Z karypis $
  */
 
 #ifndef _LIBMETIS_STRUCT_H_
@@ -146,6 +146,7 @@ typedef struct ctrl_t {
 
   idx_t CoarsenTo;		/* The # of vertices in the coarsest graph */
   idx_t nIparts;                /* The number of initial partitions to compute */
+  idx_t no2hop;                 /* Indicates if 2-hop matching will be used */
   idx_t minconn;                /* Indicates if the subdomain connectivity will be minimized */
   idx_t contig;                 /* Indicates if contigous partitions are required */
   idx_t nseps;			/* The number of separators to be found during multiple bisections */
@@ -173,7 +174,7 @@ typedef struct ctrl_t {
 
   /* Various Timers */
   double TotalTmr, InitPartTmr, MatchTmr, ContractTmr, CoarsenTmr, UncoarsenTmr, 
-         RefTmr, ProjectTmr, SplitTmr;
+         RefTmr, ProjectTmr, SplitTmr, Aux1Tmr, Aux2Tmr, Aux3Tmr;
 
   /* Workspace information */
   gk_mcore_t *mcore;    /*!< The persistent memory core for within function 

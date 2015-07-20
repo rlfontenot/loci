@@ -3,7 +3,7 @@
  * 
  * George's library of most frequently used routines
  *
- * $Id: GKlib.h 10408 2011-06-25 16:25:17Z karypis $
+ * $Id: GKlib.h 13005 2012-10-23 22:34:36Z karypis $
  *
  */
 
@@ -72,6 +72,7 @@
 #include <gk_mkblas.h>
 #include <gk_mkmemory.h>
 #include <gk_mkpqueue.h>
+#include <gk_mkpqueue2.h>
 #include <gk_mkrandom.h>
 #include <gk_mkutils.h>
 

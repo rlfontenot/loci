@@ -8,7 +8,7 @@
  * Started 7/11/97
  * George
  *
- * $Id: xyzpart.c 10663 2011-08-04 03:54:49Z karypis $
+ * $Id: xyzpart.c 10755 2011-09-15 12:28:34Z karypis $
  *
  */
 
@@ -491,7 +491,8 @@ STARTTIMER(ctrl, ctrl->AuxTmr1);
   if (nlsamples > npes)
     nlsamples = npes;
   else if (nlsamples < 75)
-    nlsamples = 75;
+    nlsamples = gk_min(75, npes); /* the 'npes' in the min is to account for small graphs */
+
 
   IFSET(ctrl->dbglvl, DBG_INFO, 
       rprintf(ctrl, "PseudoSampleSort: nlsamples=%"PRIDX" of %"PRIDX"\n", nlsamples, npes));
@@ -549,7 +550,6 @@ STARTTIMER(ctrl, ctrl->AuxTmr2);
   /* Sort all the picks */
   ikvsortii(ntsamples, allpicks);
 
-  /* PrintPairs(ctrl, ntsamples, allpicks, "Allpicks"); */
 
   /* Select the final splitters. Set the boundaries to simplify coding */
   for (i=1; i<npes; i++)
@@ -557,7 +557,6 @@ STARTTIMER(ctrl, ctrl->AuxTmr2);
   mypicks[0].key    = IDX_MIN;
   mypicks[npes].key = IDX_MAX;
 
-  /* PrintPairs(ctrl, npes+1, mypicks, "Mypicks"); */
 
   WCOREPOP;  /* free allpicks */
 
@@ -573,6 +572,7 @@ STARTTIMER(ctrl, ctrl->AuxTmr3);
     else
       scounts[++j]++;
   }
+  PASSERT(ctrl, j < npes);
   gkMPI_Alltoall(scounts, 1, IDX_T, rcounts, 1, IDX_T, ctrl->comm);
 
   /* multiply raw counts by 2 to account for the ikv_t type */

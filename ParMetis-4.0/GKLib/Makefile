@@ -9,7 +9,7 @@ OBJS = \
 	b64.o blas.o csr.o error.o evaluate.o fkvkselect.o fs.o getopt.o \
 	gkregex.o htable.o io.o itemsets.o mcore.o memory.o omp.o pdb.o \
 	pqueue.o random.o seq.o sort.o string.o timers.o tokenizer.o \
-	util.o
+	util.o rw.o graph.o
 
 libgk.a: $(OBJS) 
 	$(AR) $(ARFLAGS) libgk.a $(OBJS) 
