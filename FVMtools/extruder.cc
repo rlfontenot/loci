@@ -12,6 +12,10 @@ namespace Loci {
     return a1[0]<a2[0] || (a1[0] == a2[0] && a1[1] < a2[1]) ||
       (a1[0] == a2[0] && a1[1] == a2[1] && a1[2] < a2[2]) ;
   }
+  inline bool operator<(const Array<int,2> &a1,
+                        const Array<int,2> &a2) {
+    return a1[0]<a2[0] || (a1[0] == a2[0] && a1[1] < a2[1]) ;
+  }
 }
 
 void kill_comment(istream &s) {
@@ -72,7 +76,8 @@ int main(int ac, char *av[]) {
   double deltamax = 1000 ;
   double growth = 1.0 ;
   int nplanes = 2 ;
-  
+  bool use_delta_file = false ;
+  string delta_file = "" ;
   while(ac > 2 ) {
     if(!strcmp(av[1],"-xy")) {
       cut_type = XY_CUT ;
@@ -106,6 +111,13 @@ int main(int ac, char *av[]) {
       ac-- ;
       av++ ;
       nz = atof(av[1]) ;
+      ac-- ;
+      av++ ;
+    } else if(!strcmp(av[1],"-delta_file") && ac > 3) {
+      ac-- ;
+      av++ ;
+      delta_file = av[1] ;
+      use_delta_file = true ;
       ac-- ;
       av++ ;
     } else if(!strcmp(av[1],"-delta") && ac > 3) {
@@ -155,6 +167,24 @@ int main(int ac, char *av[]) {
       break ;
     }
   } 
+  vector<double> delta_list ;
+  if(use_delta_file) {
+    ifstream dfile(delta_file.c_str(),ios::in); 
+    int ndeltas = 0 ;
+    dfile >> ndeltas ;
+    if(ndeltas <= 0) {
+      cerr << "invalid delta_file provided" << endl ;
+      exit(-1) ;
+    }
+    vector<double> tmp(ndeltas) ;
+    for(int i=0;i<ndeltas;++i) {
+      dfile >> tmp[i] ;
+    }
+    delta_list = tmp ;
+    nplanes = ndeltas+1 ;
+  }
+    
+      
   double nnorm = sqrt(nx*nx+ny*ny+nz*nz) ;
   nx *= 1./nnorm ;
   ny *= 1./nnorm ;
@@ -250,10 +280,13 @@ int main(int ac, char *av[]) {
   }
   sort(edge_map.begin(),edge_map.end()) ;
 
+  vector<Array<int,2> > boundary_edges ;
+
+
   int emsz = edge_map.size() ;
   for(int i=0;i<emsz;i+=2) {
-    if(edge_map[i][0] != edge_map[i+1][0] ||
-       edge_map[i][1] != edge_map[i+1][1]) {
+    if((edge_map[i][0] != edge_map[i+1][0] ||
+	edge_map[i][1] != edge_map[i+1][1])) {
       cerr << "unmatched edge in surface?  Are all boundaries set?" << endl ;
     }
     if(edge_map[i][2] == edge_map[i+1][2]) {
@@ -262,23 +295,55 @@ int main(int ac, char *av[]) {
     if(edge_map[i][2] < 0 && edge_map[i+1][2] < 0) {
       cerr << "bc setting on both sides of face?" << endl ;
     }
+    if(edge_map[i][2] < 0) {
+      Array<int,2> tmp ;
+      tmp[0] = edge_map[i][0] ;
+      tmp[1] = i ;
+      boundary_edges.push_back(tmp) ;
+      tmp[0] = edge_map[i][1] ;
+      boundary_edges.push_back(tmp) ;
+    }
     if(edge_map[i][0] == 0 || edge_map[i+1][0] == 0 ||
        edge_map[i][1] == 0 || edge_map[i+1][1] == 0 ||
        edge_map[i][2] == 0 || edge_map[i+1][2] == 0) {
       cerr << "zero node or cell number" << endl ;
     }
   }
-
+  
+  sort(boundary_edges.begin(),boundary_edges.end()) ;
+  vector<int> edgepairs ;
+  vector<int> edge_map_bpairs(edge_map.size(),0) ;
+  for(size_t i=0;i<boundary_edges.size(); i+=2) {
+    if(boundary_edges[i][0] != boundary_edges[i+1][0]) {
+      cerr << "dangling end of boundary edges!" << endl ;
+    }
+    int b1 = boundary_edges[i][1] ;
+    int b2 = boundary_edges[i+1][1] ;
+    if(edge_map_bpairs[b1] ==0 && edge_map_bpairs[b2] == 0 &&
+       edge_map[b1][2] == edge_map[b2][2] &&
+       edge_map[b1+1][2] == edge_map[b2+1][2]) {
+      edge_map_bpairs[b1] = 1 ;
+      edge_map_bpairs[b1+1] = 1 ;
+      edge_map_bpairs[b2] = 1 ;
+      edge_map_bpairs[b2+1] = 1 ;
+      edgepairs.push_back(i) ;
+    }
+  }
+  cout << "num boundary edges = " << boundary_edges.size()/2 << endl ;
+  if(edgepairs.size() > 0)
+    cout << "paired boundary edges= " << edgepairs.size() << endl ;
+  map<int,pair<int,int> > node2bedge ;
   ofstream ofile("grid.cog",ios::out) ;
   if(ofile.fail()) {
     cerr << "can't open grid.cog" << endl ;
     return  -1 ;
   }
 
+  int splitEdgeCnt = edgepairs.size() ;
   ofile.precision(16) ;
   int npatch = nbcs+2 ;
   ofile << "3 1 " << npatch << endl ;
-  int vol_nfaces = nfaces*nplanes + (emsz/2)*(nplanes-1) ;
+  int vol_nfaces = nfaces*nplanes + (emsz/2-splitEdgeCnt)*(nplanes-1) ;
   int vol_ncells = nfaces*(nplanes-1) ;
   int vol_npnts = npnts*nplanes ;
   int mxppf = 4 ;
@@ -323,13 +388,20 @@ int main(int ac, char *av[]) {
   }
   double dn = delta ;
   double ddn = dn ;
+  if(use_delta_file)
+    dn = delta_list[0] ;
   for(int j=1;j<nplanes;++j) {
     double dx = nx*dn ;
     double dy = ny*dn ;
     double dz = nz*dn ;
     ddn *= growth ;
     ddn = min(ddn,deltamax) ;
-    dn += ddn ;
+    if(use_delta_file) {
+      if(j+1 != nplanes) 
+	dn += delta_list[j] ;
+    } else {
+      dn += ddn ;
+    }
     for(int i=0;i<npnts;++i) {
       ofile << x[i]+dx << ' ' << y[i]+dy << ' ' << z[i]+dz << endl ;
     }
@@ -340,16 +412,39 @@ int main(int ac, char *av[]) {
     int of1 = (j-1)*npnts ;
     int of2 = j*npnts ;
     int cof = (j-1)*nfaces ;
+    int cnt = 0;
     for(int i=0;i<emsz;i+=2) {
-      // all extruded faces are quads
-      ofile << 4 << ' ' ;
-      ofile << edge_map[i][0]+of1 << ' ' << edge_map[i][1]+of1 << ' '
-            << edge_map[i][1]+of2 << ' ' << edge_map[i][0]+of2 << ' ' ;
-      int c1 = edge_map[i+1][2] ; 
-      int c2 = edge_map[i][2] ;
-      c1 += (c1<0)?0:cof ;
-      c2 += (c2<0)?0:cof ;
-      ofile << c1 << ' ' << c2 << endl ;
+      if(edge_map_bpairs[i] == 0) {
+	// all extruded faces are quads
+	ofile << 4 << ' ' ;
+	ofile << edge_map[i][0]+of1 << ' ' << edge_map[i][1]+of1 << ' '
+	      << edge_map[i][1]+of2 << ' ' << edge_map[i][0]+of2 << ' ' ;
+	int c1 = edge_map[i+1][2] ; 
+	int c2 = edge_map[i][2] ;
+	c1 += (c1<0)?0:cof ;
+	c2 += (c2<0)?0:cof ;
+	ofile << c1 << ' ' << c2 << endl ;
+      } else
+	cnt++ ;
+    }
+
+    for(size_t i=0;i<edgepairs.size();++i) {
+      int ent = edgepairs[i] ;
+      int ncent = boundary_edges[ent][0] ;
+      int b1 = boundary_edges[ent][1] ;
+      int b2 = boundary_edges[ent+1][1] ;
+      int n1 = edge_map[b1][0]==ncent?edge_map[b1][1]:edge_map[b1][0] ;
+      int n2 = edge_map[b2][0]==ncent?edge_map[b2][1]:edge_map[b2][0] ;
+      // all extruded  split edges have quads with 6 edges (2 split)
+	ofile << 6 << ' ' ;
+	ofile << n1+of1 << ' ' << ncent+of1 << ' '
+	      << n2+of1 << ' ' << n2+of2 << ' ' 
+	      << ncent+of2 << ' ' << n1+of2 << ' ' ;
+	int c1 = edge_map[b1+1][2] ; 
+	int c2 = edge_map[b1][2] ;
+	c1 += (c1<0)?0:cof ;
+	c2 += (c2<0)?0:cof ;
+	ofile << c1 << ' ' << c2 << endl ;
     }
   }
   entitySet nodes1 ;
