@@ -208,7 +208,7 @@ void dump_pos(const sequence &seq,const_store<vector3d<double> > &pos,
   }
 
   hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
-                                        H5P_DEFAULT, H5P_DEFAULT) ;
+				       H5P_DEFAULT, H5P_DEFAULT) ;
 
   if(file_id < 0) {
     cerr << "unable to open file " << filename << endl ;
@@ -270,7 +270,7 @@ $rule apply(numNodes<-pos)[Loci::Summation] {
 
 $rule apply(topo<-numNodes,numAccessedNodes)[Loci::Maximum], prelude {
   if(*$numNodes != *$numAccessedNodes) {
-     $[Once]{
+    $[Once]{
       cerr << "Warning: "
            << *$numNodes-*$numAccessedNodes
            << " unreferenced nodes in grid." << endl ;
@@ -608,14 +608,14 @@ $rule singleton(report<-volRatio,maxCellAngle,minVol,maxTwist,maxShearTwist,topo
       cout<< "-- The solver may have difficulty obtaining solutions on this grid.  It is"<< endl
           << "   recommended that you identify the cause of poor mesh quality and regenerate" << endl
           << "   the mesh to improve quality.  The marginal classification is due to:" << endl ;
-        if($volRatio > 100)
-          cout << "     * a volRatio that exceeds 100" << endl ;
-        if($maxCellAngle > 170)
-          cout << "     * a maxCellAngle that exceeds 170 degrees" << endl ;
-        if($maxTwist > 0.45)
-          cout << "     * a maxTwist that exceeds 45 percent" << endl ;
-        if($maxShearTwist > 0.45)
-          cout << "     * a maxShearTwist that exceeds 45 percent" << endl ;
+      if($volRatio > 100)
+	cout << "     * a volRatio that exceeds 100" << endl ;
+      if($maxCellAngle > 170)
+	cout << "     * a maxCellAngle that exceeds 170 degrees" << endl ;
+      if($maxTwist > 0.45)
+	cout << "     * a maxTwist that exceeds 45 percent" << endl ;
+      if($maxShearTwist > 0.45)
+	cout << "     * a maxShearTwist that exceeds 45 percent" << endl ;
       break ;
     case -1:
       cout<< "-- This grid cannot be used as the solver will most likely fail to converge. "<< endl ;
@@ -695,10 +695,10 @@ void scalar_node_output::compute(const sequence &seq) {
 
 
 
-#define OUTPUT_SCALAR(X,Y) class OUT_##Y : public scalar_node_output {\
-                           public:\
-                           OUT_##Y() : scalar_node_output(X,#Y){}\
-                           }; register_rule<OUT_##Y> register_OUT_##Y 
+#define OUTPUT_SCALAR(X,Y) class OUT_##Y : public scalar_node_output {	\
+  public:								\
+  OUT_##Y() : scalar_node_output(X,#Y){}				\
+  }; register_rule<OUT_##Y> register_OUT_##Y 
 
 OUTPUT_SCALAR("cell2nodeMax(cellVolRatio)",volumeRatio) ;
 OUTPUT_SCALAR("cell2nodeMax(cellFaceAngle)",cellFaceAngle) ;
@@ -860,38 +860,148 @@ $rule apply(topo<-faceGeometryInconsistent)[Loci::Maximum],
 
 using namespace Loci ;
 class dump_boundary_geom : public apply_rule<param<int>, Loci::Maximum<int> > {
-    const_store<Area> area ;
+  const_store<Area> area ;
   const_store<vector3d<double> > facecenter ;
-    const_param<string> plot_postfix ;
-    const_param<string> modelName ;
+  const_param<string> plot_postfix ;
+  const_param<string> modelName ;
   param<int> topo ;
-  public:
-    dump_boundary_geom() ;
-    virtual void compute(const sequence &seq) ;
-  } ;
+public:
+  dump_boundary_geom() ;
+  virtual void compute(const sequence &seq) ;
+} ;
   
-  dump_boundary_geom::dump_boundary_geom() {
-    name_store("area",area) ;
-    name_store("facecenter",facecenter) ;
-    name_store("topo",topo) ;
-    name_store("modelName",modelName) ;
-    input("area,facecenter") ;
-    input("modelName") ;
-    constraint("ci->cellcenter") ;
-    output("topo") ;
+dump_boundary_geom::dump_boundary_geom() {
+  name_store("area",area) ;
+  name_store("facecenter",facecenter) ;
+  name_store("topo",topo) ;
+  name_store("modelName",modelName) ;
+  input("area,facecenter") ;
+  input("modelName") ;
+  constraint("ci->cellcenter") ;
+  output("topo") ;
+}
+void dump_boundary_geom::compute(const sequence &seq) {
+  ostringstream oss ;
+
+  oss << "output/bc_geom." << "0" << "_" << *modelName ;
+  string filename = oss.str() ;
+
+  //    cout << "opening file " << filename << endl ;
+  entitySet set(seq) ;
+  hid_t file_id = createUnorderedFile(filename.c_str(),set) ;
+  writeUnorderedStore(file_id,area,set,"area") ;
+  writeUnorderedStore(file_id,facecenter,set,"facecenter") ;
+  closeUnorderedFile(file_id) ;
+}	
+
+register_rule<dump_boundary_geom> register_dump_boundary_geom ;
+
+
+
+$type alpha_geom_f store<float> ;
+
+$type LDS_nonSymmetricCoeff param<double> ;
+$type LDS_nonSymmetricFactor param<double> ;
+// This defines the cutoff angle where full upwinding occurs,
+// A setting of 2 gives full upwinding at 53 degrees
+$rule default(LDS_nonSymmetricCoeff) {
+  $LDS_nonSymmetricCoeff = 2 ;
+}
+// This defines the slope of the upwind factor relative to the cos(angle)
+// in the limit as angle->0
+$rule default(LDS_nonSymmetricFactor) {
+  $LDS_nonSymmetricFactor = 1 ;
+}
+
+$rule pointwise(alpha_geom_f<-area,facecenter,(cl,cr)->(cellcenter,vol),
+		LDS_nonSymmetricCoeff,LDS_nonSymmetricFactor) {
+  const vector3d<double> df = $cr->$cellcenter-$cl->$cellcenter ;
+  const vector3d<double>  dv = $facecenter -0.5*($cl->$cellcenter+$cr->$cellcenter) ;
+  double ndv = norm(dv) ;
+  double ndf = norm(df) ;
+  double cosa= min(sqrt(max(1.-2.*ndv/ndf,0.0)),
+		   dot($area.n,df)/ndf) ;
+  double scale = $LDS_nonSymmetricCoeff ;
+  double s = $LDS_nonSymmetricFactor/max(scale,1.0) ; ;
+  double x = min(scale*(1.-cosa),1.0) ;
+  double x2 = x*x ;
+  double x3 = x2*x ;
+  $alpha_geom_f = x2 + s*(x3-2.*x2+x) ;
+}
+  
+namespace Loci {
+inline pair<double,double> operator+=(pair<double,double> &r, const pair<double,double> &s) {
+  r.first += s.first ;
+  r.second += s.second ;
+  return r ;
+}
+}
+$type alphameanp param<std::pair<double,double> > ;
+
+$rule unit(alphameanp),constraint(alpha_geom_f) {
+  $alphameanp.first = 0;
+  $alphameanp.second = 0 ;
+}
+
+$rule apply(alphameanp<-alpha_geom_f,area)[Loci::Summation] {
+  pair<double,double> tmp ;
+  tmp.first = $alpha_geom_f*$area.sada ;
+  tmp.second = $area.sada ;
+  join($alphameanp,tmp) ;
+}
+
+$type alphastdp param<std::pair<double,double> > ;
+
+$rule unit(alphastdp),constraint(alpha_geom_f) {
+  $alphastdp.first = 0;
+  $alphastdp.second = 0 ;
+}
+
+$rule apply(alphastdp<-alpha_geom_f,area,alphameanp)[Loci::Summation] {
+  double am = $alphameanp.first/$alphameanp.second ;
+  double diff = am-$alpha_geom_f ;
+  pair<double,double> tmp ;
+  tmp.first = diff*diff*$area.sada ;
+  tmp.second = $area.sada ;
+  join($alphastdp,tmp) ;
+}
+
+
+
+
+$rule apply(topo<-alphameanp,alphastdp)[Loci::Maximum],
+  option(disable_threading), prelude {
+  $[Once] {
+    double meana = (*$alphameanp).first/(*$alphameanp).second ;
+    double sigma = sqrt((*$alphastdp).first/(*$alphastdp).second);
+    cout << "Dissipation Mesh Quality: (a_mean=" << meana << ", sigma=" << sigma << ")" << endl ;
+    if(meana+sigma < .12) {
+      cout << "  This is a low dissipation mesh. " << endl  ;
+    } else if(meana < .12) {
+      cout << "  This is a low dissipation mesh with limited regions of high dissipation." << endl;
+    } else {
+      cout << "  This mesh is not optimal for the low dissipation solver." << endl ;
+    }
   }
-  void dump_boundary_geom::compute(const sequence &seq) {
-    ostringstream oss ;
+} ;
 
-    oss << "output/bc_geom." << "0" << "_" << *modelName ;
-    string filename = oss.str() ;
+$type alpha_cell store<double> ;
 
-    //    cout << "opening file " << filename << endl ;
-    entitySet set(seq) ;
-    hid_t file_id = createUnorderedFile(filename.c_str(),set) ;
-    writeUnorderedStore(file_id,area,set,"area") ;
-    writeUnorderedStore(file_id,facecenter,set,"facecenter") ;
-    closeUnorderedFile(file_id) ;
-  }	
+$rule pointwise(alpha_cell<-upper->(alpha_geom_f,area),lower->(alpha_geom_f,area)) {
+  int usz = $upper.size() ;
+  double alpha_sum = 0 ;
+  double area_sum = 0 ;
+  for(int i=0;i<usz;++i) {
+    alpha_sum += ($upper[i]->$alpha_geom_f)*($upper[i]->$area.sada) ;
+    area_sum += ($upper[i]->$area.sada) ;
+  }
+  int lsz = $lower.size() ;
+  for(int i=0;i<lsz;++i) {
+    alpha_sum += ($lower[i]->$alpha_geom_f)*($lower[i]->$area.sada) ;
+    area_sum += ($lower[i]->$area.sada) ;
+  }
+  $alpha_cell = alpha_sum/max(area_sum,1e-30) ;
+}
 
-  register_rule<dump_boundary_geom> register_dump_boundary_geom ;
+
+OUTPUT_SCALAR("cell2nodeMax(alpha_cell)",alpha) ;
