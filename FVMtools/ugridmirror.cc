@@ -858,7 +858,7 @@ int main(int ac, char* av[]) {
 	// facid so it is a different face
 	face2[3] += -16 ;
       }
-      swap(face2[0],face2[2]) ;
+      std::swap(face2[0],face2[2]) ;
       ntfaces.push_back(face1) ;
       ntfaces.push_back(face2) ;
     }
@@ -870,7 +870,7 @@ int main(int ac, char* av[]) {
     for(int j=0;j<4;++j) {
       ntets[i+num_tets][j] = nposid[tets[i][j]+npos-1] ;
     }
-    swap(ntets[i+num_tets][0],ntets[i+num_tets][2]) ; // mirror image swap order
+    std::swap(ntets[i+num_tets][0],ntets[i+num_tets][2]) ; // mirror image swap order
   }
   // Now write out new mesh
 
