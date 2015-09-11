@@ -21,6 +21,7 @@
 #ifndef SIMPLE_PARTITION_LONG_H
 #define SIMPLE_PARTITION_LONG_H
 #include <Tools/intervalSet.h>
+#include <mpi.h>
 
 using std::vector;
 
