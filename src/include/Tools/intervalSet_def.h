@@ -34,15 +34,15 @@
 #include <vector>
 #include <iostream>
 
-//this directive should be paired with the typedef of GEntity
+//this directive should be paired with the typedef of gEntity
 #define MPI_GENTITY_TYPE MPI_INT
 #define HDF5_GENTITY_TYPE  H5T_NATIVE_INT
 
 namespace Loci {
 
   typedef int int_type ;
-  typedef int GEntity;
-
+  typedef int gEntity;
+  
   
 
  
@@ -54,7 +54,7 @@ namespace Loci {
   //use size_t for size of genIntervalSet
   //use size_t for index of genIntervalSet
   //create_intervalSet, create_sequence and FORALL macro are for int_type only
-  //GFORALL is added for GEntity
+  //GFORALL is added for gEntity
   //add comparison between sequence and intervalSet
   
   template<class T> std::ostream & operator<<(std::ostream &s, const std::pair<T, T> &i) ;
@@ -761,6 +761,33 @@ namespace Loci {
     }
     return s ;
   }
+
+  template<class T> inline genIntervalSet<gEntity> gcreate_intervalSet(T start, T end) {
+    if(start==end)
+      return genIntervalSet<gEntity>::EMPTY ;
+    std::sort(start,end) ;
+    gEntity First = *start ;
+    gEntity Second = *start ;
+    genIntervalSet<gEntity> r ;
+    for(T p=start;p!=end;++p) {
+      if(*p > Second+1) {
+        r += std::pair<gEntity, gEntity>(First,Second) ;
+        First = *p ;
+      }
+      Second = *p ;
+    }
+    r += std::pair<gEntity, gEntity>(First,Second) ;
+    return r ;
+  }
+
+  template<class T> inline genSequence<gEntity> gcreate_sequence(T start, T end) {
+    genSequence<gEntity> s ;
+    for(T p=start;p!=end;++p) {
+      s += *p ;
+    }
+    return s ;
+  }
+  
  
 }
   
@@ -774,9 +801,9 @@ namespace Loci {
 
 
 #define GFORALL(var,indx)                                               \
-  {  const Loci::genIntervalSet<GEntity> &__p = var ;                   \
-  for(int __ii=0;__ii<__p.num_intervals();++__ii)                       \
-    for(Loci::GEntity indx=__p[__ii].first;indx<=__p[__ii].second;++indx)
+  {  const Loci::genIntervalSet<gEntity> &__p = var ;                   \
+  for(size_t __ii=0;__ii<__p.num_intervals();++__ii)                       \
+    for(Loci::gEntity indx=__p[__ii].first;indx<=__p[__ii].second;++indx)
       
 #define ENDGFORALL }
 
