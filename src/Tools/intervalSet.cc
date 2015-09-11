@@ -54,5 +54,8 @@ namespace Loci {
   const int_type UNIVERSE_MAX = std::numeric_limits<int_type>::max() - 1 ;
   const int_type UNIVERSE_MIN = std::numeric_limits<int_type>::min() + 1 ;
 
+  const genIntervalSet<gEntity> GEMPTY = genIntervalSet<gEntity>::EMPTY;
+  const gEntity GUNIVERSE_MIN = genIntervalSet<gEntity>::UNIVERSE_MIN;
+  const gEntity GUNIVERSE_MAX = genIntervalSet<gEntity>::UNIVERSE_MAX;
 
 }
