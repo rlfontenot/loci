@@ -191,20 +191,26 @@ string getTopoFileName(string output_dir, string casename, string iteration) {
     if(stat(name.c_str(),&tmpstat)==0)
       gridtopo=name ;
   }
+
+  
   return gridtopo ;
 }
 
 volumePart::volumePart(string out_dir, string iteration, string casename,
 		       vector<string> vars) {
+  
   error = true ;
   partName = casename + "_Volume" ;
 
   // Check number of nodes
   //-------------------------------------------------------------------------
   posFile = getPosFile(out_dir,iteration,casename) ;
+   
   hid_t file_id = H5Fopen(posFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
-  if(file_id < 0)
+  if(file_id < 0){
+    cerr<<" can not open posFile" << posFile << endl;
     return ;
+  }
   hid_t elg = H5Gopen(file_id,"pos") ;
   if(elg < 0) {
     H5Fclose(file_id) ;
@@ -246,8 +252,10 @@ volumePart::volumePart(string out_dir, string iteration, string casename,
   //-------------------------------------------------------------------------
   topoFile = getTopoFileName(out_dir, casename, iteration) ;
   file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
-  if(file_id < 0) 
+  if(file_id < 0){
+     cerr<<" can not open topoFile " << topoFile << endl;
     return ;
+  }
   elg = H5Gopen(file_id,"elements") ;
   if(elg < 0) 
     return ;
@@ -257,6 +265,8 @@ volumePart::volumePart(string out_dir, string iteration, string casename,
   nprsm = sizeElementType(elg,"prism") ;
   npyrm = sizeElementType(elg,"pyramid") ;
   ngenc = sizeElementType(elg,"GeneralCellNfaces") ;
+
+  Loci::debugout<<" ntets " << ntets << " nprsm " << nprsm << endl;
   
   size_t ntets_b = ntets ;
   size_t nhexs_b = nhexs ;
@@ -3473,6 +3483,7 @@ int main(int ac, char *av[]) {
 	vp = new volumePart(output_dir,iteration,casename,variables) ;
 	if(vp->fail()) {
 	  vp = 0 ;
+         cout << "creating volume part failed" << endl; 
 	} 
       }
     }
