@@ -111,6 +111,7 @@ int main(int ac, char *av[]) {
     
     *modelName = basename ;
     facts.create_fact("modelName",modelName) ;
+    Loci::debugout << " i:m here 0.1 " << endl;
     if(Loci::MPI_rank == 0)
       cout << "Reading: '" << filename <<"' ..." <<  endl  ;
     if(!Loci::setupFVMGrid(facts,filename)) {
@@ -124,7 +125,7 @@ int main(int ac, char *av[]) {
     if(Loci::MPI_rank == 0) {
       cout << "finished reading grid." << endl ;
     }
-
+    Loci::debugout << " i:m here 1 " << endl;
     Loci::create_ci_map(facts) ;
     Loci::createLowerUpper(facts) ;
 

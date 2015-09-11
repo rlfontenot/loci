@@ -333,12 +333,14 @@ int main(int argc, char ** argv) {
     std::cerr << "unable to read grid file '" << meshfile << "'" << std::endl ;
     Loci::Abort() ;
   }
-  
+  Loci::debugout<< " Finish setupFVMGrids " << endl;
   //Setup Loci datastructures
   Loci::createLowerUpper(facts) ;
+  Loci::debugout<< " Finish createLowerUpper " << endl;
   Loci::createEdgesPar(facts) ;
+  Loci::debugout<< " Finish createEdges " << endl;
   Loci:: parallelClassifyCell(facts);
-  
+  Loci::debugout<< " Finish classifyCells " << endl;
   //this is a dummy parameter to trick Loci scheduler
   param<bool> beginWithMarker;
   *beginWithMarker = true;
