@@ -45,32 +45,14 @@ namespace Loci {
   extern int MPI_rank ;
   
   template<class T> inline bool g_spec_ival_compare(const std::pair<T, T> &i1,
-                                                  const std::pair<T, T> &i2) {
+                                                    const std::pair<T, T> &i2) {
     if(i1.first < i2.first)
       return true ;
     if(i1.first == i2.first && i1.second > i2.second)
       return true ;
     return false ;
   }
- //  template<class T> T g_GLOBAL_OR(T b, MPI_Comm comm=MPI_COMM_WORLD) {
-//     T result ;
-//     if(sizeof(T)==sizeof(int)){
-//       MPI_Allreduce(&b, &result, 1, MPI_INT, MPI_LOR, comm) ;
-//     }else{
-//       MPI_Allreduce(&b, &result, 1, MPI_LONG, MPI_LOR, comm) ;
-//     }
-//     return result ;
-//   }
-  
-//   template<class T> T  g_GLOBAL_AND(T b, MPI_Comm comm=MPI_COMM_WORLD) {
-//     T result ;
-//     if(sizeof(T)==sizeof(int)){ 
-//       MPI_Allreduce(&b, &result, 1, MPI_INT, MPI_LAND, comm) ;
-//     }else{
-//       MPI_Allreduce(&b, &result, 1, MPI_LONG, MPI_LAND, comm) ;
-//     }
-//     return result ;
-//   }
+
   
   template<class T> T g_GLOBAL_MAX(T b, MPI_Comm comm=MPI_COMM_WORLD) {
     T result ;
@@ -78,7 +60,7 @@ namespace Loci {
       MPI_Allreduce(&b, &result, 1, MPI_INT, MPI_MAX, comm) ;
     }else{
       MPI_Allreduce(&b, &result, 1, MPI_GENTITY_TYPE, MPI_MAX, comm) ;
-     }
+    }
     return result ;
   }
   
@@ -93,8 +75,10 @@ namespace Loci {
   }
     
   // Collect largest interval of entitySet from all processors
-  template<class T> genIntervalSet<T>  g_collectLargest(const  genIntervalSet<T>&e) {
-    const int p = MPI_processes ;
+  template<class T> genIntervalSet<T>  g_collectLargest(const  genIntervalSet<T>&e,MPI_Comm comm=MPI_COMM_WORLD) {
+    int p = 1;
+    MPI_Comm_size(comm,&p) ;
+    
     // Else we compute set
     //First get largest interval
     std::pair<T, T> ivl_large(1,-1) ;
@@ -107,10 +91,10 @@ namespace Loci {
     std::vector<std::pair<T, T> > ivl_large_p(p) ;
     if(sizeof(T)==sizeof(int)){
       MPI_Allgather(&ivl_large,2,MPI_INT,&(ivl_large_p[0]),2,MPI_INT,
-                    MPI_COMM_WORLD) ;
+                    comm) ;
     }else{
       MPI_Allgather(&ivl_large,2,MPI_GENTITY_TYPE,&(ivl_large_p[0]),2,MPI_GENTITY_TYPE,
-                    MPI_COMM_WORLD) ; 
+                    comm) ; 
     }
     genIntervalSet<T> lset ;
     for(int i=0;i<p;++i)
@@ -120,9 +104,10 @@ namespace Loci {
     return lset ;
   }
 
-  // Return union of all entitySets from all processors
-  template<class T> genIntervalSet<T>  g_all_gather_entitySet(const  genIntervalSet<T> &e) {
-    const int p = MPI_processes ;
+  // Return union of all entitySets from all processors, the actual user interface is g_all_collect_entitySet()
+  template<class T> genIntervalSet<T>  g_all_gather_entitySet(const  genIntervalSet<T> &e,MPI_Comm comm = MPI_COMM_WORLD ) {
+    int p = 1;
+    MPI_Comm_size(comm,&p) ;
     if(p == 1)
       return e ;
     
@@ -130,10 +115,10 @@ namespace Loci {
     std::vector<T> recv_count(p) ;//must be int*
     if(sizeof(T)==sizeof(int)){
       MPI_Allgather(&send_count,1,MPI_INT,&recv_count[0],1,MPI_INT,
-                    MPI_COMM_WORLD) ;
+                    comm) ;
     }else{
       MPI_Allgather(&send_count,1,MPI_GENTITY_TYPE,&recv_count[0],1,MPI_GENTITY_TYPE,
-                    MPI_COMM_WORLD) ;
+                    comm) ;
     }
     std::vector<T> recv_disp(p) ;//must be int*
     recv_disp[0] = 0 ;
@@ -146,24 +131,25 @@ namespace Loci {
     std::vector<std::pair<T, T> > snd_list(send_count/2) ;
     for(long i=0;i<send_count/2;++i)
       snd_list[i] = e[i] ;
-     if(sizeof(T)==sizeof(int)){
-       MPI_Allgatherv(&(snd_list[0]),send_count,MPI_INT,
-                      &(ivl_list[0]),&(recv_count[0]), &(recv_disp[0]), MPI_INT,
-                      MPI_COMM_WORLD) ;
-     }else{
-       MPI_Allgatherv(&(snd_list[0]),send_count,MPI_GENTITY_TYPE,
-                      &(ivl_list[0]),&(recv_count[0]), &(recv_disp[0]), MPI_GENTITY_TYPE,
-                      MPI_COMM_WORLD) ; 
-     }
-     std::sort(ivl_list.begin(),ivl_list.end(),g_spec_ival_compare<T>) ;
-     genIntervalSet<T> tmp = ivl_list[0] ;
-     for(size_t i=1;i<ivl_list.size();++i)
-       tmp += ivl_list[i] ;
-     return tmp ;
+    if(sizeof(T)==sizeof(int)){
+      MPI_Allgatherv(&(snd_list[0]),send_count,MPI_INT,
+                     &(ivl_list[0]),&(recv_count[0]), &(recv_disp[0]), MPI_INT,
+                     comm) ;
+    }else{
+      MPI_Allgatherv(&(snd_list[0]),send_count,MPI_GENTITY_TYPE,
+                     &(ivl_list[0]),&(recv_count[0]), &(recv_disp[0]), MPI_GENTITY_TYPE,
+                     comm) ; 
+    }
+    std::sort(ivl_list.begin(),ivl_list.end(),g_spec_ival_compare<T>) ;
+    genIntervalSet<T> tmp = ivl_list[0] ;
+    for(size_t i=1;i<ivl_list.size();++i)
+      tmp += ivl_list[i] ;
+    return tmp ;
   }
-  
-  template<class T> genIntervalSet<T>  g_all_collect_entitySet(const genIntervalSet<T> &e) {
-    const int p = MPI_processes ;
+  //Return union of all entitySets from all processors,
+  template<class T> genIntervalSet<T>  g_all_collect_entitySet(const genIntervalSet<T> &e,MPI_Comm comm = MPI_COMM_WORLD ) {
+    int p = 1 ;
+    MPI_Comm_size(comm,&p) ;
     // no operation for single processor
     if(p == 1)
       return e ;
@@ -176,7 +162,7 @@ namespace Loci {
     if(e == ~(genIntervalSet<T>::EMPTY))
       code = 2 ;
 
-    code = g_GLOBAL_MAX(code,MPI_COMM_WORLD) ;
+    code = g_GLOBAL_MAX(code,comm) ;
     
     if(code == 0) // All empty, so return empty
       return genIntervalSet<T>::EMPTY ;
@@ -195,7 +181,7 @@ namespace Loci {
     genIntervalSet<T> rem = e-lset ;
     for(int i=0;i<4;++i) {
       T remsz = rem.num_intervals() ;
-      T szmx = g_GLOBAL_MAX(remsz,MPI_COMM_WORLD) ;
+      T szmx = g_GLOBAL_MAX(remsz,comm) ;
       if(szmx == 0) {
 #ifdef VERBOSE
         debugout << "time to get lset = " << s.stop() << endl ;
@@ -212,14 +198,69 @@ namespace Loci {
     debugout << "e="<< e.num_intervals() << ",rem=" << rem.num_intervals()
              << ",lset=" << lset.num_intervals() << endl ;
 #endif
-    genIntervalSet<T> remtot = g_all_gather_entitySet(rem) ;
+    genIntervalSet<T> remtot = g_all_gather_entitySet(rem, comm) ;
 #ifdef VERBOSE
     debugout << "time to gather rem = " << s.stop() << endl ;
 #endif
     return lset + remtot ;
-  } ;
+  } 
+  
+  //apply to both entitySet and gEntitySet
+  template<class T>  std::vector<genIntervalSet<T> > g_all_collect_vectors(genIntervalSet<T> &e,MPI_Comm comm){
+    int p = 1 ;
+    MPI_Comm_size(comm,&p) ;
+    std::vector<genIntervalSet<T> > vset(p) ;
+    if(p == 1) {
+      vset[0] = e ;
+      return vset ;
+    }
+    
+    int send_count = 2*e.num_intervals() ;
+    std::vector<int> recv_count(p) ;
+    MPI_Allgather(&send_count,1,MPI_INT,&recv_count[0],1,MPI_INT,
+                  comm) ;
+    
+    std::vector<int> recv_disp(p) ;
+    recv_disp[0] = 0 ;
+    for(int i=1;i<p;++i)
+      recv_disp[i] = recv_disp[i-1]+recv_count[i-1] ;
 
- 
+    int tot = recv_disp[p-1]+recv_count[p-1] ;
+    if(tot == 0)
+      return vset ;
+    std::vector<T> ivl_list(tot) ;
+    std::vector<T> snd_list(send_count) ;
+    for(int i=0;i<send_count/2;++i) {
+      snd_list[i*2] = e[i].first ;
+      snd_list[i*2+1] = e[i].second ;
+    }
+    if(sizeof(T)==sizeof(int_type)){
+      MPI_Allgatherv(&(snd_list[0]),send_count,MPI_INT,
+                     &(ivl_list[0]),&(recv_count[0]), &(recv_disp[0]), MPI_INT,
+                     comm) ;
+      
+    }else{
+      
+      MPI_Allgatherv(&(snd_list[0]),send_count,MPI_GENTITY_TYPE,
+                     &(ivl_list[0]),&(recv_count[0]), &(recv_disp[0]), MPI_GENTITY_TYPE,
+                     comm) ;
+    }
+    
+    for(int i = 0; i < p ; ++i) {
+      int ind = recv_disp[i] ;
+      for(int j=0;j<recv_count[i]/2;++j) {
+        vset[i] += std::pair<T, T>(ivl_list[ind+j*2],ivl_list[ind+j*2+1]) ;
+      }
+    }
+    return vset ;
+  }
+
+  
+  template<class T>  std::vector<genIntervalSet<T> > g_all_collect_vectors(genIntervalSet<T> &e) {
+    return g_all_collect_vectors(e,MPI_COMM_WORLD) ;
+  }
+
+  
 }
 
 #endif

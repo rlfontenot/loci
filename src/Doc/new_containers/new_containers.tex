@@ -416,16 +416,16 @@ In files \texttt{intervalSet.h} \texttt{intervalSet\_def.h} and \texttt{interval
 class \texttt{intervalSet} is parameterized and turn into template class
 \texttt{genIntervalSet}. 
 
-\texttt{int\_type} is used to represent 32-bit integer, and \texttt{GEntity} is used to
+\texttt{int\_type} is used to represent 32-bit integer, and \texttt{gEntity} is used to
 represent 64-bit integer. The corresponding MPI data type and hdf5
-data type for \texttt{GEntity} are defined using \texttt{typedef}. macro \texttt{GFORALL}
-is also added for \texttt{genIntervalSet<GEntity>}.
+data type for \texttt{gEntity} are defined using \texttt{typedef}. macro \texttt{GFORALL}
+is also added for \texttt{genIntervalSet<gEntity>}.
 
 To avoid
 polluting code in large amount of files, new files
 \texttt{Tools/simple\_partition\_long.h}, \texttt{hdf5\_readwrite\_long.h} and
 \texttt{distribute\_long.h} are added to deal with communication and io operation of
-\texttt{GEntity}.
+\texttt{gEntity}.
 
   
 \subsection{GStore}
@@ -455,7 +455,7 @@ they are not needed yet.
   functions. 
    
 \subsection{Next step}        
- so far, Loci is tested with \texttt{GEntity} is defined as c++ int. Next step,
+ so far, Loci is tested with \texttt{gEntity} is defined as c++ int. Next step,
  partition functions will be modified in \texttt{FVMGridReader\_long.cc}.
 
 
