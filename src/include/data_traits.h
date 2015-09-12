@@ -43,13 +43,13 @@ namespace Loci {
 
   //-----------STD pair-------------------------------//
   template<class T1,class T2> inline std::ostream &
-    operator<<(std::ostream &s, const std::pair<T1,T2> &v) {
+  operator<<(std::ostream &s, const std::pair<T1,T2> &v) {
     s<<"["<<v.first<<","<<v.second<<"]";
     return s;
   }
 
   template<class T1,class T2> inline std::istream &
-    operator>>(std::istream &s, std::pair<T1,T2> &i) {
+  operator>>(std::istream &s, std::pair<T1,T2> &i) {
     char ch ;
     do{
       ch = s.get() ;
@@ -86,13 +86,13 @@ namespace Loci {
 
   //-----------STD pair unsigned int specializations---------------------//
   template<> inline std::ostream &
-    operator<<(std::ostream &s, const std::pair<unsigned int,unsigned int> &v) {
+  operator<<(std::ostream &s, const std::pair<unsigned int,unsigned int> &v) {
     s<<"["<<v.first<<","<<v.second<<"]";
     return s;
   }
 
   template<> inline std::istream &
-    operator>>(std::istream &s, std::pair<unsigned int,unsigned int> &i) {
+  operator>>(std::istream &s, std::pair<unsigned int,unsigned int> &i) {
     char ch ;
     do{
       ch = s.get() ;
@@ -162,7 +162,7 @@ namespace Loci {
       oss << ref ;
       return oss.str().size() ;
     }
-    void getState(char *buf, int &size) {
+    void getState(char *buf, int &size)const {
       std::ostringstream oss ;
       oss << ref ;
       const std::string &s = oss.str() ;
@@ -170,7 +170,7 @@ namespace Loci {
       for(int i=0;i<size;++i)
         buf[i] = s[i] ;
     }
-    void setState(char *buf, int size) {
+    void setState(const char *buf, int size) {
       std::string s ;
       for(int i=0;i<size;++i)
         s += buf[i] ;
@@ -187,10 +187,10 @@ namespace Loci {
       std::cerr << "undefined converter" << std::endl ;
       return 0 ;
     }
-    void getState(char *buf, int &size) {
+    void getState(char *buf, int &size)const {
       std::cerr << "undefined converter" << std::endl ;
     }
-    void setState(char *buf, int size) {
+    void setState(const char *buf, int size) {
       std::cerr << "undefined converter" << std::endl ;
     }
   } ;
@@ -219,7 +219,7 @@ namespace Loci {
   }
   
   template<class T> inline std::istream &
-    streaminput(T *v,int sz, std::istream &s) {
+  streaminput(T *v,int sz, std::istream &s) {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     return streaminput_SEL(schema_converter(), v, sz, s) ;
   }
@@ -246,7 +246,7 @@ namespace Loci {
   }
   
   template<class T> inline std::ostream &
-    streamoutput(const T *v,int sz, std::ostream &s) {
+  streamoutput(const T *v,int sz, std::ostream &s) {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     return streamoutput_SEL(schema_converter(), v, sz, s) ;
   }
@@ -260,7 +260,7 @@ namespace Loci {
   struct data_schema_traits<char> {
     typedef IDENTITY_CONVERTER Schema_Converter;
 
-    static DatatypeP get_type() {
+    static DatatypeP get_type()  {
       return DatatypeP(new AtomicType(CHAR)) ;
     }
   };
@@ -278,7 +278,7 @@ namespace Loci {
   struct data_schema_traits<short> {
     typedef IDENTITY_CONVERTER Schema_Converter;
 
-    static DatatypeP get_type() {
+    static DatatypeP get_type()  {
       return DatatypeP(new AtomicType(SHORT)) ;
     }
   };
@@ -287,7 +287,7 @@ namespace Loci {
   struct data_schema_traits<int> {
     typedef IDENTITY_CONVERTER Schema_Converter;
 
-    static DatatypeP get_type() {
+    static DatatypeP get_type()  {
       return DatatypeP(new AtomicType(INT)) ;
     }
   } ;
@@ -296,7 +296,7 @@ namespace Loci {
   struct data_schema_traits<unsigned> {
     typedef IDENTITY_CONVERTER Schema_Converter;
 
-    static DatatypeP get_type() {
+    static DatatypeP get_type()  {
       return DatatypeP(new AtomicType(UNSIGNED)) ;
     }
   };
@@ -341,7 +341,7 @@ namespace Loci {
   struct data_schema_traits<double> {
     typedef IDENTITY_CONVERTER Schema_Converter;
 
-    static DatatypeP get_type() {
+    static DatatypeP get_type()  {
       return DatatypeP(new AtomicType(DOUBLE)) ;
     }      
   };
@@ -374,13 +374,13 @@ namespace Loci {
     int getSize() const {
       return eref.size() ;
     }
-    void getState(int *buf, int &size) {
+    void getState(int *buf, int &size) const{
       size = getSize() ;
       int ii=0; 
       for(entitySet::const_iterator i=eref.begin();i!=eref.end();++i)
         buf[ii++] = *i ;
     }
-    void setState(int *buf, int size) {
+    void setState(const int *buf, int size) {
       eref = EMPTY ;
       for(int i=0;i<size;++i)
         eref += buf[i] ;
@@ -404,12 +404,12 @@ namespace Loci {
     int getSize() const {
       return eref.size() ;
     }
-    void getState(T *buf, int &size) {
+    void getState(T *buf, int &size) const{
       size = getSize() ;
       for(int i=0;i<size;++i)
         buf[i] = eref[i] ;
     }
-    void setState(T *buf, int size) {
+    void setState(const T *buf, int size) {
       eref.clear() ;
       eref.reserve(size) ;
       for(int i=0;i<size;++i)
@@ -431,12 +431,12 @@ namespace Loci {
     int getSize() const {
       return ref.size() ;
     }
-    void getState(char *buf, int &size) {
+    void getState(char *buf, int &size)const {
       size = getSize() ;
       for(int i=0;i<size;++i)
         buf[i] = ref[i] ;
     }
-    void setState(char *buf, int size) {
+    void setState(const char *buf, int size) {
       ref = "" ;
       for(int i=0;i<size;++i)
         ref += buf[i] ;
@@ -462,13 +462,13 @@ namespace Loci {
   }
 
 #ifdef NO_OFFSETOF
-#define LOCI_INSERT_TYPE(ct,type,variable) \
-{ type X ; size_t offset = reinterpret_cast<char *>(&(X.variable)) - reinterpret_cast<char *>(&X) ;\
-   ct->insert(# variable, offset,getLociType(X.variable));}
+#define LOCI_INSERT_TYPE(ct,type,variable)                              \
+  { type X ; size_t offset = reinterpret_cast<char *>(&(X.variable)) - reinterpret_cast<char *>(&X) ; \
+    ct->insert(# variable, offset,getLociType(X.variable));}
 #else
-#define LOCI_INSERT_TYPE(ct,type,variable) \
-{ type X ; size_t offset = offsetof(type,variable) ;\
-   ct->insert(# variable, offset,getLociType(X.variable));}
+#define LOCI_INSERT_TYPE(ct,type,variable)                      \
+  { type X ; size_t offset = offsetof(type,variable) ;          \
+    ct->insert(# variable, offset,getLociType(X.variable));}
 #endif
 
   template<class T, class S> struct data_schema_traits<std::pair<T,S> > {
