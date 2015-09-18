@@ -930,40 +930,33 @@ $rule pointwise(alpha_geom_f<-area,facecenter,(cl,cr)->(cellcenter,vol),
   $alpha_geom_f = x2 + s*(x3-2.*x2+x) ;
 }
   
-namespace Loci {
-inline pair<double,double> operator+=(pair<double,double> &r, const pair<double,double> &s) {
-  r.first += s.first ;
-  r.second += s.second ;
-  return r ;
-}
-}
-$type alphameanp param<std::pair<double,double> > ;
+$type alphameanp param<Loci::Array<double,2> > ;
 
 $rule unit(alphameanp),constraint(alpha_geom_f) {
-  $alphameanp.first = 0;
-  $alphameanp.second = 0 ;
+  $alphameanp[0] = 0;
+  $alphameanp[1] = 0 ;
 }
 
 $rule apply(alphameanp<-alpha_geom_f,area)[Loci::Summation] {
-  pair<double,double> tmp ;
-  tmp.first = $alpha_geom_f*$area.sada ;
-  tmp.second = $area.sada ;
+  Loci::Array<double,2> tmp ;
+  tmp[0] = $alpha_geom_f*$area.sada ;
+  tmp[1] = $area.sada ;
   join($alphameanp,tmp) ;
 }
 
-$type alphastdp param<std::pair<double,double> > ;
+$type alphastdp param<Loci::Array<double,2> > ;
 
 $rule unit(alphastdp),constraint(alpha_geom_f) {
-  $alphastdp.first = 0;
-  $alphastdp.second = 0 ;
+  $alphastdp[0] = 0;
+  $alphastdp[1] = 0 ;
 }
 
 $rule apply(alphastdp<-alpha_geom_f,area,alphameanp)[Loci::Summation] {
-  double am = $alphameanp.first/$alphameanp.second ;
+  double am = $alphameanp[0]/$alphameanp[1] ;
   double diff = am-$alpha_geom_f ;
-  pair<double,double> tmp ;
-  tmp.first = diff*diff*$area.sada ;
-  tmp.second = $area.sada ;
+  Loci::Array<double,2> tmp ;
+  tmp[0] = diff*diff*$area.sada ;
+  tmp[0] = $area.sada ;
   join($alphastdp,tmp) ;
 }
 
@@ -973,8 +966,8 @@ $rule apply(alphastdp<-alpha_geom_f,area,alphameanp)[Loci::Summation] {
 $rule apply(topo<-alphameanp,alphastdp)[Loci::Maximum],
   option(disable_threading), prelude {
   $[Once] {
-    double meana = (*$alphameanp).first/(*$alphameanp).second ;
-    double sigma = sqrt((*$alphastdp).first/(*$alphastdp).second);
+    double meana = (*$alphameanp)[0]/(*$alphameanp)[1] ;
+    double sigma = sqrt((*$alphastdp)[0]/(*$alphastdp)[1]);
     cout << "Dissipation Mesh Quality: (a_mean=" << meana << ", sigma=" << sigma << ")" << endl ;
     if(meana+sigma < .12) {
       cout << "  This is a low dissipation mesh. " << endl  ;
