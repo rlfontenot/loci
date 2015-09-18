@@ -299,6 +299,7 @@ namespace Loci {
     //iterators, use std iterators so that std functions can be used
     typedef typename std::vector<std::pair<gEntity,T> >::iterator iterator ;
     typedef typename std::vector<std::pair<gEntity,T> >::const_iterator const_iterator ;
+
     iterator begin() { return static_cast<gRep*>(Rep()->get_attrib_data())->begin(); }
     iterator end() { return static_cast<gRep*>(Rep()->get_attrib_data())->end(); }
     const_iterator begin()const { return static_cast<const gRep*>(Rep()->get_attrib_data())->begin(); }
@@ -376,6 +377,9 @@ namespace Loci {
    
     void make_consistent();
     
+    //for gMultiStore, this method computes the mean value for each entity
+    //and put them in a vector center
+    void get_mean(std::vector<T>& center);
     
     //copy gstore to traditional Loci store, storevec or multistore
     //partially implemented

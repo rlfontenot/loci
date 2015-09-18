@@ -54,7 +54,8 @@ namespace Loci {
     void reserve (size_t n){attrib_data.reserve(n);}
     void clear(){attrib_data.clear();}
     void local_sort();
-          
+    void remove_duplication();
+    
     gMultiMapRepI():sorted(true),dom(GEMPTY),domain_space(0),image_space(0) {}
     void set_domain_space(gKeySpace* space){domain_space = space;}
     gKeySpace* get_domain_space()const{return domain_space;}
@@ -80,7 +81,7 @@ namespace Loci {
    
     virtual void inplace_compose(const gMap &m, MPI_Comm comm=MPI_COMM_WORLD ) ;
     virtual gStoreRepP recompose(const gMap &m, MPI_Comm comm=MPI_COMM_WORLD ) ;
-
+    
     virtual gStoreRepP local_inverse() const;
     virtual gStoreRepP distributed_inverse(const std::vector<gEntitySet> &init_ptn) const;
     virtual int pack_size(const gEntitySet &e)const ;
@@ -144,7 +145,7 @@ namespace Loci {
     void reserve (size_t n){Rep()->reserve(n);}
     void clear(){Rep()->clear();}
     void local_sort(){Rep()->local_sort();}
-    
+    void remove_duplication();
     
     
     // These should be private, but too much code currently depends on it
@@ -197,6 +198,9 @@ namespace Loci {
 
     virtual gStoreRepP expand(gEntitySet &out_of_dom, std::vector<gEntitySet> &init_ptn,MPI_Comm comm=MPI_COMM_WORLD)const{return  gMapRepP(Rep())->expand(out_of_dom, init_ptn, comm);}
 
+    //duplication removal is needed in this method
+    virtual gStoreRepP recompose(const gMultiMap &m, MPI_Comm comm=MPI_COMM_WORLD ) ;
+
     storeRepP copy2store() const;
     gEntitySet domain() const { return Rep()->domain() ; }
     operator gMapRepP() {
@@ -210,10 +214,10 @@ namespace Loci {
     gEntitySet image(const gEntitySet &dom) const {
       return gMapRepP(Rep())->image(dom) ;
     }
-    gEntitySet image(const gEntity &dom) const {
-      return gMapRepP(Rep())->image(dom) ;
+    gEntitySet image() const {
+      return gMapRepP(Rep())->image() ;
     }
-    
+     
     std::pair<gEntitySet,gEntitySet> preimage(const gEntitySet &codomain) const {
       return gMapRepP(Rep())->preimage(codomain) ;
     }

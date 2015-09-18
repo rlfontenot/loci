@@ -126,8 +126,8 @@ namespace Loci {
   }
   //these variables can be put into the string to parse for partition
   //or defined as gParam
-  extern bool use_simple_partition ;
-  extern bool use_orb_partition ;
+  // extern bool use_simple_partition ;
+  //extern bool use_orb_partition ;
   extern bool load_cell_weights ;
   extern string cell_weight_file ;
 
@@ -629,10 +629,11 @@ namespace Loci {
 
     gEntity nnodes = 0 ;//nnodes type changed
     if(MPI_rank == 0) {
-      H5Eget_auto(&old_func, &old_client_data);
+      
+      H5Eget_auto( &old_func, &old_client_data);
       
       /* Turn off error handling */
-      H5Eset_auto(NULL, NULL);
+      H5Eset_auto( NULL, NULL);
       memSpace("open file "+ filename) ;
       file_id = H5Fopen(filename.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
       if(file_id <= 0) 
@@ -946,8 +947,7 @@ namespace Loci {
     gConstraint bcSurf;
     bcSurf = boundary_taglist;
     facts.create_fact("bcSurf", bcSurf, bc_space);
-    
-    
+   
     //only process 0 have the whole store
     gStore<string> boundary_names;
     gStore<string> boundary_tags;
@@ -1019,19 +1019,132 @@ namespace Loci {
   //this function parses the user provided string par_str
   //and creates the gParams for partition functions to use 
   void get_partition_strategy(string par_str, parStrategy& s){
+
     string casename;
+    
+     
+     
     gKeySpaceP cell_space = gKeySpace::get_space("CellSpace", casename);
-    s.space1 = cell_space;
     gKeySpaceP face_space = gKeySpace::get_space("FaceSpace", casename);
-    s.space2 = face_space;
     gKeySpaceP node_space  = gKeySpace::get_space("NodeSpace", casename);
+
+    // stragetgy one, test success on NP = 5, 4, 3
+    s.space1 = cell_space;
+    s.space2 = face_space;
     s.space3 = node_space; 
 
     s.strategy = "Metis";
-    s.map1 = "cl";
-    s.map2 = "cl";
-    s.from_space1 = false;
-    s.map3 = "face2node";
+    s.map1 = "cl";//use cl and cr to get self-map
+    s.map2 = "cl";//use cl and cr to partition space2
+    s.from_space1 = false;//space3 is partitioned to best match space2 partition
+    s.map3 = "face2node";//use face2node to partition space3
+
+    //The following test is NP = 5
+    // //stragetgy two,
+    //  //Test /simcenter/data1/qxue/chem/OBJ/quickTest/Inviscid/highSpeed fixedMass FAILED
+    //  //Test /simcenter/data1/qxue/chem/OBJ/quickTest/Inviscid/highSpeed wedge FAILED
+    //  //Test /simcenter/data1/qxue/chem/OBJ/quickTest/Inviscid/lowSpeed fixedMass FAILED
+   
+
+    // s.space1 = face_space;
+    // s.space2 = cell_space;
+    // s.space3 = node_space;
+    
+
+    // s.strategy = "Orb";
+    // s.map1 = "facecenter";//use facecenter to partition space1
+    // s.map2 = "cl"; //use cl and cr to partition space2
+    // s.from_space1 = true; //space3 is partitioned to best match space1 partition
+    // s.map3 = "face2node"; //use face2node to partition space3
+
+    //  // stragetgy three, test success
+    // s.space1 = cell_space;
+    // s.space2 = face_space;
+    // s.space3 = node_space;
+    
+
+    // s.strategy = "Orb";
+    // s.map1 = "cellcenter";//use facecenter to partition space1
+    // s.map2 = "cl"; //use cl and cr to partition space2
+    // s.from_space1 = false; //space3 is partitioned to best match space1 partition
+    // s.map3 = "face2node"; //use face2node to partition space3
+
+    // // stragetgy four, test success
+    // s.space1 = cell_space;
+    // s.space2 = face_space;
+    // s.space3 = node_space;
+    
+
+    // s.strategy = "Simple";
+    // s.map1 = "cellcenter";//use facecenter to partition space1
+    // s.map2 = "cl"; //use cl and cr to partition space2
+    // s.from_space1 = false; //space3 is partitioned to best match space1 partition
+    // s.map3 = "face2node"; //use face2node to partition space3
+
+
+    // //// stragetgy five, test failed, old version failed on NP=4
+    // s.space1 = face_space;
+    // s.space2 = cell_space;
+    // s.space3 = node_space;
+    
+
+    // s.strategy = "Simple";
+    // s.map2 = "cl"; //use cl and cr to partition space2
+    // s.from_space1 = true; // space3 is partitioned to best match space1 partition
+    // s.map3 = "face2node"; //use face2node to partition space3
+
+
+    // //stragetgy six, test success
+    // s.space1 = cell_space;
+    // s.space2 = face_space;
+    // s.space3 = node_space;
+    
+
+    // s.strategy = "Simple";
+    // s.map2 = "cl"; //use cl and cr to partition space2
+    // s.from_space1 = false; //space3 is partitioned to best match space1 partition
+    // s.map3 = "face2node"; //use face2node to partition space3
+
+
+
+    // // stragetgy seven, test success
+    // s.space1 = face_space;
+    // s.space2 = cell_space;
+    // s.space3 = node_space;
+    
+
+    // s.strategy = "Metis";
+    // s.map1 = "cl"; //use cl and cr to get self-map
+    // s.map2 = "cl"; //use cl and cr to partition space2
+    // s.from_space1 = true; // space3 is partitioned to best match space1 partition
+    // s.map3 = "face2node"; //use face2node to partition space3
+
+
+    // //  stragetgy eight, test failed
+    // s.space1 = node_space;
+    // s.space2 = face_space;
+    // s.space3 = cell_space;
+    
+
+    // s.strategy = "Simple";
+    // s.map2 = "face2node"; //use face2node to partition space2
+    // s.from_space1 = false; // space3 is partitioned to best match space1 partition
+    // s.map3 = "cl"; //use cl and cr to partition space3
+
+    // //  stragetgy nine, test failed
+    //  s.space1 = node_space;
+    //  s.space2 = face_space;
+    //  s.space3 = cell_space;
+    
+
+    //  s.strategy = "Orb";
+    //  s.map1 = "pos";
+    //  s.map2 = "face2node"; //use face2node to partition space2
+    //  s.from_space1 = false; // space3 is partitioned to best match space1 partition
+    //  s.map3 = "cl"; //use cl and cr to partition space3
+
+     
+
   }
   
   //after file is read in, this function collects domain of variables,
@@ -1163,8 +1276,8 @@ namespace Loci {
         MPI_Comm comm = spaces[i]->get_mpi_comm();
         for(variableSet::const_iterator vi = vset.begin(); vi != vset.end(); vi++){
           variable v = *vi;
-          gStoreRepP vRep = facts.get_fact(v);
-          gMapRepP(vRep)->inplace_compose(f2g, comm);
+          gMapRepP vRep = static_cast<gMapRepP>(facts.get_fact(v));
+          vRep->inplace_compose(f2g, comm);
         }
       }
     }
@@ -1357,22 +1470,26 @@ namespace Loci {
     gParam<string> strategy;
     
     if(s.strategy == "Metis"){
+      if(MPI_rank==0)std::cout<<"metis partition used " << endl;
       primary_partition_metis(facts, procmap, s);
     }else if(s.strategy == "Orb"){
+      if(MPI_rank==0)std::cout<<"orb partition used " << endl;
       primary_partition_orb(facts, procmap, s);
     }else if(s.strategy == "Simple"){
+      if(MPI_rank==0)std::cout<<"simple partition used " << endl;
       s.space1->set_simple_partition(procmap);
+    }else{
+      cerr<<"ERROR: partition strategy "<< s.strategy <<" unrecognized" << endl;
+      cerr<<"       acceptable values are: Metis, Orb, Simple" << endl;
+      Loci::Abort();
     }
-    
+    debugout<<"start affinity partition " << endl;
     affinity_partition(facts, procmap, s);
-      
-      
+       
     gKeySpaceP bc_space = gKeySpace::get_space("BcSpace", casename);
     bc_space->set_simple_partition();
     
     memSpace("after partitioning") ;
-              
-    memSpace("before remapGridStructures") ;
     remapGrid(facts);
     memSpace("after remapGridStructures") ;
     
@@ -1471,242 +1588,7 @@ namespace Loci {
     debugout<< " interioir_faces: " << *interior_faces<< endl;
   }
 
-  // void color_matrix(fact_db &facts, matrix_coloring_type mct) {
-  //   std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
-  //   multiMap c2c ;
-  //   store<int> sizes ;
-  //   constraint geom_cells ;
-  //   geom_cells = facts.get_variable("geom_cells") ;
-  //   sizes.allocate(*geom_cells) ;
-  //   Map cl,cr ;
-  //   cl = facts.get_variable("cl") ;
-  //   cr = facts.get_variable("cr") ;
-  //   constraint faces ;
-  //   constraint interior_faces ;
-  //   faces = facts.get_variable("faces") ;
-  //   interior_faces = facts.get_variable("interior_faces") ;
-
-  //   FORALL(*geom_cells, cc) {
-  //     sizes[cc] = 0 ;
-  //   } ENDFORALL ;
-  //   FORALL(*interior_faces,fc) {
-  //     if((init_ptn[Loci::MPI_rank].inSet(cl[fc]))&& (init_ptn[Loci::MPI_rank].inSet(cr[fc])))
-  //       sizes[cl[fc]]++ ;
-  //     if((init_ptn[Loci::MPI_rank].inSet(cr[fc])) && (init_ptn[Loci::MPI_rank].inSet(cl[fc])))
-  //       sizes[cr[fc]]++ ;
-  //   } ENDFORALL ;
-  //   c2c.allocate(sizes) ;
-  //   FORALL(*interior_faces,fc) {
-  //     //FATAL(sizes[cl[fc]] < 1) ;
-  //     //FATAL(sizes[cr[fc]] < 1) ;
-  //     if((init_ptn[Loci::MPI_rank].inSet(cl[fc]))  && (init_ptn[Loci::MPI_rank].inSet(cr[fc])))
-  //       c2c[cl[fc]][--sizes[cl[fc]]] = cr[fc] ;
-  //     if((init_ptn[Loci::MPI_rank].inSet(cr[fc])) && (init_ptn[Loci::MPI_rank].inSet(cl[fc])))
-  //       c2c[cr[fc]][--sizes[cr[fc]]] = cl[fc] ;
-  //   } ENDFORALL ;
-  //   dstore<int> color ;
-  //   entitySet out_of_dom ;
-
-  //   entitySet glob_geom = Loci::all_collect_entitySet(*geom_cells) ;
-  //   FORALL(*interior_faces,fc) {
-  //     if(!init_ptn[Loci::MPI_rank].inSet(cl[fc]))
-  //       out_of_dom += cl[fc] ;
-  //     if(!init_ptn[Loci::MPI_rank].inSet(cr[fc]))
-  //       out_of_dom += cr[fc] ;
-  //   } ENDFORALL ;
-
-  //   for(int i = 0; i < Loci::MPI_processes; ++i) {
-  //     init_ptn[i] &= glob_geom ;
-  //     entitySet tmp_set =  (init_ptn[i] & out_of_dom) ;
-  //     for(entitySet::const_iterator ei = tmp_set.begin(); ei != tmp_set.end(); ++ei)
-  //       color[*ei] = init_ptn[i].Min() ;
-  //   }
-  //   FORALL(*geom_cells,cc) {
-  //     color[cc] = -1 ;
-  //   } ENDFORALL ;
-  //   int col = (*geom_cells).Min() ;
-  //   vector<int> visited ;
-  //   entitySet left_out = *geom_cells ;
-  //   while(left_out != EMPTY) {
-  //     vector<int> work ;
-  //     work.push_back(left_out.Min()) ;
-  //     while(work.size() != 0) {
-  //       vector<int> working ;
-  //       for(size_t i=0;i<work.size();++i) {
-  //         int cc = work[i] ;
-  //         if(color[cc] == -1) {
-  //           color[cc] = col++ ;
-  //           visited.push_back(cc) ;
-  //           for(const int *pi = c2c.begin(cc);pi!=c2c.end(cc);++pi)
-  //             working.push_back(*pi) ;
-  //         }
-  //       }
-  //       work.swap(working) ;
-  //     }
-  //     entitySet visitSet = create_intervalSet(visited.begin(),visited.end()) ;
-  //     left_out -= visitSet ;
-  //   }
-
-  //   FORALL(*interior_faces,fc) {
-  //     if(color[cl[fc]] > color[cr[fc]])
-  //       std::swap(cl[fc],cr[fc]) ;
-  //   } ENDFORALL ;
-
-  // }
-  // void make_faces_consistent(fact_db &facts) {
-  //   store<vector3d<real_t> > pos ;
-  //   pos = facts.get_variable("pos") ;
-  //   store<vector3d<real_t> > fpos ;
-  //   store<vector3d<real_t> > area ;
-
-  //   multiMap face2node ;
-  //   face2node = facts.get_variable("face2node") ;
-  //   constraint faces ;
-  //   constraint interior_faces ;
-  //   faces = facts.get_variable("faces") ;
-  //   interior_faces = facts.get_variable("interior_faces") ;
-  //   entitySet total_dom = Loci::MapRepP(face2node.Rep())->image(*faces) + pos.domain() ;
-  //   std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
-  //   Loci::storeRepP pos_sp = pos.Rep() ;
-  //   dstore<vector3d<real_t> > tmp_pos ;
-  //   FORALL(pos.domain(), pi) {
-  //     tmp_pos[pi] = pos[pi] ;
-  //   } ENDFORALL ;
-  //   Loci::storeRepP sp = tmp_pos.Rep() ;
-  //   if(MPI_processes > 1)
-  //     fill_clone(sp, total_dom, init_ptn) ;
-  //   entitySet face_dom = face2node.domain() ;
-  //   fpos.allocate(face_dom) ;
-  //   area.allocate(face_dom) ;
-
-  //   FORALL(face_dom,fc) {
-  //     int nnodes = face2node.end(fc) - face2node.begin(fc) ;
-  //     vector3d<real_t> fp(0,0,0) ;
-  //     real_t w = 0 ;
-  //     for(int i=0;i<nnodes;++i) {
-  //       vector3d<real_t> p1 = (tmp_pos[face2node[fc][i]]) ;
-  //       vector3d<real_t> p2 = (tmp_pos[face2node[fc][(i+1)%nnodes]]) ;
-
-  //       real_t len = norm(p1-p2) ;
-
-  //       fp += len*(p1+p2) ;
-  //       w += len ;
-  //     }
-  //     fpos[fc] = fp/(2.*w) ;
-  //     vector3d<real_t> a(0,0,0) ;
-  //     for(int i=0;i<nnodes;++i) {
-  //       vector3d<real_t> p1 = (tmp_pos[face2node[fc][i]]) ;
-  //       vector3d<real_t> p2 = (tmp_pos[face2node[fc][(i+1)%nnodes]]) ;
-  //       a += cross(p1-fpos[fc],p2-fpos[fc]) ;
-  //     }
-  //     area[fc] = .5*a ;
-  //   } ENDFORALL ;
-  //   Map cl,cr ;
-  //   cl = facts.get_variable("cl") ;
-  //   cr = facts.get_variable("cr") ;
-  //   dstore<vector3d<real_t> > cpos ;
-  //   dstore<real_t> cnum ;
-  //   constraint geom_cells ;
-  //   geom_cells = facts.get_variable("geom_cells") ;
-  //   entitySet tmp_cells =  cl.image(*faces) | cr.image(*interior_faces) ;
-  //   // Add cells owned by this processor!
-  //   tmp_cells += (*geom_cells)& init_ptn[MPI_rank] ;
-  //   cpos.allocate(tmp_cells) ;
-  //   cnum.allocate(tmp_cells) ;
-  //   FORALL(tmp_cells,cc) {
-  //     cpos[cc] = vector3d<real_t>(0,0,0) ;
-  //     cnum[cc] = 0 ;
-  //   } ENDFORALL ;
-  //   FORALL(*faces,fc) {
-  //     real_t A = norm(area[fc]) ;
-  //     cpos[cl[fc]] += A*fpos[fc] ;
-  //     cnum[cl[fc]] += A ;
-  //   } ENDFORALL ;
-  //   FORALL(*interior_faces,fc) {
-  //     real_t A = norm(area[fc]) ;
-  //     cpos[cr[fc]] += A*fpos[fc] ;
-  //     cnum[cr[fc]] += A ;
-  //   } ENDFORALL ;
-  //   Loci::storeRepP cp_sp = cpos.Rep() ;
-  //   Loci::storeRepP cn_sp = cnum.Rep() ;
-  //   entitySet clone_cells = tmp_cells - *geom_cells ;
-  //   std::vector<Loci::storeRepP> v_cpos = send_global_clone_non(cp_sp, clone_cells, init_ptn) ;
-  //   std::vector<Loci::storeRepP> v_cnum = send_global_clone_non(cn_sp, clone_cells, init_ptn) ;
-  //   for(int i = 0; i < Loci::MPI_processes; ++i) {
-  //     entitySet dom = v_cpos[i]->domain() & cpos.domain() ;
-  //     dstore<vector3d<real_t> > tmp_cpos(v_cpos[i]) ;
-  //     dstore<real_t> tmp_cnum(v_cnum[i]) ;
-  //     FORALL(dom, di) {
-  //       cpos[di] += tmp_cpos[di] ;
-  //       cnum[di] += tmp_cnum[di] ;
-  //     } ENDFORALL ;
-  //   }
-  //   fill_clone(cp_sp, clone_cells, init_ptn) ;
-  //   fill_clone(cn_sp, clone_cells, init_ptn) ;
-  //   FORALL(tmp_cells,cc) {
-  //     cpos[cc] = cpos[cc]/cnum[cc] ;
-  //   } ENDFORALL ;
-
-  //   vector<int> broken_faces ;
-
-  //   FORALL(*interior_faces,fc) {
-  //     vector3d<real_t> dv = cpos[cr[fc]]-cpos[cl[fc]] ;
-  //     vector3d<real_t> dv2 = fpos[fc]-cpos[cl[fc]] ;
-  //     vector3d<real_t> dv3 = cpos[cr[fc]]-fpos[fc] ;
-
-  //     int t1 = (dot(area[fc],dv) <0.0)?1:0 ;
-  //     int t2 = (dot(area[fc],dv2) <0.0)?1:0 ;
-  //     int t3 = (dot(area[fc],dv3) <0.0)?1:0 ;
-  //     int test = t1+t2+t3 ;
-  //     if(test != 3 && test != 0) {
-  //       debugout << "problem with face located at " << fpos[fc]
-  //                << endl ;
-  //       broken_faces.push_back(fc) ;
-  //     }
-
-
-  //     else if(t1 == 1) { // Face oriented incorrectly
-  //       int i = 0 ;
-  //       int j = face2node.end(fc) - face2node.begin(fc) -1 ;
-  //       while(i < j) {
-  //         std::swap(face2node[fc][i],face2node[fc][j]) ;
-  //         i++ ;
-  //         j-- ;
-  //       }
-  //     }
-  //   } ENDFORALL ;
-
-  //   entitySet boundary_faces = *faces - *interior_faces ;
-  //   FORALL(boundary_faces,fc) {
-  //     const vector3d<real_t> center = fpos[fc] ;
-
-  //     vector3d<real_t> ccenter ;
-  //     ccenter = cpos[cl[fc]] ;
-  //     vector3d<real_t> dv = center-ccenter ;
-  //     if(dot(area[fc],dv) < 0.0) {
-  //       int i = 0 ;
-  //       int j = face2node.end(fc) - face2node.begin(fc) -1 ;
-  //       while(i < j) {
-  //         std::swap(face2node[fc][i],face2node[fc][j]) ;
-  //         i++ ;
-  //         j-- ;
-  //       }
-  //     }
-
-  //   } ENDFORALL ;
-
-  //   int rsize = 0 ;
-  //   int size = broken_faces.size() ;
-
-  //   MPI_Allreduce(&size,&rsize,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD) ;
-  //   if(rsize!=0) {
-  //     if(MPI_rank == 0) {
-  //       cerr << "Bad Grid: Non-Convex Cell (centroid outside cell bounds)" << endl ;
-  //     }
-  //     Loci::Abort() ;
-  //   }
-  // }
-
+ 
 
   void copy_facts(gfact_db& gfacts, fact_db& facts, const std::string& casename){
     gKeySpaceP face_space = gKeySpace::get_space("FaceSpace", casename);

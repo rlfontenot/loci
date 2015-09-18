@@ -33,6 +33,7 @@
 #include <string.h>
 #include <dist_internal.h>
 #include <gmap.h>
+#include <gmultimap.h>
 #include <distribute_long.h>
 using std::vector;
 
@@ -170,27 +171,24 @@ namespace Loci {
   //for example, pos.recompose(face2node) will produce the positions  for each face  
   template<class T>
   gStoreRepP  gStoreRepI<T>::recompose(gStoreRepP& m, MPI_Comm comm)const{
-    gMap remap(m);
+    gMultiMap remap(m);
     
     gEntitySet new_dom = remap.image();
     gEntitySet old_dom = domain();
-    vector<gEntitySet> ptn = g_all_collect_vectors<gEntity>(old_dom);
+    vector<gEntitySet> ptn = g_all_collect_vectors<gEntity>(new_dom);
     gStore<T> expanded_store;//the value in expanded store is unique in each process
     expanded_store = split_redistribute(ptn, comm);
     expanded_store.local_sort();
-    remap.local_sort2();
+    
+    //put expanded store into std::map
+    std::map<gEntity, T> amap;
+    for(const_iterator itr = expanded_store.begin(); itr!=expanded_store.end(); itr++)
+      amap[itr->first] = itr->second;
 
     gStore<T> result;
-    gMap::const_iterator m_itr = remap.begin();
-    typename gStore<T>::iterator s_itr = expanded_store.begin();
-    while(m_itr!= remap.end() && s_itr != expanded_store.end()){
-      while(m_itr!= remap.end() && m_itr->second == s_itr->first){
-        result.insert(m_itr->first,s_itr->second);
-        m_itr++;
-      }
-      s_itr++;
+    for(gMultiMap::const_iterator mi = remap.begin(); mi!= remap.end(); mi++){
+      result.insert(mi->first, amap[mi->second]);
     }
-    remap.local_sort();
     result.set_domain_space(domain_space);
     return result.Rep();
   }
@@ -498,6 +496,34 @@ namespace Loci {
     }
 
   }
+
+  //*********************************************************************/
+  //for gMultiStore, this method computes the mean value for each entity
+  //and put them in a vector center
+  template <class T> 
+  void gStore<T>::get_mean(vector<T>& center) 
+  {
+    center.resize(domain().size());
+    const_iterator itr = begin();
+    gEntity current = itr->first;
+    T pnt = itr->second ;
+    int ind = 0;
+    size_t sz = 1;
+    for( ; itr != end(); itr++){
+      if(itr->first == current){
+        pnt += itr->second; 
+        sz++;
+      }else{
+        pnt *= 1./float(sz) ;
+        center[ind++] = pnt ;
+        sz = 1;
+        current = itr->first;
+        pnt = itr->second;
+      }
+    }
+    pnt *= 1./float(sz) ;
+    center[ind++] = pnt;
+  } 
 
  
  
