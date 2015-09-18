@@ -49,6 +49,8 @@ using std::istringstream ;
 #include <stdio.h>
 #include <strings.h>
 #include <parmetis.h>
+#include <LociGridReaders.h> //real_t is defined here
+
 #if REALTYPEWIDTH == 32
 typedef float metisreal_t ;
 #else
@@ -190,39 +192,7 @@ namespace Loci{
     result.local_sort();
     return result.Rep();
   }
-  //merge cl, cr into a gMultiMap
-  //only merge interior faces, boundary faces are not included
-  gStoreRepP merge_cl_cr_interior( gfact_db& facts){
-    gMap cl, cr;
-    gMultiMap result;
-    cl = facts.get_fact("cl");
-    cr = facts.get_fact("cr");
-
-   
-    fatal(cl.domain() != cr.domain());
-    gConstraint bfaces;
-    bfaces = facts.get_fact("boundary_faces");
-    gEntitySet boundary_faces = g_all_collect_entitySet<gEntity>(*bfaces);
-    gEntitySet interior_faces = cl.domain()-boundary_faces;
-    
-    gMap::const_iterator itr1 = cl.begin();
-    gMap::const_iterator itr2 = cr.begin();
-    GFORALL(interior_faces,fc){
-      while(itr1 != cl.end() && itr1->first < fc) itr1++;
-      while(itr2 != cr.end() && itr2->first < fc) itr2++;
-      if(itr1 != cl.end() && itr1->first == fc)  {
-        result.insert(fc, itr1->second);
-        itr1++;
-      }
-      if(itr2 != cr.end() && itr2->first == fc){
-        result.insert(fc, itr2->second);
-        itr2++;
-      }
-    }ENDGFORALL;
-    result.local_sort();
-    return result.Rep();
-  }
-
+  
 
 
   //given the selfmap and the initial partition
@@ -567,8 +537,7 @@ namespace Loci{
               
   void affinity_partition(gfact_db &facts, const vector<int>& procmap,parStrategy& s){
     bool need_reverse2 = !is_in_var(s.map2, facts, s.space2);
-    
-   
+
     //start here 
     gMultiMap inward_map;
     if(s.map2 == "cl"||s.map2== "cr"){
@@ -577,28 +546,25 @@ namespace Loci{
     }else{
       inward_map =facts.get_fact(s.map2);
     }
-   
-    
+       
     //if needed, reverse map
     
     if(need_reverse2){
       vector<gEntitySet> init_ptn = s.space1->get_key_ptn();
       inward_map.setRep(inward_map.distributed_inverse(init_ptn));
     }
-    
-    
+       
     //equiJoin operation
     std::vector<pair<gEntity, pair<int,int> > >  scratchPad;
     scratchPad = get_scratchPad(procmap, inward_map);
-    
-    vector<gEntitySet> old_ptn = s.space2->get_key_ptn();
 
    
-    
+    vector<gEntitySet> old_ptn = s.space2->get_key_ptn();
     MPI_Comm comm =  s.space2->get_mpi_comm();
     vector<gEntitySet> new_ptn2( s.space2->get_np());
     assignOwner(scratchPad,old_ptn, new_ptn2, comm) ;
     s.space2->set_send_recv_ptn( new_ptn2);
+    
     gKeySpaceP from_space;
     if(s.from_space1){
       from_space = s.space1;
@@ -645,7 +611,7 @@ namespace Loci{
     bool need_reverse1 = !is_in_var(s.map1, facts, s.space1);
     gMultiMap inward_map;
     if(s.map1 == "cl" || s.map1 == "cr"){//merge cl and cr
-      inward_map = merge_cl_cr_interior(facts);
+      inward_map = merge_cl_cr(facts);
     }else{
       inward_map =facts.get_fact(s.map1);
     }
@@ -681,7 +647,8 @@ namespace Loci{
     }
     s.space1->set_send_recv_ptn(ptn);
   }
-      
+
+ 
           
   //return entity2process vector     
   void primary_partition_orb(gfact_db& facts, vector<int>& e2p,parStrategy& s ){
@@ -695,45 +662,44 @@ namespace Loci{
       //copy pos into center
       center.resize(pos.size());
       size_t ind = 0;
-      for( gStore<vector3d<real_t> >::const_iterator itr1 = pos.begin(); itr1 != pos.end(); itr1++){
+      for(gStore<vector3d<real_t> >::const_iterator itr1 = pos.begin(); itr1 != pos.end(); itr1++){
         center[ind++] = vector3d<float>(itr1->second.x, itr1->second.y, itr1->second.z);
       }
     }else if(s.map1=="facecenter"){
       gStoreRepP face2node;
       face2node = facts.get_fact("face2node");
-      gStore<vector3d<real_t> > fpos;
+      gStore<vector3d<real_t> > fpos; //it is actually a gMultiStore
       fpos = pos.recompose(face2node, comm);
-      gStore<vector3d<real_t> >::const_iterator itr2 = fpos.begin();
-      gEntity current_face = itr2->first;
-      vector3d<real_t> pnt = itr2->second;
-      size_t sz = 1;
-      itr2++;
-              
-      for(;itr2 != fpos.end(); itr2++){
-        if(itr2->first == current_face){
-          pnt +=  itr2->second;
-          sz++;
-        }else{
-          pnt *= 1./float(sz) ;
-          center.push_back( vector3d<float>(pnt.x,pnt.y,pnt.z) ); 
-          sz = 1;
-          current_face = itr2->first;
-          pnt = itr2->second;
-        }
+      vector<vector3d<real_t> > fcenter;
+      fpos.get_mean(fcenter);
+      for(unsigned int i = 0; i < fcenter.size(); i++){
+        center.push_back(vector3d<float>(fcenter[i].x, fcenter[i].y, fcenter[i].z));
       }
     }else if(s.map1=="cellcenter"){
-      //code later
+      gMultiMap inward_map;
+      inward_map = merge_cl_cr(facts); //face2cell
+      vector<gEntitySet> init_ptn = s.space1->get_key_ptn(); //partition of cells
+      inward_map.setRep(inward_map.distributed_inverse(init_ptn)); //cell2face
+      gMultiMap face2node;
+      face2node = facts.get_fact("face2node");
+      gStoreRepP cell2node = inward_map.recompose(face2node, comm); //cell2node
+      gStore<vector3d<real_t> > cpos; //it is actually a gMultiStore
+      cpos = pos.recompose(cell2node, comm);
+      vector<vector3d<real_t> > ccenter;
+      cpos.get_mean(ccenter);
+      for(unsigned int i = 0; i < ccenter.size(); i++){
+        center.push_back(vector3d<float>(ccenter[i].x, ccenter[i].y, ccenter[i].z));
+      }
     }
-          
-              
+
+   
     // perform ORB partition
-    vector<int> procmap ; //face2process map
-    ORBPartition(center,procmap,comm) ;
+    ORBPartition(center,e2p,comm) ;
     vector<gEntitySet> ptn(np);
     gEntitySet local_keys = s.space1->get_my_keys();
     gEntitySet::const_iterator ei = local_keys.begin();
-    for(unsigned int i  = 0; i < procmap.size(); i++){
-      ptn[procmap[i]] += *ei;
+    for(unsigned int i  = 0; i < e2p.size(); i++){
+      ptn[e2p[i]] += *ei;
       ei++;
     }
     s.space1->set_send_recv_ptn(ptn);
