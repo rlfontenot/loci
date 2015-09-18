@@ -45,14 +45,44 @@ namespace Loci {
   
   extern ofstream debugout ;
   namespace {
-    inline  bool gmap_porder1(const std::pair<gEntity, gEntity> &i1, 
-                              const std::pair<gEntity, gEntity> &i2) {
+    inline  bool fieldSort1(const std::pair<gEntity, gEntity> &i1, 
+                            const std::pair<gEntity, gEntity> &i2) {
       return i1.first < i2.first ;
     }
-    // inline  bool gmap_porder2(const std::pair<gEntity, gEntity> &i1, 
-    //                          const std::pair<gEntity, gEntity> &i2) {
-    //    return i1.second < i2.second ;
-    // } 
+    inline  bool fieldSort1_unique(const std::pair<gEntity, gEntity> &i1, 
+                                   const std::pair<gEntity, gEntity> &i2) {
+      if(i1.first < i2.first)return true ;
+      else if(i1.first == i2.first)return i1.second < i2.second;
+      return false;
+    }
+    
+    inline bool fieldSort2(const std::pair<gEntity,gEntity> &i1,
+                           const std::pair<gEntity,gEntity> &i2) {
+      return i1.second < i2.second ;
+    }
+
+    //multimap component
+    struct mp_comp{
+      gEntity dom;
+      gEntity img;
+      short ind;
+      mp_comp(gEntity i1, gEntity i2, short i3):dom(i1), img(i2), ind(i3){}
+    };
+
+    //sort according domain field and index
+    inline  bool field_sort_dom(const mp_comp &i1, 
+                                const mp_comp &i2) {
+      if(i1.dom < i2.dom) return true ;
+      if(i1.dom == i2.dom) return i1.ind < i2.ind;
+      return false;
+    }
+
+    //sort according image field
+    inline  bool field_sort_img(const mp_comp &i1, 
+                                const mp_comp &i2) {
+      return (i1.img < i2.img) ;
+    } 
+    
   }
   using std::pair ;
   using std::make_pair ;
@@ -60,7 +90,7 @@ namespace Loci {
   using std::sort ;
 
   void gMultiMapRepI::local_sort(){
-    std::stable_sort(attrib_data.begin(), attrib_data.end(), gmap_porder1);
+    std::stable_sort(attrib_data.begin(), attrib_data.end(), fieldSort1);
     sorted = true;
   }
   
@@ -276,7 +306,7 @@ namespace Loci {
     
     gEntitySet codomain ;
     std::pair<gEntity, gEntity> p = make_pair<gEntity, gEntity>(iset, gEntity(0));
-    std::pair<const_iterator, const_iterator> range = std::equal_range(begin(), end(), p, gmap_porder1);
+    std::pair<const_iterator, const_iterator> range = std::equal_range(begin(), end(), p, fieldSort1);
     if(range.first != range.second){
       for(const_iterator itr= range.first; itr != range.second; itr++) codomain += itr->second;
     }
@@ -469,65 +499,142 @@ namespace Loci {
   //     */
   //   } 
 
+
+  //this is the working version with std::map
+  // //**************************************************************************/
   
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  
-  
- 
- 
-  //**************************************************************************/
-  
-  void gMultiMapRepI::inplace_compose(const gMap &newmap,  MPI_Comm comm) 
-  {
+  // void gMultiMapRepI::inplace_compose(const gMap &newmap,  MPI_Comm comm) 
+  // {
    
-    //check if expand is needed
+  //   //check if expand is needed
+  //   gEntitySet old_dom = newmap.domain();
+  //   gEntitySet dom = image();
+    
+  //   gEntitySet out_dom = dom -  old_dom;
+  //   int need_expand = (out_dom == GEMPTY ? 0:1);
+  //   bool global_need_expand = GLOBAL_OR(need_expand, comm);
+  //   std::map<gEntity, gEntity> amap;
+  //   if(global_need_expand){
+  //     std::vector<gEntitySet> old_ptn = g_all_collect_vectors<gEntity>(old_dom, comm) ;
+  //     gMap temp;
+  //     temp.setRep(newmap.expand(dom, old_ptn, comm));
+  //     for(gMap::const_iterator itr = temp.begin(); itr!=temp.end(); itr++)
+  //       amap[itr->first] = itr->second;
+  //   }else{
+  //     for(gMap::const_iterator itr = newmap.begin(); itr!=newmap.end(); itr++)
+  //       amap[itr->first] = itr->second;
+  //   }
+ 
+  //   for( iterator itr1 = begin(); itr1 != end(); itr1++){
+  //     itr1->second = amap[itr1->second];
+  //   }
+  //  Print(debugout);
+  // }
+
+  // //**************************************************************************/
+  
+  // gStoreRepP gMultiMapRepI::recompose(const gMap &newmap,  MPI_Comm comm) 
+  // {
+   
+  //   //check if expand is needed
+  //   gEntitySet old_dom = newmap.domain();
+  //   gEntitySet dom = image();
+    
+  //   gEntitySet out_dom = dom -  old_dom;
+  //   int need_expand = (out_dom == GEMPTY ? 0:1);
+  //   bool global_need_expand = GLOBAL_OR(need_expand, comm);
+  //   std::map<gEntity, gEntity> amap;
+  //   if(global_need_expand){
+  //     std::vector<gEntitySet> old_ptn = g_all_collect_vectors<gEntity>(old_dom, comm) ;
+  //     gMap temp;
+  //     temp.setRep(newmap.expand(dom, old_ptn, comm));
+  //     for(gMap::const_iterator itr = temp.begin(); itr!=temp.end(); itr++)
+  //       amap[itr->first] = itr->second;
+  //   }else{
+  //     for(gMap::const_iterator itr = newmap.begin(); itr!=newmap.end(); itr++)
+  //       amap[itr->first] = itr->second;
+  //   }
+
+  //   gMultiMap result;
+  //   for( iterator itr1 = begin(); itr1 != end(); itr1++){
+  //     result.insert(itr1->first, amap[itr1->second]);
+  //   }
+  //   result.local_sort();
+  //   result.set_domain_space(domain_space);
+  //   result.set_image_space(image_space);
+  //   return result.Rep();
+  // }
+
+
+
+
+
+
+
+
+  
+  //**************************************************************************/
+
+  void gMultiMapRepI::inplace_compose(const gMap &newmap,  MPI_Comm comm) 
+  { //check if expand is needed
     gEntitySet old_dom = newmap.domain();
     gEntitySet dom = image();
     
     gEntitySet out_dom = dom -  old_dom;
     int need_expand = (out_dom == GEMPTY ? 0:1);
-    bool global_need_expand = GLOBAL_OR(need_expand, comm);
-    std::map<gEntity, gEntity> amap;
+    int global_need_expand = GLOBAL_OR(need_expand, comm);
+    gMap expanded_map;
     if(global_need_expand){
       std::vector<gEntitySet> old_ptn = g_all_collect_vectors<gEntity>(old_dom, comm) ;
-      gMap temp;
-      temp.setRep(newmap.expand(dom, old_ptn, comm));
-      for(gMap::const_iterator itr = temp.begin(); itr!=temp.end(); itr++)
-        amap[itr->first] = itr->second;
+      expanded_map.setRep(newmap.expand(dom, old_ptn, comm));
     }else{
-      for(gMap::const_iterator itr = newmap.begin(); itr!=newmap.end(); itr++)
-        amap[itr->first] = itr->second;
+      expanded_map.setRep(newmap.Rep());
     }
- 
-    for( iterator itr1 = begin(); itr1 != end(); itr1++){
-      itr1->second = amap[itr1->second];
+
+    //copy attrib_datat into a vector
+    vector<mp_comp> temp_vec;
+    {
+      short ind = 0;
+      const_iterator previous = attrib_data.begin();
+      temp_vec.push_back(mp_comp(previous->first, previous->second, ind));
+      const_iterator itr = attrib_data.begin();
+      itr++;
+      for(; itr != attrib_data.end(); itr++){
+        previous = itr;
+        previous--;
+        if(itr->first == previous->first){
+          ind++;
+          temp_vec.push_back(mp_comp(itr->first, itr->second, ind));
+        }else{
+          ind = 0;
+          temp_vec.push_back(mp_comp(itr->first, itr->second, ind));
+        }
+      }
     }
-   
+    //sort temp_vec according to the image field
+    std::sort(temp_vec.begin(), temp_vec.end(), field_sort_img);
+    
+    //equalJoin and sort according to domain field and index field 
+    {
+      int i = 0;
+      for(gMap::const_iterator itr2 = expanded_map.begin(); itr2!= expanded_map.end(); itr2++){
+        while(temp_vec[i].img < itr2->first)i++ ;
+        while(itr2->first == temp_vec[i].img){
+          temp_vec[i].img =  itr2->second;
+          i++;
+        }
+      }
+      std::sort(temp_vec.begin(), temp_vec.end(), field_sort_dom);
+    }
+    
+    //copy back
+    {
+      iterator itr = begin();
+      for(unsigned int i = 0; i < temp_vec.size(); i++){
+        itr->second = temp_vec[i].img;
+        itr++;
+      }
+    }
   }
 
 
@@ -543,25 +650,117 @@ namespace Loci {
     gEntitySet out_dom = dom -  old_dom;
     int need_expand = (out_dom == GEMPTY ? 0:1);
     bool global_need_expand = GLOBAL_OR(need_expand, comm);
-    std::map<gEntity, gEntity> amap;
+    gMap expanded_map;
     if(global_need_expand){
       std::vector<gEntitySet> old_ptn = g_all_collect_vectors<gEntity>(old_dom, comm) ;
-      gMap temp;
-      temp.setRep(newmap.expand(dom, old_ptn, comm));
-      for(gMap::const_iterator itr = temp.begin(); itr!=temp.end(); itr++)
-        amap[itr->first] = itr->second;
+      expanded_map.setRep(newmap.expand(dom, old_ptn, comm));
     }else{
-      for(gMap::const_iterator itr = newmap.begin(); itr!=newmap.end(); itr++)
-        amap[itr->first] = itr->second;
+      expanded_map.setRep(newmap.Rep());
     }
 
-    gMultiMap result;
-    for( iterator itr1 = begin(); itr1 != end(); itr1++){
-      result.insert(itr1->first, amap[itr1->second]);
+    //copy attrib_datat into a vector
+    vector<mp_comp> temp_vec;
+    {
+      short ind = 0;
+      const_iterator previous = attrib_data.begin();
+      temp_vec.push_back(mp_comp(previous->first, previous->second, ind));
+      const_iterator itr = attrib_data.begin();
+      itr++;
+      for(; itr != attrib_data.end(); itr++){
+        previous = itr;
+        previous--;
+        if(itr->first == previous->first){
+          ind++;
+          temp_vec.push_back(mp_comp(itr->first, itr->second, ind));
+        }else{
+          ind = 0;
+          temp_vec.push_back(mp_comp(itr->first, itr->second, ind));
+        }
+      }
     }
-    result.local_sort();
+    //sort temp_vec according to the image field
+    std::sort(temp_vec.begin(), temp_vec.end(), field_sort_img);
+    
+    //equalJoin and sort according to domain field and index field 
+    {
+      int i = 0;
+      for(gMap::const_iterator itr2 = expanded_map.begin(); itr2!= expanded_map.end(); itr2++){
+        while(temp_vec[i].img < itr2->first)i++ ;
+        while(itr2->first == temp_vec[i].img){
+          temp_vec[i].img =  itr2->second;
+          i++;
+        }
+      }
+      std::sort(temp_vec.begin(), temp_vec.end(), field_sort_dom);
+    }
+    //copy to result
+    gMultiMap result;
+    for(unsigned int i = 0; i < temp_vec.size(); i++){
+      result.insert(temp_vec[i].dom, temp_vec[i].img);
+    }
+    
+    //result.local_sort();
     result.set_domain_space(domain_space);
     result.set_image_space(image_space);
+    return result.Rep();
+  }
+
+
+  //**************************************************************************/
+  
+  gStoreRepP gMultiMap::recompose(const gMultiMap &newmap,  MPI_Comm comm) 
+  {
+    //check if expand is needed
+    gEntitySet old_dom = newmap.domain();
+    gEntitySet dom = image();
+    
+    gEntitySet out_dom = dom -  old_dom;
+    int need_expand = (out_dom == GEMPTY ? 0:1);
+    bool global_need_expand = GLOBAL_OR(need_expand, comm);
+    gMap expanded_map;
+    if(global_need_expand){
+      std::vector<gEntitySet> old_ptn = g_all_collect_vectors<gEntity>(old_dom, comm) ;
+      expanded_map.setRep(newmap.expand(dom, old_ptn, comm));
+    }else{
+      expanded_map.setRep(newmap.Rep());
+    }
+
+    //copy attrib_datat into a vector
+    vector<pair<gEntity, gEntity> > temp_vec;
+    for(const_iterator itr = begin(); itr != end(); itr++){
+      temp_vec.push_back(make_pair(itr->first, itr->second));
+    }
+    //sort temp_vec according to the image field
+    std::sort(temp_vec.begin(), temp_vec.end(), fieldSort2);
+    
+    gMultiMap result;
+    gEntity previous = temp_vec[0].second;
+    gMultiMap::const_iterator itr_begin = expanded_map.begin();
+    gMultiMap::const_iterator itr_end = itr_begin;
+    while(itr_end != expanded_map.end() && itr_end->first == previous){
+      result.insert(temp_vec[0].first, itr_end->second);
+      itr_end++;
+    }
+    for(unsigned int i = 1; i<temp_vec.size(); i++){
+      previous =  temp_vec[i-1].second;
+      if(temp_vec[i].second == previous){
+        for( gMultiMap::const_iterator itr =itr_begin; itr!=itr_end; itr++){
+          result.insert(temp_vec[i].first, itr->second);
+        }
+      }else{
+        itr_begin = itr_end;
+        while(itr_end != expanded_map.end() && itr_end->first ==temp_vec[i].second ){
+          result.insert(temp_vec[i].first, itr_end->second);
+          itr_end++;
+        }
+      }
+    }
+    
+   
+    result.remove_duplication();
+    result.set_domain_space(Rep()->get_domain_space());
+    result.set_image_space(gMapRepP(newmap.Rep())->get_image_space());
+   
     return result.Rep();
   }
 
@@ -573,7 +772,7 @@ namespace Loci {
     gEntitySet  domaini,domainu ;
     GFORALL(store_domain,i) {
       std::pair<gEntity, gEntity> p = make_pair<gEntity, gEntity>(i, gEntity(0));
-      std::pair<const_iterator, const_iterator> range = std::equal_range(begin(), end(), p, gmap_porder1);
+      std::pair<const_iterator, const_iterator> range = std::equal_range(begin(), end(), p, fieldSort1);
       if(range.first != range.second){
         bool vali = true ;
         bool valu = false;
@@ -592,12 +791,7 @@ namespace Loci {
     return  make_pair(domaini,domainu) ;
   }
   
-  namespace {
-    inline bool fieldSort2(const std::pair<gEntity,gEntity> &p1,
-                           const std::pair<gEntity,gEntity> &p2) {
-      return p1.second < p2.second ;
-    }
-  }
+ 
   
   gStoreRepP gMultiMapRepI::distributed_inverse(const std::vector<gEntitySet> &init_ptn) const{
     gMultiMap result;
@@ -694,7 +888,20 @@ namespace Loci {
     return result.Rep();
   }
 
-    
+  void gMultiMapRepI::remove_duplication(){
+    std::sort(attrib_data.begin(), attrib_data.end(), fieldSort1_unique);
+    vector<pair<Entity,Entity> >::iterator uend ;
+    uend = unique(attrib_data.begin(), attrib_data.end());
+    attrib_data.erase(uend, attrib_data.end());
+  }
+  
+  void gMultiMap::remove_duplication(){
+    CPTR<MapType> p(Rep()) ;
+    if(p != 0)p->remove_duplication();
+    warn(p==0);
+  }
+
+
 
   
   //copy gMultiMap to traditional Loci multiMap
