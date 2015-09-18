@@ -52,6 +52,8 @@ using std::stringstream;
 
 /* Numeric tags (codes) for FIELDVIEW binary file format. */
  
+#define MAJOR_VERSION   3
+#define MINOR_VERSION   2
 #define FV_MAGIC        0x00010203      /* decimal 66051 */
  
 /* Content of the file (grid only, results only or combined). */
@@ -964,7 +966,7 @@ exportPostProcessorFiles(string casename, string iteration) const {
           string part = ss.str();
           particle_filename = dirname + "/" + casename+"_fv_"+iteration+"p_"+part+".fvp";
         }
-       
+#ifdef OLD
         // create an ASCII file handler
         ofstream of(particle_filename.c_str(), std::ios::out) ;
         if(!of.good()) {
@@ -1017,6 +1019,79 @@ exportPostProcessorFiles(string casename, string iteration) const {
           of << endl ;
         }
         of.close() ;
+#endif
+	FILE *FVP = 0 ;
+	FVP = fopen(particle_filename.c_str(), "wb") ;
+	if(FVP == NULL) {
+	  cerr << "can't open file " << particle_filename << endl ;
+	  exit(-1) ;
+	}
+	int ibuf[3] ;
+	char fv[80] ;
+	// Write out the magic number and the fieldview version info 
+	ibuf[0] = FV_MAGIC ;
+	fwrite(ibuf, sizeof(int), 1, FVP) ;
+	memset(fv,'\0',80) ;
+	snprintf(fv,80, "FVPARTICLES") ;
+	fwrite(&fv, sizeof(char), 80, FVP) ;
+	ibuf[0] = MAJOR_VERSION ;
+	ibuf[1] = MINOR_VERSION ;
+	ibuf[2] = 0 ; //for FV reserved use
+	fwrite(ibuf, sizeof(int), 3,FVP) ;
+
+	int vsize = particle_scalars_names.size() +
+	  particle_vectors_names.size() ;
+	ibuf[0] = vsize ;
+	fwrite(ibuf, sizeof(int), 1, FVP) ;
+	
+	for(size_t i=0;i<particle_scalars_names.size();++i) {
+	  memset(fv,'\0',80) ;
+	  snprintf(fv,80, "%s",particle_scalars_names[i].c_str()) ;
+	  fwrite(&fv, sizeof(char), 80, FVP) ;
+	}
+
+	for(size_t i=0;i<particle_vectors_names.size();++i) {
+	  memset(fv,'\0',80) ;
+	  snprintf(fv,80, "%s",particle_vectors_names[i].c_str()) ;
+	  fwrite(&fv, sizeof(char), 80, FVP) ;
+	}
+	
+	// particle data
+	
+	ibuf[0] = pts ; //number of particles
+	fwrite(ibuf,sizeof(int),1,FVP) ;
+	
+	int k=0 ;
+	for(int p=0;p<pts;++p) {
+	  float x = pos[k].x ;
+	  float y = pos[k].y ;
+	  float z = pos[k].z ;
+	  fwrite(&x,sizeof(float),1,FVP) ;
+	  fwrite(&y,sizeof(float),1,FVP) ;
+	  fwrite(&z,sizeof(float),1,FVP) ;
+	}
+
+	// NOTE: variable data are already sampled, so we use "p" as index
+	for(size_t i=0;i<particle_scalars.size();++i) {
+	  for(int p=0;p<pts;++p) {
+	    float var = particle_scalars[i][p] ;
+	    fwrite(&var,sizeof(float),1,FVP) ;
+	  }
+	}
+
+	// Note, it seems that fieldview particle format
+	// only allows scalars, for vector variables, we
+	// compute its magnitude instead
+	for(size_t i=0;i<particle_vectors.size();++i) {
+	  for(int p=0;p<pts;++p) {
+	    float x = particle_vectors[i][p].x ;
+	    float y = particle_vectors[i][p].y ;
+	    float z = particle_vectors[i][p].z ;
+	    float vm = x*x + y*y + z*z ;
+	    vm = sqrt(vm) ;
+	    fwrite(&vm,sizeof(float),1,FVP) ;
+	  }
+	}
       }
     }
        
