@@ -251,7 +251,7 @@ namespace Loci {
 
   template<typename T> T genIntervalSet<T>::UNIVERSE_MAX = std::numeric_limits<T>::max() - 1 ;
   template<typename T> T genIntervalSet<T>::UNIVERSE_MIN = std::numeric_limits<T>::min() + 1 ;
-  template<typename T> genIntervalSet<T> genIntervalSet<T>::EMPTY = genIntervalSet<T>() ;
+  template<typename T> genIntervalSet<T> genIntervalSet<T>::EMPTY ; 
 
   template<typename T> inline genIntervalSet<T> operator~(const genIntervalSet<T> &e) {
     return genIntervalSet<T>::Complement(e) ;

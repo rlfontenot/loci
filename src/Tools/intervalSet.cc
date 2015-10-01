@@ -44,18 +44,11 @@ namespace Loci {
     return s ;
   }
   
-  // This code apparently has problems with the latest intel compiler
-  // It seems that these initializations were occuring before the 
-  // genIntervalSet template static members were initialized.
-  // This change fixes it, though it is ugly.
-  const genIntervalSet<int_type> EMPTY = genIntervalSet<int_type>() ;
-  //  const int_type UNIVERSE_MIN = genIntervalSet<int_type>::UNIVERSE_MIN;
-  //  const int_type UNIVERSE_MAX = genIntervalSet<int_type>::UNIVERSE_MAX;
+  const genIntervalSet<int_type> EMPTY ; 
   const int_type UNIVERSE_MAX = std::numeric_limits<int_type>::max() - 1 ;
   const int_type UNIVERSE_MIN = std::numeric_limits<int_type>::min() + 1 ;
 
-  const genIntervalSet<gEntity> GEMPTY = genIntervalSet<gEntity>::EMPTY;
-  const gEntity GUNIVERSE_MIN = genIntervalSet<gEntity>::UNIVERSE_MIN;
-  const gEntity GUNIVERSE_MAX = genIntervalSet<gEntity>::UNIVERSE_MAX;
-
+  const genIntervalSet<gEntity> GEMPTY ; 
+  const gEntity GUNIVERSE_MAX = std::numeric_limits<gEntity>::max() - 1 ;
+  const gEntity GUNIVERSE_MIN = std::numeric_limits<gEntity>::min() + 1 ;
 }
