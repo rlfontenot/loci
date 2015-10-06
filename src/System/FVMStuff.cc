@@ -1627,6 +1627,8 @@ namespace Loci{
     constraint pfaces ;
     Map cl ;
     pfaces = facts.get_variable("periodicFaces") ;
+
+#ifdef NOTNEEDED
     *pfaces  = all_collect_entitySet(*pfaces) ;
     
     cl = facts.get_variable("cl") ;
@@ -1640,6 +1642,7 @@ namespace Loci{
     constraint notPeriodicCells ;
     *notPeriodicCells = ~pcells ;
     facts.create_fact("notPeriodicCells",notPeriodicCells) ;
+#endif
   } 
 
   void create_ci_map(fact_db &facts) {
