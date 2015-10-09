@@ -1623,23 +1623,6 @@ namespace Loci{
     // Add periodic datastructures to fact database
     facts.create_fact("pmap",pmap) ;
     facts.create_fact("periodicTransform",periodic_transform) ;
-
-    constraint pfaces ;
-    Map cl ;
-    pfaces = facts.get_variable("periodicFaces") ;
-    *pfaces  = all_collect_entitySet(*pfaces) ;
-    
-    cl = facts.get_variable("cl") ;
-    entitySet pcells = MapRepP(cl.Rep())->image(*pfaces) ;
-
-    pcells = all_collect_entitySet(pcells) ;
-    constraint periodicCells ;
-    *periodicCells = pcells ;
-
-    facts.create_fact("periodicCells",periodicCells) ;
-    constraint notPeriodicCells ;
-    *notPeriodicCells = ~pcells ;
-    facts.create_fact("notPeriodicCells",notPeriodicCells) ;
   } 
 
   void create_ci_map(fact_db &facts) {
