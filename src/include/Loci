@@ -49,6 +49,8 @@
 #include <gstore.h>
 #include <DStore.h>
 #include <DStoreVec.h>
+#include <accessMap.h>
+
 //#include <DStoreMat.h>
 
 
