@@ -428,18 +428,6 @@ namespace Loci {
     
   }
 
-
-
-
-
-
-
-
-
-
-
-
-  
   //*************************************************************************/
   template <class T> 
   void dstoreVecRepI<T>::pack(void *outbuf, int &position, int &outcount, const entitySet &eset ) 
