@@ -122,6 +122,14 @@ while [ $# -ne 0 ]; do
 	    tmp=$1
 	    PETSC_BASE=${tmp#--with-petsc\=}
 	    ;;
+	--with-metis)
+	    shift
+	    METIS_BASE=$1
+	    ;;
+	--with-metis\=*)
+	    tmp=$1
+	    METIS_BASE=${tmp#--with-petsc\=}
+	    ;;
 	--hdf5-dir)
 	    shift
 	    H5PATH=$1
@@ -184,8 +192,8 @@ while [ $# -ne 0 ]; do
 	    echo "  --with-hdf5 <HDF5 directory>     : tell configure where to find HDF5 package."
 	    echo "  --with-mpi <MPI directory>      : tell configure where to find MPI package."
 	    echo "  --nompi                         : tell configure to build without using MPI"
-	    echo "  --with-petsc <PETSc directory>   : tell configure where to find PETSc package."
-	    
+	    echo "  --with-petsc <PETSc directory>  : tell configure where to find PETSc package."
+	    echo "  --with-metis <parMETIS dir>     : tell configure where to find alternative    Parallel METIS package."
 	    echo "  --compiler <compiler name>      : tell configure what compiler to use"
 	    echo "  --obj-dir <OBJDIR name>         : tell configure where to put object files"
 	    echo "  --help                          : output this help information"
