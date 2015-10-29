@@ -38,7 +38,7 @@
 //for test
 #include <store_rep.h>
 namespace Loci {
-  enum gstore_type { GSTORE, GMULTISTORE, GMAP, GMULTIMAP, GPARAMETER,GCONSTRAINT, GBLACKBOX } ;
+  enum gstore_type { GSTORE, GMULTISTORE, GMAP, GMULTIMAP,GMAPVEC, GPARAMETER,GCONSTRAINT, GBLACKBOX } ;
  
  
   
@@ -74,7 +74,7 @@ namespace Loci {
     virtual void shift(gEntity offset) = 0 ;
     
     virtual gStoreRepP clone() const = 0 ;
-    
+    virtual storeRepP copy2store() const = 0;
     // the remap method merely renumbers the container
     // according to the passed in map
     virtual gStoreRepP remap(const gMap &m) const = 0 ;
@@ -83,7 +83,8 @@ namespace Loci {
     //For stores, recompose will compose a new store whose domain is the domain of m,
     //whose data is the data of the SECOND field of m.
     //for example, pos.recompose(face2node) will producea  store
-    //of the positions  for each face  
+    //of the positions  for each face
+    //For maps, in necessary, expanded map will be generated from m 
     virtual gStoreRepP  recompose(gStoreRepP &m, MPI_Comm comm=MPI_COMM_WORLD)const{
       std::cerr << "gStoreRep.recompose() is not implemented yet"
                 << std::endl ;

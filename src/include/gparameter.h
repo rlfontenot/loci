@@ -35,6 +35,7 @@
 #include <data_traits.h>
 #include <distribute_long.h>
 #include <partition.h>
+#include <parameter.h>
 namespace Loci {
   
   template<class T> class gParamRepI : public gStoreRep {
@@ -93,7 +94,12 @@ namespace Loci {
     virtual const void* get_attrib_data() const{
       return  static_cast<const void*>(&attrib_data);
     }
-     
+    virtual storeRepP copy2store()const{
+      param<T> r ;
+      r.set_entitySet(store_domain);
+      *r = attrib_data;
+      return r.Rep() ;
+    }
     virtual int pack_size(const gEntitySet &e)const ;
     virtual void pack(void *ptr, int &loc, int size, const gEntitySet &e)const ;//only pack attrib_data
     virtual void unpack(const void *ptr, int &loc, int size)  ;//only unpack attribute_data
@@ -163,7 +169,12 @@ namespace Loci {
     gKeySpace* get_domain_space()const{return Rep()->get_domain_space();}
     
     void set_entitySet(const gEntitySet &ptn) {
-      static_cast<CPTR<gParamType> >(Rep())->allocate(ptn);
+      CPTR<gParamType> p(Rep()) ;
+      bool isNull = (p==0);
+      debugout<< " set_entitySet 1 " << isNull<< endl;
+      if(p != 0) p->allocate(ptn);
+      debugout<< " set_entitySet 2 " << endl;
+      warn(p==0) ; 
     }
 
     gEntitySet domain() const { return Rep()->domain(); }

@@ -35,7 +35,7 @@
 namespace Loci {
 
   class gMap ;
-   
+  class gMultiMap;
    
   class gMapRepI : public gMapRep {
     bool sorted;
@@ -83,10 +83,13 @@ namespace Loci {
     //     virtual gStoreRepP
     //     redistribute_omd(const std::vector<gEntitySet>& dom_ptn,
     //                      const gMap& remap, MPI_Comm comm=MPI_COMM_WORLD) ;
-    virtual gStoreRepP recompose(const gMap &m, MPI_Comm comm=MPI_COMM_WORLD ) ;
-
+    virtual gStoreRepP recompose(const gMap &m, MPI_Comm comm=MPI_COMM_WORLD )const ;
+    virtual gStoreRepP recompose(const gMultiMap &m, MPI_Comm comm=MPI_COMM_WORLD )const ;
+    virtual gStoreRepP recompose(gStoreRepP &m, MPI_Comm comm=MPI_COMM_WORLD )const ;
     virtual gStoreRepP local_inverse() const; 
-    
+    virtual gStoreRepP distributed_inverse(gEntitySet global_image,
+                                           gEntitySet global_preimage,
+                                           const std::vector<gEntitySet> &init_ptn) const;
     virtual int pack_size(const gEntitySet &e)const ;
     
 
@@ -117,10 +120,13 @@ namespace Loci {
     virtual gEntitySet image() const ;
     virtual std::pair<gEntitySet,gEntitySet>
     preimage(const gEntitySet &codomain) const ;
-    
+    //copy to traditional Loci Map
+    virtual storeRepP copy2store() const;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
-    virtual gStoreRepP expand(gEntitySet &out_of_dom, std::vector<gEntitySet> &init_ptn,
+    //different from traditional maps, this method is const method
+    //dom is the domain after expansion, not out_of_dom
+    virtual gStoreRepP expand(gEntitySet &dom, std::vector<gEntitySet> &init_ptn,
                               MPI_Comm comm=MPI_COMM_WORLD)const ;
     virtual void* get_attrib_data() {return &attrib_data; }
     virtual const void* get_attrib_data() const{return &attrib_data; }
@@ -188,6 +194,38 @@ namespace Loci {
     virtual instance_type access() const{return READ_WRITE ;}
     virtual gStoreRepP remap(const gMap &m) const{return Rep()->remap(m);}
     virtual gStoreRepP local_inverse() const{return static_cast<gMapRepP>(Rep())->local_inverse();}
+
+    virtual gStoreRepP distributed_inverse(gEntitySet global_image,
+                                           gEntitySet global_preimage,
+                                           const std::vector<gEntitySet> &init_ptn) const{
+      CPTR<MapType> p(Rep()) ;
+      if(p != 0)
+        return p->distributed_inverse(global_image, global_preimage, init_ptn);
+      else
+        return gStoreRepP(0);
+    }
+
+    virtual gStoreRepP recompose(const gMap &m, MPI_Comm comm=MPI_COMM_WORLD )const{
+      CPTR<MapType> p(Rep()) ;
+      if(p != 0)
+        return p->recompose(m, comm);
+      else return gStoreRepP(0);
+    }
+
+    virtual gStoreRepP recompose(const gMultiMap &m, MPI_Comm comm=MPI_COMM_WORLD )const{
+      CPTR<MapType> p(Rep()) ;
+      if(p != 0)
+        return p->recompose(m, comm);
+      else return gStoreRepP(0);
+    }
+
+    virtual gStoreRepP recompose( gStoreRepP &m, MPI_Comm comm=MPI_COMM_WORLD )const{
+      CPTR<MapType> p(Rep()) ;
+      if(p != 0)
+        return p->recompose(m, comm);
+      else return gStoreRepP(0);
+    }
+    
     virtual gStoreRepP
     redistribute(const std::vector<gEntitySet>& dom_split,
                  MPI_Comm comm=MPI_COMM_WORLD)const{return Rep()->redistribute(dom_split, comm) ;}
@@ -195,12 +233,12 @@ namespace Loci {
     virtual gStoreRepP
     split_redistribute(const std::vector<gEntitySet>& dom_ptn,
                        MPI_Comm comm=MPI_COMM_WORLD)const{return Rep()->redistribute(dom_ptn, comm) ;}
-
-    virtual gStoreRepP expand(gEntitySet &out_of_dom, std::vector<gEntitySet> &init_ptn,MPI_Comm comm=MPI_COMM_WORLD)const{return  gMapRepP(Rep())->expand(out_of_dom, init_ptn, comm);}
+    //different from traditional maps, this method is const method
+    //dom is the domain after expansion, not out_of_dom
+    virtual gStoreRepP expand(gEntitySet &dom, std::vector<gEntitySet> &init_ptn,MPI_Comm comm=MPI_COMM_WORLD)const{return  gMapRepP(Rep())->expand(dom, init_ptn, comm);}
     
     
-    //copy to traditional Loci Map
-    virtual storeRepP copy2store() const;
+    
     gEntitySet domain() const { return Rep()->domain() ; }
 
     operator gMapRepP() {
@@ -260,7 +298,37 @@ namespace Loci {
                        MPI_Comm comm=MPI_COMM_WORLD)const{return Rep()->redistribute(dom_ptn, comm) ;}
     
     virtual gStoreRepP remap(const gMap &m) const{return Rep()->remap(m);}
+    virtual gStoreRepP distributed_inverse(gEntitySet global_image,
+                                           gEntitySet global_preimage,
+                                           const std::vector<gEntitySet> &init_ptn) const{
+      CPTR<MapType> p(Rep()) ;
+      if(p != 0)
+        return p->distributed_inverse(global_image, global_preimage, init_ptn);
+      else
+        return gStoreRepP(0);
+    }
 
+    virtual gStoreRepP recompose(const gMap &m, MPI_Comm comm=MPI_COMM_WORLD )const{
+      CPTR<MapType> p(Rep()) ;
+      if(p != 0)
+        return p->recompose(m, comm);
+      else return gStoreRepP(0);
+    }
+
+    virtual gStoreRepP recompose(const gMultiMap &m, MPI_Comm comm=MPI_COMM_WORLD )const{
+      CPTR<MapType> p(Rep()) ;
+      if(p != 0)
+        return p->recompose(m, comm);
+      else return gStoreRepP(0);
+    }
+
+    virtual gStoreRepP recompose(gStoreRepP &m, MPI_Comm comm=MPI_COMM_WORLD )const{
+      CPTR<MapType> p(Rep()) ;
+      if(p != 0)
+        return p->recompose(m, comm);
+      else return gStoreRepP(0);
+    }
+    
     const_gMap(){ setRep(new MapType);  }
     const_gMap(gStoreRepP &rp) { setRep(rp) ; }
     

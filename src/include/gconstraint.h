@@ -83,7 +83,7 @@ namespace Loci {
     virtual gStoreRepP clone() const{
       return new gConstraintRep(constraint_set); 
     }
-    
+     virtual storeRepP copy2store()const ;
     virtual void* get_attrib_data() {
       return static_cast<void*>(&constraint_set);
     }
@@ -163,7 +163,7 @@ namespace Loci {
     virtual gStoreRepP clone() const{return Rep()->clone() ;}
     
     gEntitySet &operator*() { return *data ; }
-    storeRepP copy2store()const ;
+    
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ; }
   } ;

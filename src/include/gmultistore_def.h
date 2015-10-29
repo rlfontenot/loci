@@ -18,8 +18,8 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
-#ifndef GSTORE_DEF_H
-#define GSTORE_DEF_H
+#ifndef GMULTISTORE_DEF_H
+#define GMULTISTORE_DEF_H
 
 // This header file contains the class definition of
 // GStore
@@ -42,7 +42,7 @@
 #include <string.h>
 #include <dist_internal.h>
 //for test
-#include <store.h>
+#include <multiStore.h>
 namespace Loci {
   extern int MPI_processes;
   extern int MPI_rank ;
@@ -95,7 +95,7 @@ namespace Loci {
   
 
   //where storage is allocated
-  template<class T> class gStoreRepI : public gStoreRep {
+  template<class T> class gMultiStoreRepI : public gStoreRep {
     //storage type
     typedef typename std::vector<std::pair<gEntity,T> > gRep ;
     
@@ -103,6 +103,7 @@ namespace Loci {
     bool sorted; 
     gRep attrib_data;
     gEntitySet dom;
+    gEntitySet vdom; //<the virtual domain, inside which each entity has zero num_elems() 
     gKeySpace* domain_space;
   private:
     int  get_mpi_size( IDENTITY_CONVERTER c, const gEntitySet &eset)const;
@@ -136,7 +137,7 @@ namespace Loci {
     size_t size() const{return attrib_data.size();}
     void reserve (size_t n){attrib_data.reserve(n);}
     void clear(){attrib_data.clear();}
-    gStoreRepI():sorted(true), dom(GEMPTY),domain_space(0){}
+    gMultiStoreRepI():sorted(true), dom(GEMPTY),domain_space(0){}
     void set_domain_space(gKeySpace* space){domain_space = space;}
     gKeySpace* get_domain_space()const{return domain_space;}
     
@@ -145,9 +146,7 @@ namespace Loci {
     //whose data is the data of the SECOND field of m.
     //for example, pos.recompose(face2node) will produce the positions  for each face  
     virtual gStoreRepP  recompose( gStoreRepP &m, MPI_Comm comm=MPI_COMM_WORLD)const  ;
-    virtual gStoreRepP recompose(const gMap &m, MPI_Comm comm=MPI_COMM_WORLD )const ;
-    virtual gStoreRepP recompose(const gMultiMap &m, MPI_Comm comm=MPI_COMM_WORLD )const ;
-    
+
     // this method redistributes the stores according to the split of local domain over a group of process
     //dom_split: the send split of local domain
     virtual gStoreRepP
@@ -211,6 +210,12 @@ namespace Loci {
         dom += itr->first;
       }
     }
+    void set_vdom(gEntitySet vd){
+      vdom = vd;
+    }
+    gEntitySet get_vdom()const{
+      return vdom;
+    }
     void insert(const gEntitySet& seq,  const T* vals){
       sorted = false;
       size_t idx= 0;
@@ -247,23 +252,47 @@ namespace Loci {
         }
       return first;
     }
-    //copy gstore to traditional Loci store, storevec or multistore
-    //partially implemented
+
+    //copy gMultiStore to traditional Loci multiStore
     virtual storeRepP copy2store() const{
-      fatal(!sorted);
       entitySet dom = domain();
+      entitySet v_dom = get_vdom();
       fatal(size() != dom.size()) ;
-      store<T> s;
-      s.allocate(dom);
-      for(const_iterator itr = begin(); itr != end(); itr++){  
-        s[itr->first] = itr->second;
-      }
+      
+      store<int> count;
+      count.allocate(dom+v_dom);
+      const_iterator itr = begin();
+      GFORALL(dom, ei){
+        int cnt = 0;
+        while(itr!=end() && itr->first < ei)itr++;
+        while(itr!=end() && itr->first == ei){
+          cnt++;
+          itr++;
+        }
+        count[ei] = cnt;
+      }ENDGFORALL;
+      GFORALL(v_dom, ei){
+        count[ei] = 0;
+      }ENDGFORALL;
+      
+      multiStore<T> s;
+      s.allocate(count);
+      itr = begin();
+      GFORALL(dom, ei){
+        int cnt = 0;
+        while(itr!=end() && itr->first < ei)itr++;
+        while(itr!=end() && itr->first == ei){
+        s[ei][cnt++] = itr->second;
+        itr++;
+        }
+      }ENDGFORALL;
       return s.Rep();
     }
+      
    
     virtual void shift(gEntity offset) ;
-    virtual ~gStoreRepI(){}
-    virtual gStoreRepP clone() const{return new gStoreRepI(*this);}
+    virtual ~gMultiStoreRepI(){}
+    virtual gStoreRepP clone() const{return new gMultiStoreRepI(*this);}
     virtual gStoreRepP remap(const gMap &m) const ;
     virtual int pack_size(const gEntitySet &e)const ;
     virtual void pack(void *ptr, int &loc, int size, const gEntitySet &e)const ;
@@ -285,22 +314,22 @@ namespace Loci {
   
   
    
-  template<class T> class gStore: public gstore_instance {
+  template<class T> class gMultiStore: public gstore_instance {
     typedef typename std::vector<std::pair<gEntity,T> > gRep ; 
-    typedef gStoreRepI<T>  storeType ;
-    gStore(const gStore &var) { setRep(var.Rep()) ;}
-    gStore<T> & operator=(const gStore<T> &str) {
+    typedef gMultiStoreRepI<T>  storeType ;
+    gMultiStore(const gMultiStore &var) { setRep(var.Rep()) ;}
+    gMultiStore<T> & operator=(const gMultiStore<T> &str) {
       setRep(str.Rep()) ;
       return *this ;
     }
   public:
     typedef T containerType ;
-    gStore() { setRep(new storeType); }
-    gStore(gStoreRepP &rp) { setRep(rp) ;}
+    gMultiStore() { setRep(new storeType); }
+    gMultiStore(gStoreRepP &rp) { setRep(rp) ;}
     
-    virtual ~gStore() {}
+    virtual ~gMultiStore() {}
    
-    gStore<T> & operator=(gStoreRepP p) { setRep(p) ; return *this ; }
+    gMultiStore<T> & operator=(gStoreRepP p) { setRep(p) ; return *this ; }
 
     void set_domain_space(gKeySpace* space){Rep()->set_domain_space(space);}
     gKeySpace* get_domain_space()const{return Rep()->get_domain_space();}
@@ -341,7 +370,7 @@ namespace Loci {
                  const gMap& remap, MPI_Comm comm=MPI_COMM_WORLD)const{return Rep()->redistribute(dom_split,remap,comm);}
     // the redistribute takes a vector of gEntitySets as domain
     // distribution over a group of processes and
-    // redistributes the gStores according to the domain partition
+    // redistributes the gMultiStores according to the domain partition
     // NOTE: should be pure virtual (= 0), but here we default it
     // to do nothing just to be able to compile the code, all
     // containers will need to implement this method later.
@@ -386,7 +415,20 @@ namespace Loci {
         p->sort();
       warn(p==0);
     }
-    
+
+    void set_vdom(gEntitySet vd){
+      CPTR<storeType> p(Rep()) ;
+      if(p != 0)
+        p->set_vdom(vd);
+      warn(p==0);
+    }
+    gEntitySet get_vdom()const{
+      CPTR<storeType> p(Rep()) ;
+      if(p != 0)
+        return p->get_vdom();
+      warn(p==0);
+      return GEMPTY;
+    }
     
    
     void make_consistent();
@@ -395,8 +437,7 @@ namespace Loci {
     //and put them in a vector center
     void get_mean(std::vector<T>& center);
     
-  
-     
+    
   } ;
 
   

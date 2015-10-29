@@ -19,8 +19,8 @@
 //#
 //#############################################################################
 
-#ifndef GSTORE_IMPL_H
-#define GSTORE_IMPL_H 1
+#ifndef GMULTISTORE_IMPL_H
+#define GMULTISTORE_IMPL_H 1
 #include <data_traits.h>
 #include <Tools/except.h>
 #include <parSampleSort.h>
@@ -34,54 +34,53 @@
 #include <dist_internal.h>
 #include <gmap.h>
 #include <gmultimap.h>
-#include <gmultistore.h>
 #include <distribute_long.h>
 #include <field_sort.h>
+
 using std::vector;
 
 namespace Loci {
   
-
-  template<class T> void gStore<T>::make_consistent(){
-    debugout<< "WARNING: void gStore<T>::make_consistent() not implemented yet" << endl;
+  template<class T> void gMultiStore<T>::make_consistent(){
+    debugout<< "WARNING: void gMultiStore<T>::make_consistent() not implemented yet" << endl;
   }
   
   template<class T> 
-  inline std::ostream & operator<<(std::ostream &s, const gStore<T> &t)
+  inline std::ostream & operator<<(std::ostream &s, const gMultiStore<T> &t)
   { return t.Print(s) ; }
 
 
-  template<class T> void gStoreRepI<T>::local_sort(){
+  template<class T> void gMultiStoreRepI<T>::local_sort(){
     std::stable_sort(attrib_data.begin(), attrib_data.end(), fieldSort1<T>);
     sorted = true;
   }
 
   // //parSampleSort not working, because balanceDisttribution will split one entity inside a multiMap
   // // or a multiStore 
-  // template<class T> void gStoreRepI<T>::sort(){
-  //   cerr<<" WARNING: gStoreRepI<T>::sort() not implemented yet" << endl; 
+  // template<class T> void gMultiStoreRepI<T>::sort(){
+  //   cerr<<" WARNING: gMultiStoreRepI<T>::sort() not implemented yet" << endl; 
   // }
 
-  // template<class T> void gStoreRepI<T>::parSplitSort(const std::vector<gEntitySet>& ptn){
-  //   cerr<<" WARNING:gStoreRepI<T>::parSplitSort not implemented yet" << endl; 
+  // template<class T> void gMultiStoreRepI<T>::parSplitSort(const std::vector<gEntitySet>& ptn){
+  //   cerr<<" WARNING:gMultiStoreRepI<T>::parSplitSort not implemented yet" << endl; 
   // }
  
                          
 
 
   template<class T>
-  void gStoreRepI<T>::shift(gEntity offset) {
+  void gMultiStoreRepI<T>::shift(gEntity offset) {
     for(iterator itr = attrib_data.begin(); itr != attrib_data.end(); itr++){
       itr->first >>= offset ;
     }
   }
   
   template<class T>
-  gStoreRepP gStoreRepI<T>::remap(const gMap &m) const{
-    fatal(!sorted);
+  gStoreRepP gMultiStoreRepI<T>::remap(const gMap &m) const{
     fatal( !m.sorted());
     fatal(m.domain()-domain() != GEMPTY);
-    gStore<T> s;
+    fatal(!sorted);
+    gMultiStore<T> s;
     typename gRep::const_iterator itr1 = begin();
     gMap::const_iterator itr2 = m.begin();
     for(; itr1 != end(); itr1++){
@@ -96,29 +95,43 @@ namespace Loci {
   //*********************************************************************/
 
   template<class T> 
-  std::ostream &gStoreRepI<T>::Print(std::ostream &s) const 
+  std::ostream &gMultiStoreRepI<T>::Print(std::ostream &s) const 
   {
     if(attrib_data.empty()){
       s <<"{}" << endl ;
       return s ;
     }
-    s << '{' << std::endl ;
-    typename gRep::const_iterator itr;
-    for( itr = attrib_data.begin();
-         itr != attrib_data.end(); itr++){
-      s << itr->first << " -> " << itr->second << std::endl ;
-    }
+
+
+    s << '{' << endl ;
+    s << "vdom: " << vdom << endl<<endl;
     
-    s << '}' << std::endl ; 
+    //print out the first
+    const_iterator previous = attrib_data.begin();
+    s << previous->first<<':' << ' ' << previous->second  ;
+    const_iterator itr = attrib_data.begin();
+    itr++;
+    for(; itr != attrib_data.end(); itr++){
+      previous = itr;
+      previous--;
+      if(itr->first == previous->first){
+        s << ' ' << itr->second ;
+      }else{
+        s << endl;
+        s << itr->first<<':'  << ' ' << itr->second;
+      }
+    }
+    s<<endl;
+    s << '}' << endl ;
     return s ;
   }
 
   //************************************************************************/
 
   template<class T> 
-  std::istream &gStoreRepI<T>::Input(std::istream &s) 
+  std::istream &gMultiStoreRepI<T>::Input(std::istream &s) 
   {
-    debugout<< "WARNING: gStoreRepI<T>::Input() not implemented yet " << endl;
+    debugout<< "WARNING: gMultiStoreRepI<T>::Input() not implemented yet " << endl;
     // entitySet e ;
     //     char ch ;
 
@@ -152,104 +165,47 @@ namespace Loci {
   //*************************************************************************/
   
   template<class T> 
-  gstore_type gStoreRepI<T>::RepType() const 
+  gstore_type gMultiStoreRepI<T>::RepType() const 
   {
-    return GSTORE ;
-  }
-
-  template<class T>
-  gStoreRepP gStoreRepI<T>::recompose( gStoreRepP &newmap,  MPI_Comm comm)const {
-    if(newmap->RepType()==GMAP){
-      gMap m(newmap);
-      return recompose(m, comm);
-    }else  if(newmap->RepType()==GMULTIMAP){
-      gMultiMap m(newmap);
-      return recompose(m, comm);
-    }else{
-    cerr << "ERROR: uncognized RepType() in recompose() method" << endl;
-    return gStoreRepP(0);
-    }
+    return GMULTISTORE ;
   }
 
   
+
+   //This method does not consider vdom
   //For stores,recompose will compose a store whose domain is the domain of m,
   //whose data is the data of the SECOND field of m.
   //for example, pos.recompose(face2node) will produce the positions  for each face  
   template<class T>
-  gStoreRepP  gStoreRepI<T>::recompose(const gMultiMap &remap, MPI_Comm comm)const{
-    gEntitySet new_dom = remap.image();
-    gEntitySet old_dom = domain();
-    vector<gEntitySet> ptn = g_all_collect_vectors<gEntity>(new_dom);
-    gStore<T> expanded_store;//the value in expanded store is unique in each process
-    expanded_store = split_redistribute(ptn, comm);
-    expanded_store.local_sort();
-
-    //copy remap into a vector
-    vector<ms_comp<gEntity> > temp_vec;
-    {
-      short ind = 0;
-      gMultiMap::const_iterator previous = remap.begin();
-      temp_vec.push_back(ms_comp<gEntity>(previous->first, previous->second, ind));
-      gMultiMap::const_iterator itr = remap.begin();
-      itr++;
-      for(; itr != remap.end(); itr++){
-        previous = itr;
-        previous--;
-        if(itr->first == previous->first){
-          ind++;
-          temp_vec.push_back(ms_comp<gEntity>(itr->first, itr->second, ind));
-        }else{
-          ind = 0;
-          temp_vec.push_back(ms_comp<gEntity>(itr->first, itr->second, ind));
-        }
-      }
-    }
-    //sort temp_vec according to the image field
-    std::sort(temp_vec.begin(), temp_vec.end(), field_sort_img);
-
-    vector<ms_comp<T> > temp_vec2;
-    typename gStore<T>::const_iterator itr = expanded_store.begin();
-    for(size_t i = 0; i < temp_vec.size(); i++){
-       while(itr->first < temp_vec[i].img )itr++ ;
-       if(itr->first == temp_vec[i].img) temp_vec2.push_back( ms_comp<T>(temp_vec[i].dom, itr->second, temp_vec[i].ind));
-    }
+  gStoreRepP  gMultiStoreRepI<T>::recompose(gStoreRepP& m, MPI_Comm comm)const{
+    cerr<<"WARNING: gMultiStoreRepI::recompose() not implemented yet" << endl;
     
-    //sort temp_vec2 according to the dom and ind field
-    std::sort(temp_vec2.begin(), temp_vec2.end(), field_sort_dom<T>);                                       
+    // gMultiMap remap(m);
+    
+    // gEntitySet new_dom = remap.image();
+    // gEntitySet old_dom = domain();
+    // vector<gEntitySet> ptn = g_all_collect_vectors<gEntity>(new_dom);
+    // gMultiStore<T> expanded_store;//the value in expanded store is unique in each process
+    // expanded_store = split_redistribute(ptn, comm);
+    // expanded_store.local_sort();
+    
+    // //put expanded store into std::map
+    // std::map<gEntity, T> amap;
+    // for(const_iterator itr = expanded_store.begin(); itr!=expanded_store.end(); itr++)
+    //   amap[itr->first] = itr->second;
 
     gMultiStore<T> result;
-    for(size_t i = 0; i < temp_vec2.size(); i++){
-      result.insert(temp_vec2[i].dom, temp_vec2[i].img);
-    }
+    // for(gMultiMap::const_iterator mi = remap.begin(); mi!= remap.end(); mi++){
+    //   result.insert(mi->first, amap[mi->second]);
+    // }
     result.set_domain_space(domain_space);
     return result.Rep();
   }
 
- template<class T>
-  gStoreRepP  gStoreRepI<T>::recompose(const gMap &remap, MPI_Comm comm)const{
-        
-    gEntitySet new_dom = remap.image();
-    gEntitySet old_dom = domain();
-    vector<gEntitySet> ptn = g_all_collect_vectors<gEntity>(new_dom);
-    gStore<T> expanded_store;//the value in expanded store is unique in each process
-    expanded_store = split_redistribute(ptn, comm);
-    expanded_store.local_sort();
 
-    const_cast<gMap &>(remap).local_sort2();
-
-    gStore<T> result;
-    const_iterator itr2 = begin();
-    for(gMap::const_iterator itr1 = remap.begin(); itr1!= remap.end(); itr1++){
-      while(itr2 != end() && itr2->first < itr1->second)itr2++ ;
-      if(itr2 != end() && itr2->first == itr1->second) result.insert(itr1->first, itr2->second);
-    }
-    result.local_sort();
-    result.set_domain_space(domain_space);
-    return result.Rep();
- }
-  
+   //This method does not consider vdom
   template<class T>
-  gStoreRepP gStoreRepI<T>::redistribute(const std::vector<gEntitySet>& dom_split,
+  gStoreRepP gMultiStoreRepI<T>::redistribute(const std::vector<gEntitySet>& dom_split,
                                          MPI_Comm comm)const {
     fatal(!sorted);
     int np = 1;
@@ -295,7 +251,7 @@ namespace Loci {
                   &recv_displs[0], MPI_PACKED, comm) ;
 
     
-    gStore<T> ns ;
+    gMultiStore<T> ns ;
     gStoreRepP srp = ns.Rep() ;
     // unpack
     loc_pack = 0 ;
@@ -312,8 +268,9 @@ namespace Loci {
   
   
   //split domain first, then redistribute
+  //This method does not consider vdom
   template<class T>
-  gStoreRepP gStoreRepI<T>::split_redistribute(const std::vector<gEntitySet>& dom_ptn,
+  gStoreRepP gMultiStoreRepI<T>::split_redistribute(const std::vector<gEntitySet>& dom_ptn,
                                                MPI_Comm comm)const {
     fatal(!sorted);
 
@@ -328,13 +285,14 @@ namespace Loci {
     }
     return redistribute(dom_split, comm);
   }
-  
+
+  //This method does not consider vdom
   template<class T> gStoreRepP
-  gStoreRepI<T>::redistribute(const std::vector<gEntitySet>& dom_split,
+  gMultiStoreRepI<T>::redistribute(const std::vector<gEntitySet>& dom_split,
                               const gMap& remap, MPI_Comm comm)const {
     fatal(!sorted);
 
-    gStore<T> result;
+    gMultiStore<T> result;
     result.setRep(redistribute( dom_split,comm));
     result.local_sort();
     result.set_domain_space(domain_space);
@@ -342,12 +300,12 @@ namespace Loci {
   }
 
   //   template<class T> storeRepP
-  //   gStoreRepI<T>::redistribute_omd(const std::vector<gEntitySet>& dom_ptn,
+  //   gMultiStoreRepI<T>::redistribute_omd(const std::vector<gEntitySet>& dom_ptn,
   //                                   const dMap& remap, MPI_Comm comm) {
   //   //   // this is a push operation, thus the send, recv are reversed
   // //     std::vector<P2pCommInfo> send, recv ;
   // //     get_p2p_comm(dom_ptn, domain(), 0, 0, comm, recv, send) ;
-  // //     gStore<T> new_store ;
+  // //     gMultiStore<T> new_store ;
   // //     fill_store_omd(getRep(), 0, new_store.Rep(), &remap, send, recv, comm) ;
   // //     return new_store.Rep() ;
   //   }
@@ -356,7 +314,7 @@ namespace Loci {
 
   //*************************************************************************/
   template <class T> 
-  int gStoreRepI<T>::pack_size( const gEntitySet &eset)const {
+  int gMultiStoreRepI<T>::pack_size( const gEntitySet &eset)const {
    
     fatal(eset - domain() != GEMPTY);
    
@@ -373,7 +331,7 @@ namespace Loci {
   //*******************************************************************/
   /* this function applys to both  gStore and gMultiStore */ 
   template <class T>
-  int gStoreRepI<T>::get_mpi_size( IDENTITY_CONVERTER c,
+  int gMultiStoreRepI<T>::get_mpi_size( IDENTITY_CONVERTER c,
                                    const gEntitySet &eset)const{
     int result = 0;
     const_iterator itr1 = attrib_data.begin();
@@ -393,7 +351,7 @@ namespace Loci {
   //*******************************************************************/
   /* this function applys to both  gStore and gMultiStore */ 
   template <class T>
-  int gStoreRepI<T>::get_mpi_size( USER_DEFINED_CONVERTER c,
+  int gMultiStoreRepI<T>::get_mpi_size( USER_DEFINED_CONVERTER c,
                                    const gEntitySet &eset)const
   {
    
@@ -416,9 +374,10 @@ namespace Loci {
   }
   
   //*******************************************************************/
+   //This method does not consider vdom
   /* this function applys to both  gStore and gMultiStore */ 
   template <class T> 
-  void gStoreRepI<T>::pack( void *outbuf, int &position, int size, 
+  void gMultiStoreRepI<T>::pack( void *outbuf, int &position, int size, 
                             const gEntitySet &usr_eset ) const 
   {
     fatal(usr_eset - domain() != GEMPTY);
@@ -432,9 +391,10 @@ namespace Loci {
   }
  
   //*******************************************************************/
+  //This method does not consider vdom 
   /* this function applys to both  gStore and gMultiStore */ 
   template <class T> 
-  void gStoreRepI<T>::packdata(IDENTITY_CONVERTER c, void *outbuf,
+  void gMultiStoreRepI<T>::packdata(IDENTITY_CONVERTER c, void *outbuf,
                                int &position, int outcount,
                                const gEntitySet &eset )  const
   {
@@ -453,9 +413,10 @@ namespace Loci {
   }
 
   //*******************************************************************/
-  /* this function applys to both  gStore and gMultiStore */ 
+  /* this function applys to both  gStore and gMultiStore */
+   //This method does not consider vdom
   template <class T>
-  void gStoreRepI<T>::packdata( USER_DEFINED_CONVERTER c, void *outbuf, 
+  void gMultiStoreRepI<T>::packdata( USER_DEFINED_CONVERTER c, void *outbuf, 
                                 int &position, int outcount, 
                                 const gEntitySet &eset )const
   {
@@ -491,9 +452,9 @@ namespace Loci {
   }
 
   //*******************************************************************/
-
+ //This method does not consider vdom
   template <class T> 
-  void gStoreRepI<T>::unpack(const void *ptr, int &loc, int size ) 
+  void gMultiStoreRepI<T>::unpack(const void *ptr, int &loc, int size ) 
   {
     
     typedef typename
@@ -505,8 +466,9 @@ namespace Loci {
   }
 
   //*********************************************************************/
+  //This method does not consider vdom 
   template <class T> 
-  void gStoreRepI<T>::unpackdata(IDENTITY_CONVERTER c, const void *inbuf,
+  void gMultiStoreRepI<T>::unpackdata(IDENTITY_CONVERTER c, const void *inbuf,
                                  int &position,  int insize
                                  ) 
   {
@@ -521,8 +483,9 @@ namespace Loci {
     }
   }
   //*********************************************************************/
+   //This method does not consider vdom
   template <class T> 
-  void gStoreRepI<T>::unpackdata( USER_DEFINED_CONVERTER c, const void *inbuf, 
+  void gMultiStoreRepI<T>::unpackdata( USER_DEFINED_CONVERTER c, const void *inbuf, 
                                   int &position, int insize) 
   {
     int  stateSize, outcount;
@@ -554,7 +517,7 @@ namespace Loci {
   //for gMultiStore, this method computes the mean value for each entity
   //and put them in a vector center
   template <class T> 
-  void gStore<T>::get_mean(vector<T>& center) 
+  void gMultiStore<T>::get_mean(vector<T>& center) 
   {
     center.resize(domain().size());
     const_iterator itr = begin();
@@ -582,7 +545,7 @@ namespace Loci {
  
   // //*********************************************************************/
   //   template<class T> 
-  //   void gStoreRepI<T>::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, gEntitySet &user_eset)
+  //   void gMultiStoreRepI<T>::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, gEntitySet &user_eset)
   //   {
   //     warn(true) ;
   //     /*
@@ -603,7 +566,7 @@ namespace Loci {
   //   //*************************************************************************/
 
   //   template<class T>
-  //   void  gStoreRepI<T>::hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDGENTITY_CONVERTER c, frame_info &fi, gEntitySet &eset)
+  //   void  gMultiStoreRepI<T>::hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDGENTITY_CONVERTER c, frame_info &fi, gEntitySet &eset)
   //   {
   //     warn(true) ;
   //     /*
@@ -673,7 +636,7 @@ namespace Loci {
   //   //*************************************************************************/
 
   //   template<class T>
-  //   void  gStoreRepI<T>::hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER c, frame_info &fi, gEntitySet &eset)
+  //   void  gMultiStoreRepI<T>::hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER c, frame_info &fi, gEntitySet &eset)
   //   {
   //     warn(true) ;
   //     /*
@@ -779,7 +742,7 @@ namespace Loci {
   //   //*************************************************************************/
 
   //   template<class T> 
-  //   void gStoreRepI<T>::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, gEntitySet& usr_eset) const
+  //   void gMultiStoreRepI<T>::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, gEntitySet& usr_eset) const
   //   {
   //     warn(true) ;
   //     /*
@@ -796,7 +759,7 @@ namespace Loci {
 
   //   //*************************************************************************/
   //   template <class T> 
-  //   void gStoreRepI<T>::hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDGENTITY_CONVERTER c, const gEntitySet &eset)  const
+  //   void gMultiStoreRepI<T>::hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDGENTITY_CONVERTER c, const gEntitySet &eset)  const
   //   {
   //     warn(true) ;
   //     /*
@@ -842,7 +805,7 @@ namespace Loci {
   //   //*************************************************************************/
 
   //   template <class T> 
-  //   void gStoreRepI<T>::hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER c, const gEntitySet &eset)  const
+  //   void gMultiStoreRepI<T>::hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER c, const gEntitySet &eset)  const
   //   {   
   //     warn(true) ;
   //     /*

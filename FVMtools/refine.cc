@@ -28,7 +28,8 @@
 #include <limits>
 #include "./FVMAdapt/globals.h"
 #include <Loci>
-
+#include <GLoci.h>
+#include <gfact_db.h>
 using std::cout ;
 
 
@@ -38,9 +39,12 @@ using std::endl;
 using std::cerr;
 using std::ofstream;
 using Loci::MPI_processes;
+using Loci::gfact_db;
+using Loci::gParam;
 namespace Loci{
-  void parallelClassifyCell(fact_db &facts) ;
-  void createEdgesPar(fact_db &facts) ;
+  void parallelClassifyCell(gfact_db &gfacts) ;
+  void createEdgesPar(gfact_db &gfacts) ;
+  void copy_facts(gfact_db& gfacts, fact_db& facts);
 }
 
 int main(int argc, char ** argv) {
@@ -332,115 +336,118 @@ int main(int argc, char ** argv) {
   rule_db rules;
   rules.add_rules(global_rule_list);
   
-  // Setup the fact database.
-  fact_db facts;
+  // Setup the gfact database.
+  gfact_db gfacts;
   
   if(Loci::MPI_rank == 0) cout <<"reading in meshfile" << std::endl;
 
   // Read in the mesh file.  
-  if(!Loci::setupFVMGrid(facts,meshFile)) {
+  if(!Loci::setupFVMGrid(gfacts,meshFile)) {
     std::cerr << "unable to read grid file '" << meshFile << "'" << std::endl ;
     Loci::Abort() ;
   }
   
   //Setup Loci datastructures
-  Loci::createLowerUpper(facts) ;
-  Loci::createEdgesPar(facts) ;
-  Loci:: parallelClassifyCell(facts);
+  Loci::createLowerUpper(gfacts) ;
+  Loci::createEdgesPar(gfacts) ;
+  Loci:: parallelClassifyCell(gfacts);
 
  
   //this is a dummy parameter to trick Loci scheduler
-  param<bool> beginWithMarker;
+  gParam<bool> beginWithMarker;
   *beginWithMarker = true;
-  facts.create_fact("beginWithMarker",beginWithMarker) ; 
+  gfacts.create_fact("beginWithMarker",beginWithMarker) ; 
   
-  param<std::string> meshfile_par ;
+  gParam<std::string> meshfile_par ;
   *meshfile_par = meshFile;
-  facts.create_fact("meshfile_par",meshfile_par) ; 
+  gfacts.create_fact("meshfile_par",meshfile_par) ; 
 
-  param<std::string> outfile_par ;
+  gParam<std::string> outfile_par ;
   *outfile_par = outFile;
-  facts.create_fact("outfile_par",outfile_par) ; 
+  gfacts.create_fact("outfile_par",outfile_par) ; 
 
   if(plan_output){ 
-    param<std::string> plan_outfile_par ;
+    gParam<std::string> plan_outfile_par ;
     *plan_outfile_par = outPlanFile;
-    facts.create_fact("plan_outfile_par",plan_outfile_par) ;
+    gfacts.create_fact("plan_outfile_par",plan_outfile_par) ;
   }
   
   if(tag_input){
-    param<std::string> tagfile_par ;
+    gParam<std::string> tagfile_par ;
     *tagfile_par = tagFile;
-    facts.create_fact("tagfile_par",tagfile_par) ;
+    gfacts.create_fact("tagfile_par",tagfile_par) ;
   }
  
   if(ctag_input){
-    param<std::string> tagfile_par ;
+    gParam<std::string> tagfile_par ;
     *tagfile_par = tagFile;
-    facts.create_fact("cell_tagfile_par",tagfile_par) ;
+    gfacts.create_fact("cell_tagfile_par",tagfile_par) ;
   }
  
   if(par_input){
-    param<std::string> parfile_par ;
+    gParam<std::string> parfile_par ;
     *parfile_par = parFile;
-    facts.create_fact("parfile_par",parfile_par) ;
+    gfacts.create_fact("parfile_par",parfile_par) ;
   }
   
   if(xml_input){
-    param<std::string> xmlfile_par ;
+    gParam<std::string> xmlfile_par ;
     *xmlfile_par = xmlFile;
-    facts.create_fact("xmlfile_par",xmlfile_par) ;
+    gfacts.create_fact("xmlfile_par",xmlfile_par) ;
   }
   if(cell2parent){
-    param<std::string> c2pfile_par ;
+    gParam<std::string> c2pfile_par ;
     *c2pfile_par = c2pFile;
-    facts.create_fact("cell2parent_file_par",c2pfile_par) ;
+    gfacts.create_fact("cell2parent_file_par",c2pfile_par) ;
     if(restart){
-      param<std::string> parent_planfile_par ;
+      gParam<std::string> parent_planfile_par ;
       *parent_planfile_par = planFile;
-      facts.create_fact("parent_planfile_par",parent_planfile_par) ;
+      gfacts.create_fact("parent_planfile_par",parent_planfile_par) ;
     }
   }
   //parameters to identify different options
   if(restart){
-    param<std::string> planfile_par ;
+    gParam<std::string> planfile_par ;
     *planfile_par = planFile;
-    facts.create_fact("planfile_par",planfile_par) ;
+    gfacts.create_fact("planfile_par",planfile_par) ;
     
     if(xml_input){
-      param<int> restart_xml_par;
+      gParam<int> restart_xml_par;
       *restart_xml_par = 1;
-      facts.create_fact("restart_xml_par",restart_xml_par);
+      gfacts.create_fact("restart_xml_par",restart_xml_par);
     } else if(tag_input||ctag_input){
-      param<int> restart_tag_par;
+      gParam<int> restart_tag_par;
       *restart_tag_par = 1;
-      facts.create_fact("restart_tag_par",restart_tag_par);
+      gfacts.create_fact("restart_tag_par",restart_tag_par);
     }else if(par_input){
-      param<int> restart_par_par;
+      gParam<int> restart_par_par;
       *restart_par_par = 1;
-      facts.create_fact("restart_par_par",restart_par_par); 
+      gfacts.create_fact("restart_par_par",restart_par_par); 
     }
   }else{
     if(xml_input){
-      param<int> norestart_xml_par;
+      gParam<int> norestart_xml_par;
       *norestart_xml_par = 1;
-      facts.create_fact("norestart_xml_par",norestart_xml_par);
+      gfacts.create_fact("norestart_xml_par",norestart_xml_par);
     }else if(tag_input||ctag_input){
-      param<int> norestart_tag_par;
+      gParam<int> norestart_tag_par;
       *norestart_tag_par = 1;
-      facts.create_fact("norestart_tag_par",norestart_tag_par);
+      gfacts.create_fact("norestart_tag_par",norestart_tag_par);
     }else if(par_input){
-      param<int> norestart_par_par;
+      gParam<int> norestart_par_par;
       *norestart_par_par = 1;
-      facts.create_fact("norestart_par_par",norestart_par_par);
+      gfacts.create_fact("norestart_par_par",norestart_par_par);
     }
   }
   
-  param<int> split_mode_par;
+  gParam<int> split_mode_par;
   *split_mode_par = split_mode;
-  facts.create_fact("split_mode_par", split_mode_par);
+  gfacts.create_fact("split_mode_par", split_mode_par);
 
-  Loci::load_module("fvmadapt", rules);
+  fact_db facts;
+  copy_facts(gfacts, facts);
+
+    Loci::load_module("fvmadapt", rules);
   //  if(Loci::MPI_rank==0){
   //     Loci::ruleSet all_rules = rules.all_rules();
   //     for(Loci::ruleSet::const_iterator ri = all_rules.begin();

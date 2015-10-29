@@ -18,8 +18,8 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
-#ifndef GMULTIMAP_H_
-#define GMULTIMAP_H_
+#ifndef GMAPVEC_DEF_H_
+#define GMAPVEC_DEF_H_
 
 #ifdef HAVE_CONFIG_H
 #include <config.h> // This must be the first file included
@@ -34,17 +34,13 @@
 namespace Loci {
 
   class gMap ;
-  class gMultiMap ;
+  template<unsigned int M> class gMapVec ;
+  template<unsigned int M> class const_gMapVec;
   
-  class gMultiMapRepI : public gMapRep {
+  template<unsigned int M> class gMapVecRepI : public gMapRep {
     bool sorted;
     std::vector<std::pair<gEntity,gEntity> > attrib_data;
     gEntitySet dom;
-    
-    /**virtual domain, all elements in this domain are mapped to zero elements
-     *This is needed when gMultiMaps such as lower, upper and boundary map are frozen into traditional multiMaps
-     */
-    gEntitySet vdom; 
     gKeySpace* domain_space;
     gKeySpace* image_space;
   public:
@@ -60,21 +56,19 @@ namespace Loci {
     void reserve (size_t n){attrib_data.reserve(n);}
     void clear(){attrib_data.clear();}
     void local_sort();
-    void remove_duplication();
+        
+    gMapVecRepI():sorted(true),dom(GEMPTY),domain_space(0),image_space(0) {}
     
-    gMultiMapRepI():sorted(true),dom(GEMPTY),vdom(GEMPTY),domain_space(0),image_space(0) {}
-    void set_vdom(gEntitySet vd){vdom = vd;}
-    gEntitySet get_vdom(){ return vdom; }
     void set_domain_space(gKeySpace* space){domain_space = space;}
     gKeySpace* get_domain_space()const{return domain_space;}
     void set_image_space(gKeySpace* space){image_space = space;}
     gKeySpace* get_image_space()const{return image_space;}
    
-    virtual ~gMultiMapRepI(){} 
-    virtual gStoreRepP clone() const{return new gMultiMapRepI(*this); }  
+    virtual ~gMapVecRepI(){} 
+    virtual gStoreRepP clone() const{return new gMapVecRepI(*this); }  
     virtual gStoreRepP remap(const gMap &m) const ;
     virtual void inplace_remap(const gMap &m); 
-    virtual storeRepP copy2store() const;
+    
     virtual gStoreRepP
     redistribute(const std::vector<gEntitySet>& dom_split,
                  MPI_Comm comm=MPI_COMM_WORLD)const ;
@@ -115,17 +109,13 @@ namespace Loci {
       }
       dom += seq;
     }
-
-    //access methods
-    virtual gstore_type RepType() const {return GMULTIMAP;}
+  
+    virtual gstore_type RepType() const {return GMAPVEC;}
     virtual gEntitySet domain() const {return dom ;} 
     virtual bool isSorted() const {return sorted;}
     virtual gEntitySet image(const gEntitySet &domain) const ;
     virtual gEntitySet image( gEntity domain) const ;
     virtual gEntitySet image() const ;
-    virtual int num_elems( gEntity domain) const ;
-    virtual std::pair<const_iterator, const_iterator> range(gEntity iset)const;
-
     
     virtual std::pair<gEntitySet,gEntitySet>
     preimage(const gEntitySet &codomain) const ;
@@ -141,16 +131,16 @@ namespace Loci {
   
     virtual void* get_attrib_data() {return &attrib_data; }
     virtual const void* get_attrib_data() const{return &attrib_data; }
-  
+    virtual storeRepP copy2store() const;
     virtual DatatypeP getType()const ;
   
   } ;
 
 
   
-  class gMultiMap : public gstore_instance {
-    friend class const_gMultiMap ;
-    typedef gMultiMapRepI MapType ;
+  template<unsigned int M> class gMapVec : public gstore_instance {
+    friend class const_gMapVec<M> ;
+    typedef gMapVecRepI<M> MapType ;
     typedef std::vector<std::pair<gEntity,gEntity> > gRep ; 
   public:
 
@@ -164,20 +154,20 @@ namespace Loci {
     void reserve (size_t n){Rep()->reserve(n);}
     void clear(){Rep()->clear();}
     void local_sort(){Rep()->local_sort();}
-    void remove_duplication();
+    // void remove_duplication();
     
     
     // These should be private, but too much code currently depends on it
     // being public.  This code is dangerous because it does a shallow
     // copy which means that results sometimes may be unpredictable when
     // these operations are used.
-    gMultiMap(const gMultiMap &var) { setRep(var.Rep()) ; }
-    gMultiMap & operator=(const gMultiMap &str) { setRep(str.Rep()) ;  return *this ;}
-    gMultiMap & operator=(gStoreRepP p) { setRep(p) ;  return *this ;}
+    gMapVec(const gMapVec<M> &var) { setRep(var.Rep()) ; }
+    gMapVec & operator=(const gMapVec<M> &str) { setRep(str.Rep()) ;  return *this ;}
+    gMapVec & operator=(gStoreRepP p) { setRep(p) ;  return *this ;}
     
-    gMultiMap() {setRep(new MapType) ; }
-    gMultiMap(gStoreRepP &rp) { setRep(rp) ; }
-    virtual ~gMultiMap(){}
+    gMapVec() {setRep(new MapType) ; }
+    gMapVec(gStoreRepP &rp) { setRep(rp) ; }
+    virtual ~gMapVec(){}
 
     void set_vdom(gEntitySet vd){
       CPTR<MapType> p(Rep()) ;
@@ -190,7 +180,6 @@ namespace Loci {
       if(p != 0)
         return p->get_vdom();
       warn(p==0) ;
-      return GEMPTY;
     }
     void set_domain_space(gKeySpace* space){static_cast<gMapRepP>(Rep())->set_domain_space(space);}
     gKeySpace* get_domain_space()const{return static_cast<gMapRepP>(Rep())->get_domain_space() ;}
@@ -231,6 +220,7 @@ namespace Loci {
     virtual gStoreRepP
     split_redistribute(const std::vector<gEntitySet>& dom_ptn,
                        MPI_Comm comm=MPI_COMM_WORLD)const{return Rep()->redistribute(dom_ptn, comm) ;}
+
     //different from traditional maps, this method is const method
     //dom is the domain after expansion, not out_of_dom
     virtual gStoreRepP expand(gEntitySet &dom, std::vector<gEntitySet> &init_ptn,MPI_Comm comm=MPI_COMM_WORLD)const{
@@ -259,7 +249,7 @@ namespace Loci {
       else return gStoreRepP(0);
     }
     
-  
+   
     gEntitySet domain() const { return Rep()->domain() ; }
     operator gMapRepP() {
       gMapRepP p(Rep()) ;
@@ -269,47 +259,33 @@ namespace Loci {
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ; }
 
-    virtual gEntitySet image(const gEntitySet &dom) const {
+    gEntitySet image(const gEntitySet &dom) const {
       return gMapRepP(Rep())->image(dom) ;
     }
-    virtual gEntitySet image() const {
+    gEntitySet image() const {
       return gMapRepP(Rep())->image() ;
     }
-    virtual  gEntitySet image(gEntity dom) const {
-      return gMapRepP(Rep())->image(dom) ;
-    }
-
-    virtual int num_elems( gEntity domain) const {
-      CPTR<MapType> p(Rep()) ;
-      if(p != 0)
-        return p->num_elems(domain);
-      else return 0;
-    }
-    virtual std::pair<const_iterator, const_iterator> range(gEntity iset)const{
-      CPTR<MapType> p(Rep()) ;
-      if(p != 0)
-        return p->range(iset);
-      else return std::pair<const_iterator, const_iterator>(end(), end());
-    }
-    
+   
     std::pair<gEntitySet,gEntitySet> preimage(const gEntitySet &codomain) const {
       return gMapRepP(Rep())->preimage(codomain) ;
     }
   } ;
 
-  inline std::ostream & operator<<(std::ostream &s, const gMultiMap &m)
+  template<unsigned int M> 
+  inline std::ostream & operator<<(std::ostream &s, const gMapVec<M> &m)
   { return m.Print(s) ; }
 
-  inline std::istream & operator>>(std::istream &s, gMultiMap &m)
+  template<unsigned int M> 
+  inline std::istream & operator>>(std::istream &s, gMapVec<M> &m)
   { return m.Input(s) ; }
 
-  class const_gMultiMap : public gstore_instance {
-    typedef gMultiMapRepI MapType ;
+  template<unsigned int M> class const_gMapVec : public gstore_instance {
+    typedef gMapVecRepI<M> MapType ;
     typedef std::vector<std::pair<gEntity,gEntity> > gRep ; 
-    const_gMultiMap(const const_gMultiMap &var) {setRep(var.Rep()) ;}
-    const_gMultiMap(const gMultiMap &var) {setRep(var.Rep());}
-    const_gMultiMap & operator=(const gMultiMap &str) { setRep(str.Rep()) ; return *this ;}
-    const_gMultiMap & operator=(const const_gMultiMap &str)
+    const_gMapVec(const const_gMapVec<M> &var) {setRep(var.Rep()) ;}
+    const_gMapVec(const gMapVec<M> &var) {setRep(var.Rep());}
+    const_gMapVec & operator=(const gMapVec<M> &str) { setRep(str.Rep()) ; return *this ;}
+    const_gMapVec & operator=(const const_gMapVec<M> &str)
     { setRep(str.Rep()) ; return *this ;}
 
   public:
@@ -331,37 +307,23 @@ namespace Loci {
 
     virtual gStoreRepP remap(const gMap &m) const{return Rep()->remap(m);}
     virtual gstore_type RepType() const {return Rep()->RepType();}
-    virtual ~const_gMultiMap(){}
+    virtual ~const_gMapVec(){}
     
-    const_gMultiMap(){ setRep(new MapType);  }
-    const_gMultiMap(gStoreRepP &rp) { setRep(rp) ; }
+    const_gMapVec(){ setRep(new MapType);  }
+    const_gMapVec(gStoreRepP &rp) { setRep(rp) ; }
     
     virtual instance_type access() const{return READ_ONLY ; }
         
-    const_gMultiMap & operator=(gStoreRepP p) { setRep(p) ; return *this ;}
+    const_gMapVec & operator=(gStoreRepP p) { setRep(p) ; return *this ;}
 
     gEntitySet domain() const { return Rep()->domain(); }
     
-    virtual gEntitySet image(const gEntitySet &dom) const {
+    gEntitySet image(const gEntitySet &dom) const {
       return gMapRepP(Rep())->image(dom) ;
     }
-    virtual gEntitySet image(gEntity dom) const {
+    
+    gEntitySet image(const gEntity &dom) const {
       return gMapRepP(Rep())->image(dom) ;
-    }
-    virtual gEntitySet image() const {
-      return gMapRepP(Rep())->image() ;
-    }
-    virtual int num_elems( gEntity domain) const {
-      CPTR<MapType> p(Rep()) ;
-      if(p != 0)
-        return p->num_elems(domain);
-      else return 0;
-    }
-    virtual std::pair<const_iterator, const_iterator> range(gEntity iset)const{
-      CPTR<MapType> p(Rep()) ;
-      if(p != 0)
-        return p->range(iset);
-      else return std::pair<const_iterator, const_iterator>(end(), end());
     }
     
     std::pair<gEntitySet,gEntitySet> preimage(const gEntitySet &codomain) const {
@@ -403,20 +365,14 @@ namespace Loci {
         return p->recompose(m, comm);
       else return gStoreRepP(0);
     }
-    //different from traditional maps, this method is const method
-    //dom is the domain after expansion, not out_of_dom
-    virtual gStoreRepP expand(gEntitySet &dom, std::vector<gEntitySet> &init_ptn,MPI_Comm comm=MPI_COMM_WORLD)const{
-      return  gMapRepP(Rep())->expand(dom, init_ptn, comm);}
-
-    gKeySpace* get_domain_space()const{return static_cast<gMapRepP>(Rep())->get_domain_space() ;}
-    gKeySpace* get_image_space()const{return static_cast<gMapRepP>(Rep())->get_image_space();}
     
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
   } ;
 
-  inline std::ostream & operator<<(std::ostream &s, const_gMultiMap &m)
+  template<unsigned int M> 
+  inline std::ostream & operator<<(std::ostream &s, const_gMapVec<M> &m)
   { return m.Print(s) ; }
-  
+    
 }
 
 #endif

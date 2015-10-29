@@ -22,6 +22,8 @@
 #include <iostream>
 #include <string>
 #include <Loci.h>
+#include <GLoci.h>
+
 #include "./FVMAdapt/defines.h"
 using std::string;
 using std::cout;
@@ -30,8 +32,9 @@ using std::cerr;
 using std::ios;
 
 namespace Loci{
-  void parallelClassifyCell(fact_db &facts) ;
-  void createEdgesPar(fact_db &facts);
+  void parallelClassifyCell(gfact_db &facts) ;
+  void createEdgesPar(gfact_db &facts);
+  void copy_facts(gfact_db& gfacts, fact_db& facts);
 }
 
 
@@ -39,7 +42,7 @@ int main(int argc, char ** argv) {
   // Let Loci initialize itself.
   // This also gives Loci first dibs on the command line arguments.
   Loci::Init(&argc, &argv);
-  
+ 
 
   // This is the name of the mesh file that you want to read in.
   string meshfile;
@@ -115,32 +118,32 @@ int main(int argc, char ** argv) {
   if(restart)parentPlanFile = pathname + parentPlanFile;
 
 
-  // Setup the fact database.
-  fact_db facts;
+  // Setup the gfact database.
+  gfact_db gfacts;
   
 
   
   
-  param<std::string> planfile_par ;
+  gParam<std::string> planfile_par ;
   *planfile_par = planFile;
-  facts.create_fact("balanced_planfile_par",planfile_par) ;
+  gfacts.create_fact("balanced_planfile_par",planfile_par) ;
 
-  param<std::string> meshfile_par ;
+  gParam<std::string> meshfile_par ;
   *meshfile_par = meshfile;
-  facts.create_fact("meshfile_par",meshfile_par) ;
+  gfacts.create_fact("meshfile_par",meshfile_par) ;
 
-  param<std::string> outfile_par ;
+  gParam<std::string> outfile_par ;
   *outfile_par = outFile;
-  facts.create_fact("outfile_par",outfile_par) ;
+  gfacts.create_fact("outfile_par",outfile_par) ;
   
   if(cell2parent){
-    param<std::string> c2pfile_par ;
+    gParam<std::string> c2pfile_par ;
     *c2pfile_par = c2pFile;
-    facts.create_fact("cell2parent_file_par",c2pfile_par) ;
+    gfacts.create_fact("cell2parent_file_par",c2pfile_par) ;
     if(restart){
-      param<std::string> parent_planfile_par ;
+      gParam<std::string> parent_planfile_par ;
       *parent_planfile_par = parentPlanFile;
-      facts.create_fact("parent_planfile_par",parent_planfile_par) ;
+      gfacts.create_fact("parent_planfile_par",parent_planfile_par) ;
     }
   }
   
@@ -152,17 +155,19 @@ int main(int argc, char ** argv) {
  
   if(Loci::MPI_rank == 0) std::cout <<"reading in meshfile" << std::endl;
   // Read in the mesh file.  Setup Loci datastructures
-  if(!Loci::setupFVMGrid(facts,meshfile)) {
+  if(!Loci::setupFVMGrid(gfacts,meshfile)) {
     std::cerr << "unable to read grid file '" << meshfile << "'" << std::endl ;
     Loci::Abort() ;
   }
   
-  Loci::createLowerUpper(facts) ;
-  Loci::createEdgesPar(facts) ;
+  Loci::createLowerUpper(gfacts) ;
+  Loci::createEdgesPar(gfacts) ;
  
-  Loci:: parallelClassifyCell(facts);
+  Loci:: parallelClassifyCell(gfacts);
   
- Loci::load_module("fvmadapt", rules);
+  fact_db facts;
+  copy_facts(gfacts, facts);
+  Loci::load_module("fvmadapt", rules);
  // if(Loci::MPI_rank==0){
 //     Loci::ruleSet all_rules = rules.all_rules();
 //     for(Loci::ruleSet::const_iterator ri = all_rules.begin();

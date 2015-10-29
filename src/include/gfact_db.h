@@ -104,7 +104,8 @@ namespace Loci {
     variable get_real_var(variable  v) const; 
     
     variable add_namespace(variable v) const ;
-   
+    //copy all variables in fmap to traditional containers
+    void copy_facts(fact_db& facts) const ;
     
   public:
        

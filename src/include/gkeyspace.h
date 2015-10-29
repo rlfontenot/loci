@@ -53,7 +53,7 @@ namespace Loci {
     int rank ;                  // processes rank in comm
     int np ;             // communicator size
     // this is the key distribution across the processess
-    // it is in global numbering
+    // it is in file numbering
     std::vector<gEntitySet> key_ptn ;
     // the entire key sets in global number
     gEntitySet keys ;
@@ -79,8 +79,6 @@ namespace Loci {
     public:
       void add_space(const std::string& spacename, const std::string& casename, gKeySpaceP space){
         std::string name = spacename+'.'+casename;
-        debugout<< " name in add_space " << name<< endl;
-      
         std::map<std::string,gKeySpaceP> ::iterator mi = space_map.find(name);
         if(mi!= space_map.end()){
           cerr<<"space " << name<< " exists, repace it with new space" << endl;
@@ -227,6 +225,7 @@ namespace Loci {
     get_send_ptn() const {return send_ptn;}
     const std::vector<gEntitySet>&
     get_recv_ptn() const {return recv_ptn;}
+    //set file key ptn
     void
     set_key_ptn(const std::vector<gEntitySet>& ptn) {
       key_ptn = ptn ;
