@@ -113,7 +113,7 @@ namespace Loci {
   
   gEntitySet
   orthKeyManager::generate_key(gEntity size) {
-    if( (size_t)freeset.size() < size) {
+    if( (gEntity)freeset.size() < size) {
       std::stringstream err ;
       err << "orthKeyManager Error: process " << rank
           << " is running out of keys!" ;

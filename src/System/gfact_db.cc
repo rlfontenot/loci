@@ -142,7 +142,16 @@ namespace Loci {
     }
   }
   
-  
+  void gfact_db::copy_facts(fact_db& facts)const{
+    for(std::map<variable,gStoreRepP>::const_iterator itr = fmap.begin(); itr != fmap.end(); itr++){
+     
+      variable v = itr->first;
+      debugout<< "variable  "<< v << endl; 
+      facts.create_fact(v, itr->second->copy2store());
+       debugout<< "finish variable  "<< v << endl; 
+    }
+      debugout<< "finish all variables  " << endl; 
+  }
  
 
   variable gfact_db::add_namespace(variable v) const {

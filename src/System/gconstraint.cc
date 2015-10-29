@@ -148,9 +148,9 @@ namespace Loci {
 
   //**************************************************************************/
 
-  storeRepP gConstraint::copy2store()const {
+  storeRepP gConstraintRep::copy2store()const {
     constraint cs;
-    cs = *data; 
+    cs = constraint_set; 
     return cs.Rep(); 
   }
   

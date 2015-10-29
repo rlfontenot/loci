@@ -190,6 +190,8 @@ namespace Loci{
       }
     }
     result.local_sort();
+    result.set_domain_space(cl.get_domain_space());
+    result.set_image_space(cl.get_image_space());
     return result.Rep();
   }
   
@@ -537,8 +539,8 @@ namespace Loci{
               
   void affinity_partition(gfact_db &facts, const vector<int>& procmap,parStrategy& s){
     bool need_reverse2 = !is_in_var(s.map2, facts, s.space2);
-
-    //start here 
+   
+    //from space1 to space2
     gMultiMap inward_map;
     if(s.map2 == "cl"||s.map2== "cr"){
       //merge cl and cr, for boundary face, only cl is inserted
@@ -546,12 +548,13 @@ namespace Loci{
     }else{
       inward_map =facts.get_fact(s.map2);
     }
-       
+   
     //if needed, reverse map
     
     if(need_reverse2){
-      vector<gEntitySet> init_ptn = s.space1->get_key_ptn();
-      inward_map.setRep(inward_map.distributed_inverse(init_ptn));
+      inward_map.setRep(inward_map.distributed_inverse((inward_map.get_image_space())->get_keys(),
+                                                       (inward_map.get_domain_space())->get_keys(),
+                                                       (inward_map.get_image_space())-> get_key_ptn()));
     }
        
     //equiJoin operation
@@ -583,8 +586,9 @@ namespace Loci{
     }
     
     if(need_reverse3){
-      vector<gEntitySet> init_ptn = from_space->get_key_ptn();
-      inward_map.setRep(inward_map.distributed_inverse(init_ptn));
+      inward_map.setRep(inward_map.distributed_inverse((inward_map.get_image_space())->get_keys(),
+                                                       (inward_map.get_domain_space())->get_keys(),
+                                                       (inward_map.get_image_space())-> get_key_ptn()));
     }
         
     if(s.from_space1){
@@ -617,7 +621,9 @@ namespace Loci{
     }
     //if needed, reverse map
     if(need_reverse1){
-      inward_map.setRep(inward_map.distributed_inverse(init_ptn));
+      inward_map.setRep(inward_map.distributed_inverse((inward_map.get_image_space())->get_keys(),
+                                                       (inward_map.get_domain_space())->get_keys(),
+                                                       init_ptn));
     }
     
 
@@ -668,7 +674,7 @@ namespace Loci{
     }else if(s.map1=="facecenter"){
       gStoreRepP face2node;
       face2node = facts.get_fact("face2node");
-      gStore<vector3d<real_t> > fpos; //it is actually a gMultiStore
+      gMultiStore<vector3d<real_t> > fpos; 
       fpos = pos.recompose(face2node, comm);
       vector<vector3d<real_t> > fcenter;
       fpos.get_mean(fcenter);
@@ -678,12 +684,14 @@ namespace Loci{
     }else if(s.map1=="cellcenter"){
       gMultiMap inward_map;
       inward_map = merge_cl_cr(facts); //face2cell
-      vector<gEntitySet> init_ptn = s.space1->get_key_ptn(); //partition of cells
-      inward_map.setRep(inward_map.distributed_inverse(init_ptn)); //cell2face
+      // vector<gEntitySet> init_ptn = s.space1->get_key_ptn(); //partition of cells
+      inward_map.setRep(inward_map.distributed_inverse((inward_map.get_image_space())->get_keys(),
+                                                       (inward_map.get_domain_space())->get_keys(),
+                                                       (inward_map.get_image_space())-> get_key_ptn()));//cell2face
       gMultiMap face2node;
       face2node = facts.get_fact("face2node");
       gStoreRepP cell2node = inward_map.recompose(face2node, comm); //cell2node
-      gStore<vector3d<real_t> > cpos; //it is actually a gMultiStore
+      gMultiStore<vector3d<real_t> > cpos; 
       cpos = pos.recompose(cell2node, comm);
       vector<vector3d<real_t> > ccenter;
       cpos.get_mean(ccenter);

@@ -39,7 +39,7 @@
 #include <distribute_long.h>
 #include <map>
 #include <fact_db.h>
-
+#include <field_sort.h>
 
 #include <LociGridReaders.h> //real_t is defined here
 
@@ -977,7 +977,6 @@ namespace Loci {
     string all_tags;
     gEntitySet all_tagged_cells;
     for(size_t i=0;i<volTags.size();++i) {
-      debugout<<" i: " << i << " tag " <<  volTags[i].first << " " << volTags[i].second << endl; 
       gParam<string> Tag ;
       *Tag = volTags[i].first ;
       all_tags += volTags[i].first + ",";
@@ -995,27 +994,19 @@ namespace Loci {
     memSpace("Finish reading from file");
     return true ;
   }
-
-  vector<string> split(string str, char delim){
-    vector<string> result;
-    std::istringstream ss(str);
-    string token;
-    while(std::getline(ss, token, delim)){
-      result.push_back(token);
+  namespace{
+    vector<string> split(string str, char delim){
+      vector<string> result;
+      std::istringstream ss(str);
+      string token;
+      while(std::getline(ss, token, delim)){
+        result.push_back(token);
+      }
+      return result;
     }
-    return result;
   }
-  
  
-  
-  inline bool fieldSort(const std::pair<gEntity,gEntity> &p1,
-                        const std::pair<gEntity,gEntity> &p2) {
-    if( p1.first < p2.first) return true ;
-    if(p1.first == p2.first && p1.second < p2.second) return true;
-    return false;
-  }
 
-  
   //this function parses the user provided string par_str
   //and creates the gParams for partition functions to use 
   void get_partition_strategy(string par_str, parStrategy& s){
@@ -1343,8 +1334,8 @@ namespace Loci {
       }
     }
    
-    sort(interior_sortlist.begin(),interior_sortlist.end(),fieldSort) ;//sort the faces according cell number
-    sort(boundary_sortlist.begin(),boundary_sortlist.end(),fieldSort) ;//sort the faces according cell number
+    sort(interior_sortlist.begin(),interior_sortlist.end(),fieldSort1_unique<gEntity>) ;//sort the faces according cell number
+    sort(boundary_sortlist.begin(),boundary_sortlist.end(),fieldSort1_unique<gEntity>) ;//sort the faces according cell number
        
     //faces are renumbered according to the order after sorting
     gMap convert; //f2g map allocated on the domain after redistribution
@@ -1573,29 +1564,26 @@ namespace Loci {
   void create_face_info(gfact_db &facts) {
     string casename;
     gKeySpaceP face_space = gKeySpace::get_space("FaceSpace", casename);
-
     gConstraint faces;
     faces = face_space->get_my_keys();
-    
     facts.create_fact("faces",faces) ;
     gConstraint boundary_faces ;
     boundary_faces = facts.get_variable("boundary_faces");
     gConstraint interior_faces ;
     interior_faces = (*faces-*boundary_faces) ;
     facts.create_fact("interior_faces",interior_faces, face_space) ;
-    debugout<< " faces: " << *faces<< endl;
-    debugout<< " boundary_faces: " << *boundary_faces<< endl;
-    debugout<< " interioir_faces: " << *interior_faces<< endl;
   }
 
  
 
-  void copy_facts(gfact_db& gfacts, fact_db& facts, const std::string& casename){
+  void copy_facts(gfact_db& gfacts, fact_db& facts){
+   
+    string casename;
     gKeySpaceP face_space = gKeySpace::get_space("FaceSpace", casename);
     gKeySpaceP node_space = gKeySpace::get_space("NodeSpace", casename);
     gKeySpaceP cell_space = gKeySpace::get_space("CellSpace", casename);
     gKeySpaceP bc_space = gKeySpace::get_space("BcSpace", casename);
-
+    gKeySpaceP edge_space = gKeySpace::get_space("EdgeSpace", casename);
     //set up the distribute info in facts
    
    
@@ -1664,114 +1652,35 @@ namespace Loci {
       boundary_faces =  gfacts.get_fact("boundary_faces");
       std::pair<entitySet, entitySet> ghost_pair = facts.get_distributed_alloc((*boundary_faces).size()) ;
     }
-    
-    //copy stores
-    
-    store<vector3d<real_t> > pos ;
-    gStore<vector3d<real_t> > gpos ;
-    gpos = gfacts.get_fact("pos");
-    pos = gpos.copy2store();
-    facts.create_fact("pos", pos);
-    
-    Map cl, cr ;
-    gMap gcl,  gcr ;
-    gcl = gfacts.get_fact("cl");
-    gcr = gfacts.get_fact("cr");
-    cl = gcl.copy2store();
-    cr = gcr.copy2store();
-    facts.create_fact("cl", cl);
-    facts.create_fact("cr", cr);
-    
-    multiMap face2node ;
-    gMultiMap gface2node;
-    gface2node = gfacts.get_fact("face2node");
-    face2node = gface2node.copy2store();
-    facts.create_fact("face2node", face2node);
 
-    store<string> boundary_names,boundary_tags ;
-    gStore<string> gboundary_names,gboundary_tags ; 
-    gboundary_names = gfacts.get_fact("boundary_names");
-    gboundary_tags = gfacts.get_fact("boundary_tags");
-    //collect all store before copy
-    gStore<string> all_gboundary_names, all_gboundary_tags ; 
-    int np = bc_space->get_np();
-    vector<gEntitySet> send_ptn(np);
-    gEntitySet local_dom =  gboundary_names.domain();
-    for(int i = 0; i < np; i++){
-      send_ptn[i] = local_dom;
+    if(edge_space != 0){
+      gMap g2f;
+      g2f =  edge_space->get_g2f_map();
+      vector<int> alloc_file;
+      alloc_file.resize(g2f.size());
+      int ind = 0;
+      for(gMap::const_iterator mi = g2f.begin(); mi != g2f.end(); mi++){
+        alloc_file[ind++] = mi->second;
+      }
+      entitySet entities_global = facts.get_distributed_alloc(alloc_file).first;
+      g2f.clear();
+      alloc_file.resize(0);
     }
-    all_gboundary_names = gboundary_names.redistribute(send_ptn);
-    all_gboundary_tags = gboundary_tags.redistribute(send_ptn);
-
-    
-    boundary_names = all_gboundary_names.copy2store();
-    boundary_tags = all_gboundary_tags.copy2store();
-    facts.create_fact("boundary_names", boundary_names);
-    facts.create_fact("boundary_tags", boundary_tags);
-        
-    gParam<string> allTags;
-    allTags = gfacts.get_fact("allTags");
-    vector<string> tag_names = split(*allTags, ',');
-    for(unsigned int i = 0; i < tag_names.size(); i++){
-      ostringstream oss ;
-      oss << "volumeTag(" << tag_names[i] << ")" ;
       
-      gParam<string> gTag ;
-      param<string> Tag;
-      gTag = gfacts.get_fact(oss.str());
-      *Tag = tag_names[i];
-      Tag.set_entitySet(gTag.domain());
-      facts.create_fact(oss.str(), Tag);
-    }
-    
-    gConstraint gfaces, gboundary_faces, ginterior_faces;
-    constraint faces, boundary_faces, interior_faces;
-    gfaces = gfacts.get_fact("faces");
-    gboundary_faces =  gfacts.get_fact("boundary_faces");
-    ginterior_faces = gfacts.get_fact("interior_faces");
-    faces = gfaces.copy2store();
-    boundary_faces = gboundary_faces.copy2store();
-    interior_faces = ginterior_faces.copy2store();
-    facts.create_fact("faces", faces);
-    facts.create_fact("boundary_faces", boundary_faces);
-    facts.create_fact("interior_faces", interior_faces);
-    
-    gMap gref;
-    Map ref;
-    gref = gfacts.get_fact("ref");
-    ref = gref.copy2store();
-    facts.create_fact("ref", ref);
-
-    gConstraint gcells, ggeom_cells, gghost_cells;
-    constraint cells, geom_cells, ghost_cells;
-    gcells = gfacts.get_fact("cells");
-    ggeom_cells =  gfacts.get_fact("geom_cells");
-    gghost_cells = gfacts.get_fact("ghost_cells");
-    cells = gcells.copy2store();
-    geom_cells = ggeom_cells.copy2store();
-    ghost_cells = gghost_cells.copy2store();
-    facts.create_fact("cells", cells);
-    facts.create_fact("geom_cells", geom_cells);
-    facts.create_fact("ghost_cells", ghost_cells);
+    gfacts.copy_facts(facts);
   }
 
 
   
  
-  bool setupFVMGrid(fact_db &facts, string filename) {
+  bool setupFVMGrid(gfact_db &gfacts, string filename) {
 
     string casename = get_casename(filename);
-    gfact_db gfacts;
     if(!readFVMGrid(gfacts,filename))
       return false ;
-        
-    memSpace("before create_face_info") ;
     create_face_info(gfacts) ;
     create_ref(gfacts) ;
     create_ghost_cells(gfacts) ;
-    
-    copy_facts(gfacts, facts, casename);
-  
     return true ;
   }
 }
