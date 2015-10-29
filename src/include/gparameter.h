@@ -170,10 +170,7 @@ namespace Loci {
     
     void set_entitySet(const gEntitySet &ptn) {
       CPTR<gParamType> p(Rep()) ;
-      bool isNull = (p==0);
-      debugout<< " set_entitySet 1 " << isNull<< endl;
       if(p != 0) p->allocate(ptn);
-      debugout<< " set_entitySet 2 " << endl;
       warn(p==0) ; 
     }
 
