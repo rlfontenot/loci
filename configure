@@ -23,10 +23,10 @@
 LD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:$LD_LIBRARY_PATH:/:/usr:/usr/local:/opt:/opt/local
 PETSC_BASE=$PETSC_DIR
 
+INSTALL_METIS=1
 METIS_BASE="\$(LOCI_BASE)/ParMetis-4.0"
 METIS_LIBS="-lparmetis -lmetis -lgk"
 METIS_INCLUDE="-I\$(METIS_BASE) -DLOCI_USE_METIS"
-
 set +e
 set -u
 set -f
@@ -125,10 +125,12 @@ while [ $# -ne 0 ]; do
 	--with-metis)
 	    shift
 	    METIS_BASE=$1
+	    INSTALL_METIS=0
 	    ;;
 	--with-metis\=*)
 	    tmp=$1
-	    METIS_BASE=${tmp#--with-petsc\=}
+	    METIS_BASE=${tmp#--with-metis\=}
+	    INSTALL_METIS=0
 	    ;;
 	--hdf5-dir)
 	    shift
@@ -209,6 +211,21 @@ while [ $# -ne 0 ]; do
     esac
     shift
 done
+
+if [ ${INSTALL_METIS} == 0 ] ; then
+GKLIB=""
+if [ -f ${METIS_BASE}/lib/libgk.so ] ; then
+    GKLIB="-lgk"
+fi
+if [ -f ${METIS_BASE}/lib/libgk.a ] ; then
+    GKLIB="-lgk"
+fi
+if [ -f ${METIS_BASE}/lib/libgk.dylib ] ; then
+    GKLIB="-lgk"
+fi
+METIS_LIBS="-L\$(METIS_BASE)/lib -lparmetis -lmetis $GKLIB"
+METIS_INCLUDE="-I\$(METIS_BASE)/include -DLOCI_USE_METIS"
+fi
 
 echo Setup for compiler \"$COMPILER\".
 #setup install directory
@@ -418,6 +435,7 @@ fi
 echo >> sys.conf
 
 echo \# METIS Library Setup >> sys.conf
+echo INSTALL_METIS=$INSTALL_METIS >> sys.conf
 echo METIS_BASE= $METIS_BASE >> sys.conf
 echo METIS_LIBS= $METIS_LIBS >> sys.conf
 echo METIS_INCLUDE= $METIS_INCLUDE >> sys.conf
@@ -609,7 +627,7 @@ echo "            \$(MISC_LIBS) \$(DYNAMIC_LOADING_LINK)" >> sys.conf
 
 
 echo Making compile subdirectory ${OBJDIR}...
-./tmpcopy --target $OBJDIR --compiler $COMPILER > copy.out 
+INSTALL_METIS=$INSTALL_METIS ./tmpcopy --target $OBJDIR --compiler $COMPILER > copy.out 
 mv sys.conf ${OBJDIR}/sys.conf
 
 # Make makefile
