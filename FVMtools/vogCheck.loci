@@ -955,7 +955,7 @@ $rule apply(alphastdp<-alpha_geom_f,area,alphameanp)[Loci::Summation] {
   double diff = am-$alpha_geom_f ;
   Loci::Array<double,2> tmp ;
   tmp[0] = diff*diff*$area.sada ;
-  tmp[0] = $area.sada ;
+  tmp[1] = $area.sada ;
   join($alphastdp,tmp) ;
 }
 
