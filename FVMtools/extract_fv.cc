@@ -243,6 +243,7 @@ exportPostProcessorFiles(string casename, string iteration) const {
     }
    
 
+
     double time = atof(iteration.c_str()); //? how to set up this value?
     
     OFP = fopen(filename.c_str(), "wb") ;
@@ -347,6 +348,7 @@ exportPostProcessorFiles(string casename, string iteration) const {
   int nparts = volumePartList.size() + surfacePartList.size();
   vector<int> node_offset(nparts);
 
+  cout << "npnts = " << npnts << endl ;
   //merge the node position in all volume parts and surface parts in one vector
   //and write it into file
   {
@@ -424,13 +426,12 @@ exportPostProcessorFiles(string casename, string iteration) const {
     vector<Array<int,4> > ordinary_faces(num_ord_face);
     part_nodes[part_id-1].resize(npt) ;//the node_set 
     for(size_t j=0;j < npt;++j){
-      part_nodes[part_id-1][j] = node_offset[part_num]+j+1 ;//node_index starts with 0
+      part_nodes[part_id-1][j] = node_offset[part_num]+j+1 ;
     }
     face_offset[part_id-1] = face_id;
         
     size_t nquads = surfacePartList[part_id -1]->getNumQuads() ;
     if(nquads > 0) {
-      ordinary_faces.resize(nquads);
       vector<Array<int,4> > quads ;
       surfacePartList[part_id-1]->getQuads(quads) ; 
       for(size_t i=0;i<quads.size();++i) {
@@ -443,26 +444,25 @@ exportPostProcessorFiles(string casename, string iteration) const {
         elem_ids.push_back(face_id++) ;
       }
     }
-    
-    
+
+
     size_t ntrias = surfacePartList[part_id -1]->getNumTrias() ;
     if(ntrias > 0) {
-      int start = ordinary_faces.size();
-      ordinary_faces.resize(start+ntrias);
       vector<Array<int,3> > trias ;
       surfacePartList[part_id -1]->getTrias(trias) ; 
+
       for(size_t i=0;i<ntrias;++i) {
         Array<int,4> a ;
         a[0] = trias[i][0] ;
         a[1] = trias[i][1] ;
         a[2] = trias[i][2] ;
         a[3] = 0 ;
-        
+
         ordinary_faces[local_id++] = a ;
         elem_ids.push_back(face_id++) ;
       }
     }
-    
+
     //process general face, and write all faces on this boundary into file 
     size_t ngeneral = surfacePartList[part_id -1]->getNumGenfc() ;
     vector<int> nside_sizes,nside_nodes ;
@@ -479,20 +479,19 @@ exportPostProcessorFiles(string casename, string iteration) const {
     if(ngeneral == 0) {
       ibuf[0] = FV_FACES ;
       fwrite(ibuf,sizeof(int),3,OFP) ;
-      
-       for(size_t i=0;i<ordinary_faces.size();++i) {
-         ibuf[0]=part_nodes[part_id-1][ordinary_faces[i][0]-1] ;
-         ibuf[1]=part_nodes[part_id-1][ordinary_faces[i][1]-1] ;
-         ibuf[2]=part_nodes[part_id-1][ordinary_faces[i][2]-1] ;
-         if(ordinary_faces[i][3] == 0) {
-           ibuf[3]= 0 ;
-         } else {
-           ibuf[3]=part_nodes[part_id-1][ordinary_faces[i][3]-1] ;
-         }
-        
-         fwrite(ibuf,sizeof(int),4,OFP) ;
-       }
-       
+
+      for(size_t i=0;i<ordinary_faces.size();++i) {
+	ibuf[0]=part_nodes[part_id-1][ordinary_faces[i][0]-1] ;
+	ibuf[1]=part_nodes[part_id-1][ordinary_faces[i][1]-1] ;
+	ibuf[2]=part_nodes[part_id-1][ordinary_faces[i][2]-1] ;
+	if(ordinary_faces[i][3] == 0) {
+	  ibuf[3]= 0 ;
+	} else {
+	  ibuf[3]=part_nodes[part_id-1][ordinary_faces[i][3]-1] ;
+	}
+
+	fwrite(ibuf,sizeof(int),4,OFP) ;
+      }
     } else {
        ibuf[0] = FV_ARB_POLY_FACES ;
        fwrite(ibuf,sizeof(int),3,OFP) ;
@@ -531,7 +530,6 @@ exportPostProcessorFiles(string casename, string iteration) const {
 
   //prepare to write volume elements
   {
-    
     ibuf[0] = FV_ELEMENTS ;
     ibuf[1] = ntets ;
     ibuf[2] = nhexs ;
@@ -550,7 +548,6 @@ exportPostProcessorFiles(string casename, string iteration) const {
   
   const int block_size=65536 ; // Size of blocking factor
   for(size_t i=0;i<volumePartList.size();++i) {
-   
       if(volumePartList[i]->getNumTets() > 0) { // write out tets
         int tot = volumePartList[i]->getNumTets() ;
         int start = 0 ;
@@ -602,6 +599,7 @@ exportPostProcessorFiles(string casename, string iteration) const {
         }
       }
     }
+
     //write prsm
     static int prsm_walls[6] = { NOT_A_WALL, NOT_A_WALL, NOT_A_WALL,
                                  NOT_A_WALL, NOT_A_WALL, NOT_A_WALL };
