@@ -26,9 +26,10 @@
 #include <unistd.h>
 #include <vector>
 $include "FVM.lh"
-
+#include <GLoci.h>
 namespace Loci {
-  void create_ci_map(fact_db &facts) ;
+  void create_ci_map(gfact_db &facts) ;
+  void copy_facts(gfact_db& gfacts, fact_db& facts);
 }
 
 using std::string ;
@@ -60,7 +61,7 @@ int main(int ac, char *av[]) {
   rule_db rdb ;
   rdb.add_rules(global_rule_list) ;
 
-  fact_db facts ;
+  gfact_db gfacts ;
   Loci::load_module("fvm",rdb) ;
 
   bool use_exact = false ;
@@ -107,14 +108,14 @@ int main(int ac, char *av[]) {
     string filename = string(av[1]) ;
     if(!has_dot)
       filename += ".vog" ;
-    param<std::string> modelName ;
+    gParam<std::string> modelName ;
     
     *modelName = basename ;
-    facts.create_fact("modelName",modelName) ;
+    gfacts.create_fact("modelName",modelName) ;
     Loci::debugout << " i:m here 0.1 " << endl;
     if(Loci::MPI_rank == 0)
       cout << "Reading: '" << filename <<"' ..." <<  endl  ;
-    if(!Loci::setupFVMGrid(facts,filename)) {
+    if(!Loci::setupFVMGrid(gfacts,filename)) {
       if(Loci::MPI_rank == 0) {
         cerr << "Reading grid file '" << filename <<"' failed in grid reader!"
              << endl ;
@@ -126,15 +127,16 @@ int main(int ac, char *av[]) {
       cout << "finished reading grid." << endl ;
     }
     Loci::debugout << " i:m here 1 " << endl;
-    Loci::create_ci_map(facts) ;
-    Loci::createLowerUpper(facts) ;
+    Loci::create_ci_map(gfacts) ;
+    Loci::createLowerUpper(gfacts) ;
 
     if(use_exact)  {
-      param<std::string> centroid ;
+      gParam<std::string> centroid ;
       *centroid = "exact" ;
-      facts.create_fact("centroid",centroid) ;
+      gfacts.create_fact("centroid",centroid) ;
     }
-
+    fact_db facts;
+    copy_facts(gfacts, facts);
     if(!Loci::makeQuery(rdb,facts,query)) {
       cerr << "query for '" << query << "' failed. " << endl ;
       Loci::Abort() ;
