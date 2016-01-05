@@ -60,10 +60,10 @@ namespace Loci {
       
     gMapRepI();//:sorted(true),dom(GEMPTY),domain_space(0),image_space(0){}
     virtual ~gMapRepI();
-    void set_domain_space(gKeySpace* space);//{domain_space = space;}
-    gKeySpace* get_domain_space()const;//{return domain_space;}
-    void set_image_space(gKeySpace* space);//{image_space = space;}
-    gKeySpace* get_image_space()const;//{return image_space;}
+    void set_domain_space(gKeySpaceP space);//{domain_space = space;}
+    gKeySpaceP get_domain_space()const;//{return domain_space;}
+    void set_image_space(gKeySpaceP space);//{image_space = space;}
+    gKeySpaceP get_image_space()const;//{return image_space;}
     
     virtual gStoreRepP clone() const{return new gMapRepI(*this); }  
     virtual gStoreRepP remap(const gMap &m) const ;
@@ -116,7 +116,7 @@ namespace Loci {
     virtual gEntitySet domain() const {return dom ;} 
     virtual bool isSorted() const {return sorted;}
     virtual gEntitySet image(const gEntitySet &domain) const ;
-    virtual gEntitySet image( gEntity domain) const ;
+    virtual gEntity image( gEntity domain) const ;
     virtual gEntitySet image() const ;
     virtual std::pair<gEntitySet,gEntitySet>
     preimage(const gEntitySet &codomain) const ;
@@ -132,8 +132,11 @@ namespace Loci {
     virtual const void* get_attrib_data() const{return &attrib_data; }
     
     virtual DatatypeP getType()const ;
-    //  virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, gEntitySet &user_eset) ;
-    //     virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, gEntitySet& en) const ;
+    virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension,
+                          const char* name, frame_info &fi, const gEntitySet &user_eset) ;
+    virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension,
+                           const char* name, const gEntitySet& en) const ;
+    virtual frame_info get_frame_info()const ;
   } ;
   
   class gMap : public gstore_instance {
@@ -172,10 +175,10 @@ namespace Loci {
    
     virtual ~gMap(){}
 
-    void set_domain_space(gKeySpace* space){static_cast<gMapRepP>(Rep())->set_domain_space(space);}
-    gKeySpace* get_domain_space()const{return static_cast<gMapRepP>(Rep())->get_domain_space() ;}
-    void set_image_space(gKeySpace* space){static_cast<gMapRepP>(Rep())->set_image_space(space);}
-    gKeySpace* get_image_space()const{return static_cast<gMapRepP>(Rep())->get_image_space();}
+    void set_domain_space(gKeySpaceP space);//{static_cast<gMapRepP>(Rep())->set_domain_space(space);}
+    gKeySpaceP get_domain_space()const; //{return static_cast<gMapRepP>(Rep())->get_domain_space() ;}
+    void set_image_space(gKeySpaceP space); //{static_cast<gMapRepP>(Rep())->set_image_space(space);}
+    gKeySpaceP get_image_space()const; //{return static_cast<gMapRepP>(Rep())->get_image_space();}
       
       
     virtual gStoreRepP clone() const{return Rep()->clone() ;}
@@ -257,7 +260,14 @@ namespace Loci {
     gEntitySet image() const {
       return gMapRepP(Rep())->image() ;
     }
-    
+
+    gEntity image(gEntity dom) const {
+      CPTR<MapType> p(Rep()) ;
+      if(p != 0)
+        return p->image(dom);
+      fatal(p==0);
+      return 0;
+    }
     std::pair<gEntitySet,gEntitySet> preimage(const gEntitySet &codomain) const {
       return gMapRepP(Rep())->preimage(codomain) ;
     }
@@ -287,6 +297,23 @@ namespace Loci {
     const_iterator end()const { return static_cast<const gRep*>(Rep()->get_attrib_data())->end(); }
     size_t size() const{return Rep()->size();}
 
+    gEntitySet image(const gEntitySet &dom) const {
+      return gMapRepP(Rep())->image(dom) ;
+    }
+    gEntitySet image() const {
+      return gMapRepP(Rep())->image() ;
+    }
+    
+    gEntity image(gEntity dom) const {
+      CPTR<MapType> p(Rep()) ;
+      if(p != 0)
+        return p->image(dom);
+      fatal(p==0);
+      return 0;
+    }
+    std::pair<gEntitySet,gEntitySet> preimage(const gEntitySet &codomain) const {
+      return gMapRepP(Rep())->preimage(codomain) ;
+    }
     virtual gStoreRepP
     redistribute(const std::vector<gEntitySet>& dom_split,
                  MPI_Comm comm=MPI_COMM_WORLD)const{return Rep()->redistribute(dom_split, comm) ;}

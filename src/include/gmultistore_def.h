@@ -48,50 +48,7 @@ namespace Loci {
   extern int MPI_rank ;
   
   
-  // template<class T>  inline bool equiFF(const std::pair<gEntity,T> &v1,
-  //                                         const std::pair<gEntity,T> &v2) {
-  //     return v1.first < v2.first ;
-  //   }
-
-  //   template<class T>   inline void equiJoinFF(std::vector<std::pair<gEntity,T> > &in1,
-  //                                              std::vector<std::pair<gEntity,gEntity> > &in2,
-  //                                              std::vector<std::pair<gEntity,T> > &out) {
-  //       std::sort(in1.begin(),in1.end(),equiFF) ;
-  //       std::sort(in2.begin(),in2.end(),equiFF) ;
-    
-  //       int p = 0 ;
-  //       MPI_Comm_size(MPI_COMM_WORLD,&p) ;
-
-  //       // Sort inputs using same splitters (this will make sure that
-  //       // data that needs to be on the same processor ends up on the
-  //       // same processor
-  //       if(p != 1) {
-  //         std::vector<std::pair<gEntity,gEntity> > splitters ;
-  //         parGetSplitters(splitters,in1,equiFF,MPI_COMM_WORLD) ;
-
-  //         parSplitSort(in1,splitters,equiFF,MPI_COMM_WORLD) ;
-  //         parSplitSort(in2,splitters,equiFF,MPI_COMM_WORLD) ;
-  //       }
-
-  //       // Find pairs where first entry are the same and create joined protomap
-  //       out.clear() ;
-  //       size_t j = 0 ;
-  //       for(size_t i=0;i<in1.size();++i) {
-  //         while(j<in2.size() && equiFF(in2[j],in1[i]))
-  //           ++j ;
-  //         size_t k=j ;
-  //         while(k<in2.size() && in2[k].first == in1[i].first) {
-  //           out.push_back(std::pair<gEntity,T>(in1[i].second,in2[k].second)) ;
-  //           k++ ;
-  //         }
-  //       }
-
-  //       // Remove duplicates from protomap
-  //       parSampleSort(out,equiFF,MPI_COMM_WORLD) ;
-  //       std::sort(out.begin(),out.end()) ;
-  //       out.erase(std::unique(out.begin(),out.end()),out.end()) ;
-  //     }
-
+  
   
 
   //where storage is allocated
@@ -104,7 +61,7 @@ namespace Loci {
     gRep attrib_data;
     gEntitySet dom;
     gEntitySet vdom; //<the virtual domain, inside which each entity has zero num_elems() 
-    gKeySpace* domain_space;
+    gKeySpaceP domain_space;
   private:
     int  get_mpi_size( IDENTITY_CONVERTER c, const gEntitySet &eset)const;
     void packdata(IDENTITY_CONVERTER, void *ptr, int &loc, int size,
@@ -124,8 +81,17 @@ namespace Loci {
       typedef data_schema_traits<dtype> traits_type;
       return(traits_type::get_type()) ;
     }
+    frame_info get_frame_info(IDENTITY_CONVERTER g)const ;
+    frame_info get_frame_info(USER_DEFINED_CONVERTER g)const ;
+    void  hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension,
+                   const char* name, IDENTITY_CONVERTER c, frame_info &fi, const gEntitySet &usr) ;
+    void  hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension,
+                   const char* name, USER_DEFINED_CONVERTER c, frame_info &fi, const gEntitySet &usr);
     
-    
+    void  hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension,
+                    const char* name, IDENTITY_CONVERTER c, const gEntitySet &en) const;
+    void  hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension,
+                    const char* name, USER_DEFINED_CONVERTER c, const gEntitySet &en) const;
 
   public:
     typedef typename std::vector<std::pair<gEntity,T> >::iterator iterator ;
@@ -138,8 +104,8 @@ namespace Loci {
     void reserve (size_t n){attrib_data.reserve(n);}
     void clear(){attrib_data.clear();}
     gMultiStoreRepI():sorted(true), dom(GEMPTY),domain_space(0){}
-    void set_domain_space(gKeySpace* space){domain_space = space;}
-    gKeySpace* get_domain_space()const{return domain_space;}
+    void set_domain_space(gKeySpaceP space){domain_space = space;}
+    gKeySpaceP get_domain_space()const{return domain_space;}
     
     //For maps, recompose will remap the SECOND field of this using m and create a new map
     //For stores,recompose will compose a store whose domain is the domain of m,
@@ -282,8 +248,8 @@ namespace Loci {
         int cnt = 0;
         while(itr!=end() && itr->first < ei)itr++;
         while(itr!=end() && itr->first == ei){
-        s[ei][cnt++] = itr->second;
-        itr++;
+          s[ei][cnt++] = itr->second;
+          itr++;
         }
       }ENDGFORALL;
       return s.Rep();
@@ -306,9 +272,11 @@ namespace Loci {
     virtual DatatypeP getType()const{
       typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
       return getType(schema_converter()) ;}
-
-    // virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name,  gEntitySet &en) ;
-    //     virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, gEntitySet& en) const ;
+    virtual frame_info get_frame_info()const ;
+    virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension,
+                          const char* name, frame_info &fi, const gEntitySet &en) ;
+    virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension,
+                           const char* name, const gEntitySet& en) const ;
    
   } ;
   
@@ -331,8 +299,8 @@ namespace Loci {
    
     gMultiStore<T> & operator=(gStoreRepP p) { setRep(p) ; return *this ; }
 
-    void set_domain_space(gKeySpace* space){Rep()->set_domain_space(space);}
-    gKeySpace* get_domain_space()const{return Rep()->get_domain_space();}
+    void set_domain_space(gKeySpaceP space){Rep()->set_domain_space(space);}
+    gKeySpaceP get_domain_space()const{return Rep()->get_domain_space();}
     
     virtual gStoreRepP clone() const{return Rep()->clone();}
     gEntitySet domain() const { return Rep()->domain(); }
@@ -433,9 +401,29 @@ namespace Loci {
    
     void make_consistent();
     
-    //for gMultiStore, this method computes the mean value for each entity
-    //and put them in a vector center
-    void get_mean(std::vector<T>& center);
+   
+    //this method computes the mean value for each entity in dom
+    //and put them in a gStore
+    gStoreRepP get_simple_center(const gEntitySet& dom)const;
+
+   
+    //this method computes the mean weighted average value for each entity in dom
+    //and put them in a gStore, the weight is the length of neighboring nodes
+    gStoreRepP get_wireframe_center(const gEntitySet& dom)const;
+    
+    //this method computes the area for each entity in dom
+    //and put them in a gStore 
+    gStoreRepP get_area(const gEntitySet& dom)const;//compute center first
+    gStoreRepP get_area(const gStore<T>& center)const;//center is given
+    
+    
+    //this method computes the  weighted mean value for each entity in gMultiStore
+  //and put them in a gStore, the weight is given in area
+  //prerequest: area and this have the same domain, and for each entity in domain
+  // the number of elements in area and the number of elements in this are the same 
+  //example: this is the recomposed facecenter, and area is the recomposed facearea
+  // return value is the centroid of each cell
+    gStoreRepP get_weighted_center(const gMultiStore<double>& area)const;
     
     
   } ;

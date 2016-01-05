@@ -132,7 +132,7 @@ namespace Loci {
   //pass in the problem name(usually the grid/vars file to be read)
   //along with the fact_database.    
   
-  mod::mod_info& mod::mod_db::get_info(const std::string &str, const std::string &to_str, const char* problem_name, fact_db &facts) { 
+  mod::mod_info& mod::mod_db::get_info(const std::string &str, const std::string &to_str, const char* problem_name, gfact_db &facts) { 
     MI msi ;
     mod_info md ;
     std::string tmp_str ;
@@ -158,7 +158,7 @@ namespace Loci {
 	    cerr << "reason for failure is " << error << endl ;
 	Loci::Abort() ;
       }
-      md.m_init_model = (void (*)(fact_db &, rule_db &, const char *))
+      md.m_init_model = (void (*)(gfact_db &, rule_db &, const char *))
 	dlsym(md.m_library,"init_model") ;
       md.loaded_rule_list.copy_rule_list(register_rule_list) ;
       md.loaded_keyspace_list.copy_space_list(register_key_space_list) ;
@@ -244,7 +244,7 @@ namespace Loci {
     global_key_space_list.copy_space_list(m.loaded_keyspace_list) ;
   }
   
-  void load_module(const std::string from_str, const std::string to_str, const char* problem_name, fact_db &facts, rule_db& rdb, std::set<std::string> &str_set) {
+  void load_module(const std::string from_str, const std::string to_str, const char* problem_name, gfact_db &facts, rule_db& rdb, std::set<std::string> &str_set) {
 #ifdef VERBOSE
     debugout << "load_module using " << from_str << "," << to_str
              << "," << problem_name << endl ;

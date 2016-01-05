@@ -122,7 +122,28 @@ namespace Loci {
       bc_num = 0 ;
     }
   } ;
+  struct gperiodic_info {
+    std::string name ;
+    bool master,processed ;
+    vector3d<real_t> center, v, translate ;
+    real_t angle ;
+    gEntitySet bset ;
+    gEntity bc_num ;
+    gperiodic_info() {
+      name = "PERIODIC" ;
+      master = false ;
+      processed = false ;
+      center = vector3d<real_t>(0.,0.,0.) ;
+      v = vector3d<real_t>(1.,0.,0.) ;
+      translate = center ;
+      angle = 0 ;
+      bset = GEMPTY ;
+      bc_num = 0 ;
+    }
+  } ;
 
+  
+  
   template<> struct data_schema_traits<Loci::rigid_transform> {
     typedef IDENTITY_CONVERTER Schema_Converter ;
     static DatatypeP get_type() {
@@ -142,13 +163,15 @@ namespace Loci {
   bool readBCfromVOG(std::string filename,
                      std::vector<std::pair<int,std::string> > &boundary_ids) ;
   void setupBoundaryConditions(fact_db &facts) ;
-
+  void setupBoundaryConditions(gfact_db &facts) ;
   void createLowerUpper(fact_db &facts) ;
   void createLowerUpper(gfact_db &facts) ; 
 
   void createEdgesPar(fact_db& facts) ;
   void createEdgesPar(gfact_db& facts) ;
-  
+
+  void create_ci_map(fact_db &facts);
+  void create_ci_map(gfact_db &facts);
 
   extern void writeVOG(std::string filename,store<vector3d<double> > &pos,
                        Map &cl, Map &cr, multiMap &face2node,

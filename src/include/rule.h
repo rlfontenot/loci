@@ -50,7 +50,7 @@
 #include <DMultiStore.h>
 
 namespace Loci {
-  
+  class gfact_db;
   class fact_db ;
   class sched_db ;
   
@@ -143,6 +143,9 @@ namespace Loci {
     bool has_postlude() const { return use_postlude; }
     variable get_parametric_variable() { return ParametricVariable ; }
     void initialize(fact_db &facts) ;
+    //add this method 
+    void initialize(gfact_db &facts) ;
+    
     // this method returns all the keyspaces involved in a rule
     // that need to be considered for distribution
     std::vector<std::string>

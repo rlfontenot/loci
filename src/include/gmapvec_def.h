@@ -41,8 +41,8 @@ namespace Loci {
     bool sorted;
     std::vector<std::pair<gEntity,gEntity> > attrib_data;
     gEntitySet dom;
-    gKeySpace* domain_space;
-    gKeySpace* image_space;
+    gKeySpaceP domain_space;
+    gKeySpaceP image_space;
   public:
     /**Convenient functions for vertor operations
      */
@@ -59,10 +59,10 @@ namespace Loci {
         
     gMapVecRepI():sorted(true),dom(GEMPTY),domain_space(0),image_space(0) {}
     
-    void set_domain_space(gKeySpace* space){domain_space = space;}
-    gKeySpace* get_domain_space()const{return domain_space;}
-    void set_image_space(gKeySpace* space){image_space = space;}
-    gKeySpace* get_image_space()const{return image_space;}
+    void set_domain_space(gKeySpaceP space){domain_space = space;}
+    gKeySpaceP get_domain_space()const{return domain_space;}
+    void set_image_space(gKeySpaceP space){image_space = space;}
+    gKeySpaceP get_image_space()const{return image_space;}
    
     virtual ~gMapVecRepI(){} 
     virtual gStoreRepP clone() const{return new gMapVecRepI(*this); }  
@@ -122,8 +122,11 @@ namespace Loci {
     virtual gStoreRepP get_map()const ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
-    //  virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, gEntitySet &user_eset) ;
-    //     virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, gEntitySet& en) const ;
+    virtual frame_info get_frame_info()const ;
+    virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension,
+                          const char* name, frame_info &fi, const gEntitySet &user_eset) ;
+    virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension,
+                           const char* name, const gEntitySet& en) const ;
 
     //different from traditional maps, this method is const method
     //dom is the domain after expansion, not out_of_dom
@@ -181,10 +184,10 @@ namespace Loci {
         return p->get_vdom();
       warn(p==0) ;
     }
-    void set_domain_space(gKeySpace* space){static_cast<gMapRepP>(Rep())->set_domain_space(space);}
-    gKeySpace* get_domain_space()const{return static_cast<gMapRepP>(Rep())->get_domain_space() ;}
-    void set_image_space(gKeySpace* space){static_cast<gMapRepP>(Rep())->set_image_space(space);}
-    gKeySpace* get_image_space()const{return static_cast<gMapRepP>(Rep())->get_image_space();}
+    void set_domain_space(gKeySpaceP space){static_cast<gMapRepP>(Rep())->set_domain_space(space);}
+    gKeySpaceP get_domain_space()const{return static_cast<gMapRepP>(Rep())->get_domain_space() ;}
+    void set_image_space(gKeySpaceP space){static_cast<gMapRepP>(Rep())->set_image_space(space);}
+    gKeySpaceP get_image_space()const{return static_cast<gMapRepP>(Rep())->get_image_space();}
     
     virtual gStoreRepP clone() const{return Rep()->clone() ;}
         
@@ -262,6 +265,11 @@ namespace Loci {
     gEntitySet image(const gEntitySet &dom) const {
       return gMapRepP(Rep())->image(dom) ;
     }
+    gEntitySet image(gEntity dom) const {
+      CPTR<MapType> p(Rep()) ;
+      fatal(p==0);
+      return p->image(dom);
+    }
     gEntitySet image() const {
       return gMapRepP(Rep())->image() ;
     }
@@ -321,9 +329,13 @@ namespace Loci {
     gEntitySet image(const gEntitySet &dom) const {
       return gMapRepP(Rep())->image(dom) ;
     }
-    
-    gEntitySet image(const gEntity &dom) const {
-      return gMapRepP(Rep())->image(dom) ;
+    gEntitySet image(gEntity dom) const {
+      CPTR<MapType> p(Rep()) ;
+      fatal(p==0);
+      return p->image(dom);
+    }
+    gEntitySet image() const {
+      return gMapRepP(Rep())->image() ;
     }
     
     std::pair<gEntitySet,gEntitySet> preimage(const gEntitySet &codomain) const {

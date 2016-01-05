@@ -27,7 +27,7 @@
 #include <Config/conf.h>
 
 #include <Tools/except.h>
-
+#include <rule.h>
 #include <string>
 #include <map>
 #include <vector>
@@ -46,6 +46,8 @@
 #include <gparameter.h>
 #include <Tools/simple_partition_long.h>
 using std::string;
+
+
 namespace Loci {
   class rule_db ;
   class gfact_db {
@@ -53,8 +55,31 @@ namespace Loci {
     // key manager
     gKeyManagerP key_manager ;
    
-   
-    std::map<variable,gStoreRepP> fmap ; //map each variable to its storage
+    //map each variable to its gcontainer storage
+    std::map<variable,gStoreRepP> fmap ;
+    
+    //map each variable to its traditional container storage
+    //this map is not constructed by create_fact method
+    //instead, when variables freeze, they are removed from fmap
+    // and added to lfmap
+    std::map<variable,storeRepP> lfmap ; 
+    
+    //map the variables to their types
+    //tmap and gtmap are user for optional rule and default rules
+    //the rules will specify the type of variables
+    //and .vars file will provide the data
+    //the variables are parameters on universal keyspace,
+    //not subset of a specific keyspace
+    std::map<variable,storeRepP> tmap ;
+    // std::map<variable,gStoreRepP> gtmap ;
+
+
+    // support for multiple queries and experimental
+    // extensions to the fact_db to distinguish
+    // extensional facts and intensional facts
+    variableSet extensional_facts ;
+
+    
     std::vector<std::string> nspace_vec ;//allow namespaces in front of variable name
     /*! all variables that point to the same gStoreRepP, the second of the pair at the end of chain
       is the variable suppose to appear in fmap*/
@@ -95,6 +120,18 @@ namespace Loci {
     }
     //destructor
     ~gfact_db() ;
+
+    void set_variable_type(variable v, storeRepP st) ;
+    void set_variable_type(std::string vname, storeRepP st)
+    { set_variable_type(variable(vname),st) ;}
+    void set_variable_type(variable v, store_instance &si)
+    { set_variable_type(v,si.Rep()) ; }
+    void set_variable_type(std::string vname, store_instance &si)
+    { set_variable_type(variable(vname),si) ; }
+    
+    storeRepP get_variable_type(variable v) const ;
+    storeRepP get_variable_type(std::string vname) const
+    { return get_variable_type(variable(vname)) ;}
     
     //it is safe to be public?
     void set_key_manager( gKeyManagerP km){key_manager=km;}
@@ -108,7 +145,9 @@ namespace Loci {
     void copy_facts(fact_db& facts) const ;
     
   public:
-       
+
+    // create_fact now defaults to create an extensional fact
+    // as this is the primary interface for users of Loci
     void create_fact(const variable& v, gStoreRepP st,
                      gKeySpaceP domain_space = 0,
                      gKeySpaceP image_space = 0) ;
@@ -171,7 +210,109 @@ namespace Loci {
     gStoreRepP get_variable(variable v) ;
     gStoreRepP get_variable(std::string vname)
     { return get_variable(variable(vname)) ; }
+
+    /////////////////////////////////////////////////////////
+    // support methods for extensional & intensional facts //
+    /////////////////////////////////////////////////////////
+    variableSet get_extensional_facts() const {
+      return extensional_facts ;
+    }
+    variableSet get_intensional_facts() const {
+      return variableSet(get_typed_variables()-extensional_facts) ;
+    }
+
+    // we still provide these methods with explicit name to
+    // create extentional facts, they are just as the same as
+    // the default create_fact methods
+    void create_extensional_fact(const variable& v, gStoreRepP st) {
+      create_fact(v,st) ;
+    }
+    void create_extensional_fact(const std::string& vname, gStoreRepP st) {
+      create_fact(vname,st) ;
+    }
+    void create_extensional_fact(const variable& v, gstore_instance &si) {
+      create_fact(v,si) ;
+    }
+    void create_extensional_fact(const std::string& vname,
+                                 gstore_instance &si) {
+      create_fact(vname,si) ;
+    }
+    // this method will convert all intensional facts (if any) in
+    // the fact database to extensional facts
+    void make_all_extensional() {
+      variableSet intensional_facts = get_intensional_facts() ;
+      extensional_facts += intensional_facts ;
+    }
+    // and then we have the corresponding intensional facts creation
+    void create_intensional_fact(const variable& v, gStoreRepP st,
+                                 gKeySpaceP domain_space = 0,
+                                 gKeySpaceP image_space = 0)
+    {
+      variable v_tmp = add_namespace(v) ;
+      create_pure_fact(v_tmp,st) ;
+      if(domain_space != 0) set_variable_domain_space(v, st, domain_space);
+      if(image_space != 0)set_variable_image_space(v, gMapRepP(st), image_space);
+    }
+    void create_intensional_fact(const std::string& vname, gStoreRepP st,
+                                 gKeySpaceP domain_space = 0,
+                                 gKeySpaceP image_space = 0)
+    {
+      create_intensional_fact(variable(vname), st, domain_space, image_space);
+      // create_pure_fact(add_namespace(variable(vname)),st) ;
+      // if(domain_space != 0) set_variable_domain_space(v, st, domain_space);
+      // if(image_space != 0)set_variable_image_space(v, gMapRepP(st), image_space);
+    }
+    void create_intensional_fact(const variable& v, gstore_instance &si,
+                                 gKeySpaceP domain_space = 0,
+                                 gKeySpaceP image_space = 0)
+    {
+      variable v_tmp = add_namespace(v) ;
+      create_pure_fact(v_tmp,si.Rep()) ;
+      gStoreRepP st = si.Rep(); 
+      if(domain_space != 0) set_variable_domain_space(v, st, domain_space);
+      if(image_space != 0)set_variable_image_space(v, gMapRepP(st), image_space);
+      si.setRep(get_variable(v_tmp)) ;
+    }
+    void create_intensional_fact(const std::string& vname,
+                                 gstore_instance &si,
+                                 gKeySpaceP domain_space = 0,
+                                 gKeySpaceP image_space = 0)
+    {
+      create_intensional_fact(variable(vname), si, domain_space, image_space);
+      
+      // variable v = add_namespace(variable(vname)) ;
+      // create_pure_fact(v,si.Rep()) ;
+     
+      // gStoreRepP st = si.Rep(); 
+      // if(domain_space != 0) set_variable_domain_space(v, st, domain_space);
+      // if(image_space != 0)set_variable_image_space(v, gMapRepP(st), image_space);
+      // si.setRep(get_variable(v)) ;
+    }
+    // this method erases all intensional facts
+    void erase_intensional_facts() {
+      variableSet intensional_facts = get_intensional_facts() ;
+      for(variableSet::const_iterator vi=intensional_facts.begin();
+          vi!=intensional_facts.end();++vi)
+        remove_variable(*vi) ;
+    }
+    // this method will convert an intensional fact to
+    // a extensional fact
+    void make_extensional_fact(const variable& v) ;
+    void make_extensional_fact(const std::string& vname) {
+      make_extensional_fact(variable(vname)) ;
+    }
+    // this method will convert a extensional fact
+    // to an intensional one
+    void make_intensional_fact(const variable& v) ;
+    void make_intensional_fact(const std::string& vname) {
+      make_intensional_fact(variable(vname)) ;
+    }
     
+    //the following two methods return the storeRepP in lfmap
+    storeRepP get_frozen_variable(variable v) ;
+    storeRepP get_frozen_variable(std::string vname)
+    { return get_frozen_variable(variable(vname)) ; }
+
     void remove_variable(variable v) ;
     
     void synonym_variable(variable v, variable synonym) ;
@@ -187,9 +328,21 @@ namespace Loci {
     void unset_namespace() {
       nspace_vec.clear() ;
     }
-   
-    variableSet get_typed_variables() const ;
     
+    //this method returns all variables in fmap and their synonyms
+    //has nothing to do with tmap
+    variableSet get_typed_variables() const ;
+
+    std::istream& read_vars(std::istream& s, const rule_db& rdb);
+    void read_vars(std::string filename, const rule_db &rdb) {
+      std::ifstream ifile(filename.c_str(),std::ios::in) ;
+      if(ifile.fail()) {
+        std::string error = std::string("Can't open '") +filename + "'" ;
+        throw(StringError(error)) ;
+      }
+      read_vars(ifile,rdb) ;
+      ifile.close() ;
+    }
     gKeyManagerP get_key_manager() const {return key_manager ;}
   
    

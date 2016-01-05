@@ -78,22 +78,33 @@ namespace Loci {
       static std::map<std::string, gKeySpaceP> space_map;
     public:
       void add_space(const std::string& spacename, const std::string& casename, gKeySpaceP space){
-        std::string name = spacename+'.'+casename;
+        std::string name = spacename;
+        if(casename !="") name += '.'+casename;
         std::map<std::string,gKeySpaceP> ::iterator mi = space_map.find(name);
         if(mi!= space_map.end()){
-          cerr<<"space " << name<< " exists, repace it with new space" << endl;
-          mi->second = space;
+          debugout<<"WARNING: space " << name<< " exists, nothing done" << endl;
+          // mi->second = space;
         }else{
           space_map[name] = space;
         }
       }
     
-      static gKeySpaceP get_space(const std::string& name) {
+      static gKeySpaceP get_space(const std::string& spacename,const std::string& casename) {
+        std::string name = spacename;
+        if(casename !="") name += '.'+casename;
         std::map<std::string,gKeySpaceP> ::const_iterator mi = space_map.find(name);
         if(mi!= space_map.end())return mi->second;
         else{
-          std::cerr << " ERROR: space " << name <<" not found" << endl; 
-          return gKeySpaceP(0);
+          if(spacename=="UniverseSpace"){
+            //std::cerr << "space " << name <<" does not exist, create one " << endl; 
+            //return gKeySpaceP(0);
+            gKeySpaceP new_space = new gKeySpace();
+            new_space->register_space(spacename, casename);
+            return new_space;
+          }else{
+            debugout << "space " << name <<" does not exist, return null space " << endl; 
+            return gKeySpaceP(0);
+          }
         }
       }
 
@@ -101,7 +112,11 @@ namespace Loci {
         std::vector<gKeySpaceP> result;
         for(std::map<std::string,gKeySpaceP> ::const_iterator mi = space_map.begin();
             mi != space_map.end(); mi++){
-          result.push_back(mi->second);
+          std::string spacename = mi->first;
+          std::size_t found = spacename.find("UniverseSpace");
+          if(found == std::string::npos){
+            result.push_back(mi->second);
+          }
         }
         return result;
       }

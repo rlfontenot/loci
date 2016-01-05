@@ -34,60 +34,21 @@
 #include <ostream>
 
 #include <data_traits.h>
-
+#include <frame_info.h>
 #include <mpi.h>
-
+#include <gstore_rep.h>
 namespace Loci {
   enum store_type { STORE, PARAMETER, MAP, CONSTRAINT, BLACKBOX } ;
 
   class Map ;
   class dMap ;
   class storeRep ;
-
+  class gStoreRep;
+  typedef CPTR<gStoreRep> gStoreRepP ;
   typedef NPTR<storeRep> storeRepP ;
   typedef const_NPTR<storeRep> const_storeRepP ;
   
-  struct frame_info {
-    int is_stat ; 
-    int size ;
-    std::vector<int> first_level ;
-    std::vector<int> second_level ;
-    frame_info() {
-      is_stat = 0 ;
-      size = 0 ;
-    }
-    frame_info(int a , int b) {
-      is_stat = a ;
-      size = b ;
-      
-    }
-    frame_info(int a , int b, std::vector<int> c, std::vector<int> d) {
-      is_stat = a ;
-      size = b ;
-      
-      first_level = c ;
-      second_level = d ;
-    } 
-    frame_info(const frame_info &fi) { 
-      is_stat = fi.is_stat ;
-      size = fi.size ;
-      if(!size)
-	first_level = fi.first_level ;
-      if(is_stat) 
-	second_level = fi.second_level ;
-    }
-    
-    frame_info &operator = (const frame_info &fi) { 
-      is_stat = fi.is_stat ;
-      size = fi.size ;
-      if(!size) 
-	first_level = fi.first_level ;
-      if(is_stat)
-	second_level = fi.second_level ;
-      
-      return *this ;
-    }
-  } ;
+  
   class storeRep : public NPTR_type {
   public:
     virtual ~storeRep() ;
@@ -124,6 +85,9 @@ namespace Loci {
     // the remap method merely renumbers the container
     // according to the passed in map
     virtual storeRepP remap(const dMap &m) const = 0 ;
+    //this method is added only for parameter on universal keyspace
+    virtual gStoreRepP copy2gstore()const;
+    
     // virtual storeRepP remap(const Map& m) const = 0 ;
     // the redistribute takes a vector of entitySets as domain
     // distribution over a group of processes and

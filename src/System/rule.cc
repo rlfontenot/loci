@@ -26,6 +26,7 @@
 
 #include "rule.h"
 #include <fact_db.h>
+#include <gfact_db.h>
 #include <constraint.h>
 
 #include <vector>
@@ -587,6 +588,23 @@ namespace Loci {
     
     for(sp=var_table.begin();sp!=var_table.end();++sp) {
       storeRepP srp = facts.get_variable(sp->first) ;
+      if(srp == 0) {
+        cerr << "ERROR!: rule_impl::initialize unable to extract '"
+             << sp->first << "' from store data base."
+             << endl ;
+        cerr << "Error occured in rule '"
+             << typeid(*this).name() << "'" << endl ;
+        Loci::Abort() ;
+      }
+      sp->second->setRep(srp) ;
+    }
+  }
+
+   void rule_impl::initialize(gfact_db &facts) {
+    storeIMap::iterator sp ;
+    
+    for(sp=var_table.begin();sp!=var_table.end();++sp) {
+      storeRepP srp = facts.get_frozen_variable(sp->first) ;
       if(srp == 0) {
         cerr << "ERROR!: rule_impl::initialize unable to extract '"
              << sp->first << "' from store data base."

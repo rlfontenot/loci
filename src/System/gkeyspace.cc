@@ -62,8 +62,7 @@ namespace Loci {
   
 
    gKeySpaceP gKeySpace::get_space(const std::string& spacename, const std::string& casename){
-    std::string name = spacename+'.'+casename;
-    return ksm->get_space(name);
+     return ksm->get_space(spacename, casename);
    }
 
   std::vector<gKeySpaceP> gKeySpace::get_all_spaces(){

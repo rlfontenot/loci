@@ -34,13 +34,13 @@ namespace Loci {
   public:
     virtual ~gMapRep(){} ;
 
-    virtual void set_image_space(gKeySpace* space) = 0;
-    virtual gKeySpace* get_image_space()const = 0;
+    virtual void set_image_space(gKeySpaceP space) = 0;
+    virtual gKeySpaceP get_image_space()const = 0;
     virtual size_t size() const = 0;
     virtual gStoreRepP clone() const = 0;
     virtual gEntitySet image(const gEntitySet &domain) const = 0;
-      
-    virtual gEntitySet image(gEntity domain) const = 0;
+    //remove this function because gMap and gMultiMap have different return value 
+    // virtual gEntitySet image(gEntity domain) const = 0;
     virtual gEntitySet image() const = 0;
     virtual std::pair<gEntitySet,gEntitySet>
     preimage(const gEntitySet &codomain) const = 0;

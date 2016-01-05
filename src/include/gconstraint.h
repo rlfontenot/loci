@@ -37,13 +37,13 @@ namespace Loci {
   
   class gConstraintRep : public gStoreRep {
     gEntitySet constraint_set ;
-    gKeySpace* domain_space;
+    gKeySpaceP domain_space;
   public:
     gConstraintRep():domain_space(0){} 
     gConstraintRep(const gEntitySet &p):constraint_set(p),domain_space(0){}
     virtual ~gConstraintRep(){}
-    void set_domain_space(gKeySpace* space){domain_space = space;}
-    gKeySpace* get_domain_space()const{return domain_space;}
+    void set_domain_space(gKeySpaceP space){domain_space = space;}
+    gKeySpaceP get_domain_space()const{return domain_space;}
     
     virtual void allocate(const gEntitySet &p){
       constraint_set = p;
@@ -83,7 +83,7 @@ namespace Loci {
     virtual gStoreRepP clone() const{
       return new gConstraintRep(constraint_set); 
     }
-     virtual storeRepP copy2store()const ;
+    virtual storeRepP copy2store()const ;
     virtual void* get_attrib_data() {
       return static_cast<void*>(&constraint_set);
     }
@@ -97,6 +97,9 @@ namespace Loci {
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
     virtual DatatypeP getType()const ;
+    virtual frame_info get_frame_info() const ;
+    virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, const gEntitySet &en) ;
+    virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, const gEntitySet &en) const ;
   } ;
 
   class gConstraint : public gstore_instance {
@@ -120,8 +123,8 @@ namespace Loci {
     }
     virtual ~gConstraint(){}
 
-    void set_domain_space(gKeySpace* space){Rep()->set_domain_space(space);}
-    gKeySpace* get_domain_space()const{return Rep()->get_domain_space();}
+    void set_domain_space(gKeySpaceP space){Rep()->set_domain_space(space);}
+    gKeySpaceP get_domain_space()const{return Rep()->get_domain_space();}
     virtual gEntitySet domain() const {return Rep()->domain() ;}
 
     // this method redistributes the container according to the split of

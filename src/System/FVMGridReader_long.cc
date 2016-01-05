@@ -590,6 +590,8 @@ namespace Loci {
     string casename = get_casename(filename);
 
     // create basic key spaces;
+    gKeySpaceP universe_space = new gKeySpace();
+    universe_space->register_space("UniverseSpace", casename);
     gKeySpaceP node_space = new gKeySpace();
     node_space->register_space("NodeSpace", casename);
     gKeySpaceP face_space = new gKeySpace();
@@ -918,12 +920,12 @@ namespace Loci {
                                      max_cell, boundary_faces, boundary_taglist) ;
       face_base += nfaces ;
     }
-    gEntity global_max_cell = g_GLOBAL_MAX(max_cell);
+    gEntity global_max_cell = g_GLOBAL_MAX<gEntity>(max_cell);
     gEntity ncells = global_max_cell+1 ;
    
     // Do not need all collect
-    boundary_taglist = g_all_collect_entitySet(boundary_taglist) ;
-    gEntitySet all_boundary_faces = g_all_collect_entitySet(boundary_faces) ;
+    boundary_taglist = g_all_collect_entitySet<gEntity>(boundary_taglist) ;
+    gEntitySet all_boundary_faces = g_all_collect_entitySet<gEntity>(boundary_faces) ;
 
 
     
@@ -1226,6 +1228,7 @@ namespace Loci {
   }
   
   //each key space redistributes all its out_vars according to its key_ptn
+  //exclude universeSpace
   void split_redistribute_all(gfact_db& facts){
     vector<gKeySpaceP> spaces = gKeySpace::get_all_spaces(); 
     for(unsigned int i = 0; i < spaces.size(); i++){
@@ -1678,9 +1681,14 @@ namespace Loci {
     string casename = get_casename(filename);
     if(!readFVMGrid(gfacts,filename))
       return false ;
+    debugout << " before create face info " << endl;
     create_face_info(gfacts) ;
+    debugout<<"finish create face info " << endl;
     create_ref(gfacts) ;
+    debugout<<"finish create ref " << endl;
     create_ghost_cells(gfacts) ;
+    debugout<<"finish create ghost cells " << endl;
+    debugout<<"finish setupFVMGrid " << endl;
     return true ;
   }
 }

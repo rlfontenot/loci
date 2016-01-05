@@ -35,6 +35,7 @@
 #include <gstore.h>
 //#include <storeVec.h>
 #include <gparameter.h>
+#include <gblackbox.h>
 #include <gconstraint.h>
 //#include <rule.h>
 //#include <Tools/options_list.h>
@@ -44,15 +45,12 @@
 #include <distribute_io.h>
 #include <distribute_container.h>
 #include <gmultistore.h>
-//#include <storeMat.h>
 #include <mod_db.h>
-//#include <gstore.h>
-//#include <DStore.h>
-//#include <DStoreVec.h>
-//#include <DStoreMat.h>
+#include <gstore.h>
 #include <gfact_db.h>
-
-
+#include <gkeyspace.h>
+#include <gkey_manager.h>
+#include <gfact_db.h>
 //#include <blackbox.h>
 
 #include <LociGridReaders.h>
@@ -73,6 +71,10 @@ using Loci::gMultiMap;
 using Loci::gMapVec;
 //using Loci::gStoreVec;
 using Loci::gMultiStore;
+using Loci::gKeySpace;
+using Loci::gKeySpaceP;
+using Loci::gEntitySet;
+using Loci::GEMPTY;
 #endif
 
 

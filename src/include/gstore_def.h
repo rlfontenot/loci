@@ -103,7 +103,7 @@ namespace Loci {
     bool sorted; 
     gRep attrib_data;
     gEntitySet dom;
-    gKeySpace* domain_space;
+    gKeySpaceP domain_space;
   private:
     int  get_mpi_size( IDENTITY_CONVERTER c, const gEntitySet &eset)const;
     void packdata(IDENTITY_CONVERTER, void *ptr, int &loc, int size,
@@ -123,9 +123,19 @@ namespace Loci {
       typedef data_schema_traits<dtype> traits_type;
       return(traits_type::get_type()) ;
     }
+    frame_info get_frame_info(IDENTITY_CONVERTER g)const ;
+    frame_info get_frame_info(USER_DEFINED_CONVERTER g)const ;
+    void  hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension,
+                   const char* name, IDENTITY_CONVERTER c, frame_info &fi,  const gEntitySet &en) ;
+    void  hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension,
+                   const char* name, USER_DEFINED_CONVERTER c, frame_info &fi,  const gEntitySet &en);
     
-    
-
+    void  hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension,
+                    const char* name, IDENTITY_CONVERTER c, const gEntitySet &en) const;
+    void  hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension,
+                    const char* name, USER_DEFINED_CONVERTER c, const gEntitySet &en) const;
+    virtual gStoreRepP recompose(const gMap &m, MPI_Comm comm=MPI_COMM_WORLD )const ;
+    virtual gStoreRepP recompose(const gMultiMap &m, MPI_Comm comm=MPI_COMM_WORLD )const ;
   public:
     typedef typename std::vector<std::pair<gEntity,T> >::iterator iterator ;
     typedef typename std::vector<std::pair<gEntity,T> >::const_iterator const_iterator ;
@@ -137,16 +147,15 @@ namespace Loci {
     void reserve (size_t n){attrib_data.reserve(n);}
     void clear(){attrib_data.clear();}
     gStoreRepI():sorted(true), dom(GEMPTY),domain_space(0){}
-    void set_domain_space(gKeySpace* space){domain_space = space;}
-    gKeySpace* get_domain_space()const{return domain_space;}
+    void set_domain_space(gKeySpaceP space){domain_space = space;}
+    gKeySpaceP get_domain_space()const{return domain_space;}
     
     //For maps, recompose will remap the SECOND field of this using m and create a new map
     //For stores,recompose will compose a store whose domain is the domain of m,
     //whose data is the data of the SECOND field of m.
     //for example, pos.recompose(face2node) will produce the positions  for each face  
     virtual gStoreRepP  recompose( gStoreRepP &m, MPI_Comm comm=MPI_COMM_WORLD)const  ;
-    virtual gStoreRepP recompose(const gMap &m, MPI_Comm comm=MPI_COMM_WORLD )const ;
-    virtual gStoreRepP recompose(const gMultiMap &m, MPI_Comm comm=MPI_COMM_WORLD )const ;
+    
     
     // this method redistributes the stores according to the split of local domain over a group of process
     //dom_split: the send split of local domain
@@ -277,9 +286,11 @@ namespace Loci {
     virtual DatatypeP getType()const{
       typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
       return getType(schema_converter()) ;}
-
-    // virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name,  gEntitySet &en) ;
-    //     virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, gEntitySet& en) const ;
+    virtual frame_info get_frame_info()const ;
+    virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension,
+                          const char* name,  frame_info &fi, const gEntitySet &en) ;
+    virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension,
+                           const char* name, const gEntitySet& en) const ;
    
   } ;
   
@@ -302,8 +313,8 @@ namespace Loci {
    
     gStore<T> & operator=(gStoreRepP p) { setRep(p) ; return *this ; }
 
-    void set_domain_space(gKeySpace* space){Rep()->set_domain_space(space);}
-    gKeySpace* get_domain_space()const{return Rep()->get_domain_space();}
+    void set_domain_space(gKeySpaceP space){Rep()->set_domain_space(space);}
+    gKeySpaceP get_domain_space()const{return Rep()->get_domain_space();}
     
     virtual gStoreRepP clone() const{return Rep()->clone();}
     gEntitySet domain() const { return Rep()->domain(); }
@@ -332,7 +343,13 @@ namespace Loci {
     //for example, pos.recompose(face2node) will produce the positions  for each face  
     virtual gStoreRepP  recompose(gStoreRepP &m, MPI_Comm comm=MPI_COMM_WORLD)const{
       return Rep()->recompose(m, comm);}
+    // virtual gStoreRepP recompose(const gMap &m, MPI_Comm comm=MPI_COMM_WORLD )const{
+    //   return Rep()->recompose(m, comm);} 
+    // virtual gStoreRepP recompose(const gMultiMap &m, MPI_Comm comm=MPI_COMM_WORLD )const{
+    //   return Rep()->recompose(m, comm);}
 
+
+    
     virtual gStoreRepP
     redistribute(const std::vector<gEntitySet>& dom_split,
                  MPI_Comm comm=MPI_COMM_WORLD)const{return Rep()->redistribute(dom_split, comm);}

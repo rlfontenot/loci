@@ -153,16 +153,18 @@ namespace Loci {
     // no operation for single processor
     if(p == 1)
       return e ;
-    
-
     // Check to see if the result should be EMPTY or UNIVERSE
     int code = 0 ;
     if(e != genIntervalSet<T>::EMPTY)
       code = 1 ;
     if(e == ~(genIntervalSet<T>::EMPTY))
       code = 2 ;
-
-    code = g_GLOBAL_MAX(code,comm) ;
+    
+    int result = 0;
+    MPI_Allreduce(&code, &result, 1, MPI_INT, MPI_MAX, comm) ;
+    code = result;
+    
+    //code = g_GLOBAL_MAX<int>(code,comm) ;
     
     if(code == 0) // All empty, so return empty
       return genIntervalSet<T>::EMPTY ;
@@ -177,18 +179,19 @@ namespace Loci {
     stopWatch s ;
     s.start() ;
 #endif
-    genIntervalSet<T> lset = g_collectLargest(e) ;
+    
+    genIntervalSet<T> lset = g_collectLargest<T>(e) ;
     genIntervalSet<T> rem = e-lset ;
     for(int i=0;i<4;++i) {
       T remsz = rem.num_intervals() ;
-      T szmx = g_GLOBAL_MAX(remsz,comm) ;
+      T szmx = g_GLOBAL_MAX<T>(remsz,comm) ;
       if(szmx == 0) {
 #ifdef VERBOSE
         debugout << "time to get lset = " << s.stop() << endl ;
 #endif
         return lset ;
       }
-      lset += g_collectLargest(rem) ;
+      lset += g_collectLargest<T>(rem) ;
       rem -= lset ;
     }
 #ifdef VERBOSE
@@ -198,12 +201,36 @@ namespace Loci {
     debugout << "e="<< e.num_intervals() << ",rem=" << rem.num_intervals()
              << ",lset=" << lset.num_intervals() << endl ;
 #endif
-    genIntervalSet<T> remtot = g_all_gather_entitySet(rem, comm) ;
+    genIntervalSet<T> remtot = g_all_gather_entitySet<T>(rem, comm) ;
 #ifdef VERBOSE
     debugout << "time to gather rem = " << s.stop() << endl ;
 #endif
     return lset + remtot ;
-  } 
+  }
+  
+  //Return union of all entitySets from all processors that belongs to this processor
+  template<class T> genIntervalSet<T>  g_dist_collect_entitySet(const genIntervalSet<T> &inSet,
+                                                                const std::vector<genIntervalSet<T> > &ptn,
+                                                                MPI_Comm comm = MPI_COMM_WORLD ) {
+    const int r = MPI_rank ;
+    genIntervalSet<T> retval = inSet & ptn[r] ; //set from me
+    // Check for empty and universal set
+    int sbits = ((inSet != genIntervalSet<T>::EMPTY)?1:0)| ((retval != ptn[r])?2:0) ;
+    int rbits = sbits ;
+    MPI_Allreduce(&sbits, &rbits, 1, MPI_INT, MPI_BOR, MPI_COMM_WORLD) ;
+    if((rbits & 1) == 0) // EMPTY set
+      return genIntervalSet<T>::EMPTY ;
+    if((rbits & 2) == 0) // UNIVERSE set
+      return ptn[r] ;
+    
+    genIntervalSet<T> collect_set = inSet- ptn[r] ; //set for others
+
+
+    genIntervalSet<T> all_set = g_all_collect_entitySet<T>(collect_set, comm); //set from all others
+   
+    return ((all_set&ptn[r]) + retval); //only return the set that belongs to me
+  }
+
   
   //apply to both entitySet and gEntitySet
   template<class T>  std::vector<genIntervalSet<T> > g_all_collect_vectors(genIntervalSet<T> &e,MPI_Comm comm){
@@ -257,7 +284,7 @@ namespace Loci {
 
   
   template<class T>  std::vector<genIntervalSet<T> > g_all_collect_vectors(genIntervalSet<T> &e) {
-    return g_all_collect_vectors(e,MPI_COMM_WORLD) ;
+    return g_all_collect_vectors<T>(e,MPI_COMM_WORLD) ;
   }
 
   

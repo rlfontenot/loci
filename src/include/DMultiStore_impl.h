@@ -403,7 +403,7 @@ namespace Loci {
       if( ci != attrib_data.end() ) {
         newVec      = ci->second;
         numContainers += newVec.size();
-        for( int ivec = 0; ivec < newVec.size(); ivec++) {
+        for(unsigned int ivec = 0; ivec < newVec.size(); ivec++) {
           typename schema_traits::Converter_Type cvtr(newVec[ivec] );
           arraySize += cvtr.getSize() ;
         }
@@ -559,12 +559,12 @@ namespace Loci {
   {
 
     sequence :: const_iterator ci;
-    int  stateSize, outcount, vsize;
+    size_t  stateSize, outcount, vsize;
 
     typedef data_schema_traits<T> schema_traits;
     typedef typename schema_traits::Converter_Base_Type dtype;
 
-    int typesize = sizeof(dtype);
+    size_t typesize = sizeof(dtype);
 
     std::vector<dtype> outbuf;
 
@@ -576,7 +576,7 @@ namespace Loci {
       MPI_Unpack( inbuf, insize, &position, &vsize, 1, MPI_INT, MPI_COMM_WORLD) ;
       attrib_data[*ci].resize(vsize);
 
-      for( int ivec = 0; ivec < vsize; ivec++) {
+      for( unsigned int ivec = 0; ivec < vsize; ivec++) {
         MPI_Unpack( inbuf, insize, &position, &stateSize, 1, 
                     MPI_INT, MPI_COMM_WORLD) ;
         if( stateSize > outbuf.size() ) outbuf.resize(stateSize);

@@ -26,6 +26,7 @@
 #include <gmap.h>
 #include <constraint.h>
 #include <distribute_long.h>
+#include <frame_info.h>
 using std::cerr ;
 using std::endl ;
 using std::ostream ;
@@ -154,5 +155,26 @@ namespace Loci {
     return cs.Rep(); 
   }
   
+  //**************************************************************************/
+
+  frame_info gConstraintRep::get_frame_info() const{
+    warn(true) ; 
+    frame_info fi ;
+    return fi ;
+  }
+
+  //**************************************************************************/
+ 
+  void gConstraintRep::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension,
+                                const char* name, frame_info &fi, const gEntitySet &en){
+    warn(true);
+  }
+
+  //**************************************************************************/  
+  void gConstraintRep::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension,
+                                 const char* name, const gEntitySet &en) const {
+    warn(true);
+  }
+
   //**************************************************************************/
 }

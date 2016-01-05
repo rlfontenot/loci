@@ -66,10 +66,16 @@ namespace Loci {
     image_space = 0;
   }
   gMapRepI::~gMapRepI(){}
-  void  gMapRepI::set_domain_space(gKeySpace* space){domain_space = space;}
-  gKeySpace*  gMapRepI::get_domain_space()const{return domain_space;}
-  void  gMapRepI::set_image_space(gKeySpace* space){image_space = space;}
-  gKeySpace*  gMapRepI::get_image_space()const{return image_space;}
+  void  gMapRepI::set_domain_space(gKeySpaceP space){domain_space = &(*space);}
+  gKeySpaceP  gMapRepI::get_domain_space()const{return domain_space;}
+  void  gMapRepI::set_image_space(gKeySpaceP space){image_space = &(*space);}
+  gKeySpaceP  gMapRepI::get_image_space()const{return image_space;}
+
+  void gMap::set_domain_space(gKeySpaceP space){static_cast<gMapRepP>(Rep())->set_domain_space(space);}
+  gKeySpaceP gMap::get_domain_space()const{return static_cast<gMapRepP>(Rep())->get_domain_space() ;}
+  void gMap::set_image_space(gKeySpaceP space){static_cast<gMapRepP>(Rep())->set_image_space(space);}
+  gKeySpaceP gMap::get_image_space()const{return static_cast<gMapRepP>(Rep())->get_image_space();}
+  
   void gMapRepI::local_sort(){
     std::stable_sort(attrib_data.begin(), attrib_data.end(), gmap_porder1);
     sorted = true;
@@ -427,14 +433,14 @@ namespace Loci {
     }
   }
    
-  gEntitySet gMapRepI::image( gEntity iset) const 
+  gEntity gMapRepI::image( gEntity iset) const 
   {
     
-    gEntitySet codomain ;
+    gEntity codomain = 0 ;
     std::pair<gEntity, gEntity> p = make_pair<gEntity, gEntity>(iset, gEntity(0));
-    std::pair<const_iterator, const_iterator> range = std::equal_range(begin(), end(), p, gmap_porder1);
-    if(range.first != range.second){
-      for(const_iterator itr= range.first; itr != range.second; itr++) codomain += itr->second;
+    const_iterator itr = std::lower_bound(begin(), end(), p, gmap_porder1);
+    if(itr != end()){
+      codomain = itr->second;
     }
     return codomain ;
   }
@@ -490,28 +496,11 @@ namespace Loci {
 
   ostream &gMapRepI::Print(ostream &s) const 
   {
-    if(attrib_data.empty()){
-      s <<"{}" << endl ;
-      return s ;
+    s << '{' << domain() << std::endl ;
+    for(const_iterator itr = begin(); itr!= end(); itr++){
+      s << itr->second << std::endl ;
     }
-    s << '{' << endl ;
-    //print out the first 
-    const_iterator previous = attrib_data.begin();
-    s << previous->first<<':' << ' ' << previous->second  ;
-    const_iterator itr = attrib_data.begin();
-    itr++;
-    for(; itr != attrib_data.end(); itr++){
-      previous = itr;
-      previous--;
-      if(itr->first == previous->first){
-        s << ' ' << itr->second ;
-      }else{
-        s << endl;
-        s << itr->first<<':'  << ' ' << itr->second;
-      }
-    }
-    s<<endl;
-    s << '}' << endl ;
+    s << '}' << std::endl ;
     return s ;
   }
 
@@ -519,29 +508,29 @@ namespace Loci {
 
   istream &gMapRepI::Input(istream &s) 
   {
-    debugout<<"WARNING: gMapRepI::Input not implemented yet" << endl;
-    // gEntitySet e ;
-    //     char ch ;
+    gEntitySet e ;
+    char ch ;
     
-    //     do ch = s.get(); while(ch==' ' || ch=='\n') ;
-    //     if(ch != '{') {
-    //       cerr << "Incorrect Format while reading gStore" << endl ;
-    //       s.putback(ch) ;
-    //       return s ;
-    //     }
-    //     s >> e ;
-    //     allocate(e) ;
-
-    //     GFORALL(e,ii) {
-    //       s >> attrib_data[ii] ;
-    //     } ENDGFORALL ;
+    do ch = s.get(); while(ch==' ' || ch=='\n') ;
+    if(ch != '{') {
+      cerr << "Incorrect Format while reading gStore" << endl ;
+      s.putback(ch) ;
+      return s ;
+    }
+    s >> e ;
+        
+    GFORALL(e,ii) {
+      gEntity img;
+      s >> img ;
+      insert(ii, img);
+    } ENDGFORALL ;
     
-    //     do ch = s.get(); while(ch==' ' || ch=='\n') ;
-    //     if(ch != '}') {
-    //       cerr << "Incorrect Format while reading gStore" << endl ;
-    //       s.putback(ch) ;
-    //     }
-
+    do ch = s.get(); while(ch==' ' || ch=='\n') ;
+    if(ch != '}') {
+      cerr << "Incorrect Format while reading gStore" << endl ;
+      s.putback(ch) ;
+    }
+    local_sort();
     return s ;
   }
 
@@ -563,81 +552,27 @@ namespace Loci {
     return s.Rep();
   }
     
- 
+  frame_info gMapRepI::get_frame_info()const {
+    warn(true) ;
+    frame_info fi ;
+    return fi ;
+  }
 
-  // //**************************************************************************/
+  //**************************************************************************/
 
-  //   void gMapRepI::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, gEntitySet &usr_eset)  {
-  //     warn(true) ;
-  //     /*
-  //     hsize_t       dimension;
-  //     gEntitySet     eset;	
-  //     vector<int>   vec;
+  void gMapRepI::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension,
+                          const char* name, frame_info &fi, const gEntitySet &usr_eset)  {
+    warn(true) ;
+  } 
 
-  //     HDF5_ReadDomain( group_id, eset );
-  //     hid_t vDatatype   = H5T_NATIVE_INT;
-  //     hid_t vDataset   = H5Dopen(group_id,"Map");
-  //     hid_t vDataspace = H5Dget_space(vDataset);
-  //     H5Sget_simple_extent_dims (vDataspace, &dimension, NULL);
-
-  //     int *data = new int[dimension];
-  //     H5Dread(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
-
-  //     gEntitySet  ecommon = eset & usr_eset;
-
-  //     int num_intervals = ecommon.num_intervals();
-  //     interval *it = new interval[num_intervals];
-
-  //     for(int i=0;i<num_intervals;i++) it[i] = ecommon[i];
-
-  //     int indx = 0;
-  //     for(int i=0;i<num_intervals;i++){
-  //       for(int j=it[i].first;j<=it[i].second;j++) 
-  //         attrib_data[j] = data[indx++];
-  //     }
-
-  //     H5Dclose( vDataset   );
-  //     H5Sclose( vDataspace );
-  //     delete [] it;
-  //     delete [] data;
-  //     */
-  //   } 
-
-  //   //**************************************************************************/
-
-  //   void gMapRepI::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, gEntitySet& usr_eset) const
-  //   {
-  //     warn(true) ;
+  //**************************************************************************/
+  
+  void gMapRepI::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension,
+                           const char* name, const gEntitySet& usr_eset) const
+  {
+    warn(true) ;
     
-  //     /*
-  //     int       rank = 1;
-  //     hsize_t   dimension;
-
-  //     gEntitySet eset = usr_eset & domain();
-
-  //     int arraySize = eset.size();
-  //     if( arraySize < 1) return;
-
-  //     HDF5_WriteDomain( group_id, eset);
-
-  //     vector<int> data(arraySize);
-  //     gEntitySet :: const_iterator   ei;
-
-  //     int indx = 0;
-  //     for( ei = eset.begin(); ei != eset.end(); ++ei) {
-  //       data[indx++] =  attrib_data[*ei] ;
-  //     }
-
-  //     dimension       = arraySize;
-  //     hid_t dataspace = H5Screate_simple(rank, &dimension, NULL);
-  //     hid_t datatype  = H5T_NATIVE_INT;
-  //     hid_t dataset   = H5Dcreate(group_id, "Map", datatype, dataspace, H5P_DEFAULT);
-  //     H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &data[0]);
-
-  //     H5Sclose( dataspace );
-  //     H5Dclose( dataset   );
-  //     */
-  //   } 
+  } 
 
   
  

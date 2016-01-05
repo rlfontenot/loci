@@ -326,10 +326,12 @@ namespace Loci {
   template<unsigned int M>
   gStoreRepP gMapVecRepI<M>::get_map() const 
   {
-    cerr<<"WARNING: gMapVecRepI<M>::get_map() not implemented yet" << endl;
     gMapVec<M> result ;
     result.set_domain_space(domain_space);
     result.set_image_space(image_space);
+    for( const_iterator itr = attrib_data.begin(); itr != attrib_data.end(); itr++){
+      result.insert(itr->first, itr->second);
+    }
     return result.Rep() ;
   }
 
@@ -337,27 +339,11 @@ namespace Loci {
   template<unsigned int M>
   ostream &gMapVecRepI<M>::Print(ostream &s) const 
   {
-    if(attrib_data.empty()){
-      s <<"{}" << endl ;
-      return s ;
+    s << '{' << domain() << std::endl ;
+        
+    for( const_iterator itr = attrib_data.begin(); itr != attrib_data.end(); itr++){
+      s << itr->second<<endl;
     }
-    s << '{' << endl ;
-    //print out the first
-    const_iterator previous = attrib_data.begin();
-    s << previous->first<<':' << ' ' << previous->second  ;
-    const_iterator itr = attrib_data.begin();
-    itr++;
-    for(; itr != attrib_data.end(); itr++){
-      previous = itr;
-      previous--;
-      if(itr->first == previous->first){
-        s << ' ' << itr->second ;
-      }else{
-        s << endl;
-        s << itr->first<<':'  << ' ' << itr->second;
-      }
-    }
-    s<<endl;
     s << '}' << endl ;
     return s ;
   }
@@ -366,29 +352,33 @@ namespace Loci {
   template<unsigned int M>
   istream &gMapVecRepI<M>::Input(istream &s) 
   {
-    debugout<<"WARNING: gMapVecRepI<M>::Input() not implemented yet" << endl;
-    // gEntitySet e ;
-    //     char ch ;
+  
+    gEntitySet e ;
+    char ch ;
     
-    //     do ch = s.get(); while(ch==' ' || ch=='\n') ;
-    //     if(ch != '{') {
-    //       cerr << "Incorrect Format while reading gStore" << endl ;
-    //       s.putback(ch) ;
-    //       return s ;
-    //     }
-    //     s >> e ;
-    //     allocate(e) ;
-
-    //     GFORALL(e,ii) {
-    //       s >> attrib_data[ii] ;
-    //     } ENDGFORALL ;
+    do ch = s.get(); while(ch==' ' || ch=='\n') ;
+    if(ch != '{') {
+      cerr << "Incorrect Format while reading gStore" << endl ;
+      s.putback(ch) ;
+      return s ;
+    }
+    s >> e ;
     
-    //     do ch = s.get(); while(ch==' ' || ch=='\n') ;
-    //     if(ch != '}') {
-    //       cerr << "Incorrect Format while reading gStore" << endl ;
-    //       s.putback(ch) ;
-    //     }
 
+    GFORALL(e,ii) {
+      gEntity val;
+      for(unsigned int j=0;j<M;++j){
+        s >> val;
+        insert(ii, val);
+      }
+    } ENDGFORALL ;
+    
+    do ch = s.get(); while(ch==' ' || ch=='\n') ;
+    if(ch != '}') {
+      cerr << "Incorrect Format while reading gStore" << endl ;
+      s.putback(ch) ;
+    }
+    local_sort();
     return s ;
   }
 
@@ -397,81 +387,28 @@ namespace Loci {
   DatatypeP gMapVecRepI<M>::getType()const {
     return DatatypeP(new AtomicType(INT)) ;
   }
- 
+  //**************************************************************************/
+  template<unsigned int M> 
+  frame_info gMapVecRepI<M>::get_frame_info()const {
+    warn(true) ;
+    frame_info fi ;
+    return fi ;
+  }
+  //**************************************************************************/
+  template<unsigned int M>
+  void gMapVecRepI<M>::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension,
+                                const char* name, frame_info &fi, const gEntitySet &usr_eset)  {
+    warn(true) ;
+     
+  } 
 
-  // //**************************************************************************/
-
-  //   void gMapVecRepI<M>::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, gEntitySet &usr_eset)  {
-  //     warn(true) ;
-  //     /*
-  //     hsize_t       dimension;
-  //     gEntitySet     eset;	
-  //     vector<int>   vec;
-
-  //     HDF5_ReadDomain( group_id, eset );
-  //     hid_t vDatatype   = H5T_NATIVE_INT;
-  //     hid_t vDataset   = H5Dopen(group_id,"Map");
-  //     hid_t vDataspace = H5Dget_space(vDataset);
-  //     H5Sget_simple_extent_dims (vDataspace, &dimension, NULL);
-
-  //     int *data = new int[dimension];
-  //     H5Dread(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
-
-  //     gEntitySet  ecommon = eset & usr_eset;
-
-  //     int num_intervals = ecommon.num_intervals();
-  //     interval *it = new interval[num_intervals];
-
-  //     for(int i=0;i<num_intervals;i++) it[i] = ecommon[i];
-
-  //     int indx = 0;
-  //     for(int i=0;i<num_intervals;i++){
-  //       for(int j=it[i].first;j<=it[i].second;j++) 
-  //         attrib_data[j] = data[indx++];
-  //     }
-
-  //     H5Dclose( vDataset   );
-  //     H5Sclose( vDataspace );
-  //     delete [] it;
-  //     delete [] data;
-  //     */
-  //   } 
-
-  //   //**************************************************************************/
-
-  //   void gMapVecRepI<M>::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, gEntitySet& usr_eset) const
-  //   {
-  //     warn(true) ;
-    
-  //     /*
-  //     int       rank = 1;
-  //     hsize_t   dimension;
-
-  //     gEntitySet eset = usr_eset & domain();
-
-  //     int arraySize = eset.size();
-  //     if( arraySize < 1) return;
-
-  //     HDF5_WriteDomain( group_id, eset);
-
-  //     vector<int> data(arraySize);
-  //     gEntitySet :: const_iterator   ei;
-
-  //     int indx = 0;
-  //     for( ei = eset.begin(); ei != eset.end(); ++ei) {
-  //       data[indx++] =  attrib_data[*ei] ;
-  //     }
-
-  //     dimension       = arraySize;
-  //     hid_t dataspace = H5Screate_simple(rank, &dimension, NULL);
-  //     hid_t datatype  = H5T_NATIVE_INT;
-  //     hid_t dataset   = H5Dcreate(group_id, "Map", datatype, dataspace, H5P_DEFAULT);
-  //     H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &data[0]);
-
-  //     H5Sclose( dataspace );
-  //     H5Dclose( dataset   );
-  //     */
-  //   } 
+  //**************************************************************************/
+  template<unsigned int M>
+  void gMapVecRepI<M>::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension,
+                                 const char* name, const gEntitySet& usr_eset) const
+  {
+    warn(true) ;
+  } 
 
 
   //this is the working version with std::map

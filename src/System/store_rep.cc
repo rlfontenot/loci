@@ -35,12 +35,19 @@ namespace Loci {
     return READ_WRITE ;
   }
 
+  gStoreRepP  storeRep::copy2gstore()const{
+    std::cerr << "storeRep.copy2gstore() is not implemented yet"
+              << std::endl ;
+    return gStoreRepP(0) ;
+  }
+    
   store_ref::~store_ref() {}
 
   void store_ref::allocate(const entitySet &ptn) {
     Rep()->allocate(ptn) ;
   }
 
+ 
   void store_ref::shift(int_type offset) {
     Rep()->shift(offset) ;
   }

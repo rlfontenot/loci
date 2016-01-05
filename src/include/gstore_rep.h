@@ -34,9 +34,11 @@
 #include <ostream>
 #include <data_traits.h>
 #include <mpi.h>
-
+#include <Tools/nptr.h>
+#include <frame_info.h>
 //for test
-#include <store_rep.h>
+//also need the declaration of class frame_info
+//#include <store_rep.h>
 namespace Loci {
   enum gstore_type { GSTORE, GMULTISTORE, GMAP, GMULTIMAP,GMAPVEC, GPARAMETER,GCONSTRAINT, GBLACKBOX } ;
  
@@ -51,7 +53,13 @@ namespace Loci {
   typedef CPTR<gStoreRep> gStoreRepP ;
   typedef const_CPTR<gStoreRep> const_gStoreRepP ;
   
- 
+  class storeRep ;
+  typedef NPTR<storeRep> storeRepP ;
+  typedef const_NPTR<storeRep> const_storeRepP ;
+
+  class gKeySpace;
+  typedef CPTR<gKeySpace> gKeySpaceP ;
+
   class gStoreRep : public CPTR_type {
   public:
     //the convenient functions for vector operations 
@@ -68,8 +76,8 @@ namespace Loci {
            
     virtual ~gStoreRep(){}
 
-    virtual void set_domain_space(gKeySpace* space) = 0;
-    virtual gKeySpace* get_domain_space()const = 0;
+    virtual void set_domain_space(gKeySpaceP space) = 0;
+    virtual gKeySpaceP get_domain_space()const = 0;
 
     virtual void shift(gEntity offset) = 0 ;
     
@@ -108,7 +116,7 @@ namespace Loci {
       return gStoreRepP(0) ;
     }
 
-    //this methods redistribute store according to the partition of the whole domain
+    //this method redistributes store according to the partition of the whole domain
     //dom_ptn: the partition of the whole domain
     //first the local domain is splitted according to dom_ptn, then redistribute is performed
     virtual gStoreRepP
@@ -119,6 +127,7 @@ namespace Loci {
       abort() ;
       return gStoreRepP(0) ;
     }
+   
     
     // this redistribute version takes an additional remap
     // argument, after redistribution, the new store is remapped
@@ -148,6 +157,12 @@ namespace Loci {
 
     //return the data type of store
     virtual  DatatypeP getType() const = 0 ;
+    //return the frame info
+    virtual frame_info get_frame_info()const = 0 ;
+    virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension,
+                          const char* name, frame_info &fi, const gEntitySet &en) = 0;
+    virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension,
+                           const char* name, const gEntitySet &en) const = 0;
    
    
     //return a pointer to storage of stored and maps

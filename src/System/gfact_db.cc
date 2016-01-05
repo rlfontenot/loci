@@ -63,8 +63,9 @@ namespace Loci {
   gfact_db::copy_all_from(const gfact_db& f) {
     synonyms = f.synonyms ;
     fmap = f.fmap ;
+    tmap = f.tmap ;
     nspace_vec = f.nspace_vec ;
-
+    extensional_facts = f.extensional_facts ;
   
 
 
@@ -75,6 +76,36 @@ namespace Loci {
     
   }
 
+  void gfact_db::make_extensional_fact(const variable& v) {
+    // if it is already extensional_fact, then we do nothing
+    if(extensional_facts.inSet(v))
+      return ;
+    std::map<variable, gStoreRepP>::iterator mi = fmap.find(v) ;
+    // the fact must exist in the fact_db, otherwise we do nothing
+    if(mi != fmap.end())
+      extensional_facts += v ;
+  }
+  void gfact_db::make_intensional_fact(const variable& v) {
+    // We perform action only if it is already an extensional_fact
+    // which implies that the fact exists in the fact_db
+    if(extensional_facts.inSet(v))
+      extensional_facts -= v ;
+  }
+  
+  void gfact_db::set_variable_type(variable v, storeRepP st) {
+    v = add_namespace(v) ;
+    tmap[v] = storeRepP(st->new_store(EMPTY)) ;
+  }
+
+  storeRepP gfact_db::get_variable_type(variable v) const {
+    v = add_namespace(v) ;
+    map<variable,storeRepP>::const_iterator mi ;
+    if((mi=tmap.find(v)) != tmap.end())
+      return storeRepP(mi->second->new_store(EMPTY)) ;
+    else
+      return storeRepP(0) ;
+  }
+  
   variable gfact_db::remove_synonym(variable v) const {
     std::map<variable,variable>::const_iterator mi ;
     while((mi=synonyms.find(v)) != synonyms.end())
@@ -146,14 +177,16 @@ namespace Loci {
     for(std::map<variable,gStoreRepP>::const_iterator itr = fmap.begin(); itr != fmap.end(); itr++){
      
       variable v = itr->first;
-      debugout<< "variable  "<< v << endl; 
+      
       facts.create_fact(v, itr->second->copy2store());
-       debugout<< "finish variable  "<< v << endl; 
     }
-      debugout<< "finish all variables  " << endl; 
+    for(std::map<variable,storeRepP>::const_iterator itr = tmap.begin(); itr != tmap.end(); itr++){
+      variable v = itr->first;
+      facts.set_variable_type(v, itr->second);
+    }
   }
  
-
+ 
   variable gfact_db::add_namespace(variable v) const {
     variable tmp_v ;
     if((nspace_vec.size() > 0) && (v.get_info().namespac.size() == 0)) {
@@ -231,6 +264,7 @@ namespace Loci {
                              gKeySpaceP image_space) {
     variable tmp_v =add_namespace(v) ;
     create_pure_fact(tmp_v,st) ;
+    extensional_facts += tmp_v ;
     if(domain_space != 0) set_variable_domain_space(v, st, domain_space);
     if(image_space != 0)set_variable_image_space(v, gMapRepP(st), image_space);
   }
@@ -250,6 +284,7 @@ namespace Loci {
     if(domain_space != 0)set_variable_domain_space(v, st, domain_space);
     if(image_space != 0)set_variable_image_space(v, gMapRepP(st), image_space);
     si.setRep(get_variable(v)) ;
+    extensional_facts += tmp_v ; 
   }
 
   void gfact_db::create_fact(const std::string& vname, gstore_instance &si,
@@ -347,15 +382,201 @@ namespace Loci {
     std::map<variable, gStoreRepP>::iterator mi =
       fmap.find(remove_synonym(tmp_v)) ;
     if(mi == fmap.end()) {
-      if(Loci::MPI_rank == 0)
-      	cerr << " returning null  gStoreRep for variable " << tmp_v<< endl ;
+      // if(Loci::MPI_rank == 0)
+      // 	cerr << " returning null  gStoreRep for variable " << tmp_v<< endl ;
       return gStoreRepP(0) ;
     }
     else
       return mi->second ;
   }
 
+  storeRepP gfact_db::get_frozen_variable(variable v) {
+    variable tmp_v = add_namespace(v) ;
+    tmp_v = remove_synonym(tmp_v) ;
+    std::map<variable, storeRepP>::iterator mi =
+      lfmap.find(remove_synonym(tmp_v)) ;
+    if(mi == lfmap.end()) {
+      // if(Loci::MPI_rank == 0)
+      // 	cerr << " returning null  gStoreRep for variable " << tmp_v<< endl ;
+      return storeRepP(0) ;
+    }
+    else
+      return mi->second ;
+  }
   
+
+ 
+  
+  // this read in routine reads the .vars file and set
+  // the facts according to the default and optional rules
+  std::istream& gfact_db::read_vars(std::istream& s, const rule_db& rdb) {
+    gKeySpaceP universe_space = gKeySpace::get_space("UniverseSpace", "");
+    bool syntax_error = false ;
+    try {
+      // first of all, we need to process the default and optional rules
+      ruleSet special_rules = rdb.get_default_rules() ;
+      // first we process the default rules
+      variableSet working_vars ;
+      for(ruleSet::const_iterator ri=special_rules.begin();
+          ri!=special_rules.end();++ri) {
+        // first we need to create the facts in the fact_db
+        variableSet targets = ri->targets() ;
+        rule_implP rp = ri->get_rule_implP() ;
+        bool UseRule = true ;
+        for(variableSet::const_iterator vi=targets.begin();
+            vi!=targets.end();++vi) 
+          if(vi->get_info().namespac != nspace_vec) {
+            UseRule = false ;
+          }
+        if(!UseRule)
+          continue ;
+        for(variableSet::const_iterator vi=targets.begin();
+            vi!=targets.end();++vi) {
+          working_vars += *vi;
+          // we need to get the storeRep for this variable
+          storeRepP srp = rp->get_store(*vi) ;
+          if(srp == 0) {
+            ostringstream oss ;
+            oss << "rule " << *ri << " unable to provide type for " << *vi
+                << endl ;
+            throw StringError(oss.str()) ;
+          }
+          //create_frozen_fact(*vi, srp);
+          lfmap[*vi] = srp;//temperary borrow lfmap, may cause problems if lfmap already has entries inside
+          
+          // //for default rules, create the facts
+          // //first, storeRepP need to transform to gStoreRepP
+          // gStoreRepP gsrp = srp->copy2gstore();
+          // create_fact(*vi,gsrp, universe_space) ;//assume it is a parameter on universe_space
+        }
+
+        //postphone these two steps until gfact_db become fact_db
+        // // then we need to call the compute method to set
+        // // the default value for this variable
+        rp->initialize(*this) ; //connect var_table to frozen_variable
+        rp->compute(sequence(EMPTY)) ; //assign the default value to frozen_variable
+      }
+      //thaw frozen variable
+      for(variableSet::const_iterator vi = working_vars.begin();
+          vi != working_vars.end();++vi){
+        storeRepP srp = get_frozen_variable(*vi);
+        gStoreRepP gsrp = srp->copy2gstore();
+        create_fact(*vi,gsrp, universe_space) ;//assume it is a parameter on universe_space
+      }
+      
+      // then we process the optional rules
+      special_rules = rdb.get_optional_rules() ;
+      for(ruleSet::const_iterator ri=special_rules.begin();
+          ri!=special_rules.end();++ri) {
+        // first we need to create the facts in the fact_db
+        variableSet targets = ri->targets() ;
+        bool UseRule = true ;
+        for(variableSet::const_iterator vi=targets.begin();
+            vi!=targets.end();++vi) 
+          if(vi->get_info().namespac != nspace_vec) {
+            UseRule = false ;
+          }
+        if(!UseRule)
+          continue ;
+
+
+        rule_implP rp = ri->get_rule_implP() ;
+        for(variableSet::const_iterator vi=targets.begin();
+            vi!=targets.end();++vi) {
+          // we need to get the storeRep for this variable
+          storeRepP srp = rp->get_store(*vi) ;
+          if(srp == 0) {
+            ostringstream oss ;
+            oss << "rule " << *ri << " unable to provide type for " << *vi
+                << endl ;
+            throw StringError(oss.str()) ;
+          }
+          // here we only need to set up the variable type in
+          // the fact_db
+          set_variable_type(*vi,srp) ;
+        }
+      }
+    
+      string vname ;
+      parse::kill_white_space(s) ;
+      if(s.peek()!='{') {
+        throw StringError("format error in fact_db::read") ;
+        return s ;
+      }
+      s.get() ;
+      
+      variableSet read_vars ;
+      for(;;) {
+        parse::kill_white_space(s) ;
+        if(s.peek() == '}') {
+          s.get() ;
+          break ;
+        }
+        if(s.peek() == std::char_traits<char>::eof()) {
+          throw StringError("unexpected EOF in fact_db::read") ;
+        }
+        parse::kill_white_space(s) ;
+        if(parse::is_name(s)) 
+          vname = parse::get_name(s) ;
+        else {
+          throw StringError("syntax error in fact_db::read") ;
+        }
+        try {
+          parse::kill_white_space(s) ;
+          if(!parse::get_token(s,":")) {
+            throw StringError("syntax error in fact_db::read, no ':' separator") ;
+          }
+          
+          variable var(vname) ;
+          if(read_vars.inSet(var)) {
+            cerr << "WARNING: Redefining variable '" << var << "' while reading in fact_db!!!!!" << endl ;
+          }
+          read_vars += var ;
+          gStoreRepP gvp = get_variable(var) ;
+          if(gvp == 0) {//this variable is not in fmap
+            storeRepP vp = get_variable_type(var) ;
+            if(vp != 0) { //it is typed
+              //transform it to gStoreRep
+              gStoreRepP gsrp = vp->copy2gstore();//also assume it is a parameter in universe_space
+              create_fact(var,gsrp) ;
+            }
+            gvp = get_variable(var) ;
+          }
+          if(gvp == 0) {//the variable is neither in fmap nor tmap
+            ostringstream oss ;
+            oss << "variable named '" << vname
+                << "' not found in database in fact_db::read." << endl ;
+            throw StringError(oss.str()) ;
+          }
+          gvp->Input(s) ; //read in the value of variable
+          parse::kill_white_space(s) ;
+          if(s.peek() != '}' && !parse::is_name(s)) {
+            ostringstream oss ;
+            oss << "syntax error in fact_db::read while reading variable '" << vname << "'" ;
+            throw StringError(oss.str()) ;
+          }
+        } catch(const BasicException &err) {
+          err.Print(cerr) ;
+          cerr << "input failed for variable " << vname << endl ;
+          cerr << "near the following text: \"" ;
+          while(s.peek()!=EOF&&s.peek()!='\n'&&s.peek()!='\r')
+            cerr << char(s.get()) ;
+          cerr << "\"" << endl ;
+         
+ 
+          syntax_error = true ;
+        }
+      }
+    } catch(const BasicException &err) {
+      err.Print(cerr) ;
+      throw StringError("read fact_db failed") ;
+    }
+    if(syntax_error) {
+      cerr << "syntax error reading fact db"  << endl ;
+      throw StringError("read fact_db failed") ;
+    }
+    return s ;
+  }
  
 }
 

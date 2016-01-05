@@ -50,12 +50,16 @@ using std::cout ;
 #include <gfact_db.h>
 #include <gmapvec.h>
 #include <distribute_long.h>
-
+#include <LociGridReaders.h>
 
 
 #define vect3d vector3d<double>
 namespace Loci{
-  
+  void get_vect3dOption(const options_list &ol,std::string vname,
+                        std::string units, vector3d<real_t> &vec, real_t Lref);
+  void get_vect3d(const options_list &ol,std::string vname,
+                  vector3d<real_t> &vec); 
+
   void createLowerUpper(gfact_db &facts) {
     gConstraint faces, geom_cells,interior_faces,boundary_faces ;
     faces = facts.get_variable("faces") ;
@@ -64,7 +68,6 @@ namespace Loci{
     boundary_faces = facts.get_variable("boundary_faces") ;
     gEntitySet bfaces = *boundary_faces ;
     gEntitySet ifaces = *interior_faces ;
- 
     gStoreRepP pfacesP = facts.get_variable("periodicFaces") ;
     if(pfacesP != 0) {
       gConstraint periodicFaces ;
@@ -72,10 +75,9 @@ namespace Loci{
       bfaces -= *periodicFaces ;
       ifaces += *periodicFaces ;
     }
- 
     gEntitySet global_interior_faces = g_all_collect_entitySet<gEntity>(ifaces) ;
     gEntitySet global_boundary_faces = g_all_collect_entitySet<gEntity>(bfaces) ;
- 
+  
     gMap cl,cr ;
     cl = facts.get_variable("cl") ;
     cr = facts.get_variable("cr") ;
@@ -83,11 +85,12 @@ namespace Loci{
     //init_ptn can not use key_ptn of gKeySpace, because key_ptn is in file numbering
     std::vector<gEntitySet> init_ptn = g_all_collect_vectors<gEntity>(*geom_cells) ;
     global_geom_cells = g_all_collect_entitySet<gEntity>(*geom_cells) ;
+    
     gMultiMap lower,upper,boundary_map ;
     upper = cl.distributed_inverse(global_geom_cells, global_interior_faces, init_ptn);
     lower = cr.distributed_inverse(global_geom_cells, global_interior_faces, init_ptn);
     boundary_map = cl.distributed_inverse(global_geom_cells, global_boundary_faces, init_ptn);
-        
+    
     facts.create_fact("lower",lower, lower.get_domain_space(), lower.get_image_space()) ;
     facts.create_fact("upper",upper, upper.get_domain_space(), upper.get_image_space()) ;
     facts.create_fact("boundary_map",boundary_map,boundary_map.get_domain_space(), boundary_map.get_image_space()) ;
@@ -1034,6 +1037,438 @@ namespace Loci{
       return 3 ;
     }
     return 4 ;
+    
+  }
+
+  void setup_periodic_bc(list<pair<gperiodic_info,gperiodic_info> >
+                         &periodic_list,gfact_db &facts) {
+
+    gMap pmap ;
+    gStore<rigid_transform> periodic_transform ;
+    
+
+    // Compute fluid face centers
+    gStore<vector3d<real_t> > pos ;
+    pos = facts.get_variable("pos") ;
+    MPI_Comm comm= pos.get_domain_space()->get_mpi_comm();
+   
+    // First fill in fpos so that it is valid for any reference to
+    // it from face2node on this processor.
+    gStoreRepP face2node  = facts.get_variable("face2node") ;
+    gKeySpaceP face_space = face2node->get_domain_space();
+    gMultiStore<vector3d<real_t> > fpos;
+    fpos = pos.recompose(face2node, comm);
+    list<pair<gperiodic_info,gperiodic_info> >::const_iterator ii ;
+
+    for(ii=periodic_list.begin();ii!=periodic_list.end();++ii) {
+      
+      gEntity bc1 = ii->first.bc_num ;
+      gEntity bc2 = ii->second.bc_num ;
+      real_t angle = ii->first.angle ;
+      vector3d<real_t> center = ii->first.center ;
+      vector3d<real_t> v = ii->first.v ;
+      vector3d<real_t> trans = ii->first.translate ;
+      rigid_transform bc1_transform = rigid_transform(center,v,angle,trans);
+      rigid_transform bc2_transform = rigid_transform(center,v,-angle,-1.*trans);     
+      periodic_transform.insert(bc1, bc1_transform) ;
+      periodic_transform.insert(bc2, bc2_transform) ;
+     
+      // Compute face centers for point matching
+      gStore<vector3d<real_t> > p1center ;
+      gEntitySet p1Set = (ii->first).bset ;
+      rigid_transform tran = bc1_transform;
+      
+      p1center = fpos.get_simple_center(p1Set);
+      for(gStore<vector3d<real_t> >::iterator pi = p1center.begin();
+          pi != p1center.end(); pi++){
+        pi->second = tran.transform(pi->second);
+      }
+      gStore<vector3d<real_t> > p2center ;
+      gEntitySet p2Set = ii->second.bset ;
+      p2center = fpos.get_simple_center(p2Set);
+
+      // Find closest points
+      vector<kdTree::coord3d> p1(p1center.size()) ;
+      vector<gEntity> p1id(p1center.domain().size()) ;
+      int cnt = 0 ;
+      for(gStore<vector3d<real_t> >::const_iterator itr = p1center.begin();
+          itr != p1center.end(); itr++){
+        p1[cnt][0] = (itr->second).x ;
+        p1[cnt][1] = (itr->second).y ;
+        p1[cnt][2] = (itr->second).z ;
+        p1id[cnt] = itr->first ;
+        cnt++ ;
+      }
+      
+      vector<kdTree::coord3d> p2(p2center.size()) ;
+      vector<gEntity> p2id(p2center.domain().size()) ;
+      cnt = 0 ;
+      for(gStore<vector3d<real_t> >::const_iterator itr = p2center.begin();
+          itr != p2center.end(); itr++){
+        p2[cnt][0] = (itr->second).x ;
+        p2[cnt][1] = (itr->second).y ;
+        p2[cnt][2] = (itr->second).z ;
+        p2id[cnt] = itr->first ;
+        cnt++ ;
+      } 
+
+      vector<gEntity> p1closest(p1.size()) ;
+
+      parallelNearestNeighbors(p2,p2id,p1,p1closest,comm) ;
+      
+      vector<gEntity> p2closest(p2.size()) ;
+      parallelNearestNeighbors(p1,p1id,p2,p2closest,comm) ;
+      
+      for(size_t i=0;i<p1.size();++i)
+        pmap.insert(p1id[i], p1closest[i]) ;
+      for(size_t i=0;i<p2.size();++i)
+        pmap.insert(p2id[i], p2closest[i]) ;
+
+      pmap.local_sort();
+      
+
+      // Check to make sure connection is one-to-one
+      gMap check ;
+      for(size_t i=0;i<p2.size();++i)
+        check.insert(p2id[i], p2closest[i]) ;
+      check.local_sort();
+      gEntitySet p1map = gcreate_intervalSet(p1closest.begin(),p1closest.end()) ;
+      if(MPI_processes > 1){
+        gEntitySet old_dom = check.domain();
+        std::vector<gEntitySet> init_ptn = g_all_collect_vectors<gEntity>(old_dom,MPI_COMM_WORLD) ;
+        
+        check.setRep(check.expand(p1map, init_ptn, MPI_COMM_WORLD));
+      }
+      
+      bool periodic_problem = false ;
+      for(size_t i=0;i<p1id.size();++i){ 
+        gEntity node = p1id[i];
+        gEntity mapped_node = pmap.image(node);
+        if(check.image(mapped_node) != node){
+          debugout<< node <<" " << mapped_node <<endl; 
+          periodic_problem = true ;
+        }
+      }
+     
+      if(GLOBAL_OR(periodic_problem)) {
+        if(MPI_rank == 0) {
+          cerr << "Periodic boundary did not connect properly, is boundary point matched?" << endl ;
+          Loci::Abort() ;
+        }
+      }
+    }
+
+    gKeySpaceP bc_space = gKeySpace::get_space("BcSpace", "");
+    // Add periodic datastructures to fact database
+    facts.create_fact("pmap",pmap, face_space, face_space) ;
+    facts.create_fact("periodicTransform",periodic_transform, bc_space) ;
+  } 
+
+  void create_ci_map(gfact_db &facts) {
+    gConstraint boundary_faces ;
+    boundary_faces = facts.get_variable("boundary_faces") ;
+    gEntitySet ci_faces = *boundary_faces ;
+    gStoreRepP pfacesP = facts.get_variable("periodicFaces") ;
+    if(pfacesP != 0) {
+      gConstraint periodicFaces ;
+      periodicFaces = pfacesP ;
+      debugout << "periodicFaces = " << periodicFaces << endl ;
+      ci_faces -= *periodicFaces ;
+    }
+
+    gMap cl,ci ;
+    cl = facts.get_variable("cl") ;
+
+    for(gMap::const_iterator itr = cl.begin(); itr != cl.end(); itr++){
+      if(ci_faces.inSet(itr->first)) ci.insert(itr->first, itr->second);
+    }
+    gKeySpaceP face_space = cl.get_domain_space();
+    gKeySpaceP cell_space = cl.get_image_space(); 
+    facts.create_fact("ci", ci, face_space, cell_space) ;
+    debugout << "boundary_faces = " << *boundary_faces << endl ;
+    debugout << "ci_faces = " << ci_faces << endl ;
+  }
+
+ 
+  struct gBCinfo {
+    std::string name ;
+    gEntity key ;
+    gEntitySet apply_set ;
+    options_list bc_options ;
+    gBCinfo() {}
+    gBCinfo(const std::string &n, gEntity k,
+            const gEntitySet &a, const options_list &o) :
+      name(n),key(k),apply_set(a),bc_options(o) {}
+    
+  } ; 
+  void setupBoundaryConditions(gfact_db &facts) {
+    list<gBCinfo> BCinfo_list ;
+    std::map<std::string,gEntitySet> BCsets ;
+    
+    /*Boundary Conditions*/
+    gEntitySet periodic ;
+    gConstraint periodic_faces;
+    gConstraint no_symmetry_BC ;
+
+    gEntitySet symmetry ;
+
+    gStoreRepP tmp = facts.get_variable("boundary_names") ;
+    if(tmp == 0) 
+      throw(StringError("boundary_names not found in setupBoundaryConditions! Grid file read?")) ;
+      
+    gStore<string> boundary_names ;
+    gStore<string> boundary_tags ;
+    boundary_names = tmp ;
+    //first expand boundary_names and boundary_tags so that they include all boundary surfaces
+    gEntitySet dom = boundary_names.domain() ;
+    gKeySpaceP bc_space = gKeySpace::get_space("BcSpace", "");
+    dom = g_all_collect_entitySet<gEntity>(dom) ;
+    MPI_Comm comm = bc_space->get_mpi_comm();
+    int num_process;
+    MPI_Comm_size(comm, &num_process);
+    vector<gEntitySet> ptn(num_process);
+    for(int i = 0; i < num_process; i++)ptn[i] = dom;
+    boundary_names = boundary_names.split_redistribute(ptn, comm);
+    boundary_names.local_sort();
+    boundary_tags = facts.get_variable("boundary_tags") ;
+    boundary_tags = boundary_tags.split_redistribute(ptn, comm);
+    boundary_tags.local_sort();
+    gMap ref ;
+    ref = facts.get_variable("ref") ;
+   
+    gKeySpaceP face_space = ref.get_domain_space();
+    
+
+    
+    gParam<options_list> bc_info ;
+    tmp = facts.get_variable("boundary_conditions") ;
+    if(tmp == 0)
+      throw(StringError("boundary_conditions not found in setupBoundaryConditions! Is vars file read?")) ;
+    bc_info = tmp ;
+       
+    gParam<real_t> Lref ;
+    *Lref = 1.0 ;
+    gStoreRepP p = facts.get_variable("Lref") ;
+    if(p != 0)
+      Lref = p ;
+    
+    vector<gperiodic_info> periodic_data ;
+
+    bool fail = false ;
+    // WARNING, boundaryName assignment assuming that boundary
+    // names and tags have been duplicated on all processors (which
+    // they have).  But could break if the grid reader changes to a
+    // more standard implementation.
+    gStore<string>::const_iterator bname_itr = boundary_names.begin();
+    gStore<string>::const_iterator btag_itr = boundary_tags.begin();
+    
+    for(; bname_itr != boundary_names.end(); bname_itr++, btag_itr++) {
+      gEntity bc = bname_itr->first ;
+      gEntitySet bcset = interval(bc,bc) ;
+      gEntitySet bfaces = ref.preimage(bcset).first ;
+      
+      
+
+      string bname = bname_itr->second ;
+      string tname = btag_itr->second ;
+
+      gConstraint bconstraint ;
+      *bconstraint = bfaces ;
+     
+      facts.create_fact(tname,bconstraint, face_space) ;
+      debugout << "boundary " << bname << "("<< tname << ") = "
+               << *bconstraint << endl ;
+      gParam<string> boundarySet ;
+      *boundarySet = bname ;
+      string factname = "boundaryName(" + bname + ")" ;
+      boundarySet.set_entitySet(bfaces) ;
+      facts.create_fact(factname,boundarySet,face_space) ;
+      
+      option_value_type vt =
+        bc_info->getOptionValueType(bname);
+      option_values ov = bc_info->getOption(bname) ;
+      options_list::arg_list value_list ;
+      string name ;
+
+      switch(vt) {
+      case NAME :
+        ov.get_value(name) ;
+        bc_info->setOption(bname,name) ;
+        {
+          BCinfo_list.push_back(gBCinfo(name,bc,bfaces,options_list())) ;
+          BCsets[name] += bfaces ;
+        }
+        break ;
+      case FUNCTION:
+        ov.get_value(name) ;
+        ov.get_value(value_list) ;
+        bc_info->setOption(bname,name,value_list) ;
+        {
+          options_list ol ;
+          ol.Input(value_list) ;
+          BCinfo_list.push_back(gBCinfo(name,bc,bfaces,ol)) ;
+          BCsets[name] += bfaces ;
+        }
+        break ;
+      default:
+        cerr << "Boundary tag '" << bname << "' exists in VOG file without boundary_condition entry!  Please add boundary condition specification for this boundary face!" << endl ;
+        fail = true ;
+      }
+      if(name == "symmetry") {
+        symmetry += bfaces ;
+      } else if(name == "reflecting") {
+        symmetry += bfaces ;
+      } else if(name == "periodic") {
+        periodic += bfaces ;
+        gperiodic_info pi ;
+        pi.bc_num = bc ;
+        pi.bset = bfaces ;
+        options_list ol ;
+        ol.Input(value_list) ;
+        if(ol.optionExists("rotate") || ol.optionExists("translate")) {
+          pi.master = true ;
+        }
+        if(ol.optionExists("name")) {
+          ol.getOption("name",pi.name) ;
+        }
+        if(ol.optionExists("center")) {
+          get_vect3dOption(ol,"center","m",pi.center,*Lref) ;
+        }
+        if(ol.optionExists("vector")) {
+          get_vect3d(ol,"vector",pi.v) ;
+          pi.v /=  norm(pi.v) ;
+        }
+        if(ol.optionExists("translate")) {
+          get_vect3dOption(ol,"translate","m",pi.translate,*Lref) ;
+        }
+        if(ol.optionExists("rotate")) {
+          ol.getOptionUnits("rotate","radians",pi.angle) ;
+        }
+        
+        periodic_data.push_back(pi) ;
+      }
+    }
+    if(fail) {
+      Loci::Abort() ;
+    }
+
+    
+    {
+      std::map<std::string, gEntitySet>::const_iterator mi ;
+      for(mi=BCsets.begin();mi!=BCsets.end();++mi) {
+        if(GLOBAL_OR(mi->second.size())) {
+          gConstraint bc_constraint ;
+          bc_constraint = mi->second ;
+          std::string constraint_name = mi->first + std::string("_BC") ;
+          facts.create_fact(constraint_name,bc_constraint, face_space) ;
+          if(MPI_processes == 1)
+            std::cout << constraint_name << ' ' << mi->second << endl ;
+          else if(MPI_rank == 0)
+            std::cout << "setting boundary condition " << constraint_name << endl ;
+        }
+      }
+    }
+
+ 
+    gConstraint cells ;
+    cells = facts.get_variable("cells") ;
+    gStore<options_list> BC_options ;
+    //BC_options.allocate(dom) ;
+
+    std::map<std::string,gEntitySet> BC_options_args ;
+
+    for(list<gBCinfo>::iterator
+          li = BCinfo_list.begin() ; li != BCinfo_list.end() ; ++li) {
+      BC_options.insert(li->key, li->bc_options) ;
+      options_list::option_namelist onl=li->bc_options.getOptionNameList() ;
+      options_list::option_namelist::const_iterator onli  ;
+
+      for(onli=onl.begin();onli!=onl.end();++onli) {
+        BC_options_args[*onli] += li->key ;
+      }
+    }
+
+    {
+      std::map<std::string, gEntitySet>::const_iterator mi ;
+      for(mi=BC_options_args.begin();mi!=BC_options_args.end();++mi) {
+        gConstraint bc_constraint ;
+        bc_constraint = mi->second ;
+        std::string constraint_name = mi->first + std::string("_BCoption") ;
+        facts.create_fact(constraint_name,bc_constraint, face_space) ;
+      }
+    }
+    
+    if(periodic_data.size() != 0) {
+      periodic_faces = periodic ;
+      facts.create_fact("periodicFaces",periodic_faces, face_space) ;
+
+      list<pair<gperiodic_info,gperiodic_info> > periodic_list ;
+      for(size_t i=0;i<periodic_data.size();++i) {
+        if(!periodic_data[i].processed) {
+          periodic_data[i].processed = true ;
+          gperiodic_info p1 = periodic_data[i] ;
+          gperiodic_info p2 ;
+          p2.name = "," ;
+          for(size_t j=i+1;j<periodic_data.size();++j)
+            if(periodic_data[i].name == periodic_data[j].name) {
+              if(p2.name != ",") {
+                cerr << "periodic name appears more than two times!" ;
+                Abort() ;
+              }
+              p2 = periodic_data[j] ;
+              periodic_data[j].processed = true ;
+            }
+          if(p1.name != p2.name) {
+            cerr << "Could not find matching periodic boundary named "
+                 << p1.name << endl ;
+            Abort() ;
+          }
+          int p1inp = p1.bset.size() ;
+          int p2inp = p2.bset.size() ;
+          int p1size ;
+          int p2size ;
+          MPI_Allreduce(&p1inp,&p1size,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD) ;
+          MPI_Allreduce(&p2inp,&p2size,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD) ;
+          if(p1size != p2size) {
+            if(MPI_rank == 0) {
+              cerr << "periodic boundaries " << p1.name
+                   << " do not match in number of faces" << endl ;
+              cerr << "master has " << p1size << " faces and slave has "
+                   << p2size << " faces" << endl ;
+            }
+            Abort() ;
+          }
+          if((p1.master & p2.master) | (!p1.master & !p2.master)) {
+            cerr << "only one master in periodic boundary conditons named "
+                 << p1.name << endl ;
+            Abort() ;
+          }
+          if(p1.master)
+            periodic_list.push_back(std::make_pair(p1,p2)) ;
+          else
+            periodic_list.push_back(std::make_pair(p2,p1)) ;
+        
+        }
+      }
+
+      setup_periodic_bc(periodic_list,facts) ;
+    } else {
+      gConstraint notPeriodicCells ;
+      *notPeriodicCells = ~GEMPTY ;
+      facts.create_fact("notPeriodicCells",notPeriodicCells, face_space) ;
+    }      
+    
+
+    gEntitySet no_symmetry ;
+    gConstraint allfaces ;
+    allfaces = facts.get_variable("faces") ;
+    no_symmetry  = *allfaces - symmetry ;
+    no_symmetry_BC = no_symmetry ;
+    facts.create_fact("no_symmetry_BC",no_symmetry_BC, face_space) ;
+
+    facts.create_fact("BC_options",BC_options, bc_space) ;
+
+    create_ci_map(facts) ;
     
   }
 

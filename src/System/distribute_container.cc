@@ -33,6 +33,7 @@ using std::set;
 #include <constraint.h>
 #include <multiMap.h>
 #include <algorithm>
+
 using std::sort ;
 
 namespace Loci {
@@ -138,20 +139,14 @@ namespace Loci {
 
   }
 
-  namespace {
-    inline bool fieldSort2(const std::pair<Entity,Entity> &p1,
-                          const std::pair<Entity,Entity> &p2) {
-      return p1.second < p2.second ;
-    }
-  }
-
+ 
   void distributed_inverseMap(multiMap &result,
                               vector<pair<Entity,Entity> > &input,
                               entitySet input_image,
                               entitySet input_preimage,
                               const std::vector<entitySet> &init_ptn) {
     // Sort input according to second field
-    sort(input.begin(),input.end(),fieldSort2) ;
+    sort(input.begin(),input.end(),field_sort2<Entity>) ;
 
     // Now count what we will be sending
     vector<int> send_sz(MPI_processes) ;
@@ -254,7 +249,7 @@ namespace Loci {
                               entitySet input_preimage,
                               const std::vector<entitySet> &init_ptn) {
     // Sort input according to second field
-    sort(input.begin(),input.end(),fieldSort2) ;
+    sort(input.begin(),input.end(),field_sort2<Entity>) ;
 
     // Now count what we will be sending
     vector<int> send_sz(MPI_processes) ;

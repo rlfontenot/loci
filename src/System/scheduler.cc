@@ -1625,6 +1625,7 @@ namespace Loci {
 	  #endif
 	*/
     facts.setupDefaults(rdb) ;
+
     stopWatch sw ;
     sw.start() ;
     //    timer_token execute_query_timer = new timer_token;

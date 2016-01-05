@@ -532,7 +532,7 @@ namespace Loci{
       cerr<<"ERROR: " << var_name << " is not a map  in function  is_in_var()" << endl;
       return false;
     }
-    gKeySpace* ptr = mp->get_image_space();
+    gKeySpaceP ptr = mp->get_image_space();
     if(space == ptr) return true;
     return false;
   }
@@ -630,16 +630,6 @@ namespace Loci{
     gMultiMap self_map;
     get_selfmap(inward_map, init_ptn, self_map);
 
-    // gMultiMap new_map;
-    // debugout<<"p5 " <<self_map<< endl;
-    // {
-    //   gEntitySet cell_dom = self_map.domain();
-    //   GFORALL(cell_dom, c){
-    //     gEntitySet image = self_map.image(c) ;
-    //     for(gEntitySet::const_iterator ei = image.begin(); ei != image.end(); ei++)new_map.insert(c, *ei);;
-    //   }ENDGFORALL;
-    // }
-    
     inward_map.clear();
     newMetisPartition_raw(self_map, init_ptn, e2p);
     
@@ -676,15 +666,15 @@ namespace Loci{
       face2node = facts.get_fact("face2node");
       gMultiStore<vector3d<real_t> > fpos; 
       fpos = pos.recompose(face2node, comm);
-      vector<vector3d<real_t> > fcenter;
-      fpos.get_mean(fcenter);
-      for(unsigned int i = 0; i < fcenter.size(); i++){
-        center.push_back(vector3d<float>(fcenter[i].x, fcenter[i].y, fcenter[i].z));
+      gStore<vector3d<real_t> > fcenter;
+      fcenter =  fpos.get_simple_center(fpos.domain());
+      for(gStore<vector3d<real_t> >::const_iterator itr = fcenter.begin();
+          itr != fcenter.end(); itr++){
+        center.push_back(vector3d<float>((itr->second).x, (itr->second).y, (itr->second).z));
       }
     }else if(s.map1=="cellcenter"){
       gMultiMap inward_map;
       inward_map = merge_cl_cr(facts); //face2cell
-      // vector<gEntitySet> init_ptn = s.space1->get_key_ptn(); //partition of cells
       inward_map.setRep(inward_map.distributed_inverse((inward_map.get_image_space())->get_keys(),
                                                        (inward_map.get_domain_space())->get_keys(),
                                                        (inward_map.get_image_space())-> get_key_ptn()));//cell2face
@@ -693,10 +683,11 @@ namespace Loci{
       gStoreRepP cell2node = inward_map.recompose(face2node, comm); //cell2node
       gMultiStore<vector3d<real_t> > cpos; 
       cpos = pos.recompose(cell2node, comm);
-      vector<vector3d<real_t> > ccenter;
-      cpos.get_mean(ccenter);
-      for(unsigned int i = 0; i < ccenter.size(); i++){
-        center.push_back(vector3d<float>(ccenter[i].x, ccenter[i].y, ccenter[i].z));
+      gStore<vector3d<real_t> > ccenter;
+      ccenter = cpos.get_simple_center(cpos.domain());
+      for(gStore<vector3d<real_t> >::const_iterator itr = ccenter.begin();
+          itr != ccenter.end(); itr++){
+        center.push_back(vector3d<float>((itr->second).x, (itr->second).y, (itr->second).z));
       }
     }
 

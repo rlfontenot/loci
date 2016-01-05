@@ -790,18 +790,18 @@ namespace Loci {
                                       int &position, int insize,
                                       const sequence &seq) 
   {
-    int  stateSize, outcount, vsize;
+    size_t  stateSize, outcount, vsize;
     sequence :: const_iterator ci;
 
     typedef data_schema_traits<T> schema_traits;
     typedef typename schema_traits::Converter_Base_Type dtype;
 
-    int typesize = sizeof(dtype);
+    size_t typesize = sizeof(dtype);
 
     std::vector<dtype> outbuf;
     for( ci = seq.begin(); ci != seq.end(); ++ci) {
       vsize  = end(*ci)-begin(*ci);
-      for( int ivec = 0; ivec < vsize; ivec++) {
+      for( unsigned int ivec = 0; ivec < vsize; ivec++) {
         MPI_Unpack( inbuf, insize, &position, &stateSize, 1,
                     MPI_INT, MPI_COMM_WORLD) ;
         if( stateSize > outbuf.size() ) outbuf.resize(stateSize);
