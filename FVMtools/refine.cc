@@ -444,8 +444,7 @@ int main(int argc, char ** argv) {
   *split_mode_par = split_mode;
   gfacts.create_fact("split_mode_par", split_mode_par);
 
-  fact_db facts;
-  copy_facts(gfacts, facts);
+
 
     Loci::load_module("fvmadapt", rules);
   //  if(Loci::MPI_rank==0){
@@ -457,7 +456,8 @@ int main(int argc, char ** argv) {
   //     cout<< endl;
   //   }
   
- 
+   fact_db facts;
+   copy_facts(gfacts, facts);
   
   if(cell2parent){
     if(!Loci::makeQuery(rules, facts, "cell2parent_output")) {

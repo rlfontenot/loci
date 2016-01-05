@@ -415,8 +415,33 @@ int main(int argc, char ** argv) {
   *split_mode_par = split_mode;
   gfacts.create_fact("split_mode_par", split_mode_par);
 
-  Loci::load_module("fvmadapt", rules);
+  // Dump out parameters from fact database
+    if(Loci::MPI_rank == 0 ) {
+      char buf[512] ;
+      bzero(buf,512) ;
+      snprintf(buf,511,"output/grun_info") ;
+      ofstream db_file(buf) ;
+      if(!db_file.fail()) {
+        using namespace Loci ;
+       
+        db_file << "facts = {" << endl ;
+        variableSet ext_facts = gfacts.get_extensional_facts() ;
+        for(variableSet::const_iterator vi=ext_facts.begin();
+            vi!=ext_facts.end();++vi) {
+          gStoreRepP sp = gfacts.get_variable(*vi) ;
+          if(sp != 0) {
+            if(sp->RepType() == GPARAMETER) {
+              db_file << *vi << ": " ;
+              sp->Print(db_file) ;
+            }
+          }
+        }
+        db_file << "}" << endl ;
+      }
+    }
 
+  Loci::load_module("fvmadapt", rules);
+  // Loci::debugout<<"finish loading fvmadapt module" << endl;
   //  if(Loci::MPI_rank==0){
   //     Loci::ruleSet all_rules = rules.all_rules();
   //     for(Loci::ruleSet::const_iterator ri = all_rules.begin();

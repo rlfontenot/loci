@@ -19,7 +19,8 @@
 //#
 //#############################################################################
 
-#include <Loci.h> 
+#include <Loci.h>
+#include <GLoci.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -49,9 +50,9 @@ using std::ifstream ;
 #include "extract.h"
 
 string output_dir ;
-
-    
-
+namespace Loci{
+    void copy_facts(gfact_db& gfacts, fact_db& facts); 
+}
 void Usage(int ac, char *av[]) {
   cerr << av[0] << ": Incorrect Usage" << endl ;
   cout << "Usage:" << endl;
@@ -2372,7 +2373,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
 
 
 void setup_grid_topology(string casename, string iteration) {
-  fact_db facts ;
+  gfact_db gfacts ;
   string file = casename + ".vog" ;
   struct stat tmpstat ;
   if(stat(file.c_str(),&tmpstat) != 0) {
@@ -2380,9 +2381,12 @@ void setup_grid_topology(string casename, string iteration) {
     Loci::Abort() ;
   }
 
-  if(!Loci::setupFVMGrid(facts,file)) {
+  if(!Loci::setupFVMGrid(gfacts,file)) {
     cerr << "unable to read grid " << file << endl ;
   }
+
+  fact_db facts;
+  copy_facts(gfacts, facts);
   // if output directory doesn't exist, create one
   struct stat statbuf ;
 

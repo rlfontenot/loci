@@ -165,8 +165,7 @@ int main(int argc, char ** argv) {
  
   Loci:: parallelClassifyCell(gfacts);
   
-  fact_db facts;
-  copy_facts(gfacts, facts);
+  
   Loci::load_module("fvmadapt", rules);
  // if(Loci::MPI_rank==0){
 //     Loci::ruleSet all_rules = rules.all_rules();
@@ -176,6 +175,9 @@ int main(int argc, char ** argv) {
 //     }
 //     cout<< endl;
 //   }
+
+  fact_db facts;
+  copy_facts(gfacts, facts);
   if(cell2parent){
     if(!Loci::makeQuery(rules, facts, "cell2parent_output")) {
       std::cerr << "query failed!" << std::endl;
