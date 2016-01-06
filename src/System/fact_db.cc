@@ -613,27 +613,64 @@ namespace Loci {
     ruleSet special_rules = rdb.get_default_rules() ;
     // first we process the default rules
     variableSet working_vars ;
+    std::map<variable,std::pair<variable,rule> > var_def_rules ;
+    std::map<variable,std::pair<variable,rule> >::const_iterator mi ;
+
     for(ruleSet::const_iterator ri=special_rules.begin();
         ri!=special_rules.end();++ri) {
       // first we need to create the facts in the fact_db
       variableSet targets = ri->targets() ;
-      rule_implP rp = ri->get_rule_implP() ;
+      //      rule_implP rp = ri->get_rule_implP() ;
       if(targets.size() > 1) // ignore all default rules with more than 1 arg
         continue ;
+
       variable v = *targets.begin() ;
+      // only process rules in current namspace
+      if(v.get_info().namespac != nspace_vec) 
+	continue ;
+      variable dpv = v ;
+      while(dpv.get_info().priority.size() != 0)
+	dpv = dpv.drop_priority() ;
+      mi = var_def_rules.find(dpv) ;
+      std::pair<variable,rule> defrule(v,*ri) ;
+      if(mi == var_def_rules.end()) {
+	var_def_rules[dpv] = defrule ;
+      } else {
+	// check priority
+	const variable vcheck = mi->second.first ;
+	bool replace = false ;
+	variable vsearch = v ;
+	while(vsearch.get_info().priority.size() != 0) {
+	  vsearch = vsearch.drop_priority() ;
+	  if(vcheck == vsearch)
+	    replace = true ;
+	}
+	if(replace) {
+	  var_def_rules[dpv] = defrule ;
+	}
+      }
+
+    }
+
+    for(mi=var_def_rules.begin();mi!=var_def_rules.end();++mi) {
       // we need to get the storeRep for this variable
-      storeRepP srp = rp->get_store(v) ;
+      rule_implP rp = mi->second.second.get_rule_implP() ;
+      variable v = mi->first ;
+      storeRepP srp = rp->get_store(mi->second.first) ;
       if(srp == 0) {
         ostringstream oss ;
-        oss << "default rule " << *ri << " unable to provide type for " << v
+        oss << "default rule " << mi->second.second 
+	    << " unable to provide type for " << v
             << endl ;
+	cerr << oss.str() << endl ;
         throw StringError(oss.str()) ;
       }
-      std::map<variable, fact_info>::iterator mi = fmap.find(v) ;
-      if(mi == fmap.end()) { // does not exist, so install
-        create_fact(v,srp) ;        
-        rp->initialize(*this) ;
+      std::map<variable, fact_info>::iterator fmi = fmap.find(v) ;
+      if(fmi == fmap.end()) { // does not exist, so install
+	create_fact(v,srp) ;
+	rp->set_store(mi->second.first,srp) ;
         rp->compute(sequence(EMPTY)) ;
+
       }
     }
   }
@@ -644,43 +681,10 @@ namespace Loci {
     bool syntax_error = false ;
     try {
       // first of all, we need to process the default and optional rules
-      ruleSet special_rules = rdb.get_default_rules() ;
-      // first we process the default rules
-      variableSet working_vars ;
-      for(ruleSet::const_iterator ri=special_rules.begin();
-          ri!=special_rules.end();++ri) {
-        // first we need to create the facts in the fact_db
-        variableSet targets = ri->targets() ;
-        rule_implP rp = ri->get_rule_implP() ;
-        bool UseRule = true ;
-        for(variableSet::const_iterator vi=targets.begin();
-            vi!=targets.end();++vi) 
-          if(vi->get_info().namespac != nspace_vec) {
-            UseRule = false ;
-          }
-        if(!UseRule)
-          continue ;
-        for(variableSet::const_iterator vi=targets.begin();
-            vi!=targets.end();++vi) {
-          // we need to get the storeRep for this variable
-          storeRepP srp = rp->get_store(*vi) ;
-          if(srp == 0) {
-            ostringstream oss ;
-            oss << "rule " << *ri << " unable to provide type for " << *vi
-                << endl ;
-            throw StringError(oss.str()) ;
-          }
 
-          create_fact(*vi,srp) ;        
-        }
-    
-        // then we need to call the compute method to set
-        // the default value for this variable
-        rp->initialize(*this) ;
-        rp->compute(sequence(EMPTY)) ;
-      }
-      // then we process the optional rules
-      special_rules = rdb.get_optional_rules() ;
+      setupDefaults(rdb) ;
+      // now process the optional rules
+      ruleSet special_rules = rdb.get_optional_rules() ;
       for(ruleSet::const_iterator ri=special_rules.begin();
           ri!=special_rules.end();++ri) {
         // first we need to create the facts in the fact_db
