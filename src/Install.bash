@@ -41,10 +41,21 @@ cp System/libLoci.$LIB_POSTFIX $INSTALL_PATH/lib
 cp FVMMod/fvm_m.so $INSTALL_PATH/lib
 cp FVMAdapt/fvmadapt_m.so $INSTALL_PATH/lib
 cp FVMAdapt/libfvmadaptfunc.$LIB_POSTFIX $INSTALL_PATH/lib
-cp ParMetis-4.0/GKLib/libgk.$LIB_POSTFIX $INSTALL_PATH/lib
-cp ParMetis-4.0/METISLib/libmetis.$LIB_POSTFIX $INSTALL_PATH/lib
-cp ParMetis-4.0/ParMETISLib/libparmetis.$LIB_POSTFIX $INSTALL_PATH/lib
 cp sprng/libsprng.$LIB_POSTFIX $INSTALL_PATH/lib
+
+if [ ! ${INSTALL_METIS} == 0 ]; then
+    cp ParMetis-4.0/GKLib/libgk.$LIB_POSTFIX $INSTALL_PATH/lib
+    cp ParMetis-4.0/METISLib/libmetis.$LIB_POSTFIX $INSTALL_PATH/lib
+    cp ParMetis-4.0/ParMETISLib/libparmetis.$LIB_POSTFIX $INSTALL_PATH/lib
+    mkdir -p $INSTALL_PATH/ParMetis-4.0
+    mkdir -p $INSTALL_PATH/ParMetis-4.0/include
+    mkdir -p $INSTALL_PATH/ParMetis-4.0/lib
+    cp ParMetis-4.0/*.h $INSTALL_PATH/ParMetis-4.0
+    cp ParMetis-4.0/*.h $INSTALL_PATH/ParMetis-4.0/include
+    cp ParMetis-4.0/GKLib/libgk.$LIB_POSTFIX $INSTALL_PATH/ParMetis-4.0/lib
+    cp ParMetis-4.0/METISLib/libmetis.$LIB_POSTFIX $INSTALL_PATH/ParMetis-4.0/lib
+    cp ParMetis-4.0/ParMETISLib/libparmetis.$LIB_POSTFIX $INSTALL_PATH/ParMetis-4.0/lib
+fi
 
 echo Installing Loci Tools
 cp lpp/lpp $INSTALL_PATH/bin
@@ -73,8 +84,6 @@ mkdir -p $INSTALL_PATH/include
 cp include/*.h $INSTALL_PATH/include
 cp include/*.lh $INSTALL_PATH/include
 cp include/Loci $INSTALL_PATH/include
-mkdir -p $INSTALL_PATH/ParMetis-4.0
-cp ParMetis-4.0/*.h $INSTALL_PATH/ParMetis-4.0
 
 for i in  Tools Config MPI_stubb FVMAdapt; do
     mkdir -p $INSTALL_PATH/include/$i

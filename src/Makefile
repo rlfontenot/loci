@@ -39,7 +39,7 @@ docs:
 	cd Tutorial/docs; $(MAKE) LOCI_BASE="$(LOCI_BASE)"
 
 install: default docs
-	INSTALL_DIR=$(INSTALL_DIR) LOCI_INSTALL_DIR=$(LOCI_INSTALL_DIR) bash Install.bash
+	INSTALL_DIR=$(INSTALL_DIR) LOCI_INSTALL_DIR=$(LOCI_INSTALL_DIR) INSTALL_METIS=$(INSTALL_METIS) bash Install.bash
 
 Tools : FRC
 	cd Tools; $(MAKE) LOCI_BASE="$(LOCI_BASE)" libTools.a
