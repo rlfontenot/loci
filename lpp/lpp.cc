@@ -1621,7 +1621,7 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
     }
   }
 
-  if(rule_type != "pointwise") {
+  if(rule_type != "pointwise" && rule_type != "default") {
     for(vi=output.begin();vi!=output.end();++vi) {
       if(vi->get_info().priority.size() != 0) {
         ostringstream oss ;
