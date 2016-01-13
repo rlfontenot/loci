@@ -152,9 +152,17 @@ void Usage(int ac, char *av[]) {
 }
 
 size_t  sizeElementType(hid_t group_id, const char *element_name) {
+#ifdef H5_USE_16_API
   hid_t dataset = H5Dopen(group_id,element_name) ;
+#else
+  hid_t dataset = H5Dopen(group_id,element_name,H5P_DEFAULT) ;
+#endif
   if(dataset < 0) {
+#ifdef H5_USE_16_API
     H5Eclear() ;
+#else
+    H5Eclear(H5E_DEFAULT) ;
+#endif
     return 0 ;
   }
   hid_t dspace = H5Dget_space(dataset) ;
@@ -205,7 +213,11 @@ volumePart::volumePart(string out_dir, string iteration, string casename,
   hid_t file_id = H5Fopen(posFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0)
     return ;
+#ifdef H5_USE_16_API
   hid_t elg = H5Gopen(file_id,"pos") ;
+#else
+  hid_t elg = H5Gopen(file_id,"pos",H5P_DEFAULT) ;
+#endif
   if(elg < 0) {
     H5Fclose(file_id) ;
     return ;
@@ -248,7 +260,11 @@ volumePart::volumePart(string out_dir, string iteration, string casename,
   file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0) 
     return ;
+#ifdef H5_USE_16_API
   elg = H5Gopen(file_id,"elements") ;
+#else
+  elg = H5Gopen(file_id,"elements",H5P_DEFAULT) ;
+#endif
   if(elg < 0) 
     return ;
 
@@ -478,7 +494,11 @@ void volumePart::getPos(vector<vector3d<float> > &pos) const {
   hid_t file_id = H5Fopen(filename.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0)
     return ;
+#ifdef H5_USE_16_API
   hid_t elg = H5Gopen(file_id,"pos") ;
+#else
+  hid_t elg = H5Gopen(file_id,"pos",H5P_DEFAULT) ;
+#endif
   if(elg < 0) {
     H5Fclose(file_id) ;
     return ;
@@ -505,7 +525,11 @@ void volumePart::getTetBlock(vector<Array<int,4> > &tets, size_t start, size_t s
   hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0) 
     return ;
+#ifdef H5_USE_16_API
   hid_t elg = H5Gopen(file_id,"elements") ;
+#else
+  hid_t elg = H5Gopen(file_id,"elements",H5P_DEFAULT) ;
+#endif
   if(elg < 0) 
     return ;
   int lsize = min(size,ntets_orig-start) ;
@@ -538,7 +562,11 @@ void volumePart::getTetIds(vector<int> &tetids, size_t start, size_t size) const
   hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0) 
     return ;
+#ifdef H5_USE_16_API
   hid_t elg = H5Gopen(file_id,"elements") ;
+#else
+  hid_t elg = H5Gopen(file_id,"elements",H5P_DEFAULT) ;
+#endif
   if(elg < 0) 
     return ;
   int lsize = min(size,ntets_orig-start) ;
@@ -571,7 +599,11 @@ void volumePart::getPyrmBlock(vector<Array<int,5> > &pyrms, size_t start, size_t
   hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0) 
     return ;
+#ifdef H5_USE_16_API
   hid_t elg = H5Gopen(file_id,"elements") ;
+#else
+  hid_t elg = H5Gopen(file_id,"elements",H5P_DEFAULT) ;
+#endif
   if(elg < 0) 
     return ;
   int lsize = min(size,npyrm_orig-start) ;
@@ -604,7 +636,11 @@ void volumePart::getPyrmIds(vector<int> &pyrmids, size_t start, size_t size) con
   hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0) 
     return ;
+#ifdef H5_USE_16_API
   hid_t elg = H5Gopen(file_id,"elements") ;
+#else
+  hid_t elg = H5Gopen(file_id,"elements",H5P_DEFAULT) ;
+#endif
   if(elg < 0) 
     return ;
   int lsize = min(size,npyrm_orig-start) ;
@@ -636,7 +672,11 @@ void volumePart::getPrsmBlock(vector<Array<int,6> > &prsms, size_t start, size_t
   hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0) 
     return ;
+#ifdef H5_USE_16_API
   hid_t elg = H5Gopen(file_id,"elements") ;
+#else
+  hid_t elg = H5Gopen(file_id,"elements",H5P_DEFAULT) ;
+#endif
   if(elg < 0) 
     return ;
   int lsize = min(size,nprsm_orig-start) ;
@@ -668,7 +708,11 @@ void volumePart::getPrsmIds(vector<int> &prsmids, size_t start, size_t size) con
   hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0) 
     return ;
+#ifdef H5_USE_16_API
   hid_t elg = H5Gopen(file_id,"elements") ;
+#else
+  hid_t elg = H5Gopen(file_id,"elements",H5P_DEFAULT) ;
+#endif
   if(elg < 0) 
     return ;
   int lsize = min(size,nprsm_orig-start) ;
@@ -701,7 +745,11 @@ void volumePart::getHexBlock(vector<Array<int,8> > &hexs, size_t start, size_t s
   hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0) 
     return ;
+#ifdef H5_USE_16_API
   hid_t elg = H5Gopen(file_id,"elements") ;
+#else
+  hid_t elg = H5Gopen(file_id,"elements",H5P_DEFAULT) ;
+#endif
   if(elg < 0) 
     return ;
   int lsize = min(size,nhexs_orig-start) ;
@@ -733,7 +781,11 @@ void volumePart::getHexIds(vector<int> &hexids, size_t start, size_t size) const
   hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0) 
     return ;
+#ifdef H5_USE_16_API
   hid_t elg = H5Gopen(file_id,"elements") ;
+#else
+  hid_t elg = H5Gopen(file_id,"elements",H5P_DEFAULT) ;
+#endif
   if(elg < 0) 
     return ;
   int lsize = min(size,nhexs_orig-start) ;
@@ -763,7 +815,11 @@ void volumePart::getGenCell(vector<int> &genCellNfaces,
   hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0) 
     return ;
+#ifdef H5_USE_16_API
   hid_t elg = H5Gopen(file_id,"elements") ;
+#else
+  hid_t elg = H5Gopen(file_id,"elements",H5P_DEFAULT) ;
+#endif
   if(elg < 0) 
     return ;
 
@@ -832,7 +888,11 @@ void volumePart::getGenIds(vector<int> &genids) const {
   hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0) 
     return ;
+#ifdef H5_USE_16_API
   hid_t elg = H5Gopen(file_id,"elements") ;
+#else
+  hid_t elg = H5Gopen(file_id,"elements",H5P_DEFAULT) ;
+#endif
   if(elg < 0) 
     return ;
   int lsize = ngenc_orig ;
@@ -866,7 +926,11 @@ void volumePart::getNodalScalar(string varname, vector<float> &vals) const {
   hid_t file_id = H5Fopen(filename.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0)
     return ;
+#ifdef H5_USE_16_API
   hid_t elg = H5Gopen(file_id,varname.c_str()) ;
+#else
+  hid_t elg = H5Gopen(file_id,varname.c_str(),H5P_DEFAULT) ;
+#endif
   if(elg < 0)
     return ;
   int nsz = sizeElementType(elg,"data") ;
@@ -886,7 +950,11 @@ void volumePart::getNodalVector(string varname, vector<vector3d<float> > &vals) 
   hid_t file_id = H5Fopen(filename.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0)
     return ;
+#ifdef H5_USE_16_API
   hid_t elg = H5Gopen(file_id,varname.c_str()) ;
+#else
+  hid_t elg = H5Gopen(file_id,varname.c_str(),H5P_DEFAULT) ;
+#endif
   if(elg < 0)
     return ;
   int nsz = sizeElementType(elg,"data") ;
@@ -2367,7 +2435,11 @@ vector<string> volumeSurfaceNames(string output_dir, string iteration,
 				  string casename) {
   string gridtopo = getTopoFileName(output_dir, casename, iteration) ;
   hid_t file_id = H5Fopen(gridtopo.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
+#ifdef H5_USE_16_API
   hid_t bndg = H5Gopen(file_id,"boundaries") ;
+#else
+  hid_t bndg = H5Gopen(file_id,"boundaries",H5P_DEFAULT) ;
+#endif
   hsize_t num_bcs = 0 ;
   H5Gget_num_objs(bndg,&num_bcs) ;
   vector<string>  bc_names ;
@@ -2434,7 +2506,11 @@ void extractVolumeSurfaces(vector<surfacePartP> &volSurface,
       continue ;
     }
           
+#ifdef H5_USE_16_API
     hid_t di = H5Gopen(file_id,"dataInfo") ;
+#else
+    hid_t di = H5Gopen(file_id,"dataInfo",H5P_DEFAULT) ;
+#endif
     size_t nbel = sizeElementType(di,"entityIds") ;
     
     vector<int> elemIds(nbel) ;
@@ -2464,7 +2540,11 @@ void extractVolumeSurfaces(vector<surfacePartP> &volSurface,
       continue ;
     }
           
+#ifdef H5_USE_16_API
     hid_t di = H5Gopen(file_id,"dataInfo") ;
+#else
+    hid_t di = H5Gopen(file_id,"dataInfo",H5P_DEFAULT) ;
+#endif
     size_t nbel = sizeElementType(di,"entityIds") ;
     
     vector<int> elemIds(nbel) ;
@@ -2482,7 +2562,11 @@ void extractVolumeSurfaces(vector<surfacePartP> &volSurface,
     H5Fclose(file_id) ;
   }
 
+#ifdef H5_USE_16_API
   hid_t bndg = H5Gopen(file_id,"boundaries") ;
+#else
+  hid_t bndg = H5Gopen(file_id,"boundaries",H5P_DEFAULT) ;
+#endif
   hsize_t num_bcs = 0 ;
   H5Gget_num_objs(bndg,&num_bcs) ;
   vector<string>  bc_names ;
@@ -2495,7 +2579,11 @@ void extractVolumeSurfaces(vector<surfacePartP> &volSurface,
   }
   vector<surfacePartCopy * > surfaceWork(num_bcs) ;
   for(hsize_t bc=0;bc<num_bcs;++bc) {
+#ifdef H5_USE_16_API
     hid_t bcg = H5Gopen(bndg,bc_names[bc].c_str()) ;
+#else
+    hid_t bcg = H5Gopen(bndg,bc_names[bc].c_str(),H5P_DEFAULT) ;
+#endif
     
     size_t nquads = sizeElementType(bcg,"quads") ;
     size_t ntrias = sizeElementType(bcg,"triangles") ;
@@ -3183,7 +3271,11 @@ int main(int ac, char *av[]) {
       exit(-1) ;
     }
   }
+#ifdef H5_USE_16_API
   H5Eset_auto(NULL,NULL) ;
+#else
+  H5Eset_auto(H5E_DEFAULT,NULL,NULL) ;
+#endif
 
   string filename = getTopoFileName(output_dir, casename, iteration) ;
   struct stat tmpstat ;
@@ -3332,7 +3424,11 @@ int main(int ac, char *av[]) {
   }
 
   if(postprocessor != 0) {
+#ifdef H5_USE_16_API
     H5Eset_auto(NULL,NULL) ;
+#else
+    H5Eset_auto(H5E_DEFAULT,NULL,NULL) ;
+#endif
     vector<surfacePartP> parts ;
 
 

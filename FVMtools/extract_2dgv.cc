@@ -108,8 +108,11 @@ void get_2dgv(string casename, string iteration,
 
 
   file_id = H5Fopen(gridtopo.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
-  
+#ifdef H5_USE_16_API  
   hid_t bndg = H5Gopen(file_id,"boundaries") ;
+#else
+  hid_t bndg = H5Gopen(file_id,"boundaries",H5P_DEFAULT) ;
+#endif
   hsize_t num_bcs = 0 ;
   H5Gget_num_objs(bndg,&num_bcs) ;
   vector<string> processed_bcs ;
@@ -129,7 +132,11 @@ void get_2dgv(string casename, string iteration,
       continue ;
     processed_bcs.push_back(string(buf)) ;
     cout << "processing bc: " << buf << endl ;
+#ifdef H5_USE_16_API
     hid_t bcg = H5Gopen(bndg,buf) ;
+#else
+    hid_t bcg = H5Gopen(bndg,buf,H5P_DEFAULT) ;
+#endif
     
     int nquads = sizeElementType(bcg,"quads") ;
     int ntrias = sizeElementType(bcg,"triangles") ;
