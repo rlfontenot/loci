@@ -72,15 +72,25 @@ void writeVOGNode(hid_t file_id,
       
     long long array_size = num_original_nodes + num_inner_nodes;
       
+#ifdef H5_USE_16_API
     group_id = H5Gcreate(file_id,"file_info",0) ;
+#else
+    group_id = H5Gcreate(file_id,"file_info",
+			 H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
 
     cout << "num_nodes = " << array_size << endl ;
       
     hsize_t dims = 1 ;
     hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
-      
+
+#ifdef H5_USE_16_API      
     hid_t att_id = H5Acreate(group_id,"numNodes", H5T_STD_I64BE,
                              dataspace_id, H5P_DEFAULT) ;
+#else
+    hid_t att_id = H5Acreate(group_id,"numNodes", H5T_STD_I64BE,
+                             dataspace_id, H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
     H5Awrite(att_id,H5T_NATIVE_LLONG,&array_size) ;
     H5Aclose(att_id) ;
     H5Gclose(group_id) ;
@@ -90,7 +100,12 @@ void writeVOGNode(hid_t file_id,
 
 
     //prepare to write positions
+#ifdef H5_USE_16_API
     group_id = H5Gcreate(file_id,"node_info",0) ;
+#else
+    group_id = H5Gcreate(file_id,"node_info",
+			 H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
       
     //create dataspace and dataset
     int rank = 1 ;
@@ -106,9 +121,13 @@ void writeVOGNode(hid_t file_id,
 #endif
     hsize_t stride = 1 ;
       
+#ifdef H5_USE_16_API
     hid_t dataset = H5Dcreate(group_id,"positions",dp->get_hdf5_type(),
                               dataspace, H5P_DEFAULT) ;
-
+#else
+    hid_t dataset = H5Dcreate(group_id,"positions",dp->get_hdf5_type(),
+                              dataspace, H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
       
     //first write out pos
     hsize_t count = num_original_nodes ;
@@ -273,26 +292,38 @@ void writeVOGNode(hid_t file_id,
                      inner_cell_nodes_sizes[i] + inner_face_nodes_sizes[i] );
     //first write out numNodes
     
+#ifdef H5_USE_16_API
     group_id = H5Gcreate(file_id,"file_info",0) ;
+#else
+    group_id = H5Gcreate(file_id,"file_info",
+			 H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
     
     cout << "num_nodes = " << array_size << endl ;
     
     hsize_t dims = 1 ;
     hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
     
+#ifdef H5_USE_16_API
     hid_t att_id = H5Acreate(group_id,"numNodes", H5T_STD_I64BE,
                              dataspace_id, H5P_DEFAULT) ;
+#else
+    hid_t att_id = H5Acreate(group_id,"numNodes", H5T_STD_I64BE,
+                             dataspace_id, H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
     H5Awrite(att_id,H5T_NATIVE_LLONG,&array_size) ;
     H5Aclose(att_id) ;
     H5Gclose(group_id) ;
     
     if(array_size == 0)
       return ;
-    
 
-    
+#ifdef H5_USE_16_API
     group_id = H5Gcreate(file_id,"node_info",0) ;
-    
+#else
+    group_id = H5Gcreate(file_id,"node_info",
+			 H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
     //create dataspace and dataset
     int rank = 1 ;
     hsize_t dimension = array_size ;
@@ -307,8 +338,13 @@ void writeVOGNode(hid_t file_id,
 #endif
     hsize_t stride = 1 ;
     
+#ifdef H5_USE_16_API
     hid_t dataset = H5Dcreate(group_id,"positions",dp->get_hdf5_type(),
                               dataspace, H5P_DEFAULT) ;
+#else
+    hid_t dataset = H5Dcreate(group_id,"positions",dp->get_hdf5_type(),
+                              dataspace, H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
     
     
     //first write out pos

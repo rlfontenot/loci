@@ -71,7 +71,7 @@ namespace Loci {
     allocate(e) ;
 
     FORALL(e,ii) {
-      for( size_t i = 0; i < size; i++) {
+      for( size_t i = 0; i < size_t(size); i++) {
         newVec[i] = T() ;
         Loci::streaminput(&newVec[i],1,s) ;
       }

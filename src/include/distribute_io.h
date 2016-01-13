@@ -163,8 +163,13 @@ namespace Loci {
       hsize_t count = v.size() ;
       hid_t datatype = dp->get_hdf5_type() ;
      
+#ifdef H5_USE_16_API
       hid_t dataset = H5Dcreate(group_id,element_name,datatype,
                                 dataspace, H5P_DEFAULT) ;
+#else
+      hid_t dataset = H5Dcreate(group_id,element_name,datatype,
+                                dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) ;
+#endif
      
       if(count != 0) {
      
@@ -214,8 +219,13 @@ namespace Loci {
       hsize_t stride = 1 ;
       hsize_t count = recv_sizes[0] ;
       hid_t datatype = dp->get_hdf5_type() ;
+#ifdef H5_USE_16_API
       hid_t dataset = H5Dcreate(group_id,element_name,datatype,
                                 dataspace, H5P_DEFAULT) ;
+#else
+      hid_t dataset = H5Dcreate(group_id,element_name,datatype,
+                                dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) ;
+#endif
       if(count != 0) {
         H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
                             &start, &stride, &count, NULL) ;

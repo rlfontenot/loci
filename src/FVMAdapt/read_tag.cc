@@ -131,9 +131,15 @@ vector<char> read_tags_hdf5(string filename, string varname, MPI_Comm &comm) {
     hid_t file_id = 0;
     file_id = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
     hid_t group_id = 0;
+#ifdef H5_USE_16_API
     group_id = H5Gopen(file_id, varname.c_str()) ;
     //process 0 read in its local tag
     hid_t dataset =  H5Dopen(group_id, "data") ;
+#else
+    group_id = H5Gopen(file_id, varname.c_str(),H5P_DEFAULT) ;
+    //process 0 read in its local tag
+    hid_t dataset =  H5Dopen(group_id, "data",H5P_DEFAULT) ;
+#endif
     hid_t dataspace = H5Dget_space(dataset) ;
     // Get size of tag file
     hsize_t size = 0 ;

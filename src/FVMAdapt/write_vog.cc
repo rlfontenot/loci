@@ -1735,15 +1735,30 @@ namespace Loci{
     hid_t group_id = 0 ;
     if(MPI_rank == 0) {
       if(surface_ids.size() != 0) {
+#ifdef H5_USE_16_API
         group_id = H5Gcreate(file_id,"surface_info",0) ;
+#else
+        group_id = H5Gcreate(file_id,"surface_info",
+			     H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
         for(size_t i=0;i<surface_ids.size();++i) {
           hid_t bc_id = 0 ;
+#ifdef H5_USE_16_API
           bc_id = H5Gcreate(group_id,surface_ids[i].second.c_str(),0) ;
+#else
+          bc_id = H5Gcreate(group_id,surface_ids[i].second.c_str(),
+			    H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
           hsize_t dims = 1 ;
           hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
-          
+
+#ifdef H5_USE_16_API          
           hid_t att_id = H5Acreate(bc_id,"Ident", H5T_NATIVE_INT,
                                    dataspace_id, H5P_DEFAULT) ;
+#else
+          hid_t att_id = H5Acreate(bc_id,"Ident", H5T_NATIVE_INT,
+                                   dataspace_id, H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
           H5Awrite(att_id,H5T_NATIVE_INT,&surface_ids[i].first) ;
           H5Aclose(att_id) ;
           H5Gclose(bc_id) ;
@@ -1764,14 +1779,23 @@ namespace Loci{
                    vector<pair<string,Loci::entitySet> > &volDat) {
     using namespace Loci ;
     /* Save old error handler */
-    herr_t (*old_func)(void*) = 0;
+    H5E_auto_t old_func = 0;
     void *old_client_data = 0 ;
+#ifdef H5_USE_16_API
     H5Eget_auto(&old_func, &old_client_data);
-    /* Turn off error handling */
     H5Eset_auto(NULL, NULL);
+#else
+    H5Eget_auto(H5E_DEFAULT,&old_func, &old_client_data);
+    H5Eset_auto(H5E_DEFAULT,NULL, NULL);
+#endif
+    /* Turn off error handling */
     
     vector<pair<string,entitySet> > volTags ;
+#ifdef H5_USE_16_API
     hid_t cell_info = H5Gopen(input_fid,"cell_info") ;
+#else
+    hid_t cell_info = H5Gopen(input_fid,"cell_info",H5P_DEFAULT) ;
+#endif
     if(cell_info > 0) {
       vector<string> vol_tag ;
       vector<entitySet> vol_set ;
@@ -1786,7 +1810,11 @@ namespace Loci{
         buf[1023]='\0' ;
         
         string name = string(buf) ;
+#ifdef H5_USE_16_API
         hid_t vt_g = H5Gopen(cell_info,buf) ;
+#else
+        hid_t vt_g = H5Gopen(cell_info,buf,H5P_DEFAULT) ;
+#endif
         hid_t id_a = H5Aopen_name(vt_g,"Ident") ;
         int ident ;
         H5Aread(id_a,H5T_NATIVE_INT,&ident) ;
@@ -1808,7 +1836,12 @@ namespace Loci{
         volTags[vol_id[i]].second = vol_set[i] ;
       }
     } else {
+#ifdef H5_USE_16_API
       hid_t file_info = H5Gopen(input_fid,"file_info") ;
+#else
+      hid_t file_info = H5Gopen(input_fid,"file_info",H5P_DEFAULT) ;
+#endif
+
       long numCells = readAttributeLong(file_info,"numCells") ;
       volTags.push_back(pair<string,entitySet>
                         (string("Main"),
@@ -1817,7 +1850,11 @@ namespace Loci{
     }
   
     /* Restore previous error handler */
+#ifdef H5_USE_16_API
     H5Eset_auto(old_func, old_client_data);
+#else
+    H5Eset_auto(H5E_DEFAULT,old_func, old_client_data);
+#endif
     volDat.swap(volTags) ;
     return true ;
   }
@@ -1845,7 +1882,11 @@ void writeVOGFace(hid_t file_id, Map &cl, Map &cr, multiMap &face2node) {
 
   hid_t group_id = 0 ;
   if(MPI_rank == 0) {
+#ifdef H5_USE_16_API
     group_id = H5Gopen(file_id,"file_info") ;
+#else
+    group_id = H5Gopen(file_id,"file_info",H5P_DEFAULT) ;
+#endif
 
     std::cout<< "num_cells = " << num_cells << endl
              << "num_faces = " << num_faces << endl ;
@@ -1853,16 +1894,31 @@ void writeVOGFace(hid_t file_id, Map &cl, Map &cr, multiMap &face2node) {
     hsize_t dims = 1 ;
     hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
     
+#ifdef H5_USE_16_API
     hid_t att_id = H5Acreate(group_id,"numFaces", H5T_STD_I64BE,
                              dataspace_id, H5P_DEFAULT) ;
+#else
+    hid_t att_id = H5Acreate(group_id,"numFaces", H5T_STD_I64BE,
+                             dataspace_id, H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
     H5Awrite(att_id,H5T_NATIVE_LLONG,&num_faces) ;
     H5Aclose(att_id) ;
+#ifdef H5_USE_16_API
     att_id = H5Acreate(group_id,"numCells", H5T_STD_I64BE,
                        dataspace_id, H5P_DEFAULT) ;
+#else
+    att_id = H5Acreate(group_id,"numCells", H5T_STD_I64BE,
+                       dataspace_id, H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
     H5Awrite(att_id,H5T_NATIVE_LLONG,&num_cells) ;
     H5Aclose(att_id) ;
     H5Gclose(group_id) ;
+#ifdef H5_USE_16_API
     group_id = H5Gcreate(file_id,"face_info",0) ;
+#else
+    group_id = H5Gcreate(file_id,"face_info",
+			 H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
   }
   
   entitySet faces = face2node.domain() ;
