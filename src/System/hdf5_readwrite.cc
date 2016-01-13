@@ -39,7 +39,11 @@ namespace Loci {
   dimension = num_intervals*2; //size of 1D Array
   if(dimension == 0) return;
   dataspace = H5Screate_simple(rank, &dimension, NULL);
+#ifdef H5_USE_16_API
   dataset   = H5Dcreate(group_id, "Interval Set", datatype, dataspace, H5P_DEFAULT);
+#else
+  dataset   = H5Dcreate(group_id, "Interval Set", datatype, dataspace, H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT);
+#endif
 
   interval *it = new interval[num_intervals];
 
@@ -68,7 +72,11 @@ namespace Loci {
   hsize_t    dimension;
   hid_t      dataset, dataspace;
 
+#ifdef H5_USE_16_API
   dataset    = H5Dopen(group_id, "Map");
+#else
+  dataset    = H5Dopen(group_id, "Map",H5P_DEFAULT);
+#endif
   if( dataset > 0) {
     dataspace  = H5Dget_space(dataset);
     H5Sget_simple_extent_dims (dataspace, &dimension, NULL);
@@ -96,10 +104,17 @@ namespace Loci {
   hsize_t    dimension;
   hid_t      dataset, dataspace;
 
+#ifdef H5_USE_16_API
   H5Eset_auto (NULL, NULL);
-
+#else
+  H5Eset_auto (H5E_DEFAULT,NULL, NULL);
+#endif
   eset = EMPTY;
+#ifdef H5_USE_16_API
   dataset  = H5Dopen(group_id, "Interval Set");
+#else
+  dataset  = H5Dopen(group_id, "Interval Set",H5P_DEFAULT);
+#endif
   if( dataset > 0 ) {
     dataspace  = H5Dget_space(dataset);
     H5Sget_simple_extent_dims (dataspace, &dimension, NULL);
@@ -129,8 +144,13 @@ namespace Loci {
   if(dimension == 0) return;
   hid_t vDataspace = H5Screate_simple(rank, &dimension, NULL);
   hid_t vDatatype  = H5T_NATIVE_INT;
+#ifdef H5_USE_16_API
   hid_t vDataset   = H5Dcreate(group_id, "VecSize", vDatatype, vDataspace,
                                H5P_DEFAULT);
+#else
+  hid_t vDataset   = H5Dcreate(group_id, "VecSize", vDatatype, vDataspace,
+                               H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT);
+#endif
 
   H5Dwrite(vDataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &size);
 
@@ -146,12 +166,19 @@ namespace Loci {
   int     rank=1;
   hsize_t dimension = 1;
 
+#ifdef H5_USE_16_API
   H5Eset_auto (NULL, NULL);
+#else
+  H5Eset_auto (H5E_DEFAULT,NULL, NULL);
+#endif
 
   *size = 0;
   
+#ifdef H5_USE_16_API
   hid_t vDataset   = H5Dopen( group_id, "VecSize");
-
+#else
+  hid_t vDataset   = H5Dopen( group_id, "VecSize", H5P_DEFAULT);
+#endif
   if( vDataset > 0) {
     if(dimension == 0) return;
     hid_t vDataspace = H5Screate_simple(rank, &dimension, NULL);

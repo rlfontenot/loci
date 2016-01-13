@@ -46,7 +46,11 @@ namespace Loci {
     hid_t dataset = 0;
     hid_t dataspace = 0;
     if(prank == 0) {
+#ifdef H5_USE_16_API
       dataset = H5Dopen(group_id, name) ;
+#else
+      dataset = H5Dopen(group_id, name,H5P_DEFAULT) ;
+#endif
       dataspace = H5Dget_space(dataset) ;
       H5Sget_simple_extent_dims(dataspace, &dimension, NULL) ;
     }
@@ -106,7 +110,11 @@ namespace Loci {
     hid_t dataset = 0;
     hid_t dataspace = 0;
     if(prank == 0) {
+#ifdef H5_USE_16_API
       dataset = H5Dopen(group_id, name) ;
+#else
+      dataset = H5Dopen(group_id, name,H5P_DEFAULT) ;
+#endif
       dataspace = H5Dget_space(dataset) ;
       H5Sget_simple_extent_dims(dataspace, &dimension, NULL) ;
     }
@@ -195,7 +203,11 @@ namespace Loci {
       
 	dimension = sizes[0] ;
 	start += dimension ;
+#ifdef H5_USE_16_API
 	hid_t dataset = H5Dcreate(group_id, name , datatype, dataspace,H5P_DEFAULT) ;
+#else
+	hid_t dataset = H5Dcreate(group_id, name , datatype, dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
 	if(dimension != 0) {
 	  hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
 	  H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, tmp_int) ;
@@ -214,7 +226,11 @@ namespace Loci {
 	  start += count ;
 	  if(dimension != 0) {
 	    hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
+#ifdef H5_USE_16_API
 	    dataset = H5Dopen(group_id, name) ;
+#else
+	    dataset = H5Dopen(group_id, name,H5P_DEFAULT) ;
+#endif
 	    H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, tmp_int) ;
 	    H5Dclose(dataset) ;
 	    H5Sclose(memspace) ;
