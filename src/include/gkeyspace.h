@@ -52,20 +52,32 @@ namespace Loci {
     MPI_Comm comm ;
     int rank ;                  // processes rank in comm
     int np ;             // communicator size
+
     // this is the key distribution across the processess
     // it is in file numbering
+    //while key_ptn is set, keys and my_keys are also set
     std::vector<gEntitySet> key_ptn ;
-    // the entire key sets in global number
+
+    // the entire keyset over all processes
     gEntitySet keys ;
-    // the entire key sets in local numbering,
-    // if there is no local numbering, then it is
-    // the same as key_ptn[rank] and keys
+    
+    // the keyset I own
     gEntitySet my_keys ;
+    
+    //the maps that map the keys between local, global and file numbering
+    //everything related to local number is not coded yet, maybe only one map
+    //is needed between local and global numbering since gMap can be sorted
+    //according to either domain field or image field
     gMap g2l ;
     gMap l2g ;
     gMap g2f ;
-    std::vector<gEntitySet> send_ptn;
-    std::vector<gEntitySet> recv_ptn;
+
+    //the following two vectors are used in partition stage,
+    //and since they are memory-consuming, should be cleaned up after partition is done 
+    std::vector<gEntitySet> send_ptn;//the keys I send to each process
+    std::vector<gEntitySet> recv_ptn;//the keys I receive from each process
+
+    //is the current keyset in file numbering, global numbering or local numbering
     KeyScope scope;
     
     //the variables in out_var and invar need to be unique.
@@ -73,7 +85,11 @@ namespace Loci {
     variableSet out_vars; //the variable whose domain is this space
     variableSet in_vars; //the variable whose image is this space
   private:
-    //singleton class, create and store gKeySpace
+
+    //singleton class, create and store gKeySpace, the name of gKeySpace are hard-coded,
+    //it can be "NodeSpace", "FaceSpace", "CellSpace", "EdgeSpace", "BcSpace" and "UniverseSpace".
+    //"BcSpace" is for boundary surfaces. And "UniverseSpace" is a special gKeySpace designed for
+    //gParams, gConstraints and gBlackBoxs that are defined over all keys in all spaces. 
     class gKeySpaceManager{
       static std::map<std::string, gKeySpaceP> space_map;
     public:
@@ -120,10 +136,6 @@ namespace Loci {
         }
         return result;
       }
-
-      
-
-      
     };
     static gKeySpaceManager *ksm ;
     void create_ksm() {
@@ -157,7 +169,7 @@ namespace Loci {
       g2f = ks.g2f.clone(); 
     }
   public:
-    
+    //constructors
     gKeySpace()
     {
       create_ksm();
@@ -171,28 +183,69 @@ namespace Loci {
         copy_from(ks) ;
       return *this ;
     }
-    
+
+    //inspectors for in_vars and out_vars
     variableSet get_in_vars() const{return in_vars;}
     variableSet get_out_vars() const{return out_vars;}
-    static gKeySpaceP get_space(const std::string &spacename, const std::string& casename);
-    static std::vector<gKeySpaceP> get_all_spaces();
-    void register_space(const std::string &spacename, const std::string& casename) ;
-    void set_g2f_map(gStoreRepP rep){g2f.setRep(rep);}
-    
-    void add_out_var(const variable& v){
-      out_vars += v;
-    }
-    void remove_out_var(const variable& v){
-      out_vars -= v;
-    }
+
+    //mutators for in_vars and out_vars
     void add_in_var(const variable& v){
       in_vars += v;
     }
     void remove_in_var(const variable& v){
       in_vars -= v;
     }
+    void add_out_var(const variable& v){
+      out_vars += v;
+    }
+    void remove_out_var(const variable& v){
+      out_vars -= v;
+    }
+
+    //inspector for key_ptn
+    const std::vector<gEntitySet>&
+    get_key_ptn() const {return key_ptn ;}
+    //mutator for key_ptn
+    //whenever key_ptn is modified, keys and my_keys are also modified
+    void
+    set_key_ptn(const std::vector<gEntitySet>& ptn) {
+      key_ptn = ptn ;
+      keys = GEMPTY;
+      for(unsigned int i = 0; i < ptn.size(); i++){
+        keys += ptn[i];
+      }
+      my_keys = key_ptn[rank] ;
+    }
+    //inspector for keys
+    const gEntitySet&
+    get_keys() const {return keys ;}
+    //inspector for my_keys
+    const gEntitySet&
+    get_my_keys() const {return my_keys ;}
+    
+    //inspectors for send_ptn and revc_ptn 
+    const std::vector<gEntitySet>&
+    get_send_ptn() const {return send_ptn;}
+    const std::vector<gEntitySet>&
+    get_recv_ptn() const {return recv_ptn;}
+    //mutator for send_ptn and recv_ptn
+    //ptn is send_ptn, since recv_ptn is always transposePtn of send_ptn
+    //recv_ptn is modified whenever send_ptn is modified 
     void set_send_recv_ptn(const std::vector<gEntitySet>& ptn);
-    //assume keys are set in all processes
+    
+    
+    static gKeySpaceP get_space(const std::string &spacename, const std::string& casename);
+    static std::vector<gKeySpaceP> get_all_spaces();
+    void register_space(const std::string &spacename, const std::string& casename) ;
+
+
+    void set_g2f_map(gStoreRepP rep){g2f.setRep(rep);}
+    
+   
+   
+  
+    //assume keys and my_keys are given in all processes
+    //simple partition keys, and set send_ptn and recv_ptn
     void set_simple_partition(){
       vector<gEntitySet> temp_key_ptn = g_simple_partition<gEntity>(keys, comm);
       vector<gEntitySet> temp_send_ptn(np);
@@ -202,6 +255,10 @@ namespace Loci {
       set_send_recv_ptn(temp_send_ptn); 
     }
 
+    //this function is the same as set_simple_partition,
+    //except that it outputs a vector specifying the owner of each entity in my_keys
+    //assume keys and my_keys are given in all processes
+    //simple partition keys, and set send_ptn and recv_ptn
     void set_simple_partition(vector<int>& procmap){
       vector<gEntitySet> temp_key_ptn = g_simple_partition<gEntity>(keys, comm);
       vector<gEntitySet> temp_send_ptn(np);
@@ -222,41 +279,15 @@ namespace Loci {
     
     virtual ~gKeySpace() {}
 
+    //inspectors for communitor
     MPI_Comm
     get_mpi_comm() const {return comm ;}
-
     int
     get_comm_rank() const {return rank ;}
-
     int
     get_np() const {return np ;}
-
     bool
     is_distributed() const {return np > 1 ;}
-
-    const std::vector<gEntitySet>&
-    get_key_ptn() const {return key_ptn ;}
-    const std::vector<gEntitySet>&
-    get_send_ptn() const {return send_ptn;}
-    const std::vector<gEntitySet>&
-    get_recv_ptn() const {return recv_ptn;}
-    //set file key ptn
-    void
-    set_key_ptn(const std::vector<gEntitySet>& ptn) {
-      key_ptn = ptn ;
-      keys = GEMPTY;
-      for(unsigned int i = 0; i < ptn.size(); i++){
-        keys += ptn[i];
-      }
-      my_keys = key_ptn[rank] ;
-    }
-    
-    const gEntitySet&
-    get_keys() const {return keys ;}
-
-    const gEntitySet&
-    get_my_keys() const {return my_keys ;}
-
     
 
     //this method is called after recv_ptn is set
@@ -305,30 +336,17 @@ namespace Loci {
       g2f.local_sort();
     }
 
-      
-    // // while this one removes keys from the space
-    // void
-    // remove_keys(const gEntitySet& ks) ;
-
+    //inspectors for maps
     const gMap&
     get_g2l_map() const {return g2l ;}
-
     const gStoreRepP
     get_f2g_map() const {return g2f.local_inverse();}
-
     const gMap&
     get_g2f_map() const {return g2f ;} 
-
     const gMap&
     get_l2g_map() const {return l2g ;}
-
-
-   
-    
   } ; // end of class gKeySpace
-  
- 
- 
+   
 }// end of namespace Loci
 
 #endif

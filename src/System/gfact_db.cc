@@ -53,7 +53,7 @@ namespace Loci {
     
   gfact_db::gfact_db() {
     //set default key manager as distKeyManager 
-    key_manager = CPTR<gKeyManager>(new distKeyManager());
+    gkey_manager = CPTR<gKeyManager>(new distKeyManager());
   }
 
   gfact_db::~gfact_db() {}
@@ -62,7 +62,7 @@ namespace Loci {
   void
   gfact_db::copy_all_from(const gfact_db& f) {
     synonyms = f.synonyms ;
-    fmap = f.fmap ;
+    gfmap = f.gfmap ;
     tmap = f.tmap ;
     nspace_vec = f.nspace_vec ;
     extensional_facts = f.extensional_facts ;
@@ -70,27 +70,27 @@ namespace Loci {
 
 
     // deep copy the key manager
-    if(f.key_manager != 0) {
-      key_manager = f.key_manager->clone() ;
+    if(f.gkey_manager != 0) {
+      gkey_manager = f.gkey_manager->clone() ;
     }
     
   }
 
-  void gfact_db::make_extensional_fact(const variable& v) {
-    // if it is already extensional_fact, then we do nothing
-    if(extensional_facts.inSet(v))
-      return ;
-    std::map<variable, gStoreRepP>::iterator mi = fmap.find(v) ;
-    // the fact must exist in the fact_db, otherwise we do nothing
-    if(mi != fmap.end())
-      extensional_facts += v ;
-  }
-  void gfact_db::make_intensional_fact(const variable& v) {
-    // We perform action only if it is already an extensional_fact
-    // which implies that the fact exists in the fact_db
-    if(extensional_facts.inSet(v))
-      extensional_facts -= v ;
-  }
+  // void gfact_db::make_extensional_fact(const variable& v) {
+  //   // if it is already extensional_fact, then we do nothing
+  //   if(extensional_facts.inSet(v))
+  //     return ;
+  //   std::map<variable, gStoreRepP>::iterator mi = gfmap.find(v) ;
+  //   // the fact must exist in the fact_db, otherwise we do nothing
+  //   if(mi != gfmap.end())
+  //     extensional_facts += v ;
+  // }
+  // void gfact_db::make_intensional_fact(const variable& v) {
+  //   // We perform action only if it is already an extensional_fact
+  //   // which implies that the fact exists in the fact_db
+  //   if(extensional_facts.inSet(v))
+  //     extensional_facts -= v ;
+  // }
   
   void gfact_db::set_variable_type(variable v, storeRepP st) {
     v = add_namespace(v) ;
@@ -145,7 +145,7 @@ namespace Loci {
 
     // Sanity check, make sure v exists
     std::map<variable,gStoreRepP>::iterator vmi, vmj ;
-    if((vmi = fmap.find(v)) == fmap.end()) {
+    if((vmi = gfmap.find(v)) == gfmap.end()) {
       cerr << "WARNING: synonym_variable("<<v<<","<<synonym<<")"<<endl ;
       cerr << "WARNING: type not known for target of synonym, ignoring operation" << endl ;
       //      abort() ;
@@ -153,7 +153,7 @@ namespace Loci {
     }
     // If the synonym already points to a different variable instance,
     // remove it
-    if((vmj = fmap.find(s)) != fmap.end()) {
+    if((vmj = gfmap.find(s)) != gfmap.end()) {
       gStoreRepP &finfo = vmj->second ;
       if((finfo->domain() != genIntervalSet<gEntity>::EMPTY &&
           finfo->RepType() != GPARAMETER)) {
@@ -162,7 +162,7 @@ namespace Loci {
         cerr << "variable v = " << v << endl ;
         abort() ;
       }
-      remove_variable(synonym) ;
+      remove_gvariable(synonym) ;
     }
     
     // Add new synonyms so that they point to v
@@ -174,7 +174,7 @@ namespace Loci {
   }
   
   void gfact_db::copy_facts(fact_db& facts)const{
-    for(std::map<variable,gStoreRepP>::const_iterator itr = fmap.begin(); itr != fmap.end(); itr++){
+    for(std::map<variable,gStoreRepP>::const_iterator itr = gfmap.begin(); itr != gfmap.end(); itr++){
      
       variable v = itr->first;
       
@@ -200,14 +200,14 @@ namespace Loci {
   // this is the basic method that creats a fact
   // in the gfact_db. It is served as the basis
   // for create_fact methods
-  //this method adds st to fmap with duplication check
+  //this method adds st to gfmap with duplication check
   //this method will not process keyspace info
-  void gfact_db::create_pure_fact(const variable& v, gStoreRepP st) {
+  void gfact_db::create_pure_gfact(const variable& v, gStoreRepP st) {
     //get real variable
     variable real_v = get_real_var(v);
-    std::map<variable, gStoreRepP>::iterator mi = fmap.find(real_v) ;
-    if(mi==fmap.end()) {
-      fmap[real_v]= st ;
+    std::map<variable, gStoreRepP>::iterator mi = gfmap.find(real_v) ;
+    if(mi==gfmap.end()) {
+      gfmap[real_v]= st ;
     } else {
       if(typeid(st->getRep()) != typeid(mi->second->getRep())) {
         cerr << "set_variable_type() method of gfact_db changing type for variable " << v << endl ;
@@ -237,7 +237,7 @@ namespace Loci {
   }
   void gfact_db::remove_variable_domain_space(const variable& v){
      
-    gStoreRepP st = get_variable(v);
+    gStoreRepP st = get_gvariable(v);
     gKeySpaceP space = st->get_domain_space();
     if(space != 0 ){
       variable real_v = get_real_var(v);
@@ -248,7 +248,7 @@ namespace Loci {
   
   void gfact_db::remove_variable_image_space(const variable& v){
     //get real varaible 
-    gStoreRepP st = get_variable(v);
+    gStoreRepP st = get_gvariable(v);
     gKeySpaceP space = gMapRepP(st)->get_image_space();
     if(space != 0){
       variable real_v = get_real_var(v);
@@ -259,46 +259,46 @@ namespace Loci {
     
 
   
-  void gfact_db::create_fact(const variable& v, gStoreRepP st,
+  void gfact_db::create_gfact(const variable& v, gStoreRepP st,
                              gKeySpaceP domain_space,
                              gKeySpaceP image_space) {
     variable tmp_v =add_namespace(v) ;
-    create_pure_fact(tmp_v,st) ;
+    create_pure_gfact(tmp_v,st) ;
     extensional_facts += tmp_v ;
     if(domain_space != 0) set_variable_domain_space(v, st, domain_space);
     if(image_space != 0)set_variable_image_space(v, gMapRepP(st), image_space);
   }
-  void gfact_db::create_fact(const std::string& vname, gStoreRepP st,
+  void gfact_db::create_gfact(const std::string& vname, gStoreRepP st,
                              gKeySpaceP domain_space ,
                              gKeySpaceP image_space ) {
     variable v = variable(vname) ;
-    create_fact(v,st, domain_space, image_space) ;
+    create_gfact(v,st, domain_space, image_space) ;
   }
   
-  void gfact_db::create_fact(const variable& v, gstore_instance &si,
+  void gfact_db::create_gfact(const variable& v, gstore_instance &si,
                              gKeySpaceP domain_space,
                              gKeySpaceP image_space) {
     variable tmp_v = add_namespace(v) ;
     gStoreRepP st = si.Rep(); 
-    create_pure_fact(tmp_v,st) ;
+    create_pure_gfact(tmp_v,st) ;
     if(domain_space != 0)set_variable_domain_space(v, st, domain_space);
     if(image_space != 0)set_variable_image_space(v, gMapRepP(st), image_space);
-    si.setRep(get_variable(v)) ;
+    si.setRep(get_gvariable(v)) ;
     extensional_facts += tmp_v ; 
   }
 
-  void gfact_db::create_fact(const std::string& vname, gstore_instance &si,
+  void gfact_db::create_gfact(const std::string& vname, gstore_instance &si,
                              gKeySpaceP domain_space ,
                              gKeySpaceP image_space ) {
     variable v = variable(vname) ;
-    create_fact(v,si, domain_space, image_space) ;
+    create_gfact(v,si, domain_space, image_space) ;
   }
 
 
-  //update fmap,
+  //update gfmap,
   //if new keyspaces are provided, remove v from old spaces, and connect v with  new ones
   //otherwise, assume st already has the domain space and image space set up
-  void gfact_db::update_fact(variable v, gStoreRepP st,
+  void gfact_db::update_gfact(variable v, gStoreRepP st,
                              gKeySpaceP domain_space ,
                              gKeySpaceP image_space ) {
     //get real variable
@@ -307,11 +307,11 @@ namespace Loci {
     //tmp_v should not have synonyms
     warn(synonyms.find(tmp_v) != synonyms.end()) ;
 
-    //update fmap and keyspaces
-    std::map<variable, gStoreRepP>::iterator mi = fmap.find(tmp_v) ;
+    //update gfmap and keyspaces
+    std::map<variable, gStoreRepP>::iterator mi = gfmap.find(tmp_v) ;
      
-    //tmp_v should be in fmap
-    if(mi != fmap.end()) {
+    //tmp_v should be in gfmap
+    if(mi != gfmap.end()) {
       if(domain_space != 0){
         remove_variable_domain_space(v);
       }
@@ -324,22 +324,22 @@ namespace Loci {
       if(domain_space != 0)set_variable_domain_space(v, st, domain_space);
       if(image_space != 0)set_variable_image_space(v, gMapRepP(st), image_space);
     } else{
-      cerr << "warning: update_fact: fact does not exist for variable " << tmp_v
+      cerr << "warning: update_gfact: fact does not exist for variable " << tmp_v
            << endl ;
     }
   }
 
   
-  /*! remove from synonym and fmap */
+  /*! remove from synonym and gfmap */
   //also remove from keyspaces
-  void gfact_db::remove_variable(variable v) {
+  void gfact_db::remove_gvariable(variable v) {
     std::map<variable, variable>::iterator si ;
     std::map<variable, gStoreRepP>::iterator mi ;
     if((si=synonyms.find(v)) != synonyms.end()) {
       variable real_var = remove_synonym(v) ;
       synonyms.erase(si) ;
-      remove_variable(real_var) ;
-    } else if((mi=fmap.find(v)) != fmap.end()) {
+      remove_gvariable(real_var) ;
+    } else if((mi=gfmap.find(v)) != gfmap.end()) {
       // First remove any synonyms to this variable.
       variableSet syn_vars ;
       vector<map<variable,variable>::iterator > lrm ;
@@ -356,7 +356,7 @@ namespace Loci {
       remove_variable_domain_space(v);
       remove_variable_image_space(v);
       // Now erase the variable
-      fmap.erase(mi) ;
+      gfmap.erase(mi) ;
      
     }
   }
@@ -365,7 +365,7 @@ namespace Loci {
     std::map<variable, gStoreRepP>::const_iterator mi ;
     std::map<variable, variable>::const_iterator si ;
     variableSet all_vars ;
-    for(mi=fmap.begin();mi!=fmap.end();++mi)
+    for(mi=gfmap.begin();mi!=gfmap.end();++mi)
       all_vars += mi->first ;
     
     for(si=synonyms.begin();si!=synonyms.end();++si)
@@ -376,12 +376,12 @@ namespace Loci {
 
  
   
-  gStoreRepP gfact_db::get_variable(variable v) {
+  gStoreRepP gfact_db::get_gvariable(variable v) {
     variable tmp_v = add_namespace(v) ;
     tmp_v = remove_synonym(tmp_v) ;
     std::map<variable, gStoreRepP>::iterator mi =
-      fmap.find(remove_synonym(tmp_v)) ;
-    if(mi == fmap.end()) {
+      gfmap.find(remove_synonym(tmp_v)) ;
+    if(mi == gfmap.end()) {
       // if(Loci::MPI_rank == 0)
       // 	cerr << " returning null  gStoreRep for variable " << tmp_v<< endl ;
       return gStoreRepP(0) ;
@@ -390,12 +390,12 @@ namespace Loci {
       return mi->second ;
   }
 
-  storeRepP gfact_db::get_frozen_variable(variable v) {
+  storeRepP gfact_db::get_variable(variable v) {
     variable tmp_v = add_namespace(v) ;
     tmp_v = remove_synonym(tmp_v) ;
     std::map<variable, storeRepP>::iterator mi =
-      lfmap.find(remove_synonym(tmp_v)) ;
-    if(mi == lfmap.end()) {
+      fmap.find(remove_synonym(tmp_v)) ;
+    if(mi == fmap.end()) {
       // if(Loci::MPI_rank == 0)
       // 	cerr << " returning null  gStoreRep for variable " << tmp_v<< endl ;
       return storeRepP(0) ;
@@ -442,12 +442,12 @@ namespace Loci {
             throw StringError(oss.str()) ;
           }
           //create_frozen_fact(*vi, srp);
-          lfmap[*vi] = srp;//temperary borrow lfmap, may cause problems if lfmap already has entries inside
+          fmap[*vi] = srp;//temperary borrow fmap, may cause problems if fmap already has entries inside
           
           // //for default rules, create the facts
           // //first, storeRepP need to transform to gStoreRepP
           // gStoreRepP gsrp = srp->copy2gstore();
-          // create_fact(*vi,gsrp, universe_space) ;//assume it is a parameter on universe_space
+          // create_gfact(*vi,gsrp, universe_space) ;//assume it is a parameter on universe_space
         }
 
         //postphone these two steps until gfact_db become fact_db
@@ -459,9 +459,9 @@ namespace Loci {
       //thaw frozen variable
       for(variableSet::const_iterator vi = working_vars.begin();
           vi != working_vars.end();++vi){
-        storeRepP srp = get_frozen_variable(*vi);
+        storeRepP srp = get_variable(*vi);
         gStoreRepP gsrp = srp->copy2gstore();
-        create_fact(*vi,gsrp, universe_space) ;//assume it is a parameter on universe_space
+        create_gfact(*vi,gsrp, universe_space) ;//assume it is a parameter on universe_space
       }
       
       // then we process the optional rules
@@ -532,17 +532,17 @@ namespace Loci {
             cerr << "WARNING: Redefining variable '" << var << "' while reading in fact_db!!!!!" << endl ;
           }
           read_vars += var ;
-          gStoreRepP gvp = get_variable(var) ;
-          if(gvp == 0) {//this variable is not in fmap
+          gStoreRepP gvp = get_gvariable(var) ;
+          if(gvp == 0) {//this variable is not in gfmap
             storeRepP vp = get_variable_type(var) ;
             if(vp != 0) { //it is typed
               //transform it to gStoreRep
               gStoreRepP gsrp = vp->copy2gstore();//also assume it is a parameter in universe_space
-              create_fact(var,gsrp) ;
+              create_gfact(var,gsrp) ;
             }
-            gvp = get_variable(var) ;
+            gvp = get_gvariable(var) ;
           }
-          if(gvp == 0) {//the variable is neither in fmap nor tmap
+          if(gvp == 0) {//the variable is neither in gfmap nor tmap
             ostringstream oss ;
             oss << "variable named '" << vname
                 << "' not found in database in fact_db::read." << endl ;

@@ -62,13 +62,13 @@ namespace Loci{
 
   void createLowerUpper(gfact_db &facts) {
     gConstraint faces, geom_cells,interior_faces,boundary_faces ;
-    faces = facts.get_variable("faces") ;
-    geom_cells = facts.get_variable("geom_cells") ;
-    interior_faces = facts.get_variable("interior_faces") ;
-    boundary_faces = facts.get_variable("boundary_faces") ;
+    faces = facts.get_gvariable("faces") ;
+    geom_cells = facts.get_gvariable("geom_cells") ;
+    interior_faces = facts.get_gvariable("interior_faces") ;
+    boundary_faces = facts.get_gvariable("boundary_faces") ;
     gEntitySet bfaces = *boundary_faces ;
     gEntitySet ifaces = *interior_faces ;
-    gStoreRepP pfacesP = facts.get_variable("periodicFaces") ;
+    gStoreRepP pfacesP = facts.get_gvariable("periodicFaces") ;
     if(pfacesP != 0) {
       gConstraint periodicFaces ;
       periodicFaces = pfacesP ;
@@ -79,8 +79,8 @@ namespace Loci{
     gEntitySet global_boundary_faces = g_all_collect_entitySet<gEntity>(bfaces) ;
   
     gMap cl,cr ;
-    cl = facts.get_variable("cl") ;
-    cr = facts.get_variable("cr") ;
+    cl = facts.get_gvariable("cl") ;
+    cr = facts.get_gvariable("cr") ;
     gEntitySet global_geom_cells ; 
     //init_ptn can not use key_ptn of gKeySpace, because key_ptn is in file numbering
     std::vector<gEntitySet> init_ptn = g_all_collect_vectors<gEntity>(*geom_cells) ;
@@ -91,9 +91,9 @@ namespace Loci{
     lower = cr.distributed_inverse(global_geom_cells, global_interior_faces, init_ptn);
     boundary_map = cl.distributed_inverse(global_geom_cells, global_boundary_faces, init_ptn);
     
-    facts.create_fact("lower",lower, lower.get_domain_space(), lower.get_image_space()) ;
-    facts.create_fact("upper",upper, upper.get_domain_space(), upper.get_image_space()) ;
-    facts.create_fact("boundary_map",boundary_map,boundary_map.get_domain_space(), boundary_map.get_image_space()) ;
+    facts.create_gfact("lower",lower, lower.get_domain_space(), lower.get_image_space()) ;
+    facts.create_gfact("upper",upper, upper.get_domain_space(), upper.get_image_space()) ;
+    facts.create_gfact("boundary_map",boundary_map,boundary_map.get_domain_space(), boundary_map.get_image_space()) ;
   }
 
   namespace{
@@ -514,7 +514,7 @@ namespace Loci{
   void
   createEdgesPar(gfact_db &facts) {
     gMultiMap face2node ;
-    face2node = facts.get_variable("face2node") ;
+    face2node = facts.get_gvariable("face2node") ;
    
     // Loop over faces and create list of edges (with duplicates)
     vector<pair<gEntity,gEntity> > emap ;
@@ -643,7 +643,7 @@ namespace Loci{
     //create constraint edges
     gConstraint edges_tag;
     *edges_tag = edges;
-    facts.create_fact("edges", edges_tag, edge_space);
+    facts.create_gfact("edges", edges_tag, edge_space);
    
     // Copy edge nodes into a MapVec
     gMapVec<2> edge ;
@@ -805,7 +805,7 @@ namespace Loci{
         face2edge.insert(itr->dom, itr->img);
       }
       // Add face2edge to the fact database
-      facts.create_fact("face2edge",face2edge) ;
+      facts.create_gfact("face2edge",face2edge) ;
     }
 
    
@@ -960,7 +960,7 @@ namespace Loci{
     }//end of if(MPI_processes > 1)
 
     // Add edge2node to fact databse
-    facts.create_fact("edge2node",edge) ;
+    facts.create_gfact("edge2node",edge) ;
    
   } // end of createEdgesPar
   
@@ -1049,12 +1049,12 @@ namespace Loci{
 
     // Compute fluid face centers
     gStore<vector3d<real_t> > pos ;
-    pos = facts.get_variable("pos") ;
+    pos = facts.get_gvariable("pos") ;
     MPI_Comm comm= pos.get_domain_space()->get_mpi_comm();
    
     // First fill in fpos so that it is valid for any reference to
     // it from face2node on this processor.
-    gStoreRepP face2node  = facts.get_variable("face2node") ;
+    gStoreRepP face2node  = facts.get_gvariable("face2node") ;
     gKeySpaceP face_space = face2node->get_domain_space();
     gMultiStore<vector3d<real_t> > fpos;
     fpos = pos.recompose(face2node, comm);
@@ -1160,15 +1160,15 @@ namespace Loci{
 
     gKeySpaceP bc_space = gKeySpace::get_space("BcSpace", "");
     // Add periodic datastructures to fact database
-    facts.create_fact("pmap",pmap, face_space, face_space) ;
-    facts.create_fact("periodicTransform",periodic_transform, bc_space) ;
+    facts.create_gfact("pmap",pmap, face_space, face_space) ;
+    facts.create_gfact("periodicTransform",periodic_transform, bc_space) ;
   } 
 
   void create_ci_map(gfact_db &facts) {
     gConstraint boundary_faces ;
-    boundary_faces = facts.get_variable("boundary_faces") ;
+    boundary_faces = facts.get_gvariable("boundary_faces") ;
     gEntitySet ci_faces = *boundary_faces ;
-    gStoreRepP pfacesP = facts.get_variable("periodicFaces") ;
+    gStoreRepP pfacesP = facts.get_gvariable("periodicFaces") ;
     if(pfacesP != 0) {
       gConstraint periodicFaces ;
       periodicFaces = pfacesP ;
@@ -1177,14 +1177,14 @@ namespace Loci{
     }
 
     gMap cl,ci ;
-    cl = facts.get_variable("cl") ;
+    cl = facts.get_gvariable("cl") ;
 
     for(gMap::const_iterator itr = cl.begin(); itr != cl.end(); itr++){
       if(ci_faces.inSet(itr->first)) ci.insert(itr->first, itr->second);
     }
     gKeySpaceP face_space = cl.get_domain_space();
     gKeySpaceP cell_space = cl.get_image_space(); 
-    facts.create_fact("ci", ci, face_space, cell_space) ;
+    facts.create_gfact("ci", ci, face_space, cell_space) ;
     debugout << "boundary_faces = " << *boundary_faces << endl ;
     debugout << "ci_faces = " << ci_faces << endl ;
   }
@@ -1212,7 +1212,7 @@ namespace Loci{
 
     gEntitySet symmetry ;
 
-    gStoreRepP tmp = facts.get_variable("boundary_names") ;
+    gStoreRepP tmp = facts.get_gvariable("boundary_names") ;
     if(tmp == 0) 
       throw(StringError("boundary_names not found in setupBoundaryConditions! Grid file read?")) ;
       
@@ -1230,25 +1230,25 @@ namespace Loci{
     for(int i = 0; i < num_process; i++)ptn[i] = dom;
     boundary_names = boundary_names.split_redistribute(ptn, comm);
     boundary_names.local_sort();
-    boundary_tags = facts.get_variable("boundary_tags") ;
+    boundary_tags = facts.get_gvariable("boundary_tags") ;
     boundary_tags = boundary_tags.split_redistribute(ptn, comm);
     boundary_tags.local_sort();
     gMap ref ;
-    ref = facts.get_variable("ref") ;
+    ref = facts.get_gvariable("ref") ;
    
     gKeySpaceP face_space = ref.get_domain_space();
     
 
     
     gParam<options_list> bc_info ;
-    tmp = facts.get_variable("boundary_conditions") ;
+    tmp = facts.get_gvariable("boundary_conditions") ;
     if(tmp == 0)
       throw(StringError("boundary_conditions not found in setupBoundaryConditions! Is vars file read?")) ;
     bc_info = tmp ;
        
     gParam<real_t> Lref ;
     *Lref = 1.0 ;
-    gStoreRepP p = facts.get_variable("Lref") ;
+    gStoreRepP p = facts.get_gvariable("Lref") ;
     if(p != 0)
       Lref = p ;
     
@@ -1275,14 +1275,14 @@ namespace Loci{
       gConstraint bconstraint ;
       *bconstraint = bfaces ;
      
-      facts.create_fact(tname,bconstraint, face_space) ;
+      facts.create_gfact(tname,bconstraint, face_space) ;
       debugout << "boundary " << bname << "("<< tname << ") = "
                << *bconstraint << endl ;
       gParam<string> boundarySet ;
       *boundarySet = bname ;
       string factname = "boundaryName(" + bname + ")" ;
       boundarySet.set_entitySet(bfaces) ;
-      facts.create_fact(factname,boundarySet,face_space) ;
+      facts.create_gfact(factname,boundarySet,face_space) ;
       
       option_value_type vt =
         bc_info->getOptionValueType(bname);
@@ -1360,7 +1360,7 @@ namespace Loci{
           gConstraint bc_constraint ;
           bc_constraint = mi->second ;
           std::string constraint_name = mi->first + std::string("_BC") ;
-          facts.create_fact(constraint_name,bc_constraint, face_space) ;
+          facts.create_gfact(constraint_name,bc_constraint, face_space) ;
           if(MPI_processes == 1)
             std::cout << constraint_name << ' ' << mi->second << endl ;
           else if(MPI_rank == 0)
@@ -1371,7 +1371,7 @@ namespace Loci{
 
  
     gConstraint cells ;
-    cells = facts.get_variable("cells") ;
+    cells = facts.get_gvariable("cells") ;
     gStore<options_list> BC_options ;
     //BC_options.allocate(dom) ;
 
@@ -1394,13 +1394,13 @@ namespace Loci{
         gConstraint bc_constraint ;
         bc_constraint = mi->second ;
         std::string constraint_name = mi->first + std::string("_BCoption") ;
-        facts.create_fact(constraint_name,bc_constraint, face_space) ;
+        facts.create_gfact(constraint_name,bc_constraint, face_space) ;
       }
     }
     
     if(periodic_data.size() != 0) {
       periodic_faces = periodic ;
-      facts.create_fact("periodicFaces",periodic_faces, face_space) ;
+      facts.create_gfact("periodicFaces",periodic_faces, face_space) ;
 
       list<pair<gperiodic_info,gperiodic_info> > periodic_list ;
       for(size_t i=0;i<periodic_data.size();++i) {
@@ -1455,18 +1455,18 @@ namespace Loci{
     } else {
       gConstraint notPeriodicCells ;
       *notPeriodicCells = ~GEMPTY ;
-      facts.create_fact("notPeriodicCells",notPeriodicCells, face_space) ;
+      facts.create_gfact("notPeriodicCells",notPeriodicCells, face_space) ;
     }      
     
 
     gEntitySet no_symmetry ;
     gConstraint allfaces ;
-    allfaces = facts.get_variable("faces") ;
+    allfaces = facts.get_gvariable("faces") ;
     no_symmetry  = *allfaces - symmetry ;
     no_symmetry_BC = no_symmetry ;
-    facts.create_fact("no_symmetry_BC",no_symmetry_BC, face_space) ;
+    facts.create_gfact("no_symmetry_BC",no_symmetry_BC, face_space) ;
 
-    facts.create_fact("BC_options",BC_options, bc_space) ;
+    facts.create_gfact("BC_options",BC_options, bc_space) ;
 
     create_ci_map(facts) ;
     

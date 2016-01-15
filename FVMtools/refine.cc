@@ -19,7 +19,6 @@
 //#
 //#############################################################################
 
-
 #include <iostream>
 #include <string>
 
@@ -356,93 +355,93 @@ int main(int argc, char ** argv) {
   //this is a dummy parameter to trick Loci scheduler
   gParam<bool> beginWithMarker;
   *beginWithMarker = true;
-  gfacts.create_fact("beginWithMarker",beginWithMarker) ; 
+  gfacts.create_gfact("beginWithMarker",beginWithMarker) ; 
   
   gParam<std::string> meshfile_par ;
   *meshfile_par = meshFile;
-  gfacts.create_fact("meshfile_par",meshfile_par) ; 
+  gfacts.create_gfact("meshfile_par",meshfile_par) ; 
 
   gParam<std::string> outfile_par ;
   *outfile_par = outFile;
-  gfacts.create_fact("outfile_par",outfile_par) ; 
+  gfacts.create_gfact("outfile_par",outfile_par) ; 
 
   if(plan_output){ 
     gParam<std::string> plan_outfile_par ;
     *plan_outfile_par = outPlanFile;
-    gfacts.create_fact("plan_outfile_par",plan_outfile_par) ;
+    gfacts.create_gfact("plan_outfile_par",plan_outfile_par) ;
   }
   
   if(tag_input){
     gParam<std::string> tagfile_par ;
     *tagfile_par = tagFile;
-    gfacts.create_fact("tagfile_par",tagfile_par) ;
+    gfacts.create_gfact("tagfile_par",tagfile_par) ;
   }
  
   if(ctag_input){
     gParam<std::string> tagfile_par ;
     *tagfile_par = tagFile;
-    gfacts.create_fact("cell_tagfile_par",tagfile_par) ;
+    gfacts.create_gfact("cell_tagfile_par",tagfile_par) ;
   }
  
   if(par_input){
     gParam<std::string> parfile_par ;
     *parfile_par = parFile;
-    gfacts.create_fact("parfile_par",parfile_par) ;
+    gfacts.create_gfact("parfile_par",parfile_par) ;
   }
   
   if(xml_input){
     gParam<std::string> xmlfile_par ;
     *xmlfile_par = xmlFile;
-    gfacts.create_fact("xmlfile_par",xmlfile_par) ;
+    gfacts.create_gfact("xmlfile_par",xmlfile_par) ;
   }
   if(cell2parent){
     gParam<std::string> c2pfile_par ;
     *c2pfile_par = c2pFile;
-    gfacts.create_fact("cell2parent_file_par",c2pfile_par) ;
+    gfacts.create_gfact("cell2parent_file_par",c2pfile_par) ;
     if(restart){
       gParam<std::string> parent_planfile_par ;
       *parent_planfile_par = planFile;
-      gfacts.create_fact("parent_planfile_par",parent_planfile_par) ;
+      gfacts.create_gfact("parent_planfile_par",parent_planfile_par) ;
     }
   }
   //parameters to identify different options
   if(restart){
     gParam<std::string> planfile_par ;
     *planfile_par = planFile;
-    gfacts.create_fact("planfile_par",planfile_par) ;
+    gfacts.create_gfact("planfile_par",planfile_par) ;
     
     if(xml_input){
       gParam<int> restart_xml_par;
       *restart_xml_par = 1;
-      gfacts.create_fact("restart_xml_par",restart_xml_par);
+      gfacts.create_gfact("restart_xml_par",restart_xml_par);
     } else if(tag_input||ctag_input){
       gParam<int> restart_tag_par;
       *restart_tag_par = 1;
-      gfacts.create_fact("restart_tag_par",restart_tag_par);
+      gfacts.create_gfact("restart_tag_par",restart_tag_par);
     }else if(par_input){
       gParam<int> restart_par_par;
       *restart_par_par = 1;
-      gfacts.create_fact("restart_par_par",restart_par_par); 
+      gfacts.create_gfact("restart_par_par",restart_par_par); 
     }
   }else{
     if(xml_input){
       gParam<int> norestart_xml_par;
       *norestart_xml_par = 1;
-      gfacts.create_fact("norestart_xml_par",norestart_xml_par);
+      gfacts.create_gfact("norestart_xml_par",norestart_xml_par);
     }else if(tag_input||ctag_input){
       gParam<int> norestart_tag_par;
       *norestart_tag_par = 1;
-      gfacts.create_fact("norestart_tag_par",norestart_tag_par);
+      gfacts.create_gfact("norestart_tag_par",norestart_tag_par);
     }else if(par_input){
       gParam<int> norestart_par_par;
       *norestart_par_par = 1;
-      gfacts.create_fact("norestart_par_par",norestart_par_par);
+      gfacts.create_gfact("norestart_par_par",norestart_par_par);
     }
   }
   
   gParam<int> split_mode_par;
   *split_mode_par = split_mode;
-  gfacts.create_fact("split_mode_par", split_mode_par);
+  gfacts.create_gfact("split_mode_par", split_mode_par);
 
 
 

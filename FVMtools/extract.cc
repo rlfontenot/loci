@@ -2384,6 +2384,7 @@ void setup_grid_topology(string casename, string iteration) {
   if(!Loci::setupFVMGrid(gfacts,file)) {
     cerr << "unable to read grid " << file << endl ;
   }
+  Loci::createLowerUpper(gfacts) ;
 
   fact_db facts;
   copy_facts(gfacts, facts);
@@ -2402,7 +2403,7 @@ void setup_grid_topology(string casename, string iteration) {
   
   string filename = output_dir+"/"+casename+".topo" ;
   if(stat(filename.c_str(),&tmpstat)!= 0) {
-    Loci::createLowerUpper(facts) ;
+    // Loci::createLowerUpper(facts) ;
     multiMap upper,lower,boundary_map,face2node ;
     Map ref ;
     store<string> boundary_names ;

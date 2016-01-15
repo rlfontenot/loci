@@ -45,4 +45,68 @@ namespace Loci {
       return gEntitySet(std::pair<gEntity, gEntity>(local_min, local_max));
     }
   }
+
+
+
+  //orthKeyManager implementation, not tested, for future use 
+  orthKeyManager::orthKeyManager(gEntity global_start) {
+    // first we obtain the limits on the gEntity type
+    // we would like it to be slightly smaller than
+    // the true max value
+    gEntity global_max_key = std::numeric_limits<gEntity>::max() - 5 ;
+    gEntity global_range = global_max_key - global_start ;
+    // get the number of processes
+    int comm_size = 0 ;
+    MPI_Comm_size(MPI_COMM_WORLD, &comm_size) ;
+    gEntity local_range = global_range / comm_size ;
+
+    rank = 0 ;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank) ;
+
+    min_key = rank * local_range + global_start ;
+    max_key = min_key + local_range - 1 ;
+
+    int np = 0 ;
+    MPI_Comm_size(MPI_COMM_WORLD, &np) ;
+    min_dist.resize(np) ;
+    max_dist.resize(np) ;
+    MPI_Allgather(&min_key, 1, MPI_INT,
+                  &min_dist[0], 1, MPI_INT, MPI_COMM_WORLD) ;
+    MPI_Allgather(&max_key, 1, MPI_INT,
+                  &max_dist[0], 1, MPI_INT, MPI_COMM_WORLD) ;
+    range_size = max_key - min_key + 1 ;
+
+    // initially all are free keys
+    freeset = interval(min_key, max_key) ;
+  }
+
+  
+  gEntitySet
+  orthKeyManager::generate_key(gEntity size) {
+    if( (gEntity)freeset.size() < size) {
+      std::stringstream err ;
+      err << "orthKeyManager Error: process " << rank
+          << " is running out of keys!" ;
+      throw StringError(err.str()) ;
+    }
+    gEntitySet k ;
+    for(gEntitySet::const_iterator i=freeset.begin();
+        size!=0;++i,--size)
+      k += *i ;
+
+    freeset -= k ;
+
+    return k ;
+  }
+
+  void
+  orthKeyManager::recycle_key(gEntity k) {
+    freeset += k ;
+  }
+
+  void
+  orthKeyManager::recycle_key(const gEntitySet& keys) {
+    freeset += keys ;
+  }
+
 }

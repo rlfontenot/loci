@@ -52,7 +52,7 @@ namespace Loci {
 
 
   template<class T> void gStoreRepI<T>::local_sort(){
-    std::stable_sort(attrib_data.begin(), attrib_data.end(), fieldSort1<T>);
+    std::sort(attrib_data.begin(), attrib_data.end(), fieldSort1<T>);
     sorted = true;
   }
 

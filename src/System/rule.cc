@@ -604,7 +604,7 @@ namespace Loci {
     storeIMap::iterator sp ;
     
     for(sp=var_table.begin();sp!=var_table.end();++sp) {
-      storeRepP srp = facts.get_frozen_variable(sp->first) ;
+      storeRepP srp = facts.get_variable(sp->first) ;
       if(srp == 0) {
         cerr << "ERROR!: rule_impl::initialize unable to extract '"
              << sp->first << "' from store data base."

@@ -140,6 +140,7 @@ are considering the following ideas/approaches:
 \end{itemize}
 
 \section{The new container type}
+\label{section::container-type}
 For the tasks to begin, we will need to pick something to start with.
 We have decided that the designing of several new data container types
 will probably provide a gentle start.  This also allows us to evaluate
@@ -410,35 +411,37 @@ stay stable.  For example, if we commit to certain design schemes and
 produced some codes, then we can put comments and documents here in this
 section.
 
-\section{Implementation progress}
+\section{Implementation progress September 2015}
 \subsection{genIntevalSet}
 In files \texttt{intervalSet.h} \texttt{intervalSet\_def.h} and \texttt{intervalSet\_impl.h},
 class \texttt{intervalSet} is parameterized and turn into template class
 \texttt{genIntervalSet}. 
 
 \texttt{int\_type} is used to represent 32-bit integer, and \texttt{gEntity} is used to
-represent 64-bit integer. The corresponding MPI data type and hdf5
-data type for \texttt{gEntity} are defined using \texttt{typedef}. macro \texttt{GFORALL}
-is also added for \texttt{genIntervalSet<gEntity>}.
+represent entities in the global and file numbering, which can be
+64-bit integer or 32-bit intergers, switched by \texttt{typedef}. The corresponding MPI data type and hdf5
+data type for \texttt{gEntity} are also specified using \texttt{typedef}. macro \texttt{GFORALL}
+is added for \texttt{genIntervalSet<gEntity>}.
 
 To avoid
 polluting code in large amount of files, new files
 \texttt{Tools/simple\_partition\_long.h}, \texttt{hdf5\_readwrite\_long.h} and
-\texttt{distribute\_long.h} are added to deal with communication and io operation of
-\texttt{gEntity}.
+\texttt{distribute\_long.h} are added to deal with communication and
+io operations on 
+\texttt{gEntity}. The corresponding header files will be cleaned up later.
 
+
+{\it Notes: On some compilers, the initialization order of global
+  variables of template class may cause problems}
   
-\subsection{GStore}
-The new container class \texttt{GStore} is partially implemented in \texttt{gstore.h},
+\subsection{gStore}
+The new container class \texttt{gStore} is partially implemented in \texttt{gstore.h},
 \texttt{gstore\_def.h} and \texttt{gstore\_impl.h}. 
-std iterator for \texttt{vector} are used for \texttt{GStore} so that the std iterator functions
-can be used. A local binary search function is added for the \texttt{retrieve}
-function, which will be implemented later.
+std iterator for \texttt{vector} are used for \texttt{gStore} so that the std iterator functions
+can be used. 
 
-Two member function \texttt{copy2store} and \texttt{copy2map} are added to move the
-contents of \texttt{GStore} into traditional Loci stores or maps. These two
-functions will be modified later so that the mapping information
-between different numbering scheme can also be generated. 
+Member function \texttt{copy2store}  are added to move the
+contents of \texttt{gStore} into traditional Loci stores. 
 
 Up to now, the \texttt{sort} and \texttt{make\_consistent} functions are ignored because
 they are not needed yet.  
@@ -446,17 +449,239 @@ they are not needed yet.
  
 \subsection{FVMGridReader}  
   In the current version of \texttt{FVMGridReader\_long.cc}, \texttt{readGridVOG} calls function \texttt{readGridVOG\_raw}
-  first,  which reads \texttt{pos}, \texttt{cl}, \texttt{cr}, \texttt{face2node} information into \texttt{GStore}
+  first,  which reads \texttt{pos}, \texttt{cl}, \texttt{cr}, \texttt{face2node} information into new
   containers. \texttt{readGridVOG} function then  copys the information from new
-  containers into traditional Loci stores and maps.
+  containers into traditional Loci containers.
 
   While reading from VOG files, the local variables need to be modified
   to fit for larger integers, so are MPI communication functions and hdf5 io
   functions. 
-   
+
+
+   {\it Notes: \texttt{boundary\_names} and \texttt{boundary\_tags} are distributed
+     cross processes now. While defining something on all boundary
+     surfaces, need perform MPI all\_collect operation. }
+
+
 \subsection{Next step}        
  so far, Loci is tested with \texttt{gEntity} is defined as c++ int. Next step,
  partition functions will be modified in \texttt{FVMGridReader\_long.cc}.
 
+\section{Implementation progress January 2016}
+At this points, gContainers are used until just before \texttt{makeQuery()} is
+called in \texttt{chem, marker, refmesh, refine}, and \texttt{extract}. In \texttt{chem}, the
+adapt code is commented out, and this part of code will be updated
+later and should not be removed. 
 
+\subsection{gKeySpace, gKeySpaceManager and gKeyManager}  
+\texttt{gKeySpace} is used for the following purpose:
+\begin{itemize} 
+\item gKeySpace seperates nodes, faces, cells, edges and boundary surfaces
+into different spaces, so that they can have overlapped keysets in
+file numbering.
+ \item It allows adding and removing keys in each space independently(future
+use, while orthKeyManager is used) so that mesh refinement and
+derefinement can be done without massive communication. 
+\item Each variable knows its gKeySpace, so that it is possible in the
+  future, a query is made with only related keyset being transformed
+  between file, global and local numbering. 
+\item Each space knows its own in and out vars so that operations
+  such as \texttt{distribute} can be performed over a space.
+  
+\end{itemize}   
+
+
+
+class \texttt{gKeySpace} contains the following member data:
+
+\begin{itemize}
+ \item the MPI communicator information
+ \item the keyset distributed over all processes in the communicator and
+   the keyset that
+   this process owns
+ \item the maps between local numbering, global numbering and file
+   numbering
+ \item the distribution and the partition information
+ \item the scope: is this space in local numbering, global numbering
+   or file numbering
+ \item the variables whose domain is this space and the variables
+   whose image is this space
+ \item the gKeySpaceManager that this space is under control of.
+ \end{itemize}
+
+gKeySpaceManager is a singleton class, it can
+\begin{itemize}
+\item make sure that each gKeySpace is created only once
+\item given a name, return the pointer to the space
+\item return all spaces
+\end{itemize}
+
+
+gKeySpaceManager has a static member data \texttt{space\_map}, which maps the
+name of a space to its storage. The names of gKeySpaces are hard-coded,
+they can only be "NodeSpace", "FaceSpace", "CellSpace", "EdgeSpace", "BcSpace" and "UniverseSpace".
+"BcSpace" is for boundary surfaces. And "UniverseSpace" is a special gKeySpace designed for
+gParams, gConstraints and gBlackBoxs that are defined over all keys in all spaces.
+While a gKeySpace registers itself, it is added to the \texttt{space\_map} of
+the gKeySpaceManager.
+
+
+gKeyManager is responsible for generating keys for
+gKeySpaces. Different gKeyManagers generate keys in different
+ways. distKeyManager generates keys distributedly, i.e., each process
+tells the manager the number of keys it requests, and the manager
+will return the keys that are contiguous over processes. 
+
+\subsection{Partition of mesh }
+To make Loci more flexible, grid reader is separated from the mesh
+partition. This way, the user/developer can switch between different
+grid readers without changing the partition code. 
+
+
+To perform mesh partition, the user need specify the following
+information:
+\begin{itemize}
+\item the first space to partition: \texttt{NodeSpace}, \texttt{FaceSpace} or \texttt{CellSpace} 
+\item the strategy used to partition the first space:
+  \texttt{Simple},\texttt{Metis}, or \texttt{ORB}
+\item the second space to partition: \texttt{NodeSpace},
+  \texttt{FaceSpace} or \texttt{CellSpace}, which can not be the same
+  as the first space.
+\item the third space to partition: \texttt{NodeSpace},
+  \texttt{FaceSpace} or \texttt{CellSpace}, which can not be the same
+  as the first space or the second space
+\item The map used to partition the third space in the affinity
+  partition. 
+\item If Metis partition is used in the first space, the map used
+  to create the self-map in the first space. 
+  For example, if the first space is \texttt{CellSpace}, to create \texttt{cell2cell} self-map, if
+  \texttt{cell2face} map is used, a cell is mapped to all the cells
+  that share the same face with it. Same way, 
+  \texttt{cell2node} can also be used to create \texttt{cell2cell} map. The
+  user need specify which one to use.  
+\end{itemize} 
+
+At this stage, we assume that only \texttt{NodeSpace}, \texttt{FaceSpace} and \texttt{CellSpace}
+need to be partitioned, and edges are created after
+partition. Otherwise, more information need to be provided by users. 
+
+To ensure the partition code is genetic, the name of maps here are not variable
+names, instead it is composed of space names. For example, the maps from \texttt{FaceSpace}
+to \texttt{CellSpace} is named \texttt{face2cell}, instead of \texttt{cl} and \texttt{cr}. Loci will look
+up and find the variables, perform merging and distributed-reversing if necessary.
+
+An exemplary string provided by user can be: 'FaceSpace, Metis, NodeSpace, CellSpace,
+face2cell, face2node'. Loci will parse the string and perform Metis
+partition in FaceSpace, face2face map is created using face2node. Then
+NodeSpace is partitioned using face2node affinity. CellSpace is
+partitioned using face2cell affinity. 
+ 
+\subsection{gfact\_db}
+The new fact database \texttt{gfact\_db} is built
+incrementally. The member data is added to the database only if it is
+needed. Compared with old \texttt{fact\_db}, distribution information
+is stored in \texttt{gKeySpace} now and will be removed permanently from
+\texttt{gfact\_db}.
+
+\texttt{gfmap} is added to \texttt{gfact\_db}. It maps each variable
+to its gcontainer storage. It is modified and queried by
+\texttt{create\_gfact}, \texttt{update\_gfact},
+\texttt{replace\_gfact} and  \texttt{get\_gfact},
+\texttt{get\_gvariable}, \texttt{remove\_gvariable} methods.
+
+Like \texttt{fact\_db},  in \texttt{gfact\_db}, \texttt{fmap} is used to map each
+variable to its traditional Loci storage. In the long run, entries in this map are not inserted by \texttt{create\_fact} method,
+ instead, when variables freeze, they are removed from \texttt{gfmap}
+ and added to \texttt{fmap}. \texttt{get\_variable} method is
+ used to query the variable in this map. 
+
+
+\texttt{tmap} is used to map
+variables to their types. \texttt{tmap} is designed for optional rules
+which specify the type of variables and .vars file will provide the
+value of the variables.
+
+Same as \texttt{fact\_db}, in \texttt{gfact\_db},  \texttt{extensional\_facts} are used to support multiple
+queries;   \texttt{nspace\_vec} is used to allow namespaces in front of
+variable name; And \texttt{synonyms} is included to support multiple
+names of a variable.
+
+ 
+ 
+
+ In \texttt{read\_vars()} method, \texttt{fmap}
+  is also temporarily used to store the target variables of default
+ rules. Since we don't want to change \texttt{rule\_impl} class, whose
+ \texttt{get\_store()} method will return \texttt{storeRepP}, we
+ place the \texttt{storeRepP} in  \texttt{fmap} first. After \texttt{initialize()}
+ and \texttt{compute()} are performed for the \texttt{rule\_impl}, we
+ use newly-added \texttt{copy2gstore()} member method of
+ \texttt{storeRep} 
+ to transform the traditional container into gcontainer
+ and create gfacts in \texttt{gfact\_db}.  For target variables of
+ optional rules, they are placed into \texttt{tmap} as \texttt{storeRepP} first. After the
+ variable name is found in .vars file ,  \texttt{copy2gstore()} is
+ called followed by \texttt{create\_gfact()} in \texttt{gfact\_db}, and
+ then the value of the variable is read in. 
+ 
+ \texttt{gkey\_manager} is temporarily placed in \texttt{gfact\_db} because we did not
+ find a good place for it yet. 
+
+Another difference between \texttt{gfact\_db} and \texttt{fact\_db} is
+that in the member methods \texttt{create\_gfact}, \texttt{update\_gfact}
+and \texttt{replace\_gfact} of \texttt{gfact\_db}, \texttt{domain\_space} and/or
+\texttt{image\_space} of the variable need to be specified.
+
+ 
+\subsection{gcontainers} 
+Same as \texttt{gfact\_db}, gcontainers are also built incrementally,
+i.e., their members are added only if they are needed at this
+stage. Up to present time, classes \texttt{gBlackBox, gConstraint, gMap,
+  gMapVec, gMultiMap, gStore, gMultiStore, gParam} are designed and
+implemented.
+ 
+
+The new container design has been described in section
+~\ref{section::container-type}. More details worth mention here.
+
+\begin{itemize}
+\item Each container knows its own domain key space and/or image key space.
+\item Since the new containers use vector-of-pair storage, a set of
+  convenient functions for vector operations are added, such as
+  \texttt{size, reserve, clear local\_sort}. \texttt{size} will return
+  the size of the vector, not the size of domain. It turns out that
+  distribute method can be used to replace global sort method. For
+  local sort, \texttt{std::stable\_sort} is used for \texttt{gMultiMap},
+  \texttt{gMapVec} and \texttt{gMultiStore}. 
+  \item For \texttt{gMap}, a special
+  method \texttt{local\_sort2} is added and it will stable\_sort the
+  vector-of-pair according to the value field.  This method is used
+  in equiJoin operation. However, for \texttt{gMultiMap}, sorting the
+  vector according to the value field will mess up the order of the
+  values associated with the same key. To perform the equiJoin
+  operation, first vector-of-pair is copied into a vector-of-triplet,
+  which will record the key, the value and the index of the
+  value. After the  equiJoin
+  operation is finished, the resulted vector-of-triplet will be sorted
+  according to the key and the index field.
+\item For \texttt{gMultiMap} and \texttt{gMultiStore}, except for
+  domain field, we added another virtual domain field which includes
+  the keys that have no value associate with them. This is needed when
+  variables such as \texttt{lower, upper} and \texttt{boundary\_map}
+  are frozen into traditional containers 
+\end{itemize}  
+
+\subsection{Future work} 
+  Next step, the goals is to \texttt{makeQuery()} in \texttt{gfact\_db}. To be able to
+  do this, we will temporarily merge all the member data and member methods of
+  \texttt{fact\_db} into \texttt{gfact\_db}. And then
+  \texttt{copy\_facts()} function will copy all gcontainers from \texttt{gfmap}
+  to traditional containers in \texttt{fmap}. It also will collect the
+  distribute info and place it in  \texttt{gfact\_db} temporarily. 
+
+  Once Loci is able to \texttt{makeQuery()} in \texttt{gfact\_db}, we
+  will work on the part of code tranform global numbering to local numbering, and
+  then clean up the member data and member methods in \texttt{gfact\_db}.
+  
+  
 \end{document}

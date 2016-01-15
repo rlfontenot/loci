@@ -933,22 +933,22 @@ namespace Loci {
    
   
     //facts need create
-    facts.create_fact("pos", pos, node_space);
+    facts.create_gfact("pos", pos, node_space);
   
-    facts.create_fact("cl", cl, face_space, cell_space);
-    facts.create_fact("cr", cr, face_space, cell_space);
-    facts.create_fact("face2node", face2node, face_space, node_space);
+    facts.create_gfact("cl", cl, face_space, cell_space);
+    facts.create_gfact("cr", cr, face_space, cell_space);
+    facts.create_gfact("face2node", face2node, face_space, node_space);
     gParam<gEntity> num_cells;
     *num_cells = ncells;
-    facts.create_fact("num_cells", num_cells);
+    facts.create_gfact("num_cells", num_cells);
     
     gConstraint bfaces;
     bfaces = all_boundary_faces;
-    facts.create_fact("boundary_faces", bfaces, face_space);
+    facts.create_gfact("boundary_faces", bfaces, face_space);
 
     gConstraint bcSurf;
     bcSurf = boundary_taglist;
-    facts.create_fact("bcSurf", bcSurf, bc_space);
+    facts.create_gfact("bcSurf", bcSurf, bc_space);
    
     //only process 0 have the whole store
     gStore<string> boundary_names;
@@ -971,8 +971,8 @@ namespace Loci {
         boundary_names.insert(ii, bname);
       }ENDFORALL ;
     }
-    facts.create_fact("boundary_names", boundary_names,bc_space);
-    facts.create_fact("boundary_tags", boundary_tags, bc_space);
+    facts.create_gfact("boundary_names", boundary_names,bc_space);
+    facts.create_gfact("boundary_tags", boundary_tags, bc_space);
 
     
     //add allTags parameter to store all the volTag names
@@ -986,12 +986,12 @@ namespace Loci {
       Tag.set_entitySet(volTags[i].second) ;
       ostringstream oss ;
       oss << "volumeTag(" << volTags[i].first << ")" ;
-      facts.create_fact(oss.str(),Tag, cell_space) ;
+      facts.create_gfact(oss.str(),Tag, cell_space) ;
     }
     gParam<string > allTag ;
     *allTag = all_tags;
     allTag.set_entitySet(all_tagged_cells);
-    facts.create_fact("allTags",allTag, cell_space) ;
+    facts.create_gfact("allTags",allTag, cell_space) ;
     debugout<< " all tags cells " << all_tagged_cells<< endl;
     memSpace("Finish reading from file");
     return true ;
@@ -1146,7 +1146,7 @@ namespace Loci {
      
    
     // node space
-    gStoreRepP posRep = facts.get_fact("pos");
+    gStoreRepP posRep = facts.get_gfact("pos");
     gKeySpaceP nodeSpace  = gKeySpace::get_space("NodeSpace", casename);
     gEntitySet node_dom = posRep->domain();
     // nodeSpace->set_key_ptn(g_simple_partition<gEntity>(g_all_collect_entitySet<gEntity>(node_dom),
@@ -1154,7 +1154,7 @@ namespace Loci {
     nodeSpace->set_key_ptn(g_all_collect_vectors<gEntity>(node_dom));
 
     //face space
-    gStoreRepP clRep = facts.get_fact("cl");
+    gStoreRepP clRep = facts.get_gfact("cl");
     gKeySpaceP faceSpace = gKeySpace::get_space("FaceSpace", casename);
     gEntitySet face_dom = clRep->domain();
     gEntitySet all_faces = g_all_collect_entitySet<gEntity>(face_dom);
@@ -1164,12 +1164,12 @@ namespace Loci {
       
     //cell space
     gParam<gEntity> num_cells;
-    num_cells = facts.get_fact("num_cells");
+    num_cells = facts.get_gfact("num_cells");
     gKeySpaceP cellSpace = gKeySpace::get_space("CellSpace", casename);
     cellSpace->set_key_ptn(g_simple_partition<gEntity>(*num_cells,cellSpace->get_mpi_comm()));
       
     //bc space
-    gStoreRepP bnameRep = facts.get_fact("boundary_names");
+    gStoreRepP bnameRep = facts.get_gfact("boundary_names");
     gKeySpaceP bcSurfSpace = gKeySpace::get_space("BcSpace", casename);
     gEntitySet bc_dom = bnameRep->domain();
     //bcSurfSpace->set_key_ptn(g_all_collect_vectors<gEntity>(bc_dom));
@@ -1189,8 +1189,8 @@ namespace Loci {
     if(vset != EMPTY){
       for(variableSet::const_iterator vi = vset.begin(); vi != vset.end(); vi++){
         variable v = *vi;
-        gStoreRepP vRep = facts.get_fact(v);
-        facts.update_fact(v,vRep->remap(m));
+        gStoreRepP vRep = facts.get_gfact(v);
+        facts.update_gfact(v,vRep->remap(m));
       }
     }
   }
@@ -1202,8 +1202,8 @@ namespace Loci {
       f2g = space->get_f2g_map(); 
       for(variableSet::const_iterator vi = vset.begin(); vi != vset.end(); vi++){
         variable v = *vi;
-        gStoreRepP vRep = facts.get_fact(v);
-        facts.update_fact(v,vRep->remap(f2g));
+        gStoreRepP vRep = facts.get_gfact(v);
+        facts.update_gfact(v,vRep->remap(f2g));
       }
     }
   }
@@ -1219,8 +1219,8 @@ namespace Loci {
         f2g = spaces[i]->get_f2g_map(); 
         for(variableSet::const_iterator vi = vset.begin(); vi != vset.end(); vi++){
           variable v = *vi;
-          gStoreRepP vRep = facts.get_fact(v);
-          facts.update_fact(v,vRep->redistribute(ptn, f2g));
+          gStoreRepP vRep = facts.get_gfact(v);
+          facts.update_gfact(v,vRep->redistribute(ptn, f2g));
         }
       }
     }
@@ -1238,8 +1238,8 @@ namespace Loci {
         MPI_Comm comm = spaces[i]->get_mpi_comm();
         for(variableSet::const_iterator vi = vset.begin(); vi != vset.end(); vi++){
           variable v = *vi;
-          gStoreRepP vRep = facts.get_fact(v);
-          facts.update_fact(v,vRep->split_redistribute(ptn, comm));
+          gStoreRepP vRep = facts.get_gfact(v);
+          facts.update_gfact(v,vRep->split_redistribute(ptn, comm));
         }
       }
     }
@@ -1253,8 +1253,8 @@ namespace Loci {
       MPI_Comm comm = space->get_mpi_comm();
       for(variableSet::const_iterator vi = vset.begin(); vi != vset.end(); vi++){
         variable v = *vi;
-        gStoreRepP vRep = facts.get_fact(v);
-        facts.update_fact(v,vRep->redistribute(ptn,comm));
+        gStoreRepP vRep = facts.get_gfact(v);
+        facts.update_gfact(v,vRep->redistribute(ptn,comm));
       }
     }
   }
@@ -1270,7 +1270,7 @@ namespace Loci {
         MPI_Comm comm = spaces[i]->get_mpi_comm();
         for(variableSet::const_iterator vi = vset.begin(); vi != vset.end(); vi++){
           variable v = *vi;
-          gMapRepP vRep = static_cast<gMapRepP>(facts.get_fact(v));
+          gMapRepP vRep = static_cast<gMapRepP>(facts.get_gfact(v));
           vRep->inplace_compose(f2g, comm);
         }
       }
@@ -1311,8 +1311,8 @@ namespace Loci {
     //Next, renumber the faces
     //get variables cl, cr
     gMap cl, cr;
-    cl = facts.get_fact("cl");
-    cr = facts.get_fact("cr");
+    cl = facts.get_gfact("cl");
+    cr = facts.get_gfact("cr");
     gEntitySet faces = face_space->get_my_keys();//global number
     
     // sort faces
@@ -1364,7 +1364,7 @@ namespace Loci {
     gMap bc_f2g;
     bc_f2g = bc_space->get_f2g_map();
     MPI_Comm comm = bc_space->get_mpi_comm();
-    gMapRepP(facts.get_variable("cr"))->inplace_compose(bc_f2g, comm);
+    gMapRepP(facts.get_gvariable("cr"))->inplace_compose(bc_f2g, comm);
     debugout << "finish with remapGrid" << endl; 
   }
 
@@ -1448,7 +1448,7 @@ namespace Loci {
       gMap bc_f2g;
       bc_f2g = bc_space->get_f2g_map();
       MPI_Comm comm = bc_space->get_mpi_comm();
-      gMapRepP(facts.get_variable("cr"))->inplace_compose(bc_f2g, comm);       
+      gMapRepP(facts.get_gvariable("cr"))->inplace_compose(bc_f2g, comm);       
       return true ;
     }
 
@@ -1503,9 +1503,9 @@ namespace Loci {
   void create_ref(gfact_db &facts) {
     string casename;
     gMap cr ;
-    cr = facts.get_fact("cr") ;
+    cr = facts.get_gfact("cr") ;
     gConstraint boundary_faces ;
-    boundary_faces = facts.get_fact("boundary_faces") ;
+    boundary_faces = facts.get_gfact("boundary_faces") ;
     gEntitySet refdom = *boundary_faces ;
     gMap ref ;
     gMap::const_iterator itr = cr.begin();
@@ -1519,7 +1519,7 @@ namespace Loci {
 
     gKeySpaceP bc_space = gKeySpace::get_space("BcSpace", casename);
     gKeySpaceP face_space = gKeySpace::get_space("FaceSpace", casename);
-    facts.create_fact("ref",ref, face_space, bc_space) ;
+    facts.create_gfact("ref",ref, face_space, bc_space) ;
   }
 
   void create_ghost_cells(gfact_db &facts) {
@@ -1532,13 +1532,13 @@ namespace Loci {
     gConstraint geom_cells, ghost_cells, cells ;
 
     geom_cells = cell_space->get_my_keys();
-    boundary_faces = facts.get_fact("boundary_faces");
+    boundary_faces = facts.get_gfact("boundary_faces");
     
     gEntitySet tmp_ghost = cell_space->generate_key(km,(*boundary_faces).size());
     
     gEntitySet::const_iterator ei = tmp_ghost.begin() ;
     gMap cr;
-    cr = facts.get_fact("cr");
+    cr = facts.get_gfact("cr");
     gMap::iterator itr = cr.begin();
     GFORALL(*boundary_faces,fc) {
       while(itr != cr.end() && itr->first < fc)itr++;
@@ -1550,14 +1550,14 @@ namespace Loci {
     } ENDGFORALL ;
     
     ghost_cells = tmp_ghost;
-    facts.replace_fact("cr",cr, face_space, cell_space) ;
+    facts.replace_gfact("cr",cr, face_space, cell_space) ;
     
     cells = *geom_cells + *ghost_cells ;
 
     
-    facts.create_fact("geom_cells",geom_cells, cell_space) ;
-    facts.create_fact("ghost_cells",ghost_cells, cell_space) ;
-    facts.create_fact("cells",cells, cell_space) ;
+    facts.create_gfact("geom_cells",geom_cells, cell_space) ;
+    facts.create_gfact("ghost_cells",ghost_cells, cell_space) ;
+    facts.create_gfact("cells",cells, cell_space) ;
 
     Loci::debugout << "geom_cells = " << *geom_cells << endl ;
     Loci::debugout << "ghost_cells = " << *ghost_cells << endl ;
@@ -1569,12 +1569,12 @@ namespace Loci {
     gKeySpaceP face_space = gKeySpace::get_space("FaceSpace", casename);
     gConstraint faces;
     faces = face_space->get_my_keys();
-    facts.create_fact("faces",faces) ;
+    facts.create_gfact("faces",faces) ;
     gConstraint boundary_faces ;
-    boundary_faces = facts.get_variable("boundary_faces");
+    boundary_faces = facts.get_gvariable("boundary_faces");
     gConstraint interior_faces ;
     interior_faces = (*faces-*boundary_faces) ;
-    facts.create_fact("interior_faces",interior_faces, face_space) ;
+    facts.create_gfact("interior_faces",interior_faces, face_space) ;
   }
 
  
@@ -1618,7 +1618,7 @@ namespace Loci {
       vector<int> alloc_file;
       g2f =  cell_space->get_g2f_map();
       gConstraint geom_cells;
-      geom_cells = gfacts.get_fact("geom_cells");
+      geom_cells = gfacts.get_gfact("geom_cells");
       
       
       alloc_file.resize((*geom_cells).size());
@@ -1652,7 +1652,7 @@ namespace Loci {
     }
     {
       gConstraint  boundary_faces;
-      boundary_faces =  gfacts.get_fact("boundary_faces");
+      boundary_faces =  gfacts.get_gfact("boundary_faces");
       std::pair<entitySet, entitySet> ghost_pair = facts.get_distributed_alloc((*boundary_faces).size()) ;
     }
 

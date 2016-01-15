@@ -26,6 +26,7 @@
 #include <Tools/except.h>
 #include <constraint.h>
 #include <new>
+#include <gfact_db.h>
 using std::bad_alloc ;
 using std::map ;
 using std::vector ;
@@ -714,8 +715,33 @@ namespace Loci {
 
   }
 
+  // void prune_graph(digraph& gr, variableSet& given,
+  //                  const variableSet& target, fact_db& facts) {
+  //   variableSet known_vars = facts.get_typed_variables() ;
+  //   variableSet vars = extract_vars(gr.get_all_vertices()) ;
+  //   variableSet empty_constraints ;
+  //   for(variableSet::const_iterator vi=vars.begin();
+  //       vi!=vars.end();++vi) {
+  //     if(!known_vars.inSet(*vi))
+  //       continue ;
+  //     storeRepP srp = facts.get_variable(*vi) ;
+  //     if(srp->RepType() != Loci::CONSTRAINT)
+  //       continue ;
+  //     if(GLOBAL_AND(srp->domain() == EMPTY))
+  //       empty_constraints += *vi ;
+  //   }
+  //   ruleSet del_rules ;
+  //   for(variableSet::const_iterator vi=empty_constraints.begin();
+  //       vi!=empty_constraints.end();++vi)
+  //     del_rules += extract_rules(gr[vi->ident()]) ;
+  //   gr.remove_vertices(digraph::vertexSet(empty_constraints) +
+  //                      digraph::vertexSet(del_rules)) ;
+  //   given -= empty_constraints ;
+  //   clean_graph(gr,given,target) ;
+  // }
+
   void prune_graph(digraph& gr, variableSet& given,
-                   const variableSet& target, fact_db& facts) {
+                   const variableSet& target, gfact_db& facts) {
     variableSet known_vars = facts.get_typed_variables() ;
     variableSet vars = extract_vars(gr.get_all_vertices()) ;
     variableSet empty_constraints ;
@@ -739,6 +765,11 @@ namespace Loci {
     clean_graph(gr,given,target) ;
   }
 
+
+
+
+
+  
   template<class MULTIMAP>
   void write_out_mmap(const MULTIMAP& m, char* s) {
     ofstream o(s,std::ios::out) ;

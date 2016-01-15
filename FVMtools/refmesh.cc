@@ -126,24 +126,24 @@ int main(int argc, char ** argv) {
   
   gParam<std::string> planfile_par ;
   *planfile_par = planFile;
-  gfacts.create_fact("balanced_planfile_par",planfile_par) ;
+  gfacts.create_gfact("balanced_planfile_par",planfile_par) ;
 
   gParam<std::string> meshfile_par ;
   *meshfile_par = meshfile;
-  gfacts.create_fact("meshfile_par",meshfile_par) ;
+  gfacts.create_gfact("meshfile_par",meshfile_par) ;
 
   gParam<std::string> outfile_par ;
   *outfile_par = outFile;
-  gfacts.create_fact("outfile_par",outfile_par) ;
+  gfacts.create_gfact("outfile_par",outfile_par) ;
   
   if(cell2parent){
     gParam<std::string> c2pfile_par ;
     *c2pfile_par = c2pFile;
-    gfacts.create_fact("cell2parent_file_par",c2pfile_par) ;
+    gfacts.create_gfact("cell2parent_file_par",c2pfile_par) ;
     if(restart){
       gParam<std::string> parent_planfile_par ;
       *parent_planfile_par = parentPlanFile;
-      gfacts.create_fact("parent_planfile_par",parent_planfile_par) ;
+      gfacts.create_gfact("parent_planfile_par",parent_planfile_par) ;
     }
   }
   

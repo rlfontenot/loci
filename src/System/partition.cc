@@ -171,12 +171,12 @@ namespace Loci{
   gStoreRepP merge_cl_cr( gfact_db& facts){
     gMap cl, cr;
     gMultiMap result;
-    cl = facts.get_fact("cl");
-    cr = facts.get_fact("cr");
+    cl = facts.get_gfact("cl");
+    cr = facts.get_gfact("cr");
     fatal(cl.domain() != cr.domain()); 
     //all boundary surfaces
     gConstraint bcSurf;
-    bcSurf = facts.get_fact("bcSurf");
+    bcSurf = facts.get_gfact("bcSurf");
     gEntitySet refSet = g_all_collect_entitySet<gEntity>(*bcSurf);
     gMap::const_iterator itr1 = cl.begin();
     gMap::const_iterator itr2 = cr.begin();
@@ -526,7 +526,7 @@ namespace Loci{
   //i.e., if the image space of var_name is space
   //var_name should be the name of a map
   bool is_in_var(const string& var_name, gfact_db &facts, gKeySpaceP space){
-    gStoreRepP st = facts.get_variable(var_name);
+    gStoreRepP st = facts.get_gvariable(var_name);
     gMapRepP mp = gMapRepP(st);
     if(mp==0){
       cerr<<"ERROR: " << var_name << " is not a map  in function  is_in_var()" << endl;
@@ -546,7 +546,7 @@ namespace Loci{
       //merge cl and cr, for boundary face, only cl is inserted
       inward_map = merge_cl_cr(facts);
     }else{
-      inward_map =facts.get_fact(s.map2);
+      inward_map =facts.get_gfact(s.map2);
     }
    
     //if needed, reverse map
@@ -582,7 +582,7 @@ namespace Loci{
       //merge cl and cr, for boundary face, only cl is inserted
       inward_map = merge_cl_cr(facts);
     }else{
-      inward_map =facts.get_fact(s.map3);
+      inward_map =facts.get_gfact(s.map3);
     }
     
     if(need_reverse3){
@@ -617,7 +617,7 @@ namespace Loci{
     if(s.map1 == "cl" || s.map1 == "cr"){//merge cl and cr
       inward_map = merge_cl_cr(facts);
     }else{
-      inward_map =facts.get_fact(s.map1);
+      inward_map =facts.get_gfact(s.map1);
     }
     //if needed, reverse map
     if(need_reverse1){
@@ -652,7 +652,7 @@ namespace Loci{
     MPI_Comm comm = s.space1->get_mpi_comm();
     gEntitySet domain = s.space1->get_my_keys();
     gStore<vector3d<real_t> > pos;
-    pos = facts.get_fact("pos");
+    pos = facts.get_gfact("pos");
     vector<vector3d<float> > center;
     if(s.map1=="pos"){
       //copy pos into center
@@ -663,7 +663,7 @@ namespace Loci{
       }
     }else if(s.map1=="facecenter"){
       gStoreRepP face2node;
-      face2node = facts.get_fact("face2node");
+      face2node = facts.get_gfact("face2node");
       gMultiStore<vector3d<real_t> > fpos; 
       fpos = pos.recompose(face2node, comm);
       gStore<vector3d<real_t> > fcenter;
@@ -679,7 +679,7 @@ namespace Loci{
                                                        (inward_map.get_domain_space())->get_keys(),
                                                        (inward_map.get_image_space())-> get_key_ptn()));//cell2face
       gMultiMap face2node;
-      face2node = facts.get_fact("face2node");
+      face2node = facts.get_gfact("face2node");
       gStoreRepP cell2node = inward_map.recompose(face2node, comm); //cell2node
       gMultiStore<vector3d<real_t> > cpos; 
       cpos = pos.recompose(cell2node, comm);

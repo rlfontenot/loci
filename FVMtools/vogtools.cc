@@ -498,8 +498,8 @@ namespace VOG {
       vector<int> work ;
       work.push_back(left_out.Min()) ;
       while(work.size() != 0) {
-	vector<int> working ;
-	for(size_t i=0;i<work.size();++i) {
+        vector<int> working ;
+        for(size_t i=0;i<work.size();++i) {
           int cc = work[i] ;
           if(ctmp[cc] == -1) {
             ctmp[cc] = col++ ;
@@ -509,7 +509,7 @@ namespace VOG {
                 working.push_back(*pi) ;
               }
           }
-	}
+        }
         work.swap(working) ;
       }
       left_out = EMPTY ;
@@ -556,7 +556,7 @@ namespace VOG {
       }
     } ENDFORALL ;
     
-  }
+   }
 
 
   void getCellCenters(store<vector3d<double> > &cellcenter,

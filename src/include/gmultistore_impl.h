@@ -511,7 +511,7 @@ namespace Loci {
     const_iterator itr = begin();
     for(gEntitySet::const_iterator ei = iset.begin(); ei != iset.end(); ei++){
       while(itr !=end() && itr->first < *ei) itr++;
-      T pnt;
+      T pnt = T();
       size_t sz = 0;
       while(itr !=end() && itr->first == *ei){
         if(sz==0) pnt = itr->second;

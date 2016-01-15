@@ -242,7 +242,7 @@ namespace Loci {
     delete[] recv_store ;
     delete[] send_store ;
   }
-
+////this code is still used by fvmtools, will be replaced by member function of gMultiMap or gMap in the future
   void distributed_inverseMap(dmultiMap &result,
                               vector<pair<Entity,Entity> > &input,
                               entitySet input_image,
@@ -348,123 +348,123 @@ namespace Loci {
     delete[] send_store ;
   }
  
-  void distributed_inverseMap(dmultiMap &result, const dMap &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) {
+//   void distributed_inverseMap(dmultiMap &result, const dMap &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) {
 
-    vector<pair<int,int> > inlist ;
-    entitySet preloop = input_preimage & input_map.domain() ;
-    inlist.reserve(preloop.size()) ;
-    FORALL(preloop,i) {
-      int elem = input_map[i] ;
-      if(input_image.inSet(elem)) 
-        inlist.push_back(pair<int,int>(i,elem)) ;
-    } ENDFORALL ;
-    distributed_inverseMap(result,inlist,input_image,input_preimage,init_ptn) ;
-  }
+//     vector<pair<int,int> > inlist ;
+//     entitySet preloop = input_preimage & input_map.domain() ;
+//     inlist.reserve(preloop.size()) ;
+//     FORALL(preloop,i) {
+//       int elem = input_map[i] ;
+//       if(input_image.inSet(elem)) 
+//         inlist.push_back(pair<int,int>(i,elem)) ;
+//     } ENDFORALL ;
+//     distributed_inverseMap(result,inlist,input_image,input_preimage,init_ptn) ;
+//   }
 
-  void distributed_inverseMap(dmultiMap &result, const Map &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) {
+//   void distributed_inverseMap(dmultiMap &result, const Map &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) {
 
-    vector<pair<int,int> > inlist ;
-    entitySet preloop = input_preimage & input_map.domain() ;
-    inlist.reserve(preloop.size()) ;
-    FORALL(preloop,i) {
-      int elem = input_map[i] ;
-      if(input_image.inSet(elem)) 
-        inlist.push_back(pair<int,int>(i,elem)) ;
-    } ENDFORALL ;
-    distributed_inverseMap(result,inlist,input_image,input_preimage,init_ptn) ;
-  }
+//     vector<pair<int,int> > inlist ;
+//     entitySet preloop = input_preimage & input_map.domain() ;
+//     inlist.reserve(preloop.size()) ;
+//     FORALL(preloop,i) {
+//       int elem = input_map[i] ;
+//       if(input_image.inSet(elem)) 
+//         inlist.push_back(pair<int,int>(i,elem)) ;
+//     } ENDFORALL ;
+//     distributed_inverseMap(result,inlist,input_image,input_preimage,init_ptn) ;
+//   }
 
-  void distributed_inverseMap(dmultiMap &result, const dmultiMap &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) {
-    vector<pair<int,int> > inlist ;
-    entitySet preloop = input_preimage & input_map.domain() ;
-    inlist.reserve(preloop.size()) ;
-    FORALL(preloop,i) {
-      for(size_t k=0;k<input_map[i].size();++k) {
-        int elem = input_map[i][k] ;
-        if(input_image.inSet(elem)) 
-          inlist.push_back(pair<int,int>(i,elem)) ;
-      }
-    } ENDFORALL ;
+//   void distributed_inverseMap(dmultiMap &result, const dmultiMap &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) {
+//     vector<pair<int,int> > inlist ;
+//     entitySet preloop = input_preimage & input_map.domain() ;
+//     inlist.reserve(preloop.size()) ;
+//     FORALL(preloop,i) {
+//       for(size_t k=0;k<input_map[i].size();++k) {
+//         int elem = input_map[i][k] ;
+//         if(input_image.inSet(elem)) 
+//           inlist.push_back(pair<int,int>(i,elem)) ;
+//       }
+//     } ENDFORALL ;
 
-    distributed_inverseMap(result,inlist,input_image,input_preimage,init_ptn) ;
-  }
-
-  
-  
-  void distributed_inverseMap(dmultiMap &result, const multiMap &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) {
-    vector<pair<int,int> > inlist ;
-    entitySet preloop = input_preimage & input_map.domain() ;
-    inlist.reserve(preloop.size()) ;
-    FORALL(preloop,i) {
-      int sz = input_map.end(i)-input_map.begin(i) ;
-      for(int k=0;k<sz;++k) {
-        int elem = input_map[i][k] ;
-        if(input_image.inSet(elem)) 
-          inlist.push_back(pair<int,int>(i,elem)) ;
-      }
-    } ENDFORALL ;
-
-    distributed_inverseMap(result,inlist,input_image,input_preimage,init_ptn) ;
-  }
-  // non dynamic multiMap
-  void distributed_inverseMap(multiMap &result, const dMap &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) {
-
-    vector<pair<int,int> > inlist ;
-    entitySet preloop = input_preimage & input_map.domain() ;
-    inlist.reserve(preloop.size()) ;
-    FORALL(preloop,i) {
-      int elem = input_map[i] ;
-      if(input_image.inSet(elem)) 
-        inlist.push_back(pair<int,int>(i,elem)) ;
-    } ENDFORALL ;
-    distributed_inverseMap(result,inlist,input_image,input_preimage,init_ptn) ;
-  }
-
-  void distributed_inverseMap(multiMap &result, const Map &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) {
-
-    vector<pair<int,int> > inlist ;
-    entitySet preloop = input_preimage & input_map.domain() ;
-    inlist.reserve(preloop.size()) ;
-    FORALL(preloop,i) {
-      int elem = input_map[i] ;
-      if(input_image.inSet(elem)) 
-        inlist.push_back(pair<int,int>(i,elem)) ;
-    } ENDFORALL ;
-    distributed_inverseMap(result,inlist,input_image,input_preimage,init_ptn) ;
-  }
-
-  void distributed_inverseMap(multiMap &result, const dmultiMap &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) {
-    vector<pair<int,int> > inlist ;
-    entitySet preloop = input_preimage & input_map.domain() ;
-    inlist.reserve(preloop.size()) ;
-    FORALL(preloop,i) {
-      for(size_t k=0;k<input_map[i].size();++k) {
-        int elem = input_map[i][k] ;
-        if(input_image.inSet(elem)) 
-          inlist.push_back(pair<int,int>(i,elem)) ;
-      }
-    } ENDFORALL ;
-
-    distributed_inverseMap(result,inlist,input_image,input_preimage,init_ptn) ;
-  }
+//     distributed_inverseMap(result,inlist,input_image,input_preimage,init_ptn) ;
+//   }
 
   
   
-  void distributed_inverseMap(multiMap &result, const multiMap &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) {
-    vector<pair<int,int> > inlist ;
-    entitySet preloop = input_preimage & input_map.domain() ;
-    inlist.reserve(preloop.size()) ;
-    FORALL(preloop,i) {
-      int sz = input_map.end(i)-input_map.begin(i) ;
-      for(int k=0;k<sz;++k) {
-        int elem = input_map[i][k] ;
-        if(input_image.inSet(elem)) 
-          inlist.push_back(pair<int,int>(i,elem)) ;
-      }
-    } ENDFORALL ;
+//   void distributed_inverseMap(dmultiMap &result, const multiMap &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) {
+//     vector<pair<int,int> > inlist ;
+//     entitySet preloop = input_preimage & input_map.domain() ;
+//     inlist.reserve(preloop.size()) ;
+//     FORALL(preloop,i) {
+//       int sz = input_map.end(i)-input_map.begin(i) ;
+//       for(int k=0;k<sz;++k) {
+//         int elem = input_map[i][k] ;
+//         if(input_image.inSet(elem)) 
+//           inlist.push_back(pair<int,int>(i,elem)) ;
+//       }
+//     } ENDFORALL ;
 
-    distributed_inverseMap(result,inlist,input_image,input_preimage,init_ptn) ;
-  }
+//     distributed_inverseMap(result,inlist,input_image,input_preimage,init_ptn) ;
+//   }
+//   // non dynamic multiMap
+//   void distributed_inverseMap(multiMap &result, const dMap &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) {
+
+//     vector<pair<int,int> > inlist ;
+//     entitySet preloop = input_preimage & input_map.domain() ;
+//     inlist.reserve(preloop.size()) ;
+//     FORALL(preloop,i) {
+//       int elem = input_map[i] ;
+//       if(input_image.inSet(elem)) 
+//         inlist.push_back(pair<int,int>(i,elem)) ;
+//     } ENDFORALL ;
+//     distributed_inverseMap(result,inlist,input_image,input_preimage,init_ptn) ;
+//   }
+
+//   void distributed_inverseMap(multiMap &result, const Map &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) {
+
+//     vector<pair<int,int> > inlist ;
+//     entitySet preloop = input_preimage & input_map.domain() ;
+//     inlist.reserve(preloop.size()) ;
+//     FORALL(preloop,i) {
+//       int elem = input_map[i] ;
+//       if(input_image.inSet(elem)) 
+//         inlist.push_back(pair<int,int>(i,elem)) ;
+//     } ENDFORALL ;
+//     distributed_inverseMap(result,inlist,input_image,input_preimage,init_ptn) ;
+//   }
+
+//   void distributed_inverseMap(multiMap &result, const dmultiMap &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) {
+//     vector<pair<int,int> > inlist ;
+//     entitySet preloop = input_preimage & input_map.domain() ;
+//     inlist.reserve(preloop.size()) ;
+//     FORALL(preloop,i) {
+//       for(size_t k=0;k<input_map[i].size();++k) {
+//         int elem = input_map[i][k] ;
+//         if(input_image.inSet(elem)) 
+//           inlist.push_back(pair<int,int>(i,elem)) ;
+//       }
+//     } ENDFORALL ;
+
+//     distributed_inverseMap(result,inlist,input_image,input_preimage,init_ptn) ;
+//   }
+
+  
+  
+//   void distributed_inverseMap(multiMap &result, const multiMap &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) {
+//     vector<pair<int,int> > inlist ;
+//     entitySet preloop = input_preimage & input_map.domain() ;
+//     inlist.reserve(preloop.size()) ;
+//     FORALL(preloop,i) {
+//       int sz = input_map.end(i)-input_map.begin(i) ;
+//       for(int k=0;k<sz;++k) {
+//         int elem = input_map[i][k] ;
+//         if(input_image.inSet(elem)) 
+//           inlist.push_back(pair<int,int>(i,elem)) ;
+//       }
+//     } ENDFORALL ;
+
+//     distributed_inverseMap(result,inlist,input_image,input_preimage,init_ptn) ;
+//   }
   
 
 

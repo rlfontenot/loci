@@ -77,7 +77,7 @@ namespace Loci {
   gKeySpaceP gMap::get_image_space()const{return static_cast<gMapRepP>(Rep())->get_image_space();}
   
   void gMapRepI::local_sort(){
-    std::stable_sort(attrib_data.begin(), attrib_data.end(), gmap_porder1);
+    std::sort(attrib_data.begin(), attrib_data.end(), gmap_porder1);
     sorted = true;
   }
   
