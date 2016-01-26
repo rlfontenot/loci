@@ -37,7 +37,7 @@ namespace Loci {
   extern std::ofstream debugout ;
     // Create variable types in fact database
   // This is a necessary precursor to binding rules to the database
-  void set_var_types(fact_db &facts, const digraph &dg, sched_db &scheds) {
+  void set_var_types(gfact_db &facts, const digraph &dg, sched_db &scheds) {
 
     // Get all the variables and rules represented in the graph
     variableSet all_vars = extract_vars(dg.get_all_vertices()) ;
@@ -154,7 +154,7 @@ namespace Loci {
         variableSet test = cluster ;
         test &= given_vars ;
         if(test.size() > 1) {
-          cerr << "rules describe synonyms between variables that exist in fact_db" << endl ;
+          cerr << "rules describe synonyms between variables that exist in gfact_db" << endl ;
           cerr << "overlap = " << test << endl ;
           abort() ;
         }

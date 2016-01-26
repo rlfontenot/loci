@@ -52,7 +52,7 @@ using Loci::MPI_processes;
 namespace Loci{
   void parallelClassifyCell(gfact_db &facts) ;
   void createEdgesPar(gfact_db &facts) ;
-  void copy_facts(gfact_db& gfacts, fact_db& facts);
+  void copy_facts(gfact_db& gfacts);
 }
 
   
@@ -415,30 +415,30 @@ int main(int argc, char ** argv) {
   *split_mode_par = split_mode;
   gfacts.create_gfact("split_mode_par", split_mode_par);
 
-  // Dump out parameters from fact database
-    if(Loci::MPI_rank == 0 ) {
-      char buf[512] ;
-      bzero(buf,512) ;
-      snprintf(buf,511,"output/grun_info") ;
-      ofstream db_file(buf) ;
-      if(!db_file.fail()) {
-        using namespace Loci ;
+  // // Dump out parameters from fact database
+  //   if(Loci::MPI_rank == 0 ) {
+  //     char buf[512] ;
+  //     bzero(buf,512) ;
+  //     snprintf(buf,511,"output/grun_info_marker") ;
+  //     ofstream db_file(buf) ;
+  //     if(!db_file.fail()) {
+  //       using namespace Loci ;
        
-        db_file << "facts = {" << endl ;
-        variableSet ext_facts = gfacts.get_extensional_facts() ;
-        for(variableSet::const_iterator vi=ext_facts.begin();
-            vi!=ext_facts.end();++vi) {
-          gStoreRepP sp = gfacts.get_gvariable(*vi) ;
-          if(sp != 0) {
-            if(sp->RepType() == GPARAMETER) {
-              db_file << *vi << ": " ;
-              sp->Print(db_file) ;
-            }
-          }
-        }
-        db_file << "}" << endl ;
-      }
-    }
+  //       db_file << "facts = {" << endl ;
+  //       variableSet ext_facts = gfacts.get_extensional_facts() ;
+  //       for(variableSet::const_iterator vi=ext_facts.begin();
+  //           vi!=ext_facts.end();++vi) {
+  //         gStoreRepP sp = gfacts.get_gvariable(*vi) ;
+  //         if(sp != 0) {
+  //           if(sp->RepType() == GPARAMETER) {
+  //             db_file << *vi << ": " ;
+  //             sp->Print(db_file) ;
+  //           }
+  //         }
+  //       }
+  //       db_file << "}" << endl ;
+  //     }
+  //   }
 
   Loci::load_module("fvmadapt", rules);
   // Loci::debugout<<"finish loading fvmadapt module" << endl;
@@ -451,9 +451,9 @@ int main(int argc, char ** argv) {
   //     cout<< endl;
   //   }
 
-  fact_db facts;
-  copy_facts(gfacts, facts);
-  if(!Loci::makeQuery(rules, facts, "cellplan_output")) {
+ 
+  copy_facts(gfacts);
+  if(!Loci::makeQuery(rules, gfacts, "cellplan_output")) {
     std::cerr << "query failed!" << std::endl;
     Loci::Abort();
   }

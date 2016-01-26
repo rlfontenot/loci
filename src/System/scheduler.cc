@@ -787,7 +787,7 @@ namespace Loci {
   //#define ENABLE_DYNAMIC_SCHEDULING
   //#define ENABLE_DYNAMIC_SCHEDULING_2
   executeP create_execution_schedule(const rule_db &rdb,
-                                     fact_db &facts,
+                                     gfact_db &facts,
                                      sched_db &scheds,
                                      const variableSet& target,
                                      int nth) {
@@ -835,7 +835,6 @@ namespace Loci {
     digraph gr ;
 
     given -= variable("EMPTY") ;
-
     gr = dependency_graph2(par_rdb,given,target).get_graph() ;
 
     // If graph is empty, return a null schedule
@@ -945,36 +944,36 @@ namespace Loci {
 	}
 	
 	if(use_duplicate_model) {
-	      double comm_ts, comm_tw;
-	      double comm_ts1, comm_ts2;
-	      fin >> comm_ts1 >> comm_ts2 >> comm_tw;
-	      comm_ts = comm_ts2;
+          double comm_ts, comm_tw;
+          double comm_ts1, comm_ts2;
+          fin >> comm_ts1 >> comm_ts2 >> comm_tw;
+          comm_ts = comm_ts2;
 	      
-	      if(comm_tw < 0)
-		    comm_tw = 0;
+          if(comm_tw < 0)
+            comm_tw = 0;
 
-	      unsigned int count;
-	      fin >> count;
+          unsigned int count;
+          fin >> count;
 
-	      map<rule, pair<double, double> > comp_info;
-	      string  rule_name;
-	      double ts, tw;
-	      double ts1, ts2;
-	      for(unsigned int i = 0; i < count; i++) {
-		    fin >> rule_name >> ts1 >> ts2 >> tw;
-		    ts = ts2;
-		    if(tw < 0)
-			  tw = 0;
+          map<rule, pair<double, double> > comp_info;
+          string  rule_name;
+          double ts, tw;
+          double ts1, ts2;
+          for(unsigned int i = 0; i < count; i++) {
+            fin >> rule_name >> ts1 >> ts2 >> tw;
+            ts = ts2;
+            if(tw < 0)
+              tw = 0;
 		    
-		    pair<double, double> tmpModel(ts, tw);
-		    rule myRule = rule::get_rule_by_name(rule_name);
-		    if(myRule.get_info().name() == "NO_RULE") {
-			  cerr << "Warning (Rule Ignored): " << rule_name << " read from model file is not in rule database" << endl;
-		    }
-		    else
-			  comp_info[myRule] = tmpModel;
-	      }
-	      scheds.add_model_info(comm_ts, comm_tw, comp_info);	
+            pair<double, double> tmpModel(ts, tw);
+            rule myRule = rule::get_rule_by_name(rule_name);
+            if(myRule.get_info().name() == "NO_RULE") {
+              cerr << "Warning (Rule Ignored): " << rule_name << " read from model file is not in rule database" << endl;
+            }
+            else
+              comp_info[myRule] = tmpModel;
+          }
+          scheds.add_model_info(comm_ts, comm_tw, comp_info);	
 	}
       }
     }
@@ -1457,7 +1456,7 @@ namespace Loci {
   // and this expansion process only needs to be performed once.
   //#define INTERNAL_VERBOSE
   executeP create_internal_execution_schedule(rule_db& par_rdb,
-                                              fact_db &facts,
+                                              gfact_db &facts,
                                               sched_db &scheds,
                                               const variableSet& target,
                                               int nth) {
@@ -1487,15 +1486,15 @@ namespace Loci {
       return executeP(0) ;
 
     
-//         std::string dottycmd = "dotty " ;
-//         if(Loci::MPI_rank==0) {
-//           if(show_graphs) {
-//             cout << "creating visualization file for dependency graph..." << endl ;
-//             create_digraph_dot_file(gr,"dependgr.dot") ;
-//             std::string cmd = dottycmd + "dependgr.dot" ;
-//             system(cmd.c_str()) ;
-//           }
-//         }
+    //         std::string dottycmd = "dotty " ;
+    //         if(Loci::MPI_rank==0) {
+    //           if(show_graphs) {
+    //             cout << "creating visualization file for dependency graph..." << endl ;
+    //             create_digraph_dot_file(gr,"dependgr.dot") ;
+    //             std::string cmd = dottycmd + "dependgr.dot" ;
+    //             system(cmd.c_str()) ;
+    //           }
+    //         }
     
 
     scheds.init(facts) ;
@@ -1595,7 +1594,7 @@ namespace Loci {
   // NOTE: the passed in rule database is the expanded parametric
   // rule database since the expanded rule base is what we needed
   // and this expansion process only needs to be performed once.
-  bool internalQuery(rule_db& par_rdb, fact_db& facts,
+  bool internalQuery(rule_db& par_rdb, gfact_db& facts,
                      const variableSet& query) {
     stopWatch sw ;
     sw.start() ;
@@ -1610,7 +1609,7 @@ namespace Loci {
     // start to make the query
     // This is because we want to only put the queried facts
     // back into the global fact_db
-    fact_db local_facts(facts) ;
+    gfact_db local_facts(facts) ;
     sched_db local_scheds ;
 
     executeP schedule =
@@ -1640,21 +1639,21 @@ namespace Loci {
     return true ;
   }
 
-  bool makeQuery(const rule_db &rdb, fact_db &facts,
+  bool makeQuery(const rule_db &rdb, gfact_db &facts,
                  const std::string& query) {
-	/*	
-	  #ifdef USE_PAPI
-	  int perr,ev_set=PAPI_NULL;
-	  int i,ncnt,k;
-	  if(PAPI_VER_CURRENT!=(perr=PAPI_library_init(PAPI_VER_CURRENT)))
-	  cerr<<"\nerror during initialization\n";
-	  unsigned char v[N];
-	  long_long counts[NCOUNTS];
-	  int evlist[NCOUNTS];
-	  char evname[NCOUNTS][PAPI_MAX_STR_LEN];
-	  int retval;
-	  #endif
-	*/
+    /*	
+        #ifdef USE_PAPI
+        int perr,ev_set=PAPI_NULL;
+        int i,ncnt,k;
+        if(PAPI_VER_CURRENT!=(perr=PAPI_library_init(PAPI_VER_CURRENT)))
+        cerr<<"\nerror during initialization\n";
+        unsigned char v[N];
+        long_long counts[NCOUNTS];
+        int evlist[NCOUNTS];
+        char evname[NCOUNTS][PAPI_MAX_STR_LEN];
+        int retval;
+        #endif
+    */
     facts.setupDefaults(rdb) ;
 
     stopWatch sw ;
@@ -1695,57 +1694,57 @@ namespace Loci {
       // then we need to copy the fact_db
       // This is because we want to only put the queried facts
       // back into the global fact_db
-      fact_db local_facts(facts) ;
+      gfact_db local_facts(facts) ;
       sched_db local_scheds ;
 
       /*
-#ifdef USE_PAPI
+        #ifdef USE_PAPI
 
-      if((perr=PAPI_create_eventset(&ev_set)))
+        if((perr=PAPI_create_eventset(&ev_set)))
         cout<<"\nPAPAI_create_evebtset failed."<<PAPI_strerror(perr)<<"\n";
 
 
-      if((retval= PAPI_multiplex_init())<PAPI_OK)
+        if((retval= PAPI_multiplex_init())<PAPI_OK)
         cout<<"\nEvent set multiplexing initialization error\n";
 
-      retval=PAPI_set_multiplex(ev_set);
-      if((retval==PAPI_EINVAL) &&(PAPI_get_multiplex(ev_set)>0))
+        retval=PAPI_set_multiplex(ev_set);
+        if((retval==PAPI_EINVAL) &&(PAPI_get_multiplex(ev_set)>0))
         cout<<"This event set already hs multiplexing enabled";
-      else if(retval !=PAPI_OK)  cout<<"\nSet multiplexing error\n";
-      else cout<<"\nsuccess\n";
+        else if(retval !=PAPI_OK)  cout<<"\nSet multiplexing error\n";
+        else cout<<"\nsuccess\n";
 
-      retval=PAPI_get_multiplex(ev_set);
-      if(retval>0) cout<<"This event set is ready for multiplexing";
-      if(retval==0)cout<<"This venet set is not enabled for multip0lexig";
-      if(retval<0) cout<<"\nerror\n";
+        retval=PAPI_get_multiplex(ev_set);
+        if(retval>0) cout<<"This event set is ready for multiplexing";
+        if(retval==0)cout<<"This venet set is not enabled for multip0lexig";
+        if(retval<0) cout<<"\nerror\n";
 
-      if((perr=PAPI_add_event(ev_set,PAPI_L1_DCH)))
+        if((perr=PAPI_add_event(ev_set,PAPI_L1_DCH)))
         cout<<__LINE__<<"PAPI_add_event failed."<<PAPI_strerror(perr)<<"\n";
 
 
-      if((perr=PAPI_add_event(ev_set,PAPI_L1_ICH)))
+        if((perr=PAPI_add_event(ev_set,PAPI_L1_ICH)))
         cout<<__LINE__<<"PAPI_add_event failed."<<PAPI_strerror(perr)<<"\n";
 
-      if((perr=PAPI_add_event(ev_set,PAPI_L2_DCM)))
+        if((perr=PAPI_add_event(ev_set,PAPI_L2_DCM)))
         cout<<__LINE__<<"PAPI_add_event failed."<<PAPI_strerror(perr)<<"\n";
 
-      if((perr=PAPI_add_event(ev_set,PAPI_L2_ICM)))
+        if((perr=PAPI_add_event(ev_set,PAPI_L2_ICM)))
         cout<<__LINE__<<"PAPI_add_event failed."<<PAPI_strerror(perr)<<"\n";
 
 
-      if((perr=PAPI_list_events(ev_set,evlist,&ncnt)))
+        if((perr=PAPI_list_events(ev_set,evlist,&ncnt)))
         cout<<__LINE__<<"PAPI_list_events failed."<<PAPI_strerror(perr)<<"\n";
 
 
-      cout<<"\n number of events"<<ncnt<<"\n";
-      for(i=0;i<ncnt;i++)
+        cout<<"\n number of events"<<ncnt<<"\n";
+        for(i=0;i<ncnt;i++)
         if((perr=PAPI_event_code_to_name(evlist[i],evname[i])) == PAPI_ENOTPRESET)
-          {}
+        {}
         else if(perr!=PAPI_OK)
-          cout<<__LINE__<<" Naming event failed."<<PAPI_strerror(perr)<<"[i="<<i<<" event="<<evlist[i]<<"\n";
-      if((perr=PAPI_start(ev_set)))
+        cout<<__LINE__<<" Naming event failed."<<PAPI_strerror(perr)<<"[i="<<i<<" event="<<evlist[i]<<"\n";
+        if((perr=PAPI_start(ev_set)))
         cout<<"\nPAPI_start_event failed."<<PAPI_strerror(perr)<<"\n";
-#endif
+        #endif
       
       */
 
@@ -1767,21 +1766,21 @@ namespace Loci {
 
       if (threading_pointwise)
         cout << "--threading " << num_threaded_pointwise
-          << "/" << num_total_pointwise << " pointwise rules" << endl;
+             << "/" << num_total_pointwise << " pointwise rules" << endl;
       if (threading_global_reduction)
         cout << "--threading " << num_threaded_global_reduction
-          << "/" << num_total_global_reduction 
-          << " global reduction rules" << endl;
+             << "/" << num_total_global_reduction 
+             << " global reduction rules" << endl;
       if (threading_local_reduction)
         cout << "--threading " << num_threaded_local_reduction
-          << "/" << num_total_local_reduction 
-          << " local reduction rules" << endl;
+             << "/" << num_total_local_reduction 
+             << " local reduction rules" << endl;
       if (threading_chomping)
         cout << "--threading " << num_threaded_chomping
-          << "/" << num_total_chomping << " chomping rules" << endl;
+             << "/" << num_total_chomping << " chomping rules" << endl;
       if (threading_recursion)
         cout << "--threading " << num_threaded_recursion
-          << "/" << num_total_recursion << " recursive rules" << endl;
+             << "/" << num_total_recursion << " recursive rules" << endl;
 
       if(schedule_output) {
         // Save the schedule in the file .schedule for reference
@@ -1832,14 +1831,14 @@ namespace Loci {
       //        perfAnalysis->stop_timer(execute_schedule_timer);
 
       /*
-#ifdef USE_PAPI
-      if((perr=PAPI_read(ev_set,counts)))
+        #ifdef USE_PAPI
+        if((perr=PAPI_read(ev_set,counts)))
         cout<<"PAPI_read failed."<<PAPI_strerror(perr)<<"\n";
 
-      cout<<"Counts registered\n";
-      for(i=0;i<ncnt;i++)
+        cout<<"Counts registered\n";
+        for(i=0;i<ncnt;i++)
         cout<<evname[i]<<"="<<counts[i]<<"\n";
-#endif
+        #endif
       */
 
       Loci::debugout << "Time taken for execution of the schedule = " << exec_time << " seconds " << endl ;
@@ -1851,7 +1850,7 @@ namespace Loci {
       // started distributed at the beginning, then we've already
       // done the local renumbering step to the facts.
       if(local_facts.is_distributed_start()) {
-        fact_db::distribute_infoP df = local_facts.get_distribute_info() ;
+        gfact_db::distribute_infoP df = local_facts.get_distribute_info() ;
         // first get the local to global dMap
         dMap l2g ;
         entitySet dom = df->l2g.domain() ;

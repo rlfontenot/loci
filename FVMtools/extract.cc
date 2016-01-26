@@ -51,7 +51,7 @@ using std::ifstream ;
 
 string output_dir ;
 namespace Loci{
-    void copy_facts(gfact_db& gfacts, fact_db& facts); 
+    void copy_facts(gfact_db& gfacts); 
 }
 void Usage(int ac, char *av[]) {
   cerr << av[0] << ": Incorrect Usage" << endl ;
@@ -235,7 +235,7 @@ volumePart::volumePart(string out_dir, string iteration, string casename,
     if(file_id < 0) {
       return ;
     }
-    fact_db facts ;
+    gfact_db facts ;
     store<unsigned char> iblank_tmp ;
     Loci::readContainer(file_id,"iblank",iblank_tmp.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
@@ -994,7 +994,7 @@ volumePartDerivedVars::volumePartDerivedVars(volumePartP part,
 				     H5P_DEFAULT) ;
   Pambient = 0 ;
   if(file_id >= 0) {
-    fact_db facts ;
+    gfact_db facts ;
     param<float> Pamb ;
     Loci::readContainer(file_id,"Pambient",Pamb.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
@@ -1666,7 +1666,7 @@ surfacePartDerivedVars::surfacePartDerivedVars(surfacePartP part,
 				     H5P_DEFAULT) ;
   Pambient = 0 ;
   if(file_id >= 0) {
-    fact_db facts ;
+    gfact_db facts ;
     param<float> Pamb ;
     Loci::readContainer(file_id,"Pambient",Pamb.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
@@ -2216,7 +2216,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
       return ;
     }
 
-    fact_db facts ;
+    gfact_db facts ;
     store<float> soundSpeed ;
     Loci::readContainer(file_id,"a",soundSpeed.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
@@ -2251,7 +2251,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
       return ;
     }
 
-    fact_db facts ;
+    gfact_db facts ;
     store<float> pg ;
     Loci::readContainer(file_id,"pg",pg.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
@@ -2280,7 +2280,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
         dval[c++] = p ;
     } ENDFORALL ;
   } else if (var_name == "u") {
-    fact_db facts ;
+    gfact_db facts ;
     string filename = output_dir+"/v_vec." + iteration +"_" + casename ;
     hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
                                        H5F_ACC_RDONLY,
@@ -2314,7 +2314,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
       exit(-1) ;
     }
 
-    fact_db facts ;
+    gfact_db facts ;
     Loci::readContainer(file_id,"pos",pos.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
     entitySet dom = pos.domain() ;
@@ -2335,7 +2335,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
       } ENDFORALL ;
     }
   } else if(var_name == "0" || var_name =="1" || var_name == "2") {
-    fact_db facts ;
+    gfact_db facts ;
     string filename = output_dir+"/v_vec." + iteration +"_" + casename ;
     hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
                                        H5F_ACC_RDONLY,
@@ -2386,8 +2386,8 @@ void setup_grid_topology(string casename, string iteration) {
   }
   Loci::createLowerUpper(gfacts) ;
 
-  fact_db facts;
-  copy_facts(gfacts, facts);
+  
+  copy_facts(gfacts);
   // if output directory doesn't exist, create one
   struct stat statbuf ;
 
@@ -2408,15 +2408,15 @@ void setup_grid_topology(string casename, string iteration) {
     Map ref ;
     store<string> boundary_names ;
     constraint geom_cells ;
-    upper = facts.get_variable("upper") ;
-    lower = facts.get_variable("lower") ;
-    boundary_map = facts.get_variable("boundary_map") ;
-    face2node = facts.get_variable("face2node") ;
-    ref = facts.get_variable("ref") ;
-    boundary_names = facts.get_variable("boundary_names") ;
-    geom_cells = facts.get_variable("geom_cells") ;
+    upper = gfacts.get_variable("upper") ;
+    lower = gfacts.get_variable("lower") ;
+    boundary_map = gfacts.get_variable("boundary_map") ;
+    face2node = gfacts.get_variable("face2node") ;
+    ref = gfacts.get_variable("ref") ;
+    boundary_names = gfacts.get_variable("boundary_names") ;
+    geom_cells = gfacts.get_variable("geom_cells") ;
     store<vector3d<double> > pos ;
-    pos = facts.get_variable("pos") ;
+    pos = gfacts.get_variable("pos") ;
 
     // If topology file does not exist, create it.
     Loci::parallelWriteGridTopology(filename.c_str(),
@@ -2426,16 +2426,16 @@ void setup_grid_topology(string casename, string iteration) {
                                     boundary_names.Rep(),
                                     pos.Rep(),
                                     *geom_cells,
-                                    facts) ;
+                                    gfacts) ;
   }
 
   store<vector3d<double> > pos ;
-  pos = facts.get_variable("pos") ;
+  pos = gfacts.get_variable("pos") ;
   filename = getPosFile(output_dir,iteration,casename) ;
   hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
   
-  Loci::writeContainer(file_id,"pos",pos.Rep(),facts) ;
+  Loci::writeContainer(file_id,"pos",pos.Rep(),gfacts) ;
   
   Loci::hdf5CloseFile(file_id) ;
 

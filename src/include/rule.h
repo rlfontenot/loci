@@ -50,8 +50,8 @@
 #include <DMultiStore.h>
 
 namespace Loci {
-  class gfact_db;
-  class fact_db ;
+ 
+  class gfact_db ;
   class sched_db ;
   
   class joiner : public CPTR_type {
@@ -142,7 +142,7 @@ namespace Loci {
     bool has_prelude() const { return use_prelude; }
     bool has_postlude() const { return use_postlude; }
     variable get_parametric_variable() { return ParametricVariable ; }
-    void initialize(fact_db &facts) ;
+    
     //add this method 
     void initialize(gfact_db &facts) ;
     
@@ -163,16 +163,16 @@ namespace Loci {
     const info &get_info() const { return rule_info ; }
     void set_store(variable v, const storeRepP &p) ;
     void set_store(const std::string &nm, const storeRepP &p) 
-      { set_store(variable(expression::create(nm)),p) ; }
+    { set_store(variable(expression::create(nm)),p) ; }
     
     storeRepP get_store(variable v) const ;
     storeRepP get_store(const std::string &nm) const
-      { return get_store(variable(expression::create(nm))) ; }
+    { return get_store(variable(expression::create(nm))) ; }
     
     // This function checks to
     // see if the rule contains constraints that are of type Map. In case
     // of yes, it creates identical constraints
-    // (whose value equal the Map domain) in the fact_db and substitutes
+    // (whose value equal the Map domain) in the gfact_db and substitutes
     // the Map constraints in the rule with the real constraints.
     //
     // The motivation of this function is that in the parallel code,
@@ -194,7 +194,7 @@ namespace Loci {
     // have happened, "facts" may include newly created constraints;
     // the rules may have its "vmap_info" structure modified
     // to reflect the substitution of constraints for maps.
-    void replace_map_constraints(fact_db& facts) ;
+    void replace_map_constraints(gfact_db& facts) ;
 
     void split_constraints(const variableSet& dc) ;
     
@@ -244,7 +244,7 @@ namespace Loci {
   }
 
   template <class TCopyRuleImpl> 
-    void copy_rule_impl<TCopyRuleImpl>::rename_vars(std::map<variable,variable> &rvm) {
+  void copy_rule_impl<TCopyRuleImpl>::rename_vars(std::map<variable,variable> &rvm) {
     rvlist.push_back(rvm) ;
     rule_impl::prot_rename_vars(rvm) ;
   }
@@ -257,7 +257,7 @@ namespace Loci {
   protected:
     default_rule() { rule_class(DEFAULT) ; }
     void name_store(const std::string &nm, store_instance &si)
-      { rule_impl::name_store(nm,si) ; }
+    { rule_impl::name_store(nm,si) ; }
     void input(const std::string &invar) {
       std::cerr << "Warning: a DEFAULT rule should not have any inputs!"
                 << endl ;
@@ -267,7 +267,7 @@ namespace Loci {
     void constraint(const std::string &constrain)
     { rule_impl::constraint(constrain) ; }
     void conditional(const std::string &cond)
-      { rule_impl::conditional(cond) ; }
+    { rule_impl::conditional(cond) ; }
     virtual CPTR<joiner> get_joiner() { return CPTR<joiner>(0) ; }
   } ;
 
@@ -278,7 +278,7 @@ namespace Loci {
   protected:
     optional_rule() { rule_class(OPTIONAL) ; }
     void name_store(const std::string &nm, store_instance &si)
-      { rule_impl::name_store(nm,si) ; }
+    { rule_impl::name_store(nm,si) ; }
     void input(const std::string &invar) {
       std::cerr << "Warning: an OPTIONAL rule should not have any inputs!"
                 << endl ;
@@ -288,7 +288,7 @@ namespace Loci {
     void constraint(const std::string &constrain)
     { rule_impl::constraint(constrain) ; }
     void conditional(const std::string &cond)
-      { rule_impl::conditional(cond) ; }
+    { rule_impl::conditional(cond) ; }
     virtual CPTR<joiner> get_joiner() { return CPTR<joiner>(0) ; }
   } ;
 
@@ -296,17 +296,17 @@ namespace Loci {
   protected:
     constraint_rule() { rule_class(CONSTRAINT_RULE) ; }
     void name_store(const std::string &nm, store_instance &si)
-      { rule_impl::name_store(nm,si) ; }
+    { rule_impl::name_store(nm,si) ; }
     void input(const std::string &invar)
     { rule_impl::input(invar) ; }
     void output(const std::string &outvar)
     { rule_impl::output(outvar) ; }
     // do we allow constraint in a constraint rule???
     // I don't think so currently --- so we disable it for now.
-//     void constraint(const std::string &constrain)
-//     { rule_impl::constraint(constrain) ; }
+    //     void constraint(const std::string &constrain)
+    //     { rule_impl::constraint(constrain) ; }
     void conditional(const std::string &cond)
-      { rule_impl::conditional(cond) ; }
+    { rule_impl::conditional(cond) ; }
     virtual CPTR<joiner> get_joiner() { return CPTR<joiner>(0) ; }
   } ;
 
@@ -314,15 +314,15 @@ namespace Loci {
   protected:
     map_rule() { rule_class(MAP_RULE) ; }
     void name_store(const std::string& nm, store_instance& si)
-      {rule_impl::name_store(nm,si) ; }
+    {rule_impl::name_store(nm,si) ; }
     void input(const std::string& invar)
-      {rule_impl::input(invar) ;}
+    {rule_impl::input(invar) ;}
     void output(const std::string& outvar)
-      {rule_impl::output(outvar) ;}
+    {rule_impl::output(outvar) ;}
     void constraint(const std::string& constrain)
-      {rule_impl::constraint(constrain) ;}
+    {rule_impl::constraint(constrain) ;}
     void conditional(const std::string& cond)
-      {rule_impl::conditional(cond) ;}
+    {rule_impl::conditional(cond) ;}
     virtual CPTR<joiner> get_joiner() {return CPTR<joiner>(0) ;}
   } ;
   
@@ -521,15 +521,15 @@ namespace Loci {
     { rule_impl::conditional(cond) ; }
     virtual CPTR<joiner> get_joiner() { return CPTR<joiner>(0) ; }
   public:
-    virtual void process_existential(rule r, fact_db &facts, sched_db &scheds) = 0 ;
-    virtual void process_requests(rule r, fact_db &facts, sched_db &scheds) = 0 ;
+    virtual void process_existential(rule r, gfact_db &facts, sched_db &scheds) = 0 ;
+    virtual void process_requests(rule r, gfact_db &facts, sched_db &scheds) = 0 ;
   } ;
 
   class pointwise_rule : public rule_impl {
   protected:
     pointwise_rule() { rule_class(POINTWISE) ; }
     void name_store(const std::string &nm, store_instance &si)
-      { rule_impl::name_store(nm,si) ; }
+    { rule_impl::name_store(nm,si) ; }
     void input(const std::string &invar)
     { rule_impl::input(invar) ; }
     void output(const std::string &outvar)
@@ -537,7 +537,7 @@ namespace Loci {
     void constraint(const std::string &constrain)
     { rule_impl::constraint(constrain) ; }
     void conditional(const std::string &cond)
-      { rule_impl::conditional(cond) ; }
+    { rule_impl::conditional(cond) ; }
     virtual CPTR<joiner> get_joiner() { return CPTR<joiner>(0) ; }
   } ;
 
@@ -558,7 +558,7 @@ namespace Loci {
   } ;
   
   class unit_rule : public rule_impl {
-   protected:
+  protected:
     unit_rule() { rule_class(UNIT) ; }
     void name_store(const std::string &nm, store_instance &si)
     { rule_impl::name_store(nm,si) ; }
@@ -594,7 +594,7 @@ namespace Loci {
   }
   
   template <class T, class Op>
-    void joinOp<T,Op>::SetArgs(storeRepP &target, storeRepP &source)
+  void joinOp<T,Op>::SetArgs(storeRepP &target, storeRepP &source)
   { s.setRep(source) ; t.setRep(target) ; }
   
   template <class T, class Op> void joinOp<T,Op>::Join(const sequence &seq) {
@@ -605,7 +605,7 @@ namespace Loci {
   
   
   template <class T, class Op>
-    void joinOp<T,Op>::Join(Map &t2s, const sequence &seq){ 
+  void joinOp<T,Op>::Join(Map &t2s, const sequence &seq){ 
     for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) {
       join(t[*i],s[t2s[*i]]) ;
     }
@@ -615,19 +615,19 @@ namespace Loci {
     Op join ;
   public:
     CPTR<joiner> clone() 
-      { return CPTR<joiner>(new joinOp<blackbox<Type>,Op> ); }
+    { return CPTR<joiner>(new joinOp<blackbox<Type>,Op> ); }
     
     virtual void SetArgs(storeRepP &target, storeRepP &source)
     { std::cerr << "Blackbox Joiner should not be called" << std::endl; }
     
     virtual storeRepP getTargetRep()
-      { return 0; }
+    { return 0; }
     
     virtual void Join(const sequence &seq)
-      {std::cerr << "Blackbox Joiner should not be called" << std::endl; }
+    {std::cerr << "Blackbox Joiner should not be called" << std::endl; }
     
     virtual void Join(Map &t2s, const sequence &seq)
-      {std::cerr << "Blackbox Joiner should not be called" << std::endl; }
+    {std::cerr << "Blackbox Joiner should not be called" << std::endl; }
   } ;
 
   template<class Type,class Op> class joinOp<param<Type>,Op> : public joiner {
@@ -635,19 +635,19 @@ namespace Loci {
     param<Type> s,t ;
   public:
     CPTR<joiner> clone() 
-      { return CPTR<joiner>(new joinOp<param<Type>,Op> ); }
+    { return CPTR<joiner>(new joinOp<param<Type>,Op> ); }
     
     virtual void SetArgs(storeRepP &target, storeRepP &source)
-      { s.setRep(source) ; t.setRep(target) ; }
+    { s.setRep(source) ; t.setRep(target) ; }
     
     virtual storeRepP getTargetRep()
-      { param<Type> st ; storeRepP rep = st.Rep(); return rep; }
+    { param<Type> st ; storeRepP rep = st.Rep(); return rep; }
     
     virtual void Join(const sequence &seq)
-      {join(*t,*s) ;}
+    {join(*t,*s) ;}
     
     virtual void Join(Map &t2s, const sequence &seq)
-      {join(*t,*s) ;}
+    {join(*t,*s) ;}
   } ;
 
   template<class Type,class Op> class joinOp<storeVec<Type>,Op> : public joiner {
@@ -655,13 +655,13 @@ namespace Loci {
     storeVec<Type> s,t ;
   public:
     virtual CPTR<joiner> clone()
-      { return CPTR<joiner>(new joinOp<storeVec<Type>,Op> ); }
+    { return CPTR<joiner>(new joinOp<storeVec<Type>,Op> ); }
     
     virtual void SetArgs(storeRepP &target, storeRepP &source)
-      { s.setRep(source) ; t.setRep(target) ; }
+    { s.setRep(source) ; t.setRep(target) ; }
     
     virtual storeRepP getTargetRep()
-      { storeVec<Type> st ; storeRepP rep = st.Rep(); return rep; }
+    { storeVec<Type> st ; storeRepP rep = st.Rep(); return rep; }
     
     virtual void Join(const sequence &seq) {
       for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) {
@@ -707,7 +707,7 @@ namespace Loci {
   } ;
 
   template<class Type, class Op> class joinOp<multiStore<Type>,Op> :
-  public joiner {
+    public joiner {
     Op join ;
     multiStore<Type> s,t ;
   public:
@@ -906,20 +906,20 @@ namespace Loci {
     }
   protected:
     rule(const rule::info& ri)
-      { create_rdb(); id = rdb->get_id(ri) ; }
+    { create_rdb(); id = rdb->get_id(ri) ; }
   public:
     rule() { create_rdb() ; id = rdb->get_id(info()) ;}
     explicit rule(int i)
-      { create_rdb(); id = i ; }
+    { create_rdb(); id = i ; }
     rule(const rule_implP &fp)
-      { create_rdb(); id = rdb->get_id(info(fp)) ;}
+    { create_rdb(); id = rdb->get_id(info(fp)) ;}
     rule(rule f, time_ident tl)
-      { create_rdb(); id = rdb->get_id(info(rdb->get_info(f.id),tl)) ; }
+    { create_rdb(); id = rdb->get_id(info(rdb->get_info(f.id),tl)) ; }
     // prepend time_ident to rule f
     rule(time_ident tl, rule f)
-      { create_rdb(); id = rdb->get_id(info(tl,rdb->get_info(f.id))) ; }
+    { create_rdb(); id = rdb->get_id(info(tl,rdb->get_info(f.id))) ; }
     rule(const std::string &s)
-      { create_rdb(); id = rdb->get_id(info(s)) ; }
+    { create_rdb(); id = rdb->get_id(info(s)) ; }
       
     // SH - Namespace support
     // We use a new rule_implP identical to the original but with namespace'd variables to construct a new rule (rule(rule_implP&))
@@ -930,8 +930,8 @@ namespace Loci {
     rule parent() const { return rule(*this,time().parent()) ; }
 
     /* 
-    std::ostream &Print(std::ostream &s) const
-      { s << rdb->get_info(id).name() ; return s ; }
+       std::ostream &Print(std::ostream &s) const
+       { s << rdb->get_info(id).name() ; return s ; }
     */
     // remove the stuffs before "#" if any.
     std::ostream &Print(std::ostream &s) const {
@@ -969,7 +969,7 @@ namespace Loci {
   } ;
 
   inline std::ostream &operator<<(std::ostream &s, const rule &f)
-    { return f.Print(s) ; }
+  { return f.Print(s) ; }
 
   // global rule promotion functions
   // rule promotion
@@ -982,31 +982,31 @@ namespace Loci {
     ruleSet() {}
     explicit ruleSet(const exprP &e) ;
     explicit ruleSet(const intervalSet &v)
-      {*(static_cast<intervalSet *>(this)) = v ;}
+    {*(static_cast<intervalSet *>(this)) = v ;}
     ruleSet &operator=(const intervalSet &v)
-      {*(static_cast<intervalSet *>(this)) = v ; return *this ;}
+    {*(static_cast<intervalSet *>(this)) = v ; return *this ;}
     ruleSet &operator+=(const rule &v)
-      { *this += v.ident() ; return *this ; }
+    { *this += v.ident() ; return *this ; }
     ruleSet &operator-=(const rule &v)
-      { *this -= v.ident() ; return *this ; }
+    { *this -= v.ident() ; return *this ; }
     bool inSet(const rule &v) const
-      { return intervalSet::inSet(v.ident()) ; }
+    { return intervalSet::inSet(v.ident()) ; }
     class ruleSetIterator {
       intervalSet::const_iterator ii ;
     public:
       ruleSetIterator() {}
       ruleSetIterator(const intervalSet::const_iterator &i)
-        { ii = i ; }
+      { ii = i ; }
       rule operator*() const { return rule(*ii) ; }
       const rule::info *operator->() const
-        { return &(rule(*ii).get_info()) ; }
+      { return &(rule(*ii).get_info()) ; }
       ruleSetIterator &operator++() { ++ii ; return *this ;}
       ruleSetIterator operator++(int )
-        { return ruleSetIterator(ii++); }
+      { return ruleSetIterator(ii++); }
       bool operator==(const ruleSetIterator &i) const 
-        { return ii == i.ii ; }
+      { return ii == i.ii ; }
       bool operator!=(const ruleSetIterator &i) const
-        { return ii != i.ii ; } ;
+      { return ii != i.ii ; } ;
     } ;
     typedef ruleSetIterator const_iterator ;
     const_iterator begin() const {
@@ -1018,13 +1018,13 @@ namespace Loci {
   } ;
 
   inline std::ostream &operator<<(std::ostream &s, const ruleSet& v)
-    { return v.Print(s) ; }
+  { return v.Print(s) ; }
 
   class register_rule_type {
   public:
-      virtual ~register_rule_type() {}
-      virtual rule_implP get_func() const = 0 ;
-      virtual bool is_module_rule() const = 0 ;
+    virtual ~register_rule_type() {}
+    virtual rule_implP get_func() const = 0 ;
+    virtual bool is_module_rule() const = 0 ;
       
   } ; 
 

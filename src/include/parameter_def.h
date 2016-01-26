@@ -33,7 +33,7 @@
 #include <mpi.h>
 #include <Tools/debug.h>
 #include <store_rep.h>
-#include <distribute.h>
+//#include <distribute.h>
 #include <data_traits.h>
 
 
@@ -169,7 +169,7 @@ namespace Loci {
     }
 
     void set_entitySet(const entitySet &ptn) {Rep()->allocate(ptn); }
-
+    virtual gStoreRepP copy2gstore()const{return Rep()->copy2gstore();}
     entitySet domain() const { return Rep()->domain(); }
 
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
@@ -229,7 +229,7 @@ namespace Loci {
     }
 
     entitySet domain() const { return Rep()->domain(); }
-
+    virtual gStoreRepP copy2gstore()const{return Rep()->copy2gstore();}
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
   } ;
 

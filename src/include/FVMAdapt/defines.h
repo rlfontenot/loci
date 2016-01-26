@@ -433,7 +433,7 @@ namespace Loci {
   bool readVolTags(hid_t input_fid,
                    std::vector<pair<string,Loci::entitySet> > &volDat);
   
-  bool setupFVMGridFromContainer(fact_db &facts,
+  bool setupFVMGridFromContainer(gfact_db &facts,
                                  std::vector<entitySet>& local_nodes,
                                  std::vector<entitySet>& local_faces,
                                  std::vector<entitySet>& local_cells,

@@ -57,7 +57,7 @@ using std::map ;
 // an impact on how boundary faces are represented in the FVMadapt code.  We
 // just copied the old code into here for now, but that means that adapt
 // doesn't work with large interval sets.  This needs to be fixed... however
-// we are reworking how the fact_db will be created so this can wait until that
+// we are reworking how the gfact_db will be created so this can wait until that
 // process is further along.
 #include <parmetis.h>
 #if REALTYPEWIDTH == 32
@@ -865,7 +865,7 @@ namespace Loci {
 //                  entitySet nodes, entitySet faces, entitySet cells,
 //                  store<vector3d<real_t> > &pos, Map &cl, Map &cr,
 //                  multiMap &face2node,
-//                  fact_db &facts) {
+//                  gfact_db &facts) {
 
 //     pos.allocate(nodes) ;
 //     cl.allocate(faces) ;
@@ -929,7 +929,7 @@ namespace Loci {
 //     face2node.setRep(face2nodet.Rep()) ;
 
 //     // update remap from global to file numbering for faces after sorting
-//     fact_db::distribute_infoP df = facts.get_distribute_info() ;
+//     gfact_db::distribute_infoP df = facts.get_distribute_info() ;
 //     dMap g2f ;
 //     g2f = df->g2f.Rep() ;
 //     vector<pair<int, int> > remap_update(faces.size()) ;
@@ -1026,9 +1026,9 @@ namespace Loci {
 
 //   }
 
-//   void create_face_info(fact_db &facts);
-//   void create_ref(fact_db &facts) ;
-//   void create_ghost_cells(fact_db &facts);
+//   void create_face_info(gfact_db &facts);
+//   void create_ref(gfact_db &facts) ;
+//   void create_ghost_cells(gfact_db &facts);
   
    std::vector<int> simplePartitionVec(int mn, int mx, int p);
    vector<entitySet> simplePartition(int mn, int mx, MPI_Comm comm);
@@ -1046,7 +1046,7 @@ namespace Loci{
   // distribution info pointer (dist)
   // MPI Communicator(comm)
   storeRepP Global2FileOrder(storeRepP sp, entitySet dom, int &offset,
-                             fact_db::distribute_infoP dist, MPI_Comm comm) {
+                             gfact_db::distribute_infoP dist, MPI_Comm comm) {
    
     // Now get global to file numbering
     dMap g2f ;
@@ -1207,7 +1207,7 @@ namespace Loci{
     return ptn ;
   }
   ////this code need rewrite, can not be deleted yet
-  // bool inputFVMGrid(fact_db &facts,
+  // bool inputFVMGrid(gfact_db &facts,
   //                   vector<entitySet>& local_nodes,
   //                   vector<entitySet>& local_faces,
   //                   vector<entitySet>& local_cells,
@@ -1439,7 +1439,7 @@ namespace Loci{
   //   facts.create_fact("boundary_tags", boundary_tags) ;
   
   //   // update remap from global to file numbering for faces after sorting
-  //   fact_db::distribute_infoP df = facts.get_distribute_info() ;
+  //   gfact_db::distribute_infoP df = facts.get_distribute_info() ;
   //   dMap g2f ;
   //   g2f = df->g2f.Rep() ;
 
@@ -1472,7 +1472,7 @@ namespace Loci{
   //   return true ;
   // }
  
-  void old_create_face_info(fact_db &facts) {
+  void old_create_face_info(gfact_db &facts) {
     Map cl, cr ;
     cl = facts.get_variable("cl") ;
     cr = facts.get_variable("cr") ;
@@ -1491,7 +1491,7 @@ namespace Loci{
     facts.create_fact("boundary_faces",boundary_faces) ;
     facts.create_fact("interior_faces",interior_faces) ;
   }
-  void old_create_ref(fact_db &facts) {
+  void old_create_ref(gfact_db &facts) {
     store<string> boundary_names ;
     store<string> boundary_tags ;
     boundary_names = facts.get_fact("boundary_names") ;
@@ -1539,7 +1539,7 @@ namespace Loci{
     facts.update_fact("boundary_tags",bt2) ;
   }
 
-  void old_create_ghost_cells(fact_db &facts) {
+  void old_create_ghost_cells(gfact_db &facts) {
     constraint interior_faces,boundary_faces ;
     constraint geom_cells, ghost_cells, cells ;
     Map cl,cr ;
@@ -1562,7 +1562,7 @@ namespace Loci{
     } ENDFORALL ;
 
     std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
-    entitySet global_geom = all_collect_entitySet(*geom_cells,facts) ;
+    entitySet global_geom = all_collect_entitySet(*geom_cells,&facts) ;
     *geom_cells = global_geom & init_ptn[ MPI_rank] ;
     *boundary_faces &= init_ptn[ MPI_rank] ;
     std::pair<entitySet, entitySet> ghost_pair = facts.get_distributed_alloc((*boundary_faces).size()) ;
@@ -1586,7 +1586,7 @@ namespace Loci{
     Loci::debugout << "cells = " << *cells << endl ;
   }
 
-  // bool setupFVMGridFromContainer(fact_db &facts,
+  // bool setupFVMGridFromContainer(gfact_db &facts,
   //                                vector<entitySet>& local_nodes,
   //                                vector<entitySet>& local_faces,
   //                                vector<entitySet>& local_cells,
@@ -1625,7 +1625,7 @@ namespace Loci {
   void createVOGNode(store<vector3d<double> > &new_pos,
                      const store<Loci::FineNodes> &inner_nodes,
                      int& num_nodes,
-                     fact_db & facts,//in global numbering
+                     gfact_db & facts,//in global numbering
                      vector<entitySet>& nodes_ptn
                      ){
     //get store pos
@@ -1686,7 +1686,7 @@ namespace Loci {
     entitySet my_temp_nodes;
     {
       //reorder store first, from global to io entities
-      fact_db::distribute_infoP dist = facts.get_distribute_info() ;
+      gfact_db::distribute_infoP dist = facts.get_distribute_info() ;
       constraint  my_faces, my_geom_cells, my_edges; 
    
       my_faces = facts.get_variable("faces");
@@ -1933,7 +1933,7 @@ namespace Loci {
   //and then redistribute them across the processes
   void createVOGFace(int numNodes,
                      const store<Loci::FineFaces> &fine_faces,
-                     fact_db & facts,
+                     gfact_db & facts,
                      int& numFaces,
                      int& ncells,
                      Map& cl,
@@ -2038,11 +2038,11 @@ namespace Loci {
 
 namespace Loci{
   storeRepP Local2FileOrder(storeRepP sp, entitySet dom, int &offset,
-                            fact_db::distribute_infoP dist, MPI_Comm comm);
+                            gfact_db::distribute_infoP dist, MPI_Comm comm);
   
   void File2LocalOrder(storeRepP &result, entitySet resultSet,
                        storeRepP input, int offset,
-                       fact_db::distribute_infoP dist,
+                       gfact_db::distribute_infoP dist,
                        MPI_Comm comm);
 
 
@@ -2319,7 +2319,7 @@ vector<pair<string,entitySet> > getVOGTagFromLocal(const vector<pair<string,enti
   }
        
     
-  fact_db::distribute_infoP dist = Loci::exec_current_fact_db->get_distribute_info() ;
+  gfact_db::distribute_infoP dist = Loci::exec_current_fact_db->get_distribute_info() ;
   Loci::constraint  geom_cells = Loci::exec_current_fact_db->get_variable("geom_cells");
   Loci::constraint my_entities;
   my_entities = dist->my_entities ;

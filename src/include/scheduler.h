@@ -29,7 +29,7 @@
 
 
 #include <rule.h>
-#include <fact_db.h>
+#include <gfact_db.h>
 #include <sched_db.h>
 #include <execute.h>
 
@@ -38,21 +38,21 @@ namespace Loci {
 
   // function prototype for internal queries
   executeP create_internal_execution_schedule(rule_db& par_rdb,
-                                              fact_db &facts,
+                                              gfact_db &facts,
                                               sched_db &scheds,
                                               const variableSet& target,
                                               int nth=1) ;
-  bool internalQuery(rule_db& par_rdb, fact_db& facts,
+  bool internalQuery(rule_db& par_rdb, gfact_db& facts,
                      const variableSet& query) ;
     
 
   extern executeP create_execution_schedule(const rule_db &rdb,
-                                            fact_db &facts,
+                                            gfact_db &facts,
                                             sched_db &scheds,
                                             const variableSet& target,
                                             int nth=1) ;
 
-  extern bool makeQuery(const rule_db &rdb, fact_db &facts,
+  extern bool makeQuery(const rule_db &rdb, gfact_db &facts,
                         const std::string& target) ;
 }
 

@@ -99,11 +99,11 @@ namespace Loci {
     error_compiler() {}
     virtual void accept(visitor& v)
     { cerr << "Internal consistency error" << endl ; Loci::Abort();}
-    virtual void set_var_existence(fact_db &facts, sched_db &scheds)
+    virtual void set_var_existence(gfact_db &facts, sched_db &scheds)
     { cerr << "Internal consistency error" << endl ; Loci::Abort();}
-    virtual void process_var_requests(fact_db &facts, sched_db &scheds) 
+    virtual void process_var_requests(gfact_db &facts, sched_db &scheds) 
     { cerr << "Internal consistency error" << endl ; Loci::Abort();}
-    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds)
+    virtual executeP create_execution_schedule(gfact_db &facts, sched_db &scheds)
     { cerr << "Internal consistency error" << endl ; Loci::Abort();
     return executeP(0);}
   } ;
@@ -125,7 +125,7 @@ namespace Loci {
  
   graph_compiler::graph_compiler(decomposed_graph &deco,variableSet
 				 initial_vars) {
-    fact_db_comm = new barrier_compiler(initial_vars) ;
+    gfact_db_comm = new barrier_compiler(initial_vars) ;
     multiLevelGraph &mlg = deco.mlg ;
     vector<int> levels ;
     baserule = rule(mlg.toplevel) ;
@@ -271,10 +271,10 @@ namespace Loci {
     }
   }
   
-  fact_db *exec_current_fact_db = 0 ;
+  gfact_db *exec_current_fact_db = 0 ;
 
   //#define COMPILE_PROGRESS
-  void graph_compiler::compile(fact_db& facts,sched_db& scheds,
+  void graph_compiler::compile(gfact_db& facts,sched_db& scheds,
                                const variableSet& given,
                                const variableSet& target) {
 #ifdef COMPILE_PROGRESS
@@ -665,7 +665,7 @@ namespace Loci {
           cout << "graph scheduling... (randomized memory greedy)" << endl ;
       
       sched_db local_scheds =  scheds;
-      fact_db local_facts = facts ;
+      gfact_db local_facts = facts ;
       
       compGreedyPrio cgp2 ;
       graphSchedulerVisitor gsv2(cgp2) ;
@@ -782,8 +782,8 @@ namespace Loci {
 #endif
   }
   
-  void graph_compiler::existential_analysis(fact_db &facts, sched_db &scheds) {
-    fact_db_comm->set_var_existence(facts, scheds) ;
+  void graph_compiler::existential_analysis(gfact_db &facts, sched_db &scheds) {
+    gfact_db_comm->set_var_existence(facts, scheds) ;
     (rule_process[baserule])->set_var_existence(facts, scheds) ;
     variableSet var_requests = baserule.targets() ;
     variableSet::const_iterator vi ;
@@ -793,7 +793,7 @@ namespace Loci {
     }
     scheds.add_possible_duplicate_vars(var_requests);
     (rule_process[baserule])->process_var_requests(facts, scheds) ;
-    fact_db_comm->process_var_requests(facts, scheds) ;
+    gfact_db_comm->process_var_requests(facts, scheds) ;
   }
   
   class allocate_all_vars : public execute_modules {
@@ -802,25 +802,25 @@ namespace Loci {
     std::map<variable,entitySet> v_requests, v_existence ;
   public:
     allocate_all_vars() { }
-    allocate_all_vars(fact_db &facts, sched_db &scheds,
+    allocate_all_vars(gfact_db &facts, sched_db &scheds,
                       const variableSet& alloc,
                       bool is_alloc_all) ;
-    void fill_in_requests(fact_db &facts, sched_db &scheds) ;
-    virtual void execute(fact_db &facts, sched_db &scheds) ;
+    void fill_in_requests(gfact_db &facts, sched_db &scheds) ;
+    virtual void execute(gfact_db &facts, sched_db &scheds) ;
     virtual void Print(std::ostream &s) const ;
     virtual string getName() {return "allocate_all_vars";};
     virtual void dataCollate(collectData &data_collector) const {} ;
   } ;
   
   
-  allocate_all_vars::allocate_all_vars(fact_db &facts, sched_db &scheds,
+  allocate_all_vars::allocate_all_vars(gfact_db &facts, sched_db &scheds,
                                        const variableSet& alloc,
                                        bool is_alloc_all)
     :vars(alloc),is_alloc_all(is_alloc_all) {
     fill_in_requests(facts, scheds) ;
   }
 
-  void allocate_all_vars::fill_in_requests(fact_db &facts, sched_db &scheds) {
+  void allocate_all_vars::fill_in_requests(gfact_db &facts, sched_db &scheds) {
     //    variableSet vars = facts.get_typed_variables() ;
     variableSet::const_iterator vi,vii ;
     
@@ -837,7 +837,7 @@ namespace Loci {
     }
   }
   
-  void allocate_all_vars::execute(fact_db &facts, sched_db& scheds) {
+  void allocate_all_vars::execute(gfact_db &facts, sched_db& scheds) {
     //exec_current_fact_db = &facts ;
     //variableSet vars = facts.get_typed_variables() ;
     variableSet::const_iterator vi ;  
@@ -872,7 +872,7 @@ namespace Loci {
 	Loci::debugout << "Domain = " << dom << endl ;
 	Loci::debugout << "Size allocated = " << size << endl ; 
 	if(facts.isDistributed() )  {
-	  Loci::fact_db::distribute_infoP d ;
+	  Loci::gfact_db::distribute_infoP d ;
 	  d   = facts.get_distribute_info() ;
 	  entitySet my_entities = d->my_entities ; 
 	  entitySet clone = dom - my_entities ;
@@ -967,7 +967,7 @@ namespace Loci {
 
 
   executeP graph_compiler::
-  execution_schedule(fact_db &facts, sched_db &scheds,
+  execution_schedule(gfact_db &facts, sched_db &scheds,
                      const variableSet& alloc) {
 
     CPTR<execute_list> schedule = new execute_list ;
@@ -989,7 +989,7 @@ namespace Loci {
     // we first create a execution module to initialize all keyspaces
     if(!in_internal_query)
       schedule->append_list(new execute_init_keyspace(facts,scheds)) ;
-    schedule->append_list(fact_db_comm->create_execution_schedule(facts, scheds));
+    schedule->append_list(gfact_db_comm->create_execution_schedule(facts, scheds));
     executeP top_level_schedule = 0;
 
 #ifdef PTHREADS
@@ -1054,13 +1054,13 @@ namespace Loci {
   }
   
 #ifdef TO_BE_REMOVED
-  void dynamic_scheduling(digraph& gr, fact_db& facts,
+  void dynamic_scheduling(digraph& gr, gfact_db& facts,
                           // we intend to change given
                           // to include new generated facts
                           variableSet& given, 
                           const variableSet& target) {
-    // first we need to copy the fact_db
-    fact_db local_facts(facts) ;
+    // first we need to copy the gfact_db
+    gfact_db local_facts(facts) ;
     // then generate a sched_db from the local_facts
     sched_db scheds(local_facts) ;
     
@@ -1194,7 +1194,7 @@ namespace Loci {
       given += new_given ;
 
     variableSet emptyConstraints ;
-    // finally we need to put anything useful into the global fact_db (facts)
+    // finally we need to put anything useful into the global gfact_db (facts)
     for(variableSet::const_iterator vi=constraints.begin();
         vi!=constraints.end();++vi) {
       storeRepP srp = local_facts.get_variable(*vi) ;
@@ -1218,7 +1218,7 @@ namespace Loci {
   }
 
   void
-  dynamic_scheduling2(rule_db& par_rdb, fact_db& facts,
+  dynamic_scheduling2(rule_db& par_rdb, gfact_db& facts,
                        const variableSet& user_query) {
     // we'll first generate the dependency graph
     // according to the initial facts and rules database
@@ -1231,8 +1231,8 @@ namespace Loci {
     if(gr.get_target_vertices() == EMPTY)
       return ;
 
-    // then we need to copy the fact_db
-    fact_db local_facts(facts) ;
+    // then we need to copy the gfact_db
+    gfact_db local_facts(facts) ;
     // then generate a sched_db from the local_facts
     sched_db scheds(local_facts) ;
     
@@ -1355,7 +1355,7 @@ namespace Loci {
     // that generate the constraints
     par_rdb.remove_rules(constraint_rules) ;
     
-    // finally we need to put anything useful into the global fact_db (facts)
+    // finally we need to put anything useful into the global gfact_db (facts)
     for(variableSet::const_iterator vi=constraints.begin();
         vi!=constraints.end();++vi) {
       storeRepP srp = local_facts.get_variable(*vi) ;
@@ -1378,7 +1378,7 @@ namespace Loci {
   // these user_query facts if they happen to be relations also.
 #define RENUMBER
   void stationary_relation_gen(rule_db& par_rdb,
-                               fact_db& facts,
+                               gfact_db& facts,
                                const variableSet& user_query) {
     // we'll first generate the dependency graph
     // according to the initial facts and rules database
@@ -1490,10 +1490,10 @@ namespace Loci {
         all_rules += vi->first ;
         all_queries += vi->second ;
       }
-      fact_db clone(facts) ;
+      gfact_db clone(facts) ;
       // before each internal query, we need to
       // perform the global -> local renumbering
-      // since the fact_db facts is in global numbering state
+      // since the gfact_db facts is in global numbering state
 #ifdef RENUMBER
       if(clone.is_distributed_start()) {
         if((MPI_processes > 1)) 
@@ -1515,10 +1515,10 @@ namespace Loci {
       par_rdb.remove_rules(all_rules) ;
       
       // Okay, now we need to put back the computed relations
-      // to the original fact_db and restore the global numbering
+      // to the original gfact_db and restore the global numbering
 #ifdef RENUMBER
       if(clone.is_distributed_start()) {
-        fact_db::distribute_infoP df = clone.get_distribute_info() ;
+        gfact_db::distribute_infoP df = clone.get_distribute_info() ;
         dMap dl2g ;
         dl2g = MapRepP(df->l2g.Rep())->thaw() ;
         for(variableSet::const_iterator vi2=all_queries.begin();
@@ -1560,10 +1560,10 @@ namespace Loci {
     }else { // if(has_map), then we need to make successive queries
       for(vector<pair<ruleSet,variableSet> >::const_iterator
             vi=relations.begin();vi!=relations.end();++vi) {
-        fact_db clone(facts) ;
+        gfact_db clone(facts) ;
         // before each internal query, we need to
         // perform the global -> local renumbering
-        // since the fact_db facts is in global numbering state
+        // since the gfact_db facts is in global numbering state
 #ifdef RENUMBER
         if(clone.is_distributed_start()) {
           if((MPI_processes > 1)) 
@@ -1588,10 +1588,10 @@ namespace Loci {
         par_rdb.remove_rules(relationRules) ;
       
         // Okay, now we need to put back the computed relations
-        // to the original fact_db and restore the global numbering
+        // to the original gfact_db and restore the global numbering
 #ifdef RENUMBER
         if(clone.is_distributed_start()) {
-          fact_db::distribute_infoP df = clone.get_distribute_info() ;
+          gfact_db::distribute_infoP df = clone.get_distribute_info() ;
           dMap dl2g ;
           dl2g = MapRepP(df->l2g.Rep())->thaw() ;
           for(variableSet::const_iterator vi2=queries.begin();
@@ -1670,7 +1670,7 @@ namespace Loci {
   // this function returns all the dynamic constraints discovered
   // for the computations that lead to the supplied query.
   variableSet
-  constraint_process_stage1(rule_db& rdb, fact_db& facts,
+  constraint_process_stage1(rule_db& rdb, gfact_db& facts,
                             const variableSet& query) {
     // we'll first generate the dependency graph
     // according to the initial facts and rules database
@@ -1753,8 +1753,8 @@ namespace Loci {
     // in the future to use a unified query infrastructure!
     // (to be revised in the future...)
     
-    // we need to copy the fact_db for this local computation
-    fact_db local_facts(facts) ;
+    // we need to copy the gfact_db for this local computation
+    gfact_db local_facts(facts) ;
     // then generate a sched_db from the local_facts
     sched_db scheds(local_facts) ;
         
@@ -1814,12 +1814,12 @@ namespace Loci {
 
     // finished static constraints computation.
     variableSet empty_constraints ;
-    // finally we need to put anything useful into the global fact_db (facts)
+    // finally we need to put anything useful into the global gfact_db (facts)
     for(variableSet::const_iterator vi=static_constraints.begin();
         vi!=static_constraints.end();++vi) {
       storeRepP srp = local_facts.get_variable(*vi) ;
       FATAL(srp == 0) ;
-      // put the constraints into fact_db
+      // put the constraints into gfact_db
       facts.create_intensional_fact(*vi,srp) ;
       if(GLOBAL_AND(srp->domain()==EMPTY)) {
         empty_constraints += *vi ;
@@ -1846,7 +1846,7 @@ namespace Loci {
   // stage2 --- generate new rule_db and setting up things for
   // dynamic constraints
   rule_db
-  constraint_process_stage2(const rule_db& rdb, fact_db& facts,
+  constraint_process_stage2(const rule_db& rdb, gfact_db& facts,
                             const variableSet& dynamic_constraints) {
 
     // generate a new rule_db that splits the static & dynamic

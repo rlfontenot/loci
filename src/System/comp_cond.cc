@@ -38,13 +38,13 @@ namespace Loci {
   public:
     execute_conditional(const executeP &cond, const variable &cv) :
       conditional(cond),cvar(cv) { warn(cond==0) ; }
-    virtual void execute(fact_db &facts, sched_db &scheds) ;
+    virtual void execute(gfact_db &facts, sched_db &scheds) ;
     virtual void Print(std::ostream &s) const ;
 	virtual string getName() { return "execute_conditional";};
     virtual void dataCollate(collectData &data_collector) const  ;
   } ;
   
-  void execute_conditional::execute(fact_db &facts, sched_db& scheds) {
+  void execute_conditional::execute(gfact_db &facts, sched_db& scheds) {
     param<bool> test ;
     test = facts.get_variable(cvar) ;
 
@@ -109,19 +109,19 @@ namespace Loci {
     v.visit(*this) ;
   }
   
-  void conditional_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
+  void conditional_compiler::set_var_existence(gfact_db &facts, sched_db &scheds) {
     std::vector<rule_compilerP>::iterator i ;
     for(i=dag_comp.begin();i!=dag_comp.end();++i)
       (*i)->set_var_existence(facts, scheds) ;
   }
   
-  void conditional_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
+  void conditional_compiler::process_var_requests(gfact_db &facts, sched_db &scheds) {
     std::vector<rule_compilerP>::reverse_iterator ri ;
     for(ri=dag_comp.rbegin();ri!=dag_comp.rend();++ri)
       (*ri)->process_var_requests(facts, scheds) ;
   }
   
-  executeP conditional_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
+  executeP conditional_compiler::create_execution_schedule(gfact_db &facts, sched_db &scheds) {
     CPTR<execute_list> elp = new execute_list ;
     
     std::vector<rule_compilerP>::iterator i ;

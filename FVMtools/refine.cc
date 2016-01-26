@@ -43,7 +43,7 @@ using Loci::gParam;
 namespace Loci{
   void parallelClassifyCell(gfact_db &gfacts) ;
   void createEdgesPar(gfact_db &gfacts) ;
-  void copy_facts(gfact_db& gfacts, fact_db& facts);
+  void copy_facts(gfact_db& gfacts);
 }
 
 int main(int argc, char ** argv) {
@@ -455,34 +455,34 @@ int main(int argc, char ** argv) {
   //     cout<< endl;
   //   }
   
-   fact_db facts;
-   copy_facts(gfacts, facts);
+   
+   copy_facts(gfacts);
   
   if(cell2parent){
-    if(!Loci::makeQuery(rules, facts, "cell2parent_output")) {
+    if(!Loci::makeQuery(rules, gfacts, "cell2parent_output")) {
       std::cerr << "query failed!" << std::endl;
       Loci::Abort();
     }
   }
  
  
-  if(!Loci::makeQuery(rules, facts,"node_output")) {
+  if(!Loci::makeQuery(rules, gfacts,"node_output")) {
     std::cerr << "query failed!" << std::endl;
     Loci::Abort();
   }
   
-  if(!Loci::makeQuery(rules, facts, "face_output")) {
+  if(!Loci::makeQuery(rules, gfacts, "face_output")) {
     std::cerr << "query failed!" << std::endl;
     Loci::Abort();
   }
-  if(!Loci::makeQuery(rules, facts, "volTag_output")) {
+  if(!Loci::makeQuery(rules, gfacts, "volTag_output")) {
     std::cerr << "query failed!" << std::endl;
     Loci::Abort();
   }
 
   
   if(plan_output){
-    if(!Loci::makeQuery(rules, facts, "cellplan_output")) {
+    if(!Loci::makeQuery(rules, gfacts, "cellplan_output")) {
       std::cerr << "query failed!" << std::endl;
       Loci::Abort();
     }

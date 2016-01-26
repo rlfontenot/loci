@@ -37,12 +37,13 @@
 
 #include <Map.h>
 #include <DMap.h>
-#include <fact_db.h>
+//#include <gfact_db.h>
 #include <store_rep.h>
 
 namespace Loci {
 
   class joiner ;
+  class gfact_db; //to detangle header files, change gfact_db& to gfact_db* in the following function interfaces
   extern std::ofstream debugout ;
   extern int MPI_processes;
   extern int MPI_rank ;
@@ -58,25 +59,21 @@ namespace Loci {
   storeRepP send_clone_non(storeRepP& sp, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
   std::vector<storeRepP> send_global_clone_non(storeRepP &sp , entitySet &out_of_dom,  std::vector<entitySet> &init_ptn) ;
   
-  entitySet collect_entitySet(entitySet e, fact_db &facts) ;
+  entitySet collect_entitySet(entitySet e, gfact_db *facts) ;
 
   std::vector<entitySet>
   transpose_entitySet(const std::vector<entitySet>& in, MPI_Comm comm) ;
   std::vector<sequence>
   transpose_sequence(const std::vector<sequence>& in, MPI_Comm comm) ;
 
-  extern fact_db *exec_current_fact_db ;
+  extern gfact_db *exec_current_fact_db ;
 
   inline entitySet collect_entitySet(entitySet e)
-    { return collect_entitySet(e,*exec_current_fact_db) ; }
+  { return collect_entitySet(e, exec_current_fact_db) ; }
 
   entitySet all_collect_entitySet(const entitySet &e) ;
 
-  inline entitySet all_collect_entitySet(entitySet localset,fact_db &facts) {
-    if(facts.is_distributed_start())
-      return Loci::all_collect_entitySet(localset) ;
-    return localset ;
-  }
+  entitySet all_collect_entitySet(entitySet localset,gfact_db *facts);
   
   std::vector<entitySet> all_collect_vectors(entitySet &e,MPI_Comm comm) ;
   std::vector<entitySet> all_collect_vectors(entitySet &e) ;

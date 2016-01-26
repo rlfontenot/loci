@@ -29,10 +29,10 @@ using std::ifstream;
 
 namespace Loci {
   storeRepP Local2FileOrder(storeRepP sp, entitySet dom, int &offset,
-                            fact_db::distribute_infoP dist, MPI_Comm comm) ;
+                            gfact_db::distribute_infoP dist, MPI_Comm comm) ;
   void File2LocalOrder(storeRepP &result, entitySet resultSet,
                        storeRepP input, int offset,
-                       fact_db::distribute_infoP dist,
+                       gfact_db::distribute_infoP dist,
                        MPI_Comm comm) ;
 }
 
@@ -129,7 +129,7 @@ class get_DBcellPlan : public pointwise_rule{
 
     readPlan = Loci::DataXFER_DB.getItem((*planDB_par).c_str()) ;
        
-    fact_db::distribute_infoP dist = Loci::exec_current_fact_db->get_distribute_info() ;
+    gfact_db::distribute_infoP dist = Loci::exec_current_fact_db->get_distribute_info() ;
     if(dist==0) {
       FORALL(dom,ii) {
 	cellPlan[ii] = readPlan[ii] ;
@@ -174,7 +174,7 @@ class get_balanced_cellPlanDB : public pointwise_rule{
 
     readPlan = Loci::DataXFER_DB.getItem((*planDB_par).c_str()) ;
        
-    fact_db::distribute_infoP dist = Loci::exec_current_fact_db->get_distribute_info() ;
+    gfact_db::distribute_infoP dist = Loci::exec_current_fact_db->get_distribute_info() ;
     if(dist==0) {
       FORALL(dom,ii) {
 	cellPlan[ii] = readPlan[ii] ;
@@ -295,7 +295,7 @@ class get_parentPlanDB : public pointwise_rule{
 
     readPlan = Loci::DataXFER_DB.getItem((*parent_planDB_par).c_str()) ;
        
-    fact_db::distribute_infoP dist = Loci::exec_current_fact_db->get_distribute_info() ;
+    gfact_db::distribute_infoP dist = Loci::exec_current_fact_db->get_distribute_info() ;
     if(dist==0) {
       FORALL(dom,ii) {
 	parentPlan[ii]= readPlan[ii] ;
@@ -422,7 +422,7 @@ public:
   virtual void compute(const sequence &seq) {
     entitySet dom = entitySet(seq);
     
-    fact_db::distribute_infoP dist = Loci::exec_current_fact_db->get_distribute_info() ;
+    gfact_db::distribute_infoP dist = Loci::exec_current_fact_db->get_distribute_info() ;
     if(dist==0) {
       store<std::vector<char> > pcopy ;
       pcopy.allocate(dom) ;

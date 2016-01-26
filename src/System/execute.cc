@@ -31,16 +31,16 @@ using std::ostream ;
 namespace Loci {
   struct exec_info  {
     Loci::executeP exec_routine;
-    Loci::fact_db *current_fact_db ;
+    Loci::gfact_db *current_gfact_db ;
     exec_info() {} ;
-    exec_info(Loci::executeP &ep, Loci::fact_db &facts) {
-      exec_routine = ep ; current_fact_db = &facts ;
+    exec_info(Loci::executeP &ep, Loci::gfact_db &facts) {
+      exec_routine = ep ; current_gfact_db = &facts ;
     }
   } ;
 
-  Loci::fact_db *current_fact_db ;
+  Loci::gfact_db *current_gfact_db ;
 
-  void execute_list::execute(fact_db &facts, sched_db& scheds) {
+  void execute_list::execute(gfact_db &facts, sched_db& scheds) {
     std::vector<executeP>::iterator eli ;
     for(eli=elist.begin();eli!=elist.end();++eli)
       (*eli)->execute(facts, scheds) ;
@@ -60,7 +60,7 @@ namespace Loci {
   }
 
 
-  void execute_sequence::execute(fact_db &facts, sched_db& scheds) {
+  void execute_sequence::execute(gfact_db &facts, sched_db& scheds) {
     std::vector<executeP>::iterator eli ;
 
     for(eli=elist.begin();eli!=elist.end();++eli)

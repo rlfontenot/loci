@@ -20,8 +20,8 @@
 //#############################################################################
 #ifndef LOCI_GRID_READERS_H
 #define LOCI_GRID_READERS_H
-#include <fact_db.h>
 #include <gfact_db.h>
+
 #include <string>
 
 namespace Loci {
@@ -156,21 +156,21 @@ namespace Loci {
     }
   } ;
 
-  // bool readFVMGrid(fact_db &facts, std::string filename) ;
-  //bool setupFVMGrid(fact_db &facts, std::string filename) ;
+  // bool readFVMGrid(gfact_db &facts, std::string filename) ;
+  
   bool setupFVMGrid(gfact_db &facts, std::string filename) ;
   
   bool readBCfromVOG(std::string filename,
                      std::vector<std::pair<int,std::string> > &boundary_ids) ;
-  //void setupBoundaryConditions(fact_db &facts) ;
+  
   void setupBoundaryConditions(gfact_db &facts) ;
-  //void createLowerUpper(fact_db &facts) ;
+  
   void createLowerUpper(gfact_db &facts) ; 
 
-  //void createEdgesPar(fact_db& facts) ;
+  
   void createEdgesPar(gfact_db& facts) ;
 
-  //void create_ci_map(fact_db &facts);
+ 
   void create_ci_map(gfact_db &facts);
 
   extern void writeVOG(std::string filename,store<vector3d<double> > &pos,

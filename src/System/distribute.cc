@@ -43,18 +43,22 @@ using std::endl ;
 using std::sort ;
 
 #include "execute.h"
-
+#include <gfact_db.h>
 namespace Loci {
-  
-  entitySet collect_entitySet(entitySet e, fact_db &facts) {
-    if(!facts.isDistributed())
+   entitySet all_collect_entitySet(entitySet localset,gfact_db *facts) {
+    if(facts->is_distributed_start())
+      return Loci::all_collect_entitySet(localset) ;
+    return localset ;
+  }
+  entitySet collect_entitySet(entitySet e, gfact_db *facts) {
+    if(!facts->isDistributed())
       return e ;
     entitySet re ;
-    if(facts.isDistributed()) {  
+    if(facts->isDistributed()) {  
       Map l2g ;
       entitySet::const_iterator ti ;
-      fact_db::distribute_infoP d = facts.get_distribute_info() ;
-      d = facts.get_distribute_info() ;
+      gfact_db::distribute_infoP d = facts->get_distribute_info() ;
+      d = facts->get_distribute_info() ;
       l2g = d->l2g.Rep() ;
       if(MPI_processes == 1) {
 	entitySet temp = e ;

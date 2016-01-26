@@ -50,7 +50,7 @@ namespace Loci {
 
   class assembleVisitor: public visitor {
   public:
-    assembleVisitor(fact_db& fd, sched_db& sd,
+    assembleVisitor(gfact_db& fd, sched_db& sd,
                     const variableSet& arv,
                     const std::map<variable,
                     std::pair<rule,CPTR<joiner> > >& ri,
@@ -63,7 +63,7 @@ namespace Loci {
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
   private:
-    fact_db& facts ;
+    gfact_db& facts ;
     sched_db& scheds ;
     const variableSet all_reduce_vars ;
     std::map<variable,std::pair<rule,CPTR<joiner> > > reduceInfo ;
@@ -621,7 +621,7 @@ namespace Loci {
   // are not suitable for chomping
   class chompPPVisitor: public visitor {
   public:
-    chompPPVisitor(fact_db& fd,
+    chompPPVisitor(gfact_db& fd,
                    const std::map<int,variableSet>& rot_vt,
                    const std::map<int,variableSet>& lsharedt,
                    const variableSet& rv) ;
@@ -642,7 +642,7 @@ namespace Loci {
     // variables that have seen
     variableSet seen_vars ;
     // reference to the fact database
-    fact_db& facts ;
+    gfact_db& facts ;
     // all rotate lists variables
     variableSet rotate_vars ;
     // all loop shared variables
@@ -748,7 +748,7 @@ namespace Loci {
   // usage and may increase the sychronization points
   class memGreedySchedVisitor: public visitor {
   public:
-    memGreedySchedVisitor(fact_db& fd): facts(fd) {}
+    memGreedySchedVisitor(gfact_db& fd): facts(fd) {}
     virtual ~memGreedySchedVisitor() {}
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
@@ -756,7 +756,7 @@ namespace Loci {
   private:
     std::vector<digraph::vertexSet>
       get_firstSched(const digraph& gr) ;
-    fact_db& facts ;
+    gfact_db& facts ;
   } ;
   
   //clear the schedules and compilers that already exist 
@@ -828,7 +828,7 @@ namespace Loci {
   // used at run-time to reset the dynamic rule control
   class DynamicKeyspaceVisitor: public visitor {
   public:
-    DynamicKeyspaceVisitor(fact_db& fd, sched_db& sd,
+    DynamicKeyspaceVisitor(gfact_db& fd, sched_db& sd,
                            const std::map<rule,rule>& a2u,
                            const std::map<variable,variableSet>& orv)
       :facts(fd),scheds(sd),apply2unit(a2u),overlap_rotvars(orv) {}
@@ -851,7 +851,7 @@ namespace Loci {
     get_drule_ctrl() const {return drule_ctrl ;}
   protected:
     // reference to fact database
-    fact_db& facts ;
+    gfact_db& facts ;
     // ref to sched database
     sched_db& scheds ;
     void
@@ -890,7 +890,7 @@ namespace Loci {
     // referenced inside its own keyspace. e.g., in the above
     // example, "T" belongs to keyspace K1 and is referred to
     // in the input chain. since this is not cross keyspace
-    // reference, "T"'s clone is itself in the fact_db's storage.
+    // reference, "T"'s clone is itself in the gfact_db's storage.
     // the self clone map records T->K1, meaning "T" from K1
     // should have a clone. NOTE: this is a one to one mapping,
     // i.e., if T->K1, then its not possible for T to have
@@ -907,7 +907,7 @@ namespace Loci {
   class DynamicCloneInvalidatorVisitor: public visitor {
   public:
     DynamicCloneInvalidatorVisitor
-    (fact_db& fd,
+    (gfact_db& fd,
      const std::map<variable,std::string>& sc,
      const std::map<variable,std::set<std::string> >& sac) ;
     virtual ~DynamicCloneInvalidatorVisitor() {}
@@ -918,7 +918,7 @@ namespace Loci {
     void
     edit_graph(digraph& gr, rulecomp_map& rcm) ;
     
-    fact_db& facts ;
+    gfact_db& facts ;
     std::map<variable, std::string> self_clone ;
     std::map<variable, std::set<std::string> > shadow_clone ;
     variableSet self_clone_vars ;
@@ -970,11 +970,11 @@ namespace Loci {
 
   // memory greedy prioritize
   struct memGreedyPrio: public PrioGraph {
-    memGreedyPrio(fact_db& fd): facts(fd) {}
+    memGreedyPrio(gfact_db& fd): facts(fd) {}
     void operator() (const digraph& gr,
                      std::map<int_type,int_type>& pmap) const ;
     private:
-    fact_db& facts ;
+    gfact_db& facts ;
   } ;
   // this is a random greedy prioritize functor
   struct RandomPrio: public PrioGraph {
@@ -1208,7 +1208,7 @@ namespace Loci {
   // new memory greedy scheduler
   class MemGreedyScheduler: public visitor {
   public:
-    MemGreedyScheduler(fact_db& fd,
+    MemGreedyScheduler(gfact_db& fd,
                        sched_db& sd,
                        const std::map<variable,variableSet>& s,
                        const std::map<variable,variableSet>& t,
@@ -1248,7 +1248,7 @@ namespace Loci {
    
     // records the total topological orders for each graph
     // std::map<int,int> num_orders ;
-    fact_db& facts ;
+    gfact_db& facts ;
     // recurrence variable information
     std::map<variable,variableSet> s2t ;
     std::map<variable,variableSet> t2s ;

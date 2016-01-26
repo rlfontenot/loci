@@ -636,7 +636,7 @@ namespace Loci{
     gKeySpaceP edge_space = new gKeySpace();
     edge_space->register_space("EdgeSpace", casename); 
     //get key manager and generate the global keys for edges
-    gKeyManagerP key_manager = facts.get_key_manager();
+    gKeyManagerP key_manager = facts.get_gkey_manager();
     int num_edges = emap.size() ;
     gEntitySet edges = edge_space->generate_key(key_manager,num_edges);
     

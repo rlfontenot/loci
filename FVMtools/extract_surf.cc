@@ -70,7 +70,7 @@ void get_surf(string casename, string iteration,
     exit(-1) ;
   }
 
-  fact_db facts ;
+  gfact_db facts ;
   Loci::readContainer(file_id,"pos",pos.Rep(),EMPTY,facts) ;
   Loci::hdf5CloseFile(file_id) ;
 

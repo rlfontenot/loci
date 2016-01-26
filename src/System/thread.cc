@@ -320,7 +320,7 @@ namespace Loci {
 
       // do the module work
       w = (*(self->work))[tid];
-      fact_db* f = self->factsP;
+      gfact_db* f = self->factsP;
       sched_db* s = self->schedsP;
       if(w != 0 && f && s) {
         w->execute(*f, *s);
@@ -869,7 +869,7 @@ namespace Loci {
   // this function generates an interference graph for
   // a local reduction rule.
   void build_interference_graph(const rule& r,
-                                fact_db& facts, sched_db& scheds,
+                                gfact_db& facts, sched_db& scheds,
                                 const entitySet& context, UDG& g)
   {
     // DEBUG

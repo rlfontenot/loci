@@ -34,7 +34,7 @@ using std::ios;
 namespace Loci{
   void parallelClassifyCell(gfact_db &facts) ;
   void createEdgesPar(gfact_db &facts);
-  void copy_facts(gfact_db& gfacts, fact_db& facts);
+  void copy_facts(gfact_db& gfacts);
 }
 
 
@@ -176,10 +176,38 @@ int main(int argc, char ** argv) {
 //     cout<< endl;
 //   }
 
-  fact_db facts;
-  copy_facts(gfacts, facts);
+  
+  copy_facts(gfacts);
+
+  // Dump out parameters from fact database
+  if(Loci::MPI_rank == 0 ) {
+    char buf[512] ;
+    bzero(buf,512) ;
+    snprintf(buf,511,"output/run_info_refmesh") ;
+    ofstream db_file(buf) ;
+    if(!db_file.fail()) {
+      using namespace Loci ;
+       
+        db_file << "facts = {" << endl ;
+        variableSet ext_facts = gfacts.get_extensional_facts() ;
+        for(variableSet::const_iterator vi=ext_facts.begin();
+            vi!=ext_facts.end();++vi) {
+          storeRepP sp = gfacts.get_variable(*vi) ;
+          if(sp != 0) {
+            // if(sp->RepType() == PARAMETER) {
+              db_file << *vi << ": " ;
+              sp->Print(db_file) ;
+              // }
+          }
+        }
+        db_file << "}" << endl ;
+      }
+  }
+
+
+  
   if(cell2parent){
-    if(!Loci::makeQuery(rules, facts, "cell2parent_output")) {
+    if(!Loci::makeQuery(rules, gfacts, "cell2parent_output")) {
       std::cerr << "query failed!" << std::endl;
       Loci::Abort();
     }
@@ -187,16 +215,16 @@ int main(int argc, char ** argv) {
   }
  
     
-  if(!Loci::makeQuery(rules, facts, "node_output")) {
+  if(!Loci::makeQuery(rules, gfacts, "node_output")) {
     std::cerr << "query failed!" << std::endl;
     Loci::Abort();
   }
    
-  if(!Loci::makeQuery(rules, facts, "face_output")) {
+  if(!Loci::makeQuery(rules, gfacts, "face_output")) {
     std::cerr << "query failed!" << std::endl;
     Loci::Abort();
   }
-  if(!Loci::makeQuery(rules, facts, "volTag_output")) {
+  if(!Loci::makeQuery(rules, gfacts, "volTag_output")) {
     std::cerr << "query failed!" << std::endl;
     Loci::Abort();
   }

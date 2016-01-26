@@ -22,6 +22,12 @@
 #define GPARAMETER_IMPL_H
 
 namespace Loci {
+  //given send_split, return recv_split;
+  //or given recv_split, return send_split
+  //allow overlap between processes
+   std::vector<gEntitySet> transposePtn(const std::vector<gEntitySet> &ptn, MPI_Comm comm);
+
+  
   //**************************************************************************/
   template<class T> storeRepP gParamRepI<T>::copy2store()const{
     param<T> r ;

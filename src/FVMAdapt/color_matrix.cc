@@ -52,7 +52,7 @@ namespace Loci{
   // distribution info pointer (dist)
   // MPI Communicator
   storeRepP Local2FileOrder(storeRepP sp, entitySet dom, int &offset,
-                            fact_db::distribute_infoP dist, MPI_Comm comm);
+                            gfact_db::distribute_infoP dist, MPI_Comm comm);
   std::vector<int> simplePartitionVec(int mn, int mx, int p);
 
 }
@@ -179,7 +179,7 @@ void writeVOGNode(hid_t file_id,
   }
   
   //reorder store first, from local to io entities
-  fact_db::distribute_infoP dist =  Loci::exec_current_fact_db->get_distribute_info() ;
+  gfact_db::distribute_infoP dist =  Loci::exec_current_fact_db->get_distribute_info() ;
   constraint  my_faces, my_geom_cells; 
   entitySet my_entities = dist->my_entities ;
   my_faces = Loci::exec_current_fact_db->get_variable("faces");

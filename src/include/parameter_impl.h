@@ -23,6 +23,12 @@
 #include <string>
 namespace Loci {
   //**************************************************************************/
+ std::vector<entitySet> all_collect_vectors(entitySet &e,MPI_Comm comm) ;
+  // a utility function to remap an entityset
+   entitySet
+  remap_entitySet(const entitySet& es, const dMap& remap) ;
+
+
 
   template<class T> void paramRepI<T>::allocate(const entitySet &p) {
     store_domain = p ;

@@ -38,7 +38,7 @@
 #include <hdf5_readwrite_long.h>
 #include <distribute_long.h>
 #include <map>
-#include <fact_db.h>
+
 #include <field_sort.h>
 
 #include <LociGridReaders.h> //real_t is defined here
@@ -1288,7 +1288,7 @@ namespace Loci {
     string casename;
     
     //get key manager and key spaces
-    gKeyManagerP key_manager = facts.get_key_manager();
+    gKeyManagerP key_manager = facts.get_gkey_manager();
     
     gKeySpaceP face_space = gKeySpace::get_space("FaceSpace", casename);
     gKeySpaceP node_space = gKeySpace::get_space("NodeSpace", casename);
@@ -1420,7 +1420,7 @@ namespace Loci {
      
     if(MPI_processes == 1) {
       //set keys, my keys
-      gKeyManagerP key_manager = facts.get_key_manager();
+      gKeyManagerP key_manager = facts.get_gkey_manager();
       gKeySpaceP face_space = gKeySpace::get_space("FaceSpace", casename);
       gKeySpaceP node_space = gKeySpace::get_space("NodeSpace", casename);
       gKeySpaceP cell_space = gKeySpace::get_space("CellSpace", casename);
@@ -1526,7 +1526,7 @@ namespace Loci {
     string casename;
     gKeySpaceP cell_space = gKeySpace::get_space("CellSpace", casename);
     gKeySpaceP face_space = gKeySpace::get_space("FaceSpace", casename);
-    gKeyManagerP km = facts.get_key_manager();
+    gKeyManagerP km = facts.get_gkey_manager();
     
     gConstraint interior_faces,boundary_faces ;
     gConstraint geom_cells, ghost_cells, cells ;
@@ -1579,7 +1579,7 @@ namespace Loci {
 
  
 
-  void copy_facts(gfact_db& gfacts, fact_db& facts){
+  void copy_facts(gfact_db& gfacts){
    
     string casename;
     gKeySpaceP face_space = gKeySpace::get_space("FaceSpace", casename);
@@ -1598,7 +1598,7 @@ namespace Loci {
       for(gMap::const_iterator mi = g2f.begin(); mi != g2f.end(); mi++){
         alloc_file[ind++] = mi->second;
       }
-      entitySet entities_global = facts.get_distributed_alloc(alloc_file).first;
+      entitySet entities_global = gfacts.get_distributed_alloc(alloc_file).first;
       g2f.clear();
       alloc_file.resize(0);
     }
@@ -1610,7 +1610,7 @@ namespace Loci {
       for(gMap::const_iterator mi = g2f.begin(); mi != g2f.end(); mi++){
         alloc_file[ind++] = mi->second;
       }
-      entitySet entities_global = facts.get_distributed_alloc(alloc_file).first;
+      entitySet entities_global = gfacts.get_distributed_alloc(alloc_file).first;
       g2f.clear();
       alloc_file.resize(0);
     }
@@ -1632,7 +1632,7 @@ namespace Loci {
           itr++;
         }
       }ENDGFORALL;
-      entitySet entities_global = facts.get_distributed_alloc(alloc_file).first;
+      entitySet entities_global = gfacts.get_distributed_alloc(alloc_file).first;
       
       g2f.clear();
       alloc_file.resize(0);
@@ -1645,7 +1645,7 @@ namespace Loci {
       for(gMap::const_iterator mi = g2f.begin(); mi != g2f.end(); mi++){
         alloc_file[ind++] = mi->second;
       }
-      entitySet entities_global = facts.get_distributed_alloc(alloc_file).first;
+      entitySet entities_global = gfacts.get_distributed_alloc(alloc_file).first;
       
       g2f.clear();
       alloc_file.resize(0);
@@ -1653,7 +1653,7 @@ namespace Loci {
     {
       gConstraint  boundary_faces;
       boundary_faces =  gfacts.get_gfact("boundary_faces");
-      std::pair<entitySet, entitySet> ghost_pair = facts.get_distributed_alloc((*boundary_faces).size()) ;
+      std::pair<entitySet, entitySet> ghost_pair = gfacts.get_distributed_alloc((*boundary_faces).size()) ;
     }
 
     if(edge_space != 0){
@@ -1665,12 +1665,12 @@ namespace Loci {
       for(gMap::const_iterator mi = g2f.begin(); mi != g2f.end(); mi++){
         alloc_file[ind++] = mi->second;
       }
-      entitySet entities_global = facts.get_distributed_alloc(alloc_file).first;
+      entitySet entities_global = gfacts.get_distributed_alloc(alloc_file).first;
       g2f.clear();
       alloc_file.resize(0);
     }
       
-    gfacts.copy_facts(facts);
+    gfacts.copy_facts();
   }
 
 

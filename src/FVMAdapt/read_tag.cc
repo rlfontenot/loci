@@ -54,11 +54,11 @@ namespace Loci{
   // distribution info pointer (dist)
   // MPI Communicator
   storeRepP Local2FileOrder(storeRepP sp, entitySet dom, int &offset,
-                            fact_db::distribute_infoP dist, MPI_Comm comm);
+                            gfact_db::distribute_infoP dist, MPI_Comm comm);
   
   void File2LocalOrder(storeRepP &result, entitySet resultSet,
                        storeRepP input, int offset,
-                       fact_db::distribute_infoP dist,
+                       gfact_db::distribute_infoP dist,
                        MPI_Comm comm);
   
 }
@@ -209,7 +209,7 @@ vector<char> read_tags_hdf5(string filename, string varname, MPI_Comm &comm) {
 // Add requests for node to datamap, datamap here is a file2local map
 //but file number is shifted by offset so that it will start with 0
 void add_to_datamap(entitySet dom, vector<pair<int,int> > &datamap, int offset,
-                    fact_db::distribute_infoP dist) {
+                    gfact_db::distribute_infoP dist) {
   if(dist == 0) {
     int cnt = 0 ;
     FORALL(dom,nd) {
@@ -376,7 +376,7 @@ public:
     vector<char> filedata  = *inputTagsData ;
     
     // Now determine what data we need to collect from filedata
-    fact_db::distribute_infoP dist = (Loci::exec_current_fact_db)->get_distribute_info() ;
+    gfact_db::distribute_infoP dist = (Loci::exec_current_fact_db)->get_distribute_info() ;
     entitySet dom = entitySet(seq);
 
     vector<pair<int,int> > datamap ;
@@ -400,7 +400,7 @@ register_rule<get_postag> register_get_postag;
   
 int getFileNumberOffset(const entitySet& locdom,MPI_Comm &comm){
   // Now determine what data we need to collect from filedata
-  fact_db::distribute_infoP dist = (Loci::exec_current_fact_db)->get_distribute_info() ;
+  gfact_db::distribute_infoP dist = (Loci::exec_current_fact_db)->get_distribute_info() ;
   int imn;
   if(dist == 0) {
     return locdom.Min();
@@ -452,7 +452,7 @@ int getFileNumberOffset(const entitySet& locdom,MPI_Comm &comm){
 int
 getNodeOffsets(store<int> &nodeloc, const_store<int> &numsplits,
                entitySet locdom,
-               fact_db::distribute_infoP dist,
+               gfact_db::distribute_infoP dist,
                MPI_Comm &comm) {
   entitySet my_entities = ~EMPTY ;
   if(dist != 0)
@@ -529,7 +529,7 @@ public:
     MPI_Comm comm = MPI_COMM_WORLD ;    
     
     // Now determine what data we need to collect from filedata
-    fact_db::distribute_infoP dist = (Loci::exec_current_fact_db)->get_distribute_info() ;
+    gfact_db::distribute_infoP dist = (Loci::exec_current_fact_db)->get_distribute_info() ;
     entitySet my_entities ;
     my_entities = ~EMPTY ;
 
@@ -713,7 +713,7 @@ public:
     MPI_Comm comm = MPI_COMM_WORLD ;    
     
     // Now determine what data we need to collect from filedata
-    fact_db::distribute_infoP dist = (Loci::exec_current_fact_db)->get_distribute_info() ;
+    gfact_db::distribute_infoP dist = (Loci::exec_current_fact_db)->get_distribute_info() ;
     entitySet my_entities ;
     my_entities = ~EMPTY ;
 
@@ -863,7 +863,7 @@ public:
     vector<char> filedata  = *inputTagsData ;
     
     // Now determine what data we need to collect from filedata
-    fact_db::distribute_infoP dist = (Loci::exec_current_fact_db)->get_distribute_info() ;
+    gfact_db::distribute_infoP dist = (Loci::exec_current_fact_db)->get_distribute_info() ;
     entitySet dom = entitySet(seq);
     if(dist!=0)dom = dom & dist->my_entities;
     

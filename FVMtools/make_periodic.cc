@@ -8317,7 +8317,7 @@ int main(int ac, char* av[]) {
    *******************************************************/
 
   //read in grid
-  fact_db facts ;
+  gfact_db facts ;
   string gridfile = problem_name + string(".vog") ;
   vector<pair<int,string> > boundary_ids ;
   if(!Loci::readBCfromVOG(gridfile,boundary_ids)) {

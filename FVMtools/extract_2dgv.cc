@@ -64,7 +64,7 @@ void get_2dgv(string casename, string iteration,
     exit(-1) ;
   }
 
-  fact_db facts ;
+  gfact_db facts ;
   Loci::readContainer(file_id,"pos",pos.Rep(),EMPTY,facts) ;
   Loci::hdf5CloseFile(file_id) ;
 
@@ -318,7 +318,7 @@ void get_2dgv(string casename, string iteration,
         return ;
       }
 
-      fact_db facts ;
+      gfact_db facts ;
       store<float> scalar ;
       Loci::readContainer(file_id,var_name,scalar.Rep(),EMPTY,facts) ;
       entitySet dom = scalar.domain() ;
@@ -353,7 +353,7 @@ void get_2dgv(string casename, string iteration,
         exit(-1) ;
       }
       
-      fact_db facts ;
+      gfact_db facts ;
       store<vector3d<float> > vec ;
       Loci::readContainer(file_id,var_name,vec.Rep(),EMPTY,facts) ;
       entitySet dom = vec.domain() ;
@@ -379,7 +379,7 @@ void get_2dgv(string casename, string iteration,
         exit(-1) ;
       }
 
-      fact_db facts ;
+      gfact_db facts ;
       storeVec<float> mix ;
       Loci::readContainer(file_id,"mixture",mix.Rep(),EMPTY,facts) ;
       param<string> species_names ;

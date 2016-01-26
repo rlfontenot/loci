@@ -30,7 +30,7 @@
 #include <distribute.h>
 #include <distribute_container.h>
 #include <parameter.h>
-#include <fact_db.h>
+#include <gfact_db.h>
 #include <Loci_types.h>
 #include <LociGridReaders.h>
 #include "loci_globs.h"
@@ -1261,7 +1261,7 @@ namespace Loci {
 		 store<string> &boundary_names, 
 		 store<string> &boundary_tags, 
 		 entitySet bcsurfset,
-                 fact_db &facts) {
+                 gfact_db &facts) {
 
     pos.allocate(nodes) ;
     cl.allocate(faces) ;
@@ -1325,7 +1325,7 @@ namespace Loci {
     face2node.setRep(face2nodet.Rep()) ;
 
     // update remap from global to file numbering for faces after sorting
-    fact_db::distribute_infoP df = facts.get_distribute_info() ;
+    gfact_db::distribute_infoP df = facts.get_distribute_info() ;
     dMap g2f ;
     g2f = df->g2f.Rep() ;
     vector<pair<int, int> > remap_update(faces.size()) ;
@@ -1935,7 +1935,7 @@ namespace Loci {
   //Description: Reads grid structures in the fact database
   //Input: facts and grid file name
   //Output: true if sucess
-  bool readFVMGrid(fact_db &facts, string filename) {
+  bool readFVMGrid(gfact_db &facts, string filename) {
     double t1 = MPI_Wtime() ;
     //	timer_token read_file_timer = new timer_token;
     //	if(collect_perf_data)
@@ -2155,7 +2155,7 @@ namespace Loci {
     facts.create_fact("boundary_tags", boundary_tags) ;
 
     // update remap from global to file numbering for faces after sorting
-    fact_db::distribute_infoP df = facts.get_distribute_info() ;
+    gfact_db::distribute_infoP df = facts.get_distribute_info() ;
     dMap g2f ;
     g2f = df->g2f.Rep() ;
 
@@ -2185,7 +2185,7 @@ namespace Loci {
 
   enum matrix_coloring_type {COLOR_DEFAULT, COLOR_DFS} ;
 
-  void create_ref(fact_db &facts) {
+  void create_ref(gfact_db &facts) {
     store<string> boundary_names ;
     store<string> boundary_tags ;
     boundary_names = facts.get_fact("boundary_names") ;
@@ -2206,7 +2206,7 @@ namespace Loci {
     facts.create_fact("ref",ref) ;
   }
 
-  void create_ghost_cells(fact_db &facts) {
+  void create_ghost_cells(gfact_db &facts) {
     constraint interior_faces,boundary_faces ;
     constraint geom_cells, ghost_cells, cells ;
     Map cl,cr ;
@@ -2253,7 +2253,7 @@ namespace Loci {
     Loci::debugout << "cells = " << *cells << endl ;
   }
 
-  void create_face_info(fact_db &facts) {
+  void create_face_info(gfact_db &facts) {
     Map cl, cr ;
     cl = facts.get_variable("cl") ;
     cr = facts.get_variable("cr") ;
@@ -2276,7 +2276,7 @@ namespace Loci {
     facts.create_fact("interior_faces",interior_faces) ;
   }
 
-  void color_matrix(fact_db &facts, matrix_coloring_type mct) {
+  void color_matrix(gfact_db &facts, matrix_coloring_type mct) {
     std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
     multiMap c2c ;
     store<int> sizes ;
@@ -2358,7 +2358,7 @@ namespace Loci {
     } ENDFORALL ;
 
   }
-  void make_faces_consistent(fact_db &facts) {
+  void make_faces_consistent(gfact_db &facts) {
     store<vector3d<real_t> > pos ;
     pos = facts.get_variable("pos") ;
     store<vector3d<real_t> > fpos ;
@@ -2514,7 +2514,7 @@ namespace Loci {
 
 
 
-  bool setupFVMGrid(fact_db &facts, string filename) {
+  bool setupFVMGrid(gfact_db &facts, string filename) {
     if(!readFVMGrid(facts,filename))
       return false ;
 

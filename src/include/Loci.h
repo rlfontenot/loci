@@ -119,7 +119,7 @@ using Loci::global_rule_list ;
 using Loci::register_rule_list ;
 using Loci::rule_db ;
 
-using Loci::fact_db ;
+using Loci::gfact_db ;
 using Loci::executeP ;
 using Loci::create_execution_schedule ; 
 

@@ -46,6 +46,18 @@
 #include <distribute_long.h>
 #include <gparameter.h>
 #include <Tools/simple_partition_long.h>
+////////////////////////////////////
+//the following is temporary, 
+////////////////////////////////////
+#include <distribute.h>
+#include <store_rep.h>
+#include <Map_rep.h>
+#include <Map.h>
+#include <DMap.h>
+#include <key_manager.h>
+#include <keyspace.h>
+
+/////////////////////////////////////////////
 using std::string;
 
 
@@ -54,7 +66,8 @@ namespace Loci {
 
   /*
     Developer's notes: To repalce fact_db by gfact_db, first rename everything in gfact_db related to gcontainers so that
-    the member data and member method related to tradititional containers and other info will remains the same as fact_db. 
+    the member data and member method related to tradititional containers and other info will remains the same as fact_db.
+    At present time, gfact_db includes everything in fact_db, clean-up need to be done later. 
   */
   class gfact_db {
   private:
@@ -62,26 +75,29 @@ namespace Loci {
     gKeyManagerP gkey_manager ;
     
     //map each variable to its gcontainer storage
-    std::map<variable,gStoreRepP> gfmap ;
-    
-    //map each variable to its traditional container storage
-    //this map is not constructed by create_gfact method
-    //instead, when variables freeze, they are removed from gfmap
+    //when variables freeze, they are removed from gfmap
     // and added to fmap
-    std::map<variable,storeRepP> fmap ; 
-    
+    std::map<variable,gStoreRepP> gfmap ;
+
+
+    struct fact_info {
+      store_refP data_rep ;
+    } ;
+    //map each variable to its traditional container storage
+    std::map<variable,fact_info> fmap ; 
+
     //map the variables to their types
-    //tmap and gtmap are used for optional rules and default rules
-    //the rules will specify the type of variables
-    //and .vars file will provide the data
+    //tmap are used for optional rules and default rules
+    //these rules will specify the type of variables
+    //while .vars file will provide the data
     //The target variables of these rules are gParams in UniverseSpace,
-    //not over subset of a specific keyspace
+    //not over a subset of a specific keyspace
     std::map<variable,storeRepP> tmap ;
     
 
 
     // support for multiple queries and experimental
-    // extensions to the fact_db to distinguish
+    // extensions to the gfact_db to distinguish
     // extensional facts and intensional facts
     variableSet extensional_facts ;
 
@@ -91,13 +107,61 @@ namespace Loci {
       is the variable suppose to appear in gfmap*/
     std::map<variable,variable> synonyms ; 
     
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //the following data is temporary, will clean up later
+    /////////////////////////////////////////////////////////////////////////////////////////////////////
+  public:
+    struct distribute_info : public CPTR_type {
+      struct dist_data {
+        int proc ;
+        entitySet entities ;
+        int size ;
+        dist_data(int p, entitySet &e) :proc(p),entities(e)
+        { size = e.size() ; }
+      } ;
+      
+      int myid ;
+      int isDistributed ;
+      Map l2g ; // local numbering to global numbering
+      dMap g2l ; // global numbering to local numbering
+      
+      entitySet my_entities ;
+      entitySet comp_entities;//local numbering of global_comp_entities
+      
+      std::vector<dist_data> copy ; // Data describing which processors own
+      // the entities in the clone region
+      std::vector<dist_data> xmit ; // Data describing which processors to
+      // send entities that this processor owns
+      int copy_total_size ;
+      int xmit_total_size ;
+      //      dMap remap ;
+      dMap g2f ; // Global to file numbering
+      distribute_info() {} ;
+    }  ;
+    std::vector<entitySet> init_ptn ;
+
+    //Related to Duplication: global_comp_entities set defines
+    //entities that can be computed on a processor
+    entitySet global_comp_entities; 
+
+    typedef CPTR<distribute_info> distribute_infoP ;
+    distribute_infoP distributed_info ;
     
-    // //don't know what its for yet
-    // std::set<std::vector<variableSet> > intensive_output_maps;
+    std::set<std::vector<variableSet> > intensive_output_maps;
+
+    // experimental inclusion of keyspace partitions
+    std::map<std::string,KeySpaceP> keyspace ;
+    // experimental inclusion of a key manager
+    KeyManagerP key_manager ;
+    
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+   
+    
+    
   private:
     // a copy function
     void copy_all_from(const gfact_db& f) ;
-    variable remove_synonym(variable v) const;
+    
 
     void set_variable_domain_space(const variable& v, gStoreRepP st, gKeySpaceP space);
     void set_variable_image_space(const variable& v, gMapRepP st, gKeySpaceP space);
@@ -110,6 +174,22 @@ namespace Loci {
     //this method adds st to gfmap with duplication check
     //this method will not process keyspace info
     void create_pure_gfact(const variable& v, gStoreRepP st) ;
+    variable add_namespace(variable v) const ;
+    
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    //the following private methods are temporary
+    //////////////////////////////////////////////////////////////////////////////////////////////////
+    // this is the basic method that creats a fact
+    // in the gfact_db. It is served as the basis
+    // for create_fact & the create_intensional_fact methods
+    void create_pure_fact(const variable& v, storeRepP st) ;
+   
+    std::pair<entitySet, entitySet> get_dist_alloc(int size) ;
+    int maximum_allocated ;
+    int minimum_allocated ;
+    int dist_from_start ;
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    
   public:
     //constructor
     gfact_db() ;
@@ -142,71 +222,70 @@ namespace Loci {
     //it is safe to be public?
     void set_key_manager( gKeyManagerP km){gkey_manager=km;}
     
-    //real_var is the var used in paces such as gfmap, in_vars and out_vars of keyspaces, etc.
-    //this method remove remove_synonym
+    //real_var is the var used in places such as gfmap, in_vars and out_vars of keyspaces, etc.
     variable get_real_var(variable  v) const; 
     
-    variable add_namespace(variable v) const ;
-    //copy all variables in gfmap to traditional containers
-    void copy_facts(fact_db& facts) const ;
+  
+    //copy all variables in gfmap to traditional containers in fmap
+    void copy_facts();
     
-  public:
-
+    variable remove_synonym(variable v) const;
+    void remove_variable(variable v) ;
     // create_gfact now defaults to create an extensional fact
     // as this is the primary interface for users of Loci
     void create_gfact(const variable& v, gStoreRepP st,
-                     gKeySpaceP domain_space = 0,
-                     gKeySpaceP image_space = 0) ;
+                      gKeySpaceP domain_space = 0,
+                      gKeySpaceP image_space = 0) ;
     
     void create_gfact(const std::string& vname, gStoreRepP st,
-                     gKeySpaceP domain_space = 0,
-                     gKeySpaceP image_space = 0); 
+                      gKeySpaceP domain_space = 0,
+                      gKeySpaceP image_space = 0); 
     
     void create_gfact(const variable& v, gstore_instance &si,
-                     gKeySpaceP domain_space = 0,
-                     gKeySpaceP image_space = 0) ;
+                      gKeySpaceP domain_space = 0,
+                      gKeySpaceP image_space = 0) ;
     
     void create_gfact(const std::string& vname, gstore_instance &si,
-                     gKeySpaceP domain_space = 0,
-                     gKeySpaceP image_space = 0);
+                      gKeySpaceP domain_space = 0,
+                      gKeySpaceP image_space = 0);
 
     //update gfmap,
     //if new keyspaces are provided, remove v from old spaces, and connect v with  new ones
     //otherwise, connect the old spaces to st
     void update_gfact(variable v, gStoreRepP st,
-                     gKeySpaceP domain_space = 0,
-                     gKeySpaceP image_space = 0);
+                      gKeySpaceP domain_space = 0,
+                      gKeySpaceP image_space = 0);
     
     void update_gfact(std::string vname, gStoreRepP st,
-                     gKeySpaceP domain_space = 0,
-                     gKeySpaceP image_space = 0)
+                      gKeySpaceP domain_space = 0,
+                      gKeySpaceP image_space = 0)
     { update_gfact(variable(vname),st, domain_space, image_space) ;}
     void update_gfact(variable v, gstore_instance &si,
-                     gKeySpaceP domain_space = 0,
-                     gKeySpaceP image_space = 0)
+                      gKeySpaceP domain_space = 0,
+                      gKeySpaceP image_space = 0)
     { update_gfact(v,si.Rep(), domain_space, image_space) ; si.setRep(get_gvariable(v)) ; }
     void update_gfact(std::string vname, gstore_instance &si,
-                     gKeySpaceP domain_space = 0,
-                     gKeySpaceP image_space = 0)
+                      gKeySpaceP domain_space = 0,
+                      gKeySpaceP image_space = 0)
     { update_gfact(variable(vname),si, domain_space, image_space) ; }
 
     void replace_gfact(variable v, gStoreRepP st,
-                      gKeySpaceP domain_space = 0,
-                      gKeySpaceP image_space = 0) 
+                       gKeySpaceP domain_space = 0,
+                       gKeySpaceP image_space = 0) 
     { remove_gvariable(v) ;
       create_gfact(v,st, domain_space, image_space) ; }
     void replace_gfact(std::string vname, gStoreRepP st,
-                      gKeySpaceP domain_space = 0,
-                      gKeySpaceP image_space = 0)
+                       gKeySpaceP domain_space = 0,
+                       gKeySpaceP image_space = 0)
     { replace_gfact(variable(vname),st, domain_space, image_space) ;}
     void replace_gfact(variable v, gstore_instance &si,
-                      gKeySpaceP domain_space = 0,
-                      gKeySpaceP image_space = 0)
+                       gKeySpaceP domain_space = 0,
+                       gKeySpaceP image_space = 0)
     { replace_gfact(v,si.Rep(), domain_space, image_space) ;
       si.setRep(get_gvariable(v)) ; }
     void replace_gfact(std::string vname, gstore_instance &si,
-                      gKeySpaceP domain_space = 0,
-                      gKeySpaceP image_space = 0 )
+                       gKeySpaceP domain_space = 0,
+                       gKeySpaceP image_space = 0 )
     { replace_gfact(variable(vname),si, domain_space, image_space) ; }
 
     gStoreRepP get_gfact(variable &v) { return get_gvariable(v); }
@@ -217,144 +296,9 @@ namespace Loci {
     gStoreRepP get_gvariable(std::string vname)
     { return get_gvariable(variable(vname)) ; }
 
-    /////////////////////////////////////////////////////////
-    // support methods for extensional & intensional facts //
-    /////////////////////////////////////////////////////////
-    variableSet get_extensional_facts() const {
-      return extensional_facts ;
-    }
-    variableSet get_intensional_facts() const {
-      return variableSet(get_typed_variables()-extensional_facts) ;
-    }
-
-    // // we no longer provide create_extensional_fact methods with explicit name to
-    // // create extentional facts, they are just as the same as
-    // // the default create_gfact methods
-    // void create_extensional_fact(const variable& v, gStoreRepP st) {
-    //   create_gfact(v,st) ;
-    // }
-    // void create_extensional_fact(const std::string& vname, gStoreRepP st) {
-    //   create_gfact(vname,st) ;
-    // }
-    // void create_extensional_fact(const variable& v, gstore_instance &si) {
-    //   create_gfact(v,si) ;
-    // }
-    // void create_extensional_fact(const std::string& vname,
-    //                              gstore_instance &si) {
-    //   create_gfact(vname,si) ;
-    // }
-    // this method will convert all intensional facts (if any) in
-    // the fact database to extensional facts
-    void make_all_extensional() {
-      variableSet intensional_facts = get_intensional_facts() ;
-      extensional_facts += intensional_facts ;
-    }
-
-    // // we have the corresponding intensional facts creation, which create fact in gfmap
-    // //Don't know if these methods are needed or not
-    // void create_intensional_gfact(const variable& v, gStoreRepP st,
-    //                              gKeySpaceP domain_space = 0,
-    //                              gKeySpaceP image_space = 0)
-    // {
-    //   variable v_tmp = add_namespace(v) ;
-    //   create_pure_gfact(v_tmp,st) ;
-    //   if(domain_space != 0) set_variable_domain_space(v, st, domain_space);
-    //   if(image_space != 0)set_variable_image_space(v, gMapRepP(st), image_space);
-    // }
-    // void create_intensional_gfact(const std::string& vname, gStoreRepP st,
-    //                              gKeySpaceP domain_space = 0,
-    //                              gKeySpaceP image_space = 0)
-    // {
-    //   create_intensional_fact(variable(vname), st, domain_space, image_space);
-      
-    // }
-    // void create_intensional_gfact(const variable& v, gstore_instance &si,
-    //                              gKeySpaceP domain_space = 0,
-    //                              gKeySpaceP image_space = 0)
-    // {
-    //   variable v_tmp = add_namespace(v) ;
-    //   create_pure_gfact(v_tmp,si.Rep()) ;
-    //   gStoreRepP st = si.Rep(); 
-    //   if(domain_space != 0) set_variable_domain_space(v, st, domain_space);
-    //   if(image_space != 0)set_variable_image_space(v, gMapRepP(st), image_space);
-    //   si.setRep(get_gvariable(v_tmp)) ;
-    // }
-    // void create_intensional_gfact(const std::string& vname,
-    //                              gstore_instance &si,
-    //                               gKeySpaceP domain_space = 0,
-    //                               gKeySpaceP image_space = 0)
-    // {
-    //   create_intensional_fact(variable(vname), si, domain_space, image_space);
-    // }
-
-
-
-
-
-    
-    // // we have the corresponding intensional facts creation, which create fact in fmap
-    // void create_intensional_fact(const variable& v, gStoreRepP st,
-    //                              gKeySpaceP domain_space = 0,
-    //                              gKeySpaceP image_space = 0)
-    // {
-    //   variable v_tmp = add_namespace(v) ;
-    //   create_pure_fact(v_tmp,st) ;
-    //   if(domain_space != 0) set_variable_domain_space(v, st, domain_space);
-    //   if(image_space != 0)set_variable_image_space(v, gMapRepP(st), image_space);
-    // }
-    // void create_intensional_fact(const std::string& vname, gStoreRepP st,
-    //                              gKeySpaceP domain_space = 0,
-    //                              gKeySpaceP image_space = 0)
-    // {
-    //   create_intensional_fact(variable(vname), st, domain_space, image_space);
-      
-    // }
-    // void create_intensional_fact(const variable& v, gstore_instance &si,
-    //                              gKeySpaceP domain_space = 0,
-    //                              gKeySpaceP image_space = 0)
-    // {
-    //   variable v_tmp = add_namespace(v) ;
-    //   create_pure_fact(v_tmp,si.Rep()) ;
-    //   gStoreRepP st = si.Rep(); 
-    //   if(domain_space != 0) set_variable_domain_space(v, st, domain_space);
-    //   if(image_space != 0)set_variable_image_space(v, gMapRepP(st), image_space);
-    //   si.setRep(get_gvariable(v_tmp)) ;
-    // }
-    // void create_intensional_fact(const std::string& vname,
-    //                              gstore_instance &si,
-    //                              gKeySpaceP domain_space = 0,
-    //                              gKeySpaceP image_space = 0)
-    // {
-    //   create_intensional_fact(variable(vname), si, domain_space, image_space);
-    // }
-
-    
-    // // this method erases all intensional facts, assume it is traditional facts for now
-    // void erase_intensional_facts() {
-    //   variableSet intensional_facts = get_intensional_facts() ;
-    //   for(variableSet::const_iterator vi=intensional_facts.begin();
-    //       vi!=intensional_facts.end();++vi)
-    //     remove_variable(*vi) ;
-    // }
-    // // this method will convert an intensional fact to
-    // // a extensional fact
-    // void make_extensional_fact(const variable& v) ;
-    // void make_extensional_fact(const std::string& vname) {
-    //   make_extensional_fact(variable(vname)) ;
-    // }
-    // // this method will convert a extensional fact
-    // // to an intensional one
-    // void make_intensional_fact(const variable& v) ;
-    // void make_intensional_fact(const std::string& vname) {
-    //   make_intensional_fact(variable(vname)) ;
-    // }
-    
-    //the following two methods return the storeRepP in fmap
-    storeRepP get_variable(variable v) ;
-    storeRepP get_variable(std::string vname)
-    { return get_variable(variable(vname)) ; }
-
+     
     void remove_gvariable(variable v) ;
+    
     
     void synonym_variable(variable v, variable synonym) ;
 
@@ -370,8 +314,9 @@ namespace Loci {
       nspace_vec.clear() ;
     }
     
-    //this method returns all variables in gfmap and their synonyms
+    //this method returns all variables and their synonyms
     //has nothing to do with tmap
+    //should get from gfmap or fmap? assume it is fmap now
     variableSet get_typed_variables() const ;
 
     std::istream& read_vars(std::istream& s, const rule_db& rdb);
@@ -384,10 +329,211 @@ namespace Loci {
       read_vars(ifile,rdb) ;
       ifile.close() ;
     }
-    gKeyManagerP get_key_manager() const {return gkey_manager ;}
-  
+    gKeyManagerP get_gkey_manager() const {return gkey_manager ;}
+
+
+    ////////////////////////////////////////////////////////////////////////////////// 
+    //the following public methods are temporary, need reconsider later
+    /////////////////////////////////////////////////////////////////////////////////
+
+    void set_maximum_allocated(int i) ;
+    void set_minimum_allocated(int i) ;
+    int get_max_alloc() {
+      return maximum_allocated ;
+    }
+    int get_min_alloc() {
+      return minimum_allocated ;
+    }
+
+    // create_fact now defaults to create an extensional fact
+    // as this is the primary interface for users of Loci
+    //? Be careful, don't add namespace twice
+    void create_fact(const variable& v, storeRepP st) {
+      variable tmp_v =add_namespace(v) ;
+      create_pure_fact(tmp_v,st) ;
+      extensional_facts += tmp_v ;
+    }
+    void create_fact(const std::string& vname, storeRepP st) {
+      variable v = variable(vname) ;
+      create_fact(v,st) ;
+    }
+    void create_fact(const variable& v, store_instance &si) {
+      variable tmp_v = add_namespace(v) ;
+      create_pure_fact(tmp_v,si.Rep()) ;
+      si.setRep(get_variable(v)) ;
+      extensional_facts += tmp_v ;
+    }
+    void create_fact(const std::string& vname, store_instance &si) {
+      variable v = add_namespace(variable(vname)) ;
+      create_pure_fact(v,si.Rep()) ;
+      si.setRep(get_variable(vname)) ;
+      extensional_facts += v ;
+    }
+    
+
+
+    
+    void update_fact(variable v, storeRepP st);
+    void update_fact(std::string vname, storeRepP st)
+    { update_fact(variable(vname),st) ;}
+    void update_fact(variable v, store_instance &si)
+    { update_fact(v,si.Rep()) ; si.setRep(get_variable(v)) ; }
+    void update_fact(std::string vname, store_instance &si)
+    { update_fact(variable(vname),si) ; }
+
+    void replace_fact(variable v, storeRepP st)
+    { remove_variable(v) ; create_fact(v,st) ; }
+    void replace_fact(std::string vname, storeRepP st)
+    { replace_fact(variable(vname),st) ;}
+    void replace_fact(variable v, store_instance &si)
+    { replace_fact(v,si.Rep()) ; si.setRep(get_variable(v)) ; }
+    void replace_fact(std::string vname, store_instance &si)
+    { replace_fact(variable(vname),si) ; }
+    storeRepP get_fact(variable &v) { return get_variable(v); }
+    storeRepP get_fact(std::string vname)
+    { return get_variable(variable(vname)) ; }
+    
+    storeRepP get_variable(variable v) ;
+    storeRepP get_variable(std::string vname)
+    { return get_variable(variable(vname)) ; }
+
+
+    /////////////////////////////////////////////////////////
+    // support methods for extensional & intensional facts //
+    /////////////////////////////////////////////////////////
+    variableSet get_extensional_facts() const {
+      return extensional_facts ;
+    }
+    variableSet get_intensional_facts() const {
+      return variableSet(get_typed_variables()-extensional_facts) ;
+    }
+
+    // we still provide these methods with explicit name to
+    // create extentional facts, they are just as the same as
+    // the default create_fact methods
+    void create_extensional_fact(const variable& v, storeRepP st) {
+      create_fact(v,st) ;
+    }
+    void create_extensional_fact(const std::string& vname, storeRepP st) {
+      create_fact(vname,st) ;
+    }
+    void create_extensional_fact(const variable& v, store_instance &si) {
+      create_fact(v,si) ;
+    }
+    void create_extensional_fact(const std::string& vname,
+                                 store_instance &si) {
+      create_fact(vname,si) ;
+    }
+    // this method will convert all intensional facts (if any) in
+    // the fact database to extensional facts
+    void make_all_extensional() {
+      variableSet intensional_facts = get_intensional_facts() ;
+      extensional_facts += intensional_facts ;
+    }
+    // and then we have the corresponding intensional facts creation
+    void create_intensional_fact(const variable& v, storeRepP st) {
+      variable v_tmp = add_namespace(v) ;
+      create_pure_fact(v_tmp,st) ;
+    }
+    void create_intensional_fact(const std::string& vname, storeRepP st) {
+      create_pure_fact(add_namespace(variable(vname)),st) ;
+    }
+    void create_intensional_fact(const variable& v, store_instance &si) {
+      variable v_tmp = add_namespace(v) ;
+      create_pure_fact(v_tmp,si.Rep()) ;
+      si.setRep(get_variable(v_tmp)) ;
+    }
+    void create_intensional_fact(const std::string& vname,
+                                 store_instance &si) {
+      variable v = add_namespace(variable(vname)) ;
+      create_pure_fact(v,si.Rep()) ;
+      si.setRep(get_variable(v)) ;
+    }
+    // this method erases all intensional facts
+    void erase_intensional_facts() {
+      variableSet intensional_facts = get_intensional_facts() ;
+      for(variableSet::const_iterator vi=intensional_facts.begin();
+          vi!=intensional_facts.end();++vi)
+        remove_variable(*vi) ;
+    }
+    // this method will convert an intensional fact to
+    // a extensional fact
+    void make_extensional_fact(const variable& v) ;
+    void make_extensional_fact(const std::string& vname) {
+      make_extensional_fact(variable(vname)) ;
+    }
+    // this method will convert a extensional fact
+    // to an intensional one
+    void make_intensional_fact(const variable& v) ;
+    void make_intensional_fact(const std::string& vname) {
+      make_intensional_fact(variable(vname)) ;
+    }
+
+    
+    void rotate_vars(const std::list<variable> &lvars) ;
+    // this method will adjust the rotation vars
+    // so that the all the history part will be
+    // having the same domain as the current part
+    // for example, we have A{n+1}, A{n}, A{n-1}
+    // that is rotating. this method will make
+    // A{n} and A{n-1} have the same domain as
+    // A{n+1}, for those out of A{n+1}'s domain,
+    // they are erased, for those missing, they
+    // are copied from A{n+1}. this method is
+    // mainly for those dynamic rule's rotation
+    // list because during the execution, there
+    // might have been erase and insertion occurred
+    // and we therefore must adjust the history
+    // variables accordingly.
+    void adjust_rotation_vars(const std::list<variable>& lvars) ;
+    void update_remap(const std::vector<std::pair<int, int> > &remap_update);
+    entitySet get_allocation(int size) {
+      entitySet alloc = interval(maximum_allocated,maximum_allocated+size-1) ;
+      maximum_allocated += size ;
+      return alloc ;
+    }
+    entitySet negative_allocation(int size) {
+      entitySet alloc = interval(minimum_allocated-size+1, minimum_allocated) ;
+      minimum_allocated -= size ;
+      return alloc ;
+    }
+
+    std::pair<entitySet, entitySet> get_distributed_alloc(int size) ;
+    std::pair<entitySet, entitySet> get_distributed_alloc(const std::vector<int> &remap_entities);
+    std::pair<entitySet, entitySet> get_distributed_alloc(int size, int offset);
+    int is_distributed_start() {return dist_from_start ;}
+    std::vector<entitySet>& get_init_ptn() {return init_ptn ;}
+    void  put_init_ptn(std::vector<entitySet> &t_init ) {init_ptn = t_init ;}
+    
+    gfact_db::distribute_infoP get_distribute_info() ;
+    void put_distribute_info(gfact_db::distribute_infoP dp) ;
+    bool isDistributed() ;
+
+    void setupDefaults(const rule_db &rdb) ;
+
+    void write_all_hdf5(const char *filename) ;
+    void read_all_hdf5(const char *filename) ;
+    void write_hdf5(const char *filename, variableSet &vars) ;
+    void read_hdf5(const char *filename, variableSet &vars) ;
+    void Print_diagnostics() ;
+    //the following functions have nothing to do with gKeySpace, gKeyManager
+    // experimental code to create keyspace from the
+    // global registered keyspace list
+    // returns "true" to indicate the methods succeeded,
+    // "false" to indicate an error.
+    bool create_keyspace(KeySpaceList& global_list) ;
+    KeySpaceP get_keyspace(const std::string& kname) ;
+    KeyManagerP get_key_manager() const {return key_manager ;}
+    void init_key_manager() ;
+
    
+    
   };
+  ///////////////////////////////////////////////////////////////////////
+  // temporary function
+  /////////////////////////////////////////////////////////////////////////
+  void reorder_facts(gfact_db &facts, dMap &remap) ;
+  void serial_freeze(gfact_db &facts) ; 
 }
     
 

@@ -250,6 +250,7 @@ namespace Loci {
       Rep()->writehdf5(group_id, dataspace, dataset, dimension, name, en);
     };
     virtual entitySet domain() const ;
+    virtual gStoreRepP copy2gstore()const;
     virtual storeRepP getRep() ;
     virtual storeRepP getRep() const ;
     virtual void notification() ;

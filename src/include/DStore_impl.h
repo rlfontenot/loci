@@ -20,10 +20,10 @@
 //#############################################################################
 #ifndef DSTORE_IMPL_H
 #define DSTORE_IMPL_H
-
+#include <distribute.h>
 #include <DStore_def.h>
 #include <store_def.h>
-#include <distribute.h>
+
 
 namespace Loci {
   template<class T> 

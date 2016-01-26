@@ -50,7 +50,7 @@ namespace Loci {
   extern int num_threaded_local_reduction;
   extern int num_total_local_reduction;
 
-  entitySet vmap_source_exist_apply(const vmap_info &vmi, fact_db &facts,
+  entitySet vmap_source_exist_apply(const vmap_info &vmi, gfact_db &facts,
                                     variable reduce_var, sched_db &scheds) {
     variableSet::const_iterator vi ;
     entitySet sources = ~EMPTY ;
@@ -69,16 +69,16 @@ namespace Loci {
     return sources ;
   }
 
-  void apply_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
+  void apply_compiler::set_var_existence(gfact_db &facts, sched_db &scheds) {
     existential_applyrule_analysis(apply, facts, scheds);
   }
 
-  void apply_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
+  void apply_compiler::process_var_requests(gfact_db &facts, sched_db &scheds) {
     entitySet exec_seq = process_applyrule_requests(apply, unit_tag, output_mapping, facts, scheds);
     scheds.update_exec_seq(apply, exec_seq);
   }
 
-  executeP apply_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
+  executeP apply_compiler::create_execution_schedule(gfact_db &facts, sched_db &scheds) {
     entitySet exec_seq = scheds.get_exec_seq(apply);
 #ifdef PTHREADS
     if(apply.get_info().output_is_parameter) { // global reduction
@@ -425,7 +425,7 @@ namespace Loci {
 
 #define GROUP_ALLREDUCE
 
-  void execute_param_red::execute(fact_db &facts, sched_db &scheds) {
+  void execute_param_red::execute(gfact_db &facts, sched_db &scheds) {
     //    debugout << "reduce vars=" ;
     //    for(size_t i = 0; i < reduce_vars.size(); i++) {
     //      debugout << ' ' << reduce_vars[i];
@@ -490,10 +490,10 @@ namespace Loci {
     data_collector.accumulateTime(timer,EXEC_COMMUNICATION,oss.str()) ;
   }
 
-  void reduce_param_compiler::set_var_existence(fact_db &facts, sched_db &scheds)  {
+  void reduce_param_compiler::set_var_existence(gfact_db &facts, sched_db &scheds)  {
     if(facts.isDistributed()) {
       
-      fact_db::distribute_infoP d = facts.get_distribute_info() ;
+      gfact_db::distribute_infoP d = facts.get_distribute_info() ;
       for(size_t i = 0; i < unit_rules.size(); i++) {
     	entitySet targets ;
 	targets = scheds.get_existential_info(reduce_vars[i], unit_rules[i]) ;
@@ -505,7 +505,7 @@ namespace Loci {
     }
   }
 
-  void reduce_param_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
+  void reduce_param_compiler::process_var_requests(gfact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
       for(size_t i = 0; i < unit_rules.size(); i++) {
 	entitySet requests = scheds.get_variable_requests(reduce_vars[i]) ;
@@ -515,7 +515,7 @@ namespace Loci {
     }
   }
 
-  executeP reduce_param_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
+  executeP reduce_param_compiler::create_execution_schedule(gfact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
       vector<variable> red ;
       vector<rule> ulist ;
@@ -546,7 +546,7 @@ namespace Loci {
 
   }
 
-  void reduce_store_compiler::set_var_existence(fact_db &facts, sched_db &scheds)  {
+  void reduce_store_compiler::set_var_existence(gfact_db &facts, sched_db &scheds)  {
   }
 
   void swap_send_recv(list<comm_info> &cl) {
@@ -560,9 +560,9 @@ namespace Loci {
 
   //For duplication of work only.
   //It adds information of reduce_proc_able_entities and reduction_output_map to sched_db.
-  void set_reduction_info(variableSet vars, sched_db &scheds, fact_db &facts) {
+  void set_reduction_info(variableSet vars, sched_db &scheds, gfact_db &facts) {
     entitySet reduce_filter = ~EMPTY ;
-    fact_db::distribute_infoP d = facts.get_distribute_info() ;
+    gfact_db::distribute_infoP d = facts.get_distribute_info() ;
     if(multilevel_duplication)
       //Because we are calling context_for_map_output multiple times,
       //we have made sure that we have full preimage of any output map
@@ -622,12 +622,12 @@ namespace Loci {
     }
   }
 
-  void reduce_store_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
+  void reduce_store_compiler::process_var_requests(gfact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
       std::list<comm_info> rlist;
       std::list<comm_info> clist;
       
-      fact_db::distribute_infoP d = facts.get_distribute_info() ;
+      gfact_db::distribute_infoP d = facts.get_distribute_info() ;
       variableSet vars ;
       vars += reduce_var ;
 
@@ -683,17 +683,17 @@ namespace Loci {
     MPI_Status *status ;
     timeAccumulator timer ;
   public:
-    execute_comm_reduce(list<comm_info> &plist, fact_db &facts,
+    execute_comm_reduce(list<comm_info> &plist, gfact_db &facts,
                         CPTR<joiner> jop) ;
     ~execute_comm_reduce() ;
-    virtual void execute(fact_db &facts, sched_db &scheds) ;
+    virtual void execute(gfact_db &facts, sched_db &scheds) ;
     virtual void Print(std::ostream &s) const ;
     virtual string getName() { return "execute_comm_reduce";};
     virtual void dataCollate(collectData &data_collector) const ;
   } ;
 
   execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
-                                           fact_db &facts,
+                                           gfact_db &facts,
                                            CPTR<joiner> jop) {
 
     join_op = jop ;
@@ -774,7 +774,7 @@ namespace Loci {
   static unsigned char *send_ptr_buf = 0 ;
   static int send_ptr_buf_size = 0 ;
 
-  void execute_comm_reduce::execute(fact_db  &facts, sched_db &scheds) {
+  void execute_comm_reduce::execute(gfact_db  &facts, sched_db &scheds) {
     //    debugout << "reduce local vars" << endl ;
     stopWatch s ;
     s.start() ;
@@ -1001,7 +1001,7 @@ namespace Loci {
     data_collector.accumulateTime(timer,EXEC_COMMUNICATION,oss.str()) ;
   }
   
-  executeP reduce_store_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
+  executeP reduce_store_compiler::create_execution_schedule(gfact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
       variableSet vars;
       vars += reduce_var;

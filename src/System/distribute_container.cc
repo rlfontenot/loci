@@ -29,11 +29,11 @@ using std::set;
 #include <entitySet.h>
 #include "dist_tools.h"
 #include <rule.h>
-#include <fact_db.h>
+#include <gfact_db.h>
 #include <constraint.h>
 #include <multiMap.h>
 #include <algorithm>
-
+#include <field_sort.h>
 using std::sort ;
 
 namespace Loci {

@@ -30,7 +30,7 @@
 #include <Tools/cptr.h>
 #include <scheduler.h>
 #include <Tools/digraph.h>
-#include <fact_db.h>
+#include <gfact_db.h>
 #include <sched_db.h>
 #include <execute.h>
 #include <depend_graph.h>
@@ -52,7 +52,7 @@ using std::vector;
 namespace Loci {
   void extract_rule_sequence(std::vector<rule> &rule_seq,
                              const std::vector<digraph::vertexSet> &v) ;
-  void set_var_types(fact_db &facts, const digraph &dg, sched_db &scheds) ;
+  void set_var_types(gfact_db &facts, const digraph &dg, sched_db &scheds) ;
   rule make_rename_rule(variable new_name, variable old_name) ;
 
   class execute_rule : public execute_modules {
@@ -69,11 +69,11 @@ namespace Loci {
     long_long l2_dcm;
 #endif
   public:
-    execute_rule(rule fi, sequence seq, fact_db &facts, const sched_db &scheds);
-    execute_rule(rule fi, sequence seq, fact_db &facts, variable v, const storeRepP &p, const sched_db &scheds);
+    execute_rule(rule fi, sequence seq, gfact_db &facts, const sched_db &scheds);
+    execute_rule(rule fi, sequence seq, gfact_db &facts, variable v, const storeRepP &p, const sched_db &scheds);
     // this method executes the prelude (if any), the kernel,
     // and the postlude (if any) of a rule
-    virtual void execute(fact_db &facts, sched_db &scheds) ;
+    virtual void execute(gfact_db &facts, sched_db &scheds) ;
     // this method executes the computation kernel of a rule
     virtual void execute_kernel(const sequence&);
     // this method executes the prelude 
@@ -152,7 +152,7 @@ namespace Loci {
   collect_expand_chain(const vmap_info& vmi,
                        const std::string& vmi_tag,
                        rule_implP rp, KeySpaceP space,
-                       fact_db& facts, sched_db& scheds,
+                       gfact_db& facts, sched_db& scheds,
                        std::vector<ExpandChain>& chains,
                        bool* output_cross_space,
                        std::string* other_space_name,
@@ -162,7 +162,7 @@ namespace Loci {
 
   struct NonExpandUnit {
     variable var ;              // name of the variable
-    storeRepP var_rep ;         // rep iin the fact_db
+    storeRepP var_rep ;         // rep iin the gfact_db
     NonExpandUnit(const variable& v, storeRepP r):var(v),var_rep(r) {}
   } ;
   std::ostream& operator<<(std::ostream& s, const NonExpandUnit& u) ;
@@ -176,12 +176,12 @@ namespace Loci {
   // collected by this function. in addition, this function also
   // filters parameters that are not in the local keyspace, i.e.,
   // they don't need to be considered other than setting their
-  // proper fact_db storeReps. returns "true" if a chain is
+  // proper gfact_db storeReps. returns "true" if a chain is
   // collected, "false" is not.
   bool
   collect_nonexpand_chain(const vmap_info& vmi,
                           rule_implP rp, KeySpaceP space,
-                          fact_db& facts, sched_db& scheds,
+                          gfact_db& facts, sched_db& scheds,
                           std::vector<NonExpandUnit>& chain) ;
                        
   // this function actually expands a chain
@@ -195,7 +195,7 @@ namespace Loci {
   // based on its inputs
   entitySet
   dynamic_rule_context(const rule& rule_tag, KeySpaceP space,
-                       fact_db& facts, sched_db& scheds,
+                       gfact_db& facts, sched_db& scheds,
                        const std::vector<ExpandChain>& input_chains,
                        const std::vector<NonExpandUnit>& input_nes,
                        const std::vector<NonExpandUnit>& input_nec) ;
@@ -274,8 +274,8 @@ namespace Loci {
     entitySet context ;
   public:
     execute_dynamic_rule(rule r, KeySpaceP kp,
-                         fact_db& facts, sched_db& scheds) ;
-    virtual void execute(fact_db &facts, sched_db &scheds) ;
+                         gfact_db& facts, sched_db& scheds) ;
+    virtual void execute(gfact_db &facts, sched_db &scheds) ;
     virtual void Print(std::ostream &s) const ;
     virtual string getName() {return "execute_dynamic_rule";};
     virtual void dataCollate(collectData &data_collector) const ;
@@ -322,8 +322,8 @@ namespace Loci {
     vector<P2pCommInfo> send, recv ;
   public:
     execute_dynamic_applyrule(rule a, rule u, KeySpaceP kp,
-                              fact_db& facts, sched_db& scheds) ;
-    virtual void execute(fact_db &facts, sched_db &scheds) ;
+                              gfact_db& facts, sched_db& scheds) ;
+    virtual void execute(gfact_db &facts, sched_db &scheds) ;
     virtual void Print(std::ostream &s) const ;
     virtual string getName() {return "execute_dynamic_applyrule";};
     virtual void dataCollate(collectData &data_collector) const ;
@@ -359,9 +359,9 @@ namespace Loci {
     entitySet context ;
   public:
     execute_dynamic_applyrule_param(rule a, rule u, KeySpaceP kp,
-                                    fact_db& facts, sched_db& scheds) ;
+                                    gfact_db& facts, sched_db& scheds) ;
     ~execute_dynamic_applyrule_param() ;
-    virtual void execute(fact_db &facts, sched_db &scheds) ;
+    virtual void execute(gfact_db &facts, sched_db &scheds) ;
     virtual void Print(std::ostream &s) const ;
     virtual string getName() {return "execute_dynamic_applyrule";};
     virtual void dataCollate(collectData &data_collector) const ;
@@ -380,8 +380,8 @@ namespace Loci {
     execute_dclone_invalidator(variable v, variable vu,
                                KeySpaceP sc,
                                const std::vector<KeySpaceP>& sac,
-                               fact_db& facts, sched_db& scheds) ;
-    virtual void execute(fact_db& facts, sched_db& scheds) ;
+                               gfact_db& facts, sched_db& scheds) ;
+    virtual void execute(gfact_db& facts, sched_db& scheds) ;
     virtual void Print(std::ostream& s) const ;
     virtual string getName() {return "execute_dclone_invalidator" ;}
     virtual void dataCollate(collectData& data_collector) const ;
@@ -398,8 +398,8 @@ namespace Loci {
     timeAccumulator timer ;
   public:
     execute_keyspace_dist(const std::vector<KeySpaceP>& s,
-                          fact_db& facts, sched_db& scheds) ;
-    virtual void execute(fact_db& facts, sched_db& scheds) ;
+                          gfact_db& facts, sched_db& scheds) ;
+    virtual void execute(gfact_db& facts, sched_db& scheds) ;
     virtual void Print(std::ostream& s) const ;
     virtual string getName() {return "execute_keyspace_dist" ;}
     virtual void dataCollate(collectData& data_collector) const ;
@@ -409,8 +409,8 @@ namespace Loci {
   class execute_init_keyspace: public execute_modules {
     timeAccumulator timer ;
   public:
-    execute_init_keyspace(fact_db& facts, sched_db& scheds) ;
-    virtual void execute(fact_db& facts, sched_db& scheds) ;
+    execute_init_keyspace(gfact_db& facts, sched_db& scheds) ;
+    virtual void execute(gfact_db& facts, sched_db& scheds) ;
     virtual void Print(std::ostream& s) const ;
     virtual string getName() {return "execute_init_keyspace" ;}
     virtual void dataCollate(collectData& data_collector) const ;
@@ -424,8 +424,8 @@ namespace Loci {
 
     timeAccumulator timer ;
   public:
-    execute_insertion(const rule& r, fact_db& facts, sched_db& scheds) ;
-    virtual void execute(fact_db& facts, sched_db& scheds) ;
+    execute_insertion(const rule& r, gfact_db& facts, sched_db& scheds) ;
+    virtual void execute(gfact_db& facts, sched_db& scheds) ;
     virtual void Print(std::ostream& s) const ;
     virtual string getName() {return "execute_insertion" ;}
     virtual void dataCollate(collectData& data_collector) const ;
@@ -454,8 +454,8 @@ namespace Loci {
     
     timeAccumulator timer ;
   public:
-    execute_key_destruction(const rule& r, fact_db& facts, sched_db& scheds) ;
-    virtual void execute(fact_db& facts, sched_db& scheds) ;
+    execute_key_destruction(const rule& r, gfact_db& facts, sched_db& scheds) ;
+    virtual void execute(gfact_db& facts, sched_db& scheds) ;
     virtual void Print(std::ostream& s) const ;
     virtual string getName() {return "execute_key_destruction" ;}
     virtual void dataCollate(collectData& data_collector) const ;
@@ -485,8 +485,8 @@ namespace Loci {
     
     timeAccumulator timer ;
   public:
-    execute_erase(const rule& r, fact_db& facts, sched_db& scheds) ;
-    virtual void execute(fact_db& facts, sched_db& scheds) ;
+    execute_erase(const rule& r, gfact_db& facts, sched_db& scheds) ;
+    virtual void execute(gfact_db& facts, sched_db& scheds) ;
     virtual void Print(std::ostream& s) const ;
     virtual string getName() {return "execute_erase" ;}
     virtual void dataCollate(collectData& data_collector) const ;
@@ -505,8 +505,8 @@ namespace Loci {
   public:
     execute_dcontrol_reset(variable v, variable vu,
                            const std::vector<KeySpaceP>& ks,
-                           fact_db& facts, sched_db& scheds) ;
-    virtual void execute(fact_db& facts, sched_db& scheds) ;
+                           gfact_db& facts, sched_db& scheds) ;
+    virtual void execute(gfact_db& facts, sched_db& scheds) ;
     virtual void Print(std::ostream& s) const ;
     virtual string getName() {return "execute_dcontrol_reset" ;}
     virtual void dataCollate(collectData& data_collector) const ;
@@ -518,7 +518,7 @@ namespace Loci {
     rule rule_tag ; 
   public:
     execute_rule_null(rule fi) : rule_tag(fi) {}
-    virtual void execute(fact_db &facts, sched_db &scheds) {}
+    virtual void execute(gfact_db &facts, sched_db &scheds) {}
     virtual void Print(std::ostream &s) const
     {s << rule_tag << " over empty sequence."<< endl ;}
     virtual string getName() {return "execute_rule_null";};
@@ -531,8 +531,8 @@ namespace Loci {
     rule_implP rp,main_comp,local_comp1 ;
     bool compress_set ;
     variableSet inputs, outputs ;
-    fact_db backup_facts ;
-    fact_db local_facts;
+    gfact_db backup_facts ;
+    gfact_db local_facts;
     rule_implP local_compute1;
     rule rule_tag ;
     entitySet given_exec_set ;
@@ -540,8 +540,8 @@ namespace Loci {
     timeAccumulator timer ;
     timeAccumulator comp_timer ;
 
-    fact_db *facts1;
-    fact_db *local_facts1;
+    gfact_db *facts1;
+    gfact_db *local_facts1;
     
     std::vector<double> workTime ;	// execution time of items belonging
                                   	// to proc i
@@ -628,10 +628,10 @@ namespace Loci {
     void loop_scheduling () ;
     
   public:
-    dynamic_schedule_rule(rule fi, entitySet eset, fact_db &facts, sched_db &scheds,int method) ;
+    dynamic_schedule_rule(rule fi, entitySet eset, gfact_db &facts, sched_db &scheds,int method) ;
     virtual ~dynamic_schedule_rule() ;
   
-    virtual void execute(fact_db &facts, sched_db &scheds) ;
+    virtual void execute(gfact_db &facts, sched_db &scheds) ;
     virtual void Print(std::ostream &s) const ;
     virtual string getName() {return "dynamic_schedule_rule";};
     virtual void dataCollate(collectData &data_collector) const ;
@@ -644,9 +644,9 @@ namespace Loci {
     ////////////////////
     virtual void accept(visitor& v) = 0 ;//method to accept a visitor
     ////////////////////
-    virtual void set_var_existence(fact_db &facts, sched_db &scheds) = 0 ;
-    virtual void process_var_requests(fact_db &facts, sched_db &scheds) = 0 ;
-    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) = 0;
+    virtual void set_var_existence(gfact_db &facts, sched_db &scheds) = 0 ;
+    virtual void process_var_requests(gfact_db &facts, sched_db &scheds) = 0 ;
+    virtual executeP create_execution_schedule(gfact_db &facts, sched_db &scheds) = 0;
   } ;
 
   typedef CPTR<rule_compiler> rule_compilerP ;
@@ -660,7 +660,7 @@ namespace Loci {
   } ;
 
   struct graph_compiler {
-    rule_compilerP fact_db_comm ;
+    rule_compilerP gfact_db_comm ;
     rulecomp_map rule_process ;
     rule baserule ;
     /////////////////////
@@ -671,11 +671,11 @@ namespace Loci {
     // visit order
     void top_down_visit(visitor& v) ;
     void bottom_up_visit(visitor& v) ;
-    void compile(fact_db& facts, sched_db& scheds,
+    void compile(gfact_db& facts, sched_db& scheds,
                  const variableSet& given, const variableSet& target) ;
     ///////////////////
-    void existential_analysis(fact_db &facts, sched_db &scheds) ;
-    executeP execution_schedule(fact_db &facts, sched_db &scheds,
+    void existential_analysis(gfact_db &facts, sched_db &scheds) ;
+    executeP execution_schedule(gfact_db &facts, sched_db &scheds,
                                 const variableSet& alloc) ;
   } ;
   
@@ -690,7 +690,7 @@ namespace Loci {
      execute_param_red(vector<variable> reduce_vars, vector<rule> unit_rules,
                        vector<CPTR<joiner> > join_ops) ; 
      ~execute_param_red() ;
-     virtual void execute(fact_db &facts, sched_db &scheds) ;
+     virtual void execute(gfact_db &facts, sched_db &scheds) ;
      virtual void Print(std::ostream &s) const ;
      virtual string getName() {return "execute_param_red";};
      virtual void dataCollate(collectData &data_collector) const ;
@@ -716,37 +716,37 @@ namespace Loci {
                   const vector<pair<rule,rule_compilerP> >& comp,
                   const std::deque<entitySet>& seq,
                   const variableSet& cv,
-                  fact_db& facts);
+                  gfact_db& facts);
     virtual void set_seq_table();
-    virtual void execute(fact_db& facts, sched_db &scheds) ;
+    virtual void execute(gfact_db& facts, sched_db &scheds) ;
     virtual void Print(std::ostream& s) const ;
     virtual string getName() {return "execute_chomp";};
     virtual void dataCollate(collectData &data_collector) const ;
   } ;
 
   // experimental dynamic scheduling function
-  void dynamic_scheduling(digraph& gr, fact_db& facts,
+  void dynamic_scheduling(digraph& gr, gfact_db& facts,
                           variableSet& given,
                           const variableSet& target) ;
   // this version will construct a graph internally and then
   // will throw it away before exiting the function. this is
   // safer than the above version.
   void
-  dynamic_scheduling2(rule_db&, fact_db&, const variableSet&) ;
+  dynamic_scheduling2(rule_db&, gfact_db&, const variableSet&) ;
   // experimental dynamic mapping generation
   // in the stationary time level
-  void stationary_relation_gen(rule_db&, fact_db&, const variableSet&) ;
+  void stationary_relation_gen(rule_db&, gfact_db&, const variableSet&) ;
   
   // experimental code to process static & dynamic constraints in
   // a unified way, this is the stage 1 --- mainly to compute the
   // static constraints and also to do some pre-process to those
   // dynamic ones
   variableSet
-  constraint_process_stage1(rule_db&, fact_db&, const variableSet&) ;
+  constraint_process_stage1(rule_db&, gfact_db&, const variableSet&) ;
   // stage2 --- generate new rule_db and setting up things for
   // dynamic constraints
   rule_db
-  constraint_process_stage2(const rule_db&, fact_db&, const variableSet&) ;
+  constraint_process_stage2(const rule_db&, gfact_db&, const variableSet&) ;
 }
 #endif
 

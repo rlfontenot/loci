@@ -622,7 +622,7 @@ namespace Loci {
   ///////////////////////////////////////////////////////////////
   //#define DISABLE_APPLY
   
-  chompPPVisitor::chompPPVisitor(fact_db& fd,
+  chompPPVisitor::chompPPVisitor(gfact_db& fd,
                                  const map<int,variableSet>& rot_vt,
                                  const map<int,variableSet>& lsharedt,
                                  const variableSet& rv)

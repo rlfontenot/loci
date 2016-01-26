@@ -76,19 +76,19 @@ namespace Loci {
     v.visit(*this) ;
   }
 
-  void dag_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
+  void dag_compiler::set_var_existence(gfact_db &facts, sched_db &scheds) {
     std::vector<rule_compilerP>::iterator i ;
     for(i=dag_comp.begin();i!=dag_comp.end();++i)
       (*i)->set_var_existence(facts, scheds) ;
   }
   
-  void dag_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
+  void dag_compiler::process_var_requests(gfact_db &facts, sched_db &scheds) {
     std::vector<rule_compilerP>::reverse_iterator ri ;
     for(ri=dag_comp.rbegin();ri!=dag_comp.rend();++ri)
       (*ri)->process_var_requests(facts, scheds) ;
   }
   
-  executeP dag_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
+  executeP dag_compiler::create_execution_schedule(gfact_db &facts, sched_db &scheds) {
     CPTR<execute_list> elp = new execute_list ;
     
     std::vector<rule_compilerP>::iterator i ;

@@ -64,7 +64,7 @@ namespace Loci {
       disable_threading() ;
     }
     void compute(const sequence &seq) {
-      fact_db::distribute_infoP df = Loci::exec_current_fact_db->get_distribute_info() ;
+      gfact_db::distribute_infoP df = Loci::exec_current_fact_db->get_distribute_info() ;
 
       if(Loci::MPI_processes > 1) {
         Map l2g ;

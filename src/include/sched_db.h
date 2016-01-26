@@ -27,7 +27,7 @@
 #include <Config/conf.h>
 
 
-#include <fact_db.h>
+#include <gfact_db.h>
 #include <rule.h>
 #include <execute.h>
 
@@ -198,11 +198,11 @@ namespace Loci {
                    
     sched_db() ;
     ~sched_db() ;
-    sched_db(fact_db &facts) ;
+    sched_db(gfact_db &facts) ;
     // this method is used to initialize a sched_db
-    // from a fact_db (it is needed in case of when
-    // the sched_db is not directly created from a fact_db)
-    void init(fact_db &facts) ;
+    // from a gfact_db (it is needed in case of when
+    // the sched_db is not directly created from a gfact_db)
+    void init(gfact_db &facts) ;
 
     bool errors_found() {return detected_errors ;}
     void clear_errors() {detected_errors = false ;}
@@ -257,13 +257,13 @@ namespace Loci {
         return sched_infov[(mi->second).sched_info_ref].rotations ;
     }
     
-    void set_variable_type(variable v, storeRepP st, fact_db &facts) ;
-    void set_variable_type(std::string vname,const storeRepP st, fact_db &facts)
+    void set_variable_type(variable v, storeRepP st, gfact_db &facts) ;
+    void set_variable_type(std::string vname,const storeRepP st, gfact_db &facts)
     { set_variable_type(variable(vname),st, facts) ; }
     
-    void set_variable_type(variable v, store_instance &si, fact_db &facts)
+    void set_variable_type(variable v, store_instance &si, gfact_db &facts)
     { set_variable_type(v,si.Rep(), facts) ; }
-    void set_variable_type(std::string vname, store_instance &si, fact_db &facts)
+    void set_variable_type(std::string vname, store_instance &si, gfact_db &facts)
     { set_variable_type(variable(vname),si, facts) ; }
     
     void set_variable_type(variable v, storeRepP st) ;
@@ -276,8 +276,8 @@ namespace Loci {
     { set_variable_type(variable(vname),si) ; } 
 
     /*! variable_is_fact_at() functions are never used, comment out*/
-    //  void variable_is_fact_at(variable v,entitySet s, fact_db &facts) ;
-    //     void variable_is_fact_at(std::string vname, const entitySet s, fact_db &facts)
+    //  void variable_is_fact_at(variable v,entitySet s, gfact_db &facts) ;
+    //     void variable_is_fact_at(std::string vname, const entitySet s, gfact_db &facts)
     //       { variable_is_fact_at(variable(vname),s, facts) ; }
     
     //     void variable_is_fact_at(variable v,entitySet s) ;
@@ -286,16 +286,16 @@ namespace Loci {
     
     void set_variable_rotations(variableSet rot) ;
      
-    void alias_variable(variable v, variable alias, fact_db &facts) ;
-    void alias_variable(std::string vname, std::string alias, fact_db &facts)
+    void alias_variable(variable v, variable alias, gfact_db &facts) ;
+    void alias_variable(std::string vname, std::string alias, gfact_db &facts)
     { alias_variable(variable(vname),variable(alias), facts) ; }
    
     void alias_variable(variable v, variable alias) ;
     void alias_variable(std::string vname, std::string alias)
     { alias_variable(variable(vname),variable(alias)) ; }
     
-    void synonym_variable(variable v, variable synonym, fact_db &facts) ;
-    void synonym_variable(std::string vname, std::string synonym, fact_db &facts)
+    void synonym_variable(variable v, variable synonym, gfact_db &facts) ;
+    void synonym_variable(std::string vname, std::string synonym, gfact_db &facts)
     { synonym_variable(variable(vname),variable(synonym), facts) ; }
     
     void synonym_variable(variable v, variable synonym) ;
@@ -504,11 +504,11 @@ namespace Loci {
       }
     }
    
-    std::ostream &print_summary(fact_db &facts, std::ostream &s) ;
+    std::ostream &print_summary(gfact_db &facts, std::ostream &s) ;
 
     std::vector<std::pair<variable,entitySet> > get_send_entities(variableSet eset, send_entities_type e);
     void  update_send_entities( const std::vector<std::pair<variable,entitySet> >& evec, send_entities_type e);
-    std::list<comm_info> get_comm_info_list(variableSet eset, fact_db& facts, list_type e) const;
+    std::list<comm_info> get_comm_info_list(variableSet eset, gfact_db& facts, list_type e) const;
     void update_comm_info_list(const std::list<comm_info>& elist, list_type e);
 
     entitySet get_exec_seq(rule r){

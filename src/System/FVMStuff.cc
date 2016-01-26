@@ -51,20 +51,20 @@ namespace Loci{
   // distribution info pointer (dist)
   // MPI Communicator
   storeRepP Local2FileOrder(storeRepP sp, entitySet dom, int &offset,
-                            fact_db::distribute_infoP dist, MPI_Comm comm);
+                            gfact_db::distribute_infoP dist, MPI_Comm comm);
   // Convert container from local numbering to output file numbering
   // pass in store rep pointer: sp
   // entitySet to write: dom
-  // fact_db pointer  (facts)
+  // gfact_db pointer  (facts)
   // MPI Communicator
   storeRepP Local2FileOrder_output(storeRepP sp, entitySet dom,
-                                   fact_db& facts, MPI_Comm comm);
+                                   gfact_db& facts, MPI_Comm comm);
   
   
   //map from local numbering to input file numbering
   //assume the union of nodes on all processors will be either all the nodes,
   //all the faces, or all the cells. i.e., one interval in file numbering
-  storeRepP get_node_remap(fact_db &facts,entitySet nodes) {
+  storeRepP get_node_remap(gfact_db &facts,entitySet nodes) {
 
     if(MPI_processes == 1) {
       int minNode = nodes.Min() ;
@@ -78,7 +78,7 @@ namespace Loci{
     }
     
     vector<entitySet> init_ptn = facts.get_init_ptn() ;
-    fact_db::distribute_infoP df = facts.get_distribute_info() ;
+    gfact_db::distribute_infoP df = facts.get_distribute_info() ;
     Map l2g ;
     l2g = df->l2g.Rep() ;
     dMap g2f ;
@@ -107,7 +107,7 @@ namespace Loci{
   //the file number starts with 1
   //input: nodes : the local store domain need to be output,
   //assume nodes will be written out in the global ordering.   
-  storeRepP get_output_node_remap(fact_db &facts,entitySet nodes) {
+  storeRepP get_output_node_remap(gfact_db &facts,entitySet nodes) {
    
     if(MPI_processes == 1) {
       int index = 1;
@@ -121,7 +121,7 @@ namespace Loci{
     }
     
     vector<entitySet> init_ptn = facts.get_init_ptn() ;
-    fact_db::distribute_infoP df = facts.get_distribute_info() ;
+    gfact_db::distribute_infoP df = facts.get_distribute_info() ;
     Map l2g ;
     l2g = df->l2g.Rep() ;
     
@@ -372,7 +372,7 @@ namespace Loci{
                                  storeRepP bnamesRep,
                                  storeRepP posRep,
                                  entitySet localCells,
-                                 fact_db &facts) {
+                                 gfact_db &facts) {
     const_multiMap upper(upperRep),lower(lowerRep),
       boundary_map(boundary_mapRep),face2node(face2nodeRep) ;
     const_Map ref(refRep) ;
@@ -590,7 +590,7 @@ namespace Loci{
       entitySet local_boundaries ;
       std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
       Map l2g ;
-      fact_db::distribute_infoP df = facts.get_distribute_info() ;
+      gfact_db::distribute_infoP df = facts.get_distribute_info() ;
       l2g = df->l2g.Rep() ;
       FORALL(boundaries,bb) {
         if(init_ptn[MPI_rank].inSet(l2g[bb]))
@@ -649,7 +649,7 @@ namespace Loci{
       Map l2g ;
       dMap g2f ;
       if(MPI_processes > 1) {
-        fact_db::distribute_infoP df = facts.get_distribute_info() ;
+        gfact_db::distribute_infoP df = facts.get_distribute_info() ;
         l2g = df->l2g.Rep() ;
         g2f = df->g2f.Rep() ;//why no map expanding? 
       } else {
@@ -730,7 +730,7 @@ namespace Loci{
   }
   
   //collect all boundary names
-  std::vector<string> get_boundary_names(storeRepP bnamesRep, fact_db &facts){
+  std::vector<string> get_boundary_names(storeRepP bnamesRep, gfact_db &facts){
 
    
     const_store<string> boundary_names(bnamesRep) ;
@@ -739,7 +739,7 @@ namespace Loci{
       entitySet local_boundaries ;
       std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
       Map l2g ;
-      fact_db::distribute_infoP df = facts.get_distribute_info() ;
+      gfact_db::distribute_infoP df = facts.get_distribute_info() ;
       l2g = df->l2g.Rep() ;
       FORALL(boundaries,bb) {
         if(init_ptn[MPI_rank].inSet(l2g[bb]))
@@ -846,7 +846,7 @@ namespace Loci{
                                storeRepP refRep, // ref map
                                storeRepP bnamesRep,//bounadry name store
                                entitySet fset, //all boundary faces 
-                               fact_db &facts ){
+                               gfact_db &facts ){
     entitySet bfaces = get_boundary_faces(current_bc, refRep, bnamesRep, fset);
     //get containers
     const_multiMap face2node(face2nodeRep) ;
@@ -855,7 +855,7 @@ namespace Loci{
     // get the nodes that belong to this processor
     if(MPI_processes > 1) {
       entitySet dom = nodes_local;
-      fact_db::distribute_infoP dist = facts.get_distribute_info() ;
+      gfact_db::distribute_infoP dist = facts.get_distribute_info() ;
       entitySet  my_entities = dist->my_entities ;
       nodes_local = my_entities & nodes_local ;
     }
@@ -865,7 +865,7 @@ namespace Loci{
   void writeBoundaryTopo(hid_t file_id, //file_id of this boudnary surface
                          storeRepP face2nodeRep,
                          entitySet bfaces,//boundary faces define this surface 
-                         fact_db &facts ){ 
+                         gfact_db &facts ){ 
     const_multiMap face2node(face2nodeRep) ;
 
     //collect the local boundary nodes belong to this boundary
@@ -1161,7 +1161,7 @@ namespace Loci{
                        storeRepP edge2nodeRep,
                        storeRepP valRep,
                        entitySet localCells,//all geom_cells
-                       fact_db &facts) {
+                       gfact_db &facts) {
     
     const_multiMap upper(upperRep),lower(lowerRep),
       boundary_map(boundary_mapRep),face2node(face2nodeRep), face2edge(face2edgeRep) ;
@@ -1230,7 +1230,7 @@ namespace Loci{
   
   void writeCutPlaneTopo(hid_t bc_id,
                          const CutPlane& cp,
-                         fact_db &facts){ 
+                         gfact_db &facts){ 
     Map node_remap;//map from local numbering to output file numbering for edge entities
     entitySet edgesCut = (cp.edgesWeight)->domain();
     node_remap = get_output_node_remap(facts, edgesCut);
@@ -1492,7 +1492,7 @@ namespace Loci{
 
 
   // void setup_periodic_bc(list<pair<periodic_info,periodic_info> >
-  //                        &periodic_list,fact_db &facts) {
+  //                        &periodic_list,gfact_db &facts) {
 
   //   dMap pmap ;
   //   dstore<rigid_transform> periodic_transform ;
@@ -1625,7 +1625,7 @@ namespace Loci{
   //   facts.create_fact("periodicTransform",periodic_transform) ;
   // } 
 
-  // void create_ci_map(fact_db &facts) {
+  // void create_ci_map(gfact_db &facts) {
   //   constraint boundary_faces ;
   //   boundary_faces = facts.get_variable("boundary_faces") ;
   //   entitySet ci_faces = *boundary_faces ;
@@ -1650,7 +1650,7 @@ namespace Loci{
   //   debugout << "ci_faces = " << ci_faces << endl ;
   // }
 
-  // void setupBoundaryConditions(fact_db &facts) {
+  // void setupBoundaryConditions(gfact_db &facts) {
   //   list<BCinfo> BCinfo_list ;
   //   std::map<std::string,entitySet> BCsets ;
     
@@ -1902,7 +1902,7 @@ namespace Loci{
     
   // }
 
-  // void createLowerUpper(fact_db &facts) {
+  // void createLowerUpper(gfact_db &facts) {
   //   constraint geom_cells,interior_faces,boundary_faces ;
   //   constraint faces = facts.get_variable("faces") ;
   //   geom_cells = facts.get_variable("geom_cells") ;
@@ -2481,7 +2481,7 @@ namespace Loci{
   
  
 //   void
-//   createEdgesPar(fact_db &facts) {
+//   createEdgesPar(gfact_db &facts) {
 //     multiMap face2node ;
 //     face2node = facts.get_variable("face2node") ;
 //     entitySet faces = face2node.domain() ;
@@ -2777,7 +2777,7 @@ namespace Loci{
     
       
 //       std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
-//       fact_db::distribute_infoP df = facts.get_distribute_info() ;
+//       gfact_db::distribute_infoP df = facts.get_distribute_info() ;
 //       storeRepP pos = facts.get_variable("pos");
       
 //       dMap g2f ;
@@ -2811,7 +2811,7 @@ namespace Loci{
            
   
 
-//       //then update fact_db so that the file number of edges is consistent with the file number of nodes
+//       //then update gfact_db so that the file number of edges is consistent with the file number of nodes
 
 //       //give each edge a file number
 //       vector<pair<pair<Entity, Entity> , Entity> > edge2global(num_edges);
@@ -2943,14 +2943,14 @@ namespace Loci{
 //         Loci::Abort();
 //       }
     
-//       fact_db::distribute_infoP dist = facts.get_distribute_info() ;
+//       gfact_db::distribute_infoP dist = facts.get_distribute_info() ;
     
 //       FORALL(global2file.domain(), ei){
 //         dist->g2f[ei] = global2file[ei][0] ;
 //       }ENDFORALL;
     
 //     }
-//     //before put edge2node to fact_db, make sure each edge point from lower
+//     //before put edge2node to gfact_db, make sure each edge point from lower
 //     //file number node to higher file number node
 //     MapVec<2> edge3 ;
 //     edge3.allocate(edges) ;

@@ -338,7 +338,7 @@ namespace Loci
   // rule initializer
   //
   dynamic_schedule_rule::dynamic_schedule_rule (rule fi, entitySet eset,
-						fact_db & facts,
+						gfact_db & facts,
 						sched_db & scheds,
                                                 int method) {
     LBMethod = method ;
@@ -1974,7 +1974,7 @@ namespace Loci
   // The execute() routine
   //=======================================================
 
-  void dynamic_schedule_rule::execute (fact_db & facts, sched_db &scheds)
+  void dynamic_schedule_rule::execute (gfact_db & facts, sched_db &scheds)
   {
 
     stopWatch s ;
@@ -1985,7 +1985,7 @@ namespace Loci
 #ifdef VERBOSE
       debugout << "allocating over set" << exec_set << endl ;
 #endif
-      // need to allocate sets and copy from main fact_db
+      // need to allocate sets and copy from main gfact_db
       for (variableSet::const_iterator vi = inputs.begin ();
            vi != inputs.end (); ++vi) {
         storeRepP sp = backup_facts.get_variable (*vi);

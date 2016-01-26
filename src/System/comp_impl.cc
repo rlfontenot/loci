@@ -118,7 +118,7 @@ namespace Loci {
   // implementation of execute_dynamic_rule
   namespace {
     variableSet
-    remove_synonym(const variableSet& vs, fact_db& facts) {
+    remove_synonym(const variableSet& vs, gfact_db& facts) {
       variableSet ret ;
       for(variableSet::const_iterator vi=vs.begin();vi!=vs.end();++vi)
         ret += facts.remove_synonym(*vi) ;
@@ -199,7 +199,7 @@ namespace Loci {
   collect_expand_chain(const vmap_info& vmi,
                        const std::string& vmi_tag,
                        rule_implP rp, KeySpaceP space,
-                       fact_db& facts, sched_db& scheds,
+                       gfact_db& facts, sched_db& scheds,
                        std::vector<ExpandChain>& chains,
                        bool* output_cross_space,
                        std::string* other_space_name,
@@ -312,7 +312,7 @@ namespace Loci {
           const Map* src_pack ;
           const dMap* src_unpack ;
           if(facts.is_distributed_start()) {
-            fact_db::distribute_infoP df = facts.get_distribute_info() ;
+            gfact_db::distribute_infoP df = facts.get_distribute_info() ;
             src_pack = &(df->l2g) ;
             src_unpack = &(df->g2l) ;
           } else {
@@ -324,7 +324,7 @@ namespace Loci {
           expand_block.src_ptn = &(facts.get_init_ptn()) ;
           expand_block.src_comm = MPI_COMM_WORLD ;
         } else {
-          // get the corresponding keyspace impl from fact_db
+          // get the corresponding keyspace impl from gfact_db
           map<string,KeySpaceP>::const_iterator ki ;
           ki = facts.keyspace.find(cross_space_name) ;
           if(ki == facts.keyspace.end()) {
@@ -348,7 +348,7 @@ namespace Loci {
           expand_block.src_comm = other_space->get_mpi_comm() ;
         }
 
-        // then the src rep comes from the fact_db,
+        // then the src rep comes from the gfact_db,
         // and the dst rep comes from the keyspace,
         // and the rule reps need to be keyspace reps
         for(variableSet::const_iterator vi=mappings.begin();
@@ -366,7 +366,7 @@ namespace Loci {
         expand_block.src_unpack = self_unpack ;
         expand_block.src_ptn = &(space->get_key_ptn()) ;
         expand_block.src_comm = space->get_mpi_comm() ;
-        // if not crossing space, then all reps come from fact_db
+        // if not crossing space, then all reps come from gfact_db
         for(variableSet::const_iterator vi=mappings.begin();
             vi!=mappings.end();++vi) {
           storeRepP srp = facts.get_variable(*vi) ;
@@ -426,7 +426,7 @@ namespace Loci {
         const Map* src_pack ;
         const dMap* src_unpack ;
         if(facts.is_distributed_start()) {
-          fact_db::distribute_infoP df = facts.get_distribute_info() ;
+          gfact_db::distribute_infoP df = facts.get_distribute_info() ;
           src_pack = &(df->l2g) ;
           src_unpack = &(df->g2l) ;
         } else {
@@ -438,7 +438,7 @@ namespace Loci {
         expand_end.src_ptn = &(facts.get_init_ptn()) ;
         expand_end.src_comm = MPI_COMM_WORLD ;
       } else {
-        // get the corresponding keyspace impl from fact_db
+        // get the corresponding keyspace impl from gfact_db
         map<string,KeySpaceP>::const_iterator ki ;
         ki = facts.keyspace.find(cross_space_name) ;
         if(ki == facts.keyspace.end()) {
@@ -477,7 +477,7 @@ namespace Loci {
       expand_end.src_unpack = self_unpack ;
       expand_end.src_ptn = &(space->get_key_ptn()) ;
       expand_end.src_comm = space->get_mpi_comm() ;
-      // if not crossing space, then all reps come from fact_db
+      // if not crossing space, then all reps come from gfact_db
       for(variableSet::const_iterator vi=vmi.var.begin();
           vi!=vmi.var.end();++vi) {
         storeRepP srp = facts.get_variable(*vi) ;
@@ -502,7 +502,7 @@ namespace Loci {
   bool
   collect_nonexpand_chain(const vmap_info& vmi,
                           rule_implP rp, KeySpaceP space,
-                          fact_db& facts, sched_db& scheds,
+                          gfact_db& facts, sched_db& scheds,
                           std::vector<NonExpandUnit>& chain) {
     if(!vmi.mapping.empty())
       return false ;
@@ -702,7 +702,7 @@ namespace Loci {
   
   entitySet
   dynamic_rule_context(const rule& rule_tag, KeySpaceP space,
-                       fact_db& facts, sched_db& scheds,
+                       gfact_db& facts, sched_db& scheds,
                        const std::vector<ExpandChain>& input_chains,
                        const std::vector<NonExpandUnit>& input_nes,
                        const std::vector<NonExpandUnit>& input_nec) {
@@ -853,7 +853,7 @@ namespace Loci {
   
   execute_dynamic_rule::
   execute_dynamic_rule(rule r, KeySpaceP kp,
-                       fact_db& facts, sched_db& scheds) {
+                       gfact_db& facts, sched_db& scheds) {
     rule_tag = r ;
     rp = r.get_rule_implP() ;
     space = kp ;
@@ -934,7 +934,7 @@ namespace Loci {
   }
 
   void execute_dynamic_rule::
-  execute(fact_db& facts, sched_db& scheds) {
+  execute(gfact_db& facts, sched_db& scheds) {
     stopWatch s ;
     s.start() ;
 
@@ -1080,7 +1080,7 @@ namespace Loci {
     data_collector.accumulateTime(timer,EXEC_COMPUTATION,oss.str()) ;
   }
   
-  execute_rule::execute_rule(rule fi, sequence seq, fact_db &facts, const sched_db &scheds)  {
+  execute_rule::execute_rule(rule fi, sequence seq, gfact_db &facts, const sched_db &scheds)  {
     rp = fi.get_rule_implP() ;
     rule_tag = fi ;
     rp->initialize(facts) ;
@@ -1095,7 +1095,7 @@ namespace Loci {
 #endif
   }
 
-  execute_rule::execute_rule(rule fi, sequence seq, fact_db &facts,
+  execute_rule::execute_rule(rule fi, sequence seq, gfact_db &facts,
                              variable v, const storeRepP &p, const sched_db &scheds) {
     rp = fi.get_rule_implP() ;
     rule_tag = fi ;
@@ -1111,7 +1111,7 @@ namespace Loci {
 #endif
   }
 
-  void execute_rule::execute(fact_db &facts, sched_db &scheds) {
+  void execute_rule::execute(gfact_db &facts, sched_db &scheds) {
 #ifdef PAPI_DEBUG
     if( (PAPI_start_counters(papi_events,2)) != PAPI_OK) {
       cerr << "PAPI failed to start counters" << endl;
@@ -1178,17 +1178,17 @@ namespace Loci {
 #endif
   }
 
-  void impl_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
+  void impl_compiler::set_var_existence(gfact_db &facts, sched_db &scheds) {
     existential_rule_analysis(impl,facts, scheds) ;
   }
 
-  void impl_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
+  void impl_compiler::process_var_requests(gfact_db &facts, sched_db &scheds) {
     entitySet exec_seq = process_rule_requests(impl,facts, scheds) ;
     scheds.update_exec_seq(impl, exec_seq);
   }
 
   executeP impl_compiler::
-  create_execution_schedule(fact_db &facts,sched_db &scheds) {
+  create_execution_schedule(gfact_db &facts,sched_db &scheds) {
     //    if(GLOBAL_AND(exec_seq.size()==0)) {
     //      return executeP(0) ;
     //    }
@@ -1246,7 +1246,7 @@ namespace Loci {
 
   void
   dynamic_impl_compiler::
-  set_var_existence(fact_db& facts, sched_db& scheds) {
+  set_var_existence(gfact_db& facts, sched_db& scheds) {
     // since the dynamic_impl_compiler will
     // evalulate the rules at the runtime, we'll
     // just set everything (existence and request) to
@@ -1262,7 +1262,7 @@ namespace Loci {
 
   void
   dynamic_impl_compiler::
-  process_var_requests(fact_db& facts, sched_db& scheds) {
+  process_var_requests(gfact_db& facts, sched_db& scheds) {
     variableSet targets = impl.targets() ;
     for(variableSet::const_iterator vi=targets.begin();
         vi!=targets.end();++vi)
@@ -1274,7 +1274,7 @@ namespace Loci {
   }
 
   executeP
-  dynamic_impl_compiler::create_execution_schedule(fact_db& facts,
+  dynamic_impl_compiler::create_execution_schedule(gfact_db& facts,
                                                    sched_db& scheds) {
     executeP execute = new execute_dynamic_rule(impl,space,facts,scheds) ;
     return execute ;
@@ -1283,7 +1283,7 @@ namespace Loci {
   // execute_dynamic_applyrule module implementation
   execute_dynamic_applyrule::
   execute_dynamic_applyrule(rule a, rule u, KeySpaceP kp,
-                            fact_db& facts, sched_db& scheds) {    
+                            gfact_db& facts, sched_db& scheds) {    
     apply_tag = a ;
     unit_tag = u ;
     rp = apply_tag.get_rule_implP() ;
@@ -1347,7 +1347,7 @@ namespace Loci {
       // find out the target remap
       if(other_space_name == "main") {
         if(facts.is_distributed_start()) {
-          fact_db::distribute_infoP df = facts.get_distribute_info() ;
+          gfact_db::distribute_infoP df = facts.get_distribute_info() ;
           target_pack = &(df->l2g) ;
           target_unpack = &(df->g2l) ;
         } else {
@@ -1379,7 +1379,7 @@ namespace Loci {
   }
 
   void execute_dynamic_applyrule::
-  execute(fact_db& facts, sched_db& scheds) {
+  execute(gfact_db& facts, sched_db& scheds) {
     stopWatch s ;
     s.start() ;
 
@@ -1523,7 +1523,7 @@ namespace Loci {
   // dynamic apply compiler
   void
   dynamic_apply_compiler::
-  set_var_existence(fact_db& facts, sched_db& scheds) {
+  set_var_existence(gfact_db& facts, sched_db& scheds) {
     // since the dynamic_apply_compiler will
     // evalulate the rules at the runtime, we'll
     // just set everything (existence and request) to
@@ -1539,7 +1539,7 @@ namespace Loci {
 
   void
   dynamic_apply_compiler::
-  process_var_requests(fact_db& facts, sched_db& scheds) {
+  process_var_requests(gfact_db& facts, sched_db& scheds) {
     variableSet targets = apply.targets() ;
     for(variableSet::const_iterator vi=targets.begin();
         vi!=targets.end();++vi)
@@ -1551,7 +1551,7 @@ namespace Loci {
   }
 
   executeP
-  dynamic_apply_compiler::create_execution_schedule(fact_db& facts,
+  dynamic_apply_compiler::create_execution_schedule(gfact_db& facts,
                                                     sched_db& scheds) {
     // determine if the target is a param or a store
     variable target = *(apply.targets().begin()) ;
@@ -1576,7 +1576,7 @@ namespace Loci {
   
   execute_dynamic_applyrule_param::
   execute_dynamic_applyrule_param(rule a, rule u, KeySpaceP kp,
-                                  fact_db& facts, sched_db& scheds) {    
+                                  gfact_db& facts, sched_db& scheds) {    
     apply_tag = a ;
     unit_tag = u ;
     rp = apply_tag.get_rule_implP() ;
@@ -1646,7 +1646,7 @@ namespace Loci {
   }
 
   void execute_dynamic_applyrule_param::
-  execute(fact_db& facts, sched_db& scheds) {
+  execute(gfact_db& facts, sched_db& scheds) {
     stopWatch s ;
     s.start() ;
 
@@ -1781,19 +1781,19 @@ namespace Loci {
   
   // dclone_invalidate_compiler
   void
-  dclone_invalidate_compiler::set_var_existence(fact_db& facts,
+  dclone_invalidate_compiler::set_var_existence(gfact_db& facts,
                                                 sched_db& scheds) {
     // do nothing
   }
 
   void
-  dclone_invalidate_compiler::process_var_requests(fact_db& facts,
+  dclone_invalidate_compiler::process_var_requests(gfact_db& facts,
                                                    sched_db& scheds) {
     // do nothing
   }
 
   executeP
-  dclone_invalidate_compiler::create_execution_schedule(fact_db& facts,
+  dclone_invalidate_compiler::create_execution_schedule(gfact_db& facts,
                                                         sched_db& scheds) {
     executeP execute =
       new execute_dclone_invalidator(var, var_unique, self_clone,
@@ -1806,7 +1806,7 @@ namespace Loci {
   execute_dclone_invalidator(variable v, variable vu,
                              KeySpaceP sc,
                              const std::vector<KeySpaceP>& sac,
-                             fact_db& facts, sched_db& scheds) {
+                             gfact_db& facts, sched_db& scheds) {
     var = v ;
     var_unique = vu ;
     self_clone = sc ;
@@ -1814,14 +1814,14 @@ namespace Loci {
   }
 
   void execute_dclone_invalidator::
-  execute(fact_db& facts, sched_db& scheds) {
+  execute(gfact_db& facts, sched_db& scheds) {
     stopWatch s ;
     s.start() ;
 #ifdef DYNAMIC_TIMING
     sw_invalidate.start() ;
 #endif
     if(self_clone != 0) {
-      // get the storeRepP from fact_db
+      // get the storeRepP from gfact_db
       storeRepP s = facts.get_variable(var) ;
       // get the ptn info from keyspace
       entitySet local_ptn =
@@ -1859,19 +1859,19 @@ namespace Loci {
   
   // keyspace_dist_compiler
   void
-  keyspace_dist_compiler::set_var_existence(fact_db& facts,
+  keyspace_dist_compiler::set_var_existence(gfact_db& facts,
                                             sched_db& scheds) {
     // do nothing
   }
 
   void
-  keyspace_dist_compiler::process_var_requests(fact_db& facts,
+  keyspace_dist_compiler::process_var_requests(gfact_db& facts,
                                                sched_db& scheds) {
     // do nothing
   }
 
   executeP
-  keyspace_dist_compiler::create_execution_schedule(fact_db& facts,
+  keyspace_dist_compiler::create_execution_schedule(gfact_db& facts,
                                                     sched_db& scheds) {
     // get the keyspace pointers
     vector<KeySpaceP> spaces ;
@@ -1896,7 +1896,7 @@ namespace Loci {
 
   execute_keyspace_dist::
   execute_keyspace_dist(const std::vector<KeySpaceP>& s,
-                        fact_db& facts, sched_db& scheds):spaces(s) {
+                        gfact_db& facts, sched_db& scheds):spaces(s) {
     FATAL(spaces.empty()) ;
     ostringstream oss ;
     vector<KeySpaceP>::const_iterator vi = spaces.begin() ;
@@ -1927,7 +1927,7 @@ namespace Loci {
   }
   
   void execute_keyspace_dist::
-  execute(fact_db& facts, sched_db& scheds) {
+  execute(gfact_db& facts, sched_db& scheds) {
     stopWatch s ;
     s.start() ;
 #ifdef DYNAMIC_TIMING
@@ -2000,7 +2000,7 @@ namespace Loci {
 
   // execute_keyspace_init module
   execute_init_keyspace::
-  execute_init_keyspace(fact_db& facts, sched_db& scheds) {
+  execute_init_keyspace(gfact_db& facts, sched_db& scheds) {
     map<string,KeySpaceP>::iterator ki ;
     for(ki=facts.keyspace.begin();ki!=facts.keyspace.end();++ki) {
       KeySpaceP space = ki->second ;
@@ -2010,7 +2010,7 @@ namespace Loci {
         storeRepP srp = facts.get_variable(*vi) ;
         if(srp == 0) {
           cerr << "Error: keyspace: " << ki->first << " critical"
-               << " structure: " << *vi << " has no setup in fact_db"
+               << " structure: " << *vi << " has no setup in gfact_db"
                << endl ;
           Loci::Abort() ;
         } else
@@ -2054,7 +2054,7 @@ namespace Loci {
   }
 
   void execute_init_keyspace::
-  execute(fact_db& facts, sched_db& scheds) {
+  execute(gfact_db& facts, sched_db& scheds) {
     stopWatch s ;
     s.start() ;
     map<string,KeySpaceP>::iterator ki ;
@@ -2080,7 +2080,7 @@ namespace Loci {
 
   // blackbox_compiler code
   void
-  blackbox_compiler::set_var_existence(fact_db& facts, sched_db& scheds) {
+  blackbox_compiler::set_var_existence(gfact_db& facts, sched_db& scheds) {
     //    existential_blackboxrule_analysis(impl, facts, scheds) ;
     // set UNIVERSE existence for all targets
      variableSet targets = impl.targets() ;
@@ -2088,7 +2088,7 @@ namespace Loci {
        scheds.set_existential_info(*vi, impl, ~EMPTY) ;
   }
 
-  void blackbox_compiler::process_var_requests(fact_db& facts, sched_db& scheds) {
+  void blackbox_compiler::process_var_requests(gfact_db& facts, sched_db& scheds) {
     //    exec_seq = process_blackboxrule_requests(impl, facts, scheds) ;
 
     //everyone will need to request for their existence
@@ -2104,7 +2104,7 @@ namespace Loci {
   }
 
   executeP blackbox_compiler::
-  create_execution_schedule(fact_db& facts, sched_db& scheds) {
+  create_execution_schedule(gfact_db& facts, sched_db& scheds) {
     entitySet exec_seq = scheds.get_exec_seq(impl);
     executeP execute = new execute_rule(impl,
                                         sequence(exec_seq), facts, scheds);
@@ -2113,38 +2113,38 @@ namespace Loci {
 
   // superRule_compiler code
   void
-  superRule_compiler::set_var_existence(fact_db& facts, sched_db& scheds) {
+  superRule_compiler::set_var_existence(gfact_db& facts, sched_db& scheds) {
     CPTR<super_rule> rp(impl.get_rule_implP()) ;
     rp->process_existential(impl,facts,scheds) ;
   }
 
-  void superRule_compiler::process_var_requests(fact_db& facts, sched_db& scheds) {
+  void superRule_compiler::process_var_requests(gfact_db& facts, sched_db& scheds) {
     CPTR<super_rule> rp(impl.get_rule_implP()) ;
     rp->process_requests(impl,facts,scheds) ;
   }
 
-  executeP superRule_compiler::create_execution_schedule(fact_db& facts, sched_db& scheds) {
+  executeP superRule_compiler::create_execution_schedule(gfact_db& facts, sched_db& scheds) {
     executeP execute = new execute_rule(impl, ~EMPTY, facts, scheds);
     return execute;
   }
 
   // here comes the insertion and deletion rule impls
   executeP insertion_rule_compiler::
-  create_execution_schedule(fact_db& facts, sched_db& scheds) {
+  create_execution_schedule(gfact_db& facts, sched_db& scheds) {
     executeP execute = new execute_insertion(rule_tag, facts, scheds) ;
 
     return execute ;
   }
 
   executeP deletion_rule_compiler::
-  create_execution_schedule(fact_db& facts, sched_db& scheds) {
+  create_execution_schedule(gfact_db& facts, sched_db& scheds) {
     executeP execute = new execute_key_destruction(rule_tag, facts, scheds) ;
 
     return execute ;
   }
 
   execute_insertion::
-  execute_insertion(const rule& r, fact_db& facts, sched_db& scheds) {
+  execute_insertion(const rule& r, gfact_db& facts, sched_db& scheds) {
     rule_tag = r ;
     rule_implP tagp = r.get_rule_implP() ;
     // first check to make sure that no output targets
@@ -2191,7 +2191,7 @@ namespace Loci {
   }
 
   void execute_insertion::
-  execute(fact_db& facts, sched_db& scheds) {
+  execute(gfact_db& facts, sched_db& scheds) {
     stopWatch s ;
     s.start() ;
 
@@ -2229,7 +2229,7 @@ namespace Loci {
 
   execute_key_destruction::
   execute_key_destruction(const rule& r,
-                          fact_db& facts, sched_db& scheds) {
+                          gfact_db& facts, sched_db& scheds) {
     rule_tag = r ;
     rule_implP tagp = r.get_rule_implP() ;
 
@@ -2342,7 +2342,7 @@ namespace Loci {
   }
 
   void execute_key_destruction::
-  execute(fact_db& facts, sched_db& scheds) {
+  execute(gfact_db& facts, sched_db& scheds) {
     stopWatch s ;
     s.start() ;
 
@@ -2429,7 +2429,7 @@ namespace Loci {
   }
 
   executeP erase_rule_compiler::
-  create_execution_schedule(fact_db& facts, sched_db& scheds) {
+  create_execution_schedule(gfact_db& facts, sched_db& scheds) {
     executeP execute = new execute_erase(rule_tag, facts, scheds) ;
 
     return execute ;
@@ -2437,7 +2437,7 @@ namespace Loci {
 
   execute_erase::
   execute_erase(const rule& r,
-                fact_db& facts, sched_db& scheds) {
+                gfact_db& facts, sched_db& scheds) {
     rule_tag = r ;
     rule_implP tagp = r.get_rule_implP() ;
 
@@ -2507,7 +2507,7 @@ namespace Loci {
   }
 
   void execute_erase::
-  execute(fact_db& facts, sched_db& scheds) {
+  execute(gfact_db& facts, sched_db& scheds) {
     stopWatch s ;
     s.start() ;
 
@@ -2586,19 +2586,19 @@ namespace Loci {
 
   // dcontrol_reset_compiler
   void
-  dcontrol_reset_compiler::set_var_existence(fact_db& facts,
+  dcontrol_reset_compiler::set_var_existence(gfact_db& facts,
                                              sched_db& scheds) {
     // do nothing
   }
 
   void
-  dcontrol_reset_compiler::process_var_requests(fact_db& facts,
+  dcontrol_reset_compiler::process_var_requests(gfact_db& facts,
                                                 sched_db& scheds) {
     // do nothing
   }
 
   executeP
-  dcontrol_reset_compiler::create_execution_schedule(fact_db& facts,
+  dcontrol_reset_compiler::create_execution_schedule(gfact_db& facts,
                                                      sched_db& scheds) {
     vector<KeySpaceP> register_kp ;
     for(set<string>::const_iterator si=register_keyspaces.begin();
@@ -2623,7 +2623,7 @@ namespace Loci {
   execute_dcontrol_reset::
   execute_dcontrol_reset(variable v, variable vu,
                          const std::vector<KeySpaceP>& ks,
-                         fact_db& facts, sched_db& scheds)
+                         gfact_db& facts, sched_db& scheds)
     :var(v), var_unique(vu), register_keyspaces(ks) {
     // register itself to the keyspaces
     for(vector<KeySpaceP>::iterator ki=register_keyspaces.begin();
@@ -2633,7 +2633,7 @@ namespace Loci {
   }
 
   void execute_dcontrol_reset::
-  execute(fact_db& facts, sched_db& scheds) {
+  execute(gfact_db& facts, sched_db& scheds) {
     stopWatch s ;
     s.start() ;
 #ifdef DYNAMIC_TIMING
@@ -2677,7 +2677,7 @@ namespace Loci {
     void compute(const sequence &seq) {
       *NOT = true ;
     }
-    void process_existential(rule r, fact_db &facts, sched_db &scheds) {
+    void process_existential(rule r, gfact_db &facts, sched_db &scheds) {
       const rule_impl::info &rinfo = r.get_info().desc ;
       set<vmap_info>::const_iterator si ;
 
@@ -2690,7 +2690,7 @@ namespace Loci {
       if(facts.isDistributed()) {
       // For the distributed memory case we restrict the sources and
       // constraints to be within my_entities.
-        fact_db::distribute_infoP d = facts.get_distribute_info() ;
+        gfact_db::distribute_infoP d = facts.get_distribute_info() ;
         my_entities = d->my_entities ;
       }
       
@@ -2704,7 +2704,7 @@ namespace Loci {
       for(variableSet::const_iterator vi=output.begin();vi!=output.end();++vi)
         scheds.set_existential_info(*vi, r, constraints) ;
     }
-    void process_requests(rule r, fact_db &facts, sched_db &scheds) {
+    void process_requests(rule r, gfact_db &facts, sched_db &scheds) {
     }
   } ;
 
@@ -2721,7 +2721,7 @@ namespace Loci {
     void compute(const sequence &seq) {
       *OR = true ;
     }
-    void process_existential(rule r, fact_db &facts, sched_db &scheds) {
+    void process_existential(rule r, gfact_db &facts, sched_db &scheds) {
       const rule_impl::info &rinfo = r.get_info().desc ;
       set<vmap_info>::const_iterator si ;
 
@@ -2734,7 +2734,7 @@ namespace Loci {
       if(facts.isDistributed()) {
       // For the distributed memory case we restrict the sources and
       // constraints to be within my_entities.
-        fact_db::distribute_infoP d = facts.get_distribute_info() ;
+        gfact_db::distribute_infoP d = facts.get_distribute_info() ;
         my_entities = d->my_entities ;
       }
       
@@ -2745,7 +2745,7 @@ namespace Loci {
       for(variableSet::const_iterator vi=output.begin();vi!=output.end();++vi)
         scheds.set_existential_info(*vi, r, constraints) ;
     }
-    void process_requests(rule r, fact_db &facts, sched_db &scheds) {
+    void process_requests(rule r, gfact_db &facts, sched_db &scheds) {
     }
   } ;
 
@@ -2762,7 +2762,7 @@ namespace Loci {
     void compute(const sequence &seq) {
       *OR = true ;
     }
-    void process_existential(rule r, fact_db &facts, sched_db &scheds) {
+    void process_existential(rule r, gfact_db &facts, sched_db &scheds) {
       const rule_impl::info &rinfo = r.get_info().desc ;
       set<vmap_info>::const_iterator si ;
 
@@ -2775,7 +2775,7 @@ namespace Loci {
       if(facts.isDistributed()) {
       // For the distributed memory case we restrict the sources and
       // constraints to be within my_entities.
-        fact_db::distribute_infoP d = facts.get_distribute_info() ;
+        gfact_db::distribute_infoP d = facts.get_distribute_info() ;
         my_entities = d->my_entities ;
       }
       
@@ -2786,7 +2786,7 @@ namespace Loci {
       for(variableSet::const_iterator vi=output.begin();vi!=output.end();++vi)
         scheds.set_existential_info(*vi, r, constraints) ;
     }
-    void process_requests(rule r, fact_db &facts, sched_db &scheds) {
+    void process_requests(rule r, gfact_db &facts, sched_db &scheds) {
     }
   } ;
 
@@ -2803,7 +2803,7 @@ namespace Loci {
     void compute(const sequence &seq) {
       *OR = true ;
     }
-    void process_existential(rule r, fact_db &facts, sched_db &scheds) {
+    void process_existential(rule r, gfact_db &facts, sched_db &scheds) {
       const rule_impl::info &rinfo = r.get_info().desc ;
       set<vmap_info>::const_iterator si ;
 
@@ -2816,7 +2816,7 @@ namespace Loci {
       if(facts.isDistributed()) {
       // For the distributed memory case we restrict the sources and
       // constraints to be within my_entities.
-        fact_db::distribute_infoP d = facts.get_distribute_info() ;
+        gfact_db::distribute_infoP d = facts.get_distribute_info() ;
         my_entities = d->my_entities ;
       }
       
@@ -2827,7 +2827,7 @@ namespace Loci {
       for(variableSet::const_iterator vi=output.begin();vi!=output.end();++vi)
         scheds.set_existential_info(*vi, r, constraints) ;
     }
-    void process_requests(rule r, fact_db &facts, sched_db &scheds) {
+    void process_requests(rule r, gfact_db &facts, sched_db &scheds) {
     }
   } ;
 

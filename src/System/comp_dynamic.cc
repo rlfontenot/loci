@@ -54,20 +54,20 @@ namespace Loci {
     ////////////////////
   }
 
-  void dynamic_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
+  void dynamic_compiler::set_var_existence(gfact_db &facts, sched_db &scheds) {
     std::vector<rule_compilerP>::iterator i ;
     for(i=comp.begin();i!=comp.end();++i)
       (*i)->set_var_existence(facts, scheds) ;
   }
   
-  void dynamic_compiler::process_var_requests(fact_db &facts,
+  void dynamic_compiler::process_var_requests(gfact_db &facts,
                                               sched_db &scheds) {
     std::vector<rule_compilerP>::reverse_iterator ri ;
     for(ri=comp.rbegin();ri!=comp.rend();++ri)
       (*ri)->process_var_requests(facts, scheds) ;
   }
   
-  executeP dynamic_compiler::create_execution_schedule(fact_db &facts,
+  executeP dynamic_compiler::create_execution_schedule(gfact_db &facts,
                                                        sched_db &scheds) {
     CPTR<execute_list> elp = new execute_list ;
     std::vector<rule_compilerP>::iterator i ;

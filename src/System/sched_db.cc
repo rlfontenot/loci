@@ -44,7 +44,7 @@ namespace Loci {
 
   extern ofstream debugout ;
   extern bool rule_has_mapping_in_output(rule r);
-  sched_db::sched_db(fact_db &facts) {
+  sched_db::sched_db(gfact_db &facts) {
     detected_errors = false ;
     init(facts) ;
   }
@@ -53,7 +53,7 @@ namespace Loci {
   sched_db::~sched_db() {}
 
   void
-  sched_db::init(fact_db &facts) {
+  sched_db::init(gfact_db &facts) {
     variableSet tmp_all_vars = facts.get_typed_variables() ;
     for(size_t i = 0; i < tmp_all_vars.size(); i++)
       sched_infov.push_back(sched_data()) ;
@@ -110,7 +110,7 @@ namespace Loci {
     return mi->second ;
   }
   /* variable_is_fact_at() is commented out because it's never used*/
-  //  void sched_db::variable_is_fact_at(variable v,entitySet s, fact_db &facts) {/*! ??? and it's never used*/
+  //  void sched_db::variable_is_fact_at(variable v,entitySet s, gfact_db &facts) {/*! ??? and it's never used*/
   //     sched_info &fi = get_sched_info(v) ;
   //     fi.fact_installed += s ;
   //     fi.existence += s ;
@@ -126,17 +126,17 @@ namespace Loci {
     }
   }
   
-  void sched_db::alias_variable(variable v, variable alias, fact_db &facts) {
+  void sched_db::alias_variable(variable v, variable alias, gfact_db &facts) {
 
     facts.synonym_variable(v,alias) ;
 
     if(all_vars.inSet(v)) {
       if(all_vars.inSet(alias)) {
         if(MPI_processes == 1) {
-          cerr << "alias already in fact_db!" << endl ;
+          cerr << "alias already in gfact_db!" << endl ;
           cerr << "error found in alias_variable("<<v<<","<< alias<<")" << endl ;
         } else {
-          debugout << "alias already in fact_db!" << endl ;
+          debugout << "alias already in gfact_db!" << endl ;
           debugout << "error found in alias_variable("<<v<<","<< alias<<")" << endl ;
         }
         detected_errors = true ;
@@ -163,16 +163,16 @@ namespace Loci {
   }
   
   
-  void sched_db::synonym_variable(variable v, variable synonym, fact_db &facts) {
+  void sched_db::synonym_variable(variable v, variable synonym, gfact_db &facts) {
     facts.synonym_variable(v, synonym) ;
     v = remove_synonym(v) ;
     vmap_type::iterator vmi ;
     if((vmi = vmap.find(synonym)) != vmap.end()) {
       if(MPI_processes == 1) {
-        cerr << "synonym already in fact_db!" << endl ;
+        cerr << "synonym already in gfact_db!" << endl ;
         cerr << "error found in synonym_variable("<<v<<","<<synonym<<")"<<endl;
       } else {
-        debugout << "synonym already in fact_db!" << endl ;
+        debugout << "synonym already in gfact_db!" << endl ;
         debugout << "error found in synonym_variable("<<v<<","<<synonym<<")"<<endl;
       }
       detected_errors = true ;
@@ -276,7 +276,7 @@ namespace Loci {
     return mi->second.exists & finfo.requested ;
   }
 
-  void sched_db::set_variable_type(variable v, storeRepP st, fact_db &facts) {
+  void sched_db::set_variable_type(variable v, storeRepP st, gfact_db &facts) {
     // creates an intensional fact since this is Loci deduced fact
     facts.create_intensional_fact(v, st) ;
     if(!all_vars.inSet(v)) {
@@ -354,7 +354,7 @@ namespace Loci {
     }
   }
 
-  std::ostream &sched_db::print_summary(fact_db &facts, std::ostream &s) {
+  std::ostream &sched_db::print_summary(gfact_db &facts, std::ostream &s) {
     s << "Summary of Existential deduction:" << endl ;
     std::map<variable,sched_info>::const_iterator mi ;
     for(mi=vmap.begin();mi!=vmap.end();++mi) {
@@ -458,7 +458,7 @@ namespace Loci {
   */
   std::list<comm_info> sort_comm_map(variableSet vset,
                                      const  std::map<variable, std::list<comm_info> >& clist_m,
-                                     fact_db& facts,
+                                     gfact_db& facts,
                                      sched_db::list_type e){
     
     
@@ -537,7 +537,7 @@ namespace Loci {
     return clist ;
   }
 
-  std::list<comm_info> sched_db::get_comm_info_list(variableSet eset, fact_db& facts, list_type e) const{
+  std::list<comm_info> sched_db::get_comm_info_list(variableSet eset, gfact_db& facts, list_type e) const{
     list<comm_info> re;
     if(e==BARRIER_CLIST){
       re =  sort_comm_map(eset, barrier_clist_map, facts, e);

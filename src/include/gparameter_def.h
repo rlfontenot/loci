@@ -31,10 +31,9 @@
 #include <mpi.h>
 #include <Tools/debug.h>
 #include <gstore_rep.h>
-#include <distribute.h>
 #include <data_traits.h>
 #include <distribute_long.h>
-#include <partition.h>
+#include <gkeyspace.h>
 #include <string>
 namespace Loci {
   
