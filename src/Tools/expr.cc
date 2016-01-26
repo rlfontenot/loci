@@ -2744,11 +2744,11 @@ namespace Loci {
         warn(expr_list.size() != 2) ;
         s += '(';
 
-        exprList::const_iterator func = expr_list.begin() ;
+        //exprList::const_iterator func = expr_list.begin() ;
         //(*func)->Print(s) ;
         s += ')' ;
 
-        exprList::const_iterator brace = ++func ;
+	//        exprList::const_iterator brace = ++func ;
         s += "{" ;
         //(*brace)->Print(s) ;
         s += "}" ;

@@ -2446,69 +2446,70 @@ namespace Loci{
  
     // this function transposes the passed in vector<entitySet>
     // by an all to all personalized communication
-    vector<entitySet>
-    transpose_vector_entitySet(const vector<entitySet>& in) {
-      // first compute the send count and displacement
-      int* send_counts = new int[MPI_processes] ;
-      for(int i=0;i<MPI_processes;++i)
-        send_counts[i] = in[i].size() ;
-      int* send_displs = new int[MPI_processes] ;
-      send_displs[0] = 0 ;
-      for(int i=1;i<MPI_processes;++i)
-        send_displs[i] = send_displs[i-1] + send_counts[i-1] ;
-      // then communicate this get the recv info.
-      int* recv_counts = new int[MPI_processes] ;
-      MPI_Alltoall(send_counts, 1, MPI_INT,
-                   recv_counts, 1, MPI_INT, MPI_COMM_WORLD) ;
-      int* recv_displs = new int[MPI_processes] ;
-      recv_displs[0] = 0 ;
-      for(int i=1;i<MPI_processes;++i)
-        recv_displs[i] = recv_displs[i-1] + recv_counts[i-1] ;
-      // all info. gathered, ready to do MPI_Alltoallv
-      // first pack data into a raw buffer.
-      int buf_size = 0 ;
-      for(int i=0;i<MPI_processes;++i)
-        buf_size += send_counts[i] ;
-      int* send_buf = new int[buf_size] ;
-      int buf_idx = 0 ;
-      for(int i=0;i<MPI_processes;++i) {
-        const entitySet& eset = in[i] ;
-        for(entitySet::const_iterator ei=eset.begin();
-            ei!=eset.end();++ei,++buf_idx)
-          send_buf[buf_idx] = *ei ;
-      }
-      // allocate receive buffer
-      int recv_size = 0 ;
-      for(int i=0;i<MPI_processes;++i)
-        recv_size += recv_counts[i] ;
-      int* recv_buf = new int[recv_size] ;
-      // communicate
-      MPI_Alltoallv(send_buf, send_counts,
-                    send_displs, MPI_INT,
-                    recv_buf, recv_counts,
-                    recv_displs, MPI_INT, MPI_COMM_WORLD) ;
-      delete[] send_counts ;
-      delete[] send_displs ;
-      delete[] recv_counts ;
-      delete[] send_buf ;
-      // unpack recv buffer into a vector of entitySet
-      vector<entitySet> out(MPI_processes) ;    
-      int k = 0 ;
-      for(int i=0;i<MPI_processes;++i) {
-        int limit ;
-        if(i == MPI_processes-1)
-          limit = recv_size ;
-        else
-          limit = recv_displs[i+1] ;
-        for(;k<limit;++k)
-          out[i] += recv_buf[k] ;
-      }
-      delete[] recv_displs ;
-      delete[] recv_buf ;
+    // UNUSED
+//     vector<entitySet>
+//     transpose_vector_entitySet(const vector<entitySet>& in) {
+//       // first compute the send count and displacement
+//       int* send_counts = new int[MPI_processes] ;
+//       for(int i=0;i<MPI_processes;++i)
+//         send_counts[i] = in[i].size() ;
+//       int* send_displs = new int[MPI_processes] ;
+//       send_displs[0] = 0 ;
+//       for(int i=1;i<MPI_processes;++i)
+//         send_displs[i] = send_displs[i-1] + send_counts[i-1] ;
+//       // then communicate this get the recv info.
+//       int* recv_counts = new int[MPI_processes] ;
+//       MPI_Alltoall(send_counts, 1, MPI_INT,
+//                    recv_counts, 1, MPI_INT, MPI_COMM_WORLD) ;
+//       int* recv_displs = new int[MPI_processes] ;
+//       recv_displs[0] = 0 ;
+//       for(int i=1;i<MPI_processes;++i)
+//         recv_displs[i] = recv_displs[i-1] + recv_counts[i-1] ;
+//       // all info. gathered, ready to do MPI_Alltoallv
+//       // first pack data into a raw buffer.
+//       int buf_size = 0 ;
+//       for(int i=0;i<MPI_processes;++i)
+//         buf_size += send_counts[i] ;
+//       int* send_buf = new int[buf_size] ;
+//       int buf_idx = 0 ;
+//       for(int i=0;i<MPI_processes;++i) {
+//         const entitySet& eset = in[i] ;
+//         for(entitySet::const_iterator ei=eset.begin();
+//             ei!=eset.end();++ei,++buf_idx)
+//           send_buf[buf_idx] = *ei ;
+//       }
+//       // allocate receive buffer
+//       int recv_size = 0 ;
+//       for(int i=0;i<MPI_processes;++i)
+//         recv_size += recv_counts[i] ;
+//       int* recv_buf = new int[recv_size] ;
+//       // communicate
+//       MPI_Alltoallv(send_buf, send_counts,
+//                     send_displs, MPI_INT,
+//                     recv_buf, recv_counts,
+//                     recv_displs, MPI_INT, MPI_COMM_WORLD) ;
+//       delete[] send_counts ;
+//       delete[] send_displs ;
+//       delete[] recv_counts ;
+//       delete[] send_buf ;
+//       // unpack recv buffer into a vector of entitySet
+//       vector<entitySet> out(MPI_processes) ;    
+//       int k = 0 ;
+//       for(int i=0;i<MPI_processes;++i) {
+//         int limit ;
+//         if(i == MPI_processes-1)
+//           limit = recv_size ;
+//         else
+//           limit = recv_displs[i+1] ;
+//         for(;k<limit;++k)
+//           out[i] += recv_buf[k] ;
+//       }
+//       delete[] recv_displs ;
+//       delete[] recv_buf ;
 
-      return out ;
-    }
-    // end of unnamed namespace
+//       return out ;
+//     }
+//     // end of unnamed namespace
   }
   
  

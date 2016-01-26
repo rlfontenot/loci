@@ -701,85 +701,89 @@ namespace Loci {
       return finalSched ;
     }
 
-    //special depth first scheduling
-    typedef enum {WHITE, GRAY, BLACK} vertex_color ;
-    // depth first visit and topo sort
-    void dfs_visit(const digraph& dag, int_type v,
-                   map<int_type,vertex_color>& vc,
-                   deque<int_type>& sched) {
-      vc[v] = GRAY ;
-      digraph::vertexSet next = dag[v] ;
+    // UNUSED
+//     //special depth first scheduling
+//     typedef enum {WHITE, GRAY, BLACK} vertex_color ;
+//     // depth first visit and topo sort
+//     void dfs_visit(const digraph& dag, int_type v,
+//                    map<int_type,vertex_color>& vc,
+//                    deque<int_type>& sched) {
+//       vc[v] = GRAY ;
+//       digraph::vertexSet next = dag[v] ;
 
-      // findout all the delete rules
-      ruleSet rules = extract_rules(next) ;
-      digraph::vertexSet delrules ;
-      for(ruleSet::const_iterator ri=rules.begin();
-          ri!=rules.end();++ri)
-        if(ri->get_info().qualifier() == "DELETE") {
-          delrules += ri->ident() ;
-          next -= ri->ident() ;
-        }
+//       // findout all the delete rules
+//       ruleSet rules = extract_rules(next) ;
+//       digraph::vertexSet delrules ;
+//       for(ruleSet::const_iterator ri=rules.begin();
+//           ri!=rules.end();++ri)
+//         if(ri->get_info().qualifier() == "DELETE") {
+//           delrules += ri->ident() ;
+//           next -= ri->ident() ;
+//         }
       
-      map<int_type,vertex_color>::const_iterator cfound ;
+//       map<int_type,vertex_color>::const_iterator cfound ;
 
-      // first schedule delete rules
-      for(digraph::vertexSet::const_iterator vi=delrules.begin();
-          vi!=delrules.end();++vi) {
-        cfound = vc.find(*vi) ;
-        FATAL(cfound == vc.end()) ;
-        if(cfound->second == WHITE)
-          dfs_visit(dag,*vi,vc,sched) ;
-      }      
+//       // first schedule delete rules
+//       for(digraph::vertexSet::const_iterator vi=delrules.begin();
+//           vi!=delrules.end();++vi) {
+//         cfound = vc.find(*vi) ;
+//         FATAL(cfound == vc.end()) ;
+//         if(cfound->second == WHITE)
+//           dfs_visit(dag,*vi,vc,sched) ;
+//       }      
 
-      // then schedule the rest
-      for(digraph::vertexSet::const_iterator vi=next.begin();
-          vi!=next.end();++vi) {
-        cfound = vc.find(*vi) ;
-        FATAL(cfound == vc.end()) ;
-        if(cfound->second == WHITE)
-          dfs_visit(dag,*vi,vc,sched) ;
-      }
-      vc[v] = BLACK ;
-      sched.push_front(v) ;
-    }
+//       // then schedule the rest
+//       for(digraph::vertexSet::const_iterator vi=next.begin();
+//           vi!=next.end();++vi) {
+//         cfound = vc.find(*vi) ;
+//         FATAL(cfound == vc.end()) ;
+//         if(cfound->second == WHITE)
+//           dfs_visit(dag,*vi,vc,sched) ;
+//       }
+//       vc[v] = BLACK ;
+//       sched.push_front(v) ;
+//     }
     
+    // UNUSED
     // topologically sort a dag
-    vector<digraph::vertexSet> dfs_sched(const digraph& dag) {
-      deque<int_type> sched ;
-      digraph::vertexSet allv = dag.get_all_vertices();
-      map<int_type,vertex_color> vcolor ;
-      for(digraph::vertexSet::const_iterator vi=allv.begin();
-          vi!=allv.end();++vi)
-        vcolor[*vi] = WHITE ;
+//     vector<digraph::vertexSet> dfs_sched(const digraph& dag) {
+//       deque<int_type> sched ;
+//       digraph::vertexSet allv = dag.get_all_vertices();
+//       map<int_type,vertex_color> vcolor ;
+//       for(digraph::vertexSet::const_iterator vi=allv.begin();
+//           vi!=allv.end();++vi)
+//         vcolor[*vi] = WHITE ;
 
-      map<int_type,vertex_color>::const_iterator cfound ;
-      for(digraph::vertexSet::const_iterator vi=allv.begin();
-          vi!=allv.end();++vi) {
-        cfound = vcolor.find(*vi) ;
-        FATAL(cfound == vcolor.end()) ;
-        if(cfound->second == WHITE)
-          dfs_visit(dag,*vi,vcolor,sched) ;
-      }
+//       map<int_type,vertex_color>::const_iterator cfound ;
+//       for(digraph::vertexSet::const_iterator vi=allv.begin();
+//           vi!=allv.end();++vi) {
+//         cfound = vcolor.find(*vi) ;
+//         FATAL(cfound == vcolor.end()) ;
+//         if(cfound->second == WHITE)
+//           dfs_visit(dag,*vi,vcolor,sched) ;
+//       }
 
-      vector<digraph::vertexSet> ret_sched ;
-      for(deque<int_type>::size_type i=0;i!=sched.size();++i) {
-        digraph::vertexSet step ;
-        step += sched[i] ;
-        ret_sched.push_back(step) ;
-      }
+//       vector<digraph::vertexSet> ret_sched ;
+//       for(deque<int_type>::size_type i=0;i!=sched.size();++i) {
+//         digraph::vertexSet step ;
+//         step += sched[i] ;
+//         ret_sched.push_back(step) ;
+//       }
 
-      return ret_sched ;
-    }
+//       return ret_sched ;
+//     }
     
-    void print_schedule(const vector<digraph::vertexSet>& sched) {
-      vector<digraph::vertexSet>::const_iterator vi ;
-      int step = 0 ;
-      for(vi=sched.begin();vi!=sched.end();++vi,++step) {
-        cout << "step " << step << ": " << endl ;
-        cout << "\tvars:  " << extract_vars(*vi) << endl ;
-        cout << "\trules: " << extract_rules(*vi) << endl ;
-      }
-    }
+
+// UNUSED
+//     void print_schedule(const vector<digraph::vertexSet>& sched) {
+//       vector<digraph::vertexSet>::const_iterator vi ;
+//       int step = 0 ;
+//       for(vi=sched.begin();vi!=sched.end();++vi,++step) {
+//         cout << "step " << step << ": " << endl ;
+//         cout << "\tvars:  " << extract_vars(*vi) << endl ;
+//         cout << "\trules: " << extract_rules(*vi) << endl ;
+//       }
+//     }
     
   } // end of namespace
 
@@ -1168,20 +1172,21 @@ namespace Loci {
       return new_gr ;
     }
 
-    digraph::vertexSet get_reachable(const digraph& g, int v) {
-      digraph::vertexSet all ;
-      digraph::vertexSet nxt ; nxt += v ;
-      while(nxt != EMPTY) {
-        digraph::vertexSet tmp ;
-        for(digraph::vertexSet::const_iterator vi=nxt.begin();
-            vi!=nxt.end();++vi)
-          tmp += g[*vi] ;
-        tmp -= all ;
-        all += tmp ;
-        nxt = tmp ;
-      }
-      return all ;
-    }
+    // UNUSED
+//     digraph::vertexSet get_reachable(const digraph& g, int v) {
+//       digraph::vertexSet all ;
+//       digraph::vertexSet nxt ; nxt += v ;
+//       while(nxt != EMPTY) {
+//         digraph::vertexSet tmp ;
+//         for(digraph::vertexSet::const_iterator vi=nxt.begin();
+//             vi!=nxt.end();++vi)
+//           tmp += g[*vi] ;
+//         tmp -= all ;
+//         all += tmp ;
+//         nxt = tmp ;
+//       }
+//       return all ;
+//     }
     
   } // end of namespace (unnamed)
   

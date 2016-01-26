@@ -657,6 +657,8 @@ namespace Loci {
 	     << cmd << "')" << endl ;
     }
   }
+#ifdef EXPERIMENTAL
+  // UNUSED
   /////////////////////////////////////////////////////////////////////
   //experimental functions
   namespace {
@@ -713,6 +715,8 @@ namespace Loci {
     }
 
   }
+#endif
+
 
   void prune_graph(digraph& gr, variableSet& given,
                    const variableSet& target, fact_db& facts) {
