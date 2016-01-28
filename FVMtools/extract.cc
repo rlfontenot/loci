@@ -1027,7 +1027,7 @@ void volumePartDerivedVars::processDerivedVars(const vector<string> &vars) {
 }
 volumePartDerivedVars::volumePartDerivedVars(volumePartP part,
 					     string output_dir, 
-					     string iteration, string casename,
+					     string casename, string iteration,
 					     vector<string> vars) {
   error = part->fail() ;
   partName = part->getPartName() ;
@@ -1056,7 +1056,10 @@ volumePartDerivedVars::volumePartDerivedVars(volumePartP part,
     Loci::readContainer(file_id,"Pambient",Pamb.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
     Pambient = *Pamb ;
+  } else {
+    cerr << "Unable to open file " << filename << endl ;
   }
+	  
   processDerivedVars(vars) ;
 }
 
@@ -1728,6 +1731,8 @@ surfacePartDerivedVars::surfacePartDerivedVars(surfacePartP part,
     Loci::readContainer(file_id,"Pambient",Pamb.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
     Pambient = *Pamb ;
+  } else { 
+    cerr << "unable to open " << filename << endl ;
   }
   processDerivedVars(vars) ;
 }
