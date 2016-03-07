@@ -2151,8 +2151,9 @@ particlePart::particlePart(string output_dir, string iteration, string casename,
   stride_size = 1 ;
   if(maxparticles > 0) {
     stride_size = numParticles/maxparticles ;
+    stride_size = max(stride_size,1) ;
     int num_blocks = numParticles/stride_size ;
-    numParticles = num_blocks*stride_size ;
+    numParticles = num_blocks ; //*stride_size ;
   }  
   for(size_t i=0;i<vars.size();++i) {
     string varname = vars[i] ;
