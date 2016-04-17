@@ -69,6 +69,8 @@ namespace Loci {
     {"K","kelvin",1},
     {"A","ampere",1},
     {"mol","mole",1},
+    {"kmol","mole",1000},
+    {"kmole","mole",1000},
     {"cd","candela",1},
 
     //metric system
