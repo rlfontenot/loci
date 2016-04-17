@@ -18,6 +18,7 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
+//#define VERBOSE
 #include <Loci>
 #include <LociGridReaders.h>
 #include <Tools/tools.h>
@@ -102,14 +103,14 @@ namespace Loci{
     return newnum.Rep() ;
   }
 
-
   //return a map from local numbering to output file numbering
   //the file number starts with 1
   //input: nodes : the local store domain need to be output,
-  //assume nodes will be written out in the global ordering.   
+  //assume nodes will be written out in the global ordering.  
+
   storeRepP get_output_node_remap(fact_db &facts,entitySet nodes) {
-   
-    if(MPI_processes == 1) {
+    int p = MPI_processes ;
+    if(p == 1) {
       int index = 1;
       
       Map nm ;
@@ -120,26 +121,105 @@ namespace Loci{
       return nm.Rep() ;
     }
     
-    vector<entitySet> init_ptn = facts.get_init_ptn() ;
+    // when working in parallel we will have data scattered over
+    // processors, so we will have to sort this data in a distributed
+    // fashion in order to find the file numbering of the condensed
+    // global numbered set
     fact_db::distribute_infoP df = facts.get_distribute_info() ;
     Map l2g ;
     l2g = df->l2g.Rep() ;
     
+    // gnodes is the global numbering for entities that this processor
+    // references (because it is the result of an image, there will
+    // be duplicates).  We map to the global numbering since this will
+    // match the ordering of the vector write routines
     entitySet gnodes = l2g.image(nodes&l2g.domain()) ;
     if(nodes.size() != gnodes.size()){
       debugout<<"ERROR: l2g.domain is smaller than  dom in get_output_node_remap " << endl;
     }
+    // extract a sorted list of global entities accessed by this processor
+    int gsz = gnodes.size() ;
+    vector<int> gnodelistg(gsz) ;
+    int cnt = 0 ;
+    FORALL(gnodes,ii) {
+      gnodelistg[cnt] = ii ;
+      cnt++ ;
+    } ENDFORALL ;
+    if(cnt != gsz) {
+      cerr << "cnt=" << cnt << "gsz=" << gsz << endl ;
+    }
+    // form a partition of the global numbered entities across processors
+    int lmaxnode = gnodes.Max() ;
+    int lminnode = gnodes.Min() ;
+    int maxnode,minnode ;
+    MPI_Allreduce(&lmaxnode,&maxnode,1,MPI_INT,MPI_MAX,MPI_COMM_WORLD) ;
+    MPI_Allreduce(&lminnode,&minnode,1,MPI_INT,MPI_MIN,MPI_COMM_WORLD) ;
+    int delta = max((1+maxnode-minnode)/p,1) ;
+    // find out what processor owns each entity
+    vector<int> sendsz(p,0) ;
+    for(int i=0;i<gsz;++i) {
+      int proc = min((gnodelistg[i]-minnode)/delta,p-1) ;
+      sendsz[proc]++ ;
+    }
+    // transpose sendsz to find out how much each processor partition recvs
+    vector<int> recvsz(p,0) ;
+    MPI_Alltoall(&sendsz[0],1,MPI_INT,&recvsz[0],1,MPI_INT,MPI_COMM_WORLD) ;
+    // setup recv buffers to communicate data
+    int recvbufsz = 0; 
+    for(int i=0;i<MPI_processes;++i)
+      recvbufsz+= recvsz[i] ;
+    vector<int> rdispls(p),sdispls(p) ;
+    rdispls[0] = 0 ;
+    sdispls[0] = 0 ;
+    for(int i=1;i<p;++i) {
+      rdispls[i] = rdispls[i-1]+recvsz[i-1] ;
+      sdispls[i] = sdispls[i-1]+sendsz[i-1] ;
+    }
+    vector<int> recvdata(recvbufsz) ;
+    MPI_Alltoallv(&gnodelistg[0],&sendsz[0],&sdispls[0],MPI_INT,
+		  &recvdata[0],&recvsz[0],&rdispls[0],MPI_INT,
+		  MPI_COMM_WORLD) ;
+    // Now sort a copy of the recieved data so the local data is in order
+    // and duplicates are removed
+    vector<int> recvdatac = recvdata ;
+    sort(recvdatac.begin(),recvdatac.end()) ;
+    vector<int>::iterator last = std::unique(recvdatac.begin(),
+					     recvdatac.end()) ;
+    recvdatac.erase(last,recvdatac.end()) ;
+    // now calculate the starting index for each processor
+    int ssz = recvdatac.size() ;
+    vector<int> sortsz(p) ;
+    int roff = 0 ;
+    MPI_Scan(&ssz,&roff,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD) ;
+    // adjust roff so that it is the count at the beginning of this
+    // processors segment
+    roff -= ssz ;
+    // we are numbering the first entry with 1
+    roff += 1 ;
+    // Now compute a map from our global numbering to the file numbering
+    // which is contiguously numbered from 1
+    entitySet fdom = interval(recvdatac[0],recvdatac[ssz-1]) ;
+    Map filemap ;
+    filemap.allocate(fdom) ;
+    for(int i=0;i<ssz;++i)
+      filemap[recvdatac[i]] = i+roff ;
+    // Now send back the file numbering
+    vector<int> filenosend(recvbufsz,-1) ;
+    for(int i=0;i<recvbufsz;++i) 
+      filenosend[i] = filemap[recvdata[i]] ;
+    vector<int> gnodefnum(gnodelistg.size(),-1) ;
+    // note now recvsz is sending and sendsz is recving
+    MPI_Alltoallv(&filenosend[0],&recvsz[0],&rdispls[0],MPI_INT,
+		  &gnodefnum[0],&sendsz[0],&sdispls[0],MPI_INT,
+		  MPI_COMM_WORLD) ;
+
+    // now create global 2 file map by extracting data from gnodefnum
+    std::map<int,int> g2f;
+    for(size_t i=0;i<gnodelistg.size();++i)  {
+      g2f[gnodelistg[i]] = gnodefnum[i] ;
+    }
     
-    entitySet gset = all_collect_entitySet(gnodes) ;
-    Map g2f;
-    g2f.allocate(gset);
-    
-    
-    int index = 1; //node index starts with 1
-    FORALL(gset, n){
-      g2f[n] = index++;
-    }ENDFORALL;
-    
+    // join the two maps to get local 2 file mapping
     Map newnum ;
     newnum.allocate(nodes) ;
 
@@ -148,7 +228,6 @@ namespace Loci{
     } ENDFORALL ;
    
     return newnum.Rep() ;
-    
   }
   
   int classify_cell(Entity *faces,int nfaces,const_multiMap &face2node) {
@@ -878,6 +957,12 @@ namespace Loci{
                          storeRepP face2nodeRep,
                          entitySet bfaces,//boundary faces define this surface 
                          fact_db &facts ){ 
+#ifdef VERBOSE
+    debugout << "writing out boundary surface topology" << endl ;
+    stopWatch s ;
+    s.start() ;
+#endif
+
     const_multiMap face2node(face2nodeRep) ;
 
     //collect the local boundary nodes belong to this boundary
@@ -887,6 +972,10 @@ namespace Loci{
     Map node_remap ;
     node_remap = get_output_node_remap(facts, nodes_local) ;
 
+#ifdef VERBOSE
+    debugout << "time to get_output_node_remap = " << s.stop() << endl ;
+    s.start() ;
+#endif
     // Compute face reordering for topo sorting
     store<int> faceorder ;
     faceorder.allocate(bfaces) ;
@@ -946,7 +1035,10 @@ namespace Loci{
       }
     } ENDFORALL ;
     
-      
+#ifdef VERBOSE
+    debugout << "time to generate topology datasets = " << s.stop() << endl ;
+    s.start() ;
+#endif
     //write out vectors
     writeUnorderedVector(file_id,"triangles",Trias) ;
     writeUnorderedVector(file_id,"triangles_ord",tria_ids) ;
@@ -956,6 +1048,10 @@ namespace Loci{
     writeUnorderedVector(file_id,"nside_sizes",nsizes) ;
     writeUnorderedVector(file_id,"nside_nodes",nsidenodes) ;
     writeUnorderedVector(file_id,"nside_ord",genc_ids) ;
+#ifdef VERBOSE
+    debugout << "time to write unordered vectors = " << s.stop() << endl ;
+    debugout << "finished writing boundary topology" << endl ;
+#endif
   }
       
   //this function find the index of an inner edge.
@@ -1243,10 +1339,18 @@ namespace Loci{
   void writeCutPlaneTopo(hid_t bc_id,
                          const CutPlane& cp,
                          fact_db &facts){ 
+#ifdef VERBOSE
+    debugout << "write cutPlaneTopology" << endl ;
+    stopWatch s ;
+    s.start() ;
+#endif
     Map node_remap;//map from local numbering to output file numbering for edge entities
     entitySet edgesCut = (cp.edgesWeight)->domain();
     node_remap = get_output_node_remap(facts, edgesCut);
-    
+#ifdef VERBOSE
+    debugout << "time to get remap = " << s.stop() << endl ;
+    s.start() ;
+#endif
    
     //write out the sizes of faceLoops  
     int num_faces = cp.faceLoops.size();
@@ -1268,6 +1372,9 @@ namespace Loci{
       }
     }
     writeUnorderedVector(bc_id,"nside_nodes",nsidenodes) ;
+#ifdef VERBOSE
+    debugout << "time to write cut plane topology=" << s.stop() << endl ;
+#endif
   }
   
   namespace {
