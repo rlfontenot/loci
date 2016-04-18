@@ -154,7 +154,7 @@ namespace Loci{
     int maxnode,minnode ;
     MPI_Allreduce(&lmaxnode,&maxnode,1,MPI_INT,MPI_MAX,MPI_COMM_WORLD) ;
     MPI_Allreduce(&lminnode,&minnode,1,MPI_INT,MPI_MIN,MPI_COMM_WORLD) ;
-    int delta = max((1+maxnode-minnode)/p,1) ;
+    int delta = max((1+maxnode-minnode)/p,1024) ;
     // find out what processor owns each entity
     vector<int> sendsz(p,0) ;
     for(int i=0;i<gsz;++i) {
@@ -198,9 +198,7 @@ namespace Loci{
     roff += 1 ;
     // Now compute a map from our global numbering to the file numbering
     // which is contiguously numbered from 1
-    entitySet fdom = interval(recvdatac[0],recvdatac[ssz-1]) ;
-    Map filemap ;
-    filemap.allocate(fdom) ;
+    std::map<int,int> filemap ;
     for(int i=0;i<ssz;++i)
       filemap[recvdatac[i]] = i+roff ;
     // Now send back the file numbering
