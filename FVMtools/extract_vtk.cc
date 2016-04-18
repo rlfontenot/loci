@@ -52,7 +52,7 @@ bool vtkSurfacePartConverter::processesSurfaceElements() const {
   return true ;
 }
 bool vtkSurfacePartConverter::processesParticleElements() const {
-  return false ;
+  return true ;
 }
 
 void vtkSurfacePartConverter::exportPostProcessorFiles(string casename, string iteration) const {
@@ -79,7 +79,6 @@ void vtkSurfacePartConverter::exportPostProcessorFiles(string casename, string i
     long long unsigned int npnts, ncells;
     
     long long unsigned int elem_offset;
-    int part_index;
     
     vector<int> elem_ids ;
     vector<int> elem_conn ;
@@ -97,7 +96,6 @@ void vtkSurfacePartConverter::exportPostProcessorFiles(string casename, string i
     vector<float>  position;
     int int_size;
     
-    part_index = 0;
     npnts = 0; ncells = 0; elem_offset = 0;
     int_size = bit64 ? sizeof(long long unsigned int) : sizeof(int);
   
@@ -322,6 +320,7 @@ void vtkSurfacePartConverter::exportPostProcessorFiles(string casename, string i
 
 
     fprintf(fid,"      <CellData>\n");
+    
     for (long long unsigned int i=0;i<(long long unsigned int)data_names.size();i++) { 
       int comp=-1;
       if      ( (int) data_size[i] ==     (int) ncells) comp = 1;
@@ -371,6 +370,123 @@ void vtkSurfacePartConverter::exportPostProcessorFiles(string casename, string i
 
     fclose(fid);
   }
+  if(particlePartList.size() > 0) {
+    int npnts = 0 ;
+    for(size_t i=0;i<particlePartList.size();++i)
+      npnts += particlePartList[i]->getNumParticles() ;
+    unsigned long long int nP = npnts ;
+    set<string> particle_scalars ;
+    set<string> particle_vectors ;
+    for(size_t i=0;i<particlePartList.size();++i) {
+      vector<string> nscalars = particlePartList[i]->getScalarVars() ;
+      for(size_t j=0;j<nscalars.size();++j) {
+	particle_scalars.insert(nscalars[j]) ;
+      }
+      vector<string> nvectors = particlePartList[i]->getVectorVars() ;
+      for(size_t j=0;j<nvectors.size();++j) {
+	particle_vectors.insert(nvectors[j]) ;
+      }    
+    }
+
+
+    string filename = dirname + "/vtk_particle_"+casename+"_"+iteration+".vtu" ;
+    FILE *fid = fopen(filename.c_str(),"w");
+    fprintf(fid,"<?xml version='1.0'?>\n");
+    fprintf(fid,"<VTKFile type='UnstructuredGrid' version='0.1' byte_order='LittleEndian'>\n");
+    fprintf(fid,"  <UnstructuredGrid>\n");
+    unsigned long long Offset = 0;
+    fprintf(fid,"    <Piece NumberOfPoints='%llu' NumberOfCells='%llu'>\n",nP,nP);
+    fprintf(fid,"      <Points>\n");
+    fprintf(fid,"        <DataArray type='Float32' Name='Position' NumberOfComponents='3' format='appended' offset='%llu'/>\n",Offset);
+    fprintf(fid,"      </Points>\n");
+    fprintf(fid,"      <Cells>\n");
+    int int_size = sizeof(unsigned int);
+    long long unsigned int node_size = (long long unsigned int)nP;
+    Offset += 3 * nP * sizeof(float) + int_size ;
+    fprintf(fid,"        <DataArray type='Int32' Name='connectivity' NumberOfComponents='1' format='appended' offset='%llu'/>\n",Offset);
+    Offset += node_size * sizeof (int) + int_size ;
+    fprintf(fid,"        <DataArray type='Int32' Name='offsets' NumberOfComponents='1' format='appended' offset='%llu'/>\n",Offset);
+    Offset += nP * sizeof (int) + int_size ;
+    fprintf(fid,"        <DataArray type='UInt8' Name='types' NumberOfComponents='1' format='appended' offset='%llu'/>\n",Offset);
+    Offset += nP * sizeof (unsigned char) + int_size ;
+    fprintf(fid,"      </Cells>\n");
+    fprintf(fid,"      <PointData>\n");
+    set<string>::const_iterator si ;
+    for(si=particle_scalars.begin();si!=particle_scalars.end();++si) {
+      string name = *si ;
+      int comp=1 ;
+      fprintf(fid,"        <DataArray type='Float32' Name='%s' NumberOfComponents='%d' format='appended' offset='%llu'/>\n",name.c_str(),comp,Offset) ;
+      Offset += comp * nP * sizeof (float) + int_size; 
+    }
+
+    for(si=particle_vectors.begin();si!=particle_vectors.end();++si) {
+      string name = *si ;
+      int comp=3 ;
+      fprintf(fid,"        <DataArray type='Float32' Name='%s' NumberOfComponents='%d' format='appended' offset='%llu'/>\n",name.c_str(),comp,Offset) ;
+      Offset += comp * nP * sizeof (float) + int_size; 
+    }
+    fprintf(fid,"      </PointData>\n");
+    fprintf(fid,"    </Piece>\n");
+    fprintf(fid,"  </UnstructuredGrid>\n");
+    fprintf(fid,"  <AppendedData encoding='raw'>\n");
+    fprintf(fid,"_");
+    long long unsigned int Scalar = node_size * sizeof (float), Vector = 3 * Scalar;
+    long long unsigned int Cells = node_size * sizeof(int);
+    long long unsigned int CellChars = node_size * sizeof(unsigned char);
+    long long unsigned int Conn = node_size * sizeof(int);
+    fwrite((const char *) (&Vector), int_size, 1, fid) ;
+    for(size_t j=0;j<particlePartList.size();++j) {
+      vector<vector3d<float> > ppos ;
+      particlePartList[j]->getParticlePositions(ppos) ;
+      fwrite((const char *)(&ppos[0]),sizeof(float),3*ppos.size(),fid) ;
+    }
+    
+    //    fwrite((const char *) (&position[0]), sizeof (float), 3*nP, fid) ;
+    fwrite((const char *) (&Conn), int_size, 1, fid) ;
+    for(unsigned long long int i=0;i<nP;++i) 
+      fwrite((const char *) (&i), sizeof (int), 1, fid) ;
+    
+    fwrite((const char *) (&Cells), int_size, 1, fid) ;
+    for(unsigned long long int i=0;i<nP;++i) {
+      int off = i+1;
+      fwrite((const char *) (&off), sizeof (int), 1, fid) ;
+    }
+    fwrite((const char *) (&CellChars), int_size, 1, fid) ;
+    unsigned char type = 1;
+    
+    for(unsigned long long int i=0;i<nP;++i) {
+      fwrite((const char *) (&type), sizeof (unsigned char), 1, fid) ;
+    }
+  
+    for(si=particle_scalars.begin();si!=particle_scalars.end();++si) {
+      string name = *si ;
+      int comp=1 ;
+      long long unsigned int ndata_size = nP*sizeof(float)*comp ;
+      fwrite((const char *) (&ndata_size), int_size, 1, fid) ;
+      for(size_t i=0;i<particlePartList.size();++i) {
+	int np = particlePartList[i]->getNumParticles() ;
+	vector<float> val(np,0) ;
+	particlePartList[i]->getParticleScalar(name,val) ;
+	fwrite(&val[0],sizeof(float),np*comp,fid) ;
+      }
+    }
+    for(si=particle_vectors.begin();si!=particle_vectors.end();++si) {
+      string name = *si ;
+      int comp=3 ;
+      long long unsigned int ndata_size = nP*sizeof(float)*comp ;
+      fwrite((const char *) (&ndata_size), int_size, 1, fid) ;
+      for(size_t i=0;i<particlePartList.size();++i) {
+	int np = particlePartList[i]->getNumParticles() ;
+	vector<vector3d<float> > val(np,vector3d<float>(0,0,0)) ;
+	particlePartList[i]->getParticleVector(name,val) ;
+	fwrite(&val[0],sizeof(float),np*comp,fid) ;
+      }
+    }
+
+    fprintf(fid,"  </AppendedData>\n");
+    fprintf(fid,"</VTKFile>\n");
+    fclose(fid);
+  }
 }
 
 bool vtkPartConverter::processesVolumeElements() const {
@@ -380,7 +496,7 @@ bool vtkPartConverter::processesSurfaceElements() const {
   return true ;
 }
 bool vtkPartConverter::processesParticleElements() const {
-  return false ;
+  return true ;
 }
 
 void vtkPartConverter::exportPostProcessorFiles(string casename, string iteration) const {
@@ -958,7 +1074,6 @@ void vtkPartConverter::exportPostProcessorFiles(string casename, string iteratio
     long long unsigned int npnts, ncells;
     
     long long unsigned int elem_offset;
-    int part_index;
     
     vector<int> elem_ids ;
     vector<int> elem_conn ;
@@ -976,7 +1091,6 @@ void vtkPartConverter::exportPostProcessorFiles(string casename, string iteratio
     vector<float>  position;
     int int_size;
     
-    part_index = 0;
     npnts = 0; ncells = 0; elem_offset = 0;
     int_size = bit64 ? sizeof(long long unsigned int) : sizeof(int);
   
@@ -1250,5 +1364,121 @@ void vtkPartConverter::exportPostProcessorFiles(string casename, string iteratio
 
     fclose(fid);
   }
+  if(particlePartList.size() > 0) {
+    int npnts = 0 ;
+    for(size_t i=0;i<particlePartList.size();++i)
+      npnts += particlePartList[i]->getNumParticles() ;
+    unsigned long long int nP = npnts ;
+    set<string> particle_scalars ;
+    set<string> particle_vectors ;
+    for(size_t i=0;i<particlePartList.size();++i) {
+      vector<string> nscalars = particlePartList[i]->getScalarVars() ;
+      for(size_t j=0;j<nscalars.size();++j) {
+	particle_scalars.insert(nscalars[j]) ;
+      }
+      vector<string> nvectors = particlePartList[i]->getVectorVars() ;
+      for(size_t j=0;j<nvectors.size();++j) {
+	particle_vectors.insert(nvectors[j]) ;
+      }    
+    }
+
+
+    string filename = dirname+"/vtk_particle_"+casename+"_"+iteration+".vtu" ;
+    FILE *fid = fopen(filename.c_str(),"w");
+    fprintf(fid,"<?xml version='1.0'?>\n");
+    fprintf(fid,"<VTKFile type='UnstructuredGrid' version='0.1' byte_order='LittleEndian'>\n");
+    fprintf(fid,"  <UnstructuredGrid>\n");
+    unsigned long long Offset = 0;
+    fprintf(fid,"    <Piece NumberOfPoints='%llu' NumberOfCells='%llu'>\n",nP,nP);
+    fprintf(fid,"      <Points>\n");
+    fprintf(fid,"        <DataArray type='Float32' Name='Position' NumberOfComponents='3' format='appended' offset='%llu'/>\n",Offset);
+    fprintf(fid,"      </Points>\n");
+    fprintf(fid,"      <Cells>\n");
+    int int_size = sizeof(unsigned int);
+    long long unsigned int node_size = (long long unsigned int)nP;
+    Offset += 3 * nP * sizeof(float) + int_size ;
+    fprintf(fid,"        <DataArray type='Int32' Name='connectivity' NumberOfComponents='1' format='appended' offset='%llu'/>\n",Offset);
+    Offset += node_size * sizeof (int) + int_size ;
+    fprintf(fid,"        <DataArray type='Int32' Name='offsets' NumberOfComponents='1' format='appended' offset='%llu'/>\n",Offset);
+    Offset += nP * sizeof (int) + int_size ;
+    fprintf(fid,"        <DataArray type='UInt8' Name='types' NumberOfComponents='1' format='appended' offset='%llu'/>\n",Offset);
+    Offset += nP * sizeof (unsigned char) + int_size ;
+    fprintf(fid,"      </Cells>\n");
+    fprintf(fid,"      <PointData>\n");
+    set<string>::const_iterator si ;
+    for(si=particle_scalars.begin();si!=particle_scalars.end();++si) {
+      string name = *si ;
+      int comp=1 ;
+      fprintf(fid,"        <DataArray type='Float32' Name='%s' NumberOfComponents='%d' format='appended' offset='%llu'/>\n",name.c_str(),comp,Offset) ;
+      Offset += comp * nP * sizeof (float) + int_size; 
+    }
+
+    for(si=particle_vectors.begin();si!=particle_vectors.end();++si) {
+      string name = *si ;
+      int comp=3 ;
+      fprintf(fid,"        <DataArray type='Float32' Name='%s' NumberOfComponents='%d' format='appended' offset='%llu'/>\n",name.c_str(),comp,Offset) ;
+      Offset += comp * nP * sizeof (float) + int_size; 
+    }
+    fprintf(fid,"      </PointData>\n");
+    fprintf(fid,"    </Piece>\n");
+    fprintf(fid,"  </UnstructuredGrid>\n");
+    fprintf(fid,"  <AppendedData encoding='raw'>\n");
+    fprintf(fid,"_");
+    long long unsigned int Scalar = node_size * sizeof (float), Vector = 3 * Scalar;
+    long long unsigned int Cells = node_size * sizeof(int);
+    long long unsigned int CellChars = node_size * sizeof(unsigned char);
+    long long unsigned int Conn = node_size * sizeof(int);
+    fwrite((const char *) (&Vector), int_size, 1, fid) ;
+    for(size_t j=0;j<particlePartList.size();++j) {
+      vector<vector3d<float> > ppos ;
+      particlePartList[j]->getParticlePositions(ppos) ;
+      fwrite((const char *)(&ppos[0]),sizeof(float),3*ppos.size(),fid) ;
+    }
+    
+    //    fwrite((const char *) (&position[0]), sizeof (float), 3*nP, fid) ;
+    fwrite((const char *) (&Conn), int_size, 1, fid) ;
+    for(unsigned long long int i=0;i<nP;++i) 
+      fwrite((const char *) (&i), sizeof (int), 1, fid) ;
+    
+    fwrite((const char *) (&Cells), int_size, 1, fid) ;
+    for(unsigned long long int i=0;i<nP;++i) {
+      int off = i+1;
+      fwrite((const char *) (&off), sizeof (int), 1, fid) ;
+    }
+    fwrite((const char *) (&CellChars), int_size, 1, fid) ;
+    unsigned char type = 1;
+    
+    for(unsigned long long int i=0;i<nP;++i) {
+      fwrite((const char *) (&type), sizeof (unsigned char), 1, fid) ;
+    }
   
+    for(si=particle_scalars.begin();si!=particle_scalars.end();++si) {
+      string name = *si ;
+      int comp=1 ;
+      long long unsigned int ndata_size = nP*sizeof(float)*comp ;
+      fwrite((const char *) (&ndata_size), int_size, 1, fid) ;
+      for(size_t i=0;i<particlePartList.size();++i) {
+	int np = particlePartList[i]->getNumParticles() ;
+	vector<float> val(np,0) ;
+	particlePartList[i]->getParticleScalar(name,val) ;
+	fwrite(&val[0],sizeof(float),np*comp,fid) ;
+      }
+    }
+    for(si=particle_vectors.begin();si!=particle_vectors.end();++si) {
+      string name = *si ;
+      int comp=3 ;
+      long long unsigned int ndata_size = nP*sizeof(float)*comp ;
+      fwrite((const char *) (&ndata_size), int_size, 1, fid) ;
+      for(size_t i=0;i<particlePartList.size();++i) {
+	int np = particlePartList[i]->getNumParticles() ;
+	vector<vector3d<float> > val(np,vector3d<float>(0,0,0)) ;
+	particlePartList[i]->getParticleVector(name,val) ;
+	fwrite(&val[0],sizeof(float),np*comp,fid) ;
+      }
+    }
+
+    fprintf(fid,"  </AppendedData>\n");
+    fprintf(fid,"</VTKFile>\n");
+    fclose(fid);
+  }
 } 
