@@ -18,7 +18,7 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
-//#define VERBOSE
+#define VERBOSE
 #include <Loci>
 #include <LociGridReaders.h>
 #include <Tools/tools.h>
@@ -120,7 +120,10 @@ namespace Loci{
       } ENDFORALL ;
       return nm.Rep() ;
     }
-    
+#ifdef VERBOSE
+    stopWatch s ;
+    s.start() ;
+#endif
     // when working in parallel we will have data scattered over
     // processors, so we will have to sort this data in a distributed
     // fashion in order to find the file numbering of the condensed
@@ -138,9 +141,31 @@ namespace Loci{
       debugout<<"ERROR: l2g.domain is smaller than  dom in get_output_node_remap " << endl;
     }
     // extract a sorted list of global entities accessed by this processor
+#ifdef VERBOSE
+    debugout << "time to get gnodes = " << s.stop() << endl ;
+    s.start() ;
+#endif
     int gsz = gnodes.size() ;
+    int color = (gsz>0)?1:0 ;
+    MPI_Comm groupcomm ;
+    MPI_Comm_split(MPI_COMM_WORLD,color,p,&groupcomm) ;
+    if(color==0) {
+      MPI_Comm_free(&groupcomm) ;
+#ifdef VERBOSE
+    debugout << "time to split comm and return = " << s.stop() << endl ;
+    s.start() ;
+#endif
+      Map newnum ;
+      return newnum.Rep() ;
+    }
+#ifdef VERBOSE
+    debugout << "time to split comm = " << s.stop() << endl ;
+    s.start() ;
+#endif
+    MPI_Comm_size(groupcomm,&p) ;
     vector<int> gnodelistg(gsz) ;
     int cnt = 0 ;
+
     FORALL(gnodes,ii) {
       gnodelistg[cnt] = ii ;
       cnt++ ;
@@ -152,8 +177,8 @@ namespace Loci{
     int lmaxnode = gnodes.Max() ;
     int lminnode = gnodes.Min() ;
     int maxnode,minnode ;
-    MPI_Allreduce(&lmaxnode,&maxnode,1,MPI_INT,MPI_MAX,MPI_COMM_WORLD) ;
-    MPI_Allreduce(&lminnode,&minnode,1,MPI_INT,MPI_MIN,MPI_COMM_WORLD) ;
+    MPI_Allreduce(&lmaxnode,&maxnode,1,MPI_INT,MPI_MAX,groupcomm) ;
+    MPI_Allreduce(&lminnode,&minnode,1,MPI_INT,MPI_MIN,groupcomm) ;
     int delta = max((1+maxnode-minnode)/p,1024) ;
     // find out what processor owns each entity
     vector<int> sendsz(p,0) ;
@@ -161,12 +186,16 @@ namespace Loci{
       int proc = min((gnodelistg[i]-minnode)/delta,p-1) ;
       sendsz[proc]++ ;
     }
+#ifdef VERBOSE
+    debugout << "time to form partition = " << s.stop() << endl ;
+    s.start() ;
+#endif
     // transpose sendsz to find out how much each processor partition recvs
     vector<int> recvsz(p,0) ;
-    MPI_Alltoall(&sendsz[0],1,MPI_INT,&recvsz[0],1,MPI_INT,MPI_COMM_WORLD) ;
+    MPI_Alltoall(&sendsz[0],1,MPI_INT,&recvsz[0],1,MPI_INT,groupcomm) ;
     // setup recv buffers to communicate data
     int recvbufsz = 0; 
-    for(int i=0;i<MPI_processes;++i)
+    for(int i=0;i<p;++i)
       recvbufsz+= recvsz[i] ;
     vector<int> rdispls(p),sdispls(p) ;
     rdispls[0] = 0 ;
@@ -178,7 +207,12 @@ namespace Loci{
     vector<int> recvdata(recvbufsz) ;
     MPI_Alltoallv(&gnodelistg[0],&sendsz[0],&sdispls[0],MPI_INT,
 		  &recvdata[0],&recvsz[0],&rdispls[0],MPI_INT,
-		  MPI_COMM_WORLD) ;
+		  groupcomm) ;
+#ifdef VERBOSE
+    debugout << "distributed data local size = " << recvdata.size() << endl;
+    debugout << "time to distribute set data = " << s.stop() << endl ;
+    s.stop() ;
+#endif
     // Now sort a copy of the recieved data so the local data is in order
     // and duplicates are removed
     vector<int> recvdatac = recvdata ;
@@ -190,7 +224,7 @@ namespace Loci{
     int ssz = recvdatac.size() ;
     vector<int> sortsz(p) ;
     int roff = 0 ;
-    MPI_Scan(&ssz,&roff,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD) ;
+    MPI_Scan(&ssz,&roff,1,MPI_INT,MPI_SUM,groupcomm) ;
     // adjust roff so that it is the count at the beginning of this
     // processors segment
     roff -= ssz ;
@@ -209,7 +243,12 @@ namespace Loci{
     // note now recvsz is sending and sendsz is recving
     MPI_Alltoallv(&filenosend[0],&recvsz[0],&rdispls[0],MPI_INT,
 		  &gnodefnum[0],&sendsz[0],&sdispls[0],MPI_INT,
-		  MPI_COMM_WORLD) ;
+		  groupcomm) ;
+#ifdef VERBOSE
+    debugout << "time to return index = " << s.stop() << endl ;
+    s.start() ;
+#endif
+    MPI_Comm_free(&groupcomm) ;
 
     // now create global 2 file map by extracting data from gnodefnum
     std::map<int,int> g2f;
@@ -224,7 +263,9 @@ namespace Loci{
     FORALL(nodes,i) {
       newnum[i] = g2f[l2g[i]];
     } ENDFORALL ;
-   
+#ifdef VERBOSE
+    debugout << "time to form map = " << s.stop() << endl ;
+#endif
     return newnum.Rep() ;
   }
   
