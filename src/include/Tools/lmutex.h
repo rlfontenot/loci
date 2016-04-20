@@ -25,6 +25,7 @@
 
 #ifdef PTHREADS
 #include <pthread.h>
+#include <stdexcept>
 namespace Loci {
   // class lmutex {
   // public:
@@ -58,8 +59,13 @@ namespace Loci {
   class lmutex {
     pthread_spinlock_t m;
   public:
-    lmutex() { pthread_spin_init(&m,0); }
-    void lock() { pthread_spin_lock(&m); }
+    lmutex()
+    { 
+      if(pthread_spin_init(&m,PTHREAD_PROCESS_PRIVATE) != 0) {
+        throw std::runtime_error("pthread spin lock init failed");
+      }
+    }
+    void lock() {pthread_spin_lock(&m);}
     void unlock() { pthread_spin_unlock(&m); }
     ~lmutex() { pthread_spin_destroy(&m); }
   } ;

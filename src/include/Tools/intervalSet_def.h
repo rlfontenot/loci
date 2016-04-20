@@ -246,6 +246,7 @@ namespace Loci {
     T Max() const {
       size_t sz = Rep->size() ;
       return sz==0?UNIVERSE_MIN:(*Rep)[sz-1].second ;}
+    void make_unique() { Rep.MakeUnique(); }
   } ;
 
 
@@ -629,6 +630,7 @@ namespace Loci {
     void Print() const { Print(std::cout) ; }
 
     std::istream &Input(std::istream &s) ;
+    void make_unique() { Rep.MakeUnique(); }
   } ;
 
   template<typename T> inline genSequence<T> & operator+=(genSequence<T> &e, T ival) 

@@ -36,7 +36,7 @@ namespace Loci {
     mutable lmutex CPTR_mutex;
     //    CPTR_type *operator&() { warn(true) ; return 0 ; }
   public:
-    CPTR_type() {CPTR_count = 0 ;  }
+    CPTR_type() {CPTR_count = 0 ; }
     virtual ~CPTR_type() { warn(CPTR_count!=0) ; }
     void link() const  {
       CPTR_mutex.lock() ;
