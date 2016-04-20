@@ -61,7 +61,6 @@ namespace Loci {
   
   gMapRepI::gMapRepI(){
     sorted= true;
-    dom = GEMPTY;
     domain_space = 0;
     image_space = 0;
   }

@@ -102,7 +102,6 @@ namespace Loci {
   private:
     bool sorted; 
     gRep attrib_data;
-    gEntitySet dom;
     gKeySpaceP domain_space;
   private:
     int  get_mpi_size( IDENTITY_CONVERTER c, const gEntitySet &eset)const;
@@ -146,7 +145,7 @@ namespace Loci {
     size_t size() const{return attrib_data.size();}
     void reserve (size_t n){attrib_data.reserve(n);}
     void clear(){attrib_data.clear();}
-    gStoreRepI():sorted(true), dom(GEMPTY),domain_space(0){}
+    gStoreRepI():sorted(true),domain_space(0){}
     void set_domain_space(gKeySpaceP space){domain_space = space;}
     gKeySpaceP get_domain_space()const{return domain_space;}
     
@@ -207,18 +206,18 @@ namespace Loci {
     void insert(gEntity e, const T &val){
       sorted = false;
       attrib_data.push_back(std::pair<gEntity, T>(e, val));
-      dom += e;
     }
 
     void erase(iterator itr1, iterator itr2){
       attrib_data.erase(itr1, itr2);
-      set_domain();
     }
-    void set_domain(){
-      dom = GEMPTY;
+    gEntitySet domain()const{
+      gEntitySet dom = GEMPTY;
+      if(!sorted)const_cast<gStoreRepI&>(*this).local_sort();
       for(const_iterator itr = begin(); itr != end(); itr++){
         dom += itr->first;
       }
+      return dom;
     }
     void insert(const gEntitySet& seq,  const T* vals){
       sorted = false;
@@ -227,7 +226,6 @@ namespace Loci {
           itr!= seq.end(); itr++){
         attrib_data.push_back(std::pair<gEntity, T>(*itr, vals[idx++]));
       }
-      dom += seq;
     }
     
     void local_sort();
@@ -280,7 +278,7 @@ namespace Loci {
     virtual gstore_type RepType() const ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
-    virtual gEntitySet domain() const {return dom;}
+   
     virtual void* get_attrib_data() {return &attrib_data; }
     virtual const void* get_attrib_data() const{return &attrib_data; }
     virtual DatatypeP getType()const{

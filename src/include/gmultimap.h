@@ -39,7 +39,7 @@ namespace Loci {
   class gMultiMapRepI : public gMapRep {
     bool sorted;
     std::vector<std::pair<gEntity,gEntity> > attrib_data;
-    gEntitySet dom;
+    
     
     /**virtual domain, all elements in this domain are mapped to zero elements
      *This is needed when gMultiMaps such as lower, upper and boundary map are frozen into traditional multiMaps
@@ -62,7 +62,7 @@ namespace Loci {
     void local_sort();
     void remove_duplication();
     
-    gMultiMapRepI():sorted(true),dom(GEMPTY),vdom(GEMPTY),domain_space(0),image_space(0) {}
+    gMultiMapRepI():sorted(true),vdom(GEMPTY),domain_space(0),image_space(0) {}
     void set_vdom(gEntitySet vd){vdom = vd;}
     gEntitySet get_vdom(){ return vdom; }
     void set_domain_space(gKeySpaceP space){domain_space = space;}
@@ -103,7 +103,7 @@ namespace Loci {
     virtual void insert(gEntity e, gEntity val){
       sorted = false;
       attrib_data.push_back(std::pair<gEntity, gEntity>(e, val));
-      dom += e;
+      
     }
 
     virtual void insert(const gEntitySet& seq,  const gEntity* vals){
@@ -113,12 +113,19 @@ namespace Loci {
           itr!= seq.end(); itr++){
         attrib_data.push_back(std::pair<gEntity, gEntity>(*itr, vals[idx++]));
       }
-      dom += seq;
+     
     }
-
+    gEntitySet domain() const {
+      if(!sorted) const_cast<gMultiMapRepI&>(*this).local_sort();
+      gEntitySet dom = GEMPTY;
+      for(const_iterator itr = begin(); itr != end(); itr++){
+        dom += itr->first;
+      }
+      return dom;
+    } 
     //access methods
     virtual gstore_type RepType() const {return GMULTIMAP;}
-    virtual gEntitySet domain() const {return dom ;} 
+    
     virtual bool isSorted() const {return sorted;}
     virtual gEntitySet image(const gEntitySet &domain) const ;
     virtual gEntitySet image( gEntity domain) const ;

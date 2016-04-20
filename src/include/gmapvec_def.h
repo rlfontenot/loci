@@ -40,7 +40,7 @@ namespace Loci {
   template<unsigned int M> class gMapVecRepI : public gMapRep {
     bool sorted;
     std::vector<std::pair<gEntity,gEntity> > attrib_data;
-    gEntitySet dom;
+    
     gKeySpaceP domain_space;
     gKeySpaceP image_space;
   public:
@@ -57,7 +57,7 @@ namespace Loci {
     void clear(){attrib_data.clear();}
     void local_sort();
         
-    gMapVecRepI():sorted(true),dom(GEMPTY),domain_space(0),image_space(0) {}
+    gMapVecRepI():sorted(true),domain_space(0),image_space(0) {}
     
     void set_domain_space(gKeySpaceP space){domain_space = space;}
     gKeySpaceP get_domain_space()const{return domain_space;}
@@ -97,7 +97,7 @@ namespace Loci {
     virtual void insert(gEntity e, gEntity val){
       sorted = false;
       attrib_data.push_back(std::pair<gEntity, gEntity>(e, val));
-      dom += e;
+      
     }
 
     virtual void insert(const gEntitySet& seq,  const gEntity* vals){
@@ -107,11 +107,19 @@ namespace Loci {
           itr!= seq.end(); itr++){
         attrib_data.push_back(std::pair<gEntity, gEntity>(*itr, vals[idx++]));
       }
-      dom += seq;
+      
     }
-  
+    gEntitySet domain() const {
+      if(!sorted) const_cast<gMapVecRepI&>(*this).local_sort();
+      gEntitySet dom = GEMPTY;
+      for(const_iterator itr = begin(); itr != end(); itr++){
+        dom += itr->first;
+      }
+      return dom;
+    }
+      
     virtual gstore_type RepType() const {return GMAPVEC;}
-    virtual gEntitySet domain() const {return dom ;} 
+    
     virtual bool isSorted() const {return sorted;}
     virtual gEntitySet image(const gEntitySet &domain) const ;
     virtual gEntitySet image( gEntity domain) const ;

@@ -40,7 +40,7 @@ namespace Loci {
   class gMapRepI : public gMapRep {
     bool sorted;
     std::vector<std::pair<gEntity,gEntity> > attrib_data;
-    gEntitySet dom;
+   
     gKeySpace* domain_space;
     gKeySpace* image_space;
   public:
@@ -99,7 +99,7 @@ namespace Loci {
     virtual void insert(gEntity e, gEntity val){
       sorted = false;
       attrib_data.push_back(std::pair<gEntity, gEntity>(e, val));
-      dom += e;
+      
     }
 
     virtual void insert(const gEntitySet& seq,  const gEntity* vals){
@@ -109,11 +109,19 @@ namespace Loci {
           itr!= seq.end(); itr++){
         attrib_data.push_back(std::pair<gEntity, gEntity>(*itr, vals[idx++]));
       }
-      dom += seq;
+      
     }
+    gEntitySet domain() const {
+      if(!sorted) const_cast<gMapRepI&>(*this).local_sort();
+      gEntitySet dom = GEMPTY;
+      for(const_iterator itr = begin(); itr != end(); itr++){
+        dom += itr->first;
+      }
+      return dom ;
+    } 
     //   virtual int num_elements(gEntity e);
     virtual gstore_type RepType() const {return GMAP;}
-    virtual gEntitySet domain() const {return dom ;} 
+   
     virtual bool isSorted() const {return sorted;}
     virtual gEntitySet image(const gEntitySet &domain) const ;
     virtual gEntity image( gEntity domain) const ;
