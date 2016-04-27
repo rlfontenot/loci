@@ -1046,18 +1046,21 @@ volumePartDerivedVars::volumePartDerivedVars(volumePartP part,
   shadowPart = part ;
 
   string filename = output_dir+"/Pambient_par." + iteration +"_" + casename ;
-  hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
-				     H5F_ACC_RDONLY,
-				     H5P_DEFAULT) ;
-  Pambient = 0 ;
-  if(file_id >= 0) {
-    fact_db facts ;
-    param<float> Pamb ;
-    Loci::readContainer(file_id,"Pambient",Pamb.Rep(),EMPTY,facts) ;
-    Loci::hdf5CloseFile(file_id) ;
-    Pambient = *Pamb ;
-  } else {
-    cerr << "Unable to open file " << filename << endl ;
+  struct stat tmpstat ;
+  if(stat(filename.c_str(),&tmpstat) == 0) {
+    hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
+				       H5F_ACC_RDONLY,
+				       H5P_DEFAULT) ;
+    Pambient = 0 ;
+    if(file_id >= 0) {
+      fact_db facts ;
+      param<float> Pamb ;
+      Loci::readContainer(file_id,"Pambient",Pamb.Rep(),EMPTY,facts) ;
+      Loci::hdf5CloseFile(file_id) ;
+      Pambient = *Pamb ;
+    } else {
+      cerr << "Unable to open file " << filename << endl ;
+    }
   }
 	  
   processDerivedVars(vars) ;
@@ -1721,20 +1724,23 @@ surfacePartDerivedVars::surfacePartDerivedVars(surfacePartP part,
   shadowPart = part ;
 
   string filename = output_dir+"/Pambient_par." + iteration +"_" + casename ;
-  hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
+  struct stat tmpstat ;
+  if(stat(filename.c_str(),&tmpstat) == 0) {
+    hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
 				     H5F_ACC_RDONLY,
 				     H5P_DEFAULT) ;
-  Pambient = 0 ;
-  if(file_id >= 0) {
-    fact_db facts ;
-    param<float> Pamb ;
-    Loci::readContainer(file_id,"Pambient",Pamb.Rep(),EMPTY,facts) ;
-    Loci::hdf5CloseFile(file_id) ;
-    Pambient = *Pamb ;
-  } else { 
-    cerr << "unable to open " << filename << endl ;
+    Pambient = 0 ;
+    if(file_id >= 0) {
+      fact_db facts ;
+      param<float> Pamb ;
+      Loci::readContainer(file_id,"Pambient",Pamb.Rep(),EMPTY,facts) ;
+      Loci::hdf5CloseFile(file_id) ;
+      Pambient = *Pamb ;
+    } else { 
+      cerr << "unable to open " << filename << endl ;
+    }
+    processDerivedVars(vars) ;
   }
-  processDerivedVars(vars) ;
 }
 
 bool surfacePartDerivedVars::hasNodalScalarVar(string var) const {
@@ -2320,6 +2326,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
     Loci::hdf5CloseFile(file_id) ;
 
     filename = output_dir+"/Pambient_par." + iteration +"_" + casename ;
+
     file_id = Loci::hdf5OpenFile(filename.c_str(),
                                  H5F_ACC_RDONLY,
                                  H5P_DEFAULT) ;
