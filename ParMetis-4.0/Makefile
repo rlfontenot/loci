@@ -1,25 +1,24 @@
 
 default:
-	(cd GKLib ; $(MAKE) LOCI_BASE="$(LOCI_BASE)" libgk.so) 
-	(cd METISLib ; $(MAKE) LOCI_BASE="$(LOCI_BASE)" libmetis.so) 
-	(cd ParMETISLib ; $(MAKE) LOCI_BASE="$(LOCI_BASE)" libparmetis.so) 
+	$(MAKE) -C GKLib LOCI_BASE="$(LOCI_BASE)" libgk.so
+	$(MAKE) -C METISLib LOCI_BASE="$(LOCI_BASE)" libmetis.so
+	$(MAKE) -C ParMETISLib LOCI_BASE="$(LOCI_BASE)" libparmetis.so 
 
 
 static:
-	(cd GKLib ; $(MAKE) LOCI_BASE="$(LOCI_BASE)" libgk.a) 
-	(cd METISLib ; $(MAKE) LOCI_BASE="$(LOCI_BASE)" libmetis.a) 
-	(cd ParMETISLib ; $(MAKE) LOCI_BASE="$(LOCI_BASE)" libparmetis.a) 
+	$(MAKE) -C GKLib LOCI_BASE="$(LOCI_BASE)" libgk.a
+	$(MAKE) -C METISLib LOCI_BASE="$(LOCI_BASE)" libmetis.a 
+	$(MAKE) -C ParMETISLib LOCI_BASE="$(LOCI_BASE)" libparmetis.a 
 
 
 clean:
-	(cd GKLib ; $(MAKE) LOCI_BASE="$(LOCI_BASE)" clean ) 
-	(cd METISLib ; $(MAKE) LOCI_BASE="$(LOCI_BASE)" clean ) 
-	(cd ParMETISLib ; $(MAKE) LOCI_BASE="$(LOCI_BASE)" clean ) 
+	$(MAKE) -C GKLib LOCI_BASE="$(LOCI_BASE)" clean 
+	$(MAKE) -C METISLib LOCI_BASE="$(LOCI_BASE)" clean  
+	$(MAKE) -C ParMETISLib LOCI_BASE="$(LOCI_BASE)" clean  
 
 distclean:
-	(cd GKLib ; $(MAKE) LOCI_BASE="$(LOCI_BASE)" distclean ) 
-	(cd METISLib ; $(MAKE) LOCI_BASE="$(LOCI_BASE)" distclean ) 
-	(cd ParMETISLib ; $(MAKE) LOCI_BASE="$(LOCI_BASE)" distclean ) 
+	$(MAKE) -C GKLib LOCI_BASE="$(LOCI_BASE)" distclean 
+	$(MAKE) -C METISLib LOCI_BASE="$(LOCI_BASE)" distclean  
+	$(MAKE) -C ParMETISLib LOCI_BASE="$(LOCI_BASE)" distclean  
 
-
-
+.PHONY: default static clean distclean
