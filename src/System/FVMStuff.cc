@@ -18,7 +18,7 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
-#define VERBOSE
+//#define VERBOSE
 #include <Loci>
 #include <LociGridReaders.h>
 #include <Tools/tools.h>
