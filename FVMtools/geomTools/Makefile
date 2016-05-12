@@ -5,7 +5,7 @@ include $(LOCI_BASE)/Loci.conf
 #COPTLESS=-g
 #COPT = $(COPTLESS)
 
-INCLUDES = -I../src/include
+INCLUDES = -I$(LOCI_BASE)/include -DUSE_LOCI_TYPES
 
 LOCAL_LIBS =
 
