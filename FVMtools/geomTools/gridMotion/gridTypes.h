@@ -18,6 +18,29 @@
 //#############################################################################
 #ifndef GRIDMOTIONTYPES_H
 #define GRIDMOTIONTYPES_H
+#ifdef USE_LOCI_TYPES
+#include <Loci>
+#include <Tools/tools.h>
+namespace gridMotion {
+  using Loci::vector3d ;
+  using Loci::tensor3d ;
+  using Loci::dot ;
+  using Loci::cross ;
+  using Loci::norm ;
+  using Loci::Array ;
+  using Loci::tmp_array ;
+  using Loci::Scalar ;
+  using Loci::Vect ;
+  using Loci::const_Vect ;
+  using Loci::dotprod_accum ;
+  using Loci::solve_lu ;
+  using Loci::pivot_type ;
+  using Loci::solve_lu_pivot ;
+  using Loci::const_Mat ;
+  using Loci::Mat ;
+  using Loci::stopWatch ;
+}
+#else
 #include <iostream>
 
 #ifdef restrict
@@ -384,65 +407,6 @@ namespace gridMotion {
     T & operator[](int i) const { return p[i] ; }
     operator T *() { return p ; }
     operator const T *() const { return p ; }
-  } ;
-
-
-  struct Quaternion {
-    typedef vector3d<double> vect3d;
-    typedef tensor3d<double> tens3d;
-    typedef double real;
-    real x,y,z,w ;
-    Quaternion() {}
-    Quaternion(real xi, real yi, real zi, real wi):x(xi),y(yi),z(zi),w(wi) {}
-    Quaternion(vect3d axis, real angle) {
-      real sinAngle; 
-      angle *= 0.5; 
-      axis *= 1.0/(norm(axis)+1e-30) ; 
-      sinAngle = sin(angle);
-      x = (axis.x * sinAngle); 
-      y = (axis.y * sinAngle); 
-      z = (axis.z * sinAngle); 
-      w = cos(angle);
-    }
-    Quaternion operator*(const Quaternion &q) const {
-      vect3d vector1(x,y,z), vector2(q.x,q.y,q.z); 
-
-      const real angle = ((w * q.w) - (dot(vector1, vector2))); 
-      const vect3d across = cross(vector1, vector2);
-      vector1 *= q.w ;
-      vector2 *= w ;
-      Quaternion result; 
-      result.x = (vector1.x + vector2.x + across.x); 
-      result.y = (vector1.y + vector2.y + across.y); 
-      result.z = (vector1.z + vector2.z + across.z); 
-      result.w = angle;
-      return result ;
-    }
-    Quaternion &Normalize() {
-      // reciprocal of the l2 norm 
-      const real rl2 = 1.0 / sqrt((x*x) + (y*y) + (z*z) + (w*w)) ;
-      x*=rl2 ;
-      y*=rl2 ;
-      z*=rl2 ;
-      w*=rl2 ;
-      return *this ;
-    }
-    
-    Quaternion Inverse() const {
-      Quaternion result = *this ;
-      result.x *= -1 ; 
-      result.y *= -1 ; 
-      result.z *= -1 ; 
-      return result ;
-    }
-    vect3d operator*(const vect3d &v) const {
-      const Quaternion Q = *this ;
-      const Quaternion Qinv = Inverse() ;
-      const Quaternion vQ(v.x,v.y,v.z,0) ;
-      Quaternion result = vQ*Qinv ;
-      result = Q*result ;
-      return vect3d(result.x,result.y,result.z) ;
-    }
   } ;
 
 
@@ -1151,4 +1115,65 @@ namespace gridMotion {
 }
 
 
+#endif
+namespace gridMotion {
+  struct Quaternion {
+    typedef vector3d<double> vect3d;
+    typedef tensor3d<double> tens3d;
+    typedef double real;
+    real x,y,z,w ;
+    Quaternion() {}
+    Quaternion(real xi, real yi, real zi, real wi):x(xi),y(yi),z(zi),w(wi) {}
+    Quaternion(vect3d axis, real angle) {
+      real sinAngle; 
+      angle *= 0.5; 
+      axis *= 1.0/(norm(axis)+1e-30) ; 
+      sinAngle = sin(angle);
+      x = (axis.x * sinAngle); 
+      y = (axis.y * sinAngle); 
+      z = (axis.z * sinAngle); 
+      w = cos(angle);
+    }
+    Quaternion operator*(const Quaternion &q) const {
+      vect3d vector1(x,y,z), vector2(q.x,q.y,q.z); 
+
+      const real angle = ((w * q.w) - (dot(vector1, vector2))); 
+      const vect3d across = cross(vector1, vector2);
+      vector1 *= q.w ;
+      vector2 *= w ;
+      Quaternion result; 
+      result.x = (vector1.x + vector2.x + across.x); 
+      result.y = (vector1.y + vector2.y + across.y); 
+      result.z = (vector1.z + vector2.z + across.z); 
+      result.w = angle;
+      return result ;
+    }
+    Quaternion &Normalize() {
+      // reciprocal of the l2 norm 
+      const real rl2 = 1.0 / sqrt((x*x) + (y*y) + (z*z) + (w*w)) ;
+      x*=rl2 ;
+      y*=rl2 ;
+      z*=rl2 ;
+      w*=rl2 ;
+      return *this ;
+    }
+    
+    Quaternion Inverse() const {
+      Quaternion result = *this ;
+      result.x *= -1 ; 
+      result.y *= -1 ; 
+      result.z *= -1 ; 
+      return result ;
+    }
+    vect3d operator*(const vect3d &v) const {
+      const Quaternion Q = *this ;
+      const Quaternion Qinv = Inverse() ;
+      const Quaternion vQ(v.x,v.y,v.z,0) ;
+      Quaternion result = vQ*Qinv ;
+      result = Q*result ;
+      return vect3d(result.x,result.y,result.z) ;
+    }
+  } ;
+
+}
 #endif

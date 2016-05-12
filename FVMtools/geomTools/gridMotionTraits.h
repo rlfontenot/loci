@@ -27,6 +27,51 @@
 #include <Loci>
 
 namespace Loci {
+  // This hack seems to be necessary due to template instantiation problems 
+  // on some compilers
+  template<> inline std::ostream &
+    operator<<(std::ostream &s, const std::pair<gridMotion::vect3d,gridMotion::vect3d> &v) {
+    s<<"["<<v.first<<","<<v.second<<"]";
+    return s;
+  }
+
+  template<> inline std::istream &
+    operator>>(std::istream &s, std::pair<gridMotion::vect3d,gridMotion::vect3d> &i) {
+    char ch ;
+    do{
+      ch = s.get() ;
+    } while(ch==' ' || ch=='\n') ;
+    if(ch!='[') {
+      std::cerr << "Incorrect format when reading interval" << std::endl ;
+      std::cerr << "expected a '[' but got a '" << ch << "'" << std::endl ;
+      s.putback(ch) ;
+      return s ;
+    }
+    s >> i.first ;
+    do{
+      ch = s.get() ;
+    } while(ch==' ' || ch=='\n') ;
+    if(ch!=',') {
+      std::cerr << "Incorrect format when reading interval" << std::endl ;
+      std::cerr << "expected a ',' but got a '" << ch << "'" << std::endl ;
+      s.putback(ch) ;
+      return s ;
+    }
+    s >> i.second ;
+    
+    do{
+      ch = s.get() ;
+    } while(ch==' ' || ch=='\n') ;
+    if(ch!=']') {
+      std::cerr << "Incorrect format when reading interval" << std::endl ;
+      std::cerr << "expected a ']' but got a '" << ch << "'" << std::endl ;
+      s.putback(ch) ;
+      return s ;
+    }
+    return s;
+  }
+
+#ifdef HACK
   template <class T>
   struct data_schema_traits< gridMotion::vector3d<T> > {
     typedef IDENTITY_CONVERTER Schema_Converter;
@@ -75,8 +120,9 @@ namespace Loci {
     }
   } ;
 
-  template <>
+#endif
 
+  template <>
     struct data_schema_traits<gridMotion::tree_info> {
     typedef IDENTITY_CONVERTER Schema_Converter ;
     static DatatypeP get_type() {

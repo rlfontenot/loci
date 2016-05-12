@@ -1,11 +1,9 @@
-#include ../chem.conf
-#LOCI_BASE=/usr/tmp/qxue/Loci
 include $(LOCI_BASE)/Loci.conf
 
 #COPTLESS=-g
 #COPT = $(COPTLESS)
 
-INCLUDES = -I../src/include
+INCLUDES = -I$(LOCI_BASE)/include -DUSE_LOCI_TYPES
 
 LOCAL_LIBS =
 
@@ -42,7 +40,7 @@ LOCI_LPP_FILES = $(LOCI_FILES:.loci=.cc)
 distclean:
 	rm -f $(DEPEND_FILES)
 	rm -f computegeom adjustpos getgeom viscousFix
-	rm -fr $(GEOMOBJS) $(OBJS) $(TARGET) $(JUNK) make.depend make.depend.bak *.o $(OTHER_APPS)
+	rm -fr $(GEOMOBJS) $(OBJS) $(TARGET) $(JUNK) make.depend make.depend.bak *.o $(OTHER_APPS) $(LOCI_LPP_FILES)
 
 DEPEND_FILES=$(subst .o,.d,$(GEOMOBJS) $(OBJS)) $(subst .o,.d,$(EOSGEOMOBJS)$(EOSOBJS))
 

@@ -61,7 +61,11 @@ void dump_scalar(store<float> &c2n, string sname, string iter, string casename) 
 template<class T> void readElementType(hid_t group_id, const char *element_name,
                                        vector<T> &v) {
   if(v.size() > 0) {
+#ifdef H5_USE_16_API
     hid_t dataset = H5Dopen(group_id,element_name) ;
+#else
+    hid_t dataset = H5Dopen(group_id,element_name,H5P_DEFAULT) ;
+#endif
 
     typedef data_schema_traits<T> traits_type ;
     Loci::DatatypeP dp = traits_type::get_type() ;
@@ -72,9 +76,17 @@ template<class T> void readElementType(hid_t group_id, const char *element_name,
 }
 
 int  sizeElementType(hid_t group_id, const char *element_name) {
+#ifdef H5_USE_16_API
   hid_t dataset = H5Dopen(group_id,element_name) ;
+#else
+  hid_t dataset = H5Dopen(group_id,element_name,H5P_DEFAULT) ;
+#endif
   if(dataset < 0) {
+#ifdef H5_USE_16_API
     H5Eclear() ;
+#else
+    H5Eclear(H5E_DEFAULT) ;
+#endif
     return 0 ;
   }
   hid_t dspace = H5Dget_space(dataset) ;
@@ -164,15 +176,23 @@ int main(int ac, char *av[]) {
   string gridtopo = "output/" + casename +".topo" ;
 
 
+#ifdef H5_USE_16_API
   H5Eset_auto(NULL,NULL) ;
+#else
+  H5Eset_auto(H5E_DEFAULT,NULL,NULL) ;
+#endif
   hid_t file_id = H5Fopen(gridtopo.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0) {
     cerr << "unable to open file '" << gridtopo << "'" << endl ;
     exit(-1) ;
   }
                    
-  
+
+#ifdef H5_USE_16_API  
   hid_t bndg = H5Gopen(file_id,"boundaries") ;
+#else
+  hid_t bndg = H5Gopen(file_id,"boundaries",H5P_DEFAULT) ;
+#endif
   hsize_t num_bcs = 0 ;
   H5Gget_num_objs(bndg,&num_bcs) ;
   vector<string> processed_bcs ;
@@ -192,8 +212,11 @@ int main(int ac, char *av[]) {
       continue ;
     processed_bcs.push_back(string(buf)) ;
     cout << "processing bc: " << buf << endl ;
+#ifdef H5_USE_16_API
     hid_t bcg = H5Gopen(bndg,buf) ;
-    
+#else
+    hid_t bcg = H5Gopen(bndg,buf,H5P_DEFAULT) ;
+#endif    
     int nquads = sizeElementType(bcg,"quads") ;
     int ntrias = sizeElementType(bcg,"triangles") ;
     int ngeneral = sizeElementType(bcg,"nside_sizes") ;
