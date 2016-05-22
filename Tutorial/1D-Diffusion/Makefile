@@ -1,5 +1,5 @@
 # This is the Loci base directory.
-LOCI_BASE = /usr/tmp/pa121/Loci
+LOCI_BASE = /opt/loci
 # List the name of your compiled program here
 TARGET = heat
 
@@ -9,7 +9,7 @@ include $(LOCI_BASE)/Loci.conf
 OBJS  =  main.o heat.o
 OBJS2 =  main.o heat2.o
 
-JUNK = *~  core ti_files ii_files make.depend make.depend.bak
+JUNK = *~  core make.depend make.depend.bak
 
 default:
 	$(MAKE) $(TARGET)
@@ -23,9 +23,15 @@ heat2: $(OBJS2) FRC
 FRC : 
 
 clean:
-	rm -fr $(OBJS) $(TARGET) $(JUNK)  rii_files ii_files
+	rm -fr $(OBJS) $(OBJS2) $(TARGET) heat2 $(JUNK) 
 
+LOCI_FILES = $(wildcard *.loci)
+LOCI_LPP_FILES = $(LOCI_FILES:.loci=.cc)
 DEPEND_FILES=$(subst .o,.d,$(OBJS))
+
+distclean:
+	rm -fr $(OBJS) $(OBJS2) $(TARGET) heat2 $(JUNK) $(LOCI_LPP_FILES) $(DEPEND_FILES) debug
+
 
 
 #include automatically generated dependencies
