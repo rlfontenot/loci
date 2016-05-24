@@ -643,6 +643,10 @@ namespace Loci {
       //Shadow should be empty for the variable which is going to be duplicated
       //Shadow is going to be entities need to be sent to the owner processor
       if(!duplicate_work || !scheds.is_duplicate_variable(reduce_var)) {
+	requests += fill_entitySet(requests,facts) ;
+	// pass requests across processors so we know to compute something
+	// where the result will be sent to another processor
+	scheds.variable_request(reduce_var,requests) ;
 	shadow = scheds.get_variable_shadow(reduce_var) ;
 	shadow &= requests ;
       }

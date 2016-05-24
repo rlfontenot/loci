@@ -1390,15 +1390,7 @@ namespace Loci {
       if(duplicate_work) {
 	if(!scheds.is_duplicate_variable(v))
 	  requests += fill_entitySet(requests, facts) ;
-      }
-      else {
-        entitySet filter = ~EMPTY ;
-        // Question?, why is this code needed at all for non-replication code?
-        if(v.get_info().offset ==1) // This is a HACK for advance variables
-          if(facts.isDistributed())
-            filter = d->my_entities ;
-        requests += fill_entitySet(requests, facts) & filter ;
-      }
+      } 
       scheds.variable_request(v,requests) ;
     }
     return clist ;
