@@ -1,0 +1,175 @@
+\section{The {\tt options\_list} class}
+
+In many circumstances the user needs to input complex optional
+information to a solver.  These parameters are usually provided as a
+part of the initial facts that are provided by the user and may express
+several options to be used by a particular functional part of the
+system.  To help standardize the input of this information {\it Loci}
+provides a powerful system for inputting complex and hierarchical
+information called the {\tt options\_list}.  This form of input allows
+named assignment of data, specification of units that data is
+presented, input of lists and other complex data forms.  A common use
+of the {\tt options\_list} is the assignment of boundary conditions in
+Loci solvers.  This section will discuss how to use the {\tt
+  options\_list} type to allow for more powerful inputs to your {\it
+  Loci} programs.
+
+When a parameter type is an {\tt options\_list} type, then the input
+in the ASCII version of the initial facts (the {\tt vars} file) will
+have a variable that is delimited by less-than and greater-than
+symbols.  For example the boundary conditions are input using an {\tt
+  options\_list} type:
+\begin{verbatim}
+boundary_conditions:<
+ BC_1=specified(Twall=500K), 
+ BC_2=specified(Twall=300K),
+ BC_3=adiabatic, BC_4=adiabatic  
+>
+\end{verbatim}
+The basic function of the {\tt options\_list} is to give a way of
+specifying multiple parameters.  In this case the parameters are the
+boundary surface names which are assigned to the boundary condition.
+The boundary conditions are represented by complex data types. For the
+specified case the boundary conditions are represented by a named
+function type where the arguments contain a named list of variables
+(which can be thought of as another nested {\tt options\_list}).  The
+general structure of an {\tt options\_list} variable will be as
+follows:  First a '<' character which opens the options block, then a
+comma separated list of {\it name} = {\it argument} where {\tt
+  argument} can be the following:
+\begin{enumerate}
+  \item a floating point number
+  \item a floating point number with units annotation
+  \item a string value in ``quotes''
+  \item a list of floating point numbers enclosed in `[' and `]'
+  \item a list of name assignments enclosed in `[' and `]'
+  \item a name
+  \item a name with arguments enclosed in (parenthesis)
+\end{enumerate}
+
+The options list can be used in two modes: one where the names of the
+variable names are limited to a preset list or the default mode where
+any name can be used on the input. The first mode is enabled by
+passing a string to the constructor that contains a colon separated
+list of allowable variable names.   The simplest way to use options
+list for inputs is to simply put the class in a {\tt param} and allow it to
+be read in with a optional rule.  For example:
+
+\begin{verbatim}
+$type param<options_list> boundary_conditions ;
+
+$rule optional(boundary_conditions) {}
+\end{verbatim}
+
+Once the option list is read in the following member functions can be
+used to interrogate the values stored in the option list:
+\begin{enumerate}
+\item {\tt optionExists}: This member function will return true if the
+  variable name given in the string argument is defined in the option
+  list.
+\item {\tt getOptionNameList}: This member function returns a list of
+  the names stored in the option list using the type {\tt
+    options\_list::option\_namelist}.
+\item {\tt getOptionValueType}: This member function returns the value
+  type associated with the option passed in as the argument.  The
+  value type may be {\tt REAL}, {\tt NAME}, {\tt FUNCTION}, {\tt
+    LIST},  {\tt STRING}, {\tt BOOLEAN}, or {\tt
+    UNIT\_VALUE}. 
+\item {\tt getOption}:  This member function retrieves the value
+  associated with the named option. The second argument is the
+  returned value and may be the types {\tt bool}, {\tt double}, {\tt
+    string}, or {\tt options\_list::arg\_list}.
+\item {\tt getOptionUnits}: This member function is passed the name, a
+  requested unit, a double variable where the returned value will be
+  stored, or alternatively the last argument may be a {\tt vector3d}
+  for retrieving 3d vector values.
+\end{enumerate}
+
+For simple data input the {\tt options\_list} type is straightforward
+to use.  Some examples:
+
+\begin{verbatim}
+   void extract_data(const options_list &ol,
+                     double &alpha,
+                     double &temperature,
+                     string &name,
+                     bool &adiabatic) {
+      // for nondimensional data just use getOption
+      ol.getOption("alpha",alpha) ; 
+      // If we want a default value set it and check if the
+      // option is available
+      temperature = 300 ; // default value
+      if(ol.optionExists("temperature")) {
+        // for dimensional data specify what units you want
+        // to retrieve the data in.  This will be the default
+        // units for this input
+        ol.getOptionUnits("temperature","kelvin",temperature) ;
+      }
+      // for other datatypes the input works the same
+      ol.getOption("filename",name) ;
+      ol.getOption("adiabatic",adiabatic) ;
+   }
+\end{verbatim}
+
+For more complex types, for example lists of values which can occur in
+options lists for cases such as:
+\begin{verbatim}
+valueList : < list = [ 1.0, 2.5, 1.0, 5.0 ],
+              funclist = funcname(1.0, 2.5, 1.0, 5.0) >
+\end{verbatim}
+In these cases the list of values can be extracted by first extracting
+the {\tt arg\_list} and then looping over the list and extracting the 
+data item associated with each term.  For example, a generic function
+that can extract a list of doubles assigned to a variable would be
+implemented as:
+\begin{verbatim}
+  void getList(const options_list &ol, std::string vname,
+               vector<double> &valuelist) {
+    if(ol.getOptionValueType(vname) == Loci::LIST) {
+      // It is a list so get list
+      Loci::options_list::arg_list list ;
+      ol.getOption(vname,list) ;
+      int size = list.size() ;
+      // loop over list and insert into valuelist
+      for(int i=0;i<size;++i) {
+        if(list[i].type_of() != Loci::REAL) {
+          cerr << "improper list for " << vname << endl ;
+          Loci::Abort() ;
+        }
+        double val = 0 ;
+        // get each list item with get_value call
+        list[i].get_value(val) ;
+        valuelist.push_back(val) ;
+      }
+    }
+  }
+\end{verbatim}
+
+For more powerful use of the option lists it is possible to consider
+recursive specifications where the contents of a list or an argument
+list of a function can be converted to an option list and then queried
+further.  For example, in the boundary condition example above the
+specified boundary condition had arguments in the same form as the
+options list itself.  In this case it is possible to parse this
+structure by using the {\tt arg\_list} to create another options list
+for the purpose of parsing the structure.  For example, one way to
+parse the options of the specified boundary condition is as follows:
+
+\begin{verbatim}
+   void parseBoundary(const options_list &ol, string bcname) {
+     if(ol.optionExists(bcname)) {
+       if(ol.getOptionValueType(bcname) == FUNCTION) {
+         string bctype ;
+         options_list.arg_list fvalues ;
+         // get the function and the arguments
+         ol.getOption(bcname,bctype,fvalues) ;
+         // create options list for function arguments
+         options_list fol ;
+         fol.Input(fvalues) ;
+         if(bctype == "specified") { // now it is a specified bc
+           // now check argument options (e.g. specified(Twall=300K))
+           if(fol.optionExists("Twall")) {
+              double Twall ;
+              fol.getOptionUnits("Twall","kelvin",Twall) ;
+              // ...
+\end{verbatim}
