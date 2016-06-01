@@ -42,8 +42,9 @@ void dump_pos(const sequence &seq,const_store<vector3d<double> > &pos,
   string filename = oss.str() ;
   
 #ifdef VERBOSE
-  if(Loci::MPI_rank == 0)
+  $[Once] {
     cout << "writing file " << filename << endl ;
+  }
 #endif
   
   
@@ -98,8 +99,9 @@ public:
     ofstream file(topolink.c_str(),ios::trunc) ;
     file << basename << endl ;
     //    if(*firstPlot) {
-    if(Loci::MPI_rank == 0)
+    $[Once] {
       cout << "writing grid topology file: " << basename << endl ;
+    }
 
     Loci::parallelWriteGridTopology(filename.c_str(),
 				    upper.Rep(),lower.Rep(),
@@ -132,7 +134,7 @@ public:
     }
     void compute(const sequence &seq) {
       dump_pos(seq,pos,string(""),*modelName) ;
-      if(Loci::MPI_rank==0) {
+      $[Once] {
 	string filename = string("output/grid_pos.") +
 	  *plot_postfix + string("_") + *modelName ;
 	cout << "unlink filename = " << filename << endl ;
@@ -153,8 +155,9 @@ public:
         << "_" << modelName ;
     string filename = oss.str() ;
 #ifdef VERBOSE
-    if(Loci::MPI_rank == 0)
+    $[Once] {
       cout << "writing file " << filename << endl ;
+    }
 #endif
 
 
@@ -173,12 +176,12 @@ $rule pointwise(OUTPUT<-cell2node(temperature),plot_postfix,modelName),
 	      "sca","temperature") ;
 } ;
 
-// Here we check the MPI_rank so that we only output from processor
+// Here we use $[Once] to guard output only from processor
 // zero, otherwise the message would be printed p times from each
 // processor
 $rule singleton(OUTPUT<-L2Norm(qresidual),$n),
   option(disable_threading) {
-  if(Loci::MPI_rank==0) {
+  $[Once] {
     cout << "R" << $$n << ": " << $L2Norm(qresidual) << endl ;
   }
 }
