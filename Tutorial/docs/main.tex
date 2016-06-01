@@ -2342,7 +2342,7 @@ as:
 \begin{verbatim}
 $rule singleton(OUTPUT<-L2Norm(qresidual),$n),
   option(disable_threading) {
-  if(Loci::MPI_rank==0) {
+  $[Once] { // output only from one thread/processor
     cout << "R" << $$n << ": " << $L2Norm(qresidual) << endl ;
   }
 }
@@ -2380,8 +2380,9 @@ $rule pointwise(OUTPUT<-cell2node(temperature),$n,plot_modulo),
   oss << "output/" << varname << "_hdf5." << iter ;
   string filename = oss.str() ;
 
-  if(Loci::MPI_rank == 0)
+  $[Once] {
     cout << "writing file " << filename << endl ;
+  }
 
   // Create an hdf5 file
   hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
@@ -2460,11 +2461,11 @@ visualization packages including {\it ensight}, {\it fieldview}, and
 {\it tecplot}.  For example to see the results of the simulation after
 10 iterations using ensight, one enters the command:
 \begin{verbatim}
-extract -en test 10 ntemperature
+extract -en test 10 temperature
 \end{verbatim}
 This creates a directory {\tt ensight\_test} that contains an ensight case
 file for visualization of the solution results.  The argument
-ntemperature tells extract that you want to extract the nodal plot
+{\tt temperature} tells extract that you want to extract the nodal plot
 variable {\tt temperature} that is stored in the {\tt output
   directory}.  Use {\tt extract -help} for more information.
 
