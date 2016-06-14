@@ -113,6 +113,7 @@ namespace Loci {
     {"m^2","m^2",1},//area
 
     //composite unit
+    {"hertz","second/second/second",1},
     {"newton","kilogram*meter/second/second",1},
     {"N","kilogram*meter/second/second",1},
     {"joule","kilogram*meter/second/second*meter",1},
@@ -121,6 +122,11 @@ namespace Loci {
     {"W","kilogram*meter/second/second*meter/second",1},
     {"pascal","kilogram*meter/second/second/meter/meter",1},
     {"Pa","kilogram*meter/second/second/meter/meter",1},
+
+    {"Hz",  "second/second/second",1},
+    {"kHz", "second/second/second",1e3},
+    {"MHz", "second/second/second",1e6},
+    {"GHz", "second/second/second",1e9},
 
     {"rph","radians/second",1.7453292519943295769236907684887e-3},
     {"rpm","radians/second",0.10471975511965977461542144610932},
