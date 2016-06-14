@@ -1041,11 +1041,18 @@ namespace Loci {
       std::string groupName ;
       std::string eventName ;
       timeAccumulator accumTime ;
-      bool operator <(const timingData &d) const {
-        return accumTime.getTime() < d.accumTime.getTime() ;
+      // Added for analysis across processors
+      double totalTime, maxTime, meanTime ;
+      double totalEvents ;
+      double maxEvents ;
+bool operator <(const timingData &d) const {
+        return (max(accumTime.getTime(),maxTime) < 
+		max(d.accumTime.getTime(),maxTime)) ;
       }
+      timingData() : totalTime(0),maxTime(0),meanTime(0),totalEvents(0),maxEvents(0) {}
     } ;
     std::list<timingData>  timing_data ;
+
     struct schedData {
       std::string eventName;
       double bytes;
@@ -1080,6 +1087,9 @@ namespace Loci {
       
     double getComputeTime() ;
     double getTotalTime() ;
+    
+    void balanceAnalysis(MPI_Comm comm) ;
+
     ostream &PrintSummary(ostream &s) ;
     
   } ;
@@ -1124,7 +1134,24 @@ namespace Loci {
     cd.l2_dcm = l2_dcm;
     cache_data.push_back(cd);
   }
-  
+
+  void collectTiming::balanceAnalysis(MPI_Comm comm)  {
+    int np = 1 ;
+    MPI_Comm_size(comm,&np) ;
+    std::list<timingData>::iterator  ti = timing_data.begin() ;
+    for(ti=timing_data.begin();ti!=timing_data.end();++ti) {
+      if(ti->eventType == EXEC_COMPUTATION) {
+	double localTime = ti->accumTime.getTime() ;
+	MPI_Allreduce(&localTime,&ti->totalTime,1,MPI_DOUBLE,MPI_SUM,comm) ;
+	ti->meanTime = ti->totalTime/double(np) ;
+	MPI_Allreduce(&localTime,&ti->maxTime,1,MPI_DOUBLE,MPI_MAX,comm) ;
+	double localEvents = double(ti->accumTime.getEvents()) ;
+	MPI_Allreduce(&localEvents,&ti->totalEvents,1,MPI_DOUBLE,MPI_SUM,comm) ;
+	MPI_Allreduce(&localEvents,&ti->maxEvents,1,MPI_DOUBLE,MPI_MAX,comm) ;
+      }
+    }
+  }
+
   ostream &collectTiming::PrintSummary(ostream &s) {
     timing_data.sort() ;
     double totComp = 0 ;
@@ -1167,10 +1194,17 @@ namespace Loci {
 
       double t = rti->accumTime.getTime() ;
       double e = double(rti->accumTime.getEvents()) ;
-      s << " --- Time: " << t << " "
+      s << " --- Local Time: " << t << " "
         << ceil(1000.0*t/totTime)/10.0 << "% of total," 
         <<  " time per entity: " << t/max(e,1.0)
         << endl ;
+      if(rti->eventType == EXEC_COMPUTATION) {
+	double meanEvents = rti->totalEvents/double(MPI_processes) ;
+	s << " === max " << rti->maxTime << ", mean = " << rti->meanTime
+	  << ", imbalance = " << 100.0*(rti->maxTime-rti->meanTime)/max(rti->meanTime,1e-10)<<"%" << endl	  
+	  << " === partition imbalance =" <<  100.0*(rti->maxEvents-meanEvents)/max(meanEvents,1.0) << "%"
+	  << ", mean time per entity = " << rti->totalTime/max(rti->totalEvents,1.0) << endl;
+      }
       // DEBUG
       s << " --- Type: " ;
       switch(rti->eventType) {
@@ -1790,6 +1824,8 @@ namespace Loci {
       
       collectTiming timeProf ;
       schedule->dataCollate(timeProf) ;
+
+      timeProf.balanceAnalysis(MPI_COMM_WORLD) ;
 
       double compute_time_local = timeProf.getComputeTime() ;
       double prof_exec_time = timeProf.getTotalTime() ;
