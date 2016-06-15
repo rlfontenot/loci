@@ -323,8 +323,13 @@ namespace Loci {
         if(debug_is_directory) {
           if(MPI_processes == 1)
             oss << "debug/debug" ;
-          else
-            oss << "debug/debug."<<MPI_rank ;
+          else {
+	    if(MPI_rank == 0 || verbose || schedule_output) {
+	      oss << "debug/debug."<<MPI_rank ;
+	    } else {
+	      oss << "/dev/null" ;
+	    }
+	  }
         } else
           oss << "debug."<< MPI_rank ;
 
