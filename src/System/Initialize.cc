@@ -299,46 +299,6 @@ namespace Loci {
 
       ostringstream oss ;
 
-      if(useDebugDir) {
-        //Create a debug file for each process
-        // if output directory doesn't exist, create one
-        bool debug_is_directory = true ;
-        struct stat statbuf ;
-        if(GLOBAL_OR(stat("debug",&statbuf)!=0)) {
-          if(MPI_rank == 0)
-            mkdir("debug",0755) ;
-          for(int i=0;i<1000;++i) {
-            if(GLOBAL_AND(stat("debug",&statbuf)==0))
-              break ;
-          }
-        } else {
-          if(!S_ISDIR(statbuf.st_mode)) {
-            cerr << "file 'debug' should be a directory!, rename 'output' and start again."
-                 << endl ;
-            debug_is_directory = false ;
-
-          }
-        }
-
-        if(debug_is_directory) {
-          if(MPI_processes == 1)
-            oss << "debug/debug" ;
-          else {
-	    if(MPI_rank == 0 || verbose || schedule_output) {
-	      oss << "debug/debug."<<MPI_rank ;
-	    } else {
-	      oss << "/dev/null" ;
-	    }
-	  }
-        } else
-          oss << "debug."<< MPI_rank ;
-
-        string filename  = oss.str() ;
-        debugout.open(filename.c_str(),ios::out) ;
-      } else {
-        debugout.open("/dev/null",ios::out) ;
-      }
-
       char *p = 0 ;
       if((p = getenv("LOCI_MODULE_PATH")) == 0)
         p = getenv("LD_LIBRARY_PATH") ;
@@ -590,6 +550,46 @@ namespace Loci {
         *argc -= (i-1) ;
         for(int k=1;k<*argc;++k)
           (*argv)[k] = (*argv)[k+i-1] ;
+      }
+
+      if(useDebugDir) {
+        //Create a debug file for each process
+        // if output directory doesn't exist, create one
+        bool debug_is_directory = true ;
+        struct stat statbuf ;
+        if(GLOBAL_OR(stat("debug",&statbuf)!=0)) {
+          if(MPI_rank == 0)
+            mkdir("debug",0755) ;
+          for(int i=0;i<1000;++i) {
+            if(GLOBAL_AND(stat("debug",&statbuf)==0))
+              break ;
+          }
+        } else {
+          if(!S_ISDIR(statbuf.st_mode)) {
+            cerr << "file 'debug' should be a directory!, rename 'output' and start again."
+                 << endl ;
+            debug_is_directory = false ;
+
+          }
+        }
+
+        if(debug_is_directory) {
+          if(MPI_processes == 1)
+            oss << "debug/debug" ;
+          else {
+	    if((MPI_rank == 0) || verbose || schedule_output) {
+	      oss << "debug/debug."<<MPI_rank ;
+	    } else {
+	      oss << "/dev/null" ;
+	    }
+	  }
+        } else
+          oss << "debug."<< MPI_rank ;
+
+        string filename  = oss.str() ;
+        debugout.open(filename.c_str(),ios::out) ;
+      } else {
+        debugout.open("/dev/null",ios::out) ;
       }
 
       init_sprng(sprng_gtype,sprng_seed,SPRNG_DEFAULT) ;

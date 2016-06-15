@@ -1047,7 +1047,7 @@ namespace Loci {
       double maxEvents ;
 bool operator <(const timingData &d) const {
         return (max(accumTime.getTime(),maxTime) < 
-		max(d.accumTime.getTime(),maxTime)) ;
+		max(d.accumTime.getTime(),d.maxTime)) ;
       }
       timingData() : totalTime(0),maxTime(0),meanTime(0),totalEvents(0),maxEvents(0) {}
     } ;
@@ -1137,19 +1137,115 @@ bool operator <(const timingData &d) const {
 
   void collectTiming::balanceAnalysis(MPI_Comm comm)  {
     int np = 1 ;
+    int r =  0; 
     MPI_Comm_size(comm,&np) ;
+    MPI_Comm_rank(comm,&r) ;
+    map<string,timingData> dataList ;
+    map<string,timingData>::iterator lp ;
     std::list<timingData>::iterator  ti = timing_data.begin() ;
+    // Collect timing data on this processor
     for(ti=timing_data.begin();ti!=timing_data.end();++ti) {
-      if(ti->eventType == EXEC_COMPUTATION) {
-	double localTime = ti->accumTime.getTime() ;
-	MPI_Allreduce(&localTime,&ti->totalTime,1,MPI_DOUBLE,MPI_SUM,comm) ;
-	ti->meanTime = ti->totalTime/double(np) ;
-	MPI_Allreduce(&localTime,&ti->maxTime,1,MPI_DOUBLE,MPI_MAX,comm) ;
-	double localEvents = double(ti->accumTime.getEvents()) ;
-	MPI_Allreduce(&localEvents,&ti->totalEvents,1,MPI_DOUBLE,MPI_SUM,comm) ;
-	MPI_Allreduce(&localEvents,&ti->maxEvents,1,MPI_DOUBLE,MPI_MAX,comm) ;
+      
+      if((lp = dataList.find(ti->eventName)) != dataList.end()) {
+	debugout << "balanceAnalysis: event " << ti->eventName << " is duplicate!" << endl ;
+	lp->second.accumTime.addTime(ti->accumTime.getTime(),ti->accumTime.getEvents()) ;
+      } else {
+	dataList[ti->eventName] = *ti ;
       }
     }
+    // Not all processors have the same data so we need to make it consistent
+    set<string> unprocessed ;
+    set<string>::iterator si ;
+    for(lp=dataList.begin();lp!=dataList.end();++lp)  {
+      unprocessed.insert(lp->first) ;
+    }
+
+    // start with process 0 as the source of entry types
+    int psource = 0 ;
+    
+    // process unprocessed data until all processors have no unprocessed
+    // data
+    bool processmore = false ;
+    do {
+      int lsz = unprocessed.size() ;
+      MPI_Bcast(&lsz,1,MPI_INT,psource,comm) ;
+      vector<int> sizes(lsz) ;
+      if(r == psource) {
+	int i = 0 ;
+	for(si=unprocessed.begin();si!=unprocessed.end();++si)
+	  sizes[i++] = si->size() ;
+      }
+      MPI_Bcast(&sizes[0],lsz,MPI_INT,psource,comm) ;
+      int tot = 0 ;
+      for(int i=0;i<lsz;++i)
+	tot += sizes[i] ;
+      vector<char> data(tot) ;
+      if(r == psource) {
+	int ii = 0 ;
+	int i = 0 ;
+	for(si=unprocessed.begin();si!=unprocessed.end();++si) {
+	  string val = *si ;
+	  for(int j=0;j<sizes[i];++j)
+	    data[ii++] =val[j] ;
+	  i++ ;
+	}
+      }
+      MPI_Bcast(&data[0],tot,MPI_BYTE,psource,comm) ;
+      int ii = 0 ;
+      for(int i=0;i<lsz;++i) {
+	string event ;
+	for(int j=0;j<sizes[i];++j)
+	  event += data[ii++] ;
+	if((si = unprocessed.find(event)) != unprocessed.end()) {
+	  unprocessed.erase(si) ;
+	} else { // Not in my list so add entry to dataList
+	  dataList[event] = timingData() ;
+	}
+      }
+      int pcandidate = np ;
+      if(unprocessed.size() != 0)
+	pcandidate = r ;
+      MPI_Allreduce(&pcandidate,&psource, 1, MPI_INT,MPI_MIN,comm) ;
+
+      processmore = (psource != np) ;
+			    
+    }  while (processmore) ;
+
+    // Now that dataList is consistent across all processors, lets gather
+    // data from all processors to get idea of load imbalances not visible from
+    // any one processor
+    int datasize = dataList.size() ;
+    
+    vector<double> localTimes(datasize) ;
+    vector<double> localEvents(datasize) ;
+    int i = 0 ;
+    for(lp=dataList.begin();lp!=dataList.end();++lp)  {
+      localTimes[i] = lp->second.accumTime.getTime() ;
+      localEvents[i] = lp->second.accumTime.getEvents() ;
+      i++ ;
+    }
+    vector<double> totalTimes(datasize) ;
+    vector<double> maxTimes(datasize) ;
+    vector<double> totalEvents(datasize) ;
+    vector<double> maxEvents(datasize) ;
+    MPI_Allreduce(&localTimes[0],&totalTimes[0],datasize,MPI_DOUBLE,MPI_SUM,comm) ;
+    MPI_Allreduce(&localTimes[0],&maxTimes[0],datasize,MPI_DOUBLE,MPI_MAX,comm) ;
+    MPI_Allreduce(&localEvents[0],&totalEvents[0],datasize,MPI_DOUBLE,MPI_SUM,comm) ;
+    MPI_Allreduce(&localEvents[0],&maxEvents[0],datasize,MPI_DOUBLE,MPI_MAX,comm) ;
+
+    // Replace timing_data with new combined data list
+    i = 0 ;
+    list<timingData> newList ;
+    for(lp=dataList.begin();lp!=dataList.end();++lp)  {
+      lp->second.totalTime = totalTimes[i] ;
+      lp->second.meanTime = totalTimes[i]/np ;
+      lp->second.maxTime = maxTimes[i] ;
+      lp->second.totalEvents = totalEvents[i] ;
+      lp->second.maxEvents = maxEvents[i] ;
+      i++ ;
+      newList.push_back(lp->second) ;
+    }
+    timing_data.swap(newList) ;
   }
 
   ostream &collectTiming::PrintSummary(ostream &s) {
@@ -1198,13 +1294,13 @@ bool operator <(const timingData &d) const {
         << ceil(1000.0*t/totTime)/10.0 << "% of total," 
         <<  " time per entity: " << t/max(e,1.0)
         << endl ;
-      if(rti->eventType == EXEC_COMPUTATION) {
-	double meanEvents = rti->totalEvents/double(MPI_processes) ;
-	s << " === max " << rti->maxTime << ", mean = " << rti->meanTime
-	  << ", imbalance = " << 100.0*(rti->maxTime-rti->meanTime)/max(rti->meanTime,1e-10)<<"%" << endl	  
-	  << " === partition imbalance =" <<  100.0*(rti->maxEvents-meanEvents)/max(meanEvents,1.0) << "%"
+      double meanEvents = rti->totalEvents/double(MPI_processes) ;
+      s << " === max " << rti->maxTime << ", mean = " << rti->meanTime
+	<< ", imbalance = " << 100.0*(rti->maxTime-rti->meanTime)/max(rti->meanTime,1e-10)<<"%" << endl	 ;
+      if(rti->eventType == EXEC_COMPUTATION) 
+	s << " === partition imbalance =" <<  100.0*(rti->maxEvents-meanEvents)/max(meanEvents,1.0) << "%" 
 	  << ", mean time per entity = " << rti->totalTime/max(rti->totalEvents,1.0) << endl;
-      }
+
       // DEBUG
       s << " --- Type: " ;
       switch(rti->eventType) {
