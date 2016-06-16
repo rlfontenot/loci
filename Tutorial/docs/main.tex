@@ -1142,7 +1142,7 @@ largest possible number) and is associative and commutative.  The
 computation of the global stable time-step is given by the following
 {\it Loci} code:
 \begin{verbatim}
-$type dt param<int> ; // simulation timestep
+$type dt param<float> ; // simulation timestep
 
 $rule unit(dt), constraint(UNIVERSE) {
    $dt = std::numeric_limits<float>::max() ; // largest allowble timestep
@@ -1464,7 +1464,6 @@ parametric rule to compute {\tt L} as follows:
 // We find the length of an interval by integrating the position x
 $rule pointwise(L<-cellIntegrate(x)) { $L = $cellIntegrate(x) ; }
 \end{verbatim}
-
 Parametric rules behave somewhat like subroutines and share many of
 the same advantages.  One advantage is that because many related
 functions share the same implementation, it is possible to replace on
