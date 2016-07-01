@@ -26,12 +26,16 @@ COPT = $(COPTLESS)
 # List the name of your compiled program here
 TARGET = extract
 
-OTHER_APPS = plot3d2vog make_periodic ugrid2vog fluent2vog cobalt2vog vogmerge vogcut vogcheck extruder vog2surf ccm2vog refmesh marker refine #extract_chem 
+OTHER_APPS = plot3d2vog make_periodic ugrid2vog fluent2vog cobalt2vog vogmerge vogcut vogcheck extruder vog2surf ccm2vog refmesh marker refine cgns2vog #extract_chem 
 
 # List your object files here
 OBJS =  extract.o extract_ensight.o extract_2dgv.o extract_ascii.o extract_tecplot.o extract_vtk.o extract_fv.o extract_cut.o extract_surf.o extract_mean.o 
 
 LOCAL_LIBS =
+
+CGNS_BASE = /simcenter/data1/qxue/cgns
+CGNS_INCLUDES = -I$(CGNS_BASE)/include/
+CGNS_LIBS = $(CGNS_BASE)/lib/libcgns.a
 
 # Junk files that are created while editing and running cases
 JUNK = $(wildcard *~)  core 
@@ -51,6 +55,12 @@ libadf/libadf.a:
 
 ccm2vog.o: ccm2vog.cc
 	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) -Ilibadf -c ccm2vog.cc
+
+hash.o: hash.cc
+	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES)  -c hash.cc
+
+cgns2vog.o: cgns2vog.cc
+	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) $(CGNS_INCLUDES)  -c cgns2vog.cc
 
 extruder: extruder.o
 	$(LD) -o extruder extruder.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
@@ -79,6 +89,9 @@ fluent2vog: fluent2vog.o vogtools.o
 
 ccm2vog: ccm2vog.o vogtools.o libadf/libadf.a
 	 $(LD) -o ccm2vog ccm2vog.o vogtools.o libadf/libadf.a $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+
+cgns2vog: cgns2vog.o hash.o vogtools.o $(CGNS_LIBS)
+	 $(LD) -o cgns2vog cgns2vog.o hash.o vogtools.o $(CGNS_LIBS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
 vogmerge: vogmerge.o
 	$(LD) -o vogmerge vogmerge.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
