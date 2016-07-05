@@ -400,7 +400,7 @@ namespace Loci {
       filter = d->my_entities ;
       isect = d->my_entities ;
     }
-
+      
     for(vi=targets.begin();vi!=targets.end();++vi) {
       // This is a hack for the special case of a rule with OUTPUT
       // as a target.  In that case we will request OUTPUT for
@@ -1390,7 +1390,22 @@ namespace Loci {
       if(duplicate_work) {
 	if(!scheds.is_duplicate_variable(v))
 	  requests += fill_entitySet(requests, facts) ;
-      } 
+      }
+      else {
+	// check to see if there is mapping in the output rules ;
+	ruleSet r = scheds.get_existential_rules(v);
+	bool map_output = false;
+	for(ruleSet::const_iterator ri = r.begin();
+	    ri != r.end(); ri++)
+	  if(rule_has_mapping_in_output(*ri)) 
+	    map_output = true ;
+
+	if(map_output) {
+	  // If mapping in output send requests from other processors
+	  requests += fill_entitySet(requests, facts) ;
+	}
+      }
+
       scheds.variable_request(v,requests) ;
     }
     return clist ;
