@@ -144,13 +144,13 @@ namespace Loci {
     {"hectare","m^2",1.0e4},
     {"ha","m^2",1.0e4},
 
-    {"calorie","joule",4.19002},//energy or work
-    {"cal","joule",4.19002},
+    {"calorie","joule",4.184},//thermochemical calorie
+    {"cal","joule",4.184},
     {"electronvolt","joule",1.602177e-19},
     {"eV","joule",1.602177e-19},
     {"erg","joule",1.0e-7},
-    {"kilocalorie","joule",4.19002e3},
-    {"kcal","joule",4.19002e3},
+    {"kilocalorie","joule",4.184e3},
+    {"kcal","joule",4.184e3},
     {"kW*h","joule",3.6e6},
     {"quad","joule",1.055056e18},
 
