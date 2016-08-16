@@ -18,6 +18,10 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
+
+
+
+
 #include <stdio.h>
 #include <strings.h> 
 #include <Loci.h> 
@@ -46,6 +50,187 @@ using std::ios ;
 #include <sys/stat.h>
 #include "cgnslib.h"
 
+
+
+struct surf_info {
+  string name ;
+  vector<cgsize_t> trias;
+  vector<cgsize_t> quads;
+  vector<cgsize_t> genface;
+  int nquads;
+  int ntrias;
+  int ngenfc;
+  cgsize_t start;
+  cgsize_t end;
+} ;
+  
+void read_surf_info(string casename, string iteration,
+                    vector<surf_info>& surfs) {
+  FATAL(Loci::MPI_processes != 1) ;
+  store<vector3d<float> > pos ;
+  string posname = getPosFile(output_dir,iteration,casename) ;
+  hid_t file_id = Loci::hdf5OpenFile(posname.c_str(),
+                                     H5F_ACC_RDONLY,
+                                     H5P_DEFAULT) ;
+  if(file_id < 0) {
+    cerr << "unable to get grid positions for iteration " << iteration
+         << endl ;
+    cerr << "does file '" << posname << "' exist?" << endl ;
+    Loci::Abort() ;
+    exit(-1) ;
+  }
+
+  gfact_db facts ;
+  Loci::readContainer(file_id,"pos",pos.Rep(),EMPTY,facts) ;
+  Loci::hdf5CloseFile(file_id) ;
+
+  string gridtopo = "output/" + casename +".topo" ;
+
+
+  file_id = H5Fopen(gridtopo.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
+  
+  hid_t bndg = H5Gopen(file_id,"boundaries") ;
+  hsize_t num_bcs = 0 ;
+  H5Gget_num_objs(bndg,&num_bcs) ;
+  
+ 
+  for(hsize_t bc=0;bc<num_bcs;++bc) {
+    surfs.push_back(surf_info());
+    surf_info& the_surf = surfs.back();
+    
+    char buf[1024] ;
+    memset(buf, '\0', 1024) ;
+    H5Gget_objname_by_idx(bndg,bc,buf,sizeof(buf)) ;
+    buf[1023]='\0' ;
+    hid_t bcg = H5Gopen(bndg,buf) ;
+    
+    int nquads = sizeElementType(bcg,"quads") ;
+    int ntrias = sizeElementType(bcg,"triangles") ;
+    int ngeneral = sizeElementType(bcg,"nside_sizes") ;
+    
+    the_surf.trias.resize(ntrias*3) ;
+    {
+      vector<Array<int, 3> > tmp(ntrias);
+      readElementType(bcg,"triangles",tmp) ;
+      int count = 0; 
+      for(int i = 0; i <ntrias; i++){
+        for(int j = 0; j < 3; j++){
+          the_surf.trias[count++] = tmp[i][j];
+        }
+      }
+    }
+    the_surf.quads.resize(nquads*4) ;
+    {
+      vector<Array<int, 4> > tmp(ntrias);
+      readElementType(bcg,"quads", tmp) ;
+      int count = 0; 
+      for(int i = 0; i <nquads; i++){
+        for(int j = 0; j < 4; j++){
+          the_surf.quads[count++] = tmp[i][j];
+        }
+      }
+    }
+    {  
+      vector<int> nside_sizes(ngeneral) ;
+      readElementType(bcg,"nside_sizes",nside_sizes) ;
+      int nside_nodes_size = sizeElementType(bcg,"nside_nodes") ;
+      vector<int> nside_nodes(nside_nodes_size) ;
+      readElementType(bcg,"nside_nodes",nside_nodes) ;
+      
+      the_surf.genface.resize(nside_nodes_size + ngeneral);
+      
+      int count1 = 0, count2 = 0; 
+      for(int i = 0; i <ngeneral; i++){
+        the_surf.genface[count1++] = nside_sizes[i];
+        for(int j = 0; j < nside_sizes[i]; j++){
+          the_surf.genface[count1++] = nside_nodes[count2++];
+        }
+      }
+    }
+    the_surf.ngenfc = ngeneral;
+    the_surf.ntrias = ntrias;
+    the_surf.nquads = nquads;
+    the_surf.name = string(buf);
+  }
+    
+   Loci::hdf5CloseFile(file_id) ;
+}
+
+void write_surf_info(int cgfile, int cgbase, int cgzone,
+                     vector<surf_info>& surfs, cgsize_t& start, cgsize_t& end) {
+  char name[80];
+  int cgsect, cgbc;
+  int num_bc = surfs.size();
+  for(int bc = 0; bc < num_bc; bc++){
+   
+    surf_info &the_surf = surfs[bc];
+    the_surf.start = start;
+    
+    if(the_surf.nquads > 0){
+   
+      end = start + the_surf.nquads - 1;
+   
+      memset(name, '\0', 80) ;
+      sprintf(name, "QuadElements %d", bc+1);
+      if (cg_section_write(cgfile, cgbase, cgzone, name,
+                           CGNS_ENUMV(QUAD_4), start, end, 0,  &(the_surf.quads[0]), &cgsect))
+        cg_error_exit();
+      start = end + 1;
+    }
+    if(the_surf.ntrias > 0){
+   
+       end = start + the_surf.ntrias - 1;
+   
+      memset(name, '\0', 80) ;
+      sprintf(name, "TriElements %d", bc+1);
+      if (cg_section_write(cgfile, cgbase, cgzone, name,
+                           CGNS_ENUMV(TRI_3), start, end, 0, &(the_surf.trias[0]), &cgsect))
+        cg_error_exit();
+      start = end + 1;
+    }
+    
+    if(the_surf.ngenfc > 0){
+      end = start +  the_surf.ngenfc - 1;
+      memset(name, '\0', 80) ;
+      sprintf(name, "GenFaces %d", bc+1);
+      if (cg_section_write(cgfile, cgbase, cgzone, name,
+                           CGNS_ENUMV(NGON_n), start, end, 0, &the_surf.genface[0], &cgsect))
+        cg_error_exit();
+      start = end + 1;
+    }
+    the_surf.end = end;
+  }
+        
+
+
+    /* write BCs */
+  CGNS_ENUMT(BCType_t) bctype = CGNS_ENUMV(BCTypeUserDefined);
+
+  for (int bc = 0; bc <num_bc ; bc++) {
+    cgsize_t range[2];
+    surf_info& the_surf = surfs[bc];
+    range[0] = the_surf.start;
+    range[1] = the_surf.end;
+    memset(name, '\0', 80) ;
+    snprintf(name,80, "%s", the_surf.name.c_str());
+
+    
+#if CGNS_VERSION < 3100
+    if (cg_boco_write(cgfile, cgbase, cgzone, name,
+                      bctype, CGNS_ENUMV(ElementRange), 2, range, &cgbc))
+#else
+        if (cg_boco_write(cgfile, cgbase, cgzone, name,
+                bctype, CGNS_ENUMV(PointRange), 2, range, &cgbc) ||
+            cg_boco_gridlocation_write(cgfile, cgbase, cgzone,
+                cgbc, CGNS_ENUMV(FaceCenter)))
+#endif
+            cg_error_exit();
+  }
+}
+
+
+  
+
 bool cgnsPartConverter::processesVolumeElements() const {
   return true ; 
 }
@@ -59,6 +244,15 @@ void cgnsPartConverter::exportPostProcessorFiles(string casename,
                                                  string iteration) const {
  
   string filename = casename +"_" +iteration +".cgns";
+
+  vector<surf_info> surfs;
+  read_surf_info(casename, iteration, surfs);
+  cgsize_t tot_surf_elements = 0;
+  for(size_t bc = 0; bc < surfs.size(); bc++){
+    surf_info& s = surfs[bc];
+    tot_surf_elements += s.ntrias + s.nquads + s.ngenfc; 
+  }
+
   
   char name[80];
   
@@ -82,7 +276,7 @@ void cgnsPartConverter::exportPostProcessorFiles(string casename,
                      CGNS_ENUMV(Second), CGNS_ENUMV(Kelvin), CGNS_ENUMV(Radian)))cg_error_exit();
 
   
-  cout << " Base Volume " << endl;
+  
   //each part is written into a zone
   for(size_t i=0;i<volumePartList.size();++i) {
    
@@ -90,21 +284,16 @@ void cgnsPartConverter::exportPostProcessorFiles(string casename,
     size_t pnts = volumePartList[i]->getNumNodes();
     sizes[0] = pnts;
     sizes[1] = volumePartList[i]->getNumTets() + volumePartList[i]->getNumPyrm()
-      + volumePartList[i]->getNumPrsm() + volumePartList[i]->getNumHexs()+volumePartList[i]->getNumGenc();
+      + volumePartList[i]->getNumPrsm() + volumePartList[i]->getNumHexs()+volumePartList[i]->getNumGenc() ;
+    sizes[1] += tot_surf_elements;
     sizes[2] = 0;
     string pName = volumePartList[i]->getPartName();
     memset(name, '\0', 80) ;
     snprintf(name,80, "%s", pName.c_str());
-    
-    cout << " num_volume_elements " << sizes[1] << endl;
     //open file  
-   
     if(cg_zone_write(cgfile, cgbase, name, sizes,
                      CGNS_ENUMV(Unstructured), &cgzone))cg_error_exit();
-
-    
     cout << " Zone: " << pName <<  " ; Index  " << cgzone <<  endl;
-   
     {
       vector<vector3d<float> > pos ;
       volumePartList[i]->getPos(pos) ;
@@ -115,8 +304,6 @@ void cgnsPartConverter::exportPostProcessorFiles(string casename,
       
       vector<float> pos_x(pnts) ;
       //write coordinates
-   
-     
       for(size_t k=0;k<pnts;++k) {
         pos_x[k] = pos[k].x;
       }
@@ -124,18 +311,11 @@ void cgnsPartConverter::exportPostProcessorFiles(string casename,
                          "CoordinateX", &pos_x[0], &cgcoord))
         cg_error_exit();
     
-    
-    
-    
       for(size_t k=0;k<pnts;++k) {
         pos_x[k] = pos[k].y;
       }
-    
       if( cg_coord_write(cgfile, cgbase, cgzone, dtype,
                          "CoordinateY", &pos_x[0], &cgcoord)) cg_error_exit();
-    
-    
-    
       for(size_t k=0;k<pnts;++k) {
         pos_x[k] = pos[k].z; 
       }
@@ -145,7 +325,13 @@ void cgnsPartConverter::exportPostProcessorFiles(string casename,
     //write elements
     start = 1;
     const int block_size=65536 ; // Size of blocking factor
-   
+
+    cout << " num_surf " << surfs.size() << endl; 
+    if(surfs.size() > 0){
+      write_surf_info(cgfile, cgbase, cgzone,
+                      surfs, start, end);
+    }
+    
     //get tets
     if(volumePartList[i]->getNumTets() > 0) { 
       int tot = volumePartList[i]->getNumTets() ;
@@ -314,8 +500,8 @@ void cgnsPartConverter::exportPostProcessorFiles(string casename,
         cg_error_exit();
       start = end + 1;
     }
+
    
-    
     vector<string> nscalars = volumePartList[i]->getNodalScalarVars() ;
     vector<string> nvectors = volumePartList[i]->getNodalVectorVars() ;
     if(nscalars.size() > 0 || nvectors.size() > 0){

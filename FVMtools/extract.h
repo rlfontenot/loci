@@ -596,6 +596,20 @@ public:
   virtual void exportPostProcessorFiles(string casename, string iteration) const ;
 } ;
 
+
+class cgnsPartConverter : public postProcessorConvert {
+  bool id_required;
+public:
+  cgnsPartConverter(bool input) {id_required = input; } ;
+  virtual bool processesVolumeElements() const ;
+  virtual bool processesSurfaceElements() const ;
+  virtual bool processesParticleElements() const ;
+
+  virtual void exportPostProcessorFiles(string casename, string iteration) const ;
+} ;
+
+
+
 class tecplotPartConverter : public postProcessorConvert {
 public:
   virtual bool processesVolumeElements() const ;

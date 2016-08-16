@@ -973,7 +973,7 @@ void readCGNS_parallel(string filename, store<vector3d<double> > &pos,
       
 
     
-    if( num_vol_tets+num_vol_pents5+num_vol_pents6+num_vol_hexs != sizes[1]){
+    if( num_vol_tets+num_vol_pents5+num_vol_pents6+num_vol_hexs+num_sf_trias+ num_sf_quads != sizes[1]){
       cerr<<" total elements: " <<num_vol_tets+num_vol_pents5+num_vol_pents6+num_vol_hexs << " sizes[1] " <<  sizes[1] << endl;
       error_exit("number of elements and faces does not match in CGNS grid file ");
     }
@@ -1440,7 +1440,7 @@ void readCGNS_parallel(string filename, store<vector3d<double> > &pos,
 /*read from cgns file,
   The coordinates are read in as double precision, the format in file can be in single or double precision 
 */
-void readCGNS_serial(string filename, store<vector3d<double> > &pos,
+void readCGNS_serial(string filename, int cgbase, int cgzone, store<vector3d<double> > &pos,
                      vector<Array<cgsize_t,5> > &qfaces, vector<Array<cgsize_t,4> > &tfaces,
                      vector<Array<cgsize_t,4> > &tets, vector<Array<cgsize_t,5> > &pyramids,
                      vector<Array<cgsize_t,6> > &prisms, vector<Array<cgsize_t,8> > &hexs,
@@ -1495,11 +1495,11 @@ void readCGNS_serial(string filename, store<vector3d<double> > &pos,
   
   if(cg_open (filename.c_str(), CG_MODE_READ, &index_file)) error_exit(" unable to open CGNS grid file ");
   if(cg_nbases (index_file, &num_bases))error_exit("error reading number of bases");
-  if(num_bases != 1){
-    cout<<" there are " << num_bases << " bases"<< endl;
-    cout<< "only read the first one" << endl;
+  if(num_bases != 1 && cgbase <= num_bases){
+    index_base = cgbase;
+  }else{
+    index_base =1; //assume only one base and its index is 1
   }
-  index_base =1; //assume only one base and its index is 1
   if(cg_base_read (index_file, index_base, bname, &celldim, &phydim))error_exit("error reading base information");
   if(celldim != 3 || phydim != 3){
     cg_close(index_file);
@@ -1507,11 +1507,12 @@ void readCGNS_serial(string filename, store<vector3d<double> > &pos,
     exit(-1);
   }
   if(cg_nzones (index_file, index_base, &num_zones)) error_exit("error reading number of zones");
-  if(num_zones != 1){
-    cout<<" there are " << num_zones << " zones"<< endl;
-    cout<< "only read the first one" << endl;
+  if(num_zones != 1 && cgzone <= num_zones){
+    index_zone = cgzone;
+    cout << " index_zone " << index_zone << endl;
+  }else{
+    index_zone = 1;//assume only one zone and its index is 1
   }
-  index_zone = 1;//assume only one zone and its index is 1
   if(cg_zone_type (index_file, index_base, index_zone, &ztype))error_exit("error reading zone type");
   if (ztype != Unstructured) error_exit("can only handle unstructured grid in CGNS file");
   if(cg_zone_read (index_file, index_base, index_zone, zname, sizes))error_exit("error reading zone information");
@@ -1655,7 +1656,7 @@ void readCGNS_serial(string filename, store<vector3d<double> > &pos,
       
 
     
-  if( num_vol_tets+num_vol_pents5+num_vol_pents6+num_vol_hexs != sizes[1]){
+  if( num_vol_tets+num_vol_pents5+num_vol_pents6+num_vol_hexs + num_sf_trias + num_sf_quads != sizes[1]){
     cerr<<" total elements: " <<num_vol_tets+num_vol_pents5+num_vol_pents6+num_vol_hexs << " sizes[1] " <<  sizes[1] << endl;
     error_exit("number of elements and faces does not match in CGNS grid file ");
   }
@@ -3315,7 +3316,8 @@ int main(int ac, char* av[]) {
   Loci::Init(&ac,&av) ;
   const char *filename ;
   std::string tmp_str ;
-
+  int cgbase = 1;
+  int cgzone = 1;
   string Lref = "NOSCALE" ;
   while(ac>=2 && av[1][0] == '-') {
     // If user specifies an alternate query, extract it from the
@@ -3324,7 +3326,15 @@ int main(int ac, char* av[]) {
       Lref = av[2] ;
       ac -= 2 ;
       av += 2 ;
-    } else if(ac >= 2 && !strcmp(av[1],"-v")) {
+    }else if(ac >= 3 && !strcmp(av[1],"-B")){
+      cgbase = atoi(av[2]);
+      ac -= 2 ;
+      av += 2 ;
+    }else if(ac >= 3 && !strcmp(av[1],"-Z")){
+      cgzone = atoi(av[2]);
+      ac -= 2 ;
+      av += 2 ;
+    }else if(ac >= 2 && !strcmp(av[1],"-v")) {
       cout << "Loci version: " << Loci::version() << endl ;
       if(ac == 2) {
         Loci::Finalize() ;
@@ -3383,6 +3393,8 @@ int main(int ac, char* av[]) {
          << "  -cm : input grid is in centimeters" << endl
          << "  -m  : input grid is in meters" << endl
          << "  -Lref <units> : 1 unit in input grid is <units> long" << endl
+         << "  -B <int> : base number in cgns file" << endl
+         << "  -Z <int> : zone number in cgns file" << endl
          << endl ;
     exit(-1) ;
   }
@@ -3406,7 +3418,7 @@ int main(int ac, char* av[]) {
     cout << endl ;
   }
   
-  
+  cout << " cgbase " << cgbase << " cgzone " << cgzone << endl;  
 
   int loc = 0;
   loc = tmp_str.find('.') ;
@@ -3427,7 +3439,7 @@ int main(int ac, char* av[]) {
   vector<Array<cgsize_t,8> > hexs_long ;
   vector<pair<int,string> > surf_ids ;
   if(Loci::MPI_processes > 1)readCGNS_parallel(infile, pos,qfaces_long,tfaces_long,tets_long,pyramids_long,prisms_long,hexs_long, surf_ids) ;
-  else readCGNS_serial(infile, pos,qfaces_long,tfaces_long,tets_long,pyramids_long,prisms_long,hexs_long, surf_ids) ;
+  else readCGNS_serial(infile, cgbase, cgzone, pos,qfaces_long,tfaces_long,tets_long,pyramids_long,prisms_long,hexs_long, surf_ids) ;
   
 
   

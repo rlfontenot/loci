@@ -63,6 +63,8 @@ void Usage(int ac, char *av[]) {
        << "-fv :  extract for the FieldView post-processing package" << endl
        << "-en :  extract for the Ensight post-processing package" << endl
        << "-en_with_id :  extract for the Ensight post-processing package with node id and element id" << endl
+       << "-cgns :  extract for the CGNS post-processing package" << endl
+       << "-cgns_with_id :  extract for the CGNS post-processing package with node id and element id" << endl
        << "-tec:  extract for the TecPlot post-procesing package" << endl
        << "-vtk:   extract for the Paraview post-procesing package" << endl
        << "-vtk64: extract for the Paraview post-procesing package (for large cases, must use >= Paraview 3.98)" << endl
@@ -1401,13 +1403,13 @@ void surfacePart::getQuads(vector<Array<int,4> > &quads) const {
   }
 }
 void surfacePart::getQuadsIds(vector<int> &quads_ids) const {
-  cout << "start getQuadsIds " << endl;
+  
   quads_ids.clear();
   FORALL(quadSet,ii) {
     // quads_ids.push_back(quad_ord[ii]) ;
     quads_ids.push_back(ii);
   } ENDFORALL ;
-  cout << "start getQuadsIds " << endl;
+  
 }
 
  
@@ -1432,13 +1434,13 @@ void surfacePart::getTrias(vector<Array<int,3> > &trias) const {
   }
 }
 void  surfacePart::getTriasIds(vector<int> &trias_ids) const{
-  cout << "start getTriasIds " << endl;
+
   trias_ids.clear();
   FORALL(triSet,ii) {
     //  trias_ids.push_back(tri_ord[ii]) ;
     trias_ids.push_back(ii);
   } ENDFORALL ;
-  cout << "end getTriasIds " << endl;
+
 }
 
 void surfacePart::getGenf(vector<int> &numGenFnodes, vector<int> &genNodes) const {
@@ -1472,13 +1474,12 @@ void surfacePart::getGenf(vector<int> &numGenFnodes, vector<int> &genNodes) cons
 }
 
 void  surfacePart::getGenfIds(vector<int> &genface_ids) const{
-  cout << "start getGenIds " << endl;
+
   genface_ids.clear();
   FORALL(genSet,ii) {
-    //genface_ids.push_back(gen_ord[ii]) ;
     genface_ids.push_back(ii);
   } ENDFORALL ;
-  cout << "end getGenIds " << endl;
+
 }
 
 void surfacePart::getPos(vector<vector3d<float> > &pos) const {
@@ -2797,7 +2798,7 @@ int main(int ac, char *av[]) {
   Loci::disableDebugDir() ;
   Loci::Init(&ac,&av) ;
 
-  enum {ASCII,TWODGV,ENSIGHT,FIELDVIEW,TECPLOT,VTK,VTK_SURFACE,VTK64,VTK_SURFACE64,CUTTINGPLANE, SURFACE, MEAN, COMBINE, FCOMBINE, NONE} plot_type = NONE ;
+  enum {ASCII,TWODGV,ENSIGHT,CGNS,FIELDVIEW,TECPLOT,VTK,VTK_SURFACE,VTK64,VTK_SURFACE64,CUTTINGPLANE, SURFACE, MEAN, COMBINE, FCOMBINE, NONE} plot_type = NONE ;
 
   string casename ;
   bool found_casename = false ;
@@ -2846,6 +2847,16 @@ int main(int ac, char *av[]) {
       else if(!strcmp(av[i],"-en_with_id"))
         {
           plot_type = ENSIGHT ;
+          id_required = true;
+        }
+      else if(!strcmp(av[i],"-cgns"))
+        {
+          plot_type = CGNS ;
+          id_required = true; //id always required
+        }
+      else if(!strcmp(av[i],"-cgns_with_id"))
+        {
+          plot_type = CGNS ;
           id_required = true;
         }
       else if(!strcmp(av[i],"-fv"))
@@ -3384,6 +3395,9 @@ int main(int ac, char *av[]) {
   case ENSIGHT:
     postprocessor = new ensightPartConverter(id_required) ;
     break ;
+  case CGNS:
+    postprocessor = new cgnsPartConverter(id_required) ;
+    break ;  
   case FIELDVIEW:
     postprocessor = new fieldViewPartConverter ;
     break ;
@@ -3502,6 +3516,7 @@ int main(int ac, char *av[]) {
       }
     }
     
+    
     if(parts.size() > 0) {
       vector<surfacePartP> modparts(parts.size()) ;
       for(size_t i=0;i<parts.size();++i)
@@ -3517,8 +3532,10 @@ int main(int ac, char *av[]) {
 						  iteration,variables) ;
       postprocessor->addVolumePart(vpn) ;
     }
+    
     if(pp!=0)
       postprocessor->addParticlePart(pp) ;
+    
     postprocessor->exportPostProcessorFiles(casename,iteration) ;
     Loci::Finalize() ;
     exit(0) ;
