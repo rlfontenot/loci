@@ -1997,6 +1997,7 @@ int main(int ac, char* av[]) {
   std::string tmp_str ;
   bool binary = 0;
   string Lref = "NOSCALE" ;
+  bool swapbyte = false ;
   while(ac>=2 && av[1][0] == '-') {
     // If user specifies an alternate query, extract it from the
     // command line.
@@ -2014,6 +2015,10 @@ int main(int ac, char* av[]) {
       av++ ;
     } else if(ac >= 2 && !strcmp(av[1],"-b")) {
       binary = 1 ;
+      ac-- ;
+      av++ ;
+    } else if(ac >= 2 && !strcmp(av[1],"-swapb")) {
+      swapbyte = true ;
       ac-- ;
       av++ ;
     } else if(ac >= 2 && !strcmp(av[1],"-o")) {
@@ -2099,6 +2104,8 @@ int main(int ac, char* av[]) {
   // Check machines internal byte order
   check_order() ;
 
+  if(swapbyte)
+    reverse_byteorder = !reverse_byteorder ;
   int loc = 0;
   loc = tmp_str.find('.') ;
   std::string new_str = tmp_str.substr(0, loc) ;
