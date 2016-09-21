@@ -2016,7 +2016,7 @@ vector<pair<string,entitySet> > getVOGTagFromLocal(const vector<pair<string,enti
         end = cell_offset[end]+num_fine_cells[end]-1;//the end of interval changes to cell_offset+num_fine_cells
         new_set += interval(start, end);
       }
-      volTags[i] = make_pair<string, entitySet>(name, new_set);
+      volTags[i] = make_pair(name, new_set);
       std::cout << "old tag:  "  << name << " " << set << std::endl;
       std::cout << "new tag:  " << name << " " << new_set << std::endl;
     }
@@ -2122,7 +2122,7 @@ vector<pair<string,entitySet> > getVOGTagFromLocal(const vector<pair<string,enti
           int end = buffer[pnt++];
           new_set += interval(start, end);
         }
-        volTags[i] = make_pair<string, entitySet>(name, new_set);
+        volTags[i] = make_pair(name, new_set);
         std::cout << "old tag:  "  << name << " " << set << std::endl;
         std::cout << "new tag:  " << name << " " << new_set << std::endl;
       }
