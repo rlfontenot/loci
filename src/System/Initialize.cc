@@ -29,6 +29,10 @@
 #if ((PETSC_VERSION_MAJOR > 3) || (PETSC_VERSION_MAJOR == 3) && (PETSC_VERSION_MINOR > 2))
 #define PETSC_33_API
 #endif
+#if ((PETSC_VERSION_MAJOR > 3) || (PETSC_VERSION_MAJOR == 3) && (PETSC_VERSION_MINOR > 6))
+#define PETSC_37_API
+#endif
+
 
 // Force key petsc functions to load. (Helps when using static libraries)
 void dummyFunctionDependencies(int i) {
@@ -268,7 +272,11 @@ namespace Loci {
     //total number of processes.
 #ifdef USE_PETSC
     PetscInitialize(argc,argv,(char*)0,(char*)0) ;
+#ifdef PETSC_37_API
+    PetscOptionsSetValue(0,"-options_left","false") ;
+#else
     PetscOptionsSetValue("-options_left","false") ;
+#endif
     PetscPopErrorHandler() ;
     PetscPushErrorHandler(PetscIgnoreErrorHandler,PETSC_NULL) ;
 #else
