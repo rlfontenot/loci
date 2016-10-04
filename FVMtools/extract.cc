@@ -62,6 +62,9 @@ void Usage(int ac, char *av[]) {
        << "-fv :  extract for the FieldView post-processing package" << endl
        << "-en :  extract for the Ensight post-processing package" << endl
        << "-en_with_id :  extract for the Ensight post-processing package with node id and element id" << endl
+    //#ifdef HAVE_CGNS
+       << "-cgns :  extract for the CGNS post-processing package" << endl
+    //#endif
        << "-tec:  extract for the TecPlot post-procesing package" << endl
        << "-vtk:   extract for the Paraview post-procesing package" << endl
        << "-vtk64: extract for the Paraview post-procesing package (for large cases, must use >= Paraview 3.98)" << endl
@@ -205,7 +208,7 @@ string getTopoFileName(string output_dir, string casename, string iteration) {
 volumePart::volumePart(string out_dir, string iteration, string casename,
 		       vector<string> vars) {
   error = true ;
-  partName = casename + "_Volume" ;
+  partName = "Volume" ;
 
   // Check number of nodes
   //-------------------------------------------------------------------------
@@ -516,6 +519,42 @@ void volumePart::getPos(vector<vector3d<float> > &pos) const {
   H5Gclose(elg) ;
   H5Fclose(file_id) ;
 }
+
+
+void volumePart::getPos(vector<vector3d<double> > &pos) const {
+  pos.clear() ;
+  string filename = posFile ;
+  hid_t file_id = H5Fopen(filename.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
+  if(file_id < 0)
+    return ;
+
+#ifdef H5_USE_16_API
+  hid_t elg = H5Gopen(file_id,"pos") ;
+#else
+  hid_t elg = H5Gopen(file_id,"pos",H5P_DEFAULT) ;
+#endif
+  
+  if(elg < 0) {
+    H5Fclose(file_id) ;
+    return ;
+  }
+  size_t nsz = sizeElementType(elg,"data") ;
+  if(nsz != nnodes) {
+    H5Gclose(elg) ;
+    H5Fclose(file_id) ;
+    return ;
+  }
+    
+  vector<vector3d<double> > tmp(nsz) ;
+  pos.swap(tmp) ;
+  readElementType(elg,"data",pos) ;
+  H5Gclose(elg) ;
+  H5Fclose(file_id) ;
+}
+
+
+
+
 
 void volumePart::getTetBlock(vector<Array<int,4> > &tets, size_t start, size_t size) const {
   tets.clear() ;
@@ -994,7 +1033,7 @@ void volumePartDerivedVars::processDerivedVars(const vector<string> &vars) {
     }
     if(vars[i] == "p" && !shadowPart->hasNodalScalarVar("p")) {
       if(shadowPart->hasNodalScalarVar("pg")) {
-	derivedVars["P"] = VAR_logp ;
+	derivedVars["p"] = VAR_logp ;
       }
     }
     if(vars[i] == "u" && !shadowPart->hasNodalScalarVar("u")) {
@@ -1092,7 +1131,9 @@ std::vector<string> volumePartDerivedVars::getNodalVectorVars() const {
 void volumePartDerivedVars::getPos(vector<vector3d<float> > &pos) const {
   shadowPart->getPos(pos) ;
 }
-
+void volumePartDerivedVars::getPos(vector<vector3d<double> > &pos) const {
+  shadowPart->getPos(pos) ;
+}
 void volumePartDerivedVars::getTetBlock(vector<Array<int,4> > &tets, size_t start, size_t size) const {
   shadowPart->getTetBlock(tets,start,size) ;
 }
@@ -1556,6 +1597,18 @@ void surfacePart::getPos(vector<vector3d<float> > &pos) const {
   Loci::hdf5CloseFile(file_id) ;
 }
 
+void surfacePart::getPos(vector<vector3d<double> > &pos) const {
+  vector<vector3d<double> > tmp(nnodes) ;
+  pos.swap(tmp) ;
+  hid_t file_id = Loci::hdf5OpenFile(posFile.c_str(),
+				     H5F_ACC_RDONLY,
+				     H5P_DEFAULT) ;
+
+  if(file_id < 0) return ;
+  readElementType(file_id,"data",pos) ;
+  Loci::hdf5CloseFile(file_id) ;
+}
+
 void surfacePart::getNodalScalar(string varname,
 				 vector<float> &vals) const {
   vector<float> tmp(nnodes) ;
@@ -1678,7 +1731,7 @@ void surfacePartDerivedVars::processDerivedVars(const vector<string> &vars) {
     }
     if(vars[i] == "p" && !shadowPart->hasNodalScalarVar("p")) {
       if(shadowPart->hasNodalScalarVar("pg")) {
-	derivedVars["P"] = VAR_logp ;
+	derivedVars["p"] = VAR_logp ;
       }
     }
     if(vars[i] == "u" && !shadowPart->hasNodalScalarVar("u")) {
@@ -1803,7 +1856,9 @@ void surfacePartDerivedVars::getGenfIds(vector<int> &genface_ids) const{
 void surfacePartDerivedVars::getPos(vector<vector3d<float> > &pos) const {
   shadowPart->getPos(pos) ;
 }
-
+void surfacePartDerivedVars::getPos(vector<vector3d<double> > &pos) const {
+  shadowPart->getPos(pos) ;
+}
 void surfacePartDerivedVars::getNodalScalar(string varname,
 					    vector<float> &vals) const {
   map<string,derivedVar_t>::const_iterator mi=derivedVars.find(varname) ;
@@ -1975,8 +2030,8 @@ surfacePartCopy::surfacePartCopy(string name,
   ngenf = nfacenodes.size() ;
 }
 
-void surfacePartCopy::registerPos(const vector<vector3d<float> > &posvol) {
-  vector<vector3d<float> > tmp(nodemap.size()) ;
+void surfacePartCopy::registerPos(const vector<vector3d<double> > &posvol) {
+  vector<vector3d<double> > tmp(nodemap.size()) ;
   pos.swap(tmp) ;
   for(size_t i=0;i<nodemap.size();++i)
     pos[i] = posvol[nodemap[i]-1] ;
@@ -2094,9 +2149,18 @@ void surfacePartCopy::getGenfIds(vector<int> &genface_ids) const{
 }
 
 void surfacePartCopy::getPos(vector<vector3d<float> > &pos_out) const {
-  pos_out = pos ;
+  pos_out.resize(pos.size());
+  for(size_t i = 0; i < pos.size(); i++){
+    pos_out[i].x = pos[i].x;
+    pos_out[i].y = pos[i].y;
+    pos_out[i].z = pos[i].z;
+  }
+  
 }
 
+void surfacePartCopy::getPos(vector<vector3d<double> > &pos_out) const {
+  pos_out = pos;
+}
 
 void surfacePartCopy::getNodalScalar(string varname,
                                      vector<float> &vals) const {
@@ -2774,7 +2838,7 @@ void extractVolumeSurfaces(vector<surfacePartP> &volSurface,
   H5Fclose(file_id) ;
   
   {
-    vector<vector3d<float> > posvol ;
+    vector<vector3d<double> > posvol ;
     vp->getPos(posvol) ;
     for(hsize_t bc=0;bc<num_bcs;++bc) {
       surfaceWork[bc]->registerPos(posvol) ;
@@ -2819,7 +2883,7 @@ int main(int ac, char *av[]) {
   Loci::disableDebugDir() ;
   Loci::Init(&ac,&av) ;
 
-  enum {ASCII,TWODGV,ENSIGHT,FIELDVIEW,TECPLOT,VTK,VTK_SURFACE,VTK64,VTK_SURFACE64,CUTTINGPLANE, SURFACE, MEAN, COMBINE, FCOMBINE, NONE} plot_type = NONE ;
+  enum {ASCII,TWODGV,ENSIGHT,CGNS,FIELDVIEW,TECPLOT,VTK,VTK_SURFACE,VTK64,VTK_SURFACE64,CUTTINGPLANE, SURFACE, MEAN, COMBINE, FCOMBINE, NONE} plot_type = NONE ;
 
   string casename ;
   bool found_casename = false ;
@@ -2868,6 +2932,11 @@ int main(int ac, char *av[]) {
       else if(!strcmp(av[i],"-en_with_id"))
         {
           plot_type = ENSIGHT ;
+          id_required = true;
+        }
+      else if(!strcmp(av[i],"-cgns"))
+        {
+          plot_type = CGNS ;
           id_required = true;
         }
       else if(!strcmp(av[i],"-fv"))
@@ -3094,7 +3163,7 @@ int main(int ac, char *av[]) {
         
         
       }
-        
+      //add derived variables  
       if(dot>0 && und>0 && postfix == tail) {
         if(vtype == "sca" || vtype == "vec" || vtype == "bnd" ||
            vtype == "bndvec" || vtype == "ptsca" || vtype == "ptvec") {
@@ -3170,7 +3239,8 @@ int main(int ac, char *av[]) {
     cout << endl ;
       
   }
-  
+
+  //find out variable types and variable files
   vector<int> variable_type(variables.size()) ;
   vector<string> variable_file(variables.size()) ;
 
@@ -3410,6 +3480,9 @@ int main(int ac, char *av[]) {
   case ENSIGHT:
     postprocessor = new ensightPartConverter(id_required) ;
     break ;
+  case CGNS:
+    postprocessor = new cgnsPartConverter(id_required) ;
+    break ;  
   case FIELDVIEW:
     postprocessor = new fieldViewPartConverter ;
     break ;

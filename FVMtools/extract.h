@@ -295,6 +295,7 @@ public:
   virtual std::vector<string> getNodalScalarVars() const = 0 ;
   virtual std::vector<string> getNodalVectorVars() const = 0 ;
   virtual void getPos(vector<vector3d<float> > &pos) const = 0 ;
+  virtual void getPos(vector<vector3d<double> > &pos) const = 0 ;
   virtual void getTetBlock(vector<Array<int,4> > &tets, size_t start, size_t size) const = 0 ;
   virtual void getTetIds(vector<int> &tetids, size_t start, size_t size) const = 0 ;
   virtual void getPyrmBlock(vector<Array<int,5> > &pyrms, size_t start, size_t size) const = 0 ;
@@ -332,6 +333,7 @@ public:
   virtual std::vector<string> getNodalScalarVars() const ;
   virtual std::vector<string> getNodalVectorVars() const ;
   virtual void getPos(vector<vector3d<float> > &val) const ;
+  virtual void getPos(vector<vector3d<double> > &pos) const;
   virtual void getTetBlock(vector<Array<int,4> > &tets, size_t start, size_t size) const ;
   virtual void getTetIds(vector<int> &tetids, size_t start, size_t size) const ;
   virtual void getPyrmBlock(vector<Array<int,5> > &pyrms, size_t start, size_t size) const ;
@@ -371,6 +373,7 @@ public:
   virtual std::vector<string> getNodalScalarVars() const ;
   virtual std::vector<string> getNodalVectorVars() const ;
   virtual void getPos(vector<vector3d<float> > &val) const ;
+  virtual void getPos(vector<vector3d<double> > &pos) const;
   virtual void getTetBlock(vector<Array<int,4> > &tets, size_t start, size_t size) const ;
   virtual void getTetIds(vector<int> &tetids, size_t start, size_t size) const ;
   virtual void getPyrmBlock(vector<Array<int,5> > &pyrms, size_t start, size_t size) const ;
@@ -417,6 +420,7 @@ public:
   virtual void getGenfIds(vector<int> &genface_ids) const =0;
   
   virtual void getPos(vector<vector3d<float> > &pos) const = 0;
+  virtual void getPos(vector<vector3d<double> > &pos) const = 0 ;
   virtual void getNodalScalar(string varname, vector<float> &vals) const = 0 ;
   virtual void getNodalVector(string varname, vector<vector3d<float> > &vals) const = 0;
   virtual void getElementScalar(string varname, vector<float> &qvals,
@@ -457,6 +461,7 @@ public:
   virtual void getTriasIds(vector<int> &trias_ids) const ;
   virtual void getGenfIds(vector<int> &genface_ids) const ;
   virtual void getPos(vector<vector3d<float> > &pos) const ;
+  virtual void getPos(vector<vector3d<double> > &pos) const;
   virtual void getNodalScalar(string varname, vector<float> &vals) const ;
   virtual void getNodalVector(string varname, vector<vector3d<float> > &vals) const ;
   virtual void getElementScalar(string varname, vector<float> &qvals,
@@ -503,6 +508,7 @@ public:
   virtual void getGenfIds(vector<int> &genface_ids) const ;
   
   virtual void getPos(vector<vector3d<float> > &pos) const ;
+  virtual void getPos(vector<vector3d<double> > &pos) const;
   virtual void getNodalScalar(string varname, vector<float> &vals) const ;
   virtual void getNodalVector(string varname, vector<vector3d<float> > &vals) const ;
   virtual void getElementScalar(string varname, vector<float> &qvals,
@@ -521,7 +527,7 @@ class surfacePartCopy : public surfacePartBase {
   vector<int> quadIds;
   vector<int> genIds;
   vector<int> nodemap ;
-  vector<vector3d<float> > pos ;
+  vector<vector3d<double> > pos ;
   map<string,vector<float> > nodalScalars ;
   map<string,vector<vector3d<float> > > nodalVectors ;
   map<string,Array<vector<float>,3> > elementScalars ;
@@ -534,7 +540,7 @@ public:
                   vector<int>& quads_ids,
                   vector<int> &genface2n, vector<int> &gnodes,
                   vector<int>&gen_ids) ;
-  void registerPos(const vector<vector3d<float> > &pos) ;
+  void registerPos(const vector<vector3d<double> > &pos) ;
   void registerNodalScalar(string name,const vector<float> &val) ;
   void registerNodalVector(string name,const vector<vector3d<float> > &val) ;
   void registerElementScalar(string name, 
@@ -562,6 +568,7 @@ public:
   virtual void getGenfIds(vector<int> &genface_ids) const; 
   
   virtual void getPos(vector<vector3d<float> > &pos) const ;
+  virtual void getPos(vector<vector3d<double> > &pos) const ;
   virtual void getNodalScalar(string varname, vector<float> &vals) const ;
   virtual void getNodalVector(string varname, vector<vector3d<float> > &vals) const ;
   virtual void getElementScalar(string varname, vector<float> &qvals,
@@ -607,6 +614,19 @@ public:
 
   virtual void exportPostProcessorFiles(string casename, string iteration) const ;
 } ;
+
+//#ifdef HAVE_CGNS
+class cgnsPartConverter : public postProcessorConvert {
+  bool id_required;
+public:
+  cgnsPartConverter(bool input) {id_required = input; } ;
+  virtual bool processesVolumeElements() const ;
+  virtual bool processesSurfaceElements() const ;
+  virtual bool processesParticleElements() const ;
+
+  virtual void exportPostProcessorFiles(string casename, string iteration) const ;
+} ;
+//#endif
 
 class tecplotPartConverter : public postProcessorConvert {
 public:
