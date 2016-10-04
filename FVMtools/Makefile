@@ -20,16 +20,21 @@
 ###############################################################################
 include $(LOCI_BASE)/Loci.conf
 
+#CGNS_BASE ?= /simcenter/data1/qxue/cgns
+CGNS_BASE ?= /usr/local/loci/utils/cgns-3.3.0
+CGNS_INCLUDES = -I$(CGNS_BASE)/include/ 
+CGNS_LIBS = $(CGNS_BASE)/lib/libcgns.a
+
 COPT = $(COPTLESS)
 #COPT = -g -O0 #-DDEBUG -DBOUNDS_CHECK
 
 # List the name of your compiled program here
 TARGET = extract
 
-OTHER_APPS = plot3d2vog make_periodic ugrid2vog fluent2vog cobalt2vog vogmerge vogcut vogcheck extruder vog2surf ccm2vog refmesh marker refine #extract_chem 
+OTHER_APPS = plot3d2vog make_periodic ugrid2vog fluent2vog cobalt2vog vogmerge vogcut vogcheck extruder vog2surf ccm2vog refmesh marker refine cgns2vog ugrid2cgns  cgns2ugrid cgns2ensight cgns2surf 
 
 # List your object files here
-OBJS =  extract.o extract_ensight.o extract_2dgv.o extract_ascii.o extract_tecplot.o extract_vtk.o extract_fv.o extract_cut.o extract_surf.o extract_mean.o 
+OBJS =  extract.o extract_ensight.o extract_2dgv.o extract_ascii.o extract_tecplot.o extract_vtk.o extract_fv.o extract_cut.o extract_surf.o extract_mean.o extract_cgns.o
 
 LOCAL_LIBS =
 
@@ -43,7 +48,7 @@ all: $(TARGET) $(OTHER_APPS)
 
 
 $(TARGET): $(OBJS) 
-	$(LD) -o $(TARGET) $(OBJS) $(TEC_LIBS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+	$(LD) -o $(TARGET) $(OBJS) $(TEC_LIBS)  $(CGNS_LIBS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 FRC : 
 
 libadf/libadf.a:
@@ -51,6 +56,39 @@ libadf/libadf.a:
 
 ccm2vog.o: ccm2vog.cc
 	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) -Ilibadf -c ccm2vog.cc
+
+#hash.o: hash.cc
+#	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES)  -c hash.cc
+
+hash.o:
+	$(CC) $(COPTLESS) -c $(DEFINES)  hash.c
+
+getargs.o:
+	$(CC) $(COPTLESS) -c $(DEFINES)  getargs.c
+
+cgns2vog.o: cgns2vog.cc
+	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) $(CGNS_INCLUDES)  -c cgns2vog.cc
+
+#cgns2ugrid.o: cgns2ugrid.cc
+#	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(INCLUDES) $(CGNS_INCLUDES)  -c cgns2ugrid.c
+
+cgns2ugrid.o:
+	$(CC) $(COPTLESS) -c $(DEFINES) $(CGNS_INCLUDES) cgns2ugrid.c
+
+cgns2ensight.o: cgns2ensight.cc
+	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES)  $(INCLUDES) $(CGNS_INCLUDES)  -c cgns2ensight.cc
+
+cgns2surf.o: cgns2surf.cc
+	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES)  $(INCLUDES) $(CGNS_INCLUDES)  -c cgns2surf.cc
+
+ugrid2cgns.o: ugrid2cgns.cc
+	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) $(CGNS_INCLUDES)  -c ugrid2cgns.cc
+
+#ugrid2cgns.o:
+#	$(CC) $(COPTLESS) -c $(DEFINES) $(CGNS_INCLUDES) ugrid2cgns.c
+
+extract_cgns.o: extract_cgns.cc
+	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) $(CGNS_INCLUDES)  -c extract_cgns.cc
 
 extruder: extruder.o
 	$(LD) -o extruder extruder.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
@@ -92,6 +130,21 @@ plot3d2vog: plot3d2vog.o vogtools.o
 
 make_periodic: make_periodic.o predicates.o vogtools.o
 	$(LD) -o make_periodic make_periodic.o predicates.o vogtools.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+cgns2vog: cgns2vog.o hash.o vogtools.o $(CGNS_LIBS)
+	 $(LD) -o cgns2vog cgns2vog.o hash.o vogtools.o $(CGNS_LIBS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+
+cgns2ugrid: cgns2ugrid.o hash.o binaryio.o getargs.o $(CGNS_LIBS)
+	 $(LD) -o cgns2ugrid cgns2ugrid.o hash.o binaryio.o getargs.o $(CGNS_LIBS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+
+cgns2ensight: cgns2ensight.o $(CGNS_LIBS)
+	 $(LD) -o cgns2ensight cgns2ensight.o  $(CGNS_LIBS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+
+cgns2surf: cgns2surf.o hash.o $(CGNS_LIBS)
+	 $(LD) -o cgns2surf cgns2surf.o hash.o $(CGNS_LIBS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+
+
+ugrid2cgns: ugrid2cgns.o hash.o binaryio.o getargs.o $(CGNS_LIBS)
+	 $(LD) -o ugrid2cgns ugrid2cgns.o hash.o binaryio.o getargs.o $(CGNS_LIBS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
 predicates.o:
 	$(CC) $(COPTLESS) -c $(DEFINES) predicates.c

@@ -213,6 +213,21 @@ fi
 if [ ! -h refine ] ; then
   ln -s ../FVMtools/refine refine
 fi
+if [ ! -h cgns2surf ] ; then
+  ln -s ../FVMtools/cgns2surf cgns2surf
+fi
+if [ ! -h cgns2ensight ] ; then
+  ln -s ../FVMtools/cgns2ensight cgns2ensight
+fi
+if [ ! -h cgns2ugrid ] ; then
+  ln -s ../FVMtools/cgns2ugrid cgns2ugrid
+fi
+if [ ! -h cgns2vog ] ; then
+  ln -s ../FVMtools/cgns2vog cgns2vog
+fi
+if [ ! -h ugrid2cgns ] ; then
+  ln -s ../FVMtools/ugrid2cgns ugrid2cgns
+fi
 
 
 for dir in $TARGET_DIRS; do

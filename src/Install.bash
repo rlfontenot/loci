@@ -75,6 +75,11 @@ cp FVMtools/extruder $INSTALL_PATH/bin
 cp FVMtools/refmesh $INSTALL_PATH/bin
 cp FVMtools/marker $INSTALL_PATH/bin
 cp FVMtools/refine $INSTALL_PATH/bin
+cp FVMtools/cgns2ensight $INSTALL_PATH/bin
+cp FVMtools/cgns2surf $INSTALL_PATH/bin
+cp FVMtools/ugrid2cgns $INSTALL_PATH/bin
+cp FVMtools/cgns2ugrid $INSTALL_PATH/bin
+cp FVMtools/cgns2vog $INSTALL_PATH/bin
 
 echo cp Loci.conf comp.conf sys.conf $INSTALL_PATH
 cp Loci.conf comp.conf sys.conf $INSTALL_PATH
