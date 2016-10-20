@@ -954,6 +954,7 @@ namespace Loci {
 	    exp = std::pow(10.0,double(e)) ;
 #endif
 	  }
+	  val2 *= (val1<0)?-1.0:1.0 ;
 	  double val = (val1+val2)*exp ;
 	  ival->real_val_priv = val ;
 	  ival->op_priv = OP_DOUBLE ;
@@ -977,6 +978,7 @@ namespace Loci {
     if (parse::is_int(s) || s.peek() == '.') {
       if(s.peek() == '.')
 	s.putback('0') ;
+      
       exprP ival = new expression ;
       ival->int_val_priv = parse::get_int(s) ;
       ival->op_priv = OP_INT ;
@@ -1002,6 +1004,7 @@ namespace Loci {
 	  exp = std::pow(10.0,double(e)) ;
 #endif
 	}
+	val2 *= (val1<0)?-1.0:1.0 ;
 	double val = (val1+val2)*exp ;
 	ival->real_val_priv = val ;
 	ival->op_priv = OP_DOUBLE ;
