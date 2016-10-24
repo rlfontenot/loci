@@ -48,6 +48,8 @@ using std::ios ;
 
 #include <sys/types.h>
 #include <sys/stat.h>
+
+#ifdef USE_CGNS
 #include "cgnslib.h"
 
 
@@ -862,6 +864,27 @@ void cgnsPartConverter::exportPostProcessorFiles(string casename,
   
   cg_close(cgfile); 
 }
+
+#else
+
+bool cgnsPartConverter::processesVolumeElements() const {
+  cerr << "CGNS support not compiled for Loci utilities.  Check setup and recompile to use CGNS support." << endl ;
+  return false ; 
+}
+bool cgnsPartConverter::processesSurfaceElements() const {
+  cerr << "CGNS support not compiled for Loci utilities.  Check setup and recompile to use CGNS support." << endl ;
+  return false ; 
+}
+bool cgnsPartConverter::processesParticleElements() const {
+  return false; 
+}
+
+
+void cgnsPartConverter::exportPostProcessorFiles(string casename,
+                                                 string iteration) const {
+  
+}
+#endif
 
 
   

@@ -69,6 +69,9 @@
 #else
 #include <unistd.h>
 #endif
+
+#ifdef USE_CGNS
+
 #include "cgnslib.h"
 #include "hash.h"
 
@@ -3555,3 +3558,9 @@ int main(int ac, char* av[]) {
   Loci::Finalize() ;
   
 }
+#else
+int main(int ac, char *av[]) {
+  fprintf(stderr,"Loci not compiled with CGNS support enabled! This utility cannot work!\n") ;
+  return -1 ;
+}
+#endif
