@@ -129,6 +129,7 @@ namespace Loci {
       LOCI_INSERT_TYPE(ct,Loci::rigid_transform,t1) ;
       LOCI_INSERT_TYPE(ct,Loci::rigid_transform,t2) ;
       LOCI_INSERT_TYPE(ct,Loci::rigid_transform,R) ;
+      LOCI_INSERT_TYPE(ct,Loci::rigid_transform,Rinv) ;
       return DatatypeP(ct) ;
       
     }
