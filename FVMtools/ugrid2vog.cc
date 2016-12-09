@@ -1157,281 +1157,6 @@ void get_corners(int face_id, const Array<int,8> &hex, Array<int, 4> &corners){
     exit(1);
   }
 }
-#ifdef TOPO_DEBUG
-inline bool edgeCompare1(const Array<int,3> &e1, const Array<int,3> &e2) {
-  return (e1[0] < e2[0] || (e1[0]==e2[0] && e1[1]<e2[1])) ;
-}
-
-bool check_cell_topo(multiMap& face2node , Map & cl , Map& cr, int cellid){
-  entitySet faces = face2node.domain();
-  
-  vector<Array<int,3> > edges ;
-  entitySet lfaces, rfaces;
-
-  FORALL(faces, f){
-    if(cl[f] == cellid) lfaces += f;
-    if(cr[f] == cellid) rfaces += f;
-  }ENDFORALL;
-
-  FORALL(lfaces, f){
-    int fsz = face2node[f].size() ;
-    for(int j=0;j<fsz;++j) {
-      int jm = (j==0)? fsz-1:j-1 ;
-      int e1 = face2node[f][jm] ;
-      int e2 = face2node[f][j] ;
-      Array<int,3> tmp ;
-      tmp[0] = min(e1,e2) ;
-      tmp[1] = max(e1,e2) ;
-      tmp[2] = (tmp[0]==e1)?1:0 ;
-      edges.push_back(tmp) ;
-    }
-  }ENDFORALL;
-
-  FORALL(rfaces, f){
-    int fsz = face2node[f].size() ;
-    for(int j=0;j<fsz;++j) {
-      int jm = (j==0)? fsz-1:j-1 ;
-      int e1 = face2node[f][jm] ;
-      int e2 = face2node[f][j] ;
-      Array<int,3> tmp ;
-      tmp[0] = min(e1,e2) ;
-      tmp[1] = max(e1,e2) ;
-      tmp[2] = (tmp[0]==e1)?0:1 ;
-      edges.push_back(tmp) ;
-    }
-  }ENDFORALL;
-    
-  int esz = edges.size();
-  sort(edges.begin(),edges.end(),edgeCompare1) ;
-  int edge_missed = 0 ;
-  for(int i=0;i<esz;i+=2) {
-    if(edges[i][0] != edges[i+1][0] ||
-       edges[i][1] != edges[i+1][1] ||
-       (edges[i][2]+edges[i+1][2]) != 1) {
-      edge_missed++;
-    }
-  }
-  
-  if(edge_missed>0 || (esz & 0x1) == 1){
-    cout<< " num_face: " << lfaces.size() + rfaces.size()  << endl;
-    cout<< "upper: " << endl;
-    FORALL(lfaces, f){
-      int fsz = face2node[f].size() ;
-      for(int j=0;j<fsz;++j) {
-        cout <<face2node[f][j] << " " ;
-      }
-      cout << endl;
-    }ENDFORALL;
-    cout<< "lower: "  << endl;
-    FORALL(rfaces, f) {
-      int fsz = face2node[f].size() ;
-      for(int j=0;j<fsz;++j) {
-        cout << face2node[f][j]<< " "  ;
-      }
-      cout << endl;
-    }ENDFORALL;
-    cout << " num_edge " << edges.size() << endl;
-    for(int i=0;i<esz;i+=2) {
-      cout<< "(" << edges[i][0] << " " << edges[i][1] <<" , " << edges[i][2] <<") <-> (" <<  edges[i+1][0] << " " << edges[i+1][1] <<" , " << edges[i+1][2]<< ")"<<endl;
-    }
-    cout << endl;
-    cout << endl;
-    return false;
-  }
-  return true;
-}
-
-void rotate_quad(Array<int, 4>& q, bool& left){
-  // First make sure first entry is lowest number
-  int tmp_face[4] ;
-  int vs = q[0] ;
-  size_t nv = 0 ;
-  for(size_t j=1;j<4;++j)
-    if(vs > q[j]) {
-      vs = q[j] ;
-      nv = j ;
-    }
-  for(size_t j=0;j<4;++j)
-    tmp_face[j] = q[(j+nv)&0x3] ;
-  // next make orientation so that it will match other face
-  if(tmp_face[1] < tmp_face[3])
-    for(int j=0;j<4;++j)
-      q[j] = tmp_face[j] ;
-  else {
-    for(size_t j=0;j<4;++j)
-      q[j] = tmp_face[(4 - j) &0x3 ] ;
-    left = !left ;
-  }
-}
-
-//the hex faces collected here facing outward, the corners given in split file facing inward
-//this routine check to make sure it is true
-bool check_quad(Array<int, 4> hex_corners,  Array<int, 4> corners){
-  bool hex_left = true;
-  rotate_quad(hex_corners, hex_left);
-  bool left = false;
-  rotate_quad(corners, left);
-  return(hex_corners[0]==corners[0] && hex_corners[1]==corners[1] && hex_corners[2]==corners[2] && hex_corners[3]==corners[3] && left == hex_left);
-}
-
-void   get_real_single_tria(vector<quadFace>& quad, vector<triaFace>& stria, int hex_start){
- 
-  int num_tria = stria.size();
-  vector<triaFace> single_tria;
-  vector<int> found(num_tria, 0);
-  int num_single_quad  = 0;
-  for(unsigned int i = 0; i < quad.size(); i++){
-    vector<triaFace> tria(4);
-    
-    triaFace face1, face2, face3, face4;
-    face1.nodes[0] = quad[i].nodes[0];
-    face1.nodes[1] = quad[i].nodes[1];
-    face1.nodes[2] = quad[i].nodes[2];
-    face1.cell = quad[i].cell;
-    face1.left = quad[i].left;
-    tria[0] = face1;
-    
-    face2.nodes[0] = quad[i].nodes[0];
-    face2.nodes[1] = quad[i].nodes[2];
-    face2.nodes[2] = quad[i].nodes[3];
-    face2.cell = quad[i].cell;
-    face2.left = quad[i].left;
-    tria[1] = face2;
-    
-    face3.nodes[0] = quad[i].nodes[0];
-    face3.nodes[1] = quad[i].nodes[1];
-    face3.nodes[2] = quad[i].nodes[3];
-    face3.cell = quad[i].cell;
-    face3.left = quad[i].left;
-    tria[2]=face3;
-    
-    face4.nodes[0] = quad[i].nodes[1];
-    face4.nodes[1] = quad[i].nodes[2];
-    face4.nodes[2] = quad[i].nodes[3];
-    face4.cell = quad[i].cell;
-    face4.left = quad[i].left;
-    tria[3] = face4;
-  
-
-  
-  
-    for(int j = 0; j < 4; j++){
-      if(tria[j].nodes[0] > tria[j].nodes[1]) {
-        std::swap(tria[j].nodes[0],tria[j].nodes[1]) ;
-        tria[j].left = !tria[j].left ;
-      }
-      if(tria[j].nodes[0] > tria[j].nodes[2]) {
-        std::swap(tria[j].nodes[0],tria[j].nodes[2]) ;
-        tria[j].left = !tria[j].left ;
-      }
-      if(tria[j].nodes[1] > tria[j].nodes[2]) {
-        std::swap(tria[j].nodes[1],tria[j].nodes[2]) ;
-        tria[j].left = !tria[j].left ;
-      }
-    }
- 
-    int ind1  =0;
-    int ind2 = 0;
-    int ind3 = 0;
-    int ind4 = 0;
-    for(ind1 = 0; ind1 < num_tria; ind1++){
-      if(triaEqual(tria[0], stria[ind1])){
-        break;
-      }
-    }
-    for(ind2 = 0; ind2 < num_tria; ind2++){
-      if(triaEqual(tria[1], stria[ind2])){
-        break;
-      }
-    }
-    for(ind3 = 0; ind3 < num_tria; ind3++){
-      if(triaEqual(tria[2], stria[ind3])){
-        break;
-      }
-    }
-    for(ind4 = 0; ind4 < num_tria; ind4++){
-      if(triaEqual(tria[3], stria[ind4])){
-        break;
-      }
-    }
-  
-    if(ind1 <  num_tria && ind2 < num_tria && ind3 < num_tria && ind4 < num_tria){
-      cout<<" single quad: " << (quad[i].nodes[0])+1 << " " << (quad[i].nodes[1])+1 << " "<<(quad[i].nodes[2])+1 << " "<< (quad[i].nodes[3])+1<<" " ;
-      if(quad[i].left)cout<< "left  " ;
-      else cout<<"right ";
-      cout << (quad[i].cell) -hex_start +1  << endl;
-      found[ind1] = 1;
-      found[ind2] = 1;
-      found[ind3] = 1;
-      found[ind4] = 1;
-      num_single_quad++;
-    }
-
-    if(ind1 <  num_tria && ind2 < num_tria && ind3 == num_tria && ind4 == num_tria){
-      found[ind1] = 1;
-      found[ind2] = 1;
-    }
-    
-    if(ind1 ==  num_tria && ind2 ==num_tria && ind3 < num_tria && ind4 < num_tria){
-      found[ind3] = 1;
-      found[ind4] = 1;
-    }
-    
-  
-    if(ind1 < num_tria && ind2==num_tria && ind3 < num_tria && ind4 < num_tria){
-      single_tria.push_back(stria[ind1]);
-      found[ind1] = 1;
-      found[ind3] = 1;
-      found[ind4]  = 1;
-    }
-    if(ind1 == num_tria && ind2<num_tria && ind3 < num_tria && ind4 < num_tria){
-      single_tria.push_back(stria[ind2]);
-      found[ind2] = 1;
-      found[ind3] = 1;
-      found[ind4]  = 1;
-    }
-
-    if(ind3 < num_tria && ind4==num_tria && ind1 < num_tria && ind2 < num_tria){
-      single_tria.push_back(stria[ind3]);
-      found[ind1] = 1;
-      found[ind2] = 1;
-      found[ind3]  = 1;
-    }
-    if(ind3 == num_tria && ind4<num_tria && ind1 < num_tria && ind2 < num_tria){
-      single_tria.push_back(stria[ind4]);
-      found[ind4] = 1;
-      found[ind1] = 1;
-      found[ind2]  = 1;
-    }
-  }
-
-  cout<<" get_real_single_trias input: num_single_quads " << quad.size() << " num_single_trias " << stria.size()<< endl;
-  cout <<"output: num_real_quad that all 4 split trias get no match: " << num_single_quad << endl;
-  cout <<"output: num_real_singles from quad( 3 out of 4 split trias get match):  " << single_tria.size() << endl;
-  for(unsigned int i = 0; i < single_tria.size(); i++){
-    cout<<" single from quad: " << (single_tria[i].nodes[0])+1 << " " << (single_tria[i].nodes[1])+1 << " "<<(single_tria[i].nodes[2])+1 << " ";
-    if(single_tria[i].left)cout<< "left  " ;
-    else cout<<"right ";
-    cout << single_tria[i].cell -hex_start +1  << endl;
-  }
-
-  int num_sing = 0; 
-  for(int i = 0; i< num_tria; i++){
-    num_sing += found[i];
-  }
-
-  num_sing = num_tria - num_sing;
-  cout <<"output: num_real_singles not from quad: " << num_sing << endl; 
-  for(int i = 0; i< num_tria; i++){
-    if(!found[i]){cout<<" single not from quad: " << (stria[i].nodes[0])+1 << " " << (stria[i].nodes[1])+1 << " "<<(stria[i].nodes[2])+1 << " ";
-      if(stria[i].left)cout<< "left  " ;
-      else cout<<"right ";
-      cout << stria[i].cell -hex_start +1 << endl;
-    }
-  }
-   
-}
-#endif  
 
 bool split(vector<quadFace> &quad, int& qf,
            vector<triaFace> &tria, int& tf,
@@ -2040,16 +1765,11 @@ void convert2face(store<vector3d<double> > &pos,
 
   //cellid here and hex_id in .split file are different, hex_id start with 1
 
-  //int hex_start = cellid;
-  //cout << " start of hex " <<cellid << endl;
-  //cout <<" hex_min[Loci::MPI_rank] " << hex_min[Loci::MPI_rank]  << endl; 
   
   for(size_t i=0;i<hexs.size();++i) {
     int hex_id = hex_min[Loci::MPI_rank] + i;
     for(int face_id = 1; face_id <=6; face_id++){
-      //for debug
-      // Array<int, 4> hex_corners;
-      //get_corners(face_id, hexs[i], hex_corners);
+      
       if(!split(quad, qf, tria, tf, hex_id, face_id, splits, cellid)){
         Array<int, 4> corners;
         get_corners(face_id, hexs[i], corners);
@@ -2061,11 +1781,9 @@ void convert2face(store<vector3d<double> > &pos,
         quad[qf++].cell = cellid ;
       }
     }
-    //if(!check_cell_topo(quad, tria, cellid))cout<< " failed hex_id " << hex_id << endl<< endl;
-
     cellid++ ;
   }
-  //int cell_end = cellid;
+  
   num_quad_faces = qf;
   num_tria_faces = tf;
   //remove extra memory allocated
@@ -2154,11 +1872,6 @@ void convert2face(store<vector3d<double> > &pos,
   // get_single_face will remove them
   if(total_num_single_quad != 0){
     vector<triaFace> single_tria = get_single_face(tria, triaEqual);
-#ifdef TOPO_DEBUG
-    // vector<triaFace> single_tria_copy(single_tria);
-    //get_real_single_tria(single_quad_copy, single_tria_copy, hex_start);
-    //cout << " finish get_real_single_tria " << endl;
-#endif
     int num_single_tria = single_tria.size();
     int total_num_single_tria = 0;
     MPI_Allreduce(&num_single_tria,&total_num_single_tria,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD) ;
@@ -2341,13 +2054,6 @@ void convert2face(store<vector3d<double> > &pos,
     }
     fc++ ;
   }
-  
-#ifdef TOPO_DEBUG
-  for(int i = hex_start; i < cell_end; i++){
-    check_cell_topo(face2node, cl, cr, i);
-  }
-#endif
-  
 }
   
  
@@ -3222,10 +2928,8 @@ int main(int ac, char* av[]) {
   Map cl,cr ;
 
   if(cellVertexTransform) {
-   
     convert2cellVertexface(pos,qfaces,tfaces,tets,pyramids,prisms,hexs,
                            face2node,cl,cr) ;
-		       
   } else {
     convert2face(pos,qfaces,tfaces,tets,pyramids,prisms,hexs, hex_min,splits,
                  face2node,cl,cr) ;
