@@ -19,6 +19,9 @@ using std::cout ;
 using std::endl ;
 using std::cerr ;
 
+using std::cout;
+using std::endl;
+
 typedef int int32;
 typedef long int int64;
 
@@ -397,8 +400,7 @@ void readMesh(  double topoID,
                 vector<int32* > &allFaces,
                 vector<int64> &faceSizes,
                 vector<int32* > &allFaceCells,
-                vector<int64> &faceCellSizes, 
-                vector<pair<int,string> > &surf_ids)
+                vector<int64> &faceCellSizes)
 {
   int err; 
   double root;
@@ -547,29 +549,100 @@ void readMesh(  double topoID,
 
       allFaceCells.push_back(tmpfacecells);
       if(bfaceCellData) delete [] bfaceCellData;
-      
-      //      string bcstr = readNodestr(bfaceID, "Label");
-      //if(bcstr.size()==0){
-      char bcname[128];
-      bzero(bcname,128) ;
-      if(btype >= 0)
-        snprintf(bcname,127,"BC_%d",btype) ;
-      else
-        snprintf(bcname,127,"BC_m%d",-btype) ;
-      
-      string bcstr=string(bcname);
-      // }
-      
-      surf_ids.push_back(pair<int, string>(btype, bcstr));
-       
     }
-  
   }
-  
 }
-  
- 
 
+// function to remove spaces in strings
+void removeSpace(string &str) {
+  str.erase(std::remove(str.begin(), str.end(), ' '), str.end());
+}
+
+// Function the check that all boundary names are unique, and rename them
+// if they are not.
+void checkUnique(const vector<pair<int, string> > &surf_ids, int &bcIndex, 
+		 string &bcLabel) {
+  // check to make sure bc labels are unique
+  for (unsigned int ii = 0; ii < surf_ids.size(); ii++) {
+    if (bcLabel == surf_ids[ii].second) {
+      string newName = bcLabel + string("_1");
+      cerr << "WARNING: Boundary ID " << surf_ids[ii].first << 
+	" has the same name as " << bcIndex << "!\nBoth are named " << 
+	bcLabel << ". Boundary ID " << bcIndex << " will be renamed to " <<
+	newName << endl;
+      bcLabel = newName;
+    }
+  }
+}
+
+// This function gets the boundary condition names and IDs.
+// These values are contained in the ProblemDescriptions node (there is only one of these).
+// Within the ProblemDescriptions node there is one node for each set of problem
+// description information of the form ProblemDescription-#. Within each 
+// ProblemDescription-# node there is a BoundaryRegion-# node to describe each boundary
+// region. The BoundaryRegion-# nodes have a Label field which contains the boundary
+// label as named in STAR-CCM+; the # is used as the boundary ID
+void getSurfaceNames(double &probDescID,
+		       vector<pair<int,string> > &surf_ids) {
+  // probDescID -- ID for the ProblemDescriptions node
+  // surf_ids -- (output) vector of boundary condtion IDs and names
+
+  int err = 0;  // initialize error flag
+  
+  // get number of ProblemDescription children
+  int numChildren;
+  ADF_Number_of_Children(probDescID, &numChildren, &err);
+  checkError(err, probDescID, "Can not get number of children of the ProblemDescriptions");
+
+  char name[ADF_NAME_LENGTH]={'\0'};
+  int num_ret = 0;
+
+  // loop over all children to get to the boundary conditions held by each child
+  // if there is more than one child the BCs for the first child will be stored,
+  // then the BCs for the second child, and so on
+  for(int start = 1; start<=numChildren; start++){
+    ADF_Children_Names (probDescID, start, 1, ADF_NAME_LENGTH, &num_ret, name, &err);
+    checkError(err, probDescID, string("Can not get node ID of ") + string(name));
+    
+    // if child is ProblemDescription-# probe further for boundary condition data
+    double pDescNum;
+    if(string(name).substr(0,19)=="ProblemDescription-"){
+      ADF_Get_Node_ID(probDescID, name, &pDescNum, &err);
+      checkError(err, probDescID, string("Can not get node ID of ") + string(name));
+
+      // get number of ProblemDescription-# children
+      int numDesc;
+      ADF_Number_of_Children(pDescNum, &numDesc, &err);
+      checkError(err, probDescID, "Can not get number of children of the ProblemDescriptions-#");
+
+      // loop over each of the ProblemDescription-# childeren
+      char cname[ADF_NAME_LENGTH]={'\0'};
+      int cnum_ret = 0;
+      for(int ii = 1; ii <= numDesc; ii++) {
+	ADF_Children_Names (pDescNum, ii, 1, ADF_NAME_LENGTH, &cnum_ret, cname, &err);
+	checkError(err, pDescNum, string("Can not get node ID of ") + string(cname));
+
+	// if child is BoundaryRegion-# probe further for boundary condtion data
+	double bNum;
+	if(string(cname).substr(0,15)=="BoundaryRegion-"){
+	  ADF_Get_Node_ID(pDescNum, cname, &bNum, &err);
+	  checkError(err, pDescNum, string("Can not get node ID of ") + string(cname));
+
+	  // get boundary condition index and name
+	  string index = string(cname).substr(15);
+	  int bcIndex = atoi(index.c_str());
+	  string bcLabel = readNodestr(bNum, "Label");
+
+	  removeSpace(bcLabel);
+	  checkUnique(surf_ids, bcIndex, bcLabel);
+
+	  surf_ids.push_back(pair<int, string>(bcIndex, bcLabel));
+	}
+      }
+    }
+  }
+}
+ 
 //for each processor, get its vertices and topology ID, might open another file
 void getMeshID(double processorID, double* verticesID, double* topoID){
   int numChildren;
@@ -766,7 +839,6 @@ int main( int argc, char *argv[])
   checkError(err,  root,string("Can not open ")+string(argv[1])+ string(" for reading"));
 
 
-
   //get node States
   double statesID;
   ADF_Get_Node_ID(root,"States", &statesID, &err);
@@ -840,6 +912,14 @@ int main( int argc, char *argv[])
   facecount.allocate(facesSet);
  
   
+  // get node ProblemDescriptions
+  double probDescID;
+  ADF_Get_Node_ID(root,"ProblemDescriptions", &probDescID, &err);
+  checkError(err, root, "Can not get node ID of States");
+
+  // get boundary condition names and indices
+  vector<pair<int,string> > surf_ids;
+  getSurfaceNames(probDescID, surf_ids);
   
   //read in all face info, the vertices and cell indexes will be
   //mapped to local numbering is they are not local
@@ -847,7 +927,6 @@ int main( int argc, char *argv[])
   vector<int64> faceSizes;
   vector<int32*> allFaceCells;
   vector<int64> faceCellSizes;
-  vector<pair<int,string> > surf_ids;
   for(size_t i = 0; i < processorIDs.size(); i++){
     double topoID;
     getMeshID(processorIDs[i], NULL, &topoID);  
@@ -855,8 +934,7 @@ int main( int argc, char *argv[])
               allFaces,
               faceSizes,
               allFaceCells,
-              faceCellSizes, 
-              surf_ids);
+              faceCellSizes);
   }
   
   //close data base
