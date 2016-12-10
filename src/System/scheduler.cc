@@ -1012,7 +1012,7 @@ namespace Loci {
 
       }
       ostringstream oss ;
-      oss << ".schedule" ;
+      oss << "debug/schedule" ;
 
       if(MPI_processes > 1) {
         oss << "-" << MPI_rank ;
@@ -1886,9 +1886,9 @@ bool operator <(const timingData &d) const {
           << "/" << num_total_recursion << " recursive rules" << endl;
 
       if(schedule_output) {
-        // Save the schedule in the file .schedule for reference
+        // Save the schedule in the file schedule for reference
         ostringstream oss ;
-        oss << ".schedule" ;
+        oss << "debug/schedule" ;
 
         if(MPI_processes > 1) {
           oss << "-" << MPI_rank ;
