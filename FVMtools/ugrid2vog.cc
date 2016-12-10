@@ -30,7 +30,6 @@
 #include <algorithm>
 #include <string>
 #include <vector>
-#include <errno.h>
 
 using std::cout ;
 using std::endl ;
@@ -44,6 +43,8 @@ using Loci::MPI_rank ;
 using Loci::MPI_processes ;
 
 bool reverse_byteorder = false ;
+bool split_file_exist = false;
+
 
 void check_order() {
   static int test = 15 ;
@@ -53,12 +54,10 @@ void check_order() {
   }
 }
 
-
 void ug_io_reverse_byte_order
 (void * Data,
  size_t Size,
  int Number)
-
 {
 
   /*
@@ -97,17 +96,176 @@ void ug_io_reverse_byte_order
 }
 
 void input_error() {
-  perror("error reading file") ;
+  cerr << "error reading file" << endl ;
   exit(-1) ;
 }
 
 void cfread(void *ptr, size_t size, size_t nmemb, FILE *stream) {
   size_t nread = fread(ptr,size,nmemb,stream) ;
-  if(nread != nmemb) {
-    cerr << "nread = " << nread <<", nmemb=" << nmemb << endl ;
+  if(nread != nmemb)
     input_error() ;
+}
+//as shown  in simcenter/system/release/doc/ug_io/3d_input_output_grids.html SPLIT FACE HEX ELEMENT CONNECTIVITY
+struct quadSplit {
+  Array<int,5> nodes ;
+  Array<int,4> corners ;
+  int cell ;
+  int face;
+} ;
+
+struct edgeSplit {
+  int n1;
+  int n2;
+  int mp; //middle point
+  
+  edgeSplit(int nn1, int nn2, int mpp) {
+    n1=min(nn1,nn2) ;
+    n2=max(nn1,nn2) ;
+    mp = mpp;
+  }
+  edgeSplit() {} 
+} ;
+
+inline bool edgeSplitEqual(const edgeSplit &e1, const edgeSplit &e2) {
+  return ((e1.n1 == e2.n1) &&
+          (e1.n2 == e2.n2)) ;
+
+}
+
+inline bool edgeSplitCompare(const edgeSplit &e1, const edgeSplit &e2) {
+  return ((e1.n1 < e2.n1) ||
+          (e1.n1 == e2.n1 && 
+	   e1.n2 < e2.n2)) ;
+}
+
+//collect all edges that are split
+void collect_edge_split( vector<edgeSplit>& es, vector<quadSplit>& qs){
+  es.clear();
+  int num_face = qs.size();
+  for(int i = 0; i < num_face; i++){
+    for(int j = 0; j < 4; j++){
+      if(qs[i].nodes[j]>0)es.push_back(edgeSplit((qs[i].corners[j])-1,(qs[i].corners[(j+1)%4])-1, (qs[i].nodes[j])-1));
+    }
+  }
+  std::sort(es.begin(), es.end(), edgeSplitCompare) ;
+  
+  vector<edgeSplit>::iterator itr =  std::unique(es.begin(), es.end(), edgeSplitEqual);
+  es.resize(itr-es.begin());
+  
+  const int P = MPI_processes ;
+  int my_size = es.size()*3;
+  if(P>1){
+    vector<int> sizes(P);
+    MPI_Allgather(&my_size,1, MPI_INT, &sizes[0], 1, MPI_INT, MPI_COMM_WORLD) ;
+    int total_size = 0;
+    for(int i = 0; i < P; i++)total_size += sizes[i];
+    vector<edgeSplit> recv(total_size/3);
+    vector<int> recv_disp(P);
+    recv_disp[0] = 0 ;
+    for(int i=1;i<P;++i)
+      recv_disp[i] = recv_disp[i-1]+sizes[i-1]; 
+    MPI_Allgatherv(&es[0], my_size, MPI_INT, &recv[0], &sizes[0], &recv_disp[0], MPI_INT, MPI_COMM_WORLD);
+    std::sort(recv.begin(), recv.end(), edgeSplitCompare) ;
+    vector<edgeSplit>::iterator itr =  std::unique(recv.begin(), recv.end(), edgeSplitEqual);
+    recv.resize(itr-recv.begin());
+    es.swap(recv);
   }
 }
+
+//using binary search to check if an edge is split
+int find_edge_split( vector<edgeSplit>& edge_splits, int node1, int node2){
+  if(edge_splits.empty())return -1;
+  int first = 0;
+  int last = edge_splits.size()-1;
+  int middle = (first+last)/2;
+  edgeSplit e(node1, node2, 0);
+  while(first <=last){
+    if(edgeSplitEqual(edge_splits[middle], e)) return edge_splits[middle].mp; 
+    else if(edgeSplitCompare(edge_splits[middle], e)) first = middle +1;
+    else last = middle -1;
+    middle = (first+last)/2;
+  }
+  return -1;
+}
+
+//parallel read split file                    
+void readSplit(string filename, const vector<int>& hex_min, vector<quadSplit>& splits){
+  FILE* IFP = NULL ;
+  const int P = MPI_processes ;
+  const int R = MPI_rank ;
+  if(R == 0) {
+    IFP = fopen(filename.c_str(), "r") ;
+    if(IFP == NULL) {
+      cerr << "can't open '" << filename << "'" << endl ;
+      exit(-1) ;
+    }
+    int num_splits = 0;
+    if(fscanf(IFP, "%d", &num_splits)!=1)input_error() ;
+    cout<< "num_splits " << num_splits << endl;
+    quadSplit quad_face;
+    int current_processor = 0;
+    vector<quadSplit> buf;
+    for(int i = 0; i < num_splits; i++){
+      if(fscanf(IFP, "%d%d%d%d%d%d%d%d%d%d%d", &(quad_face.cell), &(quad_face.face), &(quad_face.nodes[0]),
+                &(quad_face.nodes[1]), &(quad_face.nodes[2]), &(quad_face.nodes[3]), &(quad_face.nodes[4]),
+                &(quad_face.corners[0]), &(quad_face.corners[1]), &(quad_face.corners[2]), &(quad_face.corners[3]) ) != 11)input_error() ;
+      if(quad_face.cell < hex_min[current_processor+1]){//belongs to current_processor
+        buf.push_back(quad_face);//store it
+      }else{//not belongs to current_processor,
+        if(current_processor == 0) { //if currrent_processor is root
+          splits = vector<quadSplit>(buf); //copy
+          buf.clear(); // and clear buf
+         
+        }else{ //current_processor is not root
+          int size  = buf.size();
+          MPI_Send(&size,1,MPI_INT,current_processor,1,MPI_COMM_WORLD) ; //send the size
+          if(size > 0)MPI_Send(&buf[0], size*11,MPI_INT,current_processor,2,MPI_COMM_WORLD) ; // and buf
+          buf.clear();//then clean buf
+        }
+        
+        //Next which processor it belongs
+        while(current_processor < P){
+          current_processor++; //next?
+          if(quad_face.cell == hex_min[current_processor+1]){ //not next
+            int size = 0;
+            MPI_Send(&size,1,MPI_INT,current_processor,1,MPI_COMM_WORLD) ; //send the size
+          }else{ //yes, found the processor
+            break;
+          }
+        }
+        if(current_processor == P){
+          cerr<<" Proc " << R << " : can not fount processor for hex number " << quad_face.cell << endl;
+          exit(-1);
+        }
+        buf.push_back(quad_face);
+      }//end the case not belongs to current_processor
+      
+      if(i == (num_splits-1)){//finsh reading, send buf
+        if(current_processor == 0) { //if currrent_processor is root
+          splits = vector<quadSplit>(buf); //copy
+          buf.clear(); // and clear buf
+        }else{ //current_processor is not root
+          int size  = buf.size();
+          MPI_Send(&size,1,MPI_INT,current_processor,1,MPI_COMM_WORLD) ; //send the size
+          if(size > 0)MPI_Send(&buf[0], size*11,MPI_INT,current_processor,2,MPI_COMM_WORLD) ; // and buf
+          buf.clear();//then clean buf
+        }
+      }
+    }
+    fclose(IFP);
+  }else{//non-root processors
+    int size = 0;
+    int recv_count = 1;
+    MPI_Status status ;
+    MPI_Recv(&size,recv_count,MPI_INT,0,1,MPI_COMM_WORLD,&status) ;
+    if(size > 0){
+      recv_count = size*11;
+      splits.resize(size);
+      MPI_Recv(&splits[0],recv_count,MPI_INT,0,2,MPI_COMM_WORLD,&status) ;
+    }
+  }
+}
+
 
 void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
                vector<Array<int,5> > &qfaces, vector<Array<int,4> > &tfaces,
@@ -130,13 +288,10 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
   const int P = MPI_processes ;
   const int R = MPI_rank ;
   if(R == 0) {
-    if(!binary) {
-      cout << "Reading in '" << filename << "' in ASCII mode." << endl ;
+    if(!binary)
       IFP = fopen(filename.c_str(), "r") ;
-    } else {
-      cout << "Reading in '" << filename << "' in binary mode." << endl ;
+    else
       IFP = fopen(filename.c_str(), "rb") ;
-    }
     if(IFP == NULL) {
       cerr << "can't open '" << filename << "'" << endl ;
       exit(-1) ;
@@ -612,6 +767,8 @@ struct quadFace {
   bool left ;
 } ;
 
+
+               
 struct triaFace {
   Array<int,3> nodes ;
   int cell ;
@@ -630,6 +787,9 @@ struct edge {
   }
   edge() {} 
 } ;
+
+
+
 
 inline bool quadCompare(const quadFace &f1, const quadFace &f2) {
   return ((f1.nodes[0] < f2.nodes[0]) ||
@@ -948,18 +1108,524 @@ void extract_trifaces(vector<Array<int,5> > &triangles,
   }
   triangles.swap(triscratch) ;
 }  
+//get the 4 nodes of face face_id in a hex, the face normal always points outward
+void get_corners(int face_id, const Array<int,8> &hex, Array<int, 4> &corners){
+  switch(face_id){
+  case 3:
+    corners[0] = hex[0] ;
+    corners[1] = hex[1] ;
+    corners[2] = hex[5] ;
+    corners[3] = hex[4] ;
+    break;
+  case 2:
+    
+    corners[0] = hex[1] ;
+    corners[1] = hex[2] ;
+    corners[2] = hex[6] ;
+    corners[3] = hex[5] ;
+    break;
+
+  case 4:
+    corners[0] = hex[2] ;
+    corners[1] = hex[3] ;
+    corners[2] = hex[7] ;
+    corners[3] = hex[6] ;
+    break;
+
+
+  case 1:
+    corners[0] = hex[4] ;
+    corners[1] = hex[7] ;
+    corners[2] = hex[3] ;
+    corners[3] = hex[0] ;
+    break;
+
+  case 6:
+    corners[0] = hex[4] ;
+    corners[1] = hex[5] ;
+    corners[2] = hex[6] ;
+    corners[3] = hex[7] ;
+    break;
+  case 5:
+    corners[0] = hex[3] ;
+    corners[1] = hex[2] ;
+    corners[2] = hex[1] ;
+    corners[3] = hex[0] ;
+    break;
+  default:
+    cerr<<"ERROR: illegal face_id value in get_corners(): " << face_id << endl;
+    exit(1);
+  }
+}
+
+bool split(vector<quadFace> &quad, int& qf,
+           vector<triaFace> &tria, int& tf,
+           int hex_id, int face_id,
+           vector<quadSplit>& splits,
+           const int &cellid){
+  if(splits.empty())return false;
+  vector<quadSplit>::iterator itr = splits.begin();
+  bool found = false;
+  while(itr != splits.end() && itr->cell <= hex_id){
+    if(itr->cell == hex_id && itr->face == face_id){
+      found = true;
+      break;
+    }
+    itr++;
+  }
+  if(!found) return false;
+  quadSplit s = *itr;
+  splits.erase(itr);
+  // 5 mid points, 4 quads 
+  if(s.nodes[0] > 0 && s.nodes[1] > 0 && s.nodes[2] > 0 && s.nodes[3] > 0 && s.nodes[4] > 0){
+    //lower right
+    quad[qf].nodes[0] = s.nodes[0] ;
+    quad[qf].nodes[1] = s.corners[1] ;
+    quad[qf].nodes[2] = s.nodes[1] ;
+    quad[qf].nodes[3] = s.nodes[4] ;
+    quad[qf].left = false ;
+    quad[qf++].cell = cellid ;
+
+    //upper right
+    quad[qf].nodes[0] = s.nodes[4] ;
+    quad[qf].nodes[1] = s.nodes[1] ;
+    quad[qf].nodes[2] = s.corners[2] ;
+    quad[qf].nodes[3] = s.nodes[2] ;
+    quad[qf].left = false ;
+    quad[qf++].cell = cellid ;
+
+    //upper left
+    quad[qf].nodes[0] = s.nodes[3] ;
+    quad[qf].nodes[1] = s.nodes[4] ;
+    quad[qf].nodes[2] = s.nodes[2] ;
+    quad[qf].nodes[3] = s.corners[3];
+    quad[qf].left = false ;
+    quad[qf++].cell = cellid ;
+
+    //lower left
+    quad[qf].nodes[0] = s.corners[0] ;
+    quad[qf].nodes[1] = s.nodes[0] ;
+    quad[qf].nodes[2] = s.nodes[4] ;
+    quad[qf].nodes[3] = s.nodes[3];
+    quad[qf].left = false ;
+    quad[qf++].cell = cellid ;
+    return true;
+      
+  }
+  if(s.nodes[4] == 0){
+    // 4 mid points, 1 quad, 4 trias
+    if(s.nodes[0] > 0  && s.nodes[1] > 0 && s.nodes[2] > 0 && s.nodes[3] > 0 ){
+      quad[qf].nodes[0] = s.nodes[0] ;
+      quad[qf].nodes[1] = s.nodes[1] ;
+      quad[qf].nodes[2] = s.nodes[2] ;
+      quad[qf].nodes[3] = s.nodes[3];
+      quad[qf].left = false ;
+      quad[qf++].cell = cellid ;
+
+      tria[tf].nodes[0] = s.nodes[0] ;
+      tria[tf].nodes[1] = s.corners[1] ;
+      tria[tf].nodes[2] = s.nodes[1] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+
+      tria[tf].nodes[0] = s.nodes[1] ;
+      tria[tf].nodes[1] = s.corners[2] ;
+      tria[tf].nodes[2] = s.nodes[2] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+
+      tria[tf].nodes[0] = s.nodes[2] ;
+      tria[tf].nodes[1] = s.corners[3] ;
+      tria[tf].nodes[2] = s.nodes[3] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+
+      tria[tf].nodes[0] = s.nodes[3] ;
+      tria[tf].nodes[1] = s.corners[0] ;
+      tria[tf].nodes[2] = s.nodes[0] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+      return true;
+    }
+    
+    // 3 mid points, 1 quad, 3 trias
+    if(s.nodes[0] == 0  && s.nodes[1] > 0 && s.nodes[2] > 0 && s.nodes[3] > 0 ){
+      quad[qf].nodes[0] = s.corners[0] ;
+      quad[qf].nodes[1] = s.corners[1] ;
+      quad[qf].nodes[2] = s.nodes[1] ;
+      quad[qf].nodes[3] = s.nodes[3];
+      quad[qf].left = false ;
+      quad[qf++].cell = cellid ;
+
+      tria[tf].nodes[0] = s.nodes[1] ;
+      tria[tf].nodes[1] = s.nodes[2] ;
+      tria[tf].nodes[2] = s.nodes[3] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+
+      tria[tf].nodes[0] = s.nodes[1] ;
+      tria[tf].nodes[1] = s.corners[2] ;
+      tria[tf].nodes[2] = s.nodes[2] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+
+      tria[tf].nodes[0] = s.nodes[2] ;
+      tria[tf].nodes[1] = s.corners[3] ;
+      tria[tf].nodes[2] = s.nodes[3] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+      return true;
+    }
+
+    if(s.nodes[1] == 0  && s.nodes[0] > 0 && s.nodes[2] > 0 && s.nodes[3] > 0 ){
+      quad[qf].nodes[0] = s.corners[1] ;
+      quad[qf].nodes[1] = s.corners[2] ;
+      quad[qf].nodes[2] = s.nodes[2] ;
+      quad[qf].nodes[3] = s.nodes[0];
+      quad[qf].left = false ;
+      quad[qf++].cell = cellid ;
+
+      tria[tf].nodes[0] = s.nodes[0] ;
+      tria[tf].nodes[1] = s.nodes[2] ;
+      tria[tf].nodes[2] = s.nodes[3] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+
+      tria[tf].nodes[0] = s.nodes[2] ;
+      tria[tf].nodes[1] = s.corners[3] ;
+      tria[tf].nodes[2] = s.nodes[3] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+
+      tria[tf].nodes[0] = s.nodes[3] ;
+      tria[tf].nodes[1] = s.corners[0] ;
+      tria[tf].nodes[2] = s.nodes[0] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+      return true;
+    }
+
+    if(s.nodes[2] == 0  && s.nodes[0] > 0 && s.nodes[1] > 0 && s.nodes[3] > 0 ){
+      quad[qf].nodes[0] = s.corners[2] ;
+      quad[qf].nodes[1] = s.corners[3] ;
+      quad[qf].nodes[2] = s.nodes[3] ;
+      quad[qf].nodes[3] = s.nodes[1];
+      quad[qf].left = false ;
+      quad[qf++].cell = cellid ;
+
+      tria[tf].nodes[0] = s.nodes[1] ;
+      tria[tf].nodes[1] = s.nodes[3] ;
+      tria[tf].nodes[2] = s.nodes[0] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+
+      tria[tf].nodes[0] = s.nodes[3] ;
+      tria[tf].nodes[1] = s.corners[0] ;
+      tria[tf].nodes[2] = s.nodes[0] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+
+      tria[tf].nodes[0] = s.nodes[0] ;
+      tria[tf].nodes[1] = s.corners[1] ;
+      tria[tf].nodes[2] = s.nodes[1] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+      return true;
+    }
+
+    if(s.nodes[3] == 0  && s.nodes[0] > 0 && s.nodes[1] > 0 && s.nodes[2] > 0 ){
+      quad[qf].nodes[0] = s.corners[3] ;
+      quad[qf].nodes[1] = s.corners[0] ;
+      quad[qf].nodes[2] = s.nodes[0] ;
+      quad[qf].nodes[3] = s.nodes[2];
+      quad[qf].left = false ;
+      quad[qf++].cell = cellid ;
+
+      tria[tf].nodes[0] = s.nodes[0] ;
+      tria[tf].nodes[1] = s.nodes[1] ;
+      tria[tf].nodes[2] = s.nodes[2] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+
+      tria[tf].nodes[0] = s.nodes[0] ;
+      tria[tf].nodes[1] = s.corners[1] ;
+      tria[tf].nodes[2] = s.nodes[1] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+
+      tria[tf].nodes[0] = s.nodes[1] ;
+      tria[tf].nodes[1] = s.corners[2] ;
+      tria[tf].nodes[2] = s.nodes[2] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+      return true;
+    }
+
+    //2 mid points, 4 trias
+    if(s.nodes[0] == 0  && s.nodes[1] == 0 && s.nodes[2] > 0 && s.nodes[3] > 0 ){
+      tria[tf].nodes[0] = s.nodes[2] ;
+      tria[tf].nodes[1] = s.corners[3] ;
+      tria[tf].nodes[2] = s.nodes[3] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+
+    
+      tria[tf].nodes[0] = s.corners[1] ;
+      tria[tf].nodes[1] = s.nodes[2] ;
+      tria[tf].nodes[2] = s.nodes[3] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+
+      tria[tf].nodes[0] = s.corners[1] ;
+      tria[tf].nodes[1] = s.nodes[3] ;
+      tria[tf].nodes[2] = s.corners[0] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+
+      tria[tf].nodes[0] = s.corners[1] ;
+      tria[tf].nodes[1] = s.corners[2] ;
+      tria[tf].nodes[2] = s.nodes[2] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+      return true;
+    }
+      
+    if(s.nodes[1] == 0  && s.nodes[2] == 0 && s.nodes[3] > 0 && s.nodes[0] > 0 ){
+      tria[tf].nodes[0] = s.nodes[3] ;
+      tria[tf].nodes[1] = s.corners[0] ;
+      tria[tf].nodes[2] = s.nodes[0] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+
+    
+      tria[tf].nodes[0] = s.corners[2] ;
+      tria[tf].nodes[1] = s.nodes[3] ;
+      tria[tf].nodes[2] = s.nodes[0] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+
+      tria[tf].nodes[0] = s.corners[2] ;
+      tria[tf].nodes[1] = s.nodes[0] ;
+      tria[tf].nodes[2] = s.corners[1] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+
+      tria[tf].nodes[0] = s.corners[2] ;
+      tria[tf].nodes[1] = s.corners[3] ;
+      tria[tf].nodes[2] = s.nodes[3] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+      return true;
+    }
+
+    if(s.nodes[2] == 0  && s.nodes[3] == 0 && s.nodes[0] > 0 && s.nodes[1] > 0 ){
+      tria[tf].nodes[0] = s.nodes[0] ;
+      tria[tf].nodes[1] = s.corners[1] ;
+      tria[tf].nodes[2] = s.nodes[1] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+
+    
+      tria[tf].nodes[0] = s.corners[3] ;
+      tria[tf].nodes[1] = s.nodes[0] ;
+      tria[tf].nodes[2] = s.nodes[1] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+
+      tria[tf].nodes[0] = s.corners[3] ;
+      tria[tf].nodes[1] = s.nodes[1] ;
+      tria[tf].nodes[2] = s.corners[2] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+
+      tria[tf].nodes[0] = s.corners[3] ;
+      tria[tf].nodes[1] = s.corners[0] ;
+      tria[tf].nodes[2] = s.nodes[0] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+      return true;
+    }
+
+    if(s.nodes[3] == 0  && s.nodes[0] == 0 && s.nodes[1] > 0 && s.nodes[2] > 0 ){
+      tria[tf].nodes[0] = s.nodes[1] ;
+      tria[tf].nodes[1] = s.corners[2] ;
+      tria[tf].nodes[2] = s.nodes[2] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+
+    
+      tria[tf].nodes[0] = s.corners[0] ;
+      tria[tf].nodes[1] = s.nodes[1] ;
+      tria[tf].nodes[2] = s.nodes[2] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+
+      tria[tf].nodes[0] = s.corners[0] ;
+      tria[tf].nodes[1] = s.nodes[2] ;
+      tria[tf].nodes[2] = s.corners[3] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+
+      tria[tf].nodes[0] = s.corners[0] ;
+      tria[tf].nodes[1] = s.corners[1] ;
+      tria[tf].nodes[2] = s.nodes[1] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+      return true;
+    }
+
+    //2 mid points, 2 quads
+    if(s.nodes[0] == 0  && s.nodes[2] == 0 && s.nodes[1] > 0 && s.nodes[3] > 0 ){
+
+      quad[qf].nodes[0] = s.corners[0] ;
+      quad[qf].nodes[1] = s.corners[1] ;
+      quad[qf].nodes[2] = s.nodes[1] ;
+      quad[qf].nodes[3] = s.nodes[3];
+      quad[qf].left = false ;
+      quad[qf++].cell = cellid ;
+
+      quad[qf].nodes[0] = s.corners[2] ;
+      quad[qf].nodes[1] = s.corners[3] ;
+      quad[qf].nodes[2] = s.nodes[3] ;
+      quad[qf].nodes[3] = s.nodes[1];
+      quad[qf].left = false ;
+      quad[qf++].cell = cellid ;
+      return true;         
+    }
+
+    if(s.nodes[1] == 0  && s.nodes[3] == 0 && s.nodes[0] > 0 && s.nodes[2] > 0 ){
+      quad[qf].nodes[0] = s.corners[1] ;
+      quad[qf].nodes[1] = s.corners[2] ;
+      quad[qf].nodes[2] = s.nodes[2] ;
+      quad[qf].nodes[3] = s.nodes[0];
+      quad[qf].left = false ;
+      quad[qf++].cell = cellid ;
+
+      quad[qf].nodes[0] = s.corners[3] ;
+      quad[qf].nodes[1] = s.corners[0] ;
+      quad[qf].nodes[2] = s.nodes[0] ;
+      quad[qf].nodes[3] = s.nodes[2];
+      quad[qf].left = false ;
+      quad[qf++].cell = cellid ;
+      return true;     
+    }
+
+    //1 mid point, 3 trias
+    if(s.nodes[0] == 0  && s.nodes[1] == 0 && s.nodes[2] == 0 && s.nodes[3] > 0 ){
+      tria[tf].nodes[0] = s.corners[1] ;
+      tria[tf].nodes[1] = s.corners[2] ;
+      tria[tf].nodes[2] = s.nodes[3] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+
+    
+      tria[tf].nodes[0] = s.corners[2] ;
+      tria[tf].nodes[1] = s.corners[3] ;
+      tria[tf].nodes[2] = s.nodes[3] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+   
+
+      tria[tf].nodes[0] = s.corners[0] ;
+      tria[tf].nodes[1] = s.corners[1] ;
+      tria[tf].nodes[2] = s.nodes[3] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+      return true;
+    }
+
+    if(s.nodes[1] == 0  && s.nodes[2] == 0 && s.nodes[3] == 0 && s.nodes[0] > 0 ){
+      tria[tf].nodes[0] = s.corners[2] ;
+      tria[tf].nodes[1] = s.corners[3] ;
+      tria[tf].nodes[2] = s.nodes[0] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+
+    
+      tria[tf].nodes[0] = s.corners[3] ;
+      tria[tf].nodes[1] = s.corners[0] ;
+      tria[tf].nodes[2] = s.nodes[0] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+   
+
+      tria[tf].nodes[0] = s.corners[1] ;
+      tria[tf].nodes[1] = s.corners[2] ;
+      tria[tf].nodes[2] = s.nodes[0] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+      return true;
+    }
+
+    if(s.nodes[2] == 0  && s.nodes[3] == 0 && s.nodes[0] == 0 && s.nodes[1] > 0 ){
+      tria[tf].nodes[0] = s.corners[3] ;
+      tria[tf].nodes[1] = s.corners[0] ;
+      tria[tf].nodes[2] = s.nodes[1] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+
+    
+      tria[tf].nodes[0] = s.corners[0] ;
+      tria[tf].nodes[1] = s.corners[1] ;
+      tria[tf].nodes[2] = s.nodes[1] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+   
+
+      tria[tf].nodes[0] = s.corners[2] ;
+      tria[tf].nodes[1] = s.corners[3] ;
+      tria[tf].nodes[2] = s.nodes[1] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+      return true;
+    }
+
+    if(s.nodes[3] == 0  && s.nodes[0] == 0 && s.nodes[1] == 0 && s.nodes[2] > 0 ){
+      tria[tf].nodes[0] = s.corners[0] ;
+      tria[tf].nodes[1] = s.corners[1] ;
+      tria[tf].nodes[2] = s.nodes[2] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+
+    
+      tria[tf].nodes[0] = s.corners[1] ;
+      tria[tf].nodes[1] = s.corners[2] ;
+      tria[tf].nodes[2] = s.nodes[2] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+   
+
+      tria[tf].nodes[0] = s.corners[3] ;
+      tria[tf].nodes[1] = s.corners[0] ;
+      tria[tf].nodes[2] = s.nodes[2] ;
+      tria[tf].left = false ;
+      tria[tf++].cell = cellid ;
+      return true;
+    }
+  }
+  cerr<<" split() has cases that can not handle" << s.nodes[0] << " "<< s.nodes[1] << " "<<s.nodes[2] << " "<<s.nodes[3] << " "<<s.nodes[4] <<endl;
+  return found;  
+}
+
+
+
 
 void convert2face(store<vector3d<double> > &pos,
                   vector<Array<int,5> > &qfaces, vector<Array<int,4> > &tfaces,
                   vector<Array<int,4> > &tets, vector<Array<int,5> > &pyramids,
                   vector<Array<int,6> > &prisms, vector<Array<int,8> > &hexs,
+                  const vector<int>& hex_min, vector<quadSplit>& splits,
                   multiMap &face2node,Map &cl, Map &cr) {
+  //collect edge splits before quad splits are modified
+  vector<edgeSplit> edge_splits;
+  if(split_file_exist)collect_edge_split(edge_splits, splits); 
+
+  //compute the start cellid of each process
   int maxid = 0 ;
   entitySet posDom = pos.domain() ;
   if(posDom != EMPTY)
     maxid = posDom.Max()+1 ;
   int cellid ;
-
   MPI_Allreduce(&maxid,&cellid,1,MPI_INT,MPI_MAX,MPI_COMM_WORLD) ;
   int cellbase = cellid ;
   int ncells = tets.size()+pyramids.size()+prisms.size()+hexs.size() ;
@@ -968,12 +1634,13 @@ void convert2face(store<vector3d<double> > &pos,
   for(int i=0;i<MPI_rank;++i)
     cellid += cellsizes[i] ;
 
+  //estimate num of faces, not exactly , only for memeory allocation 
   int num_quad_faces =
-    qfaces.size() + pyramids.size()+ prisms.size()*3 + hexs.size()*6 ;
-
+    qfaces.size() + pyramids.size()+ prisms.size()*3 + hexs.size()*6 + splits.size() *4 ;
   int num_tria_faces =
-    tfaces.size() + tets.size()*4 + pyramids.size()*4 + prisms.size()*2 ;
+    tfaces.size() + tets.size()*4 + pyramids.size()*4 + prisms.size()*2  + splits.size()*4;
 
+  //put boundary faces in
   vector<triaFace> tria(num_tria_faces) ;
   vector<quadFace> quad(num_quad_faces) ;
   int tf = 0 ;
@@ -998,7 +1665,7 @@ void convert2face(store<vector3d<double> > &pos,
     tria[tf].nodes[2] = tets[i][3] ;
     tria[tf].left = true ;
     tria[tf++].cell = cellid ;
-
+    
     tria[tf].nodes[0] = tets[i][1] ;
     tria[tf].nodes[1] = tets[i][2] ;
     tria[tf].nodes[2] = tets[i][3] ;
@@ -1020,7 +1687,7 @@ void convert2face(store<vector3d<double> > &pos,
 
     cellid++ ;
   }
-
+  
   // create faces generated by pyramids
   for(size_t i=0;i<pyramids.size();++i) {
     tria[tf].nodes[0] = pyramids[i][4] ;
@@ -1055,7 +1722,7 @@ void convert2face(store<vector3d<double> > &pos,
     quad[qf++].cell = cellid ;
     cellid++ ;
   }
-
+  
   // create faces generated by prisms
   for(size_t i=0;i<prisms.size();++i) {
     tria[tf].nodes[0] = prisms[i][3] ;
@@ -1093,63 +1760,38 @@ void convert2face(store<vector3d<double> > &pos,
 
     cellid++ ;
   }
-
   // create faces generated by hexahedra
+  // /usr/local/simsys/doc/ug_io/3d_input_output_grids.html provides the SPLIT FACE HEX ELEMENT CONNECTIVITY
+
+  //cellid here and hex_id in .split file are different, hex_id start with 1
+
+  
   for(size_t i=0;i<hexs.size();++i) {
-    quad[qf].nodes[0] = hexs[i][0] ;
-    quad[qf].nodes[1] = hexs[i][1] ;
-    quad[qf].nodes[2] = hexs[i][5] ;
-    quad[qf].nodes[3] = hexs[i][4] ;
-    quad[qf].left = true ;
-    quad[qf++].cell = cellid ;
-
-    quad[qf].nodes[0] = hexs[i][1] ;
-    quad[qf].nodes[1] = hexs[i][2] ;
-    quad[qf].nodes[2] = hexs[i][6] ;
-    quad[qf].nodes[3] = hexs[i][5] ;
-    quad[qf].left = true ;
-    quad[qf++].cell = cellid ;
-
-    quad[qf].nodes[0] = hexs[i][2] ;
-    quad[qf].nodes[1] = hexs[i][3] ;
-    quad[qf].nodes[2] = hexs[i][7] ;
-    quad[qf].nodes[3] = hexs[i][6] ;
-    quad[qf].left = true ;
-    quad[qf++].cell = cellid ;
-
-    quad[qf].nodes[0] = hexs[i][4] ;
-    quad[qf].nodes[1] = hexs[i][7] ;
-    quad[qf].nodes[2] = hexs[i][3] ;
-    quad[qf].nodes[3] = hexs[i][0] ;
-    quad[qf].left = true ;
-    quad[qf++].cell = cellid ;
-
-    quad[qf].nodes[0] = hexs[i][4] ;
-    quad[qf].nodes[1] = hexs[i][5] ;
-    quad[qf].nodes[2] = hexs[i][6] ;
-    quad[qf].nodes[3] = hexs[i][7] ;
-    quad[qf].left = true ;
-    quad[qf++].cell = cellid ;
-
-    quad[qf].nodes[0] = hexs[i][3] ;
-    quad[qf].nodes[1] = hexs[i][2] ;
-    quad[qf].nodes[2] = hexs[i][1] ;
-    quad[qf].nodes[3] = hexs[i][0] ;
-    quad[qf].left = true ;
-    quad[qf++].cell = cellid ;
-
+    int hex_id = hex_min[Loci::MPI_rank] + i;
+    for(int face_id = 1; face_id <=6; face_id++){
+      
+      if(!split(quad, qf, tria, tf, hex_id, face_id, splits, cellid)){
+        Array<int, 4> corners;
+        get_corners(face_id, hexs[i], corners);
+        quad[qf].nodes[0] = corners[0] ;
+        quad[qf].nodes[1] = corners[1] ;
+        quad[qf].nodes[2] = corners[2] ;
+        quad[qf].nodes[3] = corners[3] ;
+        quad[qf].left = true ;
+        quad[qf++].cell = cellid ;
+      }
+    }
     cellid++ ;
   }
-
-  if(qf != num_quad_faces) {
-    cerr << "internal consistency error on quad faces" << endl ;
-    Loci::Abort() ;
+  
+  num_quad_faces = qf;
+  num_tria_faces = tf;
+  //remove extra memory allocated
+  tria.resize(tf);
+  quad.resize(qf);
+  if(!splits.empty()){
+    cerr<< "ERROR:finish get faces from hexs, splits.size() " << splits.size() << endl;
   }
-  if(tf != num_tria_faces) {
-    cerr << "internal consistency error on triangle faces" << endl ;
-    Loci::Abort() ;
-  }
-
   // prepare triangle faces (sort them)
   for(size_t i=0;i<tria.size();++i) {
     // pos numbers nodes from zero
@@ -1211,13 +1853,13 @@ void convert2face(store<vector3d<double> > &pos,
   //check if there is single faces in quad, if yes, remove them from quad, and split the single face into tria
   vector<quadFace> single_quad = get_single_face(quad, quadEqual);
   int num_single_quad = single_quad.size();
+  //vector<quadFace> single_quad_copy(single_quad);
   int total_num_single_quad = 0;
   MPI_Allreduce(&num_single_quad,&total_num_single_quad,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD) ;
- 
   if(num_single_quad != 0){
     split_quad(single_quad, tria);
   }
-
+  
   //sort tria
   int tsz = tria.size() ;
   int mtsz ;
@@ -1234,7 +1876,7 @@ void convert2face(store<vector3d<double> > &pos,
     int total_num_single_tria = 0;
     MPI_Allreduce(&num_single_tria,&total_num_single_tria,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD) ;
     if(total_num_single_tria != (2*total_num_single_quad)){
-      cerr << "single triangle faces remain! inconsistent! "<< endl ;  
+      cerr << "single triangle faces remain! inconsistent! "<< " single tria " << total_num_single_tria << " single quad " <<  total_num_single_quad << endl ;  
       Loci::Abort() ;
     }
   }
@@ -1247,12 +1889,15 @@ void convert2face(store<vector3d<double> > &pos,
     cerr << "non-even number of quad faces! inconsistent!" << endl ;
     Loci::Abort() ;
   }
+
+
+
+  //due to edge split, trias and quads can turn into general faces
   
   int ntria = tria.size()/2 ;
   int nquad = quad.size()/2 ;
-  
   int nfaces = ntria+nquad ;
-
+   
   ncells = 0 ;
   for(int i=0;i<MPI_processes;++i)
     ncells += cellsizes[i] ;
@@ -1267,15 +1912,34 @@ void convert2face(store<vector3d<double> > &pos,
   cr.allocate(faces) ;
   count.allocate(faces) ;
   int fc = facebase ;
-  for(int i=0;i<ntria;i++)
-    count[fc++] = 3 ;
-  for(int i=0;i<nquad;i++)
-    count[fc++] = 4 ;
+  for(int i=0;i<ntria;i++){
+    int nedge = 3;
+    if(split_file_exist){
+      for(int j =0; j < 3; j++){
+        int mp = find_edge_split(edge_splits, tria[i*2].nodes[j],tria[i*2].nodes[(j+1)%3]);
+        if(mp >= 0)nedge++;
+      }
+    }
+    count[fc++] = nedge ;
+  }
+  for(int i=0;i<nquad;i++){
+    int nedge = 4;
+    if(split_file_exist){
+      for(int j =0; j < 4; j++){
+        int mp = find_edge_split(edge_splits, quad[i*2].nodes[j],quad[i*2].nodes[(j+1)%4]);
+        if(mp >= 0) nedge++;
+      }   
+    } 
+    count[fc++] = nedge ;
+  }
   face2node.allocate(count) ;
+
   fc = facebase ;
+  
   for(int i=0;i<ntria;++i) {
+    int corner[3];
     for(int j=0;j<3;++j) {
-      face2node[fc][j] = tria[i*2].nodes[j] ;
+      corner[j] = tria[i*2].nodes[j] ;
       FATAL(tria[i*2].nodes[j] != tria[i*2+1].nodes[j]) ;
     }
     int c1 = tria[i*2].cell ;
@@ -1289,19 +1953,19 @@ void convert2face(store<vector3d<double> > &pos,
       cr[fc] = c1 ;
       if(tria[i*2+1].left)
         for(int j=0;j<3;++j)
-          face2node[fc][j] = tria[i*2+1].nodes[j] ;
+          corner[j] = tria[i*2+1].nodes[j] ;
       else
         for(int j=0;j<3;++j)
-          face2node[fc][j] = tria[i*2+1].nodes[2-j] ;
+          corner[j] = tria[i*2+1].nodes[2-j] ;
     } else if(c2 < 0) {
       cl[fc] = c1 ;
       cr[fc] = c2 ;
       if(tria[i*2].left)
         for(int j=0;j<3;++j)
-          face2node[fc][j] = tria[i*2].nodes[j] ;
+          corner[j] = tria[i*2].nodes[j] ;
       else
         for(int j=0;j<3;++j)
-          face2node[fc][j] = tria[i*2].nodes[2-j] ;
+          corner[j] = tria[i*2].nodes[2-j] ;
     } else {
       if(!tria[i*2].left) 
         std::swap(c1,c2) ;
@@ -1312,11 +1976,29 @@ void convert2face(store<vector3d<double> > &pos,
         cerr << "consistency error" << endl ;
       }
     }
+    
+    if(count[fc] ==3){
+      for(int j=0;j<3;++j) {
+        face2node[fc][j] = corner[j] ;
+      }
+    }else{
+      int nedge = 0;
+      for(int j=0;j<3;++j) {
+        face2node[fc][nedge++] = corner[j] ;
+        int mp = find_edge_split(edge_splits, corner[j],corner[(j+1)%3]);
+        if(mp >=0) face2node[fc][nedge++] = mp;
+      }
+      if(nedge != count[fc]){
+        cerr<<"ERROR: face " << fc << " has count " << count[fc] << " num_node " << nedge << endl;
+      }
+    }
     fc++ ;
   }
+  
   for(int i=0;i<nquad;++i) {
+    int corner[4];
     for(int j=0;j<4;++j) {
-      face2node[fc][j] = quad[i*2].nodes[j] ;
+      corner[j] = quad[i*2].nodes[j] ;
       FATAL(quad[i*2].nodes[j] != quad[i*2+1].nodes[j]) ;
     }
     int c1 = quad[i*2].cell ;
@@ -1331,19 +2013,19 @@ void convert2face(store<vector3d<double> > &pos,
       cr[fc] = c1 ;
       if(quad[i*2+1].left)
         for(int j=0;j<4;++j)
-          face2node[fc][j] = quad[i*2+1].nodes[j] ;
+          corner[j] = quad[i*2+1].nodes[j] ;
       else
         for(int j=0;j<4;++j)
-          face2node[fc][j] = quad[i*2+1].nodes[3-j] ;
+          corner[j] = quad[i*2+1].nodes[3-j] ;
     } else if(c2 < 0) {
       cl[fc] = c1 ;
       cr[fc] = c2 ;
       if(quad[i*2].left)
         for(int j=0;j<4;++j)
-          face2node[fc][j] = quad[i*2].nodes[j] ;
+          corner[j] = quad[i*2].nodes[j] ;
       else
         for(int j=0;j<4;++j)
-          face2node[fc][j] = quad[i*2].nodes[3-j] ;
+          corner[j] = quad[i*2].nodes[3-j] ;
     } else {
       if(!quad[i*2].left) 
         std::swap(c1,c2) ;
@@ -1354,14 +2036,31 @@ void convert2face(store<vector3d<double> > &pos,
         cerr << "consistency error" << endl ;
       }
     }
+    
+    if(count[fc] ==4){
+      for(int j=0;j<4;++j) {
+        face2node[fc][j] = corner[j] ;
+      }
+    }else{
+      int nedge = 0;
+      for(int j=0;j<4;++j) {
+        face2node[fc][nedge++] = corner[j] ;
+        int mp = find_edge_split(edge_splits, corner[j],corner[(j+1)%4]);
+        if(mp >=0) face2node[fc][nedge++] = mp;
+      }
+      if(nedge != count[fc]){
+        cerr<<"ERROR: face " << fc << " has count " << count[fc] << " num_node " << nedge << endl;
+      }
+    }
     fc++ ;
   }
-
 }
-
+  
+ 
+  
 inline void find_edge(int &edge_id, int &edge_orient, 
-		      const vector<edge> &edgeData,
-		      int edgelist[], int nedges, int id1, int id2) {
+                      const vector<edge> &edgeData,
+                      int edgelist[], int nedges, int id1, int id2) {
   edge_orient = 1 ;
   for(int i=0;i<nedges;++i) {
     if(edgeData[edgelist[i]].nodes.first == id1 && 
@@ -1382,8 +2081,8 @@ inline void find_edge(int &edge_id, int &edge_orient,
   cerr << "searching: " ;
   for(int i=0;i<nedges;++i) {
     cerr << "(" 
-	 << edgeData[edgelist[i]].nodes.first << ","
-	 << edgeData[edgelist[i]].nodes.second << ") " ;
+         << edgeData[edgelist[i]].nodes.first << ","
+         << edgeData[edgelist[i]].nodes.second << ") " ;
   }
   cerr << endl ;
 }
@@ -1391,12 +2090,12 @@ inline void find_edge(int &edge_id, int &edge_orient,
 // Create edge structures by looping over elements and extracting
 // edges
 void computeEdgeMap(vector<edge> &edgeData,
-		    const vector<Array<int,4> > &tets,
-		    const vector<Array<int,5> > &pyramids,
-		    const vector<Array<int,6> > &prisms, 
-		    const vector<Array<int,8> > &hexs) {
+                    const vector<Array<int,4> > &tets,
+                    const vector<Array<int,5> > &pyramids,
+                    const vector<Array<int,6> > &prisms, 
+                    const vector<Array<int,8> > &hexs) {
   vector<edge> edgeInfo(tets.size()*6+pyramids.size()*8+
-			prisms.size()*9+hexs.size()*12) ;
+                        prisms.size()*9+hexs.size()*12) ;
   // Create edges generated by tetrahedra
   int cnt= 0 ;
   for(size_t i=0;i<tets.size();++i) {
@@ -1471,8 +2170,8 @@ void computeEdgeMap(vector<edge> &edgeData,
       bool prismedge = false ;
       int j=i ;
       for(j=i;j<esz && edgeEqual(edgeInfo[i],edgeInfo[j]);++j) {
-	split_edge = split_edge||edgeInfo[j].triEdge ;
-	prismedge = prismedge||edgeInfo[j].cvEdge ;
+        split_edge = split_edge||edgeInfo[j].triEdge ;
+        prismedge = prismedge||edgeInfo[j].cvEdge ;
       }
       edgeInfo[i].triEdge = split_edge ;
       edgeInfo[i].cvEdge = prismedge ;
@@ -1480,23 +2179,28 @@ void computeEdgeMap(vector<edge> &edgeData,
       i=j-1 ;
       ecount++ ;
       if(split_edge)
-	split_count++ ;
+        split_count++ ;
       if(prismedge)
-	prisme_count++ ;
+        prisme_count++ ;
       if(prismedge && split_edge)
-	conflict_count++ ;
+        conflict_count++ ;
     }
     edgeData = edgelist ;
     cout << "edge count = " << ecount << ", split edges=" << split_count
-	 << ", prism edges = " << prisme_count 
-	 <<", conflicts=" << conflict_count
-	 << endl ;
+         << ", prism edges = " << prisme_count 
+         <<", conflicts=" << conflict_count
+         << endl ;
   }
 }
 
+
+
+
+
+
 // compute edge2node mapping by inverting edge data references
 void getEdge2Node(vector<int> &n2e, vector<int> &n2e_off,
-		  const vector<edge> &edgeData) {
+                  const vector<edge> &edgeData) {
   // edgeData is now the edge map
   int ecount = edgeData.size() ;
 
@@ -1549,10 +2253,10 @@ inline bool SpecialFaceCompare(const Array<int,4> &p1, const Array<int,4> &p2) {
 // Currently only works in serial for all tetrahedral meshes
 
 void convert2cellVertexface(store<vector3d<double> > &pos,
-			    vector<Array<int,5> > &qfaces, vector<Array<int,4> > &tfaces,
-			    vector<Array<int,4> > &tets, vector<Array<int,5> > &pyramids,
-			    vector<Array<int,6> > &prisms, vector<Array<int,8> > &hexs,
-			    multiMap &face2node,Map &cl, Map &cr) {
+                            vector<Array<int,5> > &qfaces, vector<Array<int,4> > &tfaces,
+                            vector<Array<int,4> > &tets, vector<Array<int,5> > &pyramids,
+                            vector<Array<int,6> > &prisms, vector<Array<int,8> > &hexs,
+                            multiMap &face2node,Map &cl, Map &cr) {
 
   // Compute edge data structures
   vector<edge> edgeData ;
@@ -1610,21 +2314,21 @@ void convert2cellVertexface(store<vector3d<double> > &pos,
     int no = node2edge_off[tets[i][0]-1] ;
     int nsearch = node2edge_off[tets[i][0]] - no ;
     find_edge(el[0],eo[0],edgeData,
-	      &node2edge[no],nsearch,tets[i][0],tets[i][1]) ;
+              &node2edge[no],nsearch,tets[i][0],tets[i][1]) ;
     find_edge(el[1],eo[1],edgeData,
-	      &node2edge[no],nsearch,tets[i][0],tets[i][2]) ;
+              &node2edge[no],nsearch,tets[i][0],tets[i][2]) ;
     find_edge(el[2],eo[2],edgeData,
-	      &node2edge[no],nsearch,tets[i][0],tets[i][3]) ;
+              &node2edge[no],nsearch,tets[i][0],tets[i][3]) ;
     no = node2edge_off[tets[i][1]-1] ;
     nsearch = node2edge_off[tets[i][1]] - no ;
     find_edge(el[3],eo[3],edgeData,
-	      &node2edge[no],nsearch,tets[i][1],tets[i][2]) ;
+              &node2edge[no],nsearch,tets[i][1],tets[i][2]) ;
     find_edge(el[4],eo[4],edgeData,
-	      &node2edge[no],nsearch,tets[i][1],tets[i][3]) ;
+              &node2edge[no],nsearch,tets[i][1],tets[i][3]) ;
     no = node2edge_off[tets[i][2]-1] ;
     nsearch = node2edge_off[tets[i][2]] - no ;
     find_edge(el[5],eo[5],edgeData,
-	      &node2edge[no],nsearch,tets[i][2],tets[i][3]) ;
+              &node2edge[no],nsearch,tets[i][2],tets[i][3]) ;
     // now output corner 0
     if(vertexCVs.inSet(tets[i][0]-1)) {
       Array<int,5> facet ;
@@ -1678,13 +2382,13 @@ void convert2cellVertexface(store<vector3d<double> > &pos,
     int no = node2edge_off[n1-1] ;
     int nsearch = node2edge_off[n1] - no ;
     find_edge(el[0],eo[0],edgeData,
-	      &node2edge[no],nsearch,n1,n2) ;
+              &node2edge[no],nsearch,n1,n2) ;
     find_edge(el[2],eo[2],edgeData,
-	      &node2edge[no],nsearch,n3,n1) ;
+              &node2edge[no],nsearch,n3,n1) ;
     no = node2edge_off[n2-1] ;
     nsearch = node2edge_off[n2]-no ;
     find_edge(el[1],eo[1],edgeData,
-	      &node2edge[no],nsearch,n2,n3) ;
+              &node2edge[no],nsearch,n2,n3) ;
     if(vertexCVs.inSet(n1-1)) {
       Loci::Array<int,4> tmpface ;
       tmpface[0] = n1-1 ;
@@ -1790,7 +2494,7 @@ void convert2cellVertexface(store<vector3d<double> > &pos,
         cout << "unsorted face! " << bfaceinfo[i][0] << ":" << i << "," ;
         for(int j=0;j<c;++j)
           cout << "("
-<< bfaceinfo[j+i][1]<<","<<bfaceinfo[j+i][2]<<")" ;
+               << bfaceinfo[j+i][1]<<","<<bfaceinfo[j+i][2]<<")" ;
         cout << endl ;
       }
       bface_sizes.push_back(c) ;
@@ -1905,7 +2609,7 @@ void convert2cellVertexface(store<vector3d<double> > &pos,
     count[i+fbase] = 6 ;
     for(int j=0;j<3;++j)
       if(!vertexCVs.inSet(triangles[i][j])) 
-	count[i+fbase]++ ;
+        count[i+fbase]++ ;
   }
   fbase += triangles.size() ;
   for(size_t i=0;i<nodefacets.size();++i)
@@ -1931,25 +2635,25 @@ void convert2cellVertexface(store<vector3d<double> > &pos,
     int no = node2edge_off[n1-1] ;
     int nsearch = node2edge_off[n1] - no ;
     find_edge(el[0],eo[0],edgeData,
-	      &node2edge[no],nsearch,n1,n2) ;
+              &node2edge[no],nsearch,n1,n2) ;
     find_edge(el[2],eo[2],edgeData,
-	      &node2edge[no],nsearch,n3,n1) ;
+              &node2edge[no],nsearch,n3,n1) ;
     no = node2edge_off[n2-1] ;
     nsearch = node2edge_off[n2]-no ;
     find_edge(el[1],eo[1],edgeData,
-	      &node2edge[no],nsearch,n2,n3) ;
+              &node2edge[no],nsearch,n2,n3) ;
     
     int lcnt = 0 ;
     if(!vertexCVs.inSet(triangles[i][0]))
-	nface2node[fcnt][lcnt++] = nodeids[triangles[i][0]] ;
+      nface2node[fcnt][lcnt++] = nodeids[triangles[i][0]] ;
     nface2node[fcnt][lcnt++] = el[0]*2+((eo[0]>0)?0:1) ;
     nface2node[fcnt][lcnt++] = el[0]*2+((eo[0]>0)?1:0) ;
     if(!vertexCVs.inSet(triangles[i][1]))
-	nface2node[fcnt][lcnt++] = nodeids[triangles[i][1]] ;
+      nface2node[fcnt][lcnt++] = nodeids[triangles[i][1]] ;
     nface2node[fcnt][lcnt++] = el[1]*2+((eo[1]>0)?0:1) ;
     nface2node[fcnt][lcnt++] = el[1]*2+((eo[1]>0)?1:0) ;
     if(!vertexCVs.inSet(triangles[i][2]))
-	nface2node[fcnt][lcnt++] = nodeids[triangles[i][2]] ;
+      nface2node[fcnt][lcnt++] = nodeids[triangles[i][2]] ;
     nface2node[fcnt][lcnt++] = el[2]*2+((eo[2]>0)?0:1) ;
     nface2node[fcnt][lcnt++] = el[2]*2+((eo[2]>0)?1:0) ;
 
@@ -2032,7 +2736,7 @@ int main(int ac, char* av[]) {
       ac-- ;
       av++ ;
     } else if(ac >= 2 && (!strcmp(av[1],"-cvtransform") ||
-			  !strcmp(av[1],"-cvt"))) {
+                          !strcmp(av[1],"-cvt"))) {
       cellVertexTransform = true ;
       ac-- ;
       av++ ;
@@ -2133,7 +2837,8 @@ int main(int ac, char* av[]) {
   string infile = buf ;
 
   string outfile = string(filename) + string(".vog") ;
-
+  
+  
   store<vector3d<double> > pos ;
   vector<Array<int,5> > qfaces ;
   vector<Array<int,4> > tfaces ;
@@ -2143,6 +2848,19 @@ int main(int ac, char* av[]) {
   vector<Array<int,8> > hexs ;
 
   readUGRID(infile, binary, pos,qfaces,tfaces,tets,pyramids,prisms,hexs) ;
+  string splitfile = string(filename) + string(".split") ;
+  vector<quadSplit> splits;
+  int num_hex = hexs.size();
+  int P = Loci::MPI_processes;
+  vector<int> hex_min(P+1) ;
+  MPI_Allgather(&num_hex,1,MPI_INT,&hex_min[1],1,MPI_INT,MPI_COMM_WORLD) ;
+  hex_min[0] = 1; //the index starts with 1
+  for(int i=1;i<=P;++i)
+    hex_min[i] = hex_min[i]+hex_min[i-1] ;
+  struct stat buffer;   
+  split_file_exist =  (stat (splitfile.c_str(), &buffer) == 0); 
+  if(split_file_exist)readSplit(splitfile,hex_min, splits);
+
 
   if(posScale != 1.0) {
     FORALL(pos.domain(),nd) {
@@ -2205,28 +2923,19 @@ int main(int ac, char* av[]) {
   for(size_t i=0;i<bcs.size();++i)
     surf_ids.push_back(pair<int,string>(bcs[i].id,bcs[i].name)) ;
 
-  
+ 
   multiMap face2node ;
   Map cl,cr ;
 
   if(cellVertexTransform) {
     convert2cellVertexface(pos,qfaces,tfaces,tets,pyramids,prisms,hexs,
-			   face2node,cl,cr) ;
-		       
+                           face2node,cl,cr) ;
   } else {
-    convert2face(pos,qfaces,tfaces,tets,pyramids,prisms,hexs,
-		 face2node,cl,cr) ;
+    convert2face(pos,qfaces,tfaces,tets,pyramids,prisms,hexs, hex_min,splits,
+                 face2node,cl,cr) ;
   }
 
-  // This code is no longer needed, the face orientation is established
-  // in convert2face
   
-  // establish face left-right orientation
-  //  if(cellVertexTransform) {
-  //    if(MPI_rank == 0)
-  //      cerr << "orienting faces" << endl ;
-  //    VOG::orientFaces(pos,cl,cr,face2node) ;
-  //  }
   if(MPI_rank == 0)
     cerr << "coloring matrix" << endl ;
   VOG::colorMatrix(pos,cl,cr,face2node) ;
