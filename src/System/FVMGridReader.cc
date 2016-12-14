@@ -1053,18 +1053,18 @@ namespace Loci {
 
     vector<pair<int,int> >().swap(rawMap) ; // Free up memory from rawMap
     int count = 0 ;
-    int size_map = local_cells[Loci::MPI_rank].size() ;
-    vector<int> size_adj(size_map) ;
+    idx_t size_map = local_cells[Loci::MPI_rank].size() ;
+    vector<idx_t> size_adj(size_map) ;
     count = 0 ;
     for(entitySet::const_iterator ei = local_cells[Loci::MPI_rank].begin(); ei != local_cells[Loci::MPI_rank].end(); ++ei) {
       size_adj[count] = cell2cell[*ei].size() ;
       ++count ;
     }
 
-    vector<int> part(size_map) ;
-    vector<int> xadj(size_map+1) ;
-    int edgecut ;
-    vector<int> vdist(Loci::MPI_processes + 1) ;
+    vector<idx_t> part(size_map) ;
+    vector<idx_t> xadj(size_map+1) ;
+    idx_t edgecut ;
+    vector<idx_t> vdist(Loci::MPI_processes + 1) ;
     int cmin = local_cells[0].Min();
     for(int i = 0; i < Loci::MPI_processes; i++) {
       cmin = min(local_cells[i].Min(), cmin);
@@ -1086,17 +1086,17 @@ namespace Loci {
     
     edgecut = 0 ;
     xadj[0] = 0 ;
-    for(int i = 0; i < size_map; ++i)
+    for(idx_t i = 0; i < size_map; ++i)
       xadj[i+1] = xadj[i] + size_adj[i] ;
 
-    int min_size = size_adj[0] ;
-    for(int i = 0; i < size_map; ++i)
+    idx_t min_size = size_adj[0] ;
+    for(idx_t i = 0; i < size_map; ++i)
       min_size = min(min_size,size_adj[i]) ;
     if(min_size == 0) 
       cerr << "cell with no adjacency!" << endl ;
     
-    int tot = xadj[size_map] ;
-    vector<int> adjncy(tot) ;
+    idx_t tot = xadj[size_map] ;
+    vector<idx_t> adjncy(tot) ;
     count = 0 ;
     for(entitySet::const_iterator ei = local_cells[Loci::MPI_rank].begin(); ei != local_cells[Loci::MPI_rank].end(); ++ei) {
       size_t sz = cell2cell[*ei].size() ;
@@ -1110,20 +1110,20 @@ namespace Loci {
     vdist[0] = 0 ;
     for(int i = 1; i <= Loci::MPI_processes; ++i)
       vdist[i] = vdist[i-1] + local_cells[i-1].size() ;
-    int top = vdist[Loci::MPI_processes] ;
+    idx_t top = vdist[Loci::MPI_processes] ;
     
     bool trouble = false ;
-    for(int i=0;i<tot;++i)
+    for(idx_t i=0;i<tot;++i)
       if(adjncy[i] >= top)
         trouble = true ;
     if(trouble)
       cerr << "adjacency list contains out of bounds reference" << endl ;
     
     MPI_Comm mc = MPI_COMM_WORLD ;
-    int nparts = Loci::MPI_processes ; // number of partitions
-    int wgtflag = 0 ;
-    int numflag = 0 ;
-    int options = 0 ;
+    idx_t nparts = Loci::MPI_processes ; // number of partitions
+    idx_t wgtflag = 0 ;
+    idx_t numflag = 0 ;
+    idx_t options = 0 ;
 
     // read in additional vertex weights if any
     if(load_cell_weights) {
@@ -1166,15 +1166,15 @@ namespace Loci {
 
         // compute necessary ParMETIS data-structure
         wgtflag = 2 ;           // weights on the vertices only
-        int ncon = 2 ;          // number of weights per vertex
-        int tpwgts_len = ncon*nparts ;
+        idx_t ncon = 2 ;          // number of weights per vertex
+        idx_t tpwgts_len = ncon*nparts ;
         vector<metisreal_t> tpwgts(tpwgts_len) ;
 
-        for(int i=0;i<tpwgts_len;++i)
+        for(idx_t i=0;i<tpwgts_len;++i)
           tpwgts[i] = 1.0 / double(nparts) ;
         
         vector<metisreal_t> ubvec(ncon) ;
-        for(int i=0;i<ncon;++i)
+        for(idx_t i=0;i<ncon;++i)
           ubvec[i] = 1.05 ;     // as recommended by the ParMETIS manual
 
         // now construct the vertex weights
@@ -1203,10 +1203,10 @@ namespace Loci {
           std::cout << "ParMETIS cell weight file not found, "
                     << "using non-weighted partition..." << std::endl ;
         }
-        int ncon = 1 ;
-        int tpwgts_len = ncon*nparts ;
+        idx_t ncon = 1 ;
+        idx_t tpwgts_len = ncon*nparts ;
         vector<metisreal_t> tpwgts(tpwgts_len) ;
-        for(int i=0;i<tpwgts_len;++i)
+        for(idx_t i=0;i<tpwgts_len;++i)
           tpwgts[i] = 1.0 / double(nparts) ;
         
         
@@ -1219,10 +1219,10 @@ namespace Loci {
       }
       
     } else {
-      int ncon = 1 ;
-      int tpwgts_len = ncon*nparts ;
+      idx_t ncon = 1 ;
+      idx_t tpwgts_len = ncon*nparts ;
       vector<metisreal_t> tpwgts(tpwgts_len) ;
-      for(int i=0;i<tpwgts_len;++i)
+      for(idx_t i=0;i<tpwgts_len;++i)
         tpwgts[i] = 1.0 / double(nparts) ;
 
       metisreal_t ubvec = 1.05 ;
