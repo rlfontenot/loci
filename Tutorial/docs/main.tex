@@ -130,7 +130,7 @@ In {\it Loci}, containers are entity based.  That is, a container provides
 an association between entities and values.  There are two basic types
 of containers: stores and parameters.  Stores are used to associate
 values with entities, while parameters are used to associate a value
-with a sent of entities.  For example, in a simulation the each nodes
+with a sent of entities.  For example, in a simulation each of the nodes
 of a mesh will have a position vector, and this will be represented in
 {\it Loci} using a store container.  However, the time-step of a simulation
 is a single value that is shared by all of the simulation entities and
@@ -273,10 +273,10 @@ like the {\tt store} container.  For example, if we wanted to create a {\tt Map}
                                           // have a left side
   // Create Maping from current node to the node to the left
   Map leftNode ;
-  leftNode.allocate(left) ; // Allocate over all entities tha have a left side
+  leftNode.allocate(left) ; // Allocate over all entities that have a left side
   // Assign left node by looping over left nodes and nodes at the same time
   entitySet::const_iterator ni = nodes.begin() ;
-  for(entitySet::const_iterator li=left.begin();li!=left.begin();++li,++ni)
+  for(entitySet::const_iterator li=left.begin();li!=left.end();++li,++ni)
     leftNode[*li] = *ni ; // node *ni is to the left of node *li
 \end{verbatim}
 
@@ -652,7 +652,7 @@ calculations, the transformation rules are represented by a rule
 signature that is denoted by a list of targets of the transformation
 delineated from the sources of the transformation by the left arrow
 symbol, '$\leftarrow$'.  Thus the cell center position calculation is
-represented by the rule signature $x \leftarrow (ir,il)\rightarrow x$.
+represented by the rule signature $x_c \leftarrow (ir,il)\rightarrow x$.
 This rule signature represents the augmentation of the set of ordered
 pairs defined in equation (\ref{eq3:interfacex}) with the additional
 set given as
@@ -1025,7 +1025,7 @@ was placed in the fact database to apply this boundary condition as
 illustrated in the following code:
 
 \begin{verbatim}
-// Neuman boundary condition at left boundary, ux = h(t)
+// Neumann boundary condition at left boundary, ux = h(t)
 $rule pointwise(ux<-h), constraint(left_boundary) {
   $ux = $h ;
 }
@@ -1466,7 +1466,7 @@ $rule pointwise(L<-cellIntegrate(x)) { $L = $cellIntegrate(x) ; }
 \end{verbatim}
 Parametric rules behave somewhat like subroutines and share many of
 the same advantages.  One advantage is that because many related
-functions share the same implementation, it is possible to replace on
+functions share the same implementation, it is possible to replace one
 method of computation with another that is transparent to other parts
 of the computations.  In the same way, the use of the {\tt
   cellIntegrate} parametric rule will allow us to change fewer parts
@@ -2504,7 +2504,7 @@ In other words, the {\tt compute} block operates on values, while the
 {\tt prelude} block operates on the containers.
 
 The {\tt storeVec} container creates array of values for each entity.
-In general you can assign or ues the {\tt +=}, {\tt-=}, {\tt \*=}, or
+In general you can assign or use the {\tt +=}, {\tt-=}, {\tt \*=}, or
 {\tt /=} operators with these arrays.  The {\tt mk\_Scalar()} function in
 the above code converts a scalar value to a vector with the same
 scalar value repeated for each entity.  These operators facilitate a
