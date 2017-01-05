@@ -244,7 +244,13 @@ exportPostProcessorFiles(string casename, string iteration) const {
    
 
 
-    double time = atof(iteration.c_str()); //? how to set up this value?
+//    double time = atof(iteration.c_str()); //? how to set up this value?
+    double time = 0 ;
+    int ncycle = 0 ;
+    string timefile = "output/timestep_txt." + iteration + "_" + casename ;
+    std::ifstream timein(timefile.c_str(),ios::in) ;
+    if(!timein.fail())
+      timein >> ncycle >> time ;
     
     OFP = fopen(filename.c_str(), "wb") ;
     if(OFP == NULL) {
