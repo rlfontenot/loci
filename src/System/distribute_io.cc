@@ -47,6 +47,8 @@ namespace Loci {
     // Now lets share the domain with all other processors ;
     int sz = set.num_intervals() ;
     MPI_Bcast(&sz,1,MPI_INT,root,comm) ;
+    if(sz == 0)
+      return EMPTY ;
     vector<interval> vlist(sz) ;
     if(rank == 0) {
       for(int i=0;i<sz;++i)
@@ -572,6 +574,10 @@ namespace Loci {
       for(int i=0;i<np;++i)
         interval_sizes.push_back(0) ;
 
+    if(q_dom==EMPTY) {
+      qrep->allocate(q_dom) ;
+      return ;
+    }
     offset = dom.Min() ;
     dom <<= offset ;
     qrep->allocate(dom) ;
