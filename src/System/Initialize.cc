@@ -512,7 +512,7 @@ namespace Loci {
           cell_weight_file = (*argv)[i+1] ;
           i+=2 ;
 	} else if(!(strcmp((*argv)[i],"--set_4gig_entity_space"))) {
-	  factdb_allocated_base = std::numeric_limits<int>::min() + 256 ;
+	  factdb_allocated_base = std::numeric_limits<int>::min() + 2048 ;
 	  i++ ;
         } else if(!strcmp((*argv)[i],"--threads")) {
           // determine the number of threads to use.
