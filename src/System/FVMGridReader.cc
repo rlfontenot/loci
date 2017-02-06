@@ -892,8 +892,10 @@ namespace Loci {
     int face_accum = 0 ;
     int faces_base = max_alloc + nnodes ;
     for(int i = 0; i < MPI_processes; ++i) {
-      local_faces[i] = interval(faces_base + face_accum,
-                                faces_base + face_accum+faces_pp[i]- 1) ;
+      local_faces[i] = EMPTY ;
+      if(faces_pp[i] > 0)
+	local_faces[i] = interval(faces_base + face_accum,
+				  faces_base + face_accum+faces_pp[i]- 1) ;
       face_accum += faces_pp[i] ;
     }
     int cells_base = faces_base + face_accum ;
