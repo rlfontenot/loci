@@ -152,19 +152,19 @@ while [ $# -ne 0 ]; do
 
 	--cgns-dir)
 	    shift
-	    H5PATH=$1
+	    CGNSPATH=$1
 	    ;;
 	--cgns-dir\=*)
 	    tmp=$1
-	    H5PATH=${tmp#--cgns-dir\=}
+	    CGNSPATH=${tmp#--cgns-dir\=}
 	    ;;
 	--with-cgns)
 	    shift
-	    H5PATH=$1
+	    CGNSPATH=$1
 	    ;;
 	--with-cgns\=*)
 	    tmp=$1
-	    H5PATH=${tmp#--with-cgns\=}
+	    CGNSPATH=${tmp#--with-cgns\=}
 	    ;;
 
 	--mpi-dir)
@@ -211,7 +211,7 @@ while [ $# -ne 0 ]; do
 	    echo "where <options> may include"
 	    echo "  --prefix <install directory>    : tell configure where to install Loci."
 	    echo "  --with-hdf5 <HDF5 directory>     : tell configure where to find HDF5 package."
-	    echo "  --with-cgns <CGNS directory>     : tell configure where to find HDF5 package."
+	    echo "  --with-cgns <CGNS directory>     : tell configure where to find CGNS package."
 	    echo "  --with-mpi <MPI directory>      : tell configure where to find MPI package."
 	    echo "  --nompi                         : tell configure to build without using MPI"
 	    echo "  --with-petsc <PETSc directory>  : tell configure where to find PETSc package."
