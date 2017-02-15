@@ -1203,6 +1203,17 @@ namespace Loci {
         // we can then compute the rules
         // sequence chomp_seq = sequence(chomp_ivl);
         //
+        // NOTE: we could compute the "exec" everytime from scratch by
+        // sequence(chomp_ival & (*rule_seqs)[rs] & (*seq)). 
+        // in this way we don't have to store anything.  here instead
+        // we have chosen to recompute the (*rule_seqs)[rs]&(*seq)
+        // part and store that in "restricted_rule_seqs" variable so
+        // we can save some time.  when we have many chomp blocks, this
+        // could cost us a lot of storage space.  overall we should
+        // revisit these issues in the future if this approach (the
+        // multi-level partition) is still being used.  together with
+        // the the entitySet/sequence issue mentioned above, we should
+        // carefully tune the performance and memory cost.
         size_t rs=0;
         for(std::vector<rule_implP>::iterator
             ri=chomp_impls.begin();ri!=chomp_impls.end();++ri,++rs) {
