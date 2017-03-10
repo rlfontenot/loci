@@ -59,13 +59,16 @@ namespace Loci {
       size = sz ;
 #endif
     }
-    const T &restrict operator[](int idx) const restrict {
 #ifdef BOUNDS_CHECK
+    const T &operator[](int idx) const {
       fatal(idx >= size || idx < 0) ;
-#endif
       return ptr[idx] ;
     }
-
+#else 
+    const T &restrict operator[](int idx) const restrict {
+      return ptr[idx] ;
+    }
+#endif
     operator const T *restrict () const restrict {
       return ptr ;
     }
@@ -346,19 +349,23 @@ namespace Loci {
     }
     int vecSize() const { return size ; }
     const entitySet domain() const { return Rep()->domain() ; }
-    const_Vect<T> elem(int indx) const restrict {
 #ifdef BOUNDS_CHECK
+    const_Vect<T> elem(int indx) const {
       fatal(alloc_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
-#endif 
       return const_Vect<T>(alloc_ptr+((indx-base_offset)*size),size) ; }
-    const_Vect<T> operator[](int indx) const restrict {
-#ifdef BOUNDS_CHECK
+    const_Vect<T> operator[](int indx) const {
       fatal(alloc_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
-#endif 
       return const_Vect<T>(alloc_ptr+((indx-base_offset)*size),size) ;
     }
+#else
+    const_Vect<T> elem(int indx) const restrict {
+      return const_Vect<T>(alloc_ptr+((indx-base_offset)*size),size) ; }
+    const_Vect<T> operator[](int indx) const restrict {
+      return const_Vect<T>(alloc_ptr+((indx-base_offset)*size),size) ;
+    }
+#endif
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
   } ;
 
