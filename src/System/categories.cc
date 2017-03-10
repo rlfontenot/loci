@@ -189,7 +189,7 @@ namespace Loci {
         if(e.inSet(pvec[i].first)) {
 #ifdef DEBUG
           entitySet isect = entitySet(pvec[i]) & e ;
-          WARN(isect != pvec[i]) ;
+          WARN(isect != entitySet(pvec[i]) ) ;
 #endif
           cat_names[i] += vs ;
         }

@@ -714,7 +714,7 @@ namespace Loci {
       // processor
       size_t mxsz = local_nodes[0].size() ;
       for(int i=0;i<MPI_processes;++i)
-        mxsz = max(local_nodes[i].size(),mxsz) ;
+        mxsz = max(size_t(local_nodes[i].size()),mxsz) ;
       
       for(int i=1;i<MPI_processes;++i) {
         // read in remote processor data
@@ -2337,9 +2337,9 @@ namespace Loci {
     //    faces = all_collect_entitySet(*faces) ;
 
     facts.create_fact("faces",faces) ;
-    store<int> boundary_info ;
-    boundary_info = facts.get_variable("boundary_names") ;
-    entitySet bcset = boundary_info.domain() ;
+    store<string> boundary_names ;
+    boundary_names = facts.get_variable("boundary_names") ;
+    entitySet bcset = boundary_names.domain() ;
     entitySet bcfaces = cr.preimage(bcset).first ;
     constraint boundary_faces ;
     boundary_faces = bcfaces ;

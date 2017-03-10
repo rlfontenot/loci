@@ -535,6 +535,11 @@ namespace Loci {
       fctrl.use_constraints = false ;
       for(si=finfo.constraints.begin();si!=finfo.constraints.end();++si) {
         warn((si->var & tvars) != EMPTY) ;
+#ifdef DEBUG
+	if((si->var & tvars) != EMPTY) {
+	  cerr << "fset=" << fset << endl ;
+	}
+#endif
         constraints &= vmap_source_exist(*si,facts, scheds) ;
         fctrl.use_constraints = true ;
       }
