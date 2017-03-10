@@ -331,7 +331,28 @@ namespace Loci {
   public:
     reduce_store_compiler(const variable &v, const rule &ur,
                           CPTR<joiner> &jop) :
-      reduce_var(v), unit_rule(ur), join_op(jop) {}
+      reduce_var(v), unit_rule(ur), join_op(jop) {
+	std::set<vmap_info> uoutput = unit_rule.get_info().desc.targets ;
+	std::set<vmap_info> uinput = unit_rule.get_info().desc.sources ;
+	bool outputfail = false ;
+	if(uoutput.size() != 1) {
+	  outputfail = true ;
+	} else if(uoutput.begin()->mapping.size()) {
+	  outputfail = true ;
+	}
+	if(outputfail)
+	  cerr << "WARNING: unit rule must have a single varaible as output"
+	       << endl ;
+	outputfail = false ;
+	std::set<vmap_info>::const_iterator si ;
+	for(si=uinput.begin();si!=uinput.end();++si) 
+	  if(si->mapping.size()) 
+	    outputfail = true ;
+	if(outputfail) {
+	  cerr << "WARNING: unit rule has invalid input, mappings not allowed!"
+	       << endl ;
+	}
+      }
     virtual void accept(visitor& v) {}
     virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
     virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
