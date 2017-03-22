@@ -16,8 +16,8 @@ using namespace std;
 
 
 static const QColor default_color[] = {Qt::red, Qt::green, Qt::blue, Qt::cyan, Qt::magenta, Qt::yellow,
-                                     Qt::darkRed, Qt::darkGreen, Qt::darkBlue,
-                                     Qt::darkCyan, Qt::darkMagenta, Qt::darkYellow};
+                                      Qt::darkRed, Qt::darkGreen, Qt::darkBlue,
+                                      Qt::darkCyan, Qt::darkMagenta, Qt::darkYellow};
 
 
 

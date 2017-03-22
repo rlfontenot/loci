@@ -9,7 +9,7 @@
 #include "physicswindow.h"
 #include "qualitydialog.h"
 #include "progressdialog.h"
-
+#include <algorithm>
 /*!
   \class VarWindow
   

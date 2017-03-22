@@ -108,7 +108,7 @@ class VectSpBox:public QGroupBox{
   public:
     
   VectSpBox( const QString& title, QWidget *parent = 0);
-  void setRange(double d1, double d1);
+  void setRange(double d1, double d2);
   void setXRange(double minn, double maxx);
   void setYRange(double minn, double maxx);
   void setZRange(double minn, double maxx);

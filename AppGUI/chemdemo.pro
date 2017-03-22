@@ -10,10 +10,12 @@ TEMPLATE = app
 TARGET = 
 DEPENDPATH += .
 INCLUDEPATH += .
-INCLUDEPATH += /usr/local/hdf5/x86_64/include
-LIBPATH += /usr/local/hdf5/lib64
-LIBS += /usr/local/hdf5/x86_64/lib/libhdf5.a
-
+#INCLUDEPATH += /usr/local/hdf5/x86_64/include
+#LIBPATH += /usr/local/hdf5/lib64
+#LIBS += /usr/local/hdf5/x86_64/lib/libhdf5.a
+INCLUDEPATH += /usr/local/intel-2015.2/impi/5.0.3.048/include64   /usr/local/hdf5-1.8.14/include -DH5_USE_16_API 
+QMAKE_LIBDIR  += /usr/local/intel-2015.2/impi/5.0.3.048/lib64 /usr/local/hdf5-1.8.14/lib 
+LIBS +=  -L/usr/local/hdf5-1.8.14/lib -lhdf5 -lz -ldl -lm
 # Input
 HEADERS += bdcndwindow.h \
            cutplane.h \

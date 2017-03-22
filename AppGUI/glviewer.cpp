@@ -12,7 +12,7 @@
 #include <strings.h>
 #include <stdio.h>
 #include <iostream>
-
+#include <algorithm>
 using std::vector;
 using std::cout;
 using std::endl;

@@ -1,6 +1,6 @@
 #include "pboperation.h"
 #define PI 3.14159265358979323846264338327950
-
+#include <stdlib.h>
 vect3d get_wireframe_center(const vector<vect3d> &pos,
                          const vector<int>  &trias)
 {

@@ -5,7 +5,7 @@
 #include <set>
 #include <utility>
 #include <GL/glut.h>
-
+#include <algorithm>
 #include <map>
 #include <vector>
 #include <fstream>
