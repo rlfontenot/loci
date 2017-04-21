@@ -54,7 +54,7 @@ using std::fabs ;
 using std::ceil ;
 using std::floor ;
 using std::fmod ;
-using std::isnan(x) ;
+using std::isnan ;
 #endif
 #ifdef NO_CSTDLIB
 #include <stdlib.h>
