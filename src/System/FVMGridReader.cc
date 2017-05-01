@@ -814,8 +814,6 @@ namespace Loci {
                   &cluster_dist[0],sizeof(long),MPI_BYTE,
                   MPI_COMM_WORLD) ;
 
-    //    MPI_Allgather(&cluster_info_size,1,MPI_LONG,&cluster_dist[0],1,MPI_LONG,
-    //                  MPI_COMM_WORLD) ;
     memSpace("before face cluster reading" ) ;
     readVectorDist(face_g,"cluster_info",cluster_dist,cluster_info) ;
 
@@ -2113,7 +2111,17 @@ namespace Loci {
                          cell_ptn,face_ptn,node_ptn) ;
     } else {
       // Partition Cells
-      if(!use_simple_partition) {
+      bool useMetis = !use_simple_partition ;
+      
+      // If the number of cells per processor is too thin, metis
+      // no longer is an effective partitioner, so switch to the 
+      // simple partitioner instead
+      if(local_cells[0].size() < 450)  {
+	if(useMetis && MPI_rank==0) 
+	  debugout << "switching to simple partition due to small number of cells per proc!"<< endl ;
+	useMetis = false ;
+      }
+      if(useMetis) {
         cell_ptn = newMetisPartitionOfCells(local_cells,tmp_cl,tmp_cr,
 					    tmp_boundary_tags) ;
       } else {
