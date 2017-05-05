@@ -1,4 +1,3 @@
-
 //#############################################################################
 //#
 //# Copyright 2008, 2015, Mississippi State University
@@ -665,8 +664,7 @@ namespace Loci {
     int node_accum = 0 ;
     int nodes_base = max_alloc ;
     for(int i = 0; i < Loci::MPI_processes; ++i) {
-      int j = Loci::MPI_processes - i - 1 ;
-      int node_accum_update = node_accum + node_ivl + ((j<node_ivl_rem)?1:0) ;
+      int node_accum_update = node_accum + node_ivl + ((i<node_ivl_rem)?1:0) ;
       if(i == Loci::MPI_processes-1) {
 	local_nodes[i] = interval(nodes_base + node_accum,
                                   nodes_base + npnts - 1) ;
@@ -948,8 +946,7 @@ namespace Loci {
     int cell_accum = 0 ;
 
     for(int i = 0; i < Loci::MPI_processes; ++i) {
-      int j = MPI_processes - i - 1 ;
-      int cell_accum_update = cell_accum + cell_ivl + ((j<cell_ivl_rem)?1:0) ;
+      int cell_accum_update = cell_accum + cell_ivl + ((i<cell_ivl_rem)?1:0) ;
 
       if(i == MPI_processes-1) {
 	local_cells[i] = interval(cells_base + cell_accum,
@@ -1157,6 +1154,7 @@ namespace Loci {
 
         readContainerRAW(file_id,"cell weight", cell_weights.Rep(),
                          MPI_COMM_WORLD) ;
+
         if(cell_weights.domain() != local_cells[Loci::MPI_rank]) {
           cerr << "cell weights partition inconsistent!" << endl ;
           Loci::Abort() ;
