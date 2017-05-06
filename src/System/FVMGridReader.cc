@@ -2125,6 +2125,78 @@ namespace Loci {
       } else {
         cell_ptn = vector<entitySet>(MPI_processes) ;
         cell_ptn[MPI_rank] = local_cells[MPI_rank] ;
+	// read in additional vertex weights if any
+	if(load_cell_weights) {
+	  // check if the file exists
+	  int file_exists = 1 ;
+	  if(Loci::MPI_rank == 0) {
+	    struct stat buf ;
+	    if(stat(cell_weight_file.c_str(),&buf) == -1 ||
+	       !S_ISREG(buf.st_mode))
+	      file_exists = 0 ;
+	  }
+	  MPI_Bcast(&file_exists,1,MPI_INT,0,MPI_COMM_WORLD) ;
+	  
+	  if(file_exists == 1) {
+	    if(Loci::MPI_rank == 0) {
+	      std::cout << "simple partition reading additional cell weights from: "
+			<< cell_weight_file << std::endl ;
+	    }
+	    
+	    // create a hdf5 handle
+	    hid_t file_id = Loci::hdf5OpenFile(cell_weight_file.c_str(),
+					       H5F_ACC_RDONLY, H5P_DEFAULT) ;
+	    if(file_id < 0) {
+	      std::cerr << "...file reading failed..., Aborting" << std::endl ;
+	      Loci::Abort() ;
+	    }
+        
+	    // read
+	    store<int> cell_weights ;
+	    
+	    readContainerRAW(file_id,"cell weight", cell_weights.Rep(),
+			     MPI_COMM_WORLD) ;
+	    
+	    if(cell_weights.domain() != local_cells[Loci::MPI_rank]) {
+	      cerr << "cell weights partition inconsistent!" << endl ;
+	      Loci::Abort() ;
+	    }
+        
+	    Loci::hdf5CloseFile(file_id) ;
+	    int tot_weight = 0 ;
+
+	    cell_ptn[MPI_rank] = EMPTY ;
+	    entitySet dom = cell_weights.domain() ;
+	    FORALL(dom,i) {
+	      tot_weight += cell_weights[i] ;
+	    } ENDFORALL ;
+	    vector<int> pweights(MPI_processes,0) ;
+	    MPI_Allgather(&tot_weight,1,MPI_INT,&pweights[0],1,MPI_INT,
+			  MPI_COMM_WORLD) ;
+	    vector<int> woffsets(MPI_processes+1,0) ;
+	    for(int i=0;i<MPI_processes;++i)
+	      woffsets[i+1] = pweights[i]+woffsets[i] ;
+
+	    // compute the weight per processor
+	    int wpp = ((woffsets[MPI_processes]+MPI_processes-1)/MPI_processes) ;
+	    // Now compute local weighted sums
+	    int ncel = cell_weights.domain().size() ;
+	    vector<int> wts(ncel+1,woffsets[MPI_rank]) ;
+	    int cnt = 0 ;
+	    FORALL(dom,i) {
+	      wts[cnt+1] = wts[cnt] + cell_weights[i] ;
+	      cnt++ ;
+	    } ENDFORALL ;
+	    
+	    entitySet pdom = local_cells[MPI_rank] ;
+	    cnt = 0 ;
+	    FORALL(pdom,i) {
+	      cell_ptn[wts[cnt]/wpp] += i ;
+	      cnt++ ;
+	    } ENDFORALL ;
+	  }
+	  
+	}
       }
 
       memSpace("mid partitioning") ;
