@@ -76,8 +76,8 @@ namespace Loci {
     if(alloc_pointer) delete[] alloc_pointer ;
     alloc_pointer = 0 ;
     if(index) delete[] index ;
-
     index = 0 ;
+
     int sz = 0 ;
     if(ptn != EMPTY) {
       int top  = ptn.Min() ;
@@ -133,10 +133,6 @@ namespace Loci {
 	new_base_ptr[i] = new_alloc_pointer + sz ;
       }
     }
-    
-    *index = new_index ;
-    *alloc_pointer = new_alloc_pointer ;
-    *base_ptr = new_base_ptr ;
     
   }
 
@@ -196,12 +192,14 @@ namespace Loci {
     // Objective : allocate memory specified by the entitySet. Allocation
     // doesn't resize the memory, therefore reclaims previously held memory.
     //------------------------------------------------------------------------
-    
+    if(ptn == store_domain)
+      return ;
+
     if(alloc_pointer) delete[] alloc_pointer ;
-    if(index) delete[] index ;
-    
     alloc_pointer = 0 ;
+    if(index) delete[] index ;
     index         = 0 ;
+    
     base_ptr      = 0 ;
 
     store_domain  = ptn ;
@@ -326,6 +324,7 @@ namespace Loci {
     T **new_base_ptr ;
     
     multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
+
     FORALL(domain()-context,i) {
       for(int j=0;j<count[i];++j) 
         new_base_ptr[i][j] = base_ptr[i][j] ;
@@ -341,6 +340,7 @@ namespace Loci {
     if(index) delete[] index ;
     index = new_index ;
     base_ptr = new_base_ptr ;
+
     dispatch_notify() ;
   }
 
@@ -381,9 +381,9 @@ namespace Loci {
     if(alloc_pointer) delete[] alloc_pointer ;
     alloc_pointer = new_alloc_pointer;
     if(index) delete[] index ;
-    
     index = new_index ;
     base_ptr = new_base_ptr ;
+
     dispatch_notify() ;
   }
 
@@ -754,14 +754,11 @@ namespace Loci {
       }
       
       if(alloc_pointer) delete [] alloc_pointer ;
-      
-  
       alloc_pointer = new_alloc_pointer;
-      
       if(index) delete[] index ;
-      
       index = new_index ;
       base_ptr = new_base_ptr ;
+
       dispatch_notify() ;
     }
 
