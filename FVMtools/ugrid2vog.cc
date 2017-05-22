@@ -1621,7 +1621,7 @@ void convert2face(store<vector3d<double> > &pos,
   if(split_file_exist)collect_edge_split(edge_splits, splits); 
 
   //compute the start cellid of each process
-  int maxid = 0 ;
+  int maxid = std::numeric_limits<int>::min()+2048 ;
   entitySet posDom = pos.domain() ;
   if(posDom != EMPTY)
     maxid = posDom.Max()+1 ;
