@@ -138,21 +138,29 @@ inline bool edgeSplitCompare(const edgeSplit &e1, const edgeSplit &e2) {
 	   e1.n2 < e2.n2)) ;
 }
 
+inline bool quadSplitCompare(const pair<int, int>& e1, const pair<int, int> &e2) {
+  return ((e1.first < e2.first) ||
+          (e1.first == e2.first && 
+	   e1.second < e2.second)) ;
+}
+
+
 //collect all edges that are split
 void collect_edge_split( vector<edgeSplit>& es, vector<quadSplit>& qs){
   es.clear();
+ 
   int num_face = qs.size();
+  if(num_face > 0) es.reserve(num_face*4);
   for(int i = 0; i < num_face; i++){
     for(int j = 0; j < 4; j++){
       if(qs[i].nodes[j]>0)es.push_back(edgeSplit((qs[i].corners[j])-1,(qs[i].corners[(j+1)%4])-1, (qs[i].nodes[j])-1));
     }
   }
   std::sort(es.begin(), es.end(), edgeSplitCompare) ;
-  
   vector<edgeSplit>::iterator itr =  std::unique(es.begin(), es.end(), edgeSplitEqual);
   es.resize(itr-es.begin());
-  
-  const int P = MPI_processes ;
+
+  const int P = Loci::MPI_processes;
   int my_size = es.size()*3;
   if(P>1){
     vector<int> sizes(P);
@@ -190,9 +198,11 @@ int find_edge_split( vector<edgeSplit>& edge_splits, int node1, int node2){
 
 //parallel read split file                    
 void readSplit(string filename, const vector<int>& hex_min, vector<quadSplit>& splits){
+ 
   FILE* IFP = NULL ;
   const int P = MPI_processes ;
   const int R = MPI_rank ;
+  
   if(R == 0) {
     IFP = fopen(filename.c_str(), "r") ;
     if(IFP == NULL) {
@@ -209,50 +219,69 @@ void readSplit(string filename, const vector<int>& hex_min, vector<quadSplit>& s
       if(fscanf(IFP, "%d%d%d%d%d%d%d%d%d%d%d", &(quad_face.cell), &(quad_face.face), &(quad_face.nodes[0]),
                 &(quad_face.nodes[1]), &(quad_face.nodes[2]), &(quad_face.nodes[3]), &(quad_face.nodes[4]),
                 &(quad_face.corners[0]), &(quad_face.corners[1]), &(quad_face.corners[2]), &(quad_face.corners[3]) ) != 11)input_error() ;
-      if(quad_face.cell < hex_min[current_processor+1]){//belongs to current_processor
-        buf.push_back(quad_face);//store it
-      }else{//not belongs to current_processor,
-        if(current_processor == 0) { //if currrent_processor is root
-          splits = vector<quadSplit>(buf); //copy
-          buf.clear(); // and clear buf
-         
-        }else{ //current_processor is not root
-          int size  = buf.size();
-          MPI_Send(&size,1,MPI_INT,current_processor,1,MPI_COMM_WORLD) ; //send the size
-          if(size > 0)MPI_Send(&buf[0], size*11,MPI_INT,current_processor,2,MPI_COMM_WORLD) ; // and buf
-          buf.clear();//then clean buf
-        }
-        
-        //Next which processor it belongs
-        while(current_processor < P){
-          current_processor++; //next?
-          if(quad_face.cell == hex_min[current_processor+1]){ //not next
-            int size = 0;
-            MPI_Send(&size,1,MPI_INT,current_processor,1,MPI_COMM_WORLD) ; //send the size
-          }else{ //yes, found the processor
-            break;
-          }
-        }
-        if(current_processor == P){
-          cerr<<" Proc " << R << " : can not fount processor for hex number " << quad_face.cell << endl;
-          exit(-1);
-        }
-        buf.push_back(quad_face);
-      }//end the case not belongs to current_processor
-      
+
       if(i == (num_splits-1)){//finsh reading, send buf
         if(current_processor == 0) { //if currrent_processor is root
+          buf.push_back(quad_face);//store it
           splits = vector<quadSplit>(buf); //copy
           buf.clear(); // and clear buf
+          //tell others their size is 0
+          int size = 0;
+          for(int other_processor = 1; other_processor < P; other_processor++){
+            MPI_Send(&size,1,MPI_INT,other_processor,1,MPI_COMM_WORLD) ; //send the size
+          }
         }else{ //current_processor is not root
+          buf.push_back(quad_face);//store it
           int size  = buf.size();
           MPI_Send(&size,1,MPI_INT,current_processor,1,MPI_COMM_WORLD) ; //send the size
           if(size > 0)MPI_Send(&buf[0], size*11,MPI_INT,current_processor,2,MPI_COMM_WORLD) ; // and buf
           buf.clear();//then clean buf
+          //tell others their size is 0
+          if((current_processor+1) < P){
+            int size = 0;
+            for(int other_processor = current_processor+1; other_processor < P; other_processor++){
+              MPI_Send(&size,1,MPI_INT,other_processor,1,MPI_COMM_WORLD) ; //send the size
+            }
+          
+          }
         }
+      }else{
+
+        if(quad_face.cell < hex_min[current_processor+1]){//belongs to current_processor
+          buf.push_back(quad_face);//store it
+        }else{//not belongs to current_processor,
+          if(current_processor == 0) { //if currrent_processor is root
+            splits = vector<quadSplit>(buf); //copy
+            buf.clear(); // and clear buf
+            
+          }else{ //current_processor is not root
+            int size  = buf.size();
+            MPI_Send(&size,1,MPI_INT,current_processor,1,MPI_COMM_WORLD) ; //send the size
+            if(size > 0)MPI_Send(&buf[0], size*11,MPI_INT,current_processor,2,MPI_COMM_WORLD) ; // and buf
+            buf.clear();//then clean buf
+          }
+          
+          //Next which processor it belongs
+          while(current_processor < P){
+            current_processor++; //next?
+            if(quad_face.cell >= hex_min[current_processor+1]){ //not next
+              int size = 0;
+              MPI_Send(&size,1,MPI_INT,current_processor,1,MPI_COMM_WORLD) ; //send the size
+            }else{ //yes, found the processor
+              break;
+            }
+          }
+          if(current_processor == P){
+            cerr<<" Proc " << R << " : can not fount processor for hex number " << quad_face.cell << endl;
+            exit(-1);
+          }
+          buf.push_back(quad_face);
+        }//end the case not belongs to current_processor
+      
       }
     }
     fclose(IFP);
+    
   }else{//non-root processors
     int size = 0;
     int recv_count = 1;
@@ -349,14 +378,14 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
   num_vol_pents5 = data[4] ;
   num_vol_pents6 = data[5] ;
   num_vol_hexs   = data[6] ;
-
+  
   vector<int> node_ptns = VOG::simplePartitionVec(0,num_nodes-1,P) ;
   vector<entitySet> local_nodes(P) ;
   for(int i=0;i<P;++i)
     local_nodes[i] = interval(node_ptns[i],node_ptns[i+1]-1) ;
 
   pos.allocate(local_nodes[R]) ;
-
+  
   if(R == 0) { // Read in positions
 
     FORALL(local_nodes[0],nd) {
@@ -414,7 +443,7 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
     } ENDFORALL ;
 
   }
-
+  
   vector<int> triadist = VOG::simplePartitionVec(0,num_sf_trias-1,P) ;
   vector<int> quaddist = VOG::simplePartitionVec(0,num_sf_quads-1,P) ;
 
@@ -581,7 +610,6 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
     for(int i=0;i<qsz;++i)
       qfaces[i][4] = -qbuf[i] ;
   }
-
   // Read in volume elements
 
   // Read in tetrahedra
@@ -627,7 +655,7 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
     if(tsz != 0)
       MPI_Recv(&tets[0][0],tsz*4,MPI_INT,0,7,MPI_COMM_WORLD,&status) ;
   }
-
+ 
   // Read in pyramids
   vector<int> pyrmdist = VOG::simplePartitionVec(0,num_vol_pents5-1,P) ;
   pyramids = vector<Array<int,5> >(pyrmdist[R+1]-pyrmdist[R]) ;
@@ -671,7 +699,7 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
     if(tsz != 0)
       MPI_Recv(&pyramids[0][0],tsz*5,MPI_INT,0,6,MPI_COMM_WORLD,&status) ;
   }
-
+ 
   // Read in prisms
   vector<int> prsmdist = VOG::simplePartitionVec(0,num_vol_pents6-1,P) ;
   prisms = vector<Array<int,6> >(prsmdist[R+1]-prsmdist[R]) ;
@@ -715,7 +743,7 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
     if(tsz != 0)
       MPI_Recv(&prisms[0][0],tsz*6,MPI_INT,0,5,MPI_COMM_WORLD,&status) ;
   }
-
+  
   // Read in hexahdra
   vector<int> hexsdist = VOG::simplePartitionVec(0,num_vol_hexs-1,P) ;
   hexs = vector<Array<int,8> >(hexsdist[R+1]-hexsdist[R]) ;
@@ -759,6 +787,7 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
     if(tsz != 0)
       MPI_Recv(&hexs[0][0],tsz*8,MPI_INT,0,4,MPI_COMM_WORLD,&status) ;
   }
+  
 }
 
 struct quadFace {
@@ -1157,25 +1186,25 @@ void get_corners(int face_id, const Array<int,8> &hex, Array<int, 4> &corners){
     exit(1);
   }
 }
-
-bool split(vector<quadFace> &quad, int& qf,
-           vector<triaFace> &tria, int& tf,
-           int hex_id, int face_id,
-           vector<quadSplit>& splits,
-           const int &cellid){
-  if(splits.empty())return false;
-  vector<quadSplit>::iterator itr = splits.begin();
-  bool found = false;
-  while(itr != splits.end() && itr->cell <= hex_id){
-    if(itr->cell == hex_id && itr->face == face_id){
-      found = true;
-      break;
-    }
-    itr++;
+//using binary search to check if an face is split
+int find_quad_split( vector<quadSplit>& splits,  int hex_id, int face_id, int start){
+  if(splits.empty())return -1;
+  int first = start;
+  int last = splits.size()-1;
+  int middle = (first+last)/2;
+  while(first <=last){
+    if(splits[middle].cell==hex_id && splits[middle].face==face_id) return middle; 
+    else if(quadSplitCompare(pair<int, int>(splits[middle].cell,splits[middle].face), pair<int, int>(hex_id, face_id))) first = middle +1;
+    else last = middle -1;
+    middle = (first+last)/2;
   }
-  if(!found) return false;
-  quadSplit s = *itr;
-  splits.erase(itr);
+  return -1;
+}
+
+bool split(const quadSplit& s,
+           vector<quadFace> &quad, int& qf,
+           vector<triaFace> &tria, int& tf,
+           int cellid){
   // 5 mid points, 4 quads 
   if(s.nodes[0] > 0 && s.nodes[1] > 0 && s.nodes[2] > 0 && s.nodes[3] > 0 && s.nodes[4] > 0){
     //lower right
@@ -1604,7 +1633,7 @@ bool split(vector<quadFace> &quad, int& qf,
     }
   }
   cerr<<" split() has cases that can not handle" << s.nodes[0] << " "<< s.nodes[1] << " "<<s.nodes[2] << " "<<s.nodes[3] << " "<<s.nodes[4] <<endl;
-  return found;  
+  return false;  
 }
 
 
@@ -1619,7 +1648,8 @@ void convert2face(store<vector3d<double> > &pos,
   //collect edge splits before quad splits are modified
   vector<edgeSplit> edge_splits;
   if(split_file_exist)collect_edge_split(edge_splits, splits); 
-
+  
+  
   //compute the start cellid of each process
   int maxid = std::numeric_limits<int>::min()+2048 ;
   entitySet posDom = pos.domain() ;
@@ -1766,11 +1796,13 @@ void convert2face(store<vector3d<double> > &pos,
   //cellid here and hex_id in .split file are different, hex_id start with 1
 
   
+  int start_ind = 0;
   for(size_t i=0;i<hexs.size();++i) {
     int hex_id = hex_min[Loci::MPI_rank] + i;
     for(int face_id = 1; face_id <=6; face_id++){
-      
-      if(!split(quad, qf, tria, tf, hex_id, face_id, splits, cellid)){
+      //find face
+      int ind = find_quad_split(splits, hex_id, face_id, start_ind);
+      if(ind < 0){
         Array<int, 4> corners;
         get_corners(face_id, hexs[i], corners);
         quad[qf].nodes[0] = corners[0] ;
@@ -1779,6 +1811,9 @@ void convert2face(store<vector3d<double> > &pos,
         quad[qf].nodes[3] = corners[3] ;
         quad[qf].left = true ;
         quad[qf++].cell = cellid ;
+      }else{
+        start_ind = ind;
+        split(splits[ind], quad, qf, tria, tf, cellid);
       }
     }
     cellid++ ;
@@ -1789,9 +1824,8 @@ void convert2face(store<vector3d<double> > &pos,
   //remove extra memory allocated
   tria.resize(tf);
   quad.resize(qf);
-  if(!splits.empty()){
-    cerr<< "ERROR:finish get faces from hexs, splits.size() " << splits.size() << endl;
-  }
+  splits.clear();
+  
   // prepare triangle faces (sort them)
   for(size_t i=0;i<tria.size();++i) {
     // pos numbers nodes from zero
@@ -1812,7 +1846,7 @@ void convert2face(store<vector3d<double> > &pos,
       tria[i].left = !tria[i].left ;
     }
   }
-
+  
   // prepare quad faces (sort them, but be careful)
   for(size_t i=0;i<quad.size();++i) {
     // pos numbers nodes from zero
@@ -1841,21 +1875,24 @@ void convert2face(store<vector3d<double> > &pos,
       quad[i].left = !quad[i].left ;
     }
   }
-
+  
   
   //sort quad
   int qsz = quad.size() ;
-  int mqsz ;
+  int mqsz = 0;
   MPI_Allreduce(&qsz,&mqsz,1,MPI_INT,MPI_MAX,MPI_COMM_WORLD) ;
+ 
   if(mqsz != 0) {
     Loci::parSampleSort(quad,quadCompare,MPI_COMM_WORLD) ;
   }
+ 
   //check if there is single faces in quad, if yes, remove them from quad, and split the single face into tria
   vector<quadFace> single_quad = get_single_face(quad, quadEqual);
   int num_single_quad = single_quad.size();
   //vector<quadFace> single_quad_copy(single_quad);
   int total_num_single_quad = 0;
   MPI_Allreduce(&num_single_quad,&total_num_single_quad,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD) ;
+  
   if(num_single_quad != 0){
     split_quad(single_quad, tria);
   }
@@ -1864,10 +1901,11 @@ void convert2face(store<vector3d<double> > &pos,
   int tsz = tria.size() ;
   int mtsz ;
   MPI_Allreduce(&tsz,&mtsz,1,MPI_INT,MPI_MAX,MPI_COMM_WORLD) ;
+  
   if(mtsz != 0) {
     Loci::parSampleSort(tria,triaCompare,MPI_COMM_WORLD) ;
   }
-  
+ 
   //if there is single quad, the split process will generate extra single faces in tria
   // get_single_face will remove them
   if(total_num_single_quad != 0){
@@ -1897,7 +1935,7 @@ void convert2face(store<vector3d<double> > &pos,
   int ntria = tria.size()/2 ;
   int nquad = quad.size()/2 ;
   int nfaces = ntria+nquad ;
-   
+  
   ncells = 0 ;
   for(int i=0;i<MPI_processes;++i)
     ncells += cellsizes[i] ;
@@ -1912,6 +1950,7 @@ void convert2face(store<vector3d<double> > &pos,
   cr.allocate(faces) ;
   count.allocate(faces) ;
   int fc = facebase ;
+  
   for(int i=0;i<ntria;i++){
     int nedge = 3;
     if(split_file_exist){
@@ -1922,6 +1961,7 @@ void convert2face(store<vector3d<double> > &pos,
     }
     count[fc++] = nedge ;
   }
+  
   for(int i=0;i<nquad;i++){
     int nedge = 4;
     if(split_file_exist){
@@ -1933,7 +1973,6 @@ void convert2face(store<vector3d<double> > &pos,
     count[fc++] = nedge ;
   }
   face2node.allocate(count) ;
-
   fc = facebase ;
   
   for(int i=0;i<ntria;++i) {
@@ -2054,6 +2093,7 @@ void convert2face(store<vector3d<double> > &pos,
     }
     fc++ ;
   }
+ 
 }
   
  
@@ -2846,8 +2886,8 @@ int main(int ac, char* av[]) {
   vector<Array<int,5> > pyramids ;
   vector<Array<int,6> > prisms ;
   vector<Array<int,8> > hexs ;
-
   readUGRID(infile, binary, pos,qfaces,tfaces,tets,pyramids,prisms,hexs) ;
+ 
   string splitfile = string(filename) + string(".split") ;
   vector<quadSplit> splits;
   int num_hex = hexs.size();
@@ -2857,11 +2897,14 @@ int main(int ac, char* av[]) {
   hex_min[0] = 1; //the index starts with 1
   for(int i=1;i<=P;++i)
     hex_min[i] = hex_min[i]+hex_min[i-1] ;
+  
+  
   struct stat buffer;   
-  split_file_exist =  (stat (splitfile.c_str(), &buffer) == 0); 
+  split_file_exist =  (stat (splitfile.c_str(), &buffer) == 0);
+  
   if(split_file_exist)readSplit(splitfile,hex_min, splits);
-
-
+  
+  
   if(posScale != 1.0) {
     FORALL(pos.domain(),nd) {
       pos[nd] *= posScale ;
@@ -2886,17 +2929,19 @@ int main(int ac, char* av[]) {
     for(size_t i=0;i<bcs.size();++i)
       cout << ' ' << bcs[i].name ;
     cout << endl ;
+   
   }
+  
   int trans_size = transsurf.size() ;
   MPI_Bcast(&trans_size,1,MPI_INT,0,MPI_COMM_WORLD) ;
   if(trans_size != 0) {
     if(MPI_rank != 0)
       transsurf = vector<int>(trans_size) ;
     MPI_Bcast(&transsurf[0],trans_size,MPI_INT,0,MPI_COMM_WORLD) ;
-
+    
     if(MPI_rank == 0)
       cout << "removing transparent surfaces" << endl ;
-
+    
     vector<Array<int,5> > qtfaces ;
     for(size_t i=0;i<qfaces.size();++i) {
       bool trans = false ;
@@ -2919,6 +2964,7 @@ int main(int ac, char* av[]) {
     }
     tfaces.swap(ttfaces) ;
   }
+  
   vector<pair<int,string> > surf_ids ;
   for(size_t i=0;i<bcs.size();++i)
     surf_ids.push_back(pair<int,string>(bcs[i].id,bcs[i].name)) ;
@@ -2926,7 +2972,7 @@ int main(int ac, char* av[]) {
  
   multiMap face2node ;
   Map cl,cr ;
-
+  
   if(cellVertexTransform) {
     convert2cellVertexface(pos,qfaces,tfaces,tets,pyramids,prisms,hexs,
                            face2node,cl,cr) ;
@@ -2939,16 +2985,15 @@ int main(int ac, char* av[]) {
   if(MPI_rank == 0)
     cerr << "coloring matrix" << endl ;
   VOG::colorMatrix(pos,cl,cr,face2node) ;
-
+    
   if(optimize) {
     if(MPI_rank == 0)
       cerr << "optimizing mesh layout" << endl ;
     VOG::optimizeMesh(pos,cl,cr,face2node) ;
   }
-
+  
   if(MPI_rank == 0)
     cerr << "writing VOG file" << endl ;
   Loci::writeVOG(outfile, pos, cl, cr, face2node,surf_ids) ;
-
   Loci::Finalize() ;
 }
