@@ -219,10 +219,42 @@ void readSplit(string filename, const vector<int>& hex_min, vector<quadSplit>& s
       if(fscanf(IFP, "%d%d%d%d%d%d%d%d%d%d%d", &(quad_face.cell), &(quad_face.face), &(quad_face.nodes[0]),
                 &(quad_face.nodes[1]), &(quad_face.nodes[2]), &(quad_face.nodes[3]), &(quad_face.nodes[4]),
                 &(quad_face.corners[0]), &(quad_face.corners[1]), &(quad_face.corners[2]), &(quad_face.corners[3]) ) != 11)input_error() ;
-
+     
+      if(quad_face.cell < hex_min[current_processor+1]){//belongs to current_processor
+        buf.push_back(quad_face);//store it
+      }else{//not belongs to current_processor,
+        //first finish with current processor, either copy or send the data in buf, and then clear the buf
+        if(current_processor == 0) { //if currrent_processor is root
+          splits = vector<quadSplit>(buf); //copy
+          buf.clear(); // and clear buf
+          
+        }else{ //current_processor is not root
+          int size  = buf.size();
+          MPI_Send(&size,1,MPI_INT,current_processor,1,MPI_COMM_WORLD) ; //send the size
+          if(size > 0)MPI_Send(&buf[0], size*11,MPI_INT,current_processor,2,MPI_COMM_WORLD) ; // and buf
+          buf.clear();//then clean buf
+        }
+        
+        //Next which processor it belongs
+        while(current_processor < P){
+          current_processor++; //next?
+          if(quad_face.cell >= hex_min[current_processor+1]){ //not next
+            int size = 0;
+            MPI_Send(&size,1,MPI_INT,current_processor,1,MPI_COMM_WORLD) ; //send the size
+          }else{ //yes, found the processor
+            break;
+          }
+        }
+        if(current_processor == P){
+          cerr<<" Proc " << R << " : can not fount processor for hex number " << quad_face.cell << endl;
+          exit(-1);
+        }
+        buf.push_back(quad_face);
+      }//end the case not belongs to current_processor
+      
+     
       if(i == (num_splits-1)){//finsh reading, send buf
         if(current_processor == 0) { //if currrent_processor is root
-          buf.push_back(quad_face);//store it
           splits = vector<quadSplit>(buf); //copy
           buf.clear(); // and clear buf
           //tell others their size is 0
@@ -231,7 +263,6 @@ void readSplit(string filename, const vector<int>& hex_min, vector<quadSplit>& s
             MPI_Send(&size,1,MPI_INT,other_processor,1,MPI_COMM_WORLD) ; //send the size
           }
         }else{ //current_processor is not root
-          buf.push_back(quad_face);//store it
           int size  = buf.size();
           MPI_Send(&size,1,MPI_INT,current_processor,1,MPI_COMM_WORLD) ; //send the size
           if(size > 0)MPI_Send(&buf[0], size*11,MPI_INT,current_processor,2,MPI_COMM_WORLD) ; // and buf
@@ -245,40 +276,7 @@ void readSplit(string filename, const vector<int>& hex_min, vector<quadSplit>& s
           
           }
         }
-      }else{
-
-        if(quad_face.cell < hex_min[current_processor+1]){//belongs to current_processor
-          buf.push_back(quad_face);//store it
-        }else{//not belongs to current_processor,
-          if(current_processor == 0) { //if currrent_processor is root
-            splits = vector<quadSplit>(buf); //copy
-            buf.clear(); // and clear buf
-            
-          }else{ //current_processor is not root
-            int size  = buf.size();
-            MPI_Send(&size,1,MPI_INT,current_processor,1,MPI_COMM_WORLD) ; //send the size
-            if(size > 0)MPI_Send(&buf[0], size*11,MPI_INT,current_processor,2,MPI_COMM_WORLD) ; // and buf
-            buf.clear();//then clean buf
-          }
-          
-          //Next which processor it belongs
-          while(current_processor < P){
-            current_processor++; //next?
-            if(quad_face.cell >= hex_min[current_processor+1]){ //not next
-              int size = 0;
-              MPI_Send(&size,1,MPI_INT,current_processor,1,MPI_COMM_WORLD) ; //send the size
-            }else{ //yes, found the processor
-              break;
-            }
-          }
-          if(current_processor == P){
-            cerr<<" Proc " << R << " : can not fount processor for hex number " << quad_face.cell << endl;
-            exit(-1);
-          }
-          buf.push_back(quad_face);
-        }//end the case not belongs to current_processor
-      
-      }
+      } 
     }
     fclose(IFP);
     
