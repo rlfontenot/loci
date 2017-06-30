@@ -159,7 +159,7 @@ namespace Loci {
         weights[i] = deltas[i] ;
       }
       r[0][0] = sqrt(r[0][0]) ;
-      r[0][0] = max(r[0][0],1e-30) ;
+      r[0][0] = max(r[0][0],real_t(1e-30)) ;
 
       const real_t rr00 = 1./r[0][0] ;
       for(int i=0;i<ndeltas;++i)
@@ -178,7 +178,7 @@ namespace Loci {
       for(int i=0;i<ndeltas;++i)
         r[1][1] += weights[i].y*weights[i].y ;
       r[1][1] = sqrt(r[1][1]) ;
-      r[1][1] = max(r[1][1],1e-30) ;
+      r[1][1] = max(r[1][1],real_t(1e-30)) ;
       const real_t rr11 = 1./r[1][1] ;
       for(int i=0;i<ndeltas;++i)
         weights[i].y *= rr11 ;
@@ -192,7 +192,7 @@ namespace Loci {
       for(int i=0;i<ndeltas;++i)
         r[2][2] += weights[i].z*weights[i].z ;
       r[2][2] = sqrt(r[2][2]) ;
-      r[2][2] = max(r[2][2],1e-30) ;
+      r[2][2] = max(r[2][2],real_t(1e-30)) ;
       const real_t rr22 = 1./r[2][2] ;
       for(int i=0;i<ndeltas;++i)
         weights[i].z *= rr22 ;
@@ -298,7 +298,7 @@ namespace Loci {
       
       for(int i=0;i<ndeltas;++i) {
         real_t wadjust = k+dot(vx,wcent[i]*deltas[i]) ;
-        wcent[i] *= max(wadjust,0.0) ;
+        wcent[i] *= max(wadjust,real_t(0.0)) ;
         if(wadjust < -0.0)
           badcount++ ;
         wsum += wcent[i] ;
@@ -746,17 +746,17 @@ namespace Loci {
       const vector3d<real_t> center = cellcenter[c] ;
       int ncount = 0 ;
       for(const Entity *lp=lower.begin(c);lp!=lower.end(c);++lp) {
-        double we = 1./norm(cellcenter[cl[*lp]]-center) ;
+        real_t we = 1./norm(cellcenter[cl[*lp]]-center) ;
         areas[ncount] = we ;
         deltas[ncount++] = we*(cellcenter[cl[*lp]] - center) ;
       }
       for(const Entity *up=upper.begin(c);up!=upper.end(c);++up) {
-        double we = 1./norm(cellcenter[cr[*up]]-center) ;
+        real_t we = 1./norm(cellcenter[cr[*up]]-center) ;
         areas[ncount] = we ;
         deltas[ncount++] = we*(cellcenter[cr[*up]] - center) ;
       }
       for(const Entity *bi=boundary_map.begin(c);bi!=boundary_map.end(c);++bi) {
-        double we = 1./norm(facecenter[*bi]-center) ;
+        real_t we = 1./norm(facecenter[*bi]-center) ;
         
         areas[ncount] = we ;
         deltas[ncount++] = we*(facecenter[*bi] - center) ;

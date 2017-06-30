@@ -335,19 +335,19 @@ namespace Loci {
     constraint(centeredFaceStencil,(cl,cr)->cellcenter) {
     const int sz = $face2node.size() ;
     // compute projected distance between cells
-    double len = dot($cr->$cellcenter-$cl->$cellcenter,$area.n) ;
+    real_t len = dot($cr->$cellcenter-$cl->$cellcenter,$area.n) ;
     // Compute centered control points above and below the face
     const vector3d<real_t> center_l = $facecenter-.5*len*$area.n ;
     const vector3d<real_t> center_r = $facecenter+.5*len*$area.n ;
     
     vector3d<real_t> grad_l = $cl->$grads(X) ;
     vector3d<real_t> grad_r = $cr->$grads(X) ;
-    double lim_l = $cl->$limiters(X) ;
-    double lim_r = $cr->$limiters(X) ;
+    real_t lim_l = $cl->$limiters(X) ;
+    real_t lim_r = $cr->$limiters(X) ;
 
     // Compute values at control points above and below face using limiters
-    double X_l = $cl->$X + lim_l*dot(grad_l,(center_l-$cl->$cellcenter)) ;
-    double X_r = $cr->$X + lim_r*dot(grad_r,(center_r-$cr->$cellcenter)) ;
+    real_t X_l = $cl->$X + lim_l*dot(grad_l,(center_l-$cl->$cellcenter)) ;
+    real_t X_r = $cr->$X + lim_r*dot(grad_r,(center_r-$cr->$cellcenter)) ;
       
     vector3d<real_t> sum = vector3d<real_t>(0,0,0) ;
     real_t lvol = 0 ;
@@ -383,10 +383,10 @@ namespace Loci {
     constraint(centeredFaceStencil,ci->cellcenter) {
 
     const vector3d<real_t> n = $area.n ;
-    double len = dot($facecenter-$ci->$cellcenter,n) ;
+    real_t len = dot($facecenter-$ci->$cellcenter,n) ;
     const vector3d<real_t> center_l = $facecenter - len*n ;
 
-    double X_l = $ci->$X +
+    real_t X_l = $ci->$X +
       $ci->$limiters(X)*dot($ci->$grads(X),center_l-$ci->$cellcenter) ;
     const real rdist = 1./len ;
     const vect3d gradAvg = $ci->$grads(X) ;
@@ -406,7 +406,7 @@ namespace Loci {
   } compute {
     const int sz = $face2node.size() ;
     // compute projected distance between cells
-    double len = dot($cr->$cellcenter-$cl->$cellcenter,$area.n) ;
+    real_t len = dot($cr->$cellcenter-$cl->$cellcenter,$area.n) ;
     // Compute centered control points above and below the face
     const vector3d<real_t> center_l = $facecenter-.5*len*$area.n ;
     const vector3d<real_t> center_r = $facecenter+.5*len*$area.n ;
@@ -417,10 +417,10 @@ namespace Loci {
       // Compute values at control points above and below face using limiterv
       vector3d<real_t> grad_l = $cl->$gradv(X)[b] ;
       vector3d<real_t> grad_r = $cr->$gradv(X)[b] ;
-      double lim_l = $cl->$limiterv(X)[b] ;
-      double lim_r = $cr->$limiterv(X)[b] ;
-      double X_l = $cl->$X[b] + lim_l*dot(grad_l,(center_l-$cl->$cellcenter)) ;
-      double X_r = $cr->$X[b] + lim_r*dot(grad_r,(center_r-$cr->$cellcenter)) ;
+      real_t lim_l = $cl->$limiterv(X)[b] ;
+      real_t lim_r = $cr->$limiterv(X)[b] ;
+      real_t X_l = $cl->$X[b] + lim_l*dot(grad_l,(center_l-$cl->$cellcenter)) ;
+      real_t X_r = $cr->$X[b] + lim_r*dot(grad_r,(center_r-$cr->$cellcenter)) ;
       
       vector3d<real_t> sum = vector3d<real_t>(0,0,0) ;
       real_t lvol = 0 ;
@@ -460,12 +460,12 @@ namespace Loci {
   } compute {
 
     const vector3d<real_t> n = $area.n ;
-    double len = dot($facecenter-$ci->$cellcenter,n) ;
+    real_t len = dot($facecenter-$ci->$cellcenter,n) ;
     const vector3d<real_t> center_l = $facecenter - len*n ;
 
     int vs = $*X.vecSize() ;
     for(int b=0;b<vs;++b) {
-      double X_l = $ci->$X[b] +
+      real_t X_l = $ci->$X[b] +
         $ci->$limiterv(X)[b]*dot($ci->$gradv(X)[b],center_l-$ci->$cellcenter) ;
       const real rdist = 1./len ;
       const vect3d gradAvg = $ci->$gradv(X)[b] ;
@@ -485,7 +485,7 @@ namespace Loci {
     constraint(centeredFaceStencil,(cl,cr)->cellcenter) {
     const int sz = $face2node.size() ;
     // compute projected distance between cells
-    double len = dot($cr->$cellcenter-$cl->$cellcenter,$area.n) ;
+    real_t len = dot($cr->$cellcenter-$cl->$cellcenter,$area.n) ;
     // Compute centered control points above and below the face
     const vector3d<real_t> center_l = $facecenter-.5*len*$area.n ;
     const vector3d<real_t> center_r = $facecenter+.5*len*$area.n ;
@@ -494,12 +494,12 @@ namespace Loci {
     
     vector3d<real_t> grad_l = $cl->$gradv3d(X).x ;
     vector3d<real_t> grad_r = $cr->$gradv3d(X).x ;
-    double lim_l = $cl->$limiterv3d(X).x ;
-    double lim_r = $cr->$limiterv3d(X).x ;
+    real_t lim_l = $cl->$limiterv3d(X).x ;
+    real_t lim_r = $cr->$limiterv3d(X).x ;
 
     // Compute values at control points above and below face using limiterv3d
-    double X_l = $cl->$X.x + lim_l*dot(grad_l,(center_l-$cl->$cellcenter)) ;
-    double X_r = $cr->$X.x + lim_r*dot(grad_r,(center_r-$cr->$cellcenter)) ;
+    real_t X_l = $cl->$X.x + lim_l*dot(grad_l,(center_l-$cl->$cellcenter)) ;
+    real_t X_r = $cr->$X.x + lim_r*dot(grad_r,(center_r-$cr->$cellcenter)) ;
       
     vector3d<real_t> sum = vector3d<real_t>(0,0,0) ;
     real_t lvol = 0 ;
@@ -607,12 +607,12 @@ namespace Loci {
     constraint(centeredFaceStencil,ci->cellcenter) {
 
     const vector3d<real_t> n = $area.n ;
-    const double len = dot($facecenter-$ci->$cellcenter,n) ;
+    const real_t len = dot($facecenter-$ci->$cellcenter,n) ;
     const vector3d<real_t> center_l = $facecenter - len*n ;
     const real rdist = 1./len ;
 
     // for x
-    double X_l = $ci->$X.x +
+    real_t X_l = $ci->$X.x +
       $ci->$limiterv3d(X).x*dot($ci->$gradv3d(X).x,center_l-$ci->$cellcenter) ;
     vect3d gradAvg = $ci->$gradv3d(X).x ;
     vect3d gradTan = gradAvg-dot(gradAvg,n)*n ;

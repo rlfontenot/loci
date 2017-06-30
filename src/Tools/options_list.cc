@@ -38,6 +38,9 @@ using std::make_pair ;
 
 namespace Loci {
 
+  using std::cos ;
+  using std::sin ;
+  
   options_list::options_list(const string &s) {
     int sz = s.length() ;
     restrict_set = true ;
@@ -251,7 +254,7 @@ namespace Loci {
         value_list[2].get_value(eta) ;
         eta *= conv  ;
       }
-
+      
       vec.x = r*cos(theta)*cos(eta) ;
       vec.y = r*sin(theta)*cos(eta) ;
       vec.z = r*sin(eta) ;

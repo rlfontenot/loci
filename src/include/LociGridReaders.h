@@ -21,11 +21,10 @@
 #ifndef LOCI_GRID_READERS_H
 #define LOCI_GRID_READERS_H
 #include <fact_db.h>
+#include <Tools/basic_types.h>
 #include <string>
 
 namespace Loci {
-
-  typedef double real_t ;
 
   //Define struct Area which data members of normal vector and area of the area
   struct Area {

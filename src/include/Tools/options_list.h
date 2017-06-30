@@ -113,8 +113,31 @@ namespace Loci {
     void getOptionUnits(const std::string &option, const std::string &units,
                         double &value) const ;
     void getOptionUnits(const std::string &option, const std::string &units,
+                        FADd &value) const {
+      double val ;
+      getOptionUnits(option,units,val) ;
+      value = FADd(val) ;
+    }
+    void getOptionUnits(const std::string &option, const std::string &units,
 			vector3d<double> &value, double scale=1.0) const ;
-
+    void getOptionUnits(const std::string &option, const std::string &units,
+			vector3d<FADd> &value) const {
+      vector3d<double> val ;
+      getOptionUnits(option,units,val) ;
+      value.x = FADd(val.x) ;
+      value.y = FADd(val.y) ;
+      value.z = FADd(val.z) ;
+    }
+    void getOptionUnits(const std::string &option, const std::string &units,
+			vector3d<FADd> &value,
+			FADd scale) const {
+      vector3d<double> val ;
+      getOptionUnits(option,units,val) ;
+      value.x = FADd(val.x) ;
+      value.y = FADd(val.y) ;
+      value.z = FADd(val.z) ;
+      value *= scale ;
+    }
     void setOption(const std::string &option, bool value) ;
     void setOption(const std::string &option, double value) ;
     void setOption(const std::string &option, UNIT_type uvalue) ;

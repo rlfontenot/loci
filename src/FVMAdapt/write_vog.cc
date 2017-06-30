@@ -88,7 +88,7 @@ namespace Loci {
   void ORB_Partition_Mesh(const vector<entitySet> &local_nodes,
                           const vector<entitySet> &local_faces,
                           const vector<entitySet> &local_cells,
-                          const store<vector3d<real_t> > &pos,
+                          const store<vector3d<double> > &pos,
                           const Map &cl, const Map &cr,
                           const multiMap &face2node,
                           vector<entitySet> &cell_ptn,
@@ -165,10 +165,10 @@ namespace Loci {
   }
 
   void copyGridStructures( entitySet nodes, entitySet faces, entitySet cells,
-			   const store<vector3d<real_t> > &t_pos,
+			   const store<vector3d<double> > &t_pos,
 			   const Map &tmp_cl, const Map &tmp_cr,
 			   const multiMap &tmp_face2node,
-			   store<vector3d<real_t> > &pos, Map &cl, Map &cr,
+			   store<vector3d<double> > &pos, Map &cl, Map &cr,
 			   multiMap &face2node) {
 
     entitySet boundary_cells = getBoundaryCells(Loci::MapRepP(tmp_cr.Rep()));
@@ -510,10 +510,10 @@ namespace Loci {
                  vector<entitySet> &node_ptn_t,
                  vector<entitySet> &face_ptn_t,
                  vector<entitySet> &cell_ptn_t,
-                 store<vector3d<real_t> > &t_pos, Map &tmp_cl,
+                 store<vector3d<double> > &t_pos, Map &tmp_cl,
                  Map &tmp_cr, multiMap &tmp_face2node,
                  entitySet nodes, entitySet faces, entitySet cells,
-                 store<vector3d<real_t> > &pos, Map &cl, Map &cr,
+                 store<vector3d<double> > &pos, Map &cl, Map &cr,
                  multiMap &face2node,
                  fact_db &facts) {
 
@@ -1036,7 +1036,7 @@ namespace Loci{
     Loci::memSpace("before remapGridStructures") ;
     Map cl, cr ;
     multiMap face2node ;
-    store<vector3d<real_t> > pos ;
+    store<vector3d<double> > pos ;
 
     remapGrid(node_ptn, face_ptn, cell_ptn,
               node_ptn_t, face_ptn_t, cell_ptn_t,

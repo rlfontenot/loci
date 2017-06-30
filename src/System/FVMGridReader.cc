@@ -1947,7 +1947,9 @@ namespace Loci {
     // Compute face center
     dstore<vector3d<float> > tmp_pos ;
     FORALL(pos.domain(),pi) {
-      tmp_pos[pi] = vector3d<float>(pos[pi].x,pos[pi].y,pos[pi].z) ;
+      tmp_pos[pi] = vector3d<float>(realToFloat(pos[pi].x),
+				    realToFloat(pos[pi].y),
+				    realToFloat(pos[pi].z)) ;
     } ENDFORALL ;
     entitySet fdom = face2node.domain() ;
     entitySet total_dom =

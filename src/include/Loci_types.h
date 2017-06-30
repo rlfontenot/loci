@@ -33,6 +33,19 @@
 #include <Tools/options_list.h>
 
 namespace Loci {
+  template<> struct data_schema_traits<FADd> {
+    typedef IDENTITY_CONVERTER Schema_Converter ;
+    /* static DatatypeP get_type() { */
+    /*   return DatatypeP(new AtomicType(DOUBLE)) ; */
+    /* } */
+    static DatatypeP get_type() {
+      CompoundDatatypeP ct = CompoundFactory(FADd()) ;
+      LOCI_INSERT_TYPE(ct,FADd,value) ;
+      /* LOCI_INSERT_TYPE(ct,FADd,grad) ; */ // Dangerous!!!!
+      return DatatypeP(ct) ;
+    }
+  };
+
   template <class T>
     struct data_schema_traits< vector3d<T> > {
       typedef IDENTITY_CONVERTER Schema_Converter;

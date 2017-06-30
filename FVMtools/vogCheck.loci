@@ -31,6 +31,8 @@ namespace Loci {
   void create_ci_map(fact_db &facts) ;
 }
 
+using Loci::real_t ;
+
 using std::string ;
 using std::endl ;
 using std::cerr ;
@@ -151,7 +153,7 @@ $rule unit(topo),constraint(UNIVERSE) {
 class output_grid_topology : public apply_rule<param<int>, Loci::Maximum<int> > {
   param<int> topo ;
   const_multiMap upper,lower,boundary_map,face2node ;
-  const_store<vector3d<double> > pos ;
+  const_store<vector3d<real_t> > pos ;
   const_Map ref ;
   const_store<string> boundary_names ;
   const_param<string> modelName ;
@@ -195,7 +197,7 @@ void output_grid_topology::compute(const sequence &seq) {
 
 register_rule<output_grid_topology> register_output_grid_topology ;
 
-void dump_pos(const sequence &seq,const_store<vector3d<double> > &pos,
+void dump_pos(const sequence &seq,const_store<vector3d<real_t> > &pos,
               const_param<string> &modelName) {
   ostringstream oss ;
   int cycle = 0 ;
@@ -220,7 +222,7 @@ void dump_pos(const sequence &seq,const_store<vector3d<double> > &pos,
 }
 
 class output_grid_positions: public apply_rule<param<int>, Loci::Maximum<int> > {
-  const_store<vector3d<double> > pos ;
+  const_store<vector3d<real_t> > pos ;
   const_param<string> modelName ;
   param<int> topo ;
 public:
@@ -277,11 +279,11 @@ $rule apply(topo<-numNodes,numAccessedNodes)[Loci::Maximum], prelude {
     }
   }
 } ;
-$type volume store<double> ;
+$type volume store<real_t> ;
 
 $rule pointwise(volume<-cellcenter,(upper,lower,boundary_map)->(area,facecenter)) {
-  double sum = 0.0 ;
-  vector3d<double> dv ;
+  real_t sum = 0.0 ;
+  vector3d<real_t> dv ;
   for(const Entity* nf=$upper.begin();nf!=$upper.end();++nf) {
     dv = nf->$facecenter - $cellcenter ;
     sum = sum + nf->$area.sada*(dot(dv,nf->$area.n)) ;
@@ -297,16 +299,16 @@ $rule pointwise(volume<-cellcenter,(upper,lower,boundary_map)->(area,facecenter)
   $volume = sum/3.0 ;
 }
 
-$type cellVolRatio store<double> ;
+$type cellVolRatio store<real_t> ;
 
 $rule unit(cellVolRatio),constraint(volume) {
   $cellVolRatio = 1 ;
 }
 
-$type ratio store<double> ;
+$type ratio store<real_t> ;
 $rule pointwise(ratio<-(cl,cr)->volume) {
-  const double mxvol = max($cl->$volume,$cr->$volume) ;
-  const double mnvol = max(min($cl->$volume,$cr->$volume),1e-30) ;
+  const real_t mxvol = max($cl->$volume,$cr->$volume) ;
+  const real_t mnvol = max(min($cl->$volume,$cr->$volume),real_t(1e-30)) ;
   $ratio = mxvol/mnvol ;
 }
 
@@ -318,7 +320,7 @@ $rule apply(cr->cellVolRatio<-ratio) [Loci::Maximum] {
 }
 
 
-$type volRatio param<double> ;
+$type volRatio param<real_t> ;
 
 $rule unit(volRatio),constraint(volume) {
   $volRatio = 0 ;
@@ -329,29 +331,29 @@ $rule apply(volRatio<-cellVolRatio)[Loci::Maximum] {
 }
 
 
-$type faceAngle store<double> ;
+$type faceAngle store<real_t> ;
 
 $rule pointwise(faceAngle<-cl->cellcenter,cr->cellcenter,facecenter) {
   // maximum angle between line segment connecting cellcenters and line
   // segments that connect cell centers to face centers.
-  vector3d<double> v1 = $cr->$cellcenter-$cl->$cellcenter ;
-  vector3d<double> v2 = $facecenter-$cl->$cellcenter ;
-  vector3d<double> v3 = $cr->$cellcenter-$facecenter ;
-  double nv1 = norm(v1) ;
-  double nv2 = norm(v2) ;
-  double nv3 = norm(v3) ;
-  double rad2deg = 360./(2.*3.1415927) ;
+  vector3d<real_t> v1 = $cr->$cellcenter-$cl->$cellcenter ;
+  vector3d<real_t> v2 = $facecenter-$cl->$cellcenter ;
+  vector3d<real_t> v3 = $cr->$cellcenter-$facecenter ;
+  real_t nv1 = norm(v1) ;
+  real_t nv2 = norm(v2) ;
+  real_t nv3 = norm(v3) ;
+  real_t rad2deg = 360./(2.*3.1415927) ;
   $faceAngle = rad2deg*acos(min(dot(v1,v2)/(nv1*nv2),dot(v1,v3)/(nv1*nv3))) ;
 }
 
 $rule pointwise(faceAngle<-ci->cellcenter,facecenter,area) {
-  vector3d<double> v1 = $ci->$cellcenter-$facecenter ;
-  vector3d<double> v2 = $area.n*dot(v1,$area.n) ;
-  double rad2deg = 360./(2.*3.1415927) ;
+  vector3d<real_t> v1 = $ci->$cellcenter-$facecenter ;
+  vector3d<real_t> v2 = $area.n*dot(v1,$area.n) ;
+  real_t rad2deg = 360./(2.*3.1415927) ;
   $faceAngle = rad2deg*acos(fabs(dot(v1,v2))/(norm(v1)*norm(v2))) ;
 }
 
-$type cellFaceAngle store<double> ;
+$type cellFaceAngle store<real_t> ;
 
 $rule unit(cellFaceAngle),constraint(volume) {
   $cellFaceAngle = 0 ;
@@ -363,7 +365,7 @@ $rule apply(cr->cellFaceAngle<-faceAngle)[Loci::Maximum] {
   join($cr->$cellFaceAngle,$faceAngle) ;
 }
 
-$type maxCellAngle param<double> ;
+$type maxCellAngle param<real_t> ;
 $rule unit(maxCellAngle), constraint(volume) {
   $maxCellAngle = 0 ;
 }
@@ -372,14 +374,14 @@ $rule apply(maxCellAngle<-cellFaceAngle)[Loci::Maximum] {
 }
 
 
-$type faceTwisted store<double> ;
+$type faceTwisted store<real_t> ;
 $rule pointwise(faceTwisted<-facecenter,face2node->pos,area) {
   int sz = $face2node.size() ;
-  double maxlen = 0 ;
-  double maxdel = 0 ;
-  const vector3d<double> n = $area.n ;
+  real_t maxlen = 0 ;
+  real_t maxdel = 0 ;
+  const vector3d<real_t> n = $area.n ;
   for(int i=0;i<sz;++i) {
-    const vector3d<double> dv = $facecenter-$face2node[i]->$pos ;
+    const vector3d<real_t> dv = $facecenter-$face2node[i]->$pos ;
     maxlen = max(dot(dv,dv),maxlen) ;
     maxdel = max(dot(dv,n),maxdel) ;
     
@@ -387,7 +389,7 @@ $rule pointwise(faceTwisted<-facecenter,face2node->pos,area) {
   $faceTwisted = maxdel/sqrt(maxlen) ;
 }
 
-$type cellTwist store<double> ;
+$type cellTwist store<real_t> ;
 
 $rule unit(cellTwist),constraint(volume) {
   $cellTwist = 0 ;
@@ -399,37 +401,37 @@ $rule apply(cr->cellTwist<-faceTwisted)[Loci::Maximum] {
   join($cr->$cellTwist,$faceTwisted) ;
 }
 
-$type faceShearTwist store<double> ;
+$type faceShearTwist store<real_t> ;
 $rule pointwise(faceShearTwist<-cl->(cellcenter,volume),cr->(cellcenter,volume),facecenter,face2node->pos,area) {
   int sz = $face2node.size() ;
-  double maxdel = 0 ;
-  const vector3d<double> n = $area.n ;
+  real_t maxdel = 0 ;
+  const vector3d<real_t> n = $area.n ;
   for(int i=0;i<sz;++i) {
-    const vector3d<double> dv = $facecenter-$face2node[i]->$pos ;
+    const vector3d<real_t> dv = $facecenter-$face2node[i]->$pos ;
     maxdel = max(dot(dv,n),maxdel) ;
   }
-  vector3d<double> vl = $facecenter-$cl->$cellcenter ;
-  vector3d<double> vr = $cr->$cellcenter-$facecenter ;
-  double dl = dot(vl,n) ;
-  double dr = dot(vr,n) ;
-  //  double tl = norm(vl-dl*n) ;
-  //  double tr = norm(vr-dr*n) ;
+  vector3d<real_t> vl = $facecenter-$cl->$cellcenter ;
+  vector3d<real_t> vr = $cr->$cellcenter-$facecenter ;
+  real_t dl = dot(vl,n) ;
+  real_t dr = dot(vr,n) ;
+  //  real_t tl = norm(vl-dl*n) ;
+  //  real_t tr = norm(vr-dr*n) ;
 
   // Twist factor ratio of out of plane delta to cell thickness
-  double thickness = ($cl->$volume+$cr->$volume)/$area.sada ;
-  double twist_factor = maxdel/thickness ;
+  real_t thickness = ($cl->$volume+$cr->$volume)/$area.sada ;
+  real_t twist_factor = maxdel/thickness ;
   // shear factor measures how much displacement from a normal projection
   // of the surface to the surface charactersitic distance
-  double shear_factor = sqrt((dot(vl-dl*n,vl-dl*n)+dot(vr-dr*n,vr-dr*n))/
+  real_t shear_factor = sqrt((dot(vl-dl*n,vl-dl*n)+dot(vr-dr*n,vr-dr*n))/
                              $area.sada) ;
   // anisotropy factor, ratio of thickness to unit sphere radius
-  double aniso_factor = thickness/pow($cl->$volume+$cr->$volume,1./3.);
+  real_t aniso_factor = thickness/pow($cl->$volume+$cr->$volume,1./3.);
   $faceShearTwist = twist_factor*shear_factor*aniso_factor ;
     
 }
 
 
-$type cellShearTwist store<double> ;
+$type cellShearTwist store<real_t> ;
 
 $rule unit(cellShearTwist),constraint(volume) {
   $cellShearTwist = 0 ;
@@ -516,9 +518,9 @@ $rule apply(topocheck<-(upper,lower,boundary_map)->face2node->pos)[Loci::Summati
 }
 
 $type report param<bool> ;
-$type minVol param<double> ;
-$type maxTwist param<double> ;
-$type maxShearTwist param<double> ;
+$type minVol param<real_t> ;
+$type maxTwist param<real_t> ;
+$type maxShearTwist param<real_t> ;
 $type modelName param<string> ;
 $type convexCell param<int> ;
 
@@ -729,10 +731,10 @@ $rule apply(maxShearTwist<-cellShearTwist)[Loci::Maximum] {
 }
 
 // Test of new type of parametric rules
-$type volTag_X store<double> ;
+$type volTag_X store<real_t> ;
 $type  volumeTag(X) param<string> ;
 
-$type volumeComponent_X param<double> ;
+$type volumeComponent_X param<real_t> ;
 $rule unit(volumeComponent_X),constraint(volumeTag(X)),
   parametric(volumeTag(X)) {
   $volumeComponent_X = 0 ;
@@ -760,7 +762,7 @@ $rule unit(convexCell),constraint(UNIVERSE) {
 
 $rule apply(convexCell<-cellcenter,(upper,lower,boundary_map)->(area,facecenter))[Loci::Summation] {
   bool convex = false ;
-  vector3d<double> dv ;
+  vector3d<real_t> dv ;
   for(const Entity* nf=$upper.begin();nf!=$upper.end();++nf) {
     dv = nf->$facecenter - $cellcenter ;
     if(dot(dv,nf->$area.n) < 0)
@@ -792,11 +794,11 @@ $rule apply(topo<-convexCell)[Loci::Maximum],
   }
 } ;
 
-$type nonconvex store<double>  ;
+$type nonconvex store<real_t>  ;
 
 $rule pointwise(nonconvex<-cellcenter,(upper,lower,boundary_map)->(area,facecenter)) {
   bool convex = true ;
-  vector3d<double> dv ;
+  vector3d<real_t> dv ;
   for(const Entity* nf=$upper.begin();nf!=$upper.end();++nf) {
     dv = nf->$facecenter - $cellcenter ;
     if(dot(dv,nf->$area.n) < 0)
@@ -823,9 +825,9 @@ OUTPUT_SCALAR("cell2nodeMax(nonconvex)",nonconvex) ;
 #ifdef TEST
 $type nodeError store<float> ;
 $rule pointwise(nodeError<-pos) {
-  double E1 = fabs(norm($pos)-1.) ;
-  double E2 = fabs(norm($pos-vector3d<double>(1.0,0,0))-1.) ;
-  double E3 = fabs(norm($pos-vector3d<double>(-1.5,0,0))-1.) ;
+  real_t E1 = fabs(norm($pos)-1.) ;
+  real_t E2 = fabs(norm($pos-vector3d<real_t>(1.0,0,0))-1.) ;
+  real_t E3 = fabs(norm($pos-vector3d<real_t>(-1.5,0,0))-1.) ;
   $nodeError = min(min(E1,E2),E3) ;
 }
 
@@ -861,7 +863,7 @@ $rule apply(topo<-faceGeometryInconsistent)[Loci::Maximum],
 using namespace Loci ;
 class dump_boundary_geom : public apply_rule<param<int>, Loci::Maximum<int> > {
   const_store<Area> area ;
-  const_store<vector3d<double> > facecenter ;
+  const_store<vector3d<real_t> > facecenter ;
   const_param<string> plot_postfix ;
   const_param<string> modelName ;
   param<int> topo ;
@@ -898,10 +900,10 @@ register_rule<dump_boundary_geom> register_dump_boundary_geom ;
 
 
 
-$type alpha_geom_f store<float> ;
+$type alpha_geom_f store<real_t> ;
 
-$type LDS_nonSymmetricCoeff param<double> ;
-$type LDS_nonSymmetricFactor param<double> ;
+$type LDS_nonSymmetricCoeff param<real_t> ;
+$type LDS_nonSymmetricFactor param<real_t> ;
 // This defines the cutoff angle where full upwinding occurs,
 // A setting of 2 gives full upwinding at 53 degrees
 $rule default(LDS_nonSymmetricCoeff) {
@@ -915,21 +917,21 @@ $rule default(LDS_nonSymmetricFactor) {
 
 $rule pointwise(alpha_geom_f<-area,facecenter,(cl,cr)->(cellcenter,vol),
 		LDS_nonSymmetricCoeff,LDS_nonSymmetricFactor) {
-  const vector3d<double> df = $cr->$cellcenter-$cl->$cellcenter ;
-  const vector3d<double>  dv = $facecenter -0.5*($cl->$cellcenter+$cr->$cellcenter) ;
-  double ndv = norm(dv) ;
-  double ndf = norm(df) ;
-  double cosa= min(sqrt(max(1.-2.*ndv/ndf,0.0)),
+  const vector3d<real_t> df = $cr->$cellcenter-$cl->$cellcenter ;
+  const vector3d<real_t>  dv = $facecenter -0.5*($cl->$cellcenter+$cr->$cellcenter) ;
+  real_t ndv = norm(dv) ;
+  real_t ndf = norm(df) ;
+  real_t cosa= min(sqrt(max(1.-2.*ndv/ndf,real_t(0.0))),
 		   dot($area.n,df)/ndf) ;
-  double scale = $LDS_nonSymmetricCoeff ;
-  double s = $LDS_nonSymmetricFactor/max(scale,1.0) ; ;
-  double x = min(scale*(1.-cosa),1.0) ;
-  double x2 = x*x ;
-  double x3 = x2*x ;
+  real_t scale = $LDS_nonSymmetricCoeff ;
+  real_t s = $LDS_nonSymmetricFactor/max(scale,real_t(1.0)) ; ;
+  real_t x = min(scale*(1.-cosa),real_t(1.0)) ;
+  real_t x2 = x*x ;
+  real_t x3 = x2*x ;
   $alpha_geom_f = x2 + s*(x3-2.*x2+x) ;
 }
   
-$type alphameanp param<Loci::Array<double,2> > ;
+$type alphameanp param<Loci::Array<real_t,2> > ;
 
 $rule unit(alphameanp),constraint(alpha_geom_f) {
   $alphameanp[0] = 0;
@@ -937,13 +939,13 @@ $rule unit(alphameanp),constraint(alpha_geom_f) {
 }
 
 $rule apply(alphameanp<-alpha_geom_f,area)[Loci::Summation] {
-  Loci::Array<double,2> tmp ;
+  Loci::Array<real_t,2> tmp ;
   tmp[0] = $alpha_geom_f*$area.sada ;
   tmp[1] = $area.sada ;
   join($alphameanp,tmp) ;
 }
 
-$type alphastdp param<Loci::Array<double,2> > ;
+$type alphastdp param<Loci::Array<real_t,2> > ;
 
 $rule unit(alphastdp),constraint(alpha_geom_f) {
   $alphastdp[0] = 0;
@@ -951,9 +953,9 @@ $rule unit(alphastdp),constraint(alpha_geom_f) {
 }
 
 $rule apply(alphastdp<-alpha_geom_f,area,alphameanp)[Loci::Summation] {
-  double am = $alphameanp[0]/$alphameanp[1] ;
-  double diff = am-$alpha_geom_f ;
-  Loci::Array<double,2> tmp ;
+  real_t am = $alphameanp[0]/$alphameanp[1] ;
+  real_t diff = am-$alpha_geom_f ;
+  Loci::Array<real_t,2> tmp ;
   tmp[0] = diff*diff*$area.sada ;
   tmp[1] = $area.sada ;
   join($alphastdp,tmp) ;
@@ -965,8 +967,8 @@ $rule apply(alphastdp<-alpha_geom_f,area,alphameanp)[Loci::Summation] {
 $rule apply(topo<-alphameanp,alphastdp)[Loci::Maximum],
   option(disable_threading), prelude {
   $[Once] {
-    double meana = (*$alphameanp)[0]/(*$alphameanp)[1] ;
-    double sigma = sqrt((*$alphastdp)[0]/(*$alphastdp)[1]);
+    real_t meana = (*$alphameanp)[0]/(*$alphameanp)[1] ;
+    real_t sigma = sqrt((*$alphastdp)[0]/(*$alphastdp)[1]);
     cout << "Dissipation Mesh Quality: (a_mean=" << meana << ", sigma=" << sigma << ")" << endl ;
     if(meana+sigma < .12) {
       cout << "  This is a low dissipation mesh. " << endl  ;
@@ -978,12 +980,12 @@ $rule apply(topo<-alphameanp,alphastdp)[Loci::Maximum],
   }
 } ;
 
-$type alpha_cell store<double> ;
+$type alpha_cell store<real_t> ;
 
 $rule pointwise(alpha_cell<-upper->(alpha_geom_f,area),lower->(alpha_geom_f,area)) {
   int usz = $upper.size() ;
-  double alpha_sum = 0 ;
-  double area_sum = 0 ;
+  real_t alpha_sum = 0 ;
+  real_t area_sum = 0 ;
   for(int i=0;i<usz;++i) {
     alpha_sum += ($upper[i]->$alpha_geom_f)*($upper[i]->$area.sada) ;
     area_sum += ($upper[i]->$area.sada) ;
@@ -993,7 +995,7 @@ $rule pointwise(alpha_cell<-upper->(alpha_geom_f,area),lower->(alpha_geom_f,area
     alpha_sum += ($lower[i]->$alpha_geom_f)*($lower[i]->$area.sada) ;
     area_sum += ($lower[i]->$area.sada) ;
   }
-  $alpha_cell = alpha_sum/max(area_sum,1e-30) ;
+  $alpha_cell = alpha_sum/max(area_sum,real_t(1e-30)) ;
 }
 
 

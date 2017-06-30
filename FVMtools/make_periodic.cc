@@ -7175,7 +7175,7 @@ namespace Loci {
   bool readGridVOG(vector<entitySet> &local_nodes,
 		   vector<entitySet> &local_faces,
 		   vector<entitySet> &local_cells,
-		   store<vector3d<real_t> > &pos, Map &cl, Map &cr,
+		   store<vector3d<double> > &pos, Map &cl, Map &cr,
 		   multiMap &face2node, 
 		   store<string> &boundary_names,
 		   store<string> &boundary_tags,
@@ -7517,7 +7517,7 @@ int main(int ac, char* av[]) {
   gettimeofday(&time_grid_read_start,NULL) ;
  
   vector<entitySet> local_nodes,local_faces,local_cells ;
-  store<vector3d<Loci::real_t> > pos ;
+  store<vector3d<double> > pos ;
   Map cl,cr ;
   multiMap face2node ;
   int max_alloc=0 ;

@@ -26,6 +26,8 @@
 #include <Config/conf.h>
 
 #include <Tools/debug.h>
+#include <Tools/tools.h>
+
 #include <distribute.h>
 #include <mpi.h>
 

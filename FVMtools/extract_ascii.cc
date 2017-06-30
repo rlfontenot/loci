@@ -40,6 +40,38 @@ using std::list ;
 
 #include "extract.h"
 
+namespace Loci {
+  //Define struct Area which data members of normal vector and area of the area
+  struct Aread {
+    vector3d<double> n ;  //normal vector of the face
+    double sada ; //area of the face
+  } ;
+
+  //Overload ostream and istream (Input/Output) operators for struct Area
+  inline std::ostream & operator<<(std::ostream &s, const Aread &v)
+  {
+    s << v.n << ' ' << v.sada << ' ' ;
+    return s ;
+  }
+
+  inline std::istream &operator>>(std::istream &s, Aread &v)
+  {
+    s >> v.n >> v.sada  ;
+    return s ;
+  }
+
+  template<> struct data_schema_traits<Loci::Aread> {
+    typedef IDENTITY_CONVERTER Schema_Converter ;
+    static DatatypeP get_type() {
+      CompoundDatatypeP ct = CompoundFactory(Loci::Aread()) ;
+      LOCI_INSERT_TYPE(ct,Loci::Aread,n) ;
+      LOCI_INSERT_TYPE(ct,Loci::Aread,sada) ;
+      return DatatypeP(ct) ;
+    }
+  } ;
+}
+  
+
 
 void process_ascii_nodal(string casename, string iteration,
                          vector<string> variables,
@@ -319,7 +351,7 @@ void process_ascii_bndry(string casename, string iteration,
       }
     }
     if(needa) {
-      vector<Loci::Area> a(nbel) ;
+      vector<Loci::Aread> a(nbel) ;
       readElementType(file_id,"area",a) ;
 
       map<int,int>:: const_iterator mi ;

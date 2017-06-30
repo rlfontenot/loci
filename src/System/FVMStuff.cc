@@ -1289,7 +1289,7 @@ namespace Loci{
   }
     
   //return the cutting position of an edge 
-  double get_edge_weight(Entity e,
+  real_t get_edge_weight(Entity e,
                          const_MapVec<2>& edge2node,
                          const_store<real_t>& val){
     
@@ -1318,7 +1318,7 @@ namespace Loci{
 
     // data structure:
     entitySet edgesCut;
-    store<double> edgesWeight; //the weight for interpoplation for each edgesCut, allocated on edgesCut
+    store<real_t> edgesWeight; //the weight for interpoplation for each edgesCut, allocated on edgesCut
     vector<pair<int, int> > inner_edges; //the inner edges(facecenter to one of its nodes) cut, the values stored are pair<local_faceid, noderank>  
     vector<vector<int > > faceLoops;  //loops formed, the values stored are edge ids, which is either local edge entity or index to inner_edges
    
@@ -1363,7 +1363,7 @@ namespace Loci{
     //compute the cutting postions of edges 
     edgesWeight.allocate(edgesCut);
     FORALL(edgesCut, e){
-      double t = get_edge_weight(e, edge2node, val);
+      real_t t = get_edge_weight(e, edge2node, val);
       edgesWeight[e] = t;
     }ENDFORALL;
     
@@ -1415,8 +1415,9 @@ namespace Loci{
     debugout << "time to write cut plane topology=" << s.stop() << endl ;
 #endif
   }
-  
+
   namespace {
+#ifdef OLD
     void get_vect3dOption(const options_list &ol,std::string vname,
                           std::string units, vector3d<real_t> &vec, real_t Lref) {
       option_value_type ovt= ol.getOptionValueType(vname) ;
@@ -1634,7 +1635,8 @@ namespace Loci{
         Abort() ;
       }
     }  
-
+#endif
+    
     struct BCinfo {
       std::string name ;
       int key ;
@@ -1723,9 +1725,9 @@ namespace Loci{
       vector<int> p1id(p1center.domain().size()) ;
       int cnt = 0 ;
       FORALL(p1center.domain(),fc) {
-        p1[cnt][0] = p1center[fc].x ;
-        p1[cnt][1] = p1center[fc].y ;
-        p1[cnt][2] = p1center[fc].z ;
+        p1[cnt][0] = realToDouble(p1center[fc].x) ;
+        p1[cnt][1] = realToDouble(p1center[fc].y) ;
+        p1[cnt][2] = realToDouble(p1center[fc].z) ;
         p1id[cnt] = fc ;
         cnt++ ;
       } ENDFORALL ;
@@ -1734,9 +1736,9 @@ namespace Loci{
       vector<int> p2id(p2center.domain().size()) ;
       cnt = 0 ;
       FORALL(p2center.domain(),fc) {
-        p2[cnt][0] = p2center[fc].x ;
-        p2[cnt][1] = p2center[fc].y ;
-        p2[cnt][2] = p2center[fc].z ;
+        p2[cnt][0] = realToDouble(p2center[fc].x) ;
+        p2[cnt][1] = realToDouble(p2center[fc].y) ;
+        p2[cnt][2] = realToDouble(p2center[fc].z) ;
         p2id[cnt] = fc ;
         cnt++ ;
       } ENDFORALL ;
@@ -1940,14 +1942,17 @@ namespace Loci{
           ol.getOption("name",pi.name) ;
         }
         if(ol.optionExists("center")) {
-          get_vect3dOption(ol,"center","m",pi.center,*Lref) ;
+	  //          get_vect3dOption(ol,"center","m",pi.center,*Lref) ;
+	  ol.getOptionUnits("center","m",pi.center,*Lref) ;
         }
         if(ol.optionExists("vector")) {
-          get_vect3d(ol,"vector",pi.v) ;
+	  //          get_vect3d(ol,"vector",pi.v) ;
+	  ol.getOptionUnits("vector","",pi.v) ;
           pi.v /=  norm(pi.v) ;
         }
         if(ol.optionExists("translate")) {
-          get_vect3dOption(ol,"translate","m",pi.translate,*Lref) ;
+          // get_vect3dOption(ol,"translate","m",pi.translate,*Lref) ;
+	  ol.getOptionUnits("translate","m",pi.translate,*Lref) ;
         }
         if(ol.optionExists("rotate")) {
           ol.getOptionUnits("rotate","radians",pi.angle) ;
