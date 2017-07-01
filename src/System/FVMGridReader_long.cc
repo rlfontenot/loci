@@ -569,7 +569,7 @@ namespace Loci {
   bool readGridVOG_raw(vector<GEntitySet> &local_nodes,
                        vector<GEntitySet> &local_faces,
                        vector<GEntitySet> &local_cells,
-                       GStore<vector3d<real_t> > &pos, GStore<GEntity> &cl, GStore<GEntity> &cr,
+                       GStore<vector3d<double> > &pos, GStore<GEntity> &cl, GStore<GEntity> &cr,
                        GStore<GEntity> &face2node,
                        vector<pair<int,string> >& boundary_ids,
                        GEntitySet& boundary_faces,
@@ -918,7 +918,7 @@ namespace Loci {
   bool readGridVOG(vector<entitySet> &temp_local_nodes,
                    vector<entitySet> &temp_local_faces,
                    vector<entitySet> &temp_local_cells,
-                   store<vector3d<real_t> > &temp_pos, Map &temp_cl, Map &temp_cr,
+                   store<vector3d<double> > &temp_pos, Map &temp_cl, Map &temp_cr,
                    multiMap &temp_face2node, 
                    store<string> &temp_boundary_names,
                    store<string> &temp_boundary_tags,
@@ -929,7 +929,7 @@ namespace Loci {
     vector<GEntitySet> local_nodes;
     vector<GEntitySet> local_faces;
     vector<GEntitySet> local_cells;
-    GStore<vector3d<real_t> > pos(GSTORE);
+    GStore<vector3d<double> > pos(GSTORE);
     GStore<GEntity> cl(GMAP);
     GStore<GEntity> cr(GMAP);
     GStore<GEntity> face2node(GMULTIMAP);
@@ -1349,13 +1349,13 @@ namespace Loci {
                  vector<entitySet> &node_ptn_t,
                  vector<entitySet> &face_ptn_t,
                  vector<entitySet> &cell_ptn_t,
-                 store<vector3d<real_t> > &t_pos, Map &tmp_cl,
+                 store<vector3d<double> > &t_pos, Map &tmp_cl,
                  Map &tmp_cr, multiMap &tmp_face2node,
 		 vector<entitySet> &bcsurf_ptn,
 		 store<string> &tmp_boundary_names,
 		 store<string> &tmp_boundary_tags,
                  entitySet nodes, entitySet faces, entitySet cells,
-                 store<vector3d<real_t> > &pos, Map &cl, Map &cr,
+                 store<vector3d<double> > &pos, Map &cl, Map &cr,
                  multiMap &face2node,
 		 store<string> &boundary_names, 
 		 store<string> &boundary_tags, 
@@ -1556,12 +1556,12 @@ namespace Loci {
   // pos, cl, cr, face2node: static version of structures in the Input
   void copyGridStructures( entitySet nodes, entitySet faces, entitySet cells,
 			   entitySet bcset,
-			   const store<vector3d<real_t> > &t_pos,
+			   const store<vector3d<double> > &t_pos,
 			   const Map &tmp_cl, const Map &tmp_cr,
 			   const multiMap &tmp_face2node,
 			   const store<string> &tmp_boundary_names,
 			   const store<string> &tmp_boundary_tags,
-			   store<vector3d<real_t> > &pos, Map &cl, Map &cr,
+			   store<vector3d<double> > &pos, Map &cl, Map &cr,
 			   multiMap &face2node,
 			   store<string> &boundary_names,
 			   store<string> &boundary_tags) {
@@ -1599,7 +1599,7 @@ namespace Loci {
   // pos, cl, cr, face2node: static version of structures in the Input
   void new_copyGridStructures( entitySet nodes, entitySet faces, entitySet cells,
                                entitySet bcset,
-                               const GStore<vector3d<real_t> > &t_pos,
+                               const GStore<vector3d<double> > &t_pos,
                                const GStore<GEntity> &tmp_cl, const GStore<GEntity> &tmp_cr,
                                const GStore<GEntity> &tmp_face2node,
                                const vector<pair<int, string> >& boundary_ids,
@@ -1607,7 +1607,7 @@ namespace Loci {
                                const GEntitySet& boundary_taglist,
                                //const store<string> &tmp_boundary_names,
                                //const store<string> &tmp_boundary_tags,
-                               store<vector3d<real_t> >& pos, Map& cl, Map& cr,
+                               store<vector3d<double> >& pos, Map& cl, Map& cr,
                                multiMap& face2node,
                                store<string>& boundary_names,
                                store<string>& boundary_tags) {
@@ -2021,7 +2021,7 @@ namespace Loci {
   void ORB_Partition_Mesh(const vector<entitySet> &local_nodes,
                           const vector<entitySet> &local_faces,
                           const vector<entitySet> &local_cells,
-                          const store<vector3d<real_t> > &pos,
+                          const store<vector3d<double> > &pos,
                           const Map &cl, const Map &cr,
                           const multiMap &face2node,
 			  const store<string> &boundary_tags,
@@ -2095,7 +2095,7 @@ namespace Loci {
   //  void new_ORB_Partition_Mesh(const vector<GEntitySet> &local_nodes,
   //                           const vector<GEntitySet> &local_faces,
   //                           const vector<GEntitySet> &local_cells,
-  //                           const GStore<vector3d<real_t> > &pos,
+  //                           const GStore<vector3d<double> > &pos,
   //                           const GStore<Gentity> &cl, const gstore<GEntity> &cr,
   //                           const GStore<GEntity> &face2node,
   // 			  const GStore<string> &boundary_tags,
@@ -2179,7 +2179,7 @@ namespace Loci {
       vector<entitySet> local_cells;
       vector<entitySet> local_faces;
 
-      store<vector3d<real_t> > t_pos;
+      store<vector3d<double> > t_pos;
       Map tmp_cl, tmp_cr;
       multiMap tmp_face2node;
       store<string> tmp_boundary_names ;
@@ -2230,7 +2230,7 @@ namespace Loci {
         entitySet bcset = facts.get_distributed_alloc(nbcs).first ;
 
 
-        store<vector3d<real_t> > pos ;
+        store<vector3d<double> > pos ;
         Map cl ;
         Map cr ;
         multiMap face2node ;
@@ -2370,7 +2370,7 @@ namespace Loci {
       memSpace("before remapGridStructures") ;
       Map cl, cr ;
       multiMap face2node ;
-      store<vector3d<real_t> > pos ;
+      store<vector3d<double> > pos ;
       store<string> boundary_names,boundary_tags ;
       remapGrid(node_ptn, face_ptn, cell_ptn,
                 node_ptn_t, face_ptn_t, cell_ptn_t,
@@ -2431,7 +2431,7 @@ namespace Loci {
   // //     vector<entitySet> local_cells;
   // //     vector<entitySet> local_faces;
 
-  // //     store<vector3d<real_t> > t_pos;
+  // //     store<vector3d<double> > t_pos;
   // //     Map tmp_cl, tmp_cr;
   // //     multiMap tmp_face2node;
   // //     store<string> tmp_boundary_names ;
@@ -2454,7 +2454,7 @@ namespace Loci {
   //     vector<GEntitySet> local_nodes;
   //     vector<GEntitySet> local_faces;
   //     vector<GEntitySet> local_cells;
-  //     GStore<vector3d<real_t> > t_pos(GSTORE);
+  //     GStore<vector3d<double> > t_pos(GSTORE);
   //     GStore<GEntity> tmp_cl(GMAP);
   //     GStore<GEntity> tmp_cr(GMAP);
   //     GStore<GEntity> tmp_face2node(GMULTIMAP);
@@ -2505,7 +2505,7 @@ namespace Loci {
      
   //       storeRepP pos_rep, cl_rep, cr_rep, face2node_rep;
   //       storeRepP boundary_names_rep,boundary_tags_rep;
-  //       store<vector3d<real_t> > pos ;
+  //       store<vector3d<double> > pos ;
   //       Map cl ;
   //       Map cr ;
   //       multiMap face2node;
@@ -2647,7 +2647,7 @@ namespace Loci {
   //     memSpace("before remapGridStructures") ;
   //     Map cl, cr ;
   //     multiMap face2node ;
-  //     store<vector3d<real_t> > pos ;
+  //     store<vector3d<double> > pos ;
   //     store<string> boundary_names,boundary_tags ;
   //     remapGrid(node_ptn, face_ptn, cell_ptn,
   //               node_ptn_t, face_ptn_t, cell_ptn_t,
@@ -2870,10 +2870,10 @@ namespace Loci {
 
   }
   void make_faces_consistent(fact_db &facts) {
-    store<vector3d<real_t> > pos ;
+    store<vector3d<double> > pos ;
     pos = facts.get_variable("pos") ;
-    store<vector3d<real_t> > fpos ;
-    store<vector3d<real_t> > area ;
+    store<vector3d<double> > fpos ;
+    store<vector3d<double> > area ;
 
     multiMap face2node ;
     face2node = facts.get_variable("face2node") ;
@@ -2884,7 +2884,7 @@ namespace Loci {
     entitySet total_dom = Loci::MapRepP(face2node.Rep())->image(*faces) + pos.domain() ;
     std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
     Loci::storeRepP pos_sp = pos.Rep() ;
-    dstore<vector3d<real_t> > tmp_pos ;
+    dstore<vector3d<double> > tmp_pos ;
     FORALL(pos.domain(), pi) {
       tmp_pos[pi] = pos[pi] ;
     } ENDFORALL ;
@@ -2897,22 +2897,22 @@ namespace Loci {
 
     FORALL(face_dom,fc) {
       int nnodes = face2node.end(fc) - face2node.begin(fc) ;
-      vector3d<real_t> fp(0,0,0) ;
-      real_t w = 0 ;
+      vector3d<double> fp(0,0,0) ;
+      double w = 0 ;
       for(int i=0;i<nnodes;++i) {
-        vector3d<real_t> p1 = (tmp_pos[face2node[fc][i]]) ;
-        vector3d<real_t> p2 = (tmp_pos[face2node[fc][(i+1)%nnodes]]) ;
+        vector3d<double> p1 = (tmp_pos[face2node[fc][i]]) ;
+        vector3d<double> p2 = (tmp_pos[face2node[fc][(i+1)%nnodes]]) ;
 
-        real_t len = norm(p1-p2) ;
+        double len = norm(p1-p2) ;
 
         fp += len*(p1+p2) ;
         w += len ;
       }
       fpos[fc] = fp/(2.*w) ;
-      vector3d<real_t> a(0,0,0) ;
+      vector3d<double> a(0,0,0) ;
       for(int i=0;i<nnodes;++i) {
-        vector3d<real_t> p1 = (tmp_pos[face2node[fc][i]]) ;
-        vector3d<real_t> p2 = (tmp_pos[face2node[fc][(i+1)%nnodes]]) ;
+        vector3d<double> p1 = (tmp_pos[face2node[fc][i]]) ;
+        vector3d<double> p2 = (tmp_pos[face2node[fc][(i+1)%nnodes]]) ;
         a += cross(p1-fpos[fc],p2-fpos[fc]) ;
       }
       area[fc] = .5*a ;
@@ -2920,8 +2920,8 @@ namespace Loci {
     Map cl,cr ;
     cl = facts.get_variable("cl") ;
     cr = facts.get_variable("cr") ;
-    dstore<vector3d<real_t> > cpos ;
-    dstore<real_t> cnum ;
+    dstore<vector3d<double> > cpos ;
+    dstore<double> cnum ;
     constraint geom_cells ;
     geom_cells = facts.get_variable("geom_cells") ;
     entitySet tmp_cells =  cl.image(*faces) | cr.image(*interior_faces) ;
@@ -2930,16 +2930,16 @@ namespace Loci {
     cpos.allocate(tmp_cells) ;
     cnum.allocate(tmp_cells) ;
     FORALL(tmp_cells,cc) {
-      cpos[cc] = vector3d<real_t>(0,0,0) ;
+      cpos[cc] = vector3d<double>(0,0,0) ;
       cnum[cc] = 0 ;
     } ENDFORALL ;
     FORALL(*faces,fc) {
-      real_t A = norm(area[fc]) ;
+      double A = norm(area[fc]) ;
       cpos[cl[fc]] += A*fpos[fc] ;
       cnum[cl[fc]] += A ;
     } ENDFORALL ;
     FORALL(*interior_faces,fc) {
-      real_t A = norm(area[fc]) ;
+      double A = norm(area[fc]) ;
       cpos[cr[fc]] += A*fpos[fc] ;
       cnum[cr[fc]] += A ;
     } ENDFORALL ;
@@ -2950,8 +2950,8 @@ namespace Loci {
     std::vector<Loci::storeRepP> v_cnum = send_global_clone_non(cn_sp, clone_cells, init_ptn) ;
     for(int i = 0; i < Loci::MPI_processes; ++i) {
       entitySet dom = v_cpos[i]->domain() & cpos.domain() ;
-      dstore<vector3d<real_t> > tmp_cpos(v_cpos[i]) ;
-      dstore<real_t> tmp_cnum(v_cnum[i]) ;
+      dstore<vector3d<double> > tmp_cpos(v_cpos[i]) ;
+      dstore<double> tmp_cnum(v_cnum[i]) ;
       FORALL(dom, di) {
 	cpos[di] += tmp_cpos[di] ;
 	cnum[di] += tmp_cnum[di] ;
@@ -2966,9 +2966,9 @@ namespace Loci {
     vector<int> broken_faces ;
 
     FORALL(*interior_faces,fc) {
-      vector3d<real_t> dv = cpos[cr[fc]]-cpos[cl[fc]] ;
-      vector3d<real_t> dv2 = fpos[fc]-cpos[cl[fc]] ;
-      vector3d<real_t> dv3 = cpos[cr[fc]]-fpos[fc] ;
+      vector3d<double> dv = cpos[cr[fc]]-cpos[cl[fc]] ;
+      vector3d<double> dv2 = fpos[fc]-cpos[cl[fc]] ;
+      vector3d<double> dv3 = cpos[cr[fc]]-fpos[fc] ;
 
       int t1 = (dot(area[fc],dv) <0.0)?1:0 ;
       int t2 = (dot(area[fc],dv2) <0.0)?1:0 ;
@@ -2994,11 +2994,11 @@ namespace Loci {
 
     entitySet boundary_faces = *faces - *interior_faces ;
     FORALL(boundary_faces,fc) {
-      const vector3d<real_t> center = fpos[fc] ;
+      const vector3d<double> center = fpos[fc] ;
 
-      vector3d<real_t> ccenter ;
+      vector3d<double> ccenter ;
       ccenter = cpos[cl[fc]] ;
-      vector3d<real_t> dv = center-ccenter ;
+      vector3d<double> dv = center-ccenter ;
       if(dot(area[fc],dv) < 0.0) {
 	int i = 0 ;
 	int j = face2node.end(fc) - face2node.begin(fc) -1 ;

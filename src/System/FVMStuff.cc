@@ -1118,7 +1118,7 @@ namespace Loci{
                         const_multiMap& face2node,
                         const_multiMap& face2edge,
                         const_MapVec<2>& edge2node,
-                        const_store<real_t>& val,
+                        const_store<double>& val,
                         entitySet& edgesCut, //the edges(node 2 node) cut
                         std::map<pair<int, int>, int >& edgeIndex,//map of inner edges(face 2 node) to its index in inner_edges, the index starts with 1 
                         vector<pair<int, int> >& intersects, //pair of edges, if the second number is negative, it is index to inner_edges
@@ -1128,7 +1128,7 @@ namespace Loci{
     int nNodes = face2node.num_elems(f);
     
     //get the value of face center
-    real_t  newNode = 0.0 ;
+    double  newNode = 0.0 ;
     for (int i = 0; i < nNodes; ++i) {
       newNode += val[face2node[f][i]];
     }
@@ -1175,7 +1175,7 @@ namespace Loci{
                     const_multiMap& face2node,
                     const_multiMap& face2edge,
                     const_MapVec<2>& edge2node,
-                    const_store<real_t>& val,
+                    const_store<double>& val,
                     entitySet& edgesCut,//the edges(node 2 node) cut
                     std::map<pair<int, int>, int >& edgeIndex,//map of inner edges(face center 2 node) to its index in inner_edges, the index starts with 1
                     vector<pair<int, int> >& intersects, //pair of edges, if the value is negative, it is index to inner_edges
@@ -1289,12 +1289,12 @@ namespace Loci{
   }
     
   //return the cutting position of an edge 
-  real_t get_edge_weight(Entity e,
+  double get_edge_weight(Entity e,
                          const_MapVec<2>& edge2node,
-                         const_store<real_t>& val){
+                         const_store<double>& val){
     
-    real_t a = val[edge2node[e][0]];
-    real_t b = val[edge2node[e][1]];
+    double a = val[edge2node[e][0]];
+    double b = val[edge2node[e][1]];
     return ((b)/(b - a));
   }
  
@@ -1314,11 +1314,11 @@ namespace Loci{
       boundary_map(boundary_mapRep),face2node(face2nodeRep), face2edge(face2edgeRep) ;
     
     const_MapVec<2> edge2node(edge2nodeRep);
-    const_store<real_t> val(valRep);
+    const_store<double> val(valRep);
 
     // data structure:
     entitySet edgesCut;
-    store<real_t> edgesWeight; //the weight for interpoplation for each edgesCut, allocated on edgesCut
+    store<double> edgesWeight; //the weight for interpoplation for each edgesCut, allocated on edgesCut
     vector<pair<int, int> > inner_edges; //the inner edges(facecenter to one of its nodes) cut, the values stored are pair<local_faceid, noderank>  
     vector<vector<int > > faceLoops;  //loops formed, the values stored are edge ids, which is either local edge entity or index to inner_edges
    
@@ -1363,7 +1363,7 @@ namespace Loci{
     //compute the cutting postions of edges 
     edgesWeight.allocate(edgesCut);
     FORALL(edgesCut, e){
-      real_t t = get_edge_weight(e, edge2node, val);
+      double t = get_edge_weight(e, edge2node, val);
       edgesWeight[e] = t;
     }ENDFORALL;
     
@@ -1417,225 +1417,6 @@ namespace Loci{
   }
 
   namespace {
-#ifdef OLD
-    void get_vect3dOption(const options_list &ol,std::string vname,
-                          std::string units, vector3d<real_t> &vec, real_t Lref) {
-      option_value_type ovt= ol.getOptionValueType(vname) ;
-      if(ovt == REAL) {
-        double v ;
-        ol.getOption(vname,v) ;
-        vec = vector3d<real_t>(v*Lref,0,0) ;
-      } else if(ol.getOptionValueType(vname) == UNIT_VALUE) {
-        UNIT_type vu ;
-        ol.getOption(vname,vu) ;
-        if(!vu.is_compatible(units)) {
-          std::cerr << "wrong type of units for vector " << vname
-                    << ": " << vu << std::endl ;
-          Abort() ;
-        } else {
-          double v ;
-          v = vu.get_value_in(units) ;
-          vec = vector3d<real_t>(v,0,0) ;
-        }
-      } else if(ovt == LIST) {
-        options_list::arg_list value_list ;
-        ol.getOption(vname,value_list) ;
-        if(value_list.size() != 3) {
-          std::cerr << "error on reading '" << vname
-                    <<"': vector input must contain 3 terms"
-                    << std::endl ;
-          Abort() ;
-        }
-        for(int i=0;i<3;++i)
-          if(value_list[i].type_of() != REAL &&
-             value_list[i].type_of() != UNIT_VALUE) {
-            std::cerr << "improper vector specification for '"
-                      << vname << std::endl ;
-            Abort() ;
-          }
-        double vecval[3] ;
-        for(int i=0;i<3;++i) {
-          if(value_list[i].type_of() == UNIT_VALUE) {
-            UNIT_type vu ;
-            value_list[i].get_value(vu) ;
-            if(!vu.is_compatible(units)) {
-              std::cerr << "wrong type of units for vector " << vname
-                        << ": " << vu << std::endl ;
-              Abort() ;
-            }
-            vecval[i] = vu.get_value_in(units) ;
-          } else {
-            value_list[i].get_value(vecval[i]) ;
-            vecval[i] *= Lref ;
-          }
-        }
-        vec.x = vecval[0] ;
-        vec.y = vecval[1] ;
-        vec.z = vecval[2] ;
-      } else if(ovt == FUNCTION) {
-        string name ;
-        options_list::arg_list value_list ;
-        ol.getOption(vname,name,value_list) ;
-        if(name != "polar") {
-          std::cerr << "don't know coordinate function '" << name
-                    <<"', defaulting to polar" << std::endl ;
-          Abort() ;
-        }
-        if(value_list.size() != 3) {
-          std::cerr << "error on reading '"
-                    << vname << "': vector input must contain 3 terms"
-                    << std::endl ;
-          Abort() ;
-        }
-        for(int i=0;i<3;++i)
-          if(value_list[i].type_of() != REAL &&
-             value_list[i].type_of() != UNIT_VALUE) {
-            std::cerr << "improper vector specification for '"
-                      << vname << std::endl ;
-            Abort() ;
-          }
-        real_t r=1 ,theta=0 ,eta=0 ;
-        real_t conv = M_PI/180.0 ;
-        if(value_list[0].type_of() == UNIT_VALUE) {
-          UNIT_type vu ;
-          value_list[0].get_value(vu) ;
-          if(!vu.is_compatible(units)) {
-            std::cerr << "wrong type of units for vector " << vname
-                      << ": " << vu << std::endl ;
-            Abort() ;
-          }
-          r = vu.get_value_in(units) ;
-        } else {
-          value_list[0].get_value(r) ;
-          r *= Lref ;
-        }
-        if(value_list[1].type_of() == UNIT_VALUE) {
-          UNIT_type vu ;
-          value_list[1].get_value(vu) ;
-          if(!vu.is_compatible("radians")) {
-            std::cerr << "wrong type of units for vector " << vname
-                      << ": " << vu << std::endl ;
-            Abort() ;
-          }
-          theta = vu.get_value_in("radians") ;
-        } else {
-          value_list[1].get_value(theta) ;
-          theta *= conv  ;
-        }
-        if(value_list[2].type_of() == UNIT_VALUE) {
-          UNIT_type vu ;
-          value_list[2].get_value(vu) ;
-          if(!vu.is_compatible("radians")) {
-            std::cerr << "wrong type of units for vector " << vname
-                      << ": " << vu << std::endl ;
-            Abort() ;
-          }
-          eta = vu.get_value_in("radians") ;
-        } else {
-          value_list[2].get_value(eta) ;
-          eta *= conv  ;
-        }
-      
-        vec.x = r*cos(theta)*cos(eta) ;
-        vec.y = r*sin(theta)*cos(eta) ;
-        vec.z = r*sin(eta) ;
-      } else {
-        std::cerr << "unable to get vector type!" << std::endl ;
-        Abort() ;
-      }
-    }    
-
-    void get_vect3d(const options_list &ol,std::string vname,
-                    vector3d<real_t> &vec) {
-      option_value_type ovt= ol.getOptionValueType(vname) ;
-      if(ovt == LIST) {
-        options_list::arg_list value_list ;
-        ol.getOption(vname,value_list) ;
-        if(value_list.size() != 3) {
-          std::cerr << "error on reading '" << vname
-                    <<"': vector input must contain 3 terms"
-                    << std::endl ;
-          Abort() ;
-        }
-        for(int i=0;i<3;++i)
-          if(value_list[i].type_of() != REAL) {
-            std::cerr << "improper vector specification for '"
-                      << vname << std::endl ;
-            Abort() ;
-          }
-        double vecval[3] ;
-        for(int i=0;i<3;++i) {
-          value_list[i].get_value(vecval[i]) ;
-        }
-        vec.x = vecval[0] ;
-        vec.y = vecval[1] ;
-        vec.z = vecval[2] ;
-      } else if(ovt == FUNCTION) {
-        string name ;
-        options_list::arg_list value_list ;
-        ol.getOption(vname,name,value_list) ;
-        if(name != "polar") {
-          std::cerr << "don't know coordinate function '" << name
-                    <<"', defaulting to polar" << std::endl ;
-          Abort() ;
-        }
-        if(value_list.size() != 3) {
-          std::cerr << "error on reading '"
-                    << vname << "': vector input must contain 3 terms"
-                    << std::endl ;
-          Abort() ;
-        }
-        if(value_list[0].type_of() != REAL) {
-          std::cerr << "improper vector specification for '"
-                    << vname << std::endl ;
-          Abort() ;
-        }
-        for(int i=1;i<3;++i)
-          if(value_list[i].type_of() != REAL &&
-             value_list[i].type_of() != UNIT_VALUE) {
-            std::cerr << "improper vector specification for '"
-                      << vname << std::endl ;
-            Abort() ;
-          }
-        real_t r=1 ,theta=0 ,eta=0 ;
-        real_t conv = M_PI/180.0 ;
-        value_list[0].get_value(r) ;
-        if(value_list[1].type_of() == UNIT_VALUE) {
-          UNIT_type vu ;
-          value_list[1].get_value(vu) ;
-          if(!vu.is_compatible("radians")) {
-            std::cerr << "wrong type of units for vector " << vname
-                      << ": " << vu << std::endl ;
-            Abort() ;
-          }
-          theta = vu.get_value_in("radians") ;
-        } else {
-          value_list[1].get_value(theta) ;
-          theta *= conv  ;
-        }
-        if(value_list[2].type_of() == UNIT_VALUE) {
-          UNIT_type vu ;
-          value_list[2].get_value(vu) ;
-          if(!vu.is_compatible("radians")) {
-            std::cerr << "wrong type of units for vector " << vname
-                      << ": " << vu << std::endl ;
-            Abort() ;
-          }
-          eta = vu.get_value_in("radians") ;
-        } else {
-          value_list[2].get_value(eta) ;
-          eta *= conv  ;
-        }
-
-        vec.x = r*cos(theta)*cos(eta) ;
-        vec.y = r*sin(theta)*cos(eta) ;
-        vec.z = r*sin(eta) ;
-      } else {
-        std::cerr << "unable to get vector type!" << std::endl ;
-        Abort() ;
-      }
-    }  
-#endif
     
     struct BCinfo {
       std::string name ;
@@ -1659,7 +1440,7 @@ namespace Loci{
 
 
     // Compute fluid face centers
-    store<vector3d<real_t> > pos ;
+    store<vector3d<double> > pos ;
     pos = facts.get_variable("pos") ;
 
     // First fill in tmp_pos so that it is valid for any reference to
@@ -1668,7 +1449,7 @@ namespace Loci{
     face2node = facts.get_variable("face2node") ;
     entitySet f2n_image = MapRepP(face2node.Rep())->image(face2node.domain()) ;
     entitySet out_of_dom = f2n_image - pos.domain() ;
-    dstore<vector3d<real_t> > tmp_pos ;
+    dstore<vector3d<double> > tmp_pos ;
     FORALL(pos.domain(), pi) {
       tmp_pos[pi] = pos[pi] ;
     } ENDFORALL ;
@@ -1686,37 +1467,47 @@ namespace Loci{
     for(ii=periodic_list.begin();ii!=periodic_list.end();++ii) {
       int bc1 = ii->first.bc_num ;
       int bc2 = ii->second.bc_num ;
-      real_t angle = ii->first.angle ;
-      vector3d<real_t> center = ii->first.center ;
-      vector3d<real_t> v = ii->first.v ;
-      vector3d<real_t> trans = ii->first.translate ;
+      double angle = realToDouble(ii->first.angle) ;
+      vector3d<double> center(realToDouble(ii->first.center.x),
+			      realToDouble(ii->first.center.y),
+			      realToDouble(ii->first.center.z)) ;
+      vector3d<double> v(realToDouble(ii->first.v.x),
+			 realToDouble(ii->first.v.y),
+			 realToDouble(ii->first.v.z)) ;
+
+      vector3d<double> trans(realToDouble(ii->first.translate.x),
+			     realToDouble(ii->first.translate.y),
+			     realToDouble(ii->first.translate.z)) ;
+
       
       periodic_transform[bc1] = rigid_transform(center,v,angle,trans) ;
       periodic_transform[bc2] = rigid_transform(center,v,-angle,-1.*trans) ;
 
       // Compute face centers for point matching
-      dstore<vector3d<real_t> > p1center ;
+      dstore<vector3d<double> > p1center ;
       entitySet p1Set = ii->first.bset ;
       rigid_transform tran = periodic_transform[bc1] ;
       for(entitySet::const_iterator ei = p1Set.begin();ei!=p1Set.end();++ei) {
-        vector3d<real_t> tot = vector3d<real_t>(0.0,0.0,0.0);
+        vector3d<double> tot = vector3d<double>(0.0,0.0,0.0);
         const int sz = face2node.end(*ei)-face2node.begin(*ei) ;
         for(int i=0; i<sz; ++i) {
           tot += tmp_pos[face2node[*ei][i]] ;
         }
-        tot *= real_t(1)/real_t(sz) ;
-        p1center[*ei] = tran.transform(tot) ;
+        tot *= double(1)/double(sz) ;
+	vector3d<real_t> totr(tot.x,tot.y,tot.z) ;
+	totr = tran.transform(totr) ;
+        p1center[*ei] = realToDouble(totr) ;
       }
 
-      dstore<vector3d<real_t> > p2center ;
+      dstore<vector3d<double> > p2center ;
       entitySet p2Set = ii->second.bset ;
       for(entitySet::const_iterator ei = p2Set.begin();ei!=p2Set.end();++ei) {
-        vector3d<real_t> tot = vector3d<real_t>(0.0,0.0,0.0);
+        vector3d<double> tot = vector3d<double>(0.0,0.0,0.0);
         const int sz = face2node.end(*ei)-face2node.begin(*ei) ;
         for(int i=0; i<sz; ++i) {
           tot += tmp_pos[face2node[*ei][i]] ;
         }
-        tot *= real_t(1)/real_t(sz) ;
+        tot *= double(1)/double(sz) ;
         p2center[*ei] = tot ;
       }
 
@@ -1861,7 +1652,7 @@ namespace Loci{
       throw(StringError("boundary_conditions not found in setupBoundaryConditions! Is vars file read?")) ;
     bc_info = tmp ;
     
-    param<real_t> Lref ;
+    param<double> Lref ;
     *Lref = 1.0 ;
     storeRepP p = facts.get_variable("Lref") ;
     if(p != 0)
