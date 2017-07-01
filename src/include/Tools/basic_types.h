@@ -226,6 +226,12 @@ namespace Loci {
     return temp ;
   }
 
+  inline vector3d<float> realToFloat(vector3d<double> v) { return vector3d<float>(float(v.x),float(v.y),float(v.z)); }
+  inline vector3d<double> realToDouble(vector3d<double> v) { return v ; }
+
+  inline vector3d<float> realToFloat(vector3d<FADd> v) { return vector3d<float>(realToFloat(v.x),realToFloat(v.y),realToFloat(v.z)); }
+  inline vector3d<double> realToDouble(vector3d<FADd> v) { return vector3d<double>(realToDouble(v.x),realToDouble(v.y),realToDouble(v.z)); }
+
   //---------------------vector2d------------------//
   template <class T> 
     struct vector2d {

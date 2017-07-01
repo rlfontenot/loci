@@ -76,13 +76,13 @@ namespace Loci {
   FADd(long double a0      ,double b0)       : value(a0), grad(b0) { gradcheck();}
   FADd(long double a0      ,long double b0)       : value(a0), grad(b0) { gradcheck();}
 
-    //    explicit FADd(bool &u) : value((u)?1.0d:0.0d), grad(0.0d) { gradcheck();}
+    //    explicit FADd(bool &u) : value((u)?1.0:0.0), grad(0.0) { gradcheck();}
     FADd(const FADd &u) : value(u.value), grad(u.grad) { gradcheck();}
-    //  explicit FADd(int a0)        : value(a0), grad(0.0d) { gradcheck();}
-    //  explicit FADd(float a0)        : value(a0), grad(0.0d) { gradcheck();}
-    //  explicit FADd(double a0)        : value(a0), grad(0.0d) { gradcheck();}
-    //  explicit FADd(long double a0)        : value(a0), grad(0.0d) { gradcheck();}
-  FADd() : value(0.0d), grad(0.0d) { gradcheck();}
+    //  explicit FADd(int a0)        : value(a0), grad(0.0) { gradcheck();}
+    //  explicit FADd(float a0)        : value(a0), grad(0.0) { gradcheck();}
+    //  explicit FADd(double a0)        : value(a0), grad(0.0) { gradcheck();}
+    //  explicit FADd(long double a0)        : value(a0), grad(0.0) { gradcheck();}
+  FADd() : value(0.0), grad(0.0) { gradcheck();}
 
 
     //    friend void swap(double& a, FADd& b) {
@@ -800,22 +800,22 @@ namespace Loci {
   /* MPGCOMMENT [05-12-2017 15:04] ---> POW */
   inline FADd pow(const FADd u, const int k) {
     return FADd(::pow(u.value, (double)k), 
-		(double)k * ::pow(u.value, (double)k-1.0d)*u.grad );
+		(double)k * ::pow(u.value, (double)k-1.0)*u.grad );
   }
   inline FADd pow(const FADd u, const float k) {
     return FADd(::pow(u.value, (double)k), 
-		(double)k * ::pow(u.value, (double)k-1.0d)*u.grad );
+		(double)k * ::pow(u.value, (double)k-1.0)*u.grad );
   }
   inline FADd pow(const FADd u, const double k) {
     return FADd(::pow(u.value, k), 
-		k * ::pow(u.value, k-1.0d)*u.grad );
+		k * ::pow(u.value, k-1.0)*u.grad );
   }
   inline FADd pow(const FADd u, const long double k) {
     return FADd(::pow(u.value,  (double)k), 
-		(double)k * ::pow(u.value,  (double)k-1.0d)*u.grad );
+		(double)k * ::pow(u.value,  (double)k-1.0)*u.grad );
   }
   inline FADd sqrt(const FADd u) {
-    return pow(u, 0.5d);
+    return pow(u, 0.5);
   }
   inline FADd pow(const FADd k, const FADd u) {
     return pow(k, u.value);
@@ -895,22 +895,22 @@ namespace Loci {
   /* MPGCOMMENT [05-12-2017 15:04] ---> POW */
   inline FADd pow(const FADd u, const int k) {
     return FADd(std::pow(u.value, (double)k), 
-		(double)k * std::pow(u.value, (double)k-1.0d)*u.grad );
+		(double)k * std::pow(u.value, (double)k-1.0)*u.grad );
   }
   inline FADd pow(const FADd u, const float k) {
     return FADd(std::pow(u.value, (double)k), 
-		(double)k * std::pow(u.value, (double)k-1.0d)*u.grad );
+		(double)k * std::pow(u.value, (double)k-1.0)*u.grad );
   }
   inline FADd pow(const FADd u, const double k) {
     return FADd(std::pow(u.value, k), 
-		k * std::pow(u.value, k-1.0d)*u.grad );
+		k * std::pow(u.value, k-1.0)*u.grad );
   }
   inline FADd pow(const FADd u, const long double k) {
     return FADd(std::pow(u.value,  (double)k), 
-		(double)k * std::pow(u.value,  (double)k-1.0d)*u.grad );
+		(double)k * std::pow(u.value,  (double)k-1.0)*u.grad );
   }
   inline FADd sqrt(const FADd u) {
-    return pow(u, 0.5d);
+    return pow(u, 0.5);
   }
   inline FADd pow(const FADd k, const FADd u) {
     return pow(k, u.value);
