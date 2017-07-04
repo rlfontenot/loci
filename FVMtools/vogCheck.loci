@@ -123,6 +123,8 @@ int main(int ac, char *av[]) {
       Loci::Abort() ;
     }
 
+    setupPosAutoDiff(facts) ;
+    	   
     if(Loci::MPI_rank == 0) {
       cout << "finished reading grid." << endl ;
     }

@@ -150,6 +150,10 @@ namespace Loci {
                        Map &cl, Map &cr, multiMap &face2node,
                        std::vector<std::pair<int,std::string> >& surfaceids,
                        std::vector<std::pair<std::string,entitySet> >& volTags) ;
+
+  void setupPosAutoDiff(fact_db &facts) ;
+  void setupPosAutoDiff(fact_db &facts,std::string filename) ;
+
 } 
 
 

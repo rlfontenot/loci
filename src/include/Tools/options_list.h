@@ -60,6 +60,7 @@ namespace Loci {
 
     void get_value(bool &b) const { b = boolean_value; }
     void get_value(double &r) const { r = real_value ; }
+    void get_value(FADd &r) const { r = FADd(real_value) ; }
     void get_value(value_list_type &l) const { l = value_list ; }
     void get_value(std::string &n) const { n = name ; }
     void get_value(UNIT_type &ut) const { ut = units_value ; }
@@ -105,6 +106,11 @@ namespace Loci {
     option_values getOption(const std::string &option) const ;
     void getOption(const std::string &option, bool &value) const ;
     void getOption(const std::string &option, double &value) const ;
+    void getOption(const std::string &option, FADd & value) const {
+      double dval ;
+      getOption(option,dval) ;
+      value = FADd(dval) ;
+    }
     void getOption(const std::string &option, UNIT_type &uvalue) const ;
     void getOption(const std::string &option, std::string &name) const ;
     void getOption(const std::string &option, arg_list &value_list) const ;

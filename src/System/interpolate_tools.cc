@@ -523,7 +523,7 @@ namespace Loci {
   void getStencilBoundingBox2(kdTree::KDTree<float>::bounds &bnd,
 			      double &delta,
 			      const kdTree::KDTree<float> &kd,
-			      const vect3d pnts[],int start, int end) {
+			      const vector3d<real_t> pnts[],int start, int end) {
     double deltain = delta ;
     for(int d=0;d<3;++d) {
       bnd.minc[d] = .25*std::numeric_limits<float>::max() ;
@@ -614,7 +614,7 @@ namespace Loci {
 
   void getStencilBoundingBox(kdTree::KDTree<float>::bounds &bnd,
                              double &delta,
-                             const const_store<vect3d> &pnts,
+                             const const_store<vector3d<real_t> > &pnts,
                              entitySet dom) {
     //    MEMORY_PROFILE(getStencilBoundingBoxBegin) ;
     for(int d=0;d<3;++d) {
@@ -833,7 +833,7 @@ namespace Loci {
     entitySet dom = sourceData.domain() ;
 #endif
     int vec_size = sourceData.vecSize() ;
-    vector<real_t> databuf(send_info.size()*vec_size) ;
+    vector<double> databuf(send_info.size()*vec_size) ;
     for(size_t i = 0;i<send_info.size();++i) {
       int id = send_info[i] ;
 #ifdef VERBOSE
@@ -874,6 +874,71 @@ namespace Loci {
     stencilData.setVecSize(vec_size) ;
 
     MEMORY_PROFILE(sendStencilDataStartall2all) ;
+    MPI_Alltoallv(&databuf[0],&snd_sizes[0],&rdispls[0],MPI_DOUBLE,
+                  &stencilData[0][0],&req_sizes[0],&sdispls[0],MPI_DOUBLE,
+                  MPI_COMM_WORLD) ;
+    MEMORY_PROFILE(sendStencilDataStartEnd3dv) ;
+  }
+
+    // Note, this needs to be made more general.
+  void sendStencilData(storeVec<FADd> &stencilData,
+                       const_storeVec<FADd> &sourceData,
+                       const vector<int> &send_info,
+                       const vector<int> &req_sizes_in,
+                       const vector<int> &snd_sizes_in) {
+    MEMORY_PROFILE(sendStencilDataStartv) ;
+
+#ifdef VERBOSE
+    entitySet dom = sourceData.domain() ;
+#endif
+    int vec_size = sourceData.vecSize() ;
+    vector<FADd> databuf(send_info.size()*vec_size) ;
+    for(size_t i = 0;i<send_info.size();++i) {
+      int id = send_info[i] ;
+#ifdef VERBOSE
+      if(!dom.inSet(id)) {
+        debugout << "id=" <<id << " out of domain " << dom << endl ;
+        id = dom.Min() ;
+      }
+
+#endif
+      for(int j=0;j<vec_size;++j) {
+        databuf[i*vec_size+j] = sourceData[id][j] ;
+      }
+    }
+
+    int p = MPI_processes ;
+    vector<int> req_sizes(p),snd_sizes(p) ;
+    for(int i=0;i<p;++i) {
+      req_sizes[i] = req_sizes_in[i]*vec_size ;
+      snd_sizes[i] = snd_sizes_in[i]*vec_size ;
+    }
+
+    vector<int> sdispls(p) ;
+    sdispls[0] = 0 ;
+    for(int i=1;i<p;++i)
+      sdispls[i] = sdispls[i-1]+req_sizes[i-1] ;
+
+    vector<int> rdispls(p) ;
+    rdispls[0] = 0 ;
+    for(int i=1;i<p;++i) {
+      rdispls[i] = rdispls[i-1]+snd_sizes[i-1] ;
+    }
+
+    int loc_size = 0 ;
+    for(int i=0;i<p;++i)
+      loc_size += req_sizes_in[i] ;
+
+    stencilData.allocate(entitySet(interval(0,loc_size-1))) ;
+    stencilData.setVecSize(vec_size) ;
+
+    MEMORY_PROFILE(sendStencilDataStartall2all) ;
+    for(int i=0;i<p;++i) {
+      snd_sizes[i] *=2 ;
+      rdispls[i] *= 2 ;
+      req_sizes[i] *= 2 ;
+      sdispls[i] *=2 ;
+    }
     MPI_Alltoallv(&databuf[0],&snd_sizes[0],&rdispls[0],MPI_DOUBLE,
                   &stencilData[0][0],&req_sizes[0],&sdispls[0],MPI_DOUBLE,
                   MPI_COMM_WORLD) ;

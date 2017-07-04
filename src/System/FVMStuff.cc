@@ -2938,6 +2938,26 @@ namespace Loci{
     facts.create_fact("edge2node",edge3) ;  
     
   } // end of createEdgesPar
-  
-}
 
+  void setupPosAutoDiff(fact_db &facts) {
+#ifdef USE_AUTODIFF
+    store<vector3d<double> > pin ;
+    pin.setRep(facts.get_fact("pos")) ;
+    store<vector3d<Loci::real_t> > pout ;
+    entitySet dom = pin.domain() ;
+    pout.allocate(dom) ;
+    FORALL(dom,ii) {
+      pout[ii] = vector3d<Loci::real_t>(pin[ii].x,
+					pin[ii].y,
+					pin[ii].z) ;
+    } ENDFORALL ;
+    facts.replace_fact("pos",pout.Rep()) ;
+#endif
+  }
+
+  void setupPosAutoDiff(fact_db &facts, std::string filename) {
+#ifdef USE_AUTODIFF
+    setupPosAutoDiff(facts) ;
+#endif
+  }
+}
