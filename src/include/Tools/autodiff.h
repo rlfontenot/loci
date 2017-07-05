@@ -50,13 +50,12 @@ namespace Loci {
     explicit operator FADd() {return FADd(value,grad);}
     explicit operator long double() const {return (long double)value;}
 
-    operator double*()  {return &value;}/* MPGCOMMENT [05-15-2017 10:51] ---> only one used, others set for completeness */
-    operator const double*()  {return (const double*)&value;}/* MPGCOMMENT [05-15-2017 10:51] ---> only one used, others set for completeness */
+    //    operator double*()  {return &value;}/* MPGCOMMENT [05-15-2017 10:51] ---> only one used, others set for completeness */
+    //    operator const double*()  {return (const double*)&value;}/* MPGCOMMENT [05-15-2017 10:51] ---> only one used, others set for completeness */
 #endif
     
     /* MPGCOMMENT [05-12-2017 13:49] ---> constructor */
-#define gradcheck() 
-    //assert(grad==0.0)
+#define gradcheck() //fatal(grad!=0.0) ;
     template< class T1>
       FADd(T1 a0): value(a0), grad(0.0){ gradcheck();}/* MPGCOMMENT [05-15-2017 14:46] ---> used in chem, chem::Temperature */
   FADd(int a0         ,int b0)        : value(a0), grad(b0) { gradcheck();}
@@ -452,17 +451,17 @@ namespace Loci {
 
   };
 
-  inline std::istream &operator >> (std::istream& stream, const double &u) {
-    stream >> u;
-    return stream;
-  }
-
   inline std::ostream &operator <<(std::ostream& stream, const FADd &u) {
-    stream << u.value << " " << u.grad;
+    stream << u.value << '^' << u.grad ;
     return stream;
   }
-  inline std::istream &operator >> (std::istream& stream, const FADd &u) {
+  inline std::istream &operator >> (std::istream& stream, FADd &u) {
+    u.grad = 0 ;
     stream >> u.value;
+    if(stream.peek() == '^') {
+      stream.get() ;
+      stream >> u.grad ;
+    }
     return stream;
   }
 #ifdef NO_CMATH
@@ -672,7 +671,7 @@ namespace Loci {
   
 
   inline FADd operator +(const double u,const FADd v)
-  { return FADd(u+v.value, u+v.grad); }
+  { return FADd(u+v.value, v.grad); }
   inline FADd operator -(const double u,const FADd v) 
   { return FADd(u-v.value, -v.grad); }
   inline FADd operator *(const double u,const FADd v) 

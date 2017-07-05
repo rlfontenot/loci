@@ -1652,7 +1652,7 @@ namespace Loci{
       throw(StringError("boundary_conditions not found in setupBoundaryConditions! Is vars file read?")) ;
     bc_info = tmp ;
     
-    param<double> Lref ;
+    param<real_t> Lref ;
     *Lref = 1.0 ;
     storeRepP p = facts.get_variable("Lref") ;
     if(p != 0)
@@ -2941,16 +2941,20 @@ namespace Loci{
 
   void setupPosAutoDiff(fact_db &facts) {
 #ifdef USE_AUTODIFF
-    store<vector3d<double> > pin ;
-    pin.setRep(facts.get_fact("pos")) ;
+    
     store<vector3d<Loci::real_t> > pout ;
-    entitySet dom = pin.domain() ;
-    pout.allocate(dom) ;
-    FORALL(dom,ii) {
-      pout[ii] = vector3d<Loci::real_t>(pin[ii].x,
-					pin[ii].y,
-					pin[ii].z) ;
-    } ENDFORALL ;
+    {
+      store<vector3d<double> > pin ;
+      pin.setRep(facts.get_fact("pos")) ;
+    
+      entitySet dom = pin.domain() ;
+      pout.allocate(dom) ;
+      FORALL(dom,ii) {
+	pout[ii] = vector3d<Loci::real_t>(pin[ii].x,
+					  pin[ii].y,
+					  pin[ii].z) ;
+      } ENDFORALL ;
+    }
     facts.replace_fact("pos",pout.Rep()) ;
 #endif
   }

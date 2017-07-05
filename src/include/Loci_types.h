@@ -41,7 +41,7 @@ namespace Loci {
     static DatatypeP get_type() {
       CompoundDatatypeP ct = CompoundFactory(FADd()) ;
       LOCI_INSERT_TYPE(ct,FADd,value) ;
-      /* LOCI_INSERT_TYPE(ct,FADd,grad) ; */ // Dangerous!!!!
+      LOCI_INSERT_TYPE(ct,FADd,grad) ; 
       return DatatypeP(ct) ;
     }
   };
