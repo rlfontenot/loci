@@ -235,7 +235,7 @@ namespace Loci {
     // figure out how the domain is split to send to others
     int np ;
     MPI_Comm_size(comm, &np) ;
-    fatal(np != dom_ptn.size()) ;
+    fatal(size_t(np) != dom_ptn.size()) ;
 
     entitySet total_dom ;
     std::vector<entitySet> dom_split(np) ;
