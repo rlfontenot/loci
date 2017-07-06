@@ -1142,7 +1142,7 @@ namespace Loci {
   // This code not presently used
   entitySet distribute_entitySet(entitySet e,const vector<entitySet> &ptn) {
     const int p = MPI_processes ;
-    WARN(ptn.size() != p) ;
+    WARN(ptn.size() != size_t(p)) ;
     vector<entitySet> parts(p) ;
     vector<int> send_count(p) ;
     for(int i=0;i<p;++i) {
@@ -1402,7 +1402,7 @@ namespace Loci {
     int np ;
     //MPI_Comm_rank(comm, &rank) ;
     MPI_Comm_size(comm, &np) ;
-    FATAL(ptn.size() != np) ;
+    FATAL(ptn.size() != size_t(np)) ;
     // obtain entity set partition for the request
     vector<entitySet> dist(ptn.size()) ;
     for(size_t i=0;i<ptn.size();++i)

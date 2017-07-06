@@ -280,8 +280,8 @@ namespace Loci {
           }
         }
         
-        WARN(reduction && pointwise || pointwise && singleton ||
-             reduction && singleton) ;
+        WARN((reduction && pointwise) || (pointwise && singleton) ||
+             (reduction && singleton)) ;
 
         if((use_rules != EMPTY)) {
           if((priority_rule || pointwise) && !recursive && (vi->get_info().name != "OUTPUT")){

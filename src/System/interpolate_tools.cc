@@ -813,7 +813,7 @@ namespace Loci {
     }
     for(size_t i=0;i<stencils.size();++i) {
       for(int j=0;j<4;++j) {
-        WARN(stencils[i][j] < 0 || stencils[i][j] >=locdom.size()) ;
+        WARN(stencils[i][j] < 0 || size_t(stencils[i][j]) >=locdom.size()) ;
 	WARN(acmap[stencils[i][j]] < 0) ;
 	stencils[i][j] = acmap[stencils[i][j]] ;
       }
