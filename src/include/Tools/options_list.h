@@ -50,17 +50,18 @@ namespace Loci {
     value_list_type value_list ;
     std::string name ;
     double real_value ;
+    double real_grad ;
     bool boolean_value ;
     UNIT_type units_value ;
     friend class options_list ;
   public:
-    option_values() { value_type = NOT_ASSIGNED ; real_value = 0 ; boolean_value = false ; }
+    option_values() { value_type = NOT_ASSIGNED ; real_value = 0 ; real_grad = 0; boolean_value = false ; }
 
     option_value_type type_of() const { return value_type ; }
 
     void get_value(bool &b) const { b = boolean_value; }
     void get_value(double &r) const { r = real_value ; }
-    void get_value(FADd &r) const { r = FADd(real_value) ; }
+    void get_value(FADd &r) const { r = FADd(real_value,real_grad) ; }
     void get_value(value_list_type &l) const { l = value_list ; }
     void get_value(std::string &n) const { n = name ; }
     void get_value(UNIT_type &ut) const { ut = units_value ; }
@@ -106,11 +107,7 @@ namespace Loci {
     option_values getOption(const std::string &option) const ;
     void getOption(const std::string &option, bool &value) const ;
     void getOption(const std::string &option, double &value) const ;
-    void getOption(const std::string &option, FADd & value) const {
-      double dval ;
-      getOption(option,dval) ;
-      value = FADd(dval) ;
-    }
+    void getOption(const std::string &option, FADd & value) const ;
     void getOption(const std::string &option, UNIT_type &uvalue) const ;
     void getOption(const std::string &option, std::string &name) const ;
     void getOption(const std::string &option, arg_list &value_list) const ;
@@ -119,31 +116,15 @@ namespace Loci {
     void getOptionUnits(const std::string &option, const std::string &units,
                         double &value) const ;
     void getOptionUnits(const std::string &option, const std::string &units,
-                        FADd &value) const {
-      double val ;
-      getOptionUnits(option,units,val) ;
-      value = FADd(val) ;
-    }
+                        FADd &value) const ;
     void getOptionUnits(const std::string &option, const std::string &units,
 			vector3d<double> &value, double scale=1.0) const ;
     void getOptionUnits(const std::string &option, const std::string &units,
-			vector3d<FADd> &value) const {
-      vector3d<double> val ;
-      getOptionUnits(option,units,val) ;
-      value.x = FADd(val.x) ;
-      value.y = FADd(val.y) ;
-      value.z = FADd(val.z) ;
-    }
+			vector3d<FADd> &value) const ;
     void getOptionUnits(const std::string &option, const std::string &units,
 			vector3d<FADd> &value,
-			FADd scale) const {
-      vector3d<double> val ;
-      getOptionUnits(option,units,val) ;
-      value.x = FADd(val.x) ;
-      value.y = FADd(val.y) ;
-      value.z = FADd(val.z) ;
-      value *= scale ;
-    }
+			FADd scale) const ;
+
     void setOption(const std::string &option, bool value) ;
     void setOption(const std::string &option, double value) ;
     void setOption(const std::string &option, UNIT_type uvalue) ;
