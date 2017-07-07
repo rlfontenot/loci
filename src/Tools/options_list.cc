@@ -140,7 +140,8 @@ namespace Loci {
           oss << "should have units compatible with " << units << endl ;
           throw StringError(oss.str()) ;
         } else {
-          value = Tu.get_value_in(units) ;
+          value = Tu.get_value_inD(units) ;
+	  cerr << "value = " << value << endl ;
         }
       } else {
           ostringstream oss ;
@@ -301,7 +302,7 @@ namespace Loci {
 				    FADd scale) const {
     Loci::option_value_type ovt= getOptionValueType(vname) ;
     if(ovt == Loci::REAL) {
-      double v ;
+      FADd v ;
       getOption(vname,v) ;
       vec = vector3d<FADd>(v*scale,0,0) ;
     } else if(getOptionValueType(vname) == Loci::UNIT_VALUE) {
@@ -313,8 +314,8 @@ namespace Loci {
 	    << ": " << vu << std::endl ;
 	throw StringError(oss.str()) ;
       } else {
-        double v ;
-        v = vu.get_value_in(units) ;
+        FADd v ;
+        v = vu.get_value_inD(units) ;
         vec = vector3d<FADd>(v,0,0) ;
       }
     } else if(ovt == Loci::LIST) {
@@ -346,7 +347,7 @@ namespace Loci {
 		<< ": " << vu << std::endl ;
 	    throw StringError(oss.str()) ;
           }
-          vecval[i] = vu.get_value_in(units) ;
+          vecval[i] = vu.get_value_inD(units) ;
         } else {
           value_list[i].get_value(vecval[i]) ;
           vecval[i] *= scale ;
@@ -391,7 +392,7 @@ namespace Loci {
 	      << ": " << vu << std::endl ;
 	  throw StringError(oss.str()) ;
         }
-        r = vu.get_value_in(units) ;
+        r = vu.get_value_inD(units) ;
       } else {
         value_list[0].get_value(r) ;
         r *= scale ;
@@ -405,7 +406,7 @@ namespace Loci {
                     << ": " << vu << std::endl ;
 	  throw StringError(oss.str()) ;
         }
-        theta = vu.get_value_in("radians") ;
+        theta = vu.get_value_inD("radians") ;
       } else {
         value_list[1].get_value(theta) ;
         theta *= conv  ;
@@ -419,7 +420,7 @@ namespace Loci {
                     << ": " << vu << std::endl ;
 	  throw StringError(oss.str()) ;
         }
-        eta = vu.get_value_in("radians") ;
+        eta = vu.get_value_inD("radians") ;
       } else {
         value_list[2].get_value(eta) ;
         eta *= conv  ;
@@ -681,6 +682,7 @@ namespace Loci {
     parse::kill_white_space(s) ;
     if(parse::is_real(s)) {
       real_value = parse::get_real(s) ;
+      real_grad = 0 ;
       if(s.peek()=='^') {
 	s.get() ;
 	real_grad = parse::get_real(s) ;
@@ -704,7 +706,8 @@ namespace Loci {
           }
         } while(opens!=0) ;
 
-        units_value = UNIT_type(UNIT_type::MKS,"general",real_value,units) ;
+        units_value = UNIT_type(UNIT_type::MKS,"general",
+				FADd(real_value,real_grad),units) ;
         value_type = UNIT_VALUE ;
       } else
         value_type = REAL ;

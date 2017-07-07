@@ -830,7 +830,7 @@ namespace Loci {
     }
 
   //change single temperature to basic type -kelvin- by special calculation
-  void UNIT_type::calculate_temperature(exprP &input_expr,double &val){
+  void UNIT_type::calculate_temperature(exprP &input_expr,FADd &val){
     seperate_unit(unit_num_map,unit_den_map,input_expr); 
     get_conversion(unit_num_map,unit_den_map,conversion_factor);
     if(conversion_factor>0){
@@ -851,7 +851,7 @@ namespace Loci {
   }
 
 //change basic type -kelvin- to other temperature by special calculation
-  void UNIT_type::reverse_calculate_temperature(exprP &input_expr,double &val){
+  void UNIT_type::reverse_calculate_temperature(exprP &input_expr,FADd &val){
     seperate_unit(unit_num_map,unit_den_map,input_expr); 
     get_conversion(unit_num_map,unit_den_map,conversion_factor);
     if(conversion_factor>0){
@@ -933,6 +933,42 @@ namespace Loci {
       return false;
   }
 
+  //-- check if there is unit and get the value input--//
+  bool UNIT_type::check_unit(std::istream &in, FADd &val){
+
+    parse::kill_white_space(in);
+  
+    if(in.eof()||in.peek()==EOF){
+      cout<<"Nothing input"<<endl;
+      return false;
+    }
+
+    else if(isdigit(in.peek())){
+      if(parse::is_real(in))  {
+	double real = parse::get_real(in) ;
+	double grad = 0 ;
+	if(in.peek() == '^') {
+	  in.get() ;
+	  grad = parse::get_real(in) ;
+	}
+
+	val=FADd(real,grad) ;
+      }
+    }
+    else if(!isdigit(in.peek())){
+      val=1;
+      cout<<"No input value, set default to 1"<<endl;
+    }
+    while(!in.eof()&&isspace(in.peek()))//kill white spaces between the value and unit
+      in.get();
+    value = val ;
+    input_value=val;
+    if(isalpha(in.peek())||parse::is_token(in,"("))
+      return true;
+    else
+      return false;
+  }
+
   //compare the two units, check if they are comparable
   bool UNIT_type::is_compatible(const std::string unit_str){
     UNIT_type sec_unit;
@@ -999,8 +1035,31 @@ namespace Loci {
 
     sec_exp=expression::create(unit_str);
     if(is_single_temperature(sec_exp)!=0){
-      reverse_calculate_temperature(sec_exp,value);
-      return value;
+      FADd val = value ;
+      reverse_calculate_temperature(sec_exp,val);
+      return val.value ;
+    }
+    else
+      sec_unit.output(sec_exp);
+    //cout<<sec_unit;
+
+    return (value.value)*(*this).conversion_factor/sec_unit.conversion_factor;
+  }
+
+  FADd UNIT_type::get_value_inD(const std::string unit_str){
+    cerr << "get_value_inD, value=" << value << endl ;
+    UNIT_type sec_unit;
+    exprP sec_exp = 0 ;
+
+    sec_unit.mode=(*this).mode;
+    sec_unit.unit_kind=(*this).unit_kind;
+    sec_unit.value=1;
+
+    sec_exp=expression::create(unit_str);
+    if(is_single_temperature(sec_exp)!=0){
+      FADd val = value ;
+      reverse_calculate_temperature(sec_exp,val);
+      return val;
     }
     else
       sec_unit.output(sec_exp);
@@ -1008,6 +1067,7 @@ namespace Loci {
 
     return value*(*this).conversion_factor/sec_unit.conversion_factor;
   }
+
 
 }
 
