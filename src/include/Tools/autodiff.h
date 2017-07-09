@@ -497,11 +497,11 @@ namespace Loci {
   }
   /* MPGCOMMENT [05-12-2017 15:04] ---> POW */
   inline FADd pow(const FADd u, const int k) {
-    return FADd(::pow(u.value, (double)k), 
+    return FADd(::pow(u.value, k), 
 		(double)k * ::pow(u.value, (double)k-1.0)*u.grad );
   }
   inline FADd pow(const FADd u, const float k) {
-    return FADd(::pow(u.value, (double)k), 
+    return FADd(::pow(u.value, k), 
 		(double)k * ::pow(u.value, (double)k-1.0)*u.grad );
   }
   inline FADd pow(const FADd u, const double k) {
@@ -509,39 +509,51 @@ namespace Loci {
 		k * ::pow(u.value, k-1.0)*u.grad );
   }
   inline FADd pow(const FADd u, const long double k) {
-    return FADd(::pow(u.value,  (double)k), 
+    return FADd(::pow(u.value, k), 
 		(double)k * ::pow(u.value,  (double)k-1.0)*u.grad );
   }
   inline FADd sqrt(const FADd u) {
-    return pow(u, 0.5);
+    double su = ::sqrt(u.value) ;
+    return FADd(su,0.5/max(su,1e-30)) ;
   }
   inline FADd pow(const FADd k, const FADd u) {
-    return pow(k, u.value);
+    double kpu = ::pow(k.value,u.value) ;
+    return FADd(kpu,::pow(k.value,u.value-1.)*k.grad*u.value +
+		kpu*::log(k.value)*u.grad) ;
   }
   inline FADd pow(const int k, const FADd u) {
-    return ::pow(k, u.value);
+    double kpu = ::pow(k,u.value) ;
+    return FADd(kpu,kpu*::log(double(k))*u.grad) ;
   }
   inline FADd pow(const float k, const FADd u) {
-    return ::pow(k, u.value);
+    double kpu = ::pow(k,u.value) ;
+    return FADd(kpu,kpu*::log(double(k))*u.grad) ;
   }
   inline FADd pow(const double k, const FADd u) {
-    return ::pow(k, u.value);
+    double kpu = ::pow(k,u.value) ;
+    return FADd(kpu,kpu*::log(k)*u.grad) ;
   }
   inline FADd pow(const long double k, const FADd u) {
-    return ::pow(k, u.value);
+    double kpu = ::pow(k,u.value) ;
+    return FADd(kpu,kpu*::log(k)*u.grad) ;
   }
 
 
   inline FADd sinh(const FADd u) {
-    return ( FADd(1.0,0.0) - exp(-FADd(2.0,0.0)*u))/FADd(2.0,0.0)/exp(-u);
+    return FADd(sinh(u.value),
+		0.5*u.grad*(exp(u.value) + exp(-u.value))) ;
   }
   inline FADd cosh(const FADd u) {
-    return ( FADd(1.0,0.0) + exp(-FADd(2.0,0.0)*u))/FADd(2.0,0.0)/exp(-u);
+    return FADd(cosh(u.value),
+		0.5*u.grad*(exp(u.value) - exp(-u.value))) ;
   }
   inline FADd tanh(const FADd u) {
-    return sinh(u) / cosh(u);
+    double ex = exp(u.value) ;
+    double exm = exp(-u.value) ;
+    double dex = ex-exm ;
+    double sex = ex+exm ;
+    return FADd(tanh(u.value),u.grad*(1.-dex*dex/(sex*sex))) ;
   }
-
   inline FADd asin(const FADd u) {
     return FADd(::asin(u.value), u.grad/::sqrt(1.0-u.value*u.value) );
   }
@@ -551,6 +563,7 @@ namespace Loci {
   inline FADd atan(const FADd u) {
     return FADd(::atan(u.value), u.grad/(1.0+u.value*u.value) );
   }
+  // This will not work in general
   inline FADd atan2(const FADd u, const FADd v) {  
     return atan(u/v);
   }
@@ -598,11 +611,11 @@ namespace Loci {
   }
   /* MPGCOMMENT [05-12-2017 15:04] ---> POW */
   inline FADd pow(const FADd u, const int k) {
-    return FADd(std::pow(u.value, (double)k), 
+    return FADd(std::pow(u.value, k), 
 		(double)k * std::pow(u.value, (double)k-1.0)*u.grad );
   }
   inline FADd pow(const FADd u, const float k) {
-    return FADd(std::pow(u.value, (double)k), 
+    return FADd(std::pow(u.value, k), 
 		(double)k * std::pow(u.value, (double)k-1.0)*u.grad );
   }
   inline FADd pow(const FADd u, const double k) {
@@ -610,37 +623,51 @@ namespace Loci {
 		k * std::pow(u.value, k-1.0)*u.grad );
   }
   inline FADd pow(const FADd u, const long double k) {
-    return FADd(std::pow(u.value,  (double)k), 
+    return FADd(std::pow(u.value,  k), 
 		(double)k * std::pow(u.value,  (double)k-1.0)*u.grad );
   }
   inline FADd sqrt(const FADd u) {
-    return pow(u, 0.5);
+    double su = std::sqrt(u.value) ;
+    return FADd(su,0.5/max(su,1e-30)) ;
   }
   inline FADd pow(const FADd k, const FADd u) {
-    return pow(k, u.value);
+    double kpu = std::pow(k.value,u.value) ;
+    return FADd(kpu,std::pow(k.value,u.value-1.)*k.grad*u.value +
+		kpu*std::log(k.value)*u.grad) ;
   }
   inline FADd pow(const int k, const FADd u) {
-    return std::pow(k, u.value);
+    double kpu = std::pow(k,u.value) ;
+    return FADd(kpu,kpu*std::log(double(k))*u.grad) ;
   }
   inline FADd pow(const float k, const FADd u) {
-    return std::pow(k, u.value);
+    double kpu = std::pow(k,u.value) ;
+    return FADd(kpu,kpu*std::log(double(k))*u.grad) ;
   }
   inline FADd pow(const double k, const FADd u) {
-    return std::pow(k, u.value);
+    double kpu = std::pow(k,u.value) ;
+    return FADd(kpu,kpu*std::log(k)*u.grad) ;
   }
   inline FADd pow(const long double k, const FADd u) {
-    return std::pow(k, u.value);
+    double kpu = std::pow(k,u.value) ;
+    return FADd(kpu,kpu*std::log(k)*u.grad) ;
   }
 
 
   inline FADd sinh(const FADd u) {
-    return ( FADd(1.0,0.0) - exp(-FADd(2.0,0.0)*u))/FADd(2.0,0.0)/exp(-u);
+    return FADd(std::sinh(u.value),
+		0.5*u.grad*(std::exp(u.value) + std::exp(-u.value))) ;
   }
   inline FADd cosh(const FADd u) {
-    return ( FADd(1.0,0.0) + exp(-FADd(2.0,0.0)*u))/FADd(2.0,0.0)/exp(-u);
+    return FADd(std::cosh(u.value),
+		0.5*u.grad*(std::exp(u.value) - std::exp(-u.value))) ;
   }
   inline FADd tanh(const FADd u) {
-    return sinh(u) / cosh(u);
+    double ex = std::exp(u.value) ;
+    double exm = std::exp(-u.value) ;
+    double dex = ex-exm ;
+    double sex = ex+exm ;
+    return FADd(std::tanh(u.value),
+		u.grad*(1.-dex*dex/(sex*sex))) ;
   }
 
   inline FADd asin(const FADd u) {
@@ -652,6 +679,7 @@ namespace Loci {
   inline FADd atan(const FADd u) {
     return FADd(std::atan(u.value), u.grad/(1.0+u.value*u.value) );
   }
+  // This will not work in general
   inline FADd atan2(const FADd u, const FADd v) {  
     return atan(u/v);
   }
