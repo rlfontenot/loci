@@ -141,7 +141,6 @@ namespace Loci {
           throw StringError(oss.str()) ;
         } else {
           value = Tu.get_value_inD(units) ;
-	  cerr << "value = " << value << endl ;
         }
       } else {
           ostringstream oss ;

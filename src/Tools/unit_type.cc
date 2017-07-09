@@ -1047,7 +1047,6 @@ namespace Loci {
   }
 
   FADd UNIT_type::get_value_inD(const std::string unit_str){
-    cerr << "get_value_inD, value=" << value << endl ;
     UNIT_type sec_unit;
     exprP sec_exp = 0 ;
 
