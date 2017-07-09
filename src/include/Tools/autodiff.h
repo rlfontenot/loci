@@ -1,29 +1,21 @@
 //#############################################################################
 //#
-//# Copyright 2015, Mississippi State University
+//# Copyright 2017, Mississippi State University
 //#
-//# This file is part of the CHEM solver framework.
+//# This file is part of the Loci Framework.
 //#
-//# The CHEM solver framework is free software: you can redistribute it
-//# and/or modify it under the terms of the Lesser GNU General Public License
-//# as published by the Free Software Foundation, either version 3 of the
-//# License, or (at your option) any later version.
+//# The Loci Framework is free software: you can redistribute it and/or modify
+//# it under the terms of the Lesser GNU General Public License as published by
+//# the Free Software Foundation, either version 3 of the License, or
+//# (at your option) any later version.
 //#
-//# The CHEM solver is distributed in the hope that it will be useful,
+//# The Loci Framework is distributed in the hope that it will be useful,
 //# but WITHOUT ANY WARRANTY; without even the implied warranty of
 //# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //# Lesser GNU General Public License for more details.
 //#
 //# You should have received a copy of the Lesser GNU General Public License
-//# along with the CHEM solver.  If not, see <http://www.gnu.org/licenses>
-//#
-//# NOTICE: The GNU license describes the parameters of your redistribution
-//# rights granted by Mississippi State University but the redistribution
-//# of this software is also constrained by export control laws.  This
-//# software may also be considered as covered by EAR or ITAR regulation
-//# regimes and so it is your responsibility to ensure that this software
-//# is redistributed only to US persons and any redistribution is in
-//# conformance with applicable United States export control laws.
+//# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
 #ifndef AUTODIFF_H
@@ -55,7 +47,7 @@ namespace Loci {
 #endif
     
     /* MPGCOMMENT [05-12-2017 13:49] ---> constructor */
-#define gradcheck() //fatal(grad!=0.0) ;
+#define gradcheck() //if(grad!=0) debugger_() ; //fatal(grad!=0.0) ;
     template< class T1>
       FADd(T1 a0): value(a0), grad(0.0){ gradcheck();}/* MPGCOMMENT [05-15-2017 14:46] ---> used in chem, chem::Temperature */
   FADd(int a0         ,int b0)        : value(a0), grad(b0) { gradcheck();}
@@ -514,7 +506,7 @@ namespace Loci {
   }
   inline FADd sqrt(const FADd u) {
     double su = ::sqrt(u.value) ;
-    return FADd(su,0.5/max(su,1e-30)) ;
+    return FADd(su,0.5*u.grad/max(su,1e-30)) ;
   }
   inline FADd pow(const FADd k, const FADd u) {
     double kpu = ::pow(k.value,u.value) ;
@@ -628,7 +620,7 @@ namespace Loci {
   }
   inline FADd sqrt(const FADd u) {
     double su = std::sqrt(u.value) ;
-    return FADd(su,0.5/max(su,1e-30)) ;
+    return FADd(su,0.5*u.grad/max(su,1e-30)) ;
   }
   inline FADd pow(const FADd k, const FADd u) {
     double kpu = std::pow(k.value,u.value) ;

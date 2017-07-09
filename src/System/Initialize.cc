@@ -34,6 +34,7 @@
 #endif
 
 
+
 // Force key petsc functions to load. (Helps when using static libraries)
 void dummyFunctionDependencies(int i) {
   int localSize=0,globalSize=0 ;
@@ -104,6 +105,7 @@ using std::cout ;
 using std::vector ;
 
 namespace Loci {
+  MPI_Datatype MPI_FADD ;
   int MPI_processes = 1;
   int MPI_rank = 0 ;
   bool useDebugDir = true ;
@@ -282,6 +284,23 @@ namespace Loci {
 #else
     MPI_Init(argc, argv) ;
 #endif
+
+    {
+      // Create FADD type
+      int count = 2 ;
+      int blocklens[] = {1,1} ;
+      MPI_Aint indices[2] ;
+      indices[0] = (MPI_Aint)offsetof(class FADd, value) ;
+      indices[1] = (MPI_Aint)offsetof(class FADd, grad) ;
+      MPI_Datatype typelist[] = {MPI_DOUBLE,MPI_DOUBLE} ;
+      MPI_Datatype FADD_pre ;
+      MPI_Type_struct(count,blocklens,indices,typelist,&FADD_pre) ;
+      MPI_Type_create_resized(FADD_pre,indices[0],(MPI_Aint)sizeof(class FADd),
+			      &MPI_FADD) ;
+      MPI_Type_commit(&MPI_FADD) ;
+      MPI_Type_free(&FADD_pre) ;
+    }
+      
     time_duration_to_collect_data = MPI_Wtick()*20;
     signal(SIGTERM,TerminateSignal) ;
 

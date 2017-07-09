@@ -71,6 +71,7 @@ namespace Loci {
   extern void AddModuleSearchDir(std::string dirname);
   extern double random() ;
   extern int irandom() ;
+  extern MPI_Datatype MPI_FADD ;
 }
 
 #endif
