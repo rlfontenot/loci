@@ -40,7 +40,7 @@ namespace fitfunction {
   using Loci::real_t ;
   using Loci::realToDouble ;
   using Loci::realToFloat ;
-  
+
   struct spline_segments {
     real_t y0,y1,a,b ;
     real_t ft(real_t t) const { 
@@ -182,34 +182,49 @@ namespace fitfunction {
 
     std::ostream &Print(std::ostream &s) const {
       s.precision(14) ;
-      s << start << ' ' << delta << ' ' << fit.size() << std::endl ;
+      s << realToDouble(start) << ' ' << realToDouble(delta) << ' ' << fit.size() << std::endl ;
       int n = fit.size() ;
-      s << fit[0].y0 << std::endl ;
+      s << realToDouble(fit[0].y0) << std::endl ;
 
       for(int i=0;i<n;++i) 
-	s << fit[i].y1 << std::endl ;
+	s << realToDouble(fit[i].y1) << std::endl ;
 
       for(int i=0;i<n;++i) 
-	s << fit[i].a << ' ' << fit[i].b << std::endl ;
+	s << realToDouble(fit[i].a) << ' ' << realToDouble(fit[i].b) << std::endl ;
 
       return s ;
     }
     std::istream &Input(std::istream &s) {
-      s >> start ;
-      s >> delta ;
+      double val = 0.0;
+      //      s >> start ;
+      s >> val ;
+      start = val ;
+      //      s >> delta ;
+      s >> val ;
+      delta = val ;
       rdelta = 1./delta ;
       int n = 0 ;
       s >> n ;
       fit = vector<spline_segments>(n) ;
-      s >> fit[0].y0 ;
-      for(int i=0;i<n;++i) 
-	s >> fit[i].y1 ;
+      //      s >> fit[0].y0 ;
+      s >> val ;
+      fit[0].y0 = val ;
+      for(int i=0;i<n;++i) {
+	//	s >> fit[i].y1 ;
+	s >> val ;
+	fit[i].y1 = val ;
+      }
 
       for(int i=0;i<n-1;++i) 
 	fit[i+1].y0 = fit[i].y1 ;
 
-      for(int i=0;i<n;++i) 
-	s >> fit[i].a >> fit[i].b  ;
+      for(int i=0;i<n;++i) {
+	//	s >> fit[i].a >> fit[i].b  ;
+	s >> val ;
+	fit[i].a = val ;
+	s >> val ;
+	fit[i].b = val ;
+      }
       return s ;
     }
   } ;
