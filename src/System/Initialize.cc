@@ -106,6 +106,11 @@ using std::vector ;
 
 namespace Loci {
   MPI_Datatype MPI_FADD ;
+  MPI_Op MPI_FADD_SUM ;
+  MPI_Op MPI_FADD_PROD ;
+  MPI_Op MPI_FADD_MIN ;
+  MPI_Op MPI_FADD_MAX ;
+
   int MPI_processes = 1;
   int MPI_rank = 0 ;
   bool useDebugDir = true ;
@@ -264,6 +269,26 @@ namespace Loci {
     }
     
   }
+
+  void sumFADd(FADd *rin, FADd *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] += rin[i] ;
+  }
+  void prodFADd(FADd *rin, FADd *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] *= rin[i] ;
+  }
+  void maxFADd(FADd *rin, FADd *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] = max(rinout[i],rin[i]) ;
+  }
+  void minFADd(FADd *rin, FADd *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] = min(rinout[i],rin[i]) ;
+  }
+
+  
+
   //This is the first call to be made for any Loci program be it
   //sequential or parallel.
   void Init(int* argc, char*** argv)  {
@@ -290,8 +315,9 @@ namespace Loci {
       int count = 2 ;
       int blocklens[] = {1,1} ;
       MPI_Aint indices[2] ;
-      indices[0] = (MPI_Aint)offsetof(class FADd, value) ;
-      indices[1] = (MPI_Aint)offsetof(class FADd, grad) ;
+      FADd tmp ;
+      indices[0] = (MPI_Aint)((char *) &(tmp.value) - (char *) &tmp) ;
+      indices[1] = (MPI_Aint)((char *) &(tmp.grad) - (char *) &tmp) ;
       MPI_Datatype typelist[] = {MPI_DOUBLE,MPI_DOUBLE} ;
       MPI_Datatype FADD_pre ;
       MPI_Type_struct(count,blocklens,indices,typelist,&FADD_pre) ;
@@ -299,6 +325,11 @@ namespace Loci {
 			      &MPI_FADD) ;
       MPI_Type_commit(&MPI_FADD) ;
       MPI_Type_free(&FADD_pre) ;
+      MPI_Op_create((MPI_User_function *)sumFADd,1,&MPI_FADD_SUM) ;
+      MPI_Op_create((MPI_User_function *)prodFADd,1,&MPI_FADD_PROD) ;
+      MPI_Op_create((MPI_User_function *)maxFADd,1,&MPI_FADD_MAX) ;
+      MPI_Op_create((MPI_User_function *)minFADd,1,&MPI_FADD_MIN) ;
+
     }
       
     time_duration_to_collect_data = MPI_Wtick()*20;
