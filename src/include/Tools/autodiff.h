@@ -540,8 +540,8 @@ namespace Loci {
 		0.5*u.grad*(exp(u.value) - exp(-u.value))) ;
   }
   inline FADd tanh(const FADd u) {
-    double ex = exp(u.value) ;
-    double exm = exp(-u.value) ;
+    double ex = exp(min(u.value,350.0)) ;
+    double exm = exp(min(-u.value,350.0)) ;
     double dex = ex-exm ;
     double sex = ex+exm ;
     return FADd(tanh(u.value),u.grad*(1.-dex*dex/(sex*sex))) ;
@@ -654,8 +654,8 @@ namespace Loci {
 		0.5*u.grad*(std::exp(u.value) - std::exp(-u.value))) ;
   }
   inline FADd tanh(const FADd u) {
-    double ex = std::exp(u.value) ;
-    double exm = std::exp(-u.value) ;
+    double ex = std::exp(min(u.value,350.0)) ;
+    double exm = std::exp(min(-u.value,350.0)) ;
     double dex = ex-exm ;
     double sex = ex+exm ;
     return FADd(std::tanh(u.value),
