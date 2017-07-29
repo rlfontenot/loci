@@ -336,469 +336,214 @@ namespace Loci {
       $cell2node_v3d(X) = $boundary_v3d_sum(X)*rsum ;
   }
 
-  class scalar_error_unit : public unit_rule {
-    store<float> node_error ;
-  public:
-    scalar_error_unit() {
-      name_store("scalar_node_error(L,R)",node_error) ;
-      constraint("pos") ;
-      output("scalar_node_error(L,R)") ;
-    }
-    void calculate(Entity e) {
-      node_error[e] = 0. ;
-    }
-    void compute(const sequence &seq) {
-      do_loop(seq,this) ;
-    }
-  } ;
 
-  register_rule<scalar_error_unit> register_scalar_error_unit ;
-
-  class scalar_error_apply: public apply_rule<store<float>,
-                            Loci::Maximum<float> > {
-
-    const_store<real_t> L,R ;
-    const_multiMap face2node ;
-    store<float> node_error ;
-  public:
-    scalar_error_apply() {
-      name_store("face2node",face2node) ;
-      name_store("L",L) ;
-      name_store("R",R) ;
-      name_store("scalar_node_error(L,R)",node_error) ;
-      input("L,R") ;
-      input("face2node->scalar_node_error(L,R)") ;
-      output("face2node->scalar_node_error(L,R)") ;
-    }
-    void calculate(Entity e) {
-      float err = realToFloat(fabs(L[e]-R[e])) ;
-      for(const Entity *n = face2node.begin(e);n!=face2node.end(e);++n) {
-        join(node_error[*n],err) ;
-      }
-    }
-    void compute(const sequence &seq) {
-      do_loop(seq,this) ;
-    }
-  } ;
-
-  register_rule<scalar_error_apply> register_scalar_error_apply ;
-
-  class scalar_cell_error_unit : public unit_rule {
-    store<real_t> node_error ;
-  public:
-    scalar_cell_error_unit() {
-      name_store("scalar_cell_error(L,R)",node_error) ;
-      constraint("geom_cells") ;
-      output("scalar_cell_error(L,R)") ;
-    }
-    void calculate(Entity e) {
-      node_error[e] = 0. ;
-    }
-    void compute(const sequence &seq) {
-      do_loop(seq,this) ;
-    }
-  } ;
-
-  register_rule<scalar_cell_error_unit> register_scalar_cell_error_unit ;
-
-  class scalar_cell_error_apply: public apply_rule<store<real_t>,
-                            Loci::Maximum<real_t> > {
-
-    const_store<real_t> L,R ;
-    const_Map cl,cr ;
-    store<real_t> node_error ;
-  public:
-    scalar_cell_error_apply() {
-      name_store("cl",cl) ;
-      name_store("cr",cr) ;
-      name_store("L",L) ;
-      name_store("R",R) ;
-      name_store("scalar_cell_error(L,R)",node_error) ;
-      input("L,R") ;
-      constraint("(cl,cr)->geom_cells") ;
-      input("(cl,cr)->scalar_cell_error(L,R)") ;
-      output("(cl,cr)->scalar_cell_error(L,R)") ;
-    }
-    void calculate(Entity e) {
-      real_t err = fabs(L[e]-R[e]) ;
-      join(node_error[cl[e]],err) ;
-      join(node_error[cr[e]],err) ;
-    }
-    void compute(const sequence &seq) {
-      do_loop(seq,this) ;
-    }
-  } ;
-
-  register_rule<scalar_cell_error_apply> register_scalar_cell_error_apply ;
-
-
-  class face2nodeMax_unit : public unit_rule {
-    store<float> nodeval ;
-  public:
-    face2nodeMax_unit() {
-      name_store("face2nodeMax(X)",nodeval) ;
-      constraint("pos") ;
-      output("face2nodeMax(X)") ;
-    }
-    void calculate(Entity e) {
-      nodeval[e] = 0. ;
-    }
-    void compute(const sequence &seq) {
-      do_loop(seq,this) ;
-    }
-  } ;
-
-  register_rule<face2nodeMax_unit> register_face2nodeMax_unit ;
-
-  class face2nodeMax_apply: public apply_rule<store<float>,
-                            Loci::Maximum<float> > {
-
-    const_store<real_t> X ;
-    const_multiMap face2node ;
-    store<float> nodeval ;
-  public:
-    face2nodeMax_apply() {
-      name_store("face2node",face2node) ;
-      name_store("X",X) ;
-      name_store("face2nodeMax(X)",nodeval) ;
-      input("X") ;
-      input("face2node->face2nodeMax(X)") ;
-      output("face2node->face2nodeMax(X)") ;
-    }
-    void calculate(Entity e) {
-      double val = realToDouble(X[e]) ;
-      for(const Entity *ep = face2node.begin(e);ep!=face2node.end(e);++ep)
-        join(nodeval[*ep],val) ;
-    }
-    void compute(const sequence &seq) {
-      do_loop(seq,this) ;
-    }
-  } ;
-
-  register_rule<face2nodeMax_apply> register_face2nodeMax_apply ;
-
-  class cell2nodeMax : public unit_rule {
-    store<float> node_value ;
-  public:
-    cell2nodeMax() {
-      name_store("cell2nodeMax(X)",node_value) ;
-      constraint("pos") ;
-      output("cell2nodeMax(X)") ;
-    }
-    void calculate(Entity e) {
-      node_value[e] = std::numeric_limits<float>::min() ;
-    }
-    void compute(const sequence &seq) {
-      do_loop(seq,this) ;
-    }
-  } ;
-
-  register_rule<cell2nodeMax> register_cell2nodeMax ;
-
-  class c2nMax : public apply_rule<store<float>, Loci::Maximum<float> > {
-    const_multiMap upper, lower, boundary_map ;
-    const_multiMap face2node ;
-    const_store<real> X ;
-
-    store<float> cell2nodeMax ;
-    vector<int> node_list ;
-  public:
-    c2nMax() ;
-    void calculate(Entity cc) ;
-    virtual void compute(const sequence &seq) ;
-  } ;
-
-  c2nMax::c2nMax() {
-    name_store("cell2nodeMax(X)",cell2nodeMax) ;
-    name_store("face2node",face2node) ;
-    name_store("upper",upper) ;
-    name_store("lower",lower) ;
-    name_store("boundary_map",boundary_map) ;
-    name_store("X",X) ;
-
-    constraint("geom_cells") ;
-    input("X") ;
-    input("(upper,lower,boundary_map)->face2node->cell2nodeMax(X)") ;
-    output("(upper,lower,boundary_map)->face2node->cell2nodeMax(X)") ;
+  $type scalar_node_error(L,R) store<float> ;
+  $type L store<real_t> ;
+  $type R store<real_t> ;
+  
+  $rule unit(scalar_node_error(L,R)),constraint(pos) {
+    $scalar_node_error(L,R) = 0. ;
   }
 
-  void c2nMax::calculate(Entity cc) {
+  $rule apply(face2node->scalar_node_error(L,R)<-L,R)[Loci::Maximum] {
+    float err = realToFloat(fabs($L-$R)) ;
+    int fsz = $face2node.size() ;
+    for(int i=0;i<fsz;++i)
+      join($face2node[i]->$scalar_node_error(L,R),err) ;
+  }
 
-    node_list.clear() ;
-    for(const Entity *fi=upper.begin(cc);fi!=upper.end(cc);++fi)
-      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
-        node_list.push_back(*ni) ;
-    for(const Entity *fi=lower.begin(cc);fi!=lower.end(cc);++fi) 
-      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
-        node_list.push_back(*ni) ;
-    for(const Entity *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) 
-      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
-        node_list.push_back(*ni) ;
+  $type scalar_cell_error(L,R) store<real_t> ;
+  $rule unit(scalar_cell_error(L,R)),constraint(geom_cells) {
+    $scalar_cell_error(L,R) = 0. ;
+  }
+  
+  $rule apply((cl,cr)->scalar_cell_error(L,R)<-L,R)[Loci::Maximum],constraint((cl,cr)->geom_cells) {
+    real_t err = fabs($L-$R) ;
+    join($cl->$scalar_cell_error(L,R),err) ;
+    join($cr->$scalar_cell_error(L,R),err) ;
+  }
+
+  $type face2nodeMax(X) store<float> ;
+  $rule unit(face2nodeMax(X)),constraint(pos) {
+    $face2nodeMax(X) = 0. ;
+  }
+
+  $type X store<real_t> ;
+
+  $rule apply(face2node->face2nodeMax(X)<-X)[Loci::Maximum] {
+    double val = realToDouble($X) ;
+    int fsz = $face2node.size() ;
+    for(int i=0;i<fsz;++i) 
+      join($face2node[i]->$face2nodeMax(X),val) ;
+  }
+
+  $type cell2nodeMax(X) store<float> ;
+
+  $rule unit(cell2nodeMax(X)),constraint(pos) {
+    $cell2nodeMax(X) = 0. ;
+  }
+
+  $rule apply((upper,lower,boundary_map)->face2node->cell2nodeMax(X)<-
+	      X)[Loci::Maximum],constraint(geom_cells) {
+    int sztot = 0 ;
+    
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      sztot += fi->$face2node.size() ;
+    
+    vector<Entity> node_list(sztot) ;
+    int cnt = 0 ;
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+
     sort(node_list.begin(),node_list.end()) ;
-    vector<int>::iterator ns = node_list.begin() ;
-    vector<int>::iterator ne = unique(node_list.begin(),node_list.end()) ;
-    
-    
-    
+    vector<Entity>::iterator ne = unique(node_list.begin(),node_list.end()) ;
+    vector<Entity>::iterator ns = node_list.begin() ;
+
     for(vector<int>::iterator vi = ns;vi!=ne;++vi) {
-      int nd = *vi ;
-      join(cell2nodeMax[nd],realToFloat(X[cc])) ;
-    }
-
+      join(vi->$cell2nodeMax(X),realToFloat($X)) ;
+    }    
   }
 
-  void c2nMax::compute(const sequence &seq) {
-    do_loop(seq,this) ;
+
+  $type cell2nodeMaxMag(X) store<float> ;
+
+  $rule unit(cell2nodeMaxMag(X)),constraint(pos) {
+    $cell2nodeMaxMag(X) = 0.0 ;
   }
 
-  register_rule<c2nMax> register_c2nMax ;
-
-  class cell2nodeMaxMag : public unit_rule {
-    store<float> node_value ;
-  public:
-    cell2nodeMaxMag() {
-      name_store("cell2nodeMaxMag(X)",node_value) ;
-      constraint("pos") ;
-      output("cell2nodeMaxMag(X)") ;
-    }
-    void calculate(Entity e) {
-      node_value[e] = 0 ;
-    }
-    void compute(const sequence &seq) {
-      do_loop(seq,this) ;
-    }
-  } ;
-
-  register_rule<cell2nodeMaxMag> register_cell2nodeMaxMag ;
-
-  struct max_mag_join {
-    void operator()(float &f1, const float &f2) {
+  template <class T> struct max_mag_join {
+    void operator()(T &f1, const T &f2) {
       if(fabs(f2) > fabs(f1))
         f1 = f2 ;
     }
   } ;
   
-  class c2nMaxMag : public apply_rule<store<float>, max_mag_join > {
-    const_multiMap upper, lower, boundary_map ;
-    const_multiMap face2node ;
-    const_store<real> X ;
+  $rule apply((upper,lower,boundary_map)->face2node->cell2nodeMaxMag(X)<-
+	      X)[max_mag_join],constraint(geom_cells) {
+    int sztot = 0 ;
+    
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      sztot += fi->$face2node.size() ;
+    
+    vector<Entity> node_list(sztot) ;
+    int cnt = 0 ;
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
 
-    store<float> cell2nodeMaxMag ;
-    vector<int> node_list ;
-  public:
-    c2nMaxMag() ;
-    void calculate(Entity cc) ;
-    virtual void compute(const sequence &seq) ;
-  } ;
-
-  c2nMaxMag::c2nMaxMag() {
-    name_store("cell2nodeMaxMag(X)",cell2nodeMaxMag) ;
-    name_store("face2node",face2node) ;
-    name_store("upper",upper) ;
-    name_store("lower",lower) ;
-    name_store("boundary_map",boundary_map) ;
-    name_store("X",X) ;
-
-    constraint("geom_cells") ;
-    input("X") ;
-    input("(upper,lower,boundary_map)->face2node->cell2nodeMaxMag(X)") ;
-    output("(upper,lower,boundary_map)->face2node->cell2nodeMaxMag(X)") ;
-  }
-
-  void c2nMaxMag::calculate(Entity cc) {
-
-    node_list.clear() ;
-    for(const Entity *fi=upper.begin(cc);fi!=upper.end(cc);++fi)
-      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
-        node_list.push_back(*ni) ;
-    for(const Entity *fi=lower.begin(cc);fi!=lower.end(cc);++fi) 
-      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
-        node_list.push_back(*ni) ;
-    for(const Entity *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) 
-      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
-        node_list.push_back(*ni) ;
     sort(node_list.begin(),node_list.end()) ;
-    vector<int>::iterator ns = node_list.begin() ;
-    vector<int>::iterator ne = unique(node_list.begin(),node_list.end()) ;
-    
-    
-    
+    vector<Entity>::iterator ne = unique(node_list.begin(),node_list.end()) ;
+    vector<Entity>::iterator ns = node_list.begin() ;
+
     for(vector<int>::iterator vi = ns;vi!=ne;++vi) {
-      int nd = *vi ;
-      join(cell2nodeMaxMag[nd],realToFloat(X[cc])) ;
-    }
-
+      join(vi->$cell2nodeMaxMag(X),realToFloat($X)) ;
+    }    
   }
 
-  void c2nMaxMag::compute(const sequence &seq) {
-    do_loop(seq,this) ;
+  $type cell2nodeMin(X) store<float> ;
+ 
+  $rule unit(cell2nodeMin(X)),constraint(pos) {
+    $cell2nodeMin(X) = 0.0 ;
   }
+    
+  $rule apply((upper,lower,boundary_map)->face2node->cell2nodeMin(X)<-
+	      X)[Loci::Minimum],constraint(geom_cells) {
+    int sztot = 0 ;
+    
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      sztot += fi->$face2node.size() ;
+    
+    vector<Entity> node_list(sztot) ;
+    int cnt = 0 ;
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
 
-  register_rule<c2nMaxMag> register_c2nMaxMag ;
-
-  class cell2nodeMin : public unit_rule {
-    store<float> node_value ;
-  public:
-    cell2nodeMin() {
-      name_store("cell2nodeMin(X)",node_value) ;
-      constraint("pos") ;
-      output("cell2nodeMin(X)") ;
-    }
-    void calculate(Entity e) {
-      node_value[e] = std::numeric_limits<float>::max() ;
-    }
-    void compute(const sequence &seq) {
-      do_loop(seq,this) ;
-    }
-  } ;
-
-  register_rule<cell2nodeMin> register_cell2nodeMin ;
-
-  class c2nMin : public apply_rule<store<float>, Loci::Minimum<float> > {
-    const_multiMap upper, lower, boundary_map ;
-    const_multiMap face2node ;
-    const_store<real> X ;
-
-    store<float> cell2nodeMin ;
-    vector<int> node_list ;
-  public:
-    c2nMin() ;
-    void calculate(Entity cc) ;
-    virtual void compute(const sequence &seq) ;
-  } ;
-
-  c2nMin::c2nMin() {
-    name_store("cell2nodeMin(X)",cell2nodeMin) ;
-    name_store("face2node",face2node) ;
-    name_store("upper",upper) ;
-    name_store("lower",lower) ;
-    name_store("boundary_map",boundary_map) ;
-    name_store("X",X) ;
-
-    constraint("geom_cells") ;
-    input("X") ;
-    input("(upper,lower,boundary_map)->face2node->cell2nodeMin(X)") ;
-    output("(upper,lower,boundary_map)->face2node->cell2nodeMin(X)") ;
-  }
-
-  void c2nMin::calculate(Entity cc) {
-
-    node_list.clear() ;
-    for(const Entity *fi=upper.begin(cc);fi!=upper.end(cc);++fi)
-      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
-        node_list.push_back(*ni) ;
-    for(const Entity *fi=lower.begin(cc);fi!=lower.end(cc);++fi) 
-      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
-        node_list.push_back(*ni) ;
-    for(const Entity *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) 
-      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
-        node_list.push_back(*ni) ;
     sort(node_list.begin(),node_list.end()) ;
-    vector<int>::iterator ns = node_list.begin() ;
-    vector<int>::iterator ne = unique(node_list.begin(),node_list.end()) ;
-    
-    
-    
+    vector<Entity>::iterator ne = unique(node_list.begin(),node_list.end()) ;
+    vector<Entity>::iterator ns = node_list.begin() ;
+
     for(vector<int>::iterator vi = ns;vi!=ne;++vi) {
-      int nd = *vi ;
-      join(cell2nodeMin[nd],realToFloat(X[cc])) ;
-    }
-
+      join(vi->$cell2nodeMin(X),realToFloat($X)) ;
+    }    
   }
 
-  void c2nMin::compute(const sequence &seq) {
-    do_loop(seq,this) ;
+
+  $type cell2nodeMaxv3d(X) store<vector3d<float> > ;
+
+  $rule unit(cell2nodeMaxv3d(X)),constraint(pos) {
+    $cell2nodeMaxv3d(X) = vector3d<float>(0.,0.,0.) ;
   }
 
-  register_rule<c2nMin> register_c2nMin ;
-
-
-  class cell2nodeVectorMax : public unit_rule {
-    store<vector3d<float> > node_value ;
-  public:
-    cell2nodeVectorMax() {
-      name_store("cell2nodeMaxv3d(X)",node_value) ;
-      constraint("pos") ;
-      output("cell2nodeMaxv3d(X)") ;
-    }
-    void calculate(Entity e) {
-        node_value[e] = vector3d<float>(0.,0.,0.) ;
-    }
-    void compute(const sequence &seq) {
-      do_loop(seq,this) ;
-    }
-  } ;
-
-  register_rule<cell2nodeVectorMax> register_cell2nodeVectorMax ;
-
-  struct maxVect3d {
-    void operator()(vector3d<float> &r, const vector3d<float> &s) {
+  templacate<class T> struct maxVect3d {
+    void operator()(T &r, const T &s) {
         //      if(dot(s,s) > dot(r,r))
         if(s.x*s.x+s.y*s.y+s.z*s.z > r.x*r.x+r.y*r.y+r.z*r.z)
           r = s ;
       }
   } ;
 
+  $rule apply((upper,lower,boundary_map)->face2node->cell2nodeMaxv3d(X)<-
+	      X)[maxVect3d],constraint(geom_cells) {
+    int sztot = 0 ;
+    
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      sztot += fi->$face2node.size() ;
+    
+    vector<Entity> node_list(sztot) ;
+    int cnt = 0 ;
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
 
-  class c2nVectorMax : public apply_rule<store<vector3d<float> >, maxVect3d > {
-    const_multiMap upper, lower, boundary_map ;
-    const_multiMap face2node ;
-    const_store<vect3d> X ;
-
-    store<vector3d<float> > cell2nodeVectorMax ;
-    vector<int> node_list ;
-  public:
-    c2nVectorMax() ;
-    void calculate(Entity cc) ;
-    virtual void compute(const sequence &seq) ;
-  } ;
-
-  c2nVectorMax::c2nVectorMax() {
-    name_store("cell2nodeMaxv3d(X)",cell2nodeVectorMax) ;
-    name_store("face2node",face2node) ;
-    name_store("upper",upper) ;
-    name_store("lower",lower) ;
-    name_store("boundary_map",boundary_map) ;
-    name_store("X",X) ;
-
-    constraint("geom_cells") ;
-    input("X") ;
-    input("(upper,lower,boundary_map)->face2node->cell2nodeMaxv3d(X)") ;
-    output("(upper,lower,boundary_map)->face2node->cell2nodeMaxv3d(X)") ;
-  }
-
-  void c2nVectorMax::calculate(Entity cc) {
-
-    node_list.clear() ;
-    for(const Entity *fi=upper.begin(cc);fi!=upper.end(cc);++fi)
-      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
-        node_list.push_back(*ni) ;
-    for(const Entity *fi=lower.begin(cc);fi!=lower.end(cc);++fi) 
-      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
-        node_list.push_back(*ni) ;
-    for(const Entity *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) 
-      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
-        node_list.push_back(*ni) ;
     sort(node_list.begin(),node_list.end()) ;
-    vector<int>::iterator ns = node_list.begin() ;
-    vector<int>::iterator ne = unique(node_list.begin(),node_list.end()) ;
-    
-    
-    
+    vector<Entity>::iterator ne = unique(node_list.begin(),node_list.end()) ;
+    vector<Entity>::iterator ns = node_list.begin() ;
+
     for(vector<int>::iterator vi = ns;vi!=ne;++vi) {
-      int nd = *vi ;
-      vector3d<float> xf = vector3d<float>(realToFloat(X[cc].x),
-					   realToFloat(X[cc].y),
-					   realToFloat(X[cc].z)) ;
-      join(cell2nodeVectorMax[nd],xf) ;
-    }
-
+      join(vi->$cell2nodeMaxv3d(X),realToFloat($X)) ;
+    }    
   }
-
-  void c2nVectorMax::compute(const sequence &seq) {
-    do_loop(seq,this) ;
-  }
-
-  register_rule<c2nVectorMax> register_c2nVectorMax ;
 
 }
