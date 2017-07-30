@@ -506,7 +506,7 @@ namespace Loci {
     $cell2nodeMaxv3d(X) = vector3d<float>(0.,0.,0.) ;
   }
 
-  templacate<class T> struct maxVect3d {
+  template<class T> struct maxVect3d {
     void operator()(T &r, const T &s) {
         //      if(dot(s,s) > dot(r,r))
         if(s.x*s.x+s.y*s.y+s.z*s.z > r.x*r.x+r.y*r.y+r.z*r.z)
@@ -514,6 +514,7 @@ namespace Loci {
       }
   } ;
 
+  $type X store<vect3d> ;
   $rule apply((upper,lower,boundary_map)->face2node->cell2nodeMaxv3d(X)<-
 	      X)[maxVect3d],constraint(geom_cells) {
     int sztot = 0 ;
