@@ -86,39 +86,39 @@ namespace Loci {
 
     /* MPGCOMMENT [05-12-2017 10:35] ---> ASSIGNMENT */ 
     /* template<class T> Loci::const_store<Loci::vector3d<FADd> >& operator =(Loci::const_store<Loci::vector3d<T> > &u) { */
-    /*   this->value = u; */
-    /*   this->grad = 0.0; */
+    /*   value = u; */
+    /*   grad = 0.0; */
     /*   return *this; */
     /* } */
 
     //    template<class T> FADd& operator =(const T &u) {
-    //      this->value = u;
-    //      this->grad = 0.0;
+    //      value = u;
+    //      grad = 0.0;
     //      return *this;
     //    }
     FADd& operator =(const FADd &u) {
-      this->value = u.value;
-      this->grad = u.grad;
+      value = u.value;
+      grad = u.grad;
       return *this;
     }
     FADd& operator =(const int &u) {
-      this->value = u;
-      this->grad = 0.0;
+      value = u;
+      grad = 0.0;
       return *this;
     }
     FADd& operator =(const float &u) {
-      this->value = u;
-      this->grad = 0.0;
+      value = u;
+      grad = 0.0;
       return *this;
     }
     FADd& operator =(const double &u) {
-      this->value = u;
-      this->grad = 0.0;
+      value = u;
+      grad = 0.0;
       return *this;
     }
     FADd& operator =(const long double &u) {
-      this->value = u;
-      this->grad = 0.0;
+      value = u;
+      grad = 0.0;
       return *this;
     }
 
@@ -137,296 +137,296 @@ namespace Loci {
       return FADd(value+(double)v, grad);
     }
     FADd operator +(const float &v) const{
-      return FADd(this->value+(double)v, this->grad);
+      return FADd(value+(double)v, grad);
     }
     FADd operator +(const double &v) const{
-      return FADd(this->value+(double)v, this->grad);
+      return FADd(value+(double)v, grad);
     }
     FADd operator +(const long double &v) const{
-      return FADd(this->value+(long double)v, this->grad);
+      return FADd(value+(long double)v, grad);
     }
     //    template<class T> FADd& operator +=(const T &u) {
-    //      this->value+=(double)u;
+    //      value+=(double)u;
     //      return *this;
     //    }
     FADd& operator +=(const FADd &u) {
-      this->value+=u.value;
-      this->grad+=u.grad;
+      value+=u.value;
+      grad+=u.grad;
       return *this;
     }
     FADd& operator +=(const int &u) {
-      this->value+=u;
+      value+=u;
       return *this;
     }
     FADd& operator +=(const float &u) {
-      this->value+=u;
+      value+=u;
       return *this;
     }
     FADd& operator +=(const double &u) {
-      this->value+=u;
+      value+=u;
       return *this;
     }
     FADd& operator +=(const long double &u) {
-      this->value+=u;
+      value+=u;
       return *this;
     }
 
 
     /* MPGCOMMENT [05-12-2017 10:35] ---> SUBTRACTION */
     //    template<class T> FADd operator -(const T &v) const{
-    //      return FADd(this->value-(double)v, this->grad);
+    //      return FADd(value-(double)v, grad);
     //    }
     FADd operator -(const FADd &v) const{
-      return FADd(this->value-v.value, this->grad-v.grad);
+      return FADd(value-v.value, grad-v.grad);
     }
     FADd operator -() const {
-      return FADd(-this->value, -this->grad);
+      return FADd(-value, -grad);
     }
     FADd operator -(const int &v) const{
-      return FADd(this->value-(double)v, this->grad);
+      return FADd(value-(double)v, grad);
     }
     FADd operator -(const float &v) const{
-      return FADd(this->value-(double)v, this->grad);
+      return FADd(value-(double)v, grad);
     }
     FADd operator -(const double &v) const{
-      return FADd(this->value-(double)v, this->grad);
+      return FADd(value-(double)v, grad);
     }
     FADd operator -(const long double &v) const{
-      return FADd(this->value-(long double)v, this->grad);
+      return FADd(value-(long double)v, grad);
     }
     //    template<class T> FADd& operator -=(const T &u) {
-    //      this->value-=(double)u;
+    //      value-=(double)u;
     //      return *this;
     //    }
     FADd& operator -=(const FADd &u) {
-      this->value-=u.value;
-      this->grad-=u.grad;
+      value-=u.value;
+      grad-=u.grad;
       return *this;
     }
     FADd& operator -=(const int &u) {
-      this->value-=u;
+      value-=u;
       return *this;
     }
     FADd& operator -=(const float &u) {
-      this->value-=u;
+      value-=u;
       return *this;
     }
     FADd& operator -=(const double &u) {
-      this->value-=u;
+      value-=u;
       return *this;
     }
     FADd& operator -=(const long double &u) {
-      this->value-=u;
+      value-=u;
       return *this;
     }
 
     /* MPGCOMMENT [05-12-2017 10:36] ---> MULTIPLICATION */
     //    template<class T> FADd operator *(const T &v) const{
-    //      return FADd(this->value*(double)v, this->grad);
+    //      return FADd(value*(double)v, grad);
     //    }
     FADd operator *(const FADd &v) const {
-      return FADd(this->value*v.value,  this->grad*v.value + v.grad*this->value);
+      return FADd(value*v.value,  grad*v.value + v.grad*value);
     }
     FADd operator *(const int &v) const{
-      return FADd(this->value*(double)v,  this->grad*(double)v);
+      return FADd(value*(double)v,  grad*(double)v);
     }
     FADd operator *(const float &v) const{
-      return FADd(this->value*(double)v,  this->grad*(double)v);
+      return FADd(value*(double)v,  grad*(double)v);
     }
     FADd operator *(const double &v) const{
-      return FADd(this->value*(double)v,  this->grad*(double)v);
+      return FADd(value*(double)v,  grad*(double)v);
     }
     FADd operator *(const long double &v) const{
-      return FADd(this->value*(long double)v,  this->grad*(long double)v);
+      return FADd(value*(long double)v,  grad*(long double)v);
     }
     //    template<class T> FADd& operator *=(const T &u) {
-    //      this->value*=(double)u;
+    //      value*=(double)u;
     //      return *this;
     //    }
     FADd& operator *=(const FADd &u) {
-      this->grad = this->grad*u.value + u.grad * this->value;
-      this->value*=u.value;
+      grad = grad*u.value + u.grad * value;
+      value*=u.value;
       return *this;
     }
     FADd& operator *=(const int &u) {
-      this->value*=u;
-      this->grad *=u;// + (u.grad is zero) * this->value;
+      value*=u;
+      grad *=u;// + (u.grad is zero) * value;
       return *this;
     }
     FADd& operator *=(const float &u) {
-      this->value*=u;
-      this->grad *=u;// + (u.grad is zero) * this->value;
+      value*=u;
+      grad *=u;// + (u.grad is zero) * value;
       return *this;
     }
     FADd& operator *=(const double &u) {
-      this->value*=u;
-      this->grad *=u;// + (u.grad is zero) * this->value;
+      value*=u;
+      grad *=u;// + (u.grad is zero) * value;
       return *this;
     }
     FADd& operator *=(const long double &u) {
-      this->value*=u;
-      this->grad *=u;// + (u.grad is zero) * this->value;
+      value*=u;
+      grad *=u;// + (u.grad is zero) * value;
       return *this;
     }
 
     /* MPGCOMMENT [05-12-2017 10:36] ---> DIVISION */
     //    template<class T> FADd operator /(const T &v) const{
-    //      return FADd(this->value/(double)v, this->grad);
+    //      return FADd(value/(double)v, grad);
     //    }
     FADd operator /(const FADd &v) const{
-      return FADd(this->value/v.value, (this->grad*v.value - this->value*v.grad)/v.value/v.value);
+      return FADd(value/v.value, (grad*v.value - value*v.grad)/v.value/v.value);
     }
     FADd operator /(const int &v) const{
-      return FADd(this->value/v, (this->grad/(double)v));
+      return FADd(value/v, (grad/(double)v));
     }
     FADd operator /(const float &v) const{
-      return FADd(this->value/v, (this->grad/(double)v));
+      return FADd(value/v, (grad/(double)v));
     }
     FADd operator /(const double &v) const{
-      return FADd(this->value/v, (this->grad/(double)v));
+      return FADd(value/v, (grad/(double)v));
     }
     FADd operator /(const long double &v) const{
-      return FADd(this->value/v, (this->grad/(long double)v));
+      return FADd(value/v, (grad/(long double)v));
     }
     //    template<class T> FADd& operator /=(const T &u) {
-    //      this->value/=(double)u;
+    //      value/=(double)u;
     //      return *this;
     //    }
     FADd& operator /=(const FADd &u) {
-      this->grad = (this->grad*u.value - this->value * u.grad) / u.value / u.value;
-      this->value/=u.value;
+      grad = (grad*u.value - value * u.grad) / u.value / u.value;
+      value/=u.value;
       return *this;
     }
     FADd& operator /=(const int &u) {
-      this->value/=u;
-      this->grad /=u;// (this->grad*u.value /*- this->value * u.grad=0*/) / u / u;
+      value/=u;
+      grad /=u;// (grad*u.value /*- value * u.grad=0*/) / u / u;
       return *this;
     }
     FADd& operator /=(const float &u) {
-      this->value/=u;
-      this->grad /=u;// (this->grad*u.value /*- this->value * u.grad=0*/) / u / u;
+      value/=u;
+      grad /=u;// (grad*u.value /*- value * u.grad=0*/) / u / u;
       return *this;
     }
     FADd& operator /=(const double &u) {
-      this->value/=u;
-      this->grad /=u;// (this->grad*u.value /*- this->value * u.grad=0*/) / u / u;
+      value/=u;
+      grad /=u;// (grad*u.value /*- value * u.grad=0*/) / u / u;
       return *this;
     }
     FADd& operator /=(const long double &u) {
-      this->value/=u;
-      this->grad /=u;// (this->grad*u.value /*- this->value * u.grad=0*/) / u / u;
+      value/=u;
+      grad /=u;// (grad*u.value /*- value * u.grad=0*/) / u / u;
       return *this;
     }
 
 
     /* MPGCOMMENT [05-12-2017 10:37] ---> COMPARISON OPERATORS */
     //    template<class T> bool operator ==(const T &u) const {
-    //      return ((this->value==(double)u)?true:false);
+    //      return ((value==(double)u)?true:false);
     //    }
     //    template<class T> bool operator !=(const T &u) const {
-    //      return ((this->value!=(double)u)?true:false);
+    //      return ((value!=(double)u)?true:false);
     //    }
     //    template<class T> bool operator >(const T &u) const {
-      //      return ((this->value>(double)u)?true:false);
+      //      return ((value>(double)u)?true:false);
     //    }
     //    template<class T> bool operator <(const T &u) const {
-    //      return ((this->value<(double)u)?true:false);
+    //      return ((value<(double)u)?true:false);
     //    }
     //    template<class T> bool operator >=(const T &u) const {
-    //      return ((this->value>=(double)u)?true:false);
+    //      return ((value>=(double)u)?true:false);
     //    }
     //    template<class T> bool operator <=(const T &u) const {
-    //      return ((this->value<=(double)u)?true:false);
+    //      return ((value<=(double)u)?true:false);
     //    }
     bool operator ==(const FADd &u)const  {
-      return ((this->value==u.value)?true:false);
+      return ((value==u.value)?true:false);
     }
     bool operator !=(const FADd &u) const {
-      return ((this->value!=u.value)?true:false);
+      return ((value!=u.value)?true:false);
     }
     bool operator >(const FADd &u) const {
-      return ((this->value>u.value)?true:false);
+      return ((value>u.value)?true:false);
     }
     bool operator <(const FADd &u) const {
-      return ((this->value<u.value)?true:false);
+      return ((value<u.value)?true:false);
     }
     bool operator >=(const FADd &u) const {
-      return ((this->value>=u.value)?true:false);
+      return ((value>=u.value)?true:false);
     }
     bool operator <=(const FADd &u) const {
-      return ((this->value<=u.value)?true:false);
+      return ((value<=u.value)?true:false);
     }
     bool operator ==(const int &u) const {
-      return ((this->value==u)?true:false);
+      return ((value==u)?true:false);
     }
     bool operator !=(const int &u) const {
-      return ((this->value!=u)?true:false);
+      return ((value!=u)?true:false);
     }
     bool operator >(const int &u) const {
-      return ((this->value>u)?true:false);
+      return ((value>u)?true:false);
     }
     bool operator <(const int &u) const {
-      return ((this->value<u)?true:false);
+      return ((value<u)?true:false);
     }
     bool operator >=(const int &u) const {
-      return ((this->value>=u)?true:false);
+      return ((value>=u)?true:false);
     }
     bool operator <=(const int &u) const {
-      return ((this->value<=u)?true:false);
+      return ((value<=u)?true:false);
     }
     bool operator ==(const float &u) const {
-      return ((this->value==u)?true:false);
+      return ((value==u)?true:false);
     }
     bool operator !=(const float &u) const {
-      return ((this->value!=u)?true:false);
+      return ((value!=u)?true:false);
     }
     bool operator >(const float &u) const {
-      return ((this->value>u)?true:false);
+      return ((value>u)?true:false);
     }
     bool operator <(const float &u) const {
-      return ((this->value<u)?true:false);
+      return ((value<u)?true:false);
     }
     bool operator >=(const float &u) const {
-      return ((this->value>=u)?true:false);
+      return ((value>=u)?true:false);
     }
     bool operator <=(const float &u) const {
-      return ((this->value<=u)?true:false);
+      return ((value<=u)?true:false);
     }
     bool operator ==(const double &u) const {
-      return ((this->value==u)?true:false);
+      return ((value==u)?true:false);
     }
     bool operator !=(const double &u) const {
-      return ((this->value!=u)?true:false);
+      return ((value!=u)?true:false);
     }
     bool operator  >(const double &u) const {
-      return ((this->value>u)?true:false);
+      return ((value>u)?true:false);
     }
     bool operator <(const double &u) const {
-      return ((this->value<u)?true:false);
+      return ((value<u)?true:false);
     }
     bool operator >=(const double &u) const {
-      return ((this->value>=u)?true:false);
+      return ((value>=u)?true:false);
     }
     bool operator <=(const double &u) const {
-      return ((this->value<=u)?true:false);
+      return ((value<=u)?true:false);
     }
     bool operator ==(const long double &u) const {
-      return ((this->value==u)?true:false);
+      return ((value==u)?true:false);
     }
     bool operator !=(const long double &u) const {
-      return ((this->value!=u)?true:false);
+      return ((value!=u)?true:false);
     }
     bool operator  >(const long double &u) const {
-      return ((this->value>u)?true:false);
+      return ((value>u)?true:false);
     }
     bool operator <(const long double &u) const {
-      return ((this->value<u)?true:false);
+      return ((value<u)?true:false);
     }
     bool operator >=(const long double &u) const {
-      return ((this->value>=u)?true:false);
+      return ((value>=u)?true:false);
     }
     bool operator <=(const long double &u) const {
-      return ((this->value<=u)?true:false);
+      return ((value<=u)?true:false);
     }
 
 
