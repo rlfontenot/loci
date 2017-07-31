@@ -233,6 +233,7 @@ namespace Loci {
     }
   } 
 
+  $type cell2node(X) store<float> ;
   $rule pointwise(cell2node(X)<-c2n_scalar_sum(X),nodalw_sum),constraint(pos) {
     double rsum = 1./(double($nodalw_sum)+1e-20) ;
     $cell2node(X) = $c2n_scalar_sum(X)*rsum ;
@@ -336,6 +337,155 @@ namespace Loci {
       $cell2node_v3d(X) = $boundary_v3d_sum(X)*rsum ;
   }
 
+  //-------------------------------------------------
+  $type c2n_scalar_sump(X) store<float> ;
+
+  $rule unit(c2n_scalar_sump(X) ), constraint(pos)  { $c2n_scalar_sump(X) = 0 ; }
+
+  $type X store<Loci::FADd> ;
+
+  $rule apply((upper,lower,boundary_map)->face2node->c2n_scalar_sump(X) <-
+	      (upper,lower,boundary_map)->face2node->pos,cellcenter,X)[Loci::Summation],
+    constraint(geom_cells) {
+    int sztot = 0 ;
+    
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      sztot += fi->$face2node.size() ;
+    
+    vector<Entity> node_list(sztot) ;
+    int cnt = 0 ;
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+
+    sort(node_list.begin(),node_list.end()) ;
+    vector<Entity>::iterator ne = unique(node_list.begin(),node_list.end()) ;
+    vector<Entity>::iterator ns = node_list.begin() ;
+
+    for(vector<int>::iterator vi = ns;vi!=ne;++vi) {
+      int nd = *vi ;
+      const double weight = realToDouble(1./norm($*pos[nd]-$cellcenter)) ;
+      join($*c2n_scalar_sump(X)[nd],($X*weight).grad) ;
+    }
+  } 
+
+  $type cell2nodep(X) store<float> ;
+  
+  $rule pointwise(cell2nodep(X)<-c2n_scalar_sump(X),nodalw_sum),constraint(pos) {
+    double rsum = 1./(double($nodalw_sum)+1e-20) ;
+    $cell2nodep(X) = $c2n_scalar_sump(X)*rsum ;
+  }   
+
+  $type boundary_scalar_sump(X) store<float> ;
+  $rule unit(boundary_scalar_sump(X)), constraint(pos) {
+    $boundary_scalar_sump(X) = 0 ;
+  }
+
+  $type X_f store<Loci::FADd> ;
+  $rule apply(face2node->boundary_scalar_sump(X)<-
+	      face2node->pos,X_f,facecenter)[Loci::Summation],
+    constraint(ci->X,no_symmetry_BC) {
+    int fsz = $face2node.size() ;
+    for(int i=0;i<fsz;++i) {
+      const double weight = realToDouble(1./norm($face2node[i]->$pos-$facecenter)) ;
+      $face2node[i]->$boundary_scalar_sump(X) += ($X_f*weight).grad ;
+    }
+  }
+
+  $rule pointwise(boundary::cell2nodep(X)<-boundary_scalar_sump(X),boundary_nodalw_sum),constraint(boundary_node) {
+      double rsum = 1./(double($boundary_nodalw_sum)+1e-20) ;
+      $cell2nodep(X) = $boundary_scalar_sump(X)*rsum ;
+  }
+
+  $type c2n_v3d_sump(X) store<vector3d<float> > ;
+  
+  $rule unit(c2n_v3d_sump(X)),constraint(pos) {
+    $c2n_v3d_sump(X) = vector3d<float>(0.,0.,0.) ;
+  }
+
+  $type X store<vector3d<Loci::FADd> > ;
+  
+  $rule apply((upper,lower,boundary_map)->face2node->c2n_v3d_sump(X)<-
+	      X,cellcenter,(upper,lower,boundary_map)->face2node->pos)[Loci::Summation],
+    constraint(geom_cells) {
+    int sztot = 0 ;
+    
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      sztot += fi->$face2node.size() ;
+    
+    vector<Entity> node_list(sztot) ;
+    int cnt = 0 ;
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+
+    sort(node_list.begin(),node_list.end()) ;
+    vector<Entity>::iterator ne = unique(node_list.begin(),node_list.end()) ;
+    vector<Entity>::iterator ns = node_list.begin() ;
+
+    for(vector<int>::iterator vi = ns;vi!=ne;++vi) {
+      int nd = *vi ;
+      const double weight = realToDouble(1./norm($*pos[nd]-$cellcenter)) ;
+      vector3d<float> v(($X.x*weight).grad,
+			($X.y*weight).grad,
+			($X.z*weight).grad) ;
+      join($*c2n_v3d_sump(X)[nd],v) ;
+    }
+  }
+
+  $type cell2nodep_v3d(X) store<vector3d<float> > ;
+  $rule pointwise(cell2nodep_v3d(X)<-c2n_v3d_sump(X),nodalw_sum) {
+    double rsum = 1./(double($nodalw_sum)+1e-20) ;
+    $cell2nodep_v3d(X) = $c2n_v3d_sump(X)*rsum ;
+  }
+  $type boundary_v3d_sump(X) store<vector3d<float> > ;
+  
+  $rule unit(boundary_v3d_sump(X)),constraint(pos) {
+    $boundary_v3d_sump(X) = vector3d<float>(0.0,0.0,0.0) ;
+  }
+
+  $type X_f store<vector3d<FADd> > ;
+  
+  $rule apply(face2node->boundary_v3d_sump(X)<-face2node->pos,X_f,facecenter)[Loci::Summation],constraint(ci,no_symmetry_BC) {
+    int fsz = $face2node.size();
+    for(int i=0;i<fsz;++i) {
+      const double weight = realToDouble(1./norm($face2node[i]->$pos-$facecenter)) ;
+      vector3d<float> v(($X_f.x*weight).grad,
+			($X_f.y*weight).grad,
+			($X_f.z*weight).grad) ;
+      $face2node[i]->$boundary_v3d_sump(X) += v ;
+    }
+  }
+
+  $rule pointwise(boundary::cell2nodep_v3d(X)<-
+		  boundary_v3d_sump(X),boundary_nodalw_sum),
+    constraint(boundary_node) {
+      double rsum = 1./(double($boundary_nodalw_sum)+1e-20) ;
+      $cell2nodep_v3d(X) = $boundary_v3d_sump(X)*rsum ;
+  }
+
+
+  //-------------------------------------------------
 
   $type scalar_node_error(L,R) store<float> ;
   $type L store<real_t> ;
@@ -345,6 +495,7 @@ namespace Loci {
     $scalar_node_error(L,R) = 0. ;
   }
 
+  
   $rule apply(face2node->scalar_node_error(L,R)<-L,R)[Loci::Maximum] {
     float err = realToFloat(fabs($L-$R)) ;
     int fsz = $face2node.size() ;
