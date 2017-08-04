@@ -38,9 +38,6 @@ using std::make_pair ;
 
 namespace Loci {
 
-  using std::cos ;
-  using std::sin ;
-  
   options_list::options_list(const string &s) {
     int sz = s.length() ;
     restrict_set = true ;
