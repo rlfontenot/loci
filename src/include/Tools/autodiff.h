@@ -469,6 +469,9 @@ namespace Loci {
   inline FADd cos(const FADd u) {
     return FADd(::cos(u.value), -u.grad*::sin(u.value));
   }
+  inline FADd tan(const FADd u) {
+    return FADd(::tan(u.value), u.grad/pow(::cos(u.value),2)) ;
+  }
   inline FADd exp(const FADd u) {
     return FADd(::exp(u.value), u.grad*::exp(u.value));
   }
@@ -589,6 +592,10 @@ namespace Loci {
   inline FADd cos(const FADd u) {
     return FADd(std::cos(u.value), -u.grad*std::sin(u.value));
   }
+  inline FADd tan(const FADd u) {
+    return FADd(std::tan(u.value), u.grad/pow(std::cos(u.value),2)) ;
+  }
+
   inline FADd exp(const FADd u) {
     return FADd(std::exp(u.value), u.grad*std::exp(u.value));
   }
@@ -1084,6 +1091,15 @@ namespace Loci {
     double cu = ::cos(u.value) ;
     return FAD2d(cu, -u.grad*su, -su*u.grad2 - u.grad*u.grad*cu);
   }
+  inline FAD2d tan(const FAD2d u) {
+    double tanu = ::tan(u.value) ;
+    double secu = 1./::cos(u.value) ;
+    double secu2 = secu*secu ;
+    return FAD2d(tanu, u.grad*secu2,
+		 u.grad2*secu2+2.*u.grad*u.grad*secu2*tanu) ;
+  }
+
+
   inline FAD2d exp(const FAD2d u) {
     double eu = ::exp(u.value) ;
     return FAD2d(eu, u.grad*eu, eu*u.grad2+u.grad*u.grad*eu);
@@ -1111,26 +1127,22 @@ namespace Loci {
   inline FAD2d pow(const FAD2d u, const int k) {
     return FAD2d(::pow(u.value, k), 
 		 (double)k * ::pow(u.value, k-1)*u.grad,
-		 (double)k * (::pow(u.value, k-1)*u.grad2 +
-			      (k-2)*::pow(u.value,k-2)*u.grad*u.grad));
+		 k*((k - 1)*(::pow(u.value, k - 2)*::pow(u.grad, 2)) + ::pow(u.value, k - 1)*u.grad2)) ;
   }
   inline FAD2d pow(const FAD2d u, const float k) {
     return FAD2d(::pow(u.value, k), 
 		 (double)k * ::pow(u.value, k-1.0)*u.grad,
-		 (double)k * (::pow(u.value, k-1.0)*u.grad2 +
-			      (k-2)*::pow(u.value,k-2.0)*u.grad*u.grad));
+		 k*((k - 1)*(::pow(u.value, k - 2)*::pow(u.grad, 2)) + ::pow(u.value, k - 1)*u.grad2)) ;
   }
   inline FAD2d pow(const FAD2d u, const double k) {
     return FAD2d(::pow(u.value, k), 
 		 (double)k * ::pow(u.value, k-1.0)*u.grad,
-		 (double)k * (::pow(u.value, k-1.0)*u.grad2 +
-			      (k-2)*::pow(u.value,k-2.0)*u.grad*u.grad));
+		 k*((k - 1)*(::pow(u.value, k - 2)*::pow(u.grad, 2)) + ::pow(u.value, k - 1)*u.grad2)) ;
   }
   inline FAD2d pow(const FAD2d u, const long double k) {
     return FAD2d(::pow(u.value, k), 
 		 (double)k * ::pow(u.value, k-1.0)*u.grad,
-		 (double)k * (::pow(u.value, k-1.0)*u.grad2 +
-			      (k-2)*::pow(u.value,k-2.0)*u.grad*u.grad));
+		 k*((k - 1)*(::pow(u.value, k - 2)*::pow(u.grad, 2)) + ::pow(u.value, k - 1)*u.grad2)) ;
   }
   inline FAD2d sqrt(const FAD2d u) {
     double su = ::sqrt(u.value) ;
@@ -1271,6 +1283,14 @@ namespace Loci {
     double cu = std::cos(u.value) ;
     return FAD2d(cu, -u.grad*su, -su*u.grad2 - u.grad*u.grad*cu);
   }
+  inline FAD2d tan(const FAD2d u) {
+    double tanu = std::tan(u.value) ;
+    double secu = 1./std::cos(u.value) ;
+    double secu2 = secu*secu ;
+    return FAD2d(tanu, u.grad*secu2,
+		 u.grad2*secu2+2.*u.grad*u.grad*secu2*tanu) ;
+  }
+
   inline FAD2d exp(const FAD2d u) {
     double eu = std::exp(u.value) ;
     return FAD2d(eu, u.grad*eu, eu*u.grad2+u.grad*u.grad*eu);
@@ -1298,28 +1318,25 @@ namespace Loci {
   inline FAD2d pow(const FAD2d u, const int k) {
     return FAD2d(std::pow(u.value, k), 
 		 (double)k * std::pow(u.value, k-1)*u.grad,
-		 (double)k * (std::pow(u.value, k-1)*u.grad2 +
-			      (k-2)*std::pow(u.value,k-2)*u.grad*u.grad));
+		 k*((k - 1)*(std::pow(u.value, k - 2)*std::pow(u.grad, 2)) + std::pow(u.value, k - 1)*u.grad2)) ;
   }
   inline FAD2d pow(const FAD2d u, const float k) {
     return FAD2d(std::pow(u.value, k), 
 		 (double)k * std::pow(u.value, k-1.0)*u.grad,
-		 (double)k * (std::pow(u.value, k-1.0)*u.grad2 +
-			      (k-2)*std::pow(u.value,k-2.0)*u.grad*u.grad));
+		 k*((k - 1)*(std::pow(u.value, k - 2)*std::pow(u.grad, 2)) + std::pow(u.value, k - 1)*u.grad2)) ;
   }
   inline FAD2d pow(const FAD2d u, const double k) {
     return FAD2d(std::pow(u.value, k), 
 		 (double)k * std::pow(u.value, k-1.0)*u.grad,
-		 (double)k * (std::pow(u.value, k-1.0)*u.grad2 +
-			      (k-2)*std::pow(u.value,k-2.0)*u.grad*u.grad));
+		 k*((k - 1)*(std::pow(u.value, k - 2)*std::pow(u.grad, 2)) + std::pow(u.value, k - 1)*u.grad2)) ;
   }
   inline FAD2d pow(const FAD2d u, const long double k) {
     return FAD2d(std::pow(u.value, k), 
 		 (double)k * std::pow(u.value, k-1.0)*u.grad,
-		 (double)k * (std::pow(u.value, k-1.0)*u.grad2 +
-			      (k-2)*std::pow(u.value,k-2.0)*u.grad*u.grad));
+		 k*((k - 1)*(std::pow(u.value, k - 2)*std::pow(u.grad, 2)) + std::pow(u.value, k - 1)*u.grad2)) ;
   }
   inline FAD2d sqrt(const FAD2d u) {
+
     double su = std::sqrt(u.value) ;
     return FAD2d(su,0.5*u.grad/max(su,1e-30),
 		 0.5*u.grad2/(max(su,1e-30)) - 0.25*u.grad*u.grad/(max(su*su*su,1e-30))) ;
