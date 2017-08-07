@@ -111,6 +111,12 @@ namespace Loci {
   MPI_Op MPI_FADD_MIN ;
   MPI_Op MPI_FADD_MAX ;
 
+  MPI_Datatype MPI_FADD2 ;
+  MPI_Op MPI_FADD2_SUM ;
+  MPI_Op MPI_FADD2_PROD ;
+  MPI_Op MPI_FADD2_MIN ;
+  MPI_Op MPI_FADD2_MAX ;
+
   int MPI_processes = 1;
   int MPI_rank = 0 ;
   bool useDebugDir = true ;
@@ -287,6 +293,23 @@ namespace Loci {
       rinout[i] = min(rinout[i],rin[i]) ;
   }
 
+  void sumFAD2d(FAD2d *rin, FAD2d *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] += rin[i] ;
+  }
+  void prodFAD2d(FAD2d *rin, FAD2d *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] *= rin[i] ;
+  }
+  void maxFAD2d(FAD2d *rin, FAD2d *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] = max(rinout[i],rin[i]) ;
+  }
+  void minFAD2d(FAD2d *rin, FAD2d *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] = min(rinout[i],rin[i]) ;
+  }
+
   
 
   //This is the first call to be made for any Loci program be it
@@ -321,7 +344,7 @@ namespace Loci {
       MPI_Datatype typelist[] = {MPI_DOUBLE,MPI_DOUBLE} ;
       MPI_Datatype FADD_pre ;
       MPI_Type_struct(count,blocklens,indices,typelist,&FADD_pre) ;
-      MPI_Type_create_resized(FADD_pre,indices[0],(MPI_Aint)sizeof(class FADd),
+      MPI_Type_create_resized(FADD_pre,indices[0],(MPI_Aint)sizeof(FADd),
 			      &MPI_FADD) ;
       MPI_Type_commit(&MPI_FADD) ;
       MPI_Type_free(&FADD_pre) ;
@@ -329,6 +352,29 @@ namespace Loci {
       MPI_Op_create((MPI_User_function *)prodFADd,1,&MPI_FADD_PROD) ;
       MPI_Op_create((MPI_User_function *)maxFADd,1,&MPI_FADD_MAX) ;
       MPI_Op_create((MPI_User_function *)minFADd,1,&MPI_FADD_MIN) ;
+
+    }
+
+    {
+      // Create FADD type
+      int count = 3 ;
+      int blocklens[] = {1,1,1} ;
+      MPI_Aint indices[3] ;
+      FAD2d tmp ;
+      indices[0] = (MPI_Aint)((char *) &(tmp.value) - (char *) &tmp) ;
+      indices[1] = (MPI_Aint)((char *) &(tmp.grad) - (char *) &tmp) ;
+      indices[2] = (MPI_Aint)((char *) &(tmp.grad2) - (char *) &tmp) ;
+      MPI_Datatype typelist[] = {MPI_DOUBLE,MPI_DOUBLE,MPI_DOUBLE} ;
+      MPI_Datatype FADD2_pre ;
+      MPI_Type_struct(count,blocklens,indices,typelist,&FADD2_pre) ;
+      MPI_Type_create_resized(FADD2_pre,indices[0],(MPI_Aint)sizeof(FAD2d),
+			      &MPI_FADD2) ;
+      MPI_Type_commit(&MPI_FADD2) ;
+      MPI_Type_free(&FADD2_pre) ;
+      MPI_Op_create((MPI_User_function *)sumFAD2d,1,&MPI_FADD2_SUM) ;
+      MPI_Op_create((MPI_User_function *)prodFAD2d,1,&MPI_FADD2_PROD) ;
+      MPI_Op_create((MPI_User_function *)maxFAD2d,1,&MPI_FADD2_MAX) ;
+      MPI_Op_create((MPI_User_function *)minFAD2d,1,&MPI_FADD2_MIN) ;
 
     }
       

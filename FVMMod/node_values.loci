@@ -342,7 +342,13 @@ namespace Loci {
 
   $rule unit(c2n_scalar_sump(X) ), constraint(pos)  { $c2n_scalar_sump(X) = 0 ; }
 
-  $type X store<Loci::FADd> ;
+#ifdef AUTODIFF2ND
+  typedef Loci::FAD2d FADTYPE ;
+#else
+  typedef Loci::FADd FADTYPE ;
+#endif
+
+  $type X store<FADTYPE> ;
 
   $rule apply((upper,lower,boundary_map)->face2node->c2n_scalar_sump(X) <-
 	      (upper,lower,boundary_map)->face2node->pos,cellcenter,X)[Loci::Summation],
@@ -391,7 +397,7 @@ namespace Loci {
     $boundary_scalar_sump(X) = 0 ;
   }
 
-  $type X_f store<Loci::FADd> ;
+  $type X_f store<FADTYPE> ;
   $rule apply(face2node->boundary_scalar_sump(X)<-
 	      face2node->pos,X_f,facecenter)[Loci::Summation],
     constraint(ci->X,no_symmetry_BC) {
@@ -413,7 +419,7 @@ namespace Loci {
     $c2n_v3d_sump(X) = vector3d<float>(0.,0.,0.) ;
   }
 
-  $type X store<vector3d<Loci::FADd> > ;
+  $type X store<vector3d<FADTYPE> > ;
   
   $rule apply((upper,lower,boundary_map)->face2node->c2n_v3d_sump(X)<-
 	      X,cellcenter,(upper,lower,boundary_map)->face2node->pos)[Loci::Summation],
@@ -464,7 +470,7 @@ namespace Loci {
     $boundary_v3d_sump(X) = vector3d<float>(0.0,0.0,0.0) ;
   }
 
-  $type X_f store<vector3d<FADd> > ;
+  $type X_f store<vector3d<FADTYPE> > ;
   
   $rule apply(face2node->boundary_v3d_sump(X)<-face2node->pos,X_f,facecenter)[Loci::Summation],constraint(ci,no_symmetry_BC) {
     int fsz = $face2node.size();

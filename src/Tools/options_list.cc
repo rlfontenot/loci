@@ -124,7 +124,7 @@ namespace Loci {
 
   void options_list::getOptionUnits(const string &option,
                                     const string &units,
-                                    FADd &value) const {
+                                    FAD2d &value) const {
     if(optionExists(option)) {
       if(getOptionValueType(option) == Loci::REAL) {
         getOption(option,value) ;
@@ -294,13 +294,13 @@ namespace Loci {
 
     void options_list::getOptionUnits(const std::string &vname, 
 				    const std::string &units,
-				    vector3d<FADd> &vec, 
-				    FADd scale) const {
+				    vector3d<FAD2d> &vec, 
+				    FAD2d scale) const {
     Loci::option_value_type ovt= getOptionValueType(vname) ;
     if(ovt == Loci::REAL) {
-      FADd v ;
+      FAD2d v ;
       getOption(vname,v) ;
-      vec = vector3d<FADd>(v*scale,0,0) ;
+      vec = vector3d<FAD2d>(v*scale,FAD2d(0.0,0.0,0.0),FAD2d(0.0,0.0,0.0)) ;
     } else if(getOptionValueType(vname) == Loci::UNIT_VALUE) {
       Loci::UNIT_type vu ;
       getOption(vname,vu) ;
@@ -310,9 +310,9 @@ namespace Loci {
 	    << ": " << vu << std::endl ;
 	throw StringError(oss.str()) ;
       } else {
-        FADd v ;
+        FAD2d v ;
         v = vu.get_value_inD(units) ;
-        vec = vector3d<FADd>(v,0,0) ;
+        vec = vector3d<FAD2d>(v,0.0,0.0) ;
       }
     } else if(ovt == Loci::LIST) {
       Loci::options_list::arg_list value_list ;
@@ -332,7 +332,7 @@ namespace Loci {
 	      << vname << std::endl ;
 	  throw StringError(oss.str()) ;
         }
-      FADd vecval[3] ;
+      FAD2d vecval[3] ;
       for(int i=0;i<3;++i) {
         if(value_list[i].type_of() == Loci::UNIT_VALUE) {
           Loci::UNIT_type vu ;
@@ -377,7 +377,7 @@ namespace Loci {
 	      << vname << std::endl ;
 	  throw StringError(oss.str()) ;
         }
-      FADd r=1 ,theta=0 ,eta=0 ;
+      FAD2d r=1 ,theta=0 ,eta=0 ;
       double conv = M_PI/180.0 ;
       if(value_list[0].type_of() == Loci::UNIT_VALUE) {
         Loci::UNIT_type vu ;
@@ -433,8 +433,8 @@ namespace Loci {
   }
   void options_list::getOptionUnits(const std::string &vname, 
 				    const std::string &units,
-				    vector3d<FADd> &vec) const {
-    return getOptionUnits(vname,units,vec,FADd(1.0,0.0)) ;
+				    vector3d<FAD2d> &vec) const {
+    return getOptionUnits(vname,units,vec,FAD2d(1.0,0.0,0.0)) ;
   }
 
   void options_list::getOption(const string &option, double &value) const {
@@ -451,7 +451,7 @@ namespace Loci {
       value = (*tmp).second.real_value ;
   }
 
-  void options_list::getOption(const string &option, FADd &value) const {
+  void options_list::getOption(const string &option, FAD2d &value) const {
     option_map::const_iterator tmp ;
     if((tmp = options_db.find(option)) == options_db.end()) {
         ostringstream oss ;
@@ -462,7 +462,9 @@ namespace Loci {
     }
     warn((*tmp).second.value_type != REAL) ;
     if((*tmp).second.value_type == REAL)
-      value = FADd((*tmp).second.real_value,(*tmp).second.real_grad) ;
+      value = FAD2d((*tmp).second.real_value,
+		    (*tmp).second.real_grad, 
+		    (*tmp).second.real_grad2) ;
   }
 
   void options_list::getOption(const string &option, UNIT_type &uvalue) const {
@@ -683,6 +685,12 @@ namespace Loci {
 	s.get() ;
 	real_grad = parse::get_real(s) ;
       }
+      real_grad2 = 0 ;
+      if(s.peek()=='^') {
+	while(s.peek()=='^')
+	  s.get() ;
+	real_grad2 = parse::get_real(s) ;
+      }
       parse::kill_white_space(s) ;
       if(parse::is_name(s)) {
         string units ;
@@ -703,7 +711,7 @@ namespace Loci {
         } while(opens!=0) ;
 
         units_value = UNIT_type(UNIT_type::MKS,"general",
-				FADd(real_value,real_grad),units) ;
+				FAD2d(real_value,real_grad,real_grad2),units) ;
         value_type = UNIT_VALUE ;
       } else
         value_type = REAL ;

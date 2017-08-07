@@ -32,7 +32,11 @@
 namespace Loci {
 
 #ifdef USE_AUTODIFF
+#ifdef AUTODIFF2ND
+  typedef Loci::FAD2d real_t ;
+#else
   typedef Loci::FADd real_t ;
+#endif
 #else
   typedef double real_t ;
 #endif
@@ -231,6 +235,9 @@ namespace Loci {
 
   inline vector3d<float> realToFloat(vector3d<FADd> v) { return vector3d<float>(realToFloat(v.x),realToFloat(v.y),realToFloat(v.z)); }
   inline vector3d<double> realToDouble(vector3d<FADd> v) { return vector3d<double>(realToDouble(v.x),realToDouble(v.y),realToDouble(v.z)); }
+
+  inline vector3d<float> realToFloat(vector3d<FAD2d> v) { return vector3d<float>(realToFloat(v.x),realToFloat(v.y),realToFloat(v.z)); }
+  inline vector3d<double> realToDouble(vector3d<FAD2d> v) { return vector3d<double>(realToDouble(v.x),realToDouble(v.y),realToDouble(v.z)); }
 
   //---------------------vector2d------------------//
   template <class T> 

@@ -45,14 +45,14 @@ namespace Loci {
   public:
     std::string unit_kind;//the kind of unit ,such as pressure, time and so on
     std::string input_unit;// the unit which you input
-    FADd input_value;// the value which you input
+    FAD2d input_value;// the value which you input
     enum unit_mode{MKS, CGS, check_available};
     // MKS: use MKS system
     // CGS: use CGS system
     //check_available: check the system if the unit available
     unit_mode mode;
 
-    FADd value;//temp container of value calculation
+    FAD2d value;//temp container of value calculation
     std::map<std::string,int> unit_num_map,unit_den_map;//containers of numerator and dnominator
     enum basic_unit_type {Length,Mass,Time,Temperature,Electric_current,
 			  Amount_of_substance,Luminous_intensity, Angle, NoDim};
@@ -89,9 +89,19 @@ namespace Loci {
     //check there is single temperature or temperature internal
     int is_single_temperature(const exprP input_expr);
     // if single temperature, do the conversion
-    void calculate_temperature(exprP &input_expr, FADd &value);
+    void calculate_temperature(exprP &input_expr, FAD2d &value);
+    void calculate_temperature(exprP &input_expr, FADd &value) {
+      FAD2d v ;
+      calculate_temperature(input_expr,v) ;
+      value = v ;
+    }
     // when you need to convert to other temperature, reserve do it.
-    void reverse_calculate_temperature(exprP &input_expr,FADd &value);
+    void reverse_calculate_temperature(exprP &input_expr,FAD2d &value);
+    void reverse_calculate_temperature(exprP &input_expr, FADd &value) {
+      FAD2d v ;
+      reverse_calculate_temperature(input_expr,v) ;
+      value = v ;
+    }
 
   public:
     exprP input(std::istream &in);// get the input unit
@@ -105,18 +115,27 @@ namespace Loci {
     bool private_is_compatible();
     //get the value in converted unit
     double get_value_in(const std::string unit_str);
-    FADd get_value_inD(const std::string unit_str);
+    FAD2d get_value_inD(const std::string unit_str);
     UNIT_type(unit_mode in_mode, std::string in_kind, double in_value, std::string in_unit) {mode=in_mode,unit_kind=in_kind,value=in_value,input_unit=in_unit;
     input_value=value;
     exprP exp;
     exp=expression::create(input_unit);
     output(exp);
     }
-    UNIT_type(unit_mode in_mode, std::string in_kind, FADd in_value, std::string in_unit) {mode=in_mode,unit_kind=in_kind,value=in_value,input_unit=in_unit;
-    input_value=value;
-    exprP exp;
-    exp=expression::create(input_unit);
-    output(exp);
+    UNIT_type(unit_mode in_mode, std::string in_kind, FADd in_value, std::string in_unit) {
+      mode=in_mode; unit_kind=in_kind; 
+      value=FAD2d(in_value.value,in_value.grad,0.0) ;
+      input_unit=in_unit;
+      input_value=value ;
+      exprP exp;
+      exp=expression::create(input_unit);
+      output(exp);
+    }
+    UNIT_type(unit_mode in_mode, std::string in_kind, FAD2d in_value, std::string in_unit) {mode=in_mode,unit_kind=in_kind,value=in_value,input_unit=in_unit;
+      input_value=value;
+      exprP exp;
+      exp=expression::create(input_unit);
+      output(exp);
     }
 
     UNIT_type() { mode=MKS; unit_kind=""; value = 0 ; conversion_factor=1; input_value = 0;}
@@ -140,7 +159,13 @@ namespace Loci {
     void change_to_basic_unit(std::map<std::string,int>initial_map,std::map<std::string,int>&num_map,std::map<std::string,int>&den_map,double &conversion_factor);
     void get_conversion(std::map<std::string,int> &num_map, std::map<std::string,int> &den_map,double &conversion_factor);
     bool check_unit(std::istream &in, double &value);//check input unit and get the value
-    bool check_unit(std::istream &in, FADd &value);//check input unit and get the value
+    bool check_unit(std::istream &in, FAD2d &value);//check input unit and get the value
+    bool check_unit(std::istream &in, FADd &value) {
+      FAD2d v ;
+      bool ret = check_unit(in,v) ;
+      value = v ;
+      return ret ;
+    }
     exprP set_default_unit(exprP &in_exp);
     int in_unit_kind();// check the unit_kind is available in db
 
