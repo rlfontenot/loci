@@ -145,7 +145,7 @@ inline bool quadSplitCompare(const pair<int, int>& e1, const pair<int, int> &e2)
 }
 
 
-//collect all edges that are split
+//collect all edges that are split, each process has all the edges that are split
 void collect_edge_split( vector<edgeSplit>& es, vector<quadSplit>& qs){
   es.clear();
  
@@ -202,14 +202,14 @@ void readSplit(string filename, const vector<int>& hex_min, vector<quadSplit>& s
   FILE* IFP = NULL ;
   const int P = MPI_processes ;
   const int R = MPI_rank ;
-  
+  int num_splits = 0;
   if(R == 0) {
     IFP = fopen(filename.c_str(), "r") ;
     if(IFP == NULL) {
       cerr << "can't open '" << filename << "'" << endl ;
       exit(-1) ;
     }
-    int num_splits = 0;
+   
     if(fscanf(IFP, "%d", &num_splits)!=1)input_error() ;
     cout<< "num_splits " << num_splits << endl;
     quadSplit quad_face;
@@ -290,6 +290,14 @@ void readSplit(string filename, const vector<int>& hex_min, vector<quadSplit>& s
       splits.resize(size);
       MPI_Recv(&splits[0],recv_count,MPI_INT,0,2,MPI_COMM_WORLD,&status) ;
     }
+  }
+  //sanity check
+  int total_num_splits = 0;
+  int my_num_splits = splits.size();
+  MPI_Reduce(&my_num_splits,&total_num_splits,1,MPI_INT,MPI_SUM,0,MPI_COMM_WORLD);
+  if(R==0 && total_num_splits != num_splits){
+    cerr<<"ERROR: not all splits are read in" << endl;
+    exit(-1);
   }
 }
 
@@ -1184,7 +1192,7 @@ void get_corners(int face_id, const Array<int,8> &hex, Array<int, 4> &corners){
     exit(1);
   }
 }
-//using binary search to check if an face is split
+//using binary search to check if a face is split
 int find_quad_split( vector<quadSplit>& splits,  int hex_id, int face_id, int start){
   if(splits.empty())return -1;
   int first = start;
@@ -1635,6 +1643,104 @@ bool split(const quadSplit& s,
 }
 
 
+bool count_split(const quadSplit& s,
+                 int& qf,
+                 int& tf){
+  // 5 mid points, 4 quads 
+  if(s.nodes[0] > 0 && s.nodes[1] > 0 && s.nodes[2] > 0 && s.nodes[3] > 0 && s.nodes[4] > 0){
+    qf += 4;
+    return true;
+  }
+  if(s.nodes[4] == 0){
+    // 4 mid points, 1 quad, 4 trias
+    if(s.nodes[0] > 0  && s.nodes[1] > 0 && s.nodes[2] > 0 && s.nodes[3] > 0 ){
+      qf += 1;
+      tf += 4;
+      return true;
+    }
+    
+    // 3 mid points, 1 quad, 3 trias
+    if(s.nodes[0] == 0  && s.nodes[1] > 0 && s.nodes[2] > 0 && s.nodes[3] > 0 ){
+      qf += 1;
+      tf += 3;
+      return true;
+    }
+
+    if(s.nodes[1] == 0  && s.nodes[0] > 0 && s.nodes[2] > 0 && s.nodes[3] > 0 ){
+      qf += 1;
+      tf += 3;
+      return true;
+    }
+
+    if(s.nodes[2] == 0  && s.nodes[0] > 0 && s.nodes[1] > 0 && s.nodes[3] > 0 ){
+      qf += 1;
+      tf += 3;
+      return true;
+    }
+
+    if(s.nodes[3] == 0  && s.nodes[0] > 0 && s.nodes[1] > 0 && s.nodes[2] > 0 ){
+      qf += 1;
+      tf += 3;
+      return true;
+    }
+
+    //2 mid points, 4 trias
+    if(s.nodes[0] == 0  && s.nodes[1] == 0 && s.nodes[2] > 0 && s.nodes[3] > 0 ){
+      tf += 4;
+      return true;
+    }
+      
+    if(s.nodes[1] == 0  && s.nodes[2] == 0 && s.nodes[3] > 0 && s.nodes[0] > 0 ){
+      tf += 4;
+      return true;
+    }
+
+    if(s.nodes[2] == 0  && s.nodes[3] == 0 && s.nodes[0] > 0 && s.nodes[1] > 0 ){
+      tf += 4;
+      return true;
+    }
+
+    if(s.nodes[3] == 0  && s.nodes[0] == 0 && s.nodes[1] > 0 && s.nodes[2] > 0 ){
+      tf += 4;
+      return true;
+    }
+
+    //2 mid points, 2 quads
+    if(s.nodes[0] == 0  && s.nodes[2] == 0 && s.nodes[1] > 0 && s.nodes[3] > 0 ){
+
+      qf += 2;
+      return true;         
+    }
+
+    if(s.nodes[1] == 0  && s.nodes[3] == 0 && s.nodes[0] > 0 && s.nodes[2] > 0 ){
+      qf += 2;
+      return true;     
+    }
+
+    //1 mid point, 3 trias
+    if(s.nodes[0] == 0  && s.nodes[1] == 0 && s.nodes[2] == 0 && s.nodes[3] > 0 ){
+      tf += 3;
+      return true;
+    }
+
+    if(s.nodes[1] == 0  && s.nodes[2] == 0 && s.nodes[3] == 0 && s.nodes[0] > 0 ){
+      tf += 3;
+      return true;
+    }
+
+    if(s.nodes[2] == 0  && s.nodes[3] == 0 && s.nodes[0] == 0 && s.nodes[1] > 0 ){
+      tf += 3;
+      return true;
+    }
+
+    if(s.nodes[3] == 0  && s.nodes[0] == 0 && s.nodes[1] == 0 && s.nodes[2] > 0 ){
+      tf += 3;
+      return true;
+    }
+  }
+  cerr<<" split() has cases that can not handle" << s.nodes[0] << " "<< s.nodes[1] << " "<<s.nodes[2] << " "<<s.nodes[3] << " "<<s.nodes[4] <<endl;
+  return false;  
+}
 
 
 void convert2face(store<vector3d<double> > &pos,
@@ -1643,10 +1749,8 @@ void convert2face(store<vector3d<double> > &pos,
                   vector<Array<int,6> > &prisms, vector<Array<int,8> > &hexs,
                   const vector<int>& hex_min, vector<quadSplit>& splits,
                   multiMap &face2node,Map &cl, Map &cr) {
-  //collect edge splits before quad splits are modified
-  vector<edgeSplit> edge_splits;
-  if(split_file_exist)collect_edge_split(edge_splits, splits); 
-  
+ 
+  if(MPI_rank==0)cerr<<"start convert2face" << endl;
   
   //compute the start cellid of each process
   int maxid = std::numeric_limits<int>::min()+2048 ;
@@ -1662,17 +1766,36 @@ void convert2face(store<vector3d<double> > &pos,
   for(int i=0;i<MPI_rank;++i)
     cellid += cellsizes[i] ;
 
-  //estimate num of faces, not exactly , only for memeory allocation 
-  int num_quad_faces =
-    qfaces.size() + pyramids.size()+ prisms.size()*3 + hexs.size()*6 + splits.size() *4 ;
-  int num_tria_faces =
-    tfaces.size() + tets.size()*4 + pyramids.size()*4 + prisms.size()*2  + splits.size()*4;
+  
+  //to save memory cost, count num_faces generated by splits
+  int num_quads_from_splits = 0;
+  int num_tria_from_splits = 0;
+  int num_splits =  splits.size();
+  for(int i = 0 ; i < num_splits; i++)count_split(splits[i],num_quads_from_splits, num_tria_from_splits);
 
-  //put boundary faces in
+
+  // //estimate num of faces, not exactly , only for memeory allocation
+  // int num_quad_faces =
+  //   qfaces.size() + pyramids.size()+ prisms.size()*3 + hexs.size()*6 + splits.size() *4 ;
+  // int num_tria_faces =
+  //   tfaces.size() + tets.size()*4 + pyramids.size()*4 + prisms.size()*2  + splits.size()*4;
+
+  int num_quad_faces =
+    qfaces.size() + pyramids.size()+ prisms.size()*3 + hexs.size()*6 - num_splits + num_quads_from_splits;
+  int num_tria_faces =
+    tfaces.size() + tets.size()*4 + pyramids.size()*4 + prisms.size()*2  + num_tria_from_splits;
+
+  if(MPI_rank==0)cerr<<" allocate memory for faces, num_tria_faces: " <<num_tria_faces << " num_quad_faces: " << num_quad_faces<<  endl;
+  
   vector<triaFace> tria(num_tria_faces) ;
   vector<quadFace> quad(num_quad_faces) ;
+
+  if(MPI_rank==0)cerr<<" collecting faces" << endl;
+  
   int tf = 0 ;
   int qf = 0 ;
+
+  //put boundary faces in
   for(size_t i=0;i<tfaces.size();++i) {
     for(int n=0;n<3;++n)
       tria[tf].nodes[n] = tfaces[i][n] ;
@@ -1793,7 +1916,7 @@ void convert2face(store<vector3d<double> > &pos,
 
   //cellid here and hex_id in .split file are different, hex_id start with 1
 
-  
+  int split_found = 0;
   int start_ind = 0;
   for(size_t i=0;i<hexs.size();++i) {
     int hex_id = hex_min[Loci::MPI_rank] + i;
@@ -1810,20 +1933,30 @@ void convert2face(store<vector3d<double> > &pos,
         quad[qf].left = true ;
         quad[qf++].cell = cellid ;
       }else{
+        split_found++;
         start_ind = ind;
         split(splits[ind], quad, qf, tria, tf, cellid);
       }
     }
     cellid++ ;
   }
+  //sanity check again 
+  if((unsigned int)split_found != splits.size()){
+    cerr<<" ERROR: not all splits are processed " << endl;
+    exit(-1);
+  }
   
-  num_quad_faces = qf;
-  num_tria_faces = tf;
-  //remove extra memory allocated
-  tria.resize(tf);
-  quad.resize(qf);
-  splits.clear();
-  
+  if(num_quad_faces != qf || num_tria_faces != tf){
+    cerr<<"ERROR: face counting not correct" << endl;
+    exit(-1);
+  }
+  // //remove extra memory allocated
+  // tria.resize(tf);
+  // quad.resize(qf);
+
+ 
+  if(MPI_rank==0)cerr<<" preparing tria faces" << endl;
+
   // prepare triangle faces (sort them)
   for(size_t i=0;i<tria.size();++i) {
     // pos numbers nodes from zero
@@ -1844,7 +1977,9 @@ void convert2face(store<vector3d<double> > &pos,
       tria[i].left = !tria[i].left ;
     }
   }
-  
+
+
+  if(MPI_rank==0)cerr<<" preparing quad faces" << endl;
   // prepare quad faces (sort them, but be careful)
   for(size_t i=0;i<quad.size();++i) {
     // pos numbers nodes from zero
@@ -1874,7 +2009,7 @@ void convert2face(store<vector3d<double> > &pos,
     }
   }
   
-  
+  if(MPI_rank==0)cerr<<" sorting quad faces" << endl;
   //sort quad
   int qsz = quad.size() ;
   int mqsz = 0;
@@ -1883,18 +2018,21 @@ void convert2face(store<vector3d<double> > &pos,
   if(mqsz != 0) {
     Loci::parSampleSort(quad,quadCompare,MPI_COMM_WORLD) ;
   }
- 
+
+  if(MPI_rank==0)cerr<<" getting single quad faces" << endl;
   //check if there is single faces in quad, if yes, remove them from quad, and split the single face into tria
   vector<quadFace> single_quad = get_single_face(quad, quadEqual);
   int num_single_quad = single_quad.size();
   //vector<quadFace> single_quad_copy(single_quad);
   int total_num_single_quad = 0;
   MPI_Allreduce(&num_single_quad,&total_num_single_quad,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD) ;
-  
+
+
+  if(MPI_rank==0)cerr<<" splitting single quad faces" << endl;
   if(num_single_quad != 0){
     split_quad(single_quad, tria);
   }
-  
+  if(MPI_rank==0)cerr<<" sorting tria faces" << endl;
   //sort tria
   int tsz = tria.size() ;
   int mtsz ;
@@ -1926,14 +2064,27 @@ void convert2face(store<vector3d<double> > &pos,
     Loci::Abort() ;
   }
 
+  if(MPI_rank==0)cerr<<" collecting edge splits" << endl;
+  //collect edge splits before quad splits are modified
+  vector<edgeSplit> edge_splits;
+  if(split_file_exist)collect_edge_split(edge_splits, splits); 
+
+  //release the memory for quad splits
+  vector<quadSplit>().swap(splits);
+  //release memory for cells
+  vector<Array<int,5> >().swap(qfaces) ;
+  vector<Array<int,4> >().swap(tfaces) ;
+  vector<Array<int,4> >().swap(tets) ;
+  vector<Array<int,5> >().swap(pyramids) ;
+  vector<Array<int,6> >().swap(prisms) ;
+  vector<Array<int,8> >().swap(hexs) ;
 
 
   //due to edge split, trias and quads can turn into general faces
-  
   int ntria = tria.size()/2 ;
   int nquad = quad.size()/2 ;
   int nfaces = ntria+nquad ;
-  
+  if(MPI_rank==0)cerr<<" creating face2node, cl, cr" << endl; 
   ncells = 0 ;
   for(int i=0;i<MPI_processes;++i)
     ncells += cellsizes[i] ;
@@ -2019,6 +2170,7 @@ void convert2face(store<vector3d<double> > &pos,
         face2node[fc][j] = corner[j] ;
       }
     }else{
+      
       int nedge = 0;
       for(int j=0;j<3;++j) {
         face2node[fc][nedge++] = corner[j] ;
@@ -2088,10 +2240,11 @@ void convert2face(store<vector3d<double> > &pos,
       if(nedge != count[fc]){
         cerr<<"ERROR: face " << fc << " has count " << count[fc] << " num_node " << nedge << endl;
       }
+      
     }
     fc++ ;
   }
- 
+  if(MPI_rank==0)cerr<<"done with convert2face" << endl;
 }
   
  
@@ -2967,10 +3120,11 @@ int main(int ac, char* av[]) {
   for(size_t i=0;i<bcs.size();++i)
     surf_ids.push_back(pair<int,string>(bcs[i].id,bcs[i].name)) ;
 
+
+
  
   multiMap face2node ;
   Map cl,cr ;
-  
   if(cellVertexTransform) {
     convert2cellVertexface(pos,qfaces,tfaces,tets,pyramids,prisms,hexs,
                            face2node,cl,cr) ;
@@ -2978,7 +3132,7 @@ int main(int ac, char* av[]) {
     convert2face(pos,qfaces,tfaces,tets,pyramids,prisms,hexs, hex_min,splits,
                  face2node,cl,cr) ;
   }
-
+  
   
   if(MPI_rank == 0)
     cerr << "coloring matrix" << endl ;
