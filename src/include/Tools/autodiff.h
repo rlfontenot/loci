@@ -1481,11 +1481,9 @@ namespace Loci {
 
   inline float realToFloat(const FADd &v) { return float(v.value) ; }
   inline double realToDouble(const FADd &v) { return v.value ; }
-  //  inline int signbit(const FADd &v) { return signbit(v.value) ; }
 
   inline float realToFloat(const FAD2d &v) { return float(v.value) ; }
   inline double realToDouble(const FAD2d &v) { return v.value ; }
-  //  inline int signbit(const FAD2d &v) { return signbit(v.value) ; }
 }
 
 #endif
