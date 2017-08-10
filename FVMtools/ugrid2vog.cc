@@ -3051,10 +3051,13 @@ int main(int ac, char* av[]) {
   
   
   struct stat buffer;   
-  split_file_exist =  (stat (splitfile.c_str(), &buffer) == 0);
-  
+  int stat_out = 0 ;
+  if(Loci::MPI_rank == 0)
+    stat_out = stat (splitfile.c_str(), &buffer) ;
+  MPI_Bcast(&stat_out,1,MPI_INT,0,MPI_COMM_WORLD) ;
+  split_file_exist = (stat_out == 0) ;
+
   if(split_file_exist)readSplit(splitfile,hex_min, splits);
-  
   
   if(posScale != 1.0) {
     FORALL(pos.domain(),nd) {
