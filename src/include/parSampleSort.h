@@ -44,6 +44,10 @@ namespace Loci {
     if(p == 1) // if serial run, we are finished
       return ;
 
+    MPI_Datatype bytearray ;
+    MPI_Type_vector(sizeof(T),1,1,MPI_BYTE,&bytearray) ;
+    MPI_Type_commit(&bytearray) ;
+
     int sz = list.size() ;
     std::vector<int> sizes(p) ;
     MPI_Allgather(&sz,1,MPI_INT,&sizes[0],1,MPI_INT,comm) ;
@@ -85,7 +89,7 @@ namespace Loci {
           for(int j=0;j<len;++j)
             recv[s2+j] = list[s1+j] ;
         } else {
-          MPI_Irecv(&recv[s2],len*sizeof(T),MPI_BYTE,i,55,comm,
+          MPI_Irecv(&recv[s2],len,bytearray,i,55,comm,
                     &requests[req++]) ;
         }
       }
@@ -102,7 +106,7 @@ namespace Loci {
         int s1 = li-sdist[r] ;
         FATAL(s1 < 0) ;
         FATAL(len <= 0) ;
-        MPI_Send(&list[s1],len*sizeof(T),MPI_BYTE,i,55,comm) ;
+        MPI_Send(&list[s1],len,bytearray,i,55,comm) ;
       }
     }
 
@@ -111,6 +115,7 @@ namespace Loci {
       MPI_Waitall(req,&requests[0],&status[0]) ;
     }
     list.swap(recv) ;
+    MPI_Type_free(&bytearray) ;
   }
   
   // With user supplied comparison operator
@@ -123,6 +128,10 @@ namespace Loci {
                        MPI_Comm comm) {
     int p = 0 ;
     MPI_Comm_size(comm,&p) ;
+
+    MPI_Datatype bytearray ;
+    MPI_Type_vector(sizeof(T),1,1,MPI_BYTE,&bytearray) ;
+    MPI_Type_commit(&bytearray) ;
 
     splitters = std::vector<T>(p-1) ;
     std::vector<T> allsplits(p*(p-1)) ;
@@ -145,13 +154,14 @@ namespace Loci {
       for(int i=1;i<p;++i) 
         splitters[i-1] = input[(i*nlocal)/p] ;
 
-    int tsz = sizeof(T) ;
-    MPI_Allgather(&splitters[0],(p-1)*tsz,MPI_BYTE,
-                  &allsplits[0],(p-1)*tsz,MPI_BYTE,comm) ;
+    MPI_Allgather(&splitters[0],(p-1),bytearray,
+                  &allsplits[0],(p-1),bytearray,comm) ;
     
     std::sort(allsplits.begin(),allsplits.end(),cmp) ;
     for(int i=1;i<p;++i)
       splitters[i-1] = allsplits[i*(p-1)] ;
+
+    MPI_Type_free(&bytearray) ;
     //    splitters[p-1] = std::numeric_limits<T>::max() ;
     return ;
   }
@@ -168,6 +178,11 @@ namespace Loci {
       cerr << "parSplitSort passed invalid splitter" << endl ;
       Loci::Abort() ;
     }
+
+    MPI_Datatype bytearray ;
+    MPI_Type_vector(sizeof(T),1,1,MPI_BYTE,&bytearray) ;
+    MPI_Type_commit(&bytearray) ;
+
     int s=0 ;
     std::vector<int> scounts(p,0) ;
     for(size_t i=0;i<list.size();++i)
@@ -178,9 +193,6 @@ namespace Loci {
           ++s ;
         scounts[s]++ ;
       }
-
-    for(size_t i=0;i<scounts.size();++i) 
-      scounts[i]*=sizeof(T) ;
 
     std::vector<int> sdispls(p) ;
     sdispls[0] = 0 ;
@@ -196,16 +208,17 @@ namespace Loci {
       rdispls[i] = rdispls[i-1]+rcounts[i-1] ;
     }
   
-    int result_size = (rdispls[p-1]+rcounts[p-1])/sizeof(T) ;
+    int result_size = (rdispls[p-1]+rcounts[p-1]) ;
     
     std::vector<T> sorted_pnts(result_size) ;
 
-    MPI_Alltoallv(&list[0],&scounts[0],&sdispls[0],MPI_BYTE,
-                  &sorted_pnts[0],&rcounts[0],&rdispls[0],MPI_BYTE,
+    MPI_Alltoallv(&list[0],&scounts[0],&sdispls[0],bytearray,
+                  &sorted_pnts[0],&rcounts[0],&rdispls[0],bytearray,
                   comm) ;
 
     list.swap(sorted_pnts) ;
     std::sort(list.begin(),list.end(),cmp) ;
+    MPI_Type_free(&bytearray) ;
     return ;
   }
 
@@ -218,6 +231,7 @@ namespace Loci {
       return ;
     }
       
+
     long long lsz = int(list.size()) ;
     long long tsz = 0 ;
     MPI_Allreduce(&lsz,&tsz,1,MPI_LONG_LONG,MPI_SUM,comm) ;
@@ -231,6 +245,9 @@ namespace Loci {
       int r = 0 ;
       MPI_Comm_rank(comm,&r) ;
       int color = 1 ;
+      MPI_Datatype bytearray ;
+      MPI_Type_vector(sizeof(T),1,1,MPI_BYTE,&bytearray) ;
+      MPI_Type_commit(&bytearray) ;
       if(r < target_p) {
         color = 0 ;
         int loc_size = int(lsz) ;
@@ -252,7 +269,7 @@ namespace Loci {
         for(int i=r+target_p;i<p;i+=target_p) {
 
           MPI_Status stat ;
-          MPI_Recv(&nlist[loc],sizeof(T)*recv_sizes[cnt],MPI_BYTE,i,2,comm,&stat) ;
+          MPI_Recv(&nlist[loc],recv_sizes[cnt],bytearray,i,2,comm,&stat) ;
           loc += recv_sizes[cnt] ;
           cnt++ ;
         }
@@ -261,10 +278,11 @@ namespace Loci {
         int dest = r % target_p ;
         int sz = list.size() ;
         MPI_Send(&sz,1,MPI_INT,dest,1,comm) ;
-        MPI_Send(&list[0],sz*sizeof(T),MPI_BYTE,dest,2,comm) ;
+        MPI_Send(&list[0],sz,bytearray,dest,2,comm) ;
         std::vector<T> nlist ;
         list.swap(nlist) ;
       }
+      MPI_Type_free(&bytearray) ;
       // Split off smaller group of processors
       MPI_Comm subset ;
       MPI_Comm_split(comm,color,r,&subset) ;
@@ -325,10 +343,14 @@ namespace Loci {
       for(int i=1;i<p;++i) 
         splitters[i-1] = input[i*(nlocal/p)] ;
 
-    int tsz = sizeof(T) ;
+    MPI_Datatype bytearray ;
+    MPI_Type_vector(sizeof(T),1,1,MPI_BYTE,&bytearray) ;
+    MPI_Type_commit(&bytearray) ;
 
-    MPI_Allgather(&splitters[0],(p-1)*tsz,MPI_BYTE,
-                  &allsplits[0],(p-1)*tsz,MPI_BYTE,comm) ;
+    MPI_Allgather(&splitters[0],(p-1),bytearray,
+                  &allsplits[0],(p-1),bytearray,comm) ;
+
+    MPI_Type_free(&bytearray) ;
 
     std::sort(allsplits.begin(),allsplits.end()) ;
 
@@ -358,9 +380,6 @@ namespace Loci {
         scounts[s]++ ;
       }
 
-    for(size_t i=0;i<scounts.size();++i) 
-      scounts[i]*=sizeof(T) ;
-
     std::vector<int> sdispls(p) ;
     sdispls[0] = 0 ;
     for(int i=1;i<p;++i)
@@ -377,15 +396,19 @@ namespace Loci {
       rdispls[i] = rdispls[i-1]+rcounts[i-1] ;
     }
   
-    int result_size = (rdispls[p-1]+rcounts[p-1])/sizeof(T) ;
+    int result_size = (rdispls[p-1]+rcounts[p-1]) ;
 
     std::vector<T> sorted_pnts(result_size) ;
     
+    MPI_Datatype bytearray ;
+    MPI_Type_vector(sizeof(T),1,1,MPI_BYTE,&bytearray) ;
+    MPI_Type_commit(&bytearray) ;
 
-    MPI_Alltoallv(&list[0],&scounts[0],&sdispls[0],MPI_BYTE,
-                  &sorted_pnts[0],&rcounts[0],&rdispls[0],MPI_BYTE,
+    MPI_Alltoallv(&list[0],&scounts[0],&sdispls[0],bytearray,
+                  &sorted_pnts[0],&rcounts[0],&rdispls[0],bytearray,
                   comm) ;
     
+    MPI_Type_free(&bytearray) ;
     list.swap(sorted_pnts) ;
     std::sort(list.begin(),list.end()) ;
     return ;
