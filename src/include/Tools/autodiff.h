@@ -384,12 +384,13 @@ namespace Loci {
 
     return stream;
   }
+
 #ifdef NO_CMATH
-  inline FAD2d ceil(const FAD2d u) {
-    return FAD2d(::ceil(u.value),0.0, 0.0) ;
+  inline double ceil(const FAD2d u) {
+    return ::ceil(u.value) ;
   }
-  inline FAD2d floor(const FAD2d u) {
-    return FAD2d(::floor(u.value),0.0, 0.0) ;
+  inline double floor(const FAD2d u) {
+    return ::floor(u.value) ;
   }
   inline FAD2d sin(const FAD2d u) {
     double su = ::sin(u.value) ;
@@ -577,11 +578,11 @@ namespace Loci {
 
 
 #else
-  inline FAD2d ceil(const FAD2d u) {
-    return FAD2d(std::ceil(u.value),0.0, 0.0) ;
+  inline double ceil(const FAD2d u) {
+    return std::ceil(u.value) ;
   }
-  inline FAD2d floor(const FAD2d u) {
-    return FAD2d(std::floor(u.value),0.0, 0.0) ;
+  inline double floor(const FAD2d u) {
+    return std::floor(u.value) ;
   }
   inline FAD2d sin(const FAD2d u) {
     double su = std::sin(u.value) ;
@@ -1216,11 +1217,11 @@ namespace Loci {
     return stream;
   }
 #ifdef NO_CMATH
-  inline FADd ceil(const FADd u) {
-    return FADd(::ceil(u.value),0.0) ;
+  inline double ceil(const FADd u) {
+    return ::ceil(u.value) ;
   }
-  inline FADd floor(const FADd u) {
-    return FADd(::floor(u.value),0.0) ;
+  inline double floor(const FADd u) {
+    return ::floor(u.value) ;
   }
   inline FADd sin(const FADd u) {
     return FADd(::sin(u.value), u.grad*::cos(u.value));
@@ -1339,11 +1340,11 @@ namespace Loci {
 
 
 #else
-  inline FADd ceil(const FADd u) {
-    return FADd(std::ceil(u.value),0.0) ;
+  inline double ceil(const FADd u) {
+    return std::ceil(u.value) ;
   }
-  inline FADd floor(const FADd u) {
-    return FADd(std::floor(u.value),0.0) ;
+  inline double floor(const FADd u) {
+    return std::floor(u.value) ;
   }
   inline FADd sin(const FADd u) {
     return FADd(std::sin(u.value), u.grad*std::cos(u.value));
@@ -1484,6 +1485,7 @@ namespace Loci {
 
   inline float realToFloat(const FAD2d &v) { return float(v.value) ; }
   inline double realToDouble(const FAD2d &v) { return v.value ; }
+
 }
 
 #endif
