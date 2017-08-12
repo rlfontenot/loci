@@ -105,6 +105,88 @@ void cfread(void *ptr, size_t size, size_t nmemb, FILE *stream) {
   if(nread != nmemb)
     input_error() ;
 }
+struct quadFace {
+  Array<int,4> nodes ;
+  int cell ;
+  bool left ;
+} ;
+
+
+               
+struct triaFace {
+  Array<int,3> nodes ;
+  int cell ;
+  bool left ;
+} ;
+
+struct edge {
+  pair<int,int> nodes ;
+  bool triEdge ;
+  bool cvEdge ;
+  edge(int n1, int n2, bool te,bool cve) {
+    nodes.first=min(n1,n2) ;
+    nodes.second=max(n1,n2) ;
+    triEdge = te ;
+    cvEdge = cve ;
+  }
+  edge() {} 
+} ;
+
+
+
+
+inline bool quadCompare(const quadFace &f1, const quadFace &f2) {
+  return ((f1.nodes[0] < f2.nodes[0]) ||
+          (f1.nodes[0] == f2.nodes[0] && f1.nodes[1] < f2.nodes[1]) ||
+          (f1.nodes[0] == f2.nodes[0] && f1.nodes[1] == f2.nodes[1] &&
+           f1.nodes[2] < f2.nodes[2]) ||
+          (f1.nodes[0] == f2.nodes[0] && f1.nodes[1] == f2.nodes[1] &&
+           f1.nodes[2] == f2.nodes[2] && f1.nodes[3] < f2.nodes[3])) ;
+}
+
+inline bool triaCompare(const triaFace &f1, const triaFace &f2) {
+  return ((f1.nodes[0] < f2.nodes[0]) ||
+          (f1.nodes[0] == f2.nodes[0] && f1.nodes[1] < f2.nodes[1]) ||
+          (f1.nodes[0] == f2.nodes[0] && f1.nodes[1] == f2.nodes[1] &&
+           f1.nodes[2] < f2.nodes[2])) ;
+}
+
+
+inline bool quadEqual(const quadFace &f1, const quadFace &f2) {
+  return ((f1.nodes[0] == f2.nodes[0]) &&
+          (f1.nodes[1] == f2.nodes[1]) &&
+          (f1.nodes[2] == f2.nodes[2]) &&
+          (f1.nodes[3] == f2.nodes[3]));
+}
+
+inline bool triaEqual(const triaFace &f1, const triaFace &f2) {
+  return ((f1.nodes[0] == f2.nodes[0]) &&
+          (f1.nodes[1] == f2.nodes[1]) &&
+          (f1.nodes[2] == f2.nodes[2]));
+  
+}
+
+inline bool edgeEqual(const edge &e1, const edge &e2) {
+  return ((e1.nodes.first == e2.nodes.first) &&
+          (e1.nodes.second == e2.nodes.second)) ;
+
+}
+
+inline bool edgeCompare(const edge &e1, const edge &e2) {
+  return ((e1.nodes.first < e2.nodes.first) ||
+          (e1.nodes.first == e2.nodes.first && 
+	   e1.nodes.second < e2.nodes.second)) ;
+}
+
+inline bool pairCompare(const pair<int,int> &p1, const pair<int,int> &p2) {
+  return ((p1.first < p2.first) ||
+          (p1.first == p2.first && 
+	   p1.second < p2.second)) ;
+}
+inline bool pairEqual(const pair<int,int> &p1, const pair<int,int> &p2) {
+  return ((p1.first == p2.first) &&
+          (p1.second == p2.second)) ;
+}
 //as shown  in simcenter/system/release/doc/ug_io/3d_input_output_grids.html SPLIT FACE HEX ELEMENT CONNECTIVITY
 struct quadSplit {
   Array<int,5> nodes ;
@@ -149,9 +231,9 @@ inline bool quadSplitCompare(const pair<int, int>& e1, const pair<int, int> &e2)
 void collect_edge_split( vector<edgeSplit>& es, vector<quadSplit>& qs){
   es.clear();
  
-  int num_face = qs.size();
+  size_t num_face = qs.size();
   if(num_face > 0) es.reserve(num_face*4);
-  for(int i = 0; i < num_face; i++){
+  for(size_t i = 0; i < num_face; i++){
     for(int j = 0; j < 4; j++){
       if(qs[i].nodes[j]>0)es.push_back(edgeSplit((qs[i].corners[j])-1,(qs[i].corners[(j+1)%4])-1, (qs[i].nodes[j])-1));
     }
@@ -161,25 +243,67 @@ void collect_edge_split( vector<edgeSplit>& es, vector<quadSplit>& qs){
   es.resize(itr-es.begin());
 
   const int P = Loci::MPI_processes;
-  int my_size = es.size()*3;
-  if(P>1){
-    vector<int> sizes(P);
-    MPI_Allgather(&my_size,1, MPI_INT, &sizes[0], 1, MPI_INT, MPI_COMM_WORLD) ;
-    int total_size = 0;
-    for(int i = 0; i < P; i++)total_size += sizes[i];
-    vector<edgeSplit> recv(total_size/3);
-    vector<int> recv_disp(P);
-    recv_disp[0] = 0 ;
-    for(int i=1;i<P;++i)
-      recv_disp[i] = recv_disp[i-1]+sizes[i-1]; 
-    MPI_Allgatherv(&es[0], my_size, MPI_INT, &recv[0], &sizes[0], &recv_disp[0], MPI_INT, MPI_COMM_WORLD);
-    std::sort(recv.begin(), recv.end(), edgeSplitCompare) ;
-    vector<edgeSplit>::iterator itr =  std::unique(recv.begin(), recv.end(), edgeSplitEqual);
-    recv.resize(itr-recv.begin());
-    es.swap(recv);
+  //int my_size = es.size()*3;
+  // if(P>1){
+  //   vector<int> sizes(P);
+  //   MPI_Allgather(&my_size,1, MPI_INT, &sizes[0], 1, MPI_INT, MPI_COMM_WORLD) ;
+  //   int total_size = 0;
+  //   for(int i = 0; i < P; i++)total_size += sizes[i];
+  //   vector<edgeSplit> recv(total_size/3);
+  //   vector<int> recv_disp(P);
+  //   recv_disp[0] = 0 ;
+  //   for(int i=1;i<P;++i)
+  //     recv_disp[i] = recv_disp[i-1]+sizes[i-1]; 
+  //   MPI_Allgatherv(&es[0], my_size, MPI_INT, &recv[0], &sizes[0], &recv_disp[0], MPI_INT, MPI_COMM_WORLD);
+  //   std::sort(recv.begin(), recv.end(), edgeSplitCompare) ;
+  //   vector<edgeSplit>::iterator itr =  std::unique(recv.begin(), recv.end(), edgeSplitEqual);
+  //   recv.resize(itr-recv.begin());
+  //   es.swap(recv);
+  // }
+
+  if(P > 1){
+    Loci::parSampleSort(es,edgeSplitCompare,MPI_COMM_WORLD) ;
+    vector<edgeSplit>::iterator itr =  std::unique(es.begin(), es.end(), edgeSplitEqual);
+    es.resize(itr-es.begin());
   }
 }
 
+
+
+//collect the edges each processor owns, then sort and unique them locally 
+void collect_edge_from_face(const vector<quadFace>& quad,
+                            const vector<triaFace>& tria,
+                            vector<pair<int, int> >& es){
+  es.clear();
+
+  size_t num_quad = quad.size();
+  size_t num_tria = tria.size();
+
+  try{
+    es.reserve(num_quad*4+num_tria*3);
+  }catch(const std::exception& e) { // caught by reference to base
+    std::cerr << " a standard exception was caught, with message '"
+              << e.what() << endl;
+  }
+  
+  for(size_t i = 0; i < num_quad; i++){
+    for(size_t j = 0; j < 4; j++){
+      int n1 = quad[i].nodes[j];
+      int n2 = quad[i].nodes[(j+1)%4];
+      es.push_back(pair<int, int>(min(n1, n2),max(n1, n2)));
+    }
+  }
+  for(size_t i = 0; i < num_tria; i++){
+    for(int j = 0; j < 3; j++){
+      int n1 = tria[i].nodes[j];
+      int n2 = tria[i].nodes[(j+1)%3];
+      es.push_back(pair<int, int>(min(n1, n2), max(n1, n2)));
+    }
+  }
+  std::sort(es.begin(), es.end(), pairCompare) ;
+  vector<pair<int, int> >::iterator itr =  std::unique(es.begin(), es.end(), pairEqual);
+  es.resize(itr-es.begin());
+}
 //using binary search to check if an edge is split
 int find_edge_split( vector<edgeSplit>& edge_splits, int node1, int node2){
   if(edge_splits.empty())return -1;
@@ -195,6 +319,154 @@ int find_edge_split( vector<edgeSplit>& edge_splits, int node1, int node2){
   }
   return -1;
 }
+//redistribute edge_splits according to the edges each processor owns
+//es: all edges each processor owns, sorted
+//edge_splits:
+//     before: sorted, distributed according to global order
+//     after: sorted, distributed according to the edges each processor owns
+void redistribute_edge_split( const vector<pair<int, int> >& es,  vector<edgeSplit>& edge_splits){
+  int P = MPI_processes;
+  size_t num_edges = es.size();
+  size_t num_splits = edge_splits.size();
+  if(MPI_rank == 0) cerr << "      gather  the first splits of each processor " << endl;
+
+  //first all gather the first splits of each processor
+  int dummy_number = std::numeric_limits<int>::max();
+  vector<int> first_split(2, dummy_number);
+  if(num_splits> 0){
+    first_split[0] = (edge_splits[0]).n1;
+    first_split[1] = (edge_splits[0]).n2;
+  }
+  vector<pair<int, int> > first_splits(P+1);
+  MPI_Allgather(&first_split[0],2, MPI_INT, &first_splits[0], 2, MPI_INT, MPI_COMM_WORLD) ;
+  first_splits[P] = pair<int, int>(dummy_number, dummy_number);
+  
+  if(MPI_rank == 0) cerr << "     for each edge in es, find which processor owns its splits   " << endl;
+  vector<int> owner_p(num_edges, -1);
+  vector<int> send_count(P, 0);
+  vector<int> recv_count(P, 0);
+  int current_p = 0;
+  
+  for(size_t i = 0; i < num_edges; i++){
+    if(pairCompare(es[i], first_splits[current_p+1])){
+      send_count[current_p] += 2;
+      owner_p[i] = current_p;
+    }else{
+      while(current_p < P && (!pairCompare(es[i], first_splits[current_p+1]))) current_p++;
+      if(pairCompare(es[i], first_splits[current_p+1])){
+        send_count[current_p] += 2;
+        owner_p[i] = current_p;
+      }
+    }
+  }
+  //send the edges to the processor that owns the splits  
+  MPI_Alltoall(&send_count[0],1,MPI_INT, &recv_count[0], 1, MPI_INT,MPI_COMM_WORLD) ;
+
+  vector<int> send_displacement(P) ;
+  vector<int> recv_displacement(P);
+  send_displacement[0] = 0 ;
+  recv_displacement[0] = 0 ;
+  for(int i=1;i<P;++i) {
+    send_displacement[i] = send_displacement[i-1]+send_count[i-1] ;
+    recv_displacement[i] = recv_displacement[i-1]+recv_count[i-1] ;
+  }
+
+  int mp = P-1 ;
+  size_t send_sizes = send_displacement[mp]+send_count[mp] ;
+  size_t recv_sizes = recv_displacement[mp]+recv_count[mp] ; 
+  if(send_sizes != num_edges*2){
+    cerr<<" ERROR: Not all edges sent in redistribute_edge_split()" << endl;
+    Loci::Abort();
+  }
+ 
+  int *send_set_buf = new int[send_sizes] ;
+  int *recv_set_buf = new int[recv_sizes] ;
+  size_t ind = 0;
+ 
+  try{
+    for(int p = 0; p < P; p++){
+      for(int j = 0; j < send_count[p]/2; j++){
+        send_set_buf[send_displacement[p]+2*j] = (es.at(ind)).first ;
+        send_set_buf[send_displacement[p]+2*j+1] = (es.at(ind)).second ;
+        ind++;
+      }
+    }
+  }catch (const std::exception& e) { // caught by reference to base
+    std::cerr << " a standard exception was caught, with message '"
+              << e.what() << endl;
+    exit(1);
+  }
+  
+  if(ind != num_edges){
+    cerr<<"ERROR: not all edges are packed" << endl;
+    Loci::Abort();
+  }
+ 
+  MPI_Alltoallv(send_set_buf, &send_count[0], &send_displacement[0] , MPI_INT,
+                recv_set_buf, &recv_count[0], &recv_displacement[0], MPI_INT,
+                MPI_COMM_WORLD) ;
+ 
+  //allocate memory for middle points
+  vector<int> send_count2(P, 0);
+  vector<int> recv_count2(P, 0);
+  for(int i = 0; i < P; i++){
+    send_count2[i] = recv_count[i]/2;
+    recv_count2[i] = send_count[i]/2;
+  }
+  int send_sizes2 = recv_sizes/2 ;
+  int recv_sizes2 = send_sizes/2 ;
+  int* send_buf2 = new int[send_sizes2] ;
+  int* send_displacement2 = new int[P] ;
+  int* recv_displacement2 = new int[P] ;
+ 
+  send_displacement2[0] = 0 ;
+  recv_displacement2[0] = 0 ;
+  for(int i=1;i<P;++i) {
+    send_displacement2[i] = send_displacement2[i-1]+send_count2[i-1] ;
+    recv_displacement2[i] = recv_displacement2[i-1]+recv_count2[i-1] ;
+  }
+ 
+  //find the middle point of each received edge
+  for(int i=0;i<P;++i) {
+    for(int j=0;j<recv_count[i]/2;++j) {
+      int i1 = recv_set_buf[recv_displacement[i]+j*2  ] ;
+      int i2 = recv_set_buf[recv_displacement[i]+j*2+1] ;
+      int middle = find_edge_split(edge_splits, i1, i2);
+      send_buf2[send_displacement2[i]+j] = middle;
+    }
+  }
+
+  delete[] recv_set_buf ;
+  delete[] send_set_buf ;
+  
+  int* recv_buf2 = new int[recv_sizes2] ;
+  //send the middle points back
+  MPI_Alltoallv(send_buf2, &send_count2[0], send_displacement2 , MPI_INT,
+                recv_buf2, &recv_count2[0], recv_displacement2, MPI_INT,
+                MPI_COMM_WORLD) ;
+  delete[] send_buf2 ;
+  delete[] send_displacement2;
+  delete[] recv_displacement2;   
+
+  
+  //get resulted edge_splits
+  vector<edgeSplit> result_edge_splits;
+  result_edge_splits.reserve(num_edges);
+  for(size_t i = 0 ; i < num_edges; i++){
+    if(recv_buf2[i] >= 0){
+      result_edge_splits.push_back(edgeSplit(es[i].first, es[i].second, recv_buf2[i]));
+    }
+  }
+  edge_splits.swap(result_edge_splits);
+  delete[] recv_buf2 ;
+ 
+}
+   
+ 
+
+
+
+
 
 //parallel read split file                    
 void readSplit(string filename, const vector<int>& hex_min, vector<quadSplit>& splits){
@@ -796,84 +1068,6 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
   
 }
 
-struct quadFace {
-  Array<int,4> nodes ;
-  int cell ;
-  bool left ;
-} ;
-
-
-               
-struct triaFace {
-  Array<int,3> nodes ;
-  int cell ;
-  bool left ;
-} ;
-
-struct edge {
-  pair<int,int> nodes ;
-  bool triEdge ;
-  bool cvEdge ;
-  edge(int n1, int n2, bool te,bool cve) {
-    nodes.first=min(n1,n2) ;
-    nodes.second=max(n1,n2) ;
-    triEdge = te ;
-    cvEdge = cve ;
-  }
-  edge() {} 
-} ;
-
-
-
-
-inline bool quadCompare(const quadFace &f1, const quadFace &f2) {
-  return ((f1.nodes[0] < f2.nodes[0]) ||
-          (f1.nodes[0] == f2.nodes[0] && f1.nodes[1] < f2.nodes[1]) ||
-          (f1.nodes[0] == f2.nodes[0] && f1.nodes[1] == f2.nodes[1] &&
-           f1.nodes[2] < f2.nodes[2]) ||
-          (f1.nodes[0] == f2.nodes[0] && f1.nodes[1] == f2.nodes[1] &&
-           f1.nodes[2] == f2.nodes[2] && f1.nodes[3] < f2.nodes[3])) ;
-}
-
-inline bool triaCompare(const triaFace &f1, const triaFace &f2) {
-  return ((f1.nodes[0] < f2.nodes[0]) ||
-          (f1.nodes[0] == f2.nodes[0] && f1.nodes[1] < f2.nodes[1]) ||
-          (f1.nodes[0] == f2.nodes[0] && f1.nodes[1] == f2.nodes[1] &&
-           f1.nodes[2] < f2.nodes[2])) ;
-}
-
-
-inline bool quadEqual(const quadFace &f1, const quadFace &f2) {
-  return ((f1.nodes[0] == f2.nodes[0]) &&
-          (f1.nodes[1] == f2.nodes[1]) &&
-          (f1.nodes[2] == f2.nodes[2]) &&
-          (f1.nodes[3] == f2.nodes[3]));
-}
-
-inline bool triaEqual(const triaFace &f1, const triaFace &f2) {
-  return ((f1.nodes[0] == f2.nodes[0]) &&
-          (f1.nodes[1] == f2.nodes[1]) &&
-          (f1.nodes[2] == f2.nodes[2]));
-  
-}
-
-inline bool edgeEqual(const edge &e1, const edge &e2) {
-  return ((e1.nodes.first == e2.nodes.first) &&
-          (e1.nodes.second == e2.nodes.second)) ;
-
-}
-
-inline bool edgeCompare(const edge &e1, const edge &e2) {
-  return ((e1.nodes.first < e2.nodes.first) ||
-          (e1.nodes.first == e2.nodes.first && 
-	   e1.nodes.second < e2.nodes.second)) ;
-}
-
-inline bool pairCompare(const pair<int,int> &p1, const pair<int,int> &p2) {
-  return ((p1.first < p2.first) ||
-          (p1.first == p2.first && 
-	   p1.second < p2.second)) ;
-}
 
 
 /*
@@ -1774,12 +1968,7 @@ void convert2face(store<vector3d<double> > &pos,
   for(int i = 0 ; i < num_splits; i++)count_split(splits[i],num_quads_from_splits, num_tria_from_splits);
 
 
-  // //estimate num of faces, not exactly , only for memeory allocation
-  // int num_quad_faces =
-  //   qfaces.size() + pyramids.size()+ prisms.size()*3 + hexs.size()*6 + splits.size() *4 ;
-  // int num_tria_faces =
-  //   tfaces.size() + tets.size()*4 + pyramids.size()*4 + prisms.size()*2  + splits.size()*4;
-
+  
   int num_quad_faces =
     qfaces.size() + pyramids.size()+ prisms.size()*3 + hexs.size()*6 - num_splits + num_quads_from_splits;
   int num_tria_faces =
@@ -1950,10 +2139,15 @@ void convert2face(store<vector3d<double> > &pos,
     cerr<<"ERROR: face counting not correct" << endl;
     exit(-1);
   }
-  // //remove extra memory allocated
-  // tria.resize(tf);
-  // quad.resize(qf);
-
+  
+  
+  //release memory for cells
+  vector<Array<int,5> >().swap(qfaces) ;
+  vector<Array<int,4> >().swap(tfaces) ;
+  vector<Array<int,4> >().swap(tets) ;
+  vector<Array<int,5> >().swap(pyramids) ;
+  vector<Array<int,6> >().swap(prisms) ;
+  vector<Array<int,8> >().swap(hexs) ;
  
   if(MPI_rank==0)cerr<<" preparing tria faces" << endl;
 
@@ -2065,20 +2259,29 @@ void convert2face(store<vector3d<double> > &pos,
   }
 
   if(MPI_rank==0)cerr<<" collecting edge splits" << endl;
+
   //collect edge splits before quad splits are modified
   vector<edgeSplit> edge_splits;
   if(split_file_exist)collect_edge_split(edge_splits, splits); 
-
   //release the memory for quad splits
   vector<quadSplit>().swap(splits);
-  //release memory for cells
-  vector<Array<int,5> >().swap(qfaces) ;
-  vector<Array<int,4> >().swap(tfaces) ;
-  vector<Array<int,4> >().swap(tets) ;
-  vector<Array<int,5> >().swap(pyramids) ;
-  vector<Array<int,6> >().swap(prisms) ;
-  vector<Array<int,8> >().swap(hexs) ;
 
+  
+  if(MPI_processes > 1) {
+    vector<pair<int, int> > edges;
+
+    if(MPI_rank == 0)
+      cerr << " collecting edges from faces" << endl ;
+
+    collect_edge_from_face(quad,tria, edges );
+
+    if(MPI_rank == 0)
+      cerr << " redistribute edge splits" << endl ;
+    
+    redistribute_edge_split( edges, edge_splits);
+    
+  }
+ 
 
   //due to edge split, trias and quads can turn into general faces
   int ntria = tria.size()/2 ;
