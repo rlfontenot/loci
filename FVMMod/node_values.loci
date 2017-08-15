@@ -537,7 +537,7 @@ namespace Loci {
   $type cell2nodeMax(X) store<float> ;
 
   $rule unit(cell2nodeMax(X)),constraint(pos) {
-    $cell2nodeMax(X) = 0. ;
+    $cell2nodeMax(X) = -std::numeric_limits<float>::max() ;
   }
 
   $rule apply((upper,lower,boundary_map)->face2node->cell2nodeMax(X)<-
@@ -621,7 +621,7 @@ namespace Loci {
   $type cell2nodeMin(X) store<float> ;
  
   $rule unit(cell2nodeMin(X)),constraint(pos) {
-    $cell2nodeMin(X) = 0.0 ;
+    $cell2nodeMin(X) = std::numeric_limits<float>::max() ;
   }
     
   $rule apply((upper,lower,boundary_map)->face2node->cell2nodeMin(X)<-
@@ -650,9 +650,9 @@ namespace Loci {
     sort(node_list.begin(),node_list.end()) ;
     vector<Entity>::iterator ne = unique(node_list.begin(),node_list.end()) ;
     vector<Entity>::iterator ns = node_list.begin() ;
-
+    float V = realToFloat($X) ;
     for(vector<int>::iterator vi = ns;vi!=ne;++vi) {
-      join(vi->$cell2nodeMin(X),realToFloat($X)) ;
+      join(vi->$cell2nodeMin(X),V) ;
     }    
   }
 
@@ -660,7 +660,8 @@ namespace Loci {
   $type cell2nodeMaxv3d(X) store<vector3d<float> > ;
 
   $rule unit(cell2nodeMaxv3d(X)),constraint(pos) {
-    $cell2nodeMaxv3d(X) = vector3d<float>(0.,0.,0.) ;
+    float v = -std::numeric_limits<float>::max() ;
+    $cell2nodeMaxv3d(X) = vector3d<float>(v,v,v) ;
   }
 
   template<class T> struct maxVect3d {
