@@ -43,7 +43,7 @@ all: $(TARGET) $(OTHER_APPS)
 
 
 $(TARGET): $(OBJS) 
-	$(LD) -o $(TARGET) $(OBJS) $(TEC_LIBS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+	$(LD) -o $(TARGET) $(OBJS) $(TEC360LIB) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 FRC : 
 
 libadf/libadf.a:
@@ -84,6 +84,9 @@ ugrid2cgns.o: ugrid2cgns.cc
 
 extract_cgns.o: extract_cgns.cc
 	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) -c extract_cgns.cc
+
+extract_tecplot.o: extract_tecplot.cc
+	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) $(TEC360INCLUDE) -c extract_tecplot.cc
 
 extruder: extruder.o
 	$(LD) -o extruder extruder.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)

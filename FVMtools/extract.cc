@@ -2943,11 +2943,13 @@ int main(int ac, char *av[]) {
         plot_type = FIELDVIEW ;
       else if(!strcmp(av[i],"-tec")) {
         plot_type = TECPLOT ;
-	cout << "*****************************************************************************"<< endl ;
-	cout << "NOTICE!! Latest versions of tecplot360 will perform better using using the" << endl
-	     << "         the Ensight importer.  It is recommended that you use extract -en " << endl
-	     << "         instead of extract -tec." << endl ;
-	cout << "*****************************************************************************"<< endl ;
+#ifndef USE_NATIVE_TECPLOT
+	cerr << "Note, This compiled version is using the older ASCII tecplot format." << endl 
+	     << "If you are using a recent version you can configure Loci to use" << endl 
+	     << "the native binary tecplot format that will be more effective for use with" << endl
+	     << "tecplot360. " << endl ;
+	  
+#endif
       } 
       else if(!strcmp(av[i],"-vtk"))
         plot_type = VTK ;
