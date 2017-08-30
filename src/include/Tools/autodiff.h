@@ -39,7 +39,7 @@ namespace Loci {
 #define gradcheck() //if(grad!=0) debugger_() ; //fatal(grad!=0.0) ;
     template< class T1>
       FAD2d(T1 a0): value(a0), grad(0.0),grad2(0.0) { gradcheck();}
-  FAD2d(double a0, int b0, double c0): value(a0), grad(b0), grad2(c0) { gradcheck();}
+  FAD2d(double a0, double b0, double c0): value(a0), grad(b0), grad2(c0) { gradcheck();}
   FAD2d(const FAD2d &u) : value(u.value), grad(u.grad), grad2(u.grad2) { gradcheck();}
 
   FAD2d() : value(0.0), grad(0.0),grad2(0.0) { gradcheck();}
@@ -632,14 +632,14 @@ namespace Loci {
 		 k*((k - 1)*(std::pow(u.value, k - 2)*std::pow(u.grad, 2)) + std::pow(u.value, k - 1)*u.grad2)) ;
   }
   inline FAD2d pow(const FAD2d u, const float k) {
-    return FAD2d(std::pow(u.value, k), 
+    return FAD2d(std::pow(u.value, double(k)), 
 		 (double)k * std::pow(u.value, k-1.0)*u.grad,
-		 k*((k - 1)*(std::pow(u.value, k - 2)*std::pow(u.grad, 2)) + std::pow(u.value, k - 1)*u.grad2)) ;
+		 k*((k - 1)*(std::pow(u.value, k-2.0)*std::pow(u.grad, 2)) + std::pow(u.value, k-1.0)*u.grad2)) ;
   }
   inline FAD2d pow(const FAD2d u, const double k) {
     return FAD2d(std::pow(u.value, k), 
 		 (double)k * std::pow(u.value, k-1.0)*u.grad,
-		 k*((k - 1)*(std::pow(u.value, k - 2)*std::pow(u.grad, 2)) + std::pow(u.value, k - 1)*u.grad2)) ;
+		 k*((k - 1)*(std::pow(u.value, k-2.0)*std::pow(u.grad, 2)) + std::pow(u.value, k - 1)*u.grad2)) ;
   }
   inline FAD2d pow(const FAD2d u, const long double ki) {
     double k = double(ki) ;
@@ -673,7 +673,7 @@ namespace Loci {
 		 kpu*((lnk*lnk)*(u.grad*u.grad)) + kpu*(lnk*u.grad2)) ;
   }
   inline FAD2d pow(const float k, const FAD2d u) {
-    double kpu = std::pow(k,u.value) ;
+    double kpu = std::pow(double(k),u.value) ;
     double lnk = std::log(double(k)) ;
     return FAD2d(kpu,kpu*lnk*u.grad,  
 		 kpu*((lnk*lnk)*(u.grad*u.grad)) + kpu*(lnk*u.grad2)) ;
@@ -1379,7 +1379,7 @@ namespace Loci {
 		(double)k * std::pow(u.value, (double)k-1.0)*u.grad );
   }
   inline FADd pow(const FADd u, const float k) {
-    return FADd(std::pow(u.value, k), 
+    return FADd(std::pow(u.value, double(k)), 
 		(double)k * std::pow(u.value, (double)k-1.0)*u.grad );
   }
   inline FADd pow(const FADd u, const double k) {
@@ -1387,7 +1387,7 @@ namespace Loci {
 		k * std::pow(u.value, k-1.0)*u.grad );
   }
   inline FADd pow(const FADd u, const long double k) {
-    return FADd(std::pow(u.value,  k), 
+    return FADd(std::pow(u.value,  double(k)), 
 		(double)k * std::pow(u.value,  (double)k-1.0)*u.grad );
   }
   inline FADd sqrt(const FADd u) {
@@ -1404,7 +1404,7 @@ namespace Loci {
     return FADd(kpu,kpu*std::log(double(k))*u.grad) ;
   }
   inline FADd pow(const float k, const FADd u) {
-    double kpu = std::pow(k,u.value) ;
+    double kpu = std::pow(double(k),u.value) ;
     return FADd(kpu,kpu*std::log(double(k))*u.grad) ;
   }
   inline FADd pow(const double k, const FADd u) {
@@ -1412,7 +1412,7 @@ namespace Loci {
     return FADd(kpu,kpu*std::log(k)*u.grad) ;
   }
   inline FADd pow(const long double k, const FADd u) {
-    double kpu = std::pow(k,u.value) ;
+    double kpu = std::pow(double(k),u.value) ;
     return FADd(kpu,kpu*std::log(k)*u.grad) ;
   }
 
