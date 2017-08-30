@@ -44,14 +44,14 @@ namespace Loci {
 #ifdef NO_OFFSETOF
       size_t offset1 = reinterpret_cast<char *>(&(tmp.value)) - reinterpret_cast<char *>(&tmp) ;
 #else
-      size_t offset1 = offsetof(type,value) ;	
+      size_t offset1 = offsetof(FADd,value) ;	
 #endif
       H5Tinsert(vDatatype,"value",offset1,H5T_NATIVE_DOUBLE) ;
  
 #ifdef NO_OFFSETOF
       size_t offset2 = reinterpret_cast<char *>(&(tmp.grad)) - reinterpret_cast<char *>(&tmp) ;
 #else
-      size_t offset2 = offsetof(type,grad) ;
+      size_t offset2 = offsetof(FADd,grad) ;
 #endif
       H5Tinsert(vDatatype,"grad",offset2,H5T_NATIVE_DOUBLE) ;
       return vDatatype ;
@@ -81,21 +81,21 @@ namespace Loci {
 #ifdef NO_OFFSETOF
       size_t offset1 = reinterpret_cast<char *>(&(tmp.value)) - reinterpret_cast<char *>(&tmp) ;
 #else
-      size_t offset1 = offsetof(type,value) ;	
+      size_t offset1 = offsetof(FAD2d,value) ;	
 #endif
       H5Tinsert(vDatatype,"value",offset1,H5T_NATIVE_DOUBLE) ;
  
 #ifdef NO_OFFSETOF
       size_t offset2 = reinterpret_cast<char *>(&(tmp.grad)) - reinterpret_cast<char *>(&tmp) ;
 #else
-      size_t offset2 = offsetof(type,grad) ;
+      size_t offset2 = offsetof(FAD2d,grad) ;
 #endif
       H5Tinsert(vDatatype,"grad",offset2,H5T_NATIVE_DOUBLE) ;
 
 #ifdef NO_OFFSETOF
       size_t offset3 = reinterpret_cast<char *>(&(tmp.grad2)) - reinterpret_cast<char *>(&tmp) ;
 #else
-      size_t offset3 = offsetof(type,grad2) ;
+      size_t offset3 = offsetof(FAD2d,grad2) ;
 #endif
       H5Tinsert(vDatatype,"grad2",offset3,H5T_NATIVE_DOUBLE) ;
       return vDatatype ;
