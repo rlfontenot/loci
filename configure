@@ -496,6 +496,7 @@ if [ ! -f $TEC360PATH/lib/libtecio.a ]; then
     fi
 fi
 
+
 if [ -d $CGNSPATH/include ]; then
     echo Using CGNS library found in $CGNSPATH
     echo # CGNS Library Setup >> sys.conf
@@ -516,6 +517,10 @@ if [ -f $TEC360PATH/lib/libtecio.a ]; then
     echo TEC360INCLUDE = -I$TEC360PATH/include -DUSE_NATIVE_TECPLOT >> sys.conf
     echo TEC360LIB = $TEC360PATH/lib/libtecio.a >> sys.conf
 else
+    echo Note: TECPLOT native IO library not found, older ascii format will be used instead.
+    echo If you expected to include TECPLOT support, use --with-tec360 to specify where
+    echo tecplot360 is installed.
+    echo
     echo TEC360INCLUDE = >> sys.conf
     echo TEC360LIB = >> sys.conf
 fi
