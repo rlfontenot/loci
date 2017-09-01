@@ -499,7 +499,7 @@ void process_mean(string casename, string iteration,
             continue ;
           }
           
-          hid_t di = H5Gopen(file_id,"dataInfo") ;
+          hid_t di = H5Gopen(file_id,"dataInfo",H5P_DEFAULT) ;
           int nbel = sizeElementType(di,"entityIds") ;
           
           if(it == start_iter) {
@@ -517,7 +517,7 @@ void process_mean(string casename, string iteration,
           H5Gclose(di) ;
           vector<float> bvar(nbel) ;
           readElementType(file_id,variables[i].c_str(),bvar) ;
-          di = H5Gopen(file_id,"dataInfo") ;
+          di = H5Gopen(file_id,"dataInfo",H5P_DEFAULT) ;
           vector<int> eid(nbel,-1) ;
           readElementType(di,"entityIds",eid) ;
           H5Fclose(file_id) ;
@@ -547,7 +547,8 @@ void process_mean(string casename, string iteration,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
         string sname = var+"Mean" ;
 	cout << "Writing Variables: " << sname ;
-        hid_t group_id = H5Gcreate(file_id,"dataInfo",0) ;
+        hid_t group_id = H5Gcreate(file_id,"dataInfo",
+				   H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
         writeElementType(group_id,"entityIds",ids) ;
         H5Gclose(group_id) ;
         writeElementType(file_id,sname.c_str(),m) ;
@@ -559,7 +560,8 @@ void process_mean(string casename, string iteration,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
         sname = var+"Var" ;
 	cout << ", " << sname ;
-        group_id = H5Gcreate(file_id,"dataInfo",0) ;
+        group_id = H5Gcreate(file_id,"dataInfo",
+			     H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
         writeElementType(group_id,"entityIds",ids) ;
         H5Gclose(group_id) ;
         writeElementType(file_id,sname.c_str(),v) ;
@@ -592,7 +594,7 @@ void process_mean(string casename, string iteration,
             continue ;
           }
           
-          hid_t di = H5Gopen(file_id,"dataInfo") ;
+          hid_t di = H5Gopen(file_id,"dataInfo",H5P_DEFAULT) ;
           int nbel = sizeElementType(di,"entityIds") ;
 
           if(it == start_iter) {
@@ -610,7 +612,7 @@ void process_mean(string casename, string iteration,
           H5Gclose(di) ;
           vector<vector3d<float> > bvar(nbel) ;
           readElementType(file_id,variables[i].c_str(),bvar) ;
-          di = H5Gopen(file_id,"dataInfo") ;
+          di = H5Gopen(file_id,"dataInfo",H5P_DEFAULT) ;
           vector<int> eid(nbel,-1) ;
           readElementType(di,"entityIds",eid) ;
           H5Fclose(file_id) ;
@@ -644,7 +646,8 @@ void process_mean(string casename, string iteration,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
         string sname = var+"Mean" ;
 	cout << "Writing Variables: " << sname ;
-        hid_t group_id = H5Gcreate(file_id,"dataInfo",0) ;
+        hid_t group_id = H5Gcreate(file_id,"dataInfo",
+				   H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
         writeElementType(group_id,"entityIds",ids) ;
         H5Gclose(group_id) ;
         writeElementType(file_id,sname.c_str(),m) ;
@@ -657,7 +660,8 @@ void process_mean(string casename, string iteration,
         sname = var+"Var" ;
 	cout << ", " << sname ;
 
-        group_id = H5Gcreate(file_id,"dataInfo",0) ;
+        group_id = H5Gcreate(file_id,"dataInfo",
+			     H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
         writeElementType(group_id,"entityIds",ids) ;
         H5Gclose(group_id) ;
         writeElementType(file_id,sname.c_str(),v) ;

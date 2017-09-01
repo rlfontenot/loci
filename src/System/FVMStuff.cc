@@ -558,7 +558,8 @@ namespace Loci{
     hid_t file_id = 0, group_id = 0 ;
     if(MPI_rank == 0) {
       file_id = H5Fcreate(filename,H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT) ;
-      group_id = H5Gcreate(file_id,"elements",0) ;
+      group_id = H5Gcreate(file_id,"elements",
+			   H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
     }
 
     writeUnorderedVector(group_id, "tetrahedra",tets) ;
@@ -580,7 +581,8 @@ namespace Loci{
     
     if(MPI_rank == 0) {
       H5Gclose(group_id) ;
-      group_id = H5Gcreate(file_id,"boundaries",0) ;
+      group_id = H5Gcreate(file_id,"boundaries",
+			   H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
     }
 
     const_store<string> boundary_names(bnamesRep) ;
@@ -628,7 +630,8 @@ namespace Loci{
       hid_t bc_id = 0 ;
       string current_bc = bnamelist[i] ;
       if(MPI_rank==0) {
-        bc_id = H5Gcreate(group_id,current_bc.c_str(),0) ;
+        bc_id = H5Gcreate(group_id,current_bc.c_str(),
+			  H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
       }
 
       bool found_ref = false ;

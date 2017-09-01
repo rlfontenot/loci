@@ -79,7 +79,7 @@ void get_surf(string casename, string iteration,
 
   file_id = H5Fopen(gridtopo.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   
-  hid_t bndg = H5Gopen(file_id,"boundaries") ;
+  hid_t bndg = H5Gopen(file_id,"boundaries",H5P_DEFAULT) ;
   hsize_t num_bcs = 0 ;
   H5Gget_num_objs(bndg,&num_bcs) ;
   vector<string> processed_bcs ;
@@ -96,7 +96,7 @@ void get_surf(string casename, string iteration,
     memset(buf, '\0', 1024) ;
     H5Gget_objname_by_idx(bndg,bc,buf,sizeof(buf)) ;
     buf[1023]='\0' ;
-    hid_t bcg = H5Gopen(bndg,buf) ;
+    hid_t bcg = H5Gopen(bndg,buf,H5P_DEFAULT) ;
     
     bc_name[bc] = string(buf);
     

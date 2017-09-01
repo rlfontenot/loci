@@ -112,10 +112,10 @@ void readSurfaces(string filename,
     Usage() ;
   }
   
-  hid_t face_g = H5Gopen(input_fid,"face_info") ;
+  hid_t face_g = H5Gopen(input_fid,"face_info",H5P_DEFAULT) ;
   
   // Read cluster sizes
-  hid_t dataset = H5Dopen(face_g,"cluster_sizes") ;
+  hid_t dataset = H5Dopen(face_g,"cluster_sizes",H5P_DEFAULT) ;
   hid_t dspace = H5Dget_space(dataset) ;
   hsize_t size = 0 ;
   H5Sget_simple_extent_dims(dspace,&size,NULL) ;
@@ -141,7 +141,7 @@ void readSurfaces(string filename,
   H5Sclose(memspace) ;
 
   // Read in clusters and transform
-  dataset = H5Dopen(face_g,"cluster_info") ;
+  dataset = H5Dopen(face_g,"cluster_info",H5P_DEFAULT) ;
   dspace = H5Dget_space(dataset) ;
   start = 0 ;
   for(size_t c=0;c<size;++c) { // Loop over clusters
@@ -221,7 +221,7 @@ void readSurfaces(string filename,
   }
 
   // read in positions
-  hid_t fi = H5Gopen(input_fid,"file_info") ;
+  hid_t fi = H5Gopen(input_fid,"file_info",H5P_DEFAULT) ;
   unsigned long numNodes = readAttributeLong(fi,"numNodes") ;
     
   H5Gclose(fi) ;
@@ -236,8 +236,8 @@ void readSurfaces(string filename,
       
   // Read in pos data from file i
   vector<Loci::vector3d<double> > pos_dat(numNodes) ;
-  hid_t node_g = H5Gopen(input_fid,"node_info") ;
-  dataset = H5Dopen(node_g,"positions") ;
+  hid_t node_g = H5Gopen(input_fid,"node_info",H5P_DEFAULT) ;
+  dataset = H5Dopen(node_g,"positions",H5P_DEFAULT) ;
   dspace = H5Dget_space(dataset) ;
       
   H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&lstart,&stride,&count,NULL) ;

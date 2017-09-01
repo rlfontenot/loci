@@ -1059,11 +1059,10 @@ exportPostProcessorFiles(string casename, string iteration) const {
 	ibuf[0] = pts ; //number of particles
 	fwrite(ibuf,sizeof(int),1,FVP) ;
 	
-	int k=0 ;
 	for(int p=0;p<pts;++p) {
-	  float x = pos[k].x ;
-	  float y = pos[k].y ;
-	  float z = pos[k].z ;
+	  float x = pos[p].x ;
+	  float y = pos[p].y ;
+	  float z = pos[p].z ;
 	  fwrite(&x,sizeof(float),1,FVP) ;
 	  fwrite(&y,sizeof(float),1,FVP) ;
 	  fwrite(&z,sizeof(float),1,FVP) ;

@@ -71,6 +71,9 @@
 #else
 #include <unistd.h>
 #endif
+
+#ifdef USE_CGNS
+
 #include "cgnslib.h"
 #include "hash.h"
 
@@ -820,3 +823,10 @@ void write_surf(const string& filename,
   //write surf
   write_surf(outfile, pos, bc_data);
  }
+#else
+int main(int ac, char *av[]) {
+  fprintf(stderr,"Loci not compiled with CGNS support enabled! This utility cannot work!\n") ;
+  return -1 ;
+}
+
+#endif

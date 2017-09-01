@@ -119,7 +119,7 @@ size_t  sizeElementType(hid_t group_id, const char *element_name) ;
 template<class T> void readElementType(hid_t group_id, const char *element_name,
                                        vector<T> &v) {
   if(v.size() > 0) {
-    hid_t dataset = H5Dopen(group_id,element_name) ;
+    hid_t dataset = H5Dopen(group_id,element_name,H5P_DEFAULT) ;
 
     typedef data_schema_traits<T> traits_type ;
     Loci::DatatypeP dp = traits_type::get_type() ;
@@ -136,7 +136,7 @@ void readElementTypeBlock(hid_t group_id,
                           size_t start_elem,
                           int block_size) {
   if(block_size > 0) {
-    hid_t dataset = H5Dopen(group_id,element_name) ;
+    hid_t dataset = H5Dopen(group_id,element_name,H5P_DEFAULT) ;
 
     typedef data_schema_traits<T> traits_type ;
     Loci::DatatypeP dp = traits_type::get_type() ;
@@ -182,7 +182,7 @@ template<class T> void writeElementType(hid_t group_id,
   hsize_t count = v.size() ;
   hid_t datatype = dp->get_hdf5_type() ;
   hid_t dataset = H5Dcreate(group_id,element_name,datatype,
-                            dataspace, H5P_DEFAULT) ;
+                            dataspace, H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
   if(count != 0) {
     H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
                         &start, &stride, &count, NULL) ;

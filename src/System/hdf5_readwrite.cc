@@ -39,7 +39,8 @@ namespace Loci {
   dimension = num_intervals*2; //size of 1D Array
   if(dimension == 0) return;
   dataspace = H5Screate_simple(rank, &dimension, NULL);
-  dataset   = H5Dcreate(group_id, "Interval Set", datatype, dataspace, H5P_DEFAULT);
+  dataset   = H5Dcreate(group_id, "Interval Set", datatype, dataspace,
+			H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT);
 
   interval *it = new interval[num_intervals];
 
@@ -68,7 +69,7 @@ namespace Loci {
   hsize_t    dimension;
   hid_t      dataset, dataspace;
 
-  dataset    = H5Dopen(group_id, "Map");
+  dataset    = H5Dopen(group_id, "Map",H5P_DEFAULT);
   if( dataset > 0) {
     dataspace  = H5Dget_space(dataset);
     H5Sget_simple_extent_dims (dataspace, &dimension, NULL);
@@ -96,10 +97,10 @@ namespace Loci {
   hsize_t    dimension;
   hid_t      dataset, dataspace;
 
-  H5Eset_auto (NULL, NULL);
+  H5Eset_auto (H5E_DEFAULT, NULL, NULL);
 
   eset = EMPTY;
-  dataset  = H5Dopen(group_id, "Interval Set");
+  dataset  = H5Dopen(group_id, "Interval Set", H5P_DEFAULT);
   if( dataset > 0 ) {
     dataspace  = H5Dget_space(dataset);
     H5Sget_simple_extent_dims (dataspace, &dimension, NULL);
@@ -130,7 +131,7 @@ namespace Loci {
   hid_t vDataspace = H5Screate_simple(rank, &dimension, NULL);
   hid_t vDatatype  = H5T_NATIVE_INT;
   hid_t vDataset   = H5Dcreate(group_id, "VecSize", vDatatype, vDataspace,
-                               H5P_DEFAULT);
+                               H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT);
 
   H5Dwrite(vDataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &size);
 
@@ -146,11 +147,11 @@ namespace Loci {
   int     rank=1;
   hsize_t dimension = 1;
 
-  H5Eset_auto (NULL, NULL);
+  H5Eset_auto (H5E_DEFAULT, NULL, NULL);
 
   *size = 0;
   
-  hid_t vDataset   = H5Dopen( group_id, "VecSize");
+  hid_t vDataset   = H5Dopen( group_id, "VecSize", H5P_DEFAULT);
 
   if( vDataset > 0) {
     if(dimension == 0) return;

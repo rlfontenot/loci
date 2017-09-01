@@ -15,6 +15,8 @@
 #define ACCESS access
 #endif
 
+#ifdef USE_CGNS
+
 #include "binaryio.h"
 #include "cgnslib.h"
 #include "getargs.h"
@@ -750,3 +752,9 @@ int main (int argc, char *argv[])
 
     return 0;
 }
+#else
+int main(int ac, char *av[]) {
+  fprintf(stderr,"Loci not compiled with CGNS support enabled! This utility cannot work!\n") ;
+  return -1 ;
+}
+#endif

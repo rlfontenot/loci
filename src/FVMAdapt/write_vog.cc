@@ -2085,15 +2085,17 @@ namespace Loci{
     hid_t group_id = 0 ;
     if(MPI_rank == 0) {
       if(surface_ids.size() != 0) {
-        group_id = H5Gcreate(file_id,"surface_info",0) ;
+        group_id = H5Gcreate(file_id,"surface_info",
+			     H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
         for(size_t i=0;i<surface_ids.size();++i) {
           hid_t bc_id = 0 ;
-          bc_id = H5Gcreate(group_id,surface_ids[i].second.c_str(),0) ;
+          bc_id = H5Gcreate(group_id,surface_ids[i].second.c_str(),
+			    H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
           hsize_t dims = 1 ;
           hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
           
           hid_t att_id = H5Acreate(bc_id,"Ident", H5T_NATIVE_INT,
-                                   dataspace_id, H5P_DEFAULT) ;
+                                   dataspace_id, H5P_DEFAULT,H5P_DEFAULT) ;
           H5Awrite(att_id,H5T_NATIVE_INT,&surface_ids[i].first) ;
           H5Aclose(att_id) ;
           H5Gclose(bc_id) ;
@@ -2195,7 +2197,7 @@ void writeVOGFace(hid_t file_id, Map &cl, Map &cr, multiMap &face2node) {
 
   hid_t group_id = 0 ;
   if(MPI_rank == 0) {
-    group_id = H5Gopen(file_id,"file_info") ;
+    group_id = H5Gopen(file_id,"file_info",H5P_DEFAULT) ;
 
     std::cout<< "num_cells = " << num_cells << endl
              << "num_faces = " << num_faces << endl ;
@@ -2204,15 +2206,16 @@ void writeVOGFace(hid_t file_id, Map &cl, Map &cr, multiMap &face2node) {
     hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
     
     hid_t att_id = H5Acreate(group_id,"numFaces", H5T_STD_I64BE,
-                             dataspace_id, H5P_DEFAULT) ;
+                             dataspace_id, H5P_DEFAULT,H5P_DEFAULT) ;
     H5Awrite(att_id,H5T_NATIVE_LLONG,&num_faces) ;
     H5Aclose(att_id) ;
     att_id = H5Acreate(group_id,"numCells", H5T_STD_I64BE,
-                       dataspace_id, H5P_DEFAULT) ;
+                       dataspace_id, H5P_DEFAULT,H5P_DEFAULT) ;
     H5Awrite(att_id,H5T_NATIVE_LLONG,&num_cells) ;
     H5Aclose(att_id) ;
     H5Gclose(group_id) ;
-    group_id = H5Gcreate(file_id,"face_info",0) ;
+    group_id = H5Gcreate(file_id,"face_info",
+			 H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
   }
   
   entitySet faces = face2node.domain() ;

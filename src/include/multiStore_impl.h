@@ -670,7 +670,7 @@ namespace Loci {
     //-------------------------------------------------------------------------
     // Get the maximum size of container
     //-------------------------------------------------------------------------
-    int vecsize, stateSize, maxStateSize=0;
+    int vecsize= 0, stateSize = 0, maxStateSize=0;
 
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
       vecsize = end(*ci)-begin(*ci);

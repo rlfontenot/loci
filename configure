@@ -37,6 +37,8 @@ if [ "$PETSC_BASE" == "" ]; then
 fi
 H5PATH=/notinstalled/hdf5
 
+CGNSPATH=none
+
 
 find_exec() {
     RETURN_VALUE=0
@@ -138,6 +140,24 @@ while [ $# -ne 0 ]; do
 	    tmp=$1
 	    H5PATH=${tmp#--with-hdf5\=}
 	    ;;
+
+	--cgns-dir)
+	    shift
+	    CGNSPATH=$1
+	    ;;
+	--cgns-dir\=*)
+	    tmp=$1
+	    CGNSPATH=${tmp#--cgns-dir\=}
+	    ;;
+	--with-cgns)
+	    shift
+	    CGNSPATH=$1
+	    ;;
+	--with-cgns\=*)
+	    tmp=$1
+	    CGNSPATH=${tmp#--with-cgns\=}
+	    ;;
+
 	--mpi-dir)
 	    shift
 	    MPI_BASE=$1
@@ -182,6 +202,7 @@ while [ $# -ne 0 ]; do
 	    echo "where <options> may include"
 	    echo "  --prefix <install directory>    : tell configure where to install Loci."
 	    echo "  --with-hdf5 <HDF5 directory>     : tell configure where to find HDF5 package."
+	    echo "  --with-cgns <CGNS directory>     : tell configure where to find CGNS package."
 	    echo "  --with-mpi <MPI directory>      : tell configure where to find MPI package."
 	    echo "  --nompi                         : tell configure to build without using MPI"
 	    echo "  --with-petsc <PETSc directory>   : tell configure where to find PETSc package."
@@ -380,7 +401,7 @@ echo HDF5_LIBS = -L\$\(HDF5_BASE\)/lib64 \$\(RPATH\)\$\(HDF5_BASE\)/lib64 -L\$\(
 else
 echo HDF5_LIBS = -L\$\(HDF5_BASE\)/lib -lhdf5 \$\(RPATH\)\$\(HDF5_BASE\)/lib $H5SUPPORTLIBSPATHS $H5SUPPORTLIBS >> sys.conf
 fi
-echo HDF5_INCLUDE = -I\$\(HDF5_BASE\)/include -DH5_USE_16_API >> sys.conf
+echo HDF5_INCLUDE = -I\$\(HDF5_BASE\)/include >> sys.conf
 echo >> sys.conf
 
 echo "# libxml2 library setup" >> sys.conf
@@ -415,6 +436,27 @@ echo METIS_LIBS= $METIS_LIBS >> sys.conf
 echo METIS_INCLUDE= $METIS_INCLUDE >> sys.conf
 echo >> sys.conf
 
+if [ ! -d $CGNSPATH/include ]; then
+    find_lib cgns
+    if [ $RETURN_VALUE != 0 ]; then
+	CGNSPATH=${RETURN_VALUE%/lib*}
+    fi
+fi
+
+if [ -d $CGNSPATH/include ]; then
+    echo Using CGNS library found in $CGNSPATH
+    echo # CGNS Library Setup >> sys.conf
+    echo CGNS_BASE = $CGNSPATH >> sys.conf
+    echo CGNS_INCLUDE = -I\$\(CGNS_BASE\)/include/ -DUSE_CGNS >> sys.conf
+    echo CGNS_LIBS = -L\$\(CGNS_BASE\)/lib \$\(RPATH\)\$\(CGNS_BASE\)/lib -lcgns >> sys.conf
+    echo >>sys.conf
+else
+    echo libcgns not found, disabling CGNS features!
+    echo CGNS_BASE = >> sys.conf
+    echo CGNS_INCLUDE = >> sys.conf
+    echo CGNS_LIBS = >> sys.conf
+    echo >> sys.conf 
+fi
 
 echo \# PETSc Library Setup >> sys.conf
 
@@ -593,11 +635,11 @@ echo "# No need to change things below this line" >> sys.conf
 echo >> sys.conf
 
 echo "MACHINE_SPECIFIC = \$(PETSC_DEFINE) \$(PETSC_INCLUDE) \$(HDF5_INCLUDE)\\">> sys.conf
-echo "                   \$(MPI_INCLUDE) \$(METIS_INCLUDE) \$(MISC)\\" >> sys.conf
+echo "                   \$(MPI_INCLUDE) \$(METIS_INCLUDE) \$(CGNS_INCLUDE) \$(MISC)\\" >> sys.conf
 echo "                   \$(DYNAMIC_LOADING_DEFINES)" >> sys.conf
 echo >> sys.conf
 echo "BASE_LIBS = \$(HDF5_LIBS) \$(PETSC_LIBS) \$(MPI_LIBS) \$(METIS_LIBS) \\" >> sys.conf
-echo "            \$(MISC_LIBS) \$(DYNAMIC_LOADING_LINK)" >> sys.conf
+echo "            \$(MISC_LIBS) \$(CGNS_LIBS) \$(DYNAMIC_LOADING_LINK)" >> sys.conf
 
 
 echo Making compile subdirectory ${OBJDIR}...

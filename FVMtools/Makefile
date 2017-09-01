@@ -20,9 +20,6 @@
 ###############################################################################
 include $(LOCI_BASE)/Loci.conf
 
-CGNS_BASE = /simcenter/data1/qxue/cgns
-CGNS_INCLUDES = -I$(CGNS_BASE)/include/
-CGNS_LIBS = $(CGNS_BASE)/lib/libcgns.a
 
 COPT = $(COPTLESS)
 #COPT = -g -O0 #-DDEBUG -DBOUNDS_CHECK
@@ -59,27 +56,27 @@ hash.o: hash.cc
 	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES)  -c hash.cc
 
 cgns2vog.o: cgns2vog.cc
-	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) $(CGNS_INCLUDES)  -c cgns2vog.cc
+	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES)  -c cgns2vog.cc
 
 cgns2ugrid.o: cgns2ugrid.cc
-	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) $(CGNS_INCLUDES)  -c cgns2ugrid.cc
+	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES)  -c cgns2ugrid.cc
 
 cgns2ensight.o: cgns2ensight.cc
-	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES)  $(INCLUDES) $(CGNS_INCLUDES)  -c cgns2ensight.cc
+	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES)  $(INCLUDES) -c cgns2ensight.cc
 
 cgns2surf.o: cgns2surf.cc
-	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES)  $(INCLUDES) $(CGNS_INCLUDES)  -c cgns2surf.cc
+	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES)  $(INCLUDES) -c cgns2surf.cc
 
 ugrid2cgns.o: ugrid2cgns.cc
-	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) $(CGNS_INCLUDES)  -c ugrid2cgns.cc
+	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES)   -c ugrid2cgns.cc
 
 extract_cgns.o: extract_cgns.cc
-	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) $(CGNS_INCLUDES)  -c extract_cgns.cc
+	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES)   -c extract_cgns.cc
 
 FRC : 
 
 $(TARGET): $(OBJS) 
-	$(LD) -o $(TARGET) $(OBJS) $(TEC_LIBS) $(CGNS_LIBS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+	$(LD) -o $(TARGET) $(OBJS) $(TEC_LIBS)  $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
 extruder: extruder.o
 	$(LD) -o extruder extruder.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
@@ -109,21 +106,21 @@ fluent2vog: fluent2vog.o vogtools.o
 ccm2vog: ccm2vog.o vogtools.o libadf/libadf.a
 	 $(LD) -o ccm2vog ccm2vog.o vogtools.o libadf/libadf.a $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
-cgns2vog: cgns2vog.o hash.o vogtools.o $(CGNS_LIBS)
-	 $(LD) -o cgns2vog cgns2vog.o hash.o vogtools.o $(CGNS_LIBS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+cgns2vog: cgns2vog.o hash.o vogtools.o 
+	 $(LD) -o cgns2vog cgns2vog.o hash.o vogtools.o  $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
-cgns2ugrid: cgns2ugrid.o hash.o binaryio.o getargs.o $(CGNS_LIBS)
-	 $(LD) -o cgns2ugrid cgns2ugrid.o hash.o binaryio.o getargs.o $(CGNS_LIBS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+cgns2ugrid: cgns2ugrid.o hash.o binaryio.o getargs.o 
+	 $(LD) -o cgns2ugrid cgns2ugrid.o hash.o binaryio.o getargs.o  $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
-cgns2ensight: cgns2ensight.o $(CGNS_LIBS)
-	 $(LD) -o cgns2ensight cgns2ensight.o  $(CGNS_LIBS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+cgns2ensight: cgns2ensight.o 
+	 $(LD) -o cgns2ensight cgns2ensight.o  $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
-cgns2surf: cgns2surf.o hash.o $(CGNS_LIBS)
-	 $(LD) -o cgns2surf cgns2surf.o hash.o $(CGNS_LIBS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+cgns2surf: cgns2surf.o hash.o 
+	 $(LD) -o cgns2surf cgns2surf.o hash.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
 
-ugrid2cgns: ugrid2cgns.o hash.o binaryio.o getargs.o $(CGNS_LIBS)
-	 $(LD) -o ugrid2cgns ugrid2cgns.o hash.o binaryio.o getargs.o $(CGNS_LIBS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+ugrid2cgns: ugrid2cgns.o hash.o binaryio.o getargs.o 
+	 $(LD) -o ugrid2cgns ugrid2cgns.o hash.o binaryio.o getargs.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
 vogmerge: vogmerge.o
 	$(LD) -o vogmerge vogmerge.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)

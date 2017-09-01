@@ -146,7 +146,7 @@ namespace Loci {
     memSpace("Start readVectorDist, sizes") ;
    
     if(MPI_rank == 0) {
-      dataset = H5Dopen(group_id,vector_name) ;
+      dataset = H5Dopen(group_id,vector_name,H5P_DEFAULT) ;
       if(dataset < 0) {
         cerr << "unable to open dataset" << endl ;
         Loci::Abort() ;
@@ -419,20 +419,20 @@ namespace Loci {
     hid_t file_id = 0 ;
     int failure = 0 ; // No failure
     /* Save old error handler */
-    herr_t (*old_func)(void*) = 0;
+    H5E_auto_t old_func = 0;
     void *old_client_data = 0 ;
     if(MPI_rank == 0) {
-      H5Eget_auto(&old_func, &old_client_data);
+      H5Eget_auto(H5E_DEFAULT, &old_func, &old_client_data);
 
       /* Turn off error handling */
-      H5Eset_auto(NULL, NULL);
+      H5Eset_auto(H5E_DEFAULT, NULL, NULL);
 
       file_id = H5Fopen(filename.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
       if(file_id <= 0) 
         failure = 1 ;
 
       // Check to see if the file has surface info
-      hid_t bc_g = H5Gopen(file_id,"surface_info") ;
+      hid_t bc_g = H5Gopen(file_id,"surface_info",H5P_DEFAULT) ;
 
       boundary_ids.clear() ;
       // If surface info, then check surfaces
@@ -446,7 +446,7 @@ namespace Loci {
           buf[1023]='\0' ;
           
           string name = string(buf) ;
-          hid_t sf_g = H5Gopen(bc_g,buf) ;
+          hid_t sf_g = H5Gopen(bc_g,buf,H5P_DEFAULT) ;
           hid_t id_a = H5Aopen_name(sf_g,"Ident") ;
           int ident ;
           H5Aread(id_a,H5T_NATIVE_INT,&ident) ;
@@ -457,7 +457,7 @@ namespace Loci {
         H5Gclose(bc_g) ;
         H5Fclose(file_id) ;
         /* Restore previous error handler */
-        H5Eset_auto(old_func, old_client_data);
+        H5Eset_auto(H5E_DEFAULT, old_func, old_client_data);
       }
     }
     // Share boundary tag data with all other processors
@@ -509,14 +509,14 @@ namespace Loci {
                    vector<pair<string,Loci::entitySet> > &volDat) {
     using namespace Loci ;
     /* Save old error handler */
-    herr_t (*old_func)(void*) = 0;
+    H5E_auto_t old_func = 0;
     void *old_client_data = 0 ;
-    H5Eget_auto(&old_func, &old_client_data);
+    H5Eget_auto(H5E_DEFAULT, &old_func, &old_client_data);
     /* Turn off error handling */
-    H5Eset_auto(NULL, NULL);
+    H5Eset_auto(H5E_DEFAULT, NULL, NULL);
     
     vector<pair<string,entitySet> > volTags ;
-    hid_t cell_info = H5Gopen(input_fid,"cell_info") ;
+    hid_t cell_info = H5Gopen(input_fid,"cell_info", H5P_DEFAULT) ;
     if(cell_info > 0) {
       vector<string> vol_tag ;
       vector<entitySet> vol_set ;
@@ -531,7 +531,7 @@ namespace Loci {
         buf[1023]='\0' ;
         
         string name = string(buf) ;
-        hid_t vt_g = H5Gopen(cell_info,buf) ;
+        hid_t vt_g = H5Gopen(cell_info,buf, H5P_DEFAULT) ;
         hid_t id_a = H5Aopen_name(vt_g,"Ident") ;
         int ident ;
         H5Aread(id_a,H5T_NATIVE_INT,&ident) ;
@@ -553,7 +553,7 @@ namespace Loci {
         volTags[vol_id[i]].second = vol_set[i] ;
       }
     } else {
-      hid_t file_info = H5Gopen(input_fid,"file_info") ;
+      hid_t file_info = H5Gopen(input_fid,"file_info", H5P_DEFAULT) ;
       long numCells = readAttributeLong(file_info,"numCells") ;
       volTags.push_back(pair<string,entitySet>
                         (string("Main"),
@@ -562,7 +562,7 @@ namespace Loci {
     }
   
     /* Restore previous error handler */
-    H5Eset_auto(old_func, old_client_data);
+    H5Eset_auto(H5E_DEFAULT, old_func, old_client_data);
     volDat.swap(volTags) ;
     return true ;
   }
@@ -625,28 +625,28 @@ namespace Loci {
 
 
     /* Save old error handler */
-    herr_t (*old_func)(void*) = 0;
+    H5E_auto_t old_func = 0;
     void *old_client_data = 0 ;
 
 
     gEntity nnodes = 0 ;//nnodes type changed
     if(MPI_rank == 0) {
       
-      H5Eget_auto( &old_func, &old_client_data);
+      H5Eget_auto(H5E_DEFAULT, &old_func, &old_client_data);
       
       /* Turn off error handling */
-      H5Eset_auto( NULL, NULL);
+      H5Eset_auto(H5E_DEFAULT, NULL, NULL);
       memSpace("open file "+ filename) ;
       file_id = H5Fopen(filename.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
       if(file_id <= 0) 
         failure = 1 ;
       
-      face_g = H5Gopen(file_id,"face_info") ;
-      node_g = H5Gopen(file_id,"node_info") ;
+      face_g = H5Gopen(file_id,"face_info", H5P_DEFAULT) ;
+      node_g = H5Gopen(file_id,"node_info", H5P_DEFAULT) ;
       
 
       // Check to see if the file has surface info
-      hid_t bc_g = H5Gopen(file_id,"surface_info") ;
+      hid_t bc_g = H5Gopen(file_id,"surface_info", H5P_DEFAULT) ;
       // If surface info exists, then read in boundary_ids
       if(bc_g > 0) {
         memSpace("Start read surface_info") ;
@@ -659,7 +659,7 @@ namespace Loci {
           H5Gget_objname_by_idx(bc_g,bc,buf,sizeof(buf)) ;
           buf[1023]='\0' ;
           string name = string(buf) ;
-          hid_t sf_g = H5Gopen(bc_g,buf) ;
+          hid_t sf_g = H5Gopen(bc_g,buf,H5P_DEFAULT) ;
           hid_t id_a = H5Aopen_name(sf_g,"Ident") ;
           int ident = 0 ;
           H5Aread(id_a,H5T_NATIVE_INT,&ident) ;
@@ -674,7 +674,7 @@ namespace Loci {
       //read in a buf tpos first, and then insert the values into gStore
       memSpace("Start read pos") ;
       
-      dataset = H5Dopen(node_g,"positions") ;
+      dataset = H5Dopen(node_g,"positions",H5P_DEFAULT) ;
       dspace = H5Dget_space(dataset) ;
       if(dataset <=0 || dspace <=0)
         failure = 1 ;
@@ -799,7 +799,7 @@ namespace Loci {
     // Now read in face clusters
     gEntity nclusters = 0 ;
     if(MPI_rank == 0) {
-      dataset = H5Dopen(face_g,"cluster_sizes") ;
+      dataset = H5Dopen(face_g,"cluster_sizes", H5P_DEFAULT) ;
       dspace = H5Dget_space(dataset) ;
       if(dataset <=0 || dspace <=0)
         failure = 1 ;
@@ -884,7 +884,7 @@ namespace Loci {
       H5Gclose(face_g) ;
       H5Fclose(file_id) ;
       /* Restore previous error handler */
-      H5Eset_auto(old_func, old_client_data);
+      H5Eset_auto(H5E_DEFAULT, old_func, old_client_data);
     }
     MPI_Allreduce(&failure,&fail_state,1,MPI_INT,MPI_MAX,MPI_COMM_WORLD) ;
     if(fail_state != 0)

@@ -126,7 +126,7 @@ public:
       long long tmp_numNodes;  
       file_id = H5Fopen((*outfile_par).c_str(),H5F_ACC_RDWR,H5P_DEFAULT) ;
        
-      hid_t    group_id = H5Gopen(file_id,"file_info");
+      hid_t    group_id = H5Gopen(file_id,"file_info",H5P_DEFAULT);
        
       hid_t attr = H5Aopen_name(group_id,"numNodes");
       //data type and variable has to match

@@ -280,7 +280,7 @@ bool readVolBC(int fi,//file id, i.e., block_id
   
     
   // read in positions
-  hid_t fid = H5Gopen(input_fid,"file_info") ;
+  hid_t fid = H5Gopen(input_fid,"file_info",H5P_DEFAULT) ;
   unsigned long numNodes = readAttributeLong(fid,"numNodes") ;
   H5Gclose(fid) ;
   
@@ -295,8 +295,8 @@ bool readVolBC(int fi,//file id, i.e., block_id
   // Read in pos data from file i
   vector<vect3d> pos_dat(numNodes) ;
   vector<double> node_len(numNodes,1e30) ;
-  hid_t node_g = H5Gopen(input_fid,"node_info") ;
-  hid_t dataset = H5Dopen(node_g,"positions") ;
+  hid_t node_g = H5Gopen(input_fid,"node_info",H5P_DEFAULT) ;
+  hid_t dataset = H5Dopen(node_g,"positions",H5P_DEFAULT) ;
   hid_t dspace = H5Dget_space(dataset) ;
   
   hsize_t stride = 1 ;
@@ -322,10 +322,10 @@ bool readVolBC(int fi,//file id, i.e., block_id
   
 
 
-  hid_t face_g = H5Gopen(input_fid,"face_info") ;
+  hid_t face_g = H5Gopen(input_fid,"face_info",H5P_DEFAULT) ;
   
   // Read cluster sizes
-  dataset = H5Dopen(face_g,"cluster_sizes") ;
+  dataset = H5Dopen(face_g,"cluster_sizes",H5P_DEFAULT) ;
   dspace = H5Dget_space(dataset) ;
   hsize_t size = 0 ;
   H5Sget_simple_extent_dims(dspace,&size,NULL) ;
@@ -350,7 +350,7 @@ bool readVolBC(int fi,//file id, i.e., block_id
   H5Sclose(memspace) ;
 
   // Read in clusters and transform
-  dataset = H5Dopen(face_g,"cluster_info") ;
+  dataset = H5Dopen(face_g,"cluster_info",H5P_DEFAULT) ;
   dspace = H5Dget_space(dataset) ;
   start = 0 ;
 
@@ -869,14 +869,14 @@ bool readVolTags(hid_t input_fid,
                  vector<pair<string,Loci::entitySet> > &volDat) {
   using namespace Loci ;
   /* Save old error handler */
-  herr_t (*old_func)(void*) = 0;
+  H5E_auto_t old_func = 0;
   void *old_client_data = 0 ;
-  H5Eget_auto(&old_func, &old_client_data);
+  H5Eget_auto(H5E_DEFAULT, &old_func, &old_client_data);
   /* Turn off error handling */
-  H5Eset_auto(NULL, NULL);
+  H5Eset_auto(H5E_DEFAULT, NULL, NULL);
 
   vector<pair<string,entitySet> > volTags ;
-  hid_t cell_info = H5Gopen(input_fid,"cell_info") ;
+  hid_t cell_info = H5Gopen(input_fid,"cell_info",H5P_DEFAULT) ;
   if(cell_info > 0) {
     vector<string> vol_tag ;
     vector<entitySet> vol_set ;
@@ -891,7 +891,7 @@ bool readVolTags(hid_t input_fid,
       buf[1023]='\0' ;
       
       string name = string(buf) ;
-      hid_t vt_g = H5Gopen(cell_info,buf) ;
+      hid_t vt_g = H5Gopen(cell_info,buf,H5P_DEFAULT) ;
       hid_t id_a = H5Aopen_name(vt_g,"Ident") ;
       int ident ;
       H5Aread(id_a,H5T_NATIVE_INT,&ident) ;
@@ -913,7 +913,7 @@ bool readVolTags(hid_t input_fid,
       volTags[vol_id[i]].second = vol_set[i] ;
     }
   } else {
-    hid_t file_info = H5Gopen(input_fid,"file_info") ;
+    hid_t file_info = H5Gopen(input_fid,"file_info",H5P_DEFAULT) ;
     long numCells = readAttributeLong(file_info,"numCells") ;
     volTags.push_back(pair<string,entitySet>
                       (string("Main"),
@@ -922,7 +922,7 @@ bool readVolTags(hid_t input_fid,
   }
   
   /* Restore previous error handler */
-  H5Eset_auto(old_func, old_client_data);
+  H5Eset_auto(H5E_DEFAULT, old_func, old_client_data);
   volDat.swap(volTags) ;
   return true ;
 }
@@ -1271,7 +1271,7 @@ int main(int ac, char *av[]) {
   
   vector<file_info> fileData(num_inputs) ;
   for(int i=0;i<num_inputs;++i) {
-    hid_t fi = H5Gopen(input_fid[i],"file_info") ;
+    hid_t fi = H5Gopen(input_fid[i],"file_info",H5P_DEFAULT) ;
 
     fileData[i].numNodes = readAttributeLong(fi,"numNodes") ;
     fileData[i].numFaces = readAttributeLong(fi,"numFaces") ;
@@ -1407,19 +1407,20 @@ int main(int ac, char *av[]) {
 
   {
     // Write out file info
-    hid_t file_id = H5Gcreate(output_fid,"file_info",0) ;
+    hid_t file_id = H5Gcreate(output_fid,"file_info",
+			      H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
     hsize_t dims = 1 ;
     hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
     hid_t att_id = H5Acreate(file_id,"numNodes",H5T_STD_I64BE,
-                             dataspace_id,H5P_DEFAULT) ;
+                             dataspace_id,H5P_DEFAULT,H5P_DEFAULT) ;
     H5Awrite(att_id,H5T_NATIVE_LLONG,&numNodes) ;
     H5Aclose(att_id) ;
     att_id = H5Acreate(file_id,"numFaces", H5T_STD_I64BE,
-                       dataspace_id, H5P_DEFAULT) ;
+                       dataspace_id, H5P_DEFAULT,H5P_DEFAULT) ;
     H5Awrite(att_id,H5T_NATIVE_LLONG,&numFaces) ;
     H5Aclose(att_id) ;
     att_id = H5Acreate(file_id,"numCells", H5T_STD_I64BE,
-                       dataspace_id, H5P_DEFAULT) ;
+                       dataspace_id, H5P_DEFAULT,H5P_DEFAULT) ;
     H5Awrite(att_id,H5T_NATIVE_LLONG,&numCells) ;
     H5Aclose(att_id) ;
     H5Gclose(file_id) ;
@@ -1427,7 +1428,8 @@ int main(int ac, char *av[]) {
   
   {
     // Write out node information
-    hid_t node_id = H5Gcreate(output_fid,"node_info",0) ;
+    hid_t node_id = H5Gcreate(output_fid,"node_info",
+			      H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
     int rank = 1 ;
     hsize_t dimension = numNodes ;
     hid_t dataspace = H5Screate_simple(rank,&dimension,NULL) ;
@@ -1443,7 +1445,7 @@ int main(int ac, char *av[]) {
     typedef Loci::data_schema_traits<vect3d > traits_type ;
     Loci::DatatypeP dp = traits_type::get_type() ;
     hid_t dataseto = H5Dcreate(node_id,"positions",dp->get_hdf5_type(),
-                               dataspace,H5P_DEFAULT) ;
+                               dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
     // Write out node info
     unsigned long nodeMap_start = 0; //the start index in nodeMap
     for(int i=0;i<num_inputs;++i) {
@@ -1453,8 +1455,8 @@ int main(int ac, char *av[]) {
       
       // Read in pos data from file i
       vector<vect3d > pos_dat(fileData[i].numNodes) ;
-      hid_t node_g = H5Gopen(input_fid[i],"node_info") ;
-      hid_t dataset = H5Dopen(node_g,"positions") ;
+      hid_t node_g = H5Gopen(input_fid[i],"node_info",H5P_DEFAULT) ;
+      hid_t dataset = H5Dopen(node_g,"positions",H5P_DEFAULT) ;
       hid_t dspace = H5Dget_space(dataset) ;
       
       H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&lstart,&stride,&count,NULL) ;
@@ -1576,10 +1578,10 @@ int main(int ac, char *av[]) {
       }        
 
       
-      hid_t face_g = H5Gopen(input_fid[i],"face_info") ;
+      hid_t face_g = H5Gopen(input_fid[i],"face_info",H5P_DEFAULT) ;
 
       // Read cluster sizes
-      hid_t dataset = H5Dopen(face_g,"cluster_sizes") ;
+      hid_t dataset = H5Dopen(face_g,"cluster_sizes",H5P_DEFAULT) ;
       hid_t dspace = H5Dget_space(dataset) ;
       hsize_t size = 0 ;
       H5Sget_simple_extent_dims(dspace,&size,NULL) ;
@@ -1605,7 +1607,7 @@ int main(int ac, char *av[]) {
       H5Sclose(memspace) ;
 
       // Read in clusters and transform
-      dataset = H5Dopen(face_g,"cluster_info") ;
+      dataset = H5Dopen(face_g,"cluster_info",H5P_DEFAULT) ;
       dspace = H5Dget_space(dataset) ;
       start = 0 ;
       
@@ -1829,7 +1831,7 @@ int main(int ac, char *av[]) {
       }else{
 
         // Read in clusters and transform
-        dataset = H5Dopen(face_g,"cluster_info") ;
+        dataset = H5Dopen(face_g,"cluster_info",H5P_DEFAULT) ;
         dspace = H5Dget_space(dataset) ;
         start = 0 ;
         for(size_t c=0;c<size;++c) { // Loop over clusters
@@ -1928,7 +1930,8 @@ int main(int ac, char *av[]) {
 
     rewind(scratch) ;
 
-    hid_t face_id = H5Gcreate(output_fid,"face_info",0) ;
+    hid_t face_id = H5Gcreate(output_fid,"face_info",
+			      H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
 
     // Write cluster sizes
     int rank = 1 ;
@@ -1942,7 +1945,7 @@ int main(int ac, char *av[]) {
 
     hsize_t stride = 1;
     hid_t dataset = H5Dcreate(face_id,"cluster_sizes",H5T_NATIVE_USHORT,
-                              dataspace,H5P_DEFAULT) ;
+                              dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
     hid_t memspace = H5Screate_simple(rank,&dimension,NULL) ;
     H5Sselect_hyperslab(dataspace,H5S_SELECT_SET,&start,&stride,&dimension,NULL) ;
     hid_t err = H5Dwrite(dataset,H5T_NATIVE_USHORT,memspace,dataspace,H5P_DEFAULT,
@@ -1967,7 +1970,7 @@ int main(int ac, char *av[]) {
     start = 0 ;
     stride = 1 ;
     dataset = H5Dcreate(face_id,"cluster_info",H5T_NATIVE_UCHAR,dataspace,
-                        H5P_DEFAULT) ;
+                        H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
     
     vector<unsigned char > data(8096) ;
     while(cluster_info_size > 0) {
@@ -2010,14 +2013,16 @@ int main(int ac, char *av[]) {
     cout << mi->first <<  ' ' << mi->second << endl ;
 
   // Write out new boundary conditions
-  hid_t surf_id = H5Gcreate(output_fid,"surface_info",0) ;
+  hid_t surf_id = H5Gcreate(output_fid,"surface_info",
+			    H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
   for(mi=newbcs.begin();mi!=newbcs.end();++mi) {
-    hid_t bc_id = H5Gcreate(surf_id,mi->first.c_str(),0) ;
+    hid_t bc_id = H5Gcreate(surf_id,mi->first.c_str(),
+			    H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
     hsize_t dims = 1 ;
     hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
     
     hid_t att_id = H5Acreate(bc_id,"Ident", H5T_NATIVE_INT,
-                             dataspace_id, H5P_DEFAULT) ;
+                             dataspace_id, H5P_DEFAULT,H5P_DEFAULT) ;
     H5Awrite(att_id,H5T_NATIVE_INT,&(mi->second)) ;
     H5Aclose(att_id) ;
     H5Gclose(bc_id) ;
@@ -2053,15 +2058,17 @@ int main(int ac, char *av[]) {
     cout << i << " - " << volTags[i].first << volTags[i].second << endl ;
 
   
-  hid_t cell_info = H5Gcreate(output_fid,"cell_info", 0) ;
+  hid_t cell_info = H5Gcreate(output_fid,"cell_info",
+			      H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
 
   for(size_t i=0;i<volTags.size();++i) {
-    hid_t vol_id = H5Gcreate(cell_info,volTags[i].first.c_str(),0) ;
+    hid_t vol_id = H5Gcreate(cell_info,volTags[i].first.c_str(),
+			     H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
     hsize_t dims = 1 ;
     hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
     
     hid_t att_id = H5Acreate(vol_id,"Ident", H5T_NATIVE_INT,
-                             dataspace_id, H5P_DEFAULT) ;
+                             dataspace_id, H5P_DEFAULT,H5P_DEFAULT) ;
     int num = int(i) ;
     H5Awrite(att_id,H5T_NATIVE_INT,&num) ;
     H5Aclose(att_id) ;

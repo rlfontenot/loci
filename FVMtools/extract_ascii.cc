@@ -215,7 +215,7 @@ void process_ascii_bndry(string casename, string iteration,
 
   hid_t file_id = H5Fopen(gridtopo.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
 
-  hid_t bndg = H5Gopen(file_id,"boundaries") ;
+  hid_t bndg = H5Gopen(file_id,"boundaries",H5P_DEFAULT) ;
   hsize_t num_bcs = 0 ;
   H5Gget_num_objs(bndg,&num_bcs) ;
   vector<string> processed_bcs ;
@@ -233,7 +233,7 @@ void process_ascii_bndry(string casename, string iteration,
         bc_to_extract = true ;
     if(!bc_to_extract)
       continue ;
-    hid_t bcg = H5Gopen(bndg,buf) ;
+    hid_t bcg = H5Gopen(bndg,buf,H5P_DEFAULT) ;
     int nquads = sizeElementType(bcg,"quads") ;
     int ntrias = sizeElementType(bcg,"triangles") ;
     int ngeneral = sizeElementType(bcg,"nside_sizes") ;
@@ -282,7 +282,7 @@ void process_ascii_bndry(string casename, string iteration,
       exit(-1) ;
     }
         
-    hid_t di = H5Gopen(file_id,"dataInfo") ;
+    hid_t di = H5Gopen(file_id,"dataInfo",H5P_DEFAULT) ;
 
     if(di < 0) {
       cerr << "unable to open group dataInfo in file " << filename << endl ;
@@ -337,7 +337,7 @@ void process_ascii_bndry(string casename, string iteration,
           continue ;
         }
         
-        hid_t di = H5Gopen(file_id,"dataInfo") ;
+        hid_t di = H5Gopen(file_id,"dataInfo",H5P_DEFAULT) ;
         int nbel = sizeElementType(di,"entityIds") ;
         
         vector<int> elemIds(nbel) ;
@@ -375,7 +375,7 @@ void process_ascii_bndry(string casename, string iteration,
           continue ;
         }
         
-        hid_t di = H5Gopen(file_id,"dataInfo") ;
+        hid_t di = H5Gopen(file_id,"dataInfo",H5P_DEFAULT) ;
         int nbel = sizeElementType(di,"entityIds") ;
         
         vector<int> elemIds(nbel) ;

@@ -197,11 +197,7 @@ namespace Loci {
     for(int k = 0; k < rank; k++)
       array_dims[k]  = dimension[k];
 
-    //#ifdef H5_INTERFACE_1_8
-    //    hid_t rtype = H5Tarray_create(hdf5T,rank,array_dims) ;
-    //#else
-    hid_t rtype = H5Tarray_create(hdf5T,rank,array_dims,NULL) ;
-    //#endif
+    hid_t rtype = H5Tarray_create(hdf5T,rank,array_dims) ;
     H5Tclose(hdf5T) ;
     return  rtype ;
   }
