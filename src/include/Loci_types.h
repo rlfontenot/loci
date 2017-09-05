@@ -33,6 +33,88 @@
 #include <Tools/options_list.h>
 
 namespace Loci {
+
+  // Make special type manager for FADdType
+  class FADdType : public AbstractDatatype {
+  public:
+    FADdType() {}
+    hid_t get_hdf5_type() const {
+      FADd tmp ;
+      hid_t vDatatype = H5Tcreate( H5T_COMPOUND, sizeof(tmp) ) ;
+#ifdef NO_OFFSETOF
+      size_t offset1 = reinterpret_cast<char *>(&(tmp.value)) - reinterpret_cast<char *>(&tmp) ;
+#else
+      size_t offset1 = offsetof(FADd,value) ;	
+#endif
+      H5Tinsert(vDatatype,"value",offset1,H5T_NATIVE_DOUBLE) ;
+ 
+#ifdef NO_OFFSETOF
+      size_t offset2 = reinterpret_cast<char *>(&(tmp.grad)) - reinterpret_cast<char *>(&tmp) ;
+#else
+      size_t offset2 = offsetof(FADd,grad) ;
+#endif
+      H5Tinsert(vDatatype,"grad",offset2,H5T_NATIVE_DOUBLE) ;
+      return vDatatype ;
+    }		
+    std::ostream &output(std::ostream &s, const void *p) const
+      { s << *(reinterpret_cast<const FADd *>(p)) ; return s ;}
+    std::istream &input(std::istream &s, void *p) const
+      { s >> *(reinterpret_cast<FADd *>(p)) ; return s ; }
+    int bytesize() const
+    { return sizeof(FADd) ; }
+  } ;
+  
+  template<> struct data_schema_traits<FADd> {
+    typedef IDENTITY_CONVERTER Schema_Converter ;
+    static DatatypeP get_type() {
+      return new FADdType() ;
+    }
+  };
+
+  // Make special type manager for FAD2dType
+  class FAD2dType : public AbstractDatatype {
+  public:
+    FAD2dType() {}
+    hid_t get_hdf5_type() const {
+      FAD2d tmp ;
+      hid_t vDatatype = H5Tcreate( H5T_COMPOUND, sizeof(tmp) ) ;
+#ifdef NO_OFFSETOF
+      size_t offset1 = reinterpret_cast<char *>(&(tmp.value)) - reinterpret_cast<char *>(&tmp) ;
+#else
+      size_t offset1 = offsetof(FAD2d,value) ;	
+#endif
+      H5Tinsert(vDatatype,"value",offset1,H5T_NATIVE_DOUBLE) ;
+ 
+#ifdef NO_OFFSETOF
+      size_t offset2 = reinterpret_cast<char *>(&(tmp.grad)) - reinterpret_cast<char *>(&tmp) ;
+#else
+      size_t offset2 = offsetof(FAD2d,grad) ;
+#endif
+      H5Tinsert(vDatatype,"grad",offset2,H5T_NATIVE_DOUBLE) ;
+
+#ifdef NO_OFFSETOF
+      size_t offset3 = reinterpret_cast<char *>(&(tmp.grad2)) - reinterpret_cast<char *>(&tmp) ;
+#else
+      size_t offset3 = offsetof(FAD2d,grad2) ;
+#endif
+      H5Tinsert(vDatatype,"grad2",offset3,H5T_NATIVE_DOUBLE) ;
+      return vDatatype ;
+    }		
+    std::ostream &output(std::ostream &s, const void *p) const
+      { s << *(reinterpret_cast<const FAD2d *>(p)) ; return s ;}
+    std::istream &input(std::istream &s, void *p) const
+      { s >> *(reinterpret_cast<FAD2d *>(p)) ; return s ; }
+    int bytesize() const
+    { return sizeof(FAD2d) ; }
+  } ;
+  
+  template<> struct data_schema_traits<FAD2d> {
+    typedef IDENTITY_CONVERTER Schema_Converter ;
+    static DatatypeP get_type() {
+      return new FAD2dType() ;
+    }
+  };
+
   template <class T>
     struct data_schema_traits< vector3d<T> > {
       typedef IDENTITY_CONVERTER Schema_Converter;

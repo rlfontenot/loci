@@ -26,7 +26,20 @@
 #endif
 #include <Config/conf.h>
 
+#include <Tools/autodiff.h>
+
+
 namespace Loci {
+
+#ifdef USE_AUTODIFF
+#ifdef AUTODIFF2ND
+  typedef Loci::FAD2d real_t ;
+#else
+  typedef Loci::FADd real_t ;
+#endif
+#else
+  typedef double real_t ;
+#endif
 
   //---------------------Array----------------------//
   template <class T,size_t n> class Array {
@@ -140,48 +153,20 @@ namespace Loci {
                        ra1[0]*v2.y-ra1[1]*v2.x) ;
   }
 
-  template<class T> inline vector3d<T> &operator*=(vector3d<T> &target, float val) {
+  template<class T,class S> inline vector3d<T> &operator*=(vector3d<T> &target, S val) {
     target.x *= val ;
     target.y *= val ;
     target.z *= val ;
     return target ;
   }
 
-  template<class T> inline vector3d<T> &operator/=(vector3d<T> &target, float val) {
+  template<class T,class S> inline vector3d<T> &operator/=(vector3d<T> &target, S val) {
     target.x /= val ;
     target.y /= val ;
     target.z /= val ;
     return target ;
   }
-
-  template<class T> inline vector3d<T> &operator*=(vector3d<T> &target, double val) {
-    target.x *= val ;
-    target.y *= val ;
-    target.z *= val ;
-    return target ;
-  }
-
-  template<class T> inline vector3d<T> &operator/=(vector3d<T> &target, double val) {
-    target.x /= val ;
-    target.y /= val ;
-    target.z /= val ;
-    return target ;
-  }
-
-  template<class T> inline vector3d<T> &operator*=(vector3d<T> &target, long double val) {
-    target.x *= val ;
-    target.y *= val ;
-    target.z *= val ;
-    return target ;
-  }
-
-  template<class T> inline vector3d<T> &operator/=(vector3d<T> &target, long double val) {
-    target.x /= val ;
-    target.y /= val ;
-    target.z /= val ;
-    return target ;
-  }
-
+  
   template<class T> inline vector3d<T> operator+=(vector3d<T> &target, const vector3d<T> &val) {
     target.x += val.x ;
     target.y += val.y ;
@@ -204,39 +189,14 @@ namespace Loci {
     return vector3d<T>(v1.x-v2.x,v1.y-v2.y,v1.z-v2.z) ;
   }
 
-  template<class T> inline vector3d<T> operator*(const vector3d<T> &v1, float r2) {
+  template<class T,class S> inline vector3d<T> operator*(const vector3d<T> &v1, S r2) {
     return vector3d<T>(v1.x*r2,v1.y*r2,v1.z*r2) ;
   }
-
-  template<class T> inline vector3d<T> operator*(float r1, const vector3d<T> &v2) {
+  template<class T,class S> inline vector3d<T> operator*(S r1, const vector3d<T> &v2) {
     return vector3d<T>(v2.x*r1,v2.y*r1,v2.z*r1) ;
   }
 
-  template<class T> inline vector3d<T> operator/(const vector3d<T> &v1, float r2) {
-    return vector3d<T>(v1.x/r2,v1.y/r2,v1.z/r2) ;
-  }
-
-  template<class T> inline vector3d<T> operator*(const vector3d<T> &v1, double r2) {
-    return vector3d<T>(v1.x*r2,v1.y*r2,v1.z*r2) ;
-  }
-
-  template<class T> inline vector3d<T> operator*(double r1, const vector3d<T> &v2) {
-    return vector3d<T>(v2.x*r1,v2.y*r1,v2.z*r1) ;
-  }
-
-  template<class T> inline vector3d<T> operator/(const vector3d<T> &v1, double r2) {
-    return vector3d<T>(v1.x/r2,v1.y/r2,v1.z/r2) ;
-  }
-
-  template<class T> inline vector3d<T> operator*(const vector3d<T> &v1, long double r2) {
-    return vector3d<T>(v1.x*r2,v1.y*r2,v1.z*r2) ;
-  }
-
-  template<class T> inline vector3d<T> operator*(long double r1, const vector3d<T> &v2) {
-    return vector3d<T>(v2.x*r1,v2.y*r1,v2.z*r1) ;
-  }
-
-  template<class T> inline vector3d<T> operator/(const vector3d<T> &v1, long double r2) {
+  template<class T,class S> inline vector3d<T> operator/(const vector3d<T> &v1, S r2) {
     return vector3d<T>(v1.x/r2,v1.y/r2,v1.z/r2) ;
   }
 
@@ -269,6 +229,15 @@ namespace Loci {
 
     return temp ;
   }
+
+  inline vector3d<float> realToFloat(vector3d<double> v) { return vector3d<float>(float(v.x),float(v.y),float(v.z)); }
+  inline vector3d<double> realToDouble(vector3d<double> v) { return v ; }
+
+  inline vector3d<float> realToFloat(vector3d<FADd> v) { return vector3d<float>(realToFloat(v.x),realToFloat(v.y),realToFloat(v.z)); }
+  inline vector3d<double> realToDouble(vector3d<FADd> v) { return vector3d<double>(realToDouble(v.x),realToDouble(v.y),realToDouble(v.z)); }
+
+  inline vector3d<float> realToFloat(vector3d<FAD2d> v) { return vector3d<float>(realToFloat(v.x),realToFloat(v.y),realToFloat(v.z)); }
+  inline vector3d<double> realToDouble(vector3d<FAD2d> v) { return vector3d<double>(realToDouble(v.x),realToDouble(v.y),realToDouble(v.z)); }
 
   //---------------------vector2d------------------//
   template <class T> 
@@ -323,10 +292,6 @@ namespace Loci {
     return sqrt(v.x*v.x+v.y*v.y) ;
   }
 
-  //  template <class T> inline T dot(const T ra1[], const vector2d<T> &v2) {
-  //    return ra1[0]*v2.x + ra1[1]*v2.y ;
-  //  }
-
   template<class T> inline T cross(const vector2d<T> &v1, const vector2d<T> &v2) {
     return v1.x*v2.y-v1.y*v2.x ;
   }
@@ -335,41 +300,14 @@ namespace Loci {
     return v1.x*ra2[1]-v1.y*ra2[0] ;
   }
 
-  //  template<class T> inline T cross(const T ra1[], const vector2d<T> &v2) {
-  //    return ra1[0]*v2.y-ra1[1]*v2.x ;
-  //  }
 
-  template<class T> inline vector2d<T> &operator*=(vector2d<T> &target, float val) {
+  template<class T,class S> inline vector2d<T> &operator*=(vector2d<T> &target, S val) {
     target.x *= val ;
     target.y *= val ;
     return target ;
   }
 
-  template<class T> inline vector2d<T> &operator/=(vector2d<T> &target, float val) {
-    target.x /= val ;
-    target.y /= val ;
-    return target ;
-  }
-
-  template<class T> inline vector2d<T> &operator*=(vector2d<T> &target, double val) {
-    target.x *= val ;
-    target.y *= val ;
-    return target ;
-  }
-
-  template<class T> inline vector2d<T> &operator/=(vector2d<T> &target, double val) {
-    target.x /= val ;
-    target.y /= val ;
-    return target ;
-  }
-
-  template<class T> inline vector2d<T> &operator*=(vector2d<T> &target, long double val) {
-    target.x *= val ;
-    target.y *= val ;
-    return target ;
-  }
-
-  template<class T> inline vector2d<T> &operator/=(vector2d<T> &target, long double val) {
+  template<class T,class S> inline vector2d<T> &operator/=(vector2d<T> &target, S val) {
     target.x /= val ;
     target.y /= val ;
     return target ;
@@ -395,39 +333,15 @@ namespace Loci {
     return vector2d<T>(v1.x-v2.x,v1.y-v2.y) ;
   }
 
-  template<class T> inline vector2d<T> operator*(const vector2d<T> &v1, float r2) {
+  template<class T,class S> inline vector2d<T> operator*(const vector2d<T> &v1, S r2) {
     return vector2d<T>(v1.x*r2,v1.y*r2) ;
   }
 
-  template<class T> inline vector2d<T> operator*(float r1, const vector2d<T> &v2) {
+  template<class T,class S> inline vector2d<T> operator*(S r1, const vector2d<T> &v2) {
     return vector2d<T>(v2.x*r1,v2.y*r1) ;
   }
 
-  template<class T> inline vector2d<T> operator/(const vector2d<T> &v1, float r2) {
-    return vector2d<T>(v1.x/r2,v1.y/r2) ;
-  }
-
-  template<class T> inline vector2d<T> operator*(const vector2d<T> &v1, double r2) {
-    return vector2d<T>(v1.x*r2,v1.y*r2) ;
-  }
-
-  template<class T> inline vector2d<T> operator*(double r1, const vector2d<T> &v2) {
-    return vector2d<T>(v2.x*r1,v2.y*r1) ;
-  }
-
-  template<class T> inline vector2d<T> operator/(const vector2d<T> &v1, double r2) {
-    return vector2d<T>(v1.x/r2,v1.y/r2) ;
-  }
-
-  template<class T> inline vector2d<T> operator*(const vector2d<T> &v1, long double r2) {
-    return vector2d<T>(v1.x*r2,v1.y*r2) ;
-  }
-
-  template<class T> inline vector2d<T> operator*(long double r1, const vector2d<T> &v2) {
-    return vector2d<T>(v2.x*r1,v2.y*r1) ;
-  }
-
-  template<class T> inline vector2d<T> operator/(const vector2d<T> &v1, long double r2) {
+  template<class T,class S> inline vector2d<T> operator/(const vector2d<T> &v1, S r2) {
     return vector2d<T>(v1.x/r2,v1.y/r2) ;
   }
 

@@ -28,6 +28,30 @@
 
 #ifdef NO_CMATH
 #include <math.h>
+namespace Loci {
+  // trigonemetric
+  using ::acos ;
+  using ::asin ;
+  using ::atan ;
+  using ::atan2 ;
+  using ::cos ;
+  using ::sin ;
+  using ::tan ;
+  // hyperbolic
+  using ::sinh ;
+  using ::cosh ;
+  using ::tanh ;
+  // exponetial and logrithmic
+  using ::exp ;
+  using ::log ;
+  using ::log10 ;
+  using ::sqrt ;
+  using ::pow ;
+  using ::fabs ;
+  // misc
+  using ::ceil ;
+  using ::floor ;
+}
 #else
 #include <cmath>
 
@@ -54,6 +78,34 @@ using std::fabs ;
 using std::ceil ;
 using std::floor ;
 using std::fmod ;
+using std::isnan ;
+
+namespace Loci {
+  // trigonemetric
+  using std::acos ;
+  using std::asin ;
+  using std::atan ;
+  using std::atan2 ;
+  using std::cos ;
+  using std::sin ;
+  using std::tan ;
+  // hyperbolic
+  using std::sinh ;
+  using std::cosh ;
+  using std::tanh ;
+  // exponetial and logrithmic
+  using std::exp ;
+  using std::log ;
+  using std::log10 ;
+  using std::sqrt ;
+  using std::pow ;
+  using std::fabs ;
+  // misc
+  using std::ceil ;
+  using std::floor ;
+  using std::fmod ;
+  using std::isnan ;
+}
 #endif
 #ifdef NO_CSTDLIB
 #include <stdlib.h>
@@ -65,6 +117,9 @@ inline long double abs(long double f1) { return f1>0?f1:-f1; }
 #else
 #include <cstdlib>
 using std::abs ;
+namespace Loci {
+  using std::abs ;
+}
 #endif
 
 #include <algorithm>
