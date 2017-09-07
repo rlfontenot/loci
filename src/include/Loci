@@ -71,6 +71,7 @@ namespace Loci {
   extern int irandom() ;
 }
 
+#define LOCI_V5
 #endif
 
 
