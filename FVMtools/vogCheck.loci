@@ -29,7 +29,7 @@ $include "FVM.lh"
 #include <GLoci.h>
 namespace Loci {
   void create_ci_map(gfact_db &facts) ;
-  void copy_facts(gfact_db& gfacts);
+//  void copy_facts(gfact_db& gfacts);
 }
 
 using std::string ;
@@ -136,7 +136,7 @@ int main(int ac, char *av[]) {
       gfacts.create_gfact("centroid",centroid) ;
     }
     
-    copy_facts(gfacts);
+//    copy_facts(gfacts);
     if(!Loci::makeQuery(rdb,gfacts,query)) {
       cerr << "query for '" << query << "' failed. " << endl ;
       Loci::Abort() ;

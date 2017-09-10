@@ -1641,8 +1641,11 @@ namespace Loci {
     return true ;
   }
 
+  void copy_facts(gfact_db &facts) ;
+  
   bool makeQuery(const rule_db &rdb, gfact_db &facts,
                  const std::string& query) {
+    copy_facts(facts) ;
     /*	
         #ifdef USE_PAPI
         int perr,ev_set=PAPI_NULL;

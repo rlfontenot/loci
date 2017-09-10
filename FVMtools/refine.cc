@@ -43,7 +43,6 @@ using Loci::gParam;
 namespace Loci{
   void parallelClassifyCell(gfact_db &gfacts) ;
   void createEdgesPar(gfact_db &gfacts) ;
-  void copy_facts(gfact_db& gfacts);
 }
 
 int main(int argc, char ** argv) {
@@ -456,7 +455,6 @@ int main(int argc, char ** argv) {
   //   }
   
    
-   copy_facts(gfacts);
   
   if(cell2parent){
     if(!Loci::makeQuery(rules, gfacts, "cell2parent_output")) {

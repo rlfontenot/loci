@@ -52,7 +52,6 @@ using Loci::MPI_processes;
 namespace Loci{
   void parallelClassifyCell(gfact_db &facts) ;
   void createEdgesPar(gfact_db &facts) ;
-  void copy_facts(gfact_db& gfacts);
 }
 
   
@@ -452,7 +451,6 @@ int main(int argc, char ** argv) {
   //   }
 
  
-  copy_facts(gfacts);
   if(!Loci::makeQuery(rules, gfacts, "cellplan_output")) {
     std::cerr << "query failed!" << std::endl;
     Loci::Abort();
