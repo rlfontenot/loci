@@ -35,6 +35,7 @@
 #include <string>
 #include <mpi.h>
 
+#include <execute.h>
 
 
 namespace Loci {
