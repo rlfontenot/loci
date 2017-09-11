@@ -406,12 +406,6 @@ namespace Loci {
    
     void make_consistent();
     
-    //for gMultiStore, this method computes the mean value for each entity
-    //and put them in a vector center
-    void get_mean(std::vector<T>& center);
-    
-  
-     
   } ;
 
   

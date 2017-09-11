@@ -545,33 +545,6 @@ namespace Loci {
 
   }
 
-  //*********************************************************************/
-  //for gMultiStore, this method computes the mean value for each entity
-  //and put them in a vector center
-  template <class T> 
-  void gStore<T>::get_mean(vector<T>& center) 
-  {
-    center.resize(domain().size());
-    const_iterator itr = begin();
-    gEntity current = itr->first;
-    T pnt = itr->second ;
-    int ind = 0;
-    size_t sz = 1;
-    for( ; itr != end(); itr++){
-      if(itr->first == current){
-        pnt += itr->second; 
-        sz++;
-      }else{
-        pnt *= 1./float(sz) ;
-        center[ind++] = pnt ;
-        sz = 1;
-        current = itr->first;
-        pnt = itr->second;
-      }
-    }
-    pnt *= 1./float(sz) ;
-    center[ind++] = pnt;
-  } 
   //*******************************************************************/
   template<class T>
   frame_info gStoreRepI<T>::get_frame_info()const {
