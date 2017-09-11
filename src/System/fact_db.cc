@@ -886,46 +886,7 @@ namespace Loci {
     else
       return storeRepP(0) ;
   }
-  void fact_db::write_all_hdf5(const char *filename) {
-    variableSet vars = get_typed_variables() ;
-    write_hdf5(filename, vars) ;
-  }
-  void fact_db::read_all_hdf5(const char *filename) {
-    variableSet vars = get_typed_variables() ;
-    read_hdf5(filename, vars) ; 
-  }
-  void fact_db::write_hdf5(const char *filename, variableSet &vars) {
-    hid_t  file_id=0 ;
-    if(Loci::MPI_rank == 0) 
-      file_id =  H5Fcreate(filename, H5F_ACC_TRUNC,
-			   H5P_DEFAULT, H5P_DEFAULT) ;
-    
-    
-    for(variableSet::const_iterator vi = vars.begin(); vi != vars.end(); ++vi) {
-      storeRepP  p = get_variable(*vi) ;
-      if(p->RepType() == STORE) {
-        writeContainer(file_id,variable(*vi).get_info().name,p,*this) ;
-      }
-    }
-    if(Loci::MPI_rank == 0) 
-      H5Fclose(file_id) ;
-  }
-  
-  
-  void fact_db::read_hdf5(const char *filename, variableSet &vars) {
-    hid_t  file_id=0 ;
-    if(Loci::MPI_rank == 0) 
-      file_id =  H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT) ;
-    for(variableSet::const_iterator vi = vars.begin(); vi != vars.end(); ++vi) {
-      storeRepP  p = get_variable(*vi) ;
-      if(p->RepType() == STORE) {
-        readContainer(file_id,variable(*vi).get_info().name,p,EMPTY,*this) ;
-      }
-    }
-    if(Loci::MPI_rank == 0) 
-      H5Fclose(file_id) ;
-    
-  }
+
 
   // experimental code to create keyspace from the
   // global registered keyspace list

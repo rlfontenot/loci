@@ -42,7 +42,9 @@ using Loci::const_MapVec ;
 using Loci::multiMap ;
 using Loci::const_multiMap ;
 using Loci::inverseMap ;
+
 //using Loci::distributed_inverseMap ;
+using Loci::accessMap ;
 
 using Loci::store ;
 using Loci::const_store ;
