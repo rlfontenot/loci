@@ -42,7 +42,7 @@ OBJS = Loci_version.o  Initialize.o Loci_Datatypes.o variable.o \
        visit_assemble.o visit_deco.o visit_tools.o visit_viz.o\
        visit_chomp.o dynamic_exec.o \
        dist_tools.o distribute_io.o distribute_container.o dist_internal.o \
-       FVMGridReader_long.o FVMStuff_long.o partition.o gconstraint.o fact_db.o gkeyspace.o \
+       FVMGridReader.o FVMStuff_long.o partition.o gconstraint.o fact_db.o gkeyspace.o \
 	gkey_manager.o gmap.o gmultimap.o \
        FVMGridWriter.o FVMStuff.o kd_tree.o pnn.o orb.o \
        keyspace.o interpolate_tools.o thread.o
