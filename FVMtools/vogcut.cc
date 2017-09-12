@@ -163,11 +163,7 @@ bool readNodes(hid_t input_fid,
   
   hsize_t  count = numNodes ;
 
-#ifdef H5_INTERFACE_1_6_4
   hsize_t lstart = 0 ;
-#else
-  hssize_t lstart = 0 ;
-#endif 
 
   // Read in pos data from file i
   pos_dat.resize(numNodes) ;
@@ -261,22 +257,18 @@ bool createMaps(hid_t input_fid,
   vector<unsigned short> csizes(size) ;
   hsize_t  dimension = size ;
  
-#ifdef H5_INTERFACE_1_6_4
   hsize_t start = 0 ;
-#else
-    hssize_t start = 0 ;
-#endif
-    hsize_t  count = size ;
-    H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&start,&stride,&count,NULL) ;
-    int rank = 1 ;
-    hid_t memspace = H5Screate_simple(rank,&dimension,NULL) ;
-    hid_t err = H5Dread(dataset,H5T_NATIVE_USHORT,memspace,dspace,H5P_DEFAULT,&csizes[0]) ;
-    if(err < 0) {
-      cerr << "unable to read cluster sizes from file" << endl ;
-      exit(-1) ;
-    }
-    H5Dclose(dataset) ;
-    H5Sclose(memspace) ;
+  hsize_t  count = size ;
+  H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&start,&stride,&count,NULL) ;
+  int rank = 1 ;
+  hid_t memspace = H5Screate_simple(rank,&dimension,NULL) ;
+  hid_t err = H5Dread(dataset,H5T_NATIVE_USHORT,memspace,dspace,H5P_DEFAULT,&csizes[0]) ;
+  if(err < 0) {
+    cerr << "unable to read cluster sizes from file" << endl ;
+    exit(-1) ;
+  }
+  H5Dclose(dataset) ;
+  H5Sclose(memspace) ;
   
   {
     // Read in clusters 

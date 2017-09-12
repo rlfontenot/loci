@@ -286,11 +286,7 @@ bool readVolBC(int fi,//file id, i.e., block_id
   
   hsize_t  count = numNodes ;
 
-#ifdef H5_INTERFACE_1_6_4
   hsize_t lstart = 0 ;
-#else
-  hssize_t lstart = 0 ;
-#endif 
 
   // Read in pos data from file i
   vector<vect3d> pos_dat(numNodes) ;
@@ -332,11 +328,8 @@ bool readVolBC(int fi,//file id, i.e., block_id
   vector<unsigned short> csizes(size) ;
   dimension = size ;
  
-#ifdef H5_INTERFACE_1_6_4
   hsize_t start = 0 ;
-#else
-  hssize_t start = 0 ;
-#endif
+
   count = size ;
   H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&start,&stride,&count,NULL) ;
   rank = 1 ;
@@ -1434,13 +1427,9 @@ int main(int ac, char *av[]) {
     hsize_t dimension = numNodes ;
     hid_t dataspace = H5Screate_simple(rank,&dimension,NULL) ;
 
-#ifdef H5_INTERFACE_1_6_4
     hsize_t start = 0 ;
     hsize_t lstart = 0 ;
-#else
-    hssize_t start = 0 ;
-    hssize_t lstart = 0 ;
-#endif
+
     hsize_t stride = 1 ;
     typedef Loci::data_schema_traits<vect3d > traits_type ;
     Loci::DatatypeP dp = traits_type::get_type() ;
@@ -1588,11 +1577,8 @@ int main(int ac, char *av[]) {
       vector<unsigned short> csizes(size) ;
       hsize_t dimension = size ;
       hsize_t stride = 1 ;
-#ifdef H5_INTERFACE_1_6_4
       hsize_t start = 0 ;
-#else
-      hssize_t start = 0 ;
-#endif
+
       hsize_t count = size ;
       H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&start,&stride,&count,NULL) ;
       int rank = 1 ;
@@ -1937,11 +1923,7 @@ int main(int ac, char *av[]) {
     int rank = 1 ;
     hsize_t dimension = cluster_sizes.size() ;
     hid_t dataspace = H5Screate_simple(rank,&dimension,NULL) ;
-#ifdef H5_INTERFACE_1_6_4
     hsize_t start = 0 ;
-#else
-    hssize_t start = 0 ;
-#endif
 
     hsize_t stride = 1;
     hid_t dataset = H5Dcreate(face_id,"cluster_sizes",H5T_NATIVE_USHORT,

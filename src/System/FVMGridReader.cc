@@ -161,11 +161,7 @@ namespace Loci {
       hsize_t dimension = lsz ;
       hsize_t count = dimension ;
       hsize_t stride = 1 ;
-#ifdef H5_INTERFACE_1_6_4
       hsize_t start = 0 ;
-#else
-      hssize_t start = 0 ;
-#endif
 
       H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&start,&stride,&count, NULL) ;
       start += dimension  ;
@@ -714,11 +710,7 @@ namespace Loci {
       hsize_t dimension = lsz ;
       hsize_t count = dimension ;
       hsize_t stride = 1 ;
-#ifdef H5_INTERFACE_1_6_4
       hsize_t start = 0 ;
-#else
-      hssize_t start = 0 ;
-#endif
 
       H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&start,&stride,&count, NULL) ;
       start += dimension  ;
@@ -995,18 +987,6 @@ namespace Loci {
     memSpace("Finish reading from file");
     return true ;
   }
-  namespace{
-    vector<string> split(string str, char delim){
-      vector<string> result;
-      std::istringstream ss(str);
-      string token;
-      while(std::getline(ss, token, delim)){
-        result.push_back(token);
-      }
-      return result;
-    }
-  }
- 
 
   //this function parses the user provided string par_str
   //and creates the gParams for partition functions to use 
@@ -1392,22 +1372,8 @@ namespace Loci {
     //	if(collect_perf_data)
     //		read_file_timer = perfAnalysis->start_timer("Reading in FVM Grid");
     memSpace("readFVMGrid Start") ;
-    bool useVOG = true ;
-    string input_file = filename ;
-    string::size_type spos = string::npos ;
-    if((spos = input_file.rfind('.')) != string::npos) {
-      input_file.erase(0,spos) ;
-      if(input_file == ".xdr")
-        useVOG = false ;
-    }
-    if(useVOG) {
-      if(!readGridVOG_raw(facts, filename))
-        return false;
-    } else {
-      cerr << "XDR Grid File Reading Support has been removed!!!, convert file to VOG format." << endl ;
-      Loci::Abort() ;
+    if(!readGridVOG_raw(facts, filename))
       return false;
-    }
 
     //need redistribute and sort here
    

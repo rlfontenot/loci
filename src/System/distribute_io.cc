@@ -111,11 +111,7 @@ namespace Loci {
       for(int i = 0; i < sizes[prank]; ++i)
 	vint.push_back(tmp_int[i]) ;
     } else {
-#ifdef H5_INTERFACE_1_6_4
       hsize_t start = 0 ;
-#else
-      hssize_t start = 0 ;
-#endif
       hsize_t stride = 1 ;
       hsize_t count = 0 ;
       for(int p = 0; p < pnum; ++p) {
@@ -169,11 +165,7 @@ namespace Loci {
       for(int i = 0; i < sizes[prank]; ++i)
 	vint.push_back(tmp_int[i]) ;
     } else { 
-#ifdef H5_INTERFACE_1_6_4
       hsize_t start = 0 ;
-#else
-      hssize_t start = 0 ;
-#endif
       hsize_t stride = 1 ;
       hsize_t count = 0 ;
       for(int p = 0; p < pnum; ++p) {
@@ -227,11 +219,7 @@ namespace Loci {
     } else {
       hid_t datatype = H5T_NATIVE_INT ;
       int rank = 1 ;
-#ifdef H5_INTERFACE_1_6_4
       hsize_t start = 0 ;
-#else
-      hssize_t start = 0 ;
-#endif
       hsize_t stride = 1 ;
       hsize_t count = 0 ;
       hsize_t dimension = tot_entities ;
@@ -443,11 +431,7 @@ namespace Loci {
         array_size = 1 ;
       hsize_t dimension = array_size ;
       int rank = 1 ;
-#ifdef H5_INTERFACE_1_6_4
       hsize_t start = 0 ;
-#else
-      hssize_t start = 0 ;
-#endif
       hsize_t stride = 1 ;
       hsize_t count = array_size ;
 
@@ -542,11 +526,7 @@ namespace Loci {
       // Begin writing array
       int rank = 1 ;
       hsize_t dimension = 1 ;
-#ifdef H5_INTERFACE_1_6_4
       hsize_t start = 0 ;
-#else
-      hssize_t start = 0 ;
-#endif
       hsize_t stride = 1 ;
       hsize_t count = arr_sizes[0] ;
       dimension =  tot_arr_size ;
@@ -781,11 +761,8 @@ namespace Loci {
       // processor zero
       hid_t dataset =  H5Dopen(group_id, "data",H5P_DEFAULT) ;
       hid_t dataspace = H5Dget_space(dataset) ;
-#ifdef H5_INTERFACE_1_6_4
+
       hsize_t start = 0 ;
-#else
-      hssize_t start = 0 ;
-#endif
       hsize_t stride = 1 ;
       hsize_t count = 0 ;
       int curr_indx = 0 ;

@@ -122,11 +122,7 @@ void readSurfaces(string filename,
   vector<unsigned short> csizes(size) ;
   hsize_t dimension = size ;
   hsize_t stride = 1 ;
-#ifdef H5_INTERFACE_1_6_4
   hsize_t start = 0 ;
-#else
-  hssize_t start = 0 ;
-#endif
   hsize_t count = size ;
   H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&start,&stride,&count,NULL) ;
   int rank = 1 ;
@@ -228,11 +224,7 @@ void readSurfaces(string filename,
 
   count = numNodes ;
 
-#ifdef H5_INTERFACE_1_6_4
-    hsize_t lstart = 0 ;
-#else
-    hssize_t lstart = 0 ;
-#endif
+  hsize_t lstart = 0 ;
       
   // Read in pos data from file i
   vector<Loci::vector3d<double> > pos_dat(numNodes) ;
