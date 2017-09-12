@@ -90,7 +90,7 @@ void process_mean(string casename, string iteration,
             continue ;
           }
 
-          gfact_db facts ;
+          fact_db facts ;
           store<float> scalar ;
           Loci::readContainer(file_id,var_name,scalar.Rep(),EMPTY,facts) ;
           entitySet dom = scalar.domain() ;
@@ -125,7 +125,7 @@ void process_mean(string casename, string iteration,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
         string sname = var+"Mean" ;
 	cout << "Writing Variables: " << sname ;
-        gfact_db facts ;
+        fact_db facts ;
         Loci::writeContainer(file_id,sname,m.Rep(),facts) ;
 
         Loci::hdf5CloseFile(file_id) ;
@@ -156,7 +156,7 @@ void process_mean(string casename, string iteration,
           exit(-1) ;
         }
 
-        gfact_db facts ;
+        fact_db facts ;
         Loci::readContainer(file_id,"pos",pos.Rep(),EMPTY,facts) ;
         Loci::hdf5CloseFile(file_id) ;
         int npnts = pos.domain().size() ;
@@ -254,7 +254,7 @@ void process_mean(string casename, string iteration,
             continue ;
           }
 
-          gfact_db facts ;
+          fact_db facts ;
           store<vector3d<float> > vect ;
           Loci::readContainer(file_id,var_name,vect.Rep(),EMPTY,facts) ;
           entitySet dom = vect.domain() ;
@@ -326,7 +326,7 @@ void process_mean(string casename, string iteration,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
         string sname = var+"Mean" ;
 	cout << "Writing Variables: " << sname ;
-        gfact_db facts ;
+        fact_db facts ;
         Loci::writeContainer(file_id,sname,m.Rep(),facts) ;
 
         Loci::hdf5CloseFile(file_id) ;
@@ -397,7 +397,7 @@ void process_mean(string casename, string iteration,
             exit(-1) ;
           }
         
-          gfact_db facts ;
+          fact_db facts ;
           storeVec<float> mix ;
           Loci::readContainer(file_id,"mixture",mix.Rep(),EMPTY,facts) ;
           param<string> species_names ;
@@ -458,7 +458,7 @@ void process_mean(string casename, string iteration,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
         string sname = var+"Mean" ;
 	cout << "Writing Variables: " << sname ;
-        gfact_db facts ;
+        fact_db facts ;
         Loci::writeContainer(file_id,sname,m.Rep(),facts) ;
 
         Loci::hdf5CloseFile(file_id) ;
@@ -733,7 +733,7 @@ void combine_mean(string casename, string iteration,
           cout << "iteration: " << buf << postfix << '\r' ;
 	  cout.flush() ;
           n = n + 1.0 ;
-          gfact_db facts ;
+          fact_db facts ;
 	  store<float> scalar_mean ;
 	  { 
 	    string vname = var+"mean" ;
@@ -824,7 +824,7 @@ void combine_mean(string casename, string iteration,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
         string sname = var+"CMean" ;
 	cout << "Writing Variables: " << sname ;
-        gfact_db facts ;
+        fact_db facts ;
         Loci::writeContainer(file_id,sname,m.Rep(),facts) ;
 
         Loci::hdf5CloseFile(file_id) ;
@@ -856,7 +856,7 @@ void combine_mean(string casename, string iteration,
           cout << "iteration: " << buf << postfix << '\r' ;
 	  cout.flush() ;
           n = n + 1.0 ;
-          gfact_db facts ;
+          fact_db facts ;
 	  store<vector3d<float> > vect_mean ;
 	  { 
 	    string vname = var+"mean" ;
@@ -952,7 +952,7 @@ void combine_mean(string casename, string iteration,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
         string sname = var+"CMean" ;
 	cout << "Writing Variables: " << sname ;
-        gfact_db facts ;
+        fact_db facts ;
         Loci::writeContainer(file_id,sname,m.Rep(),facts) ;
 
         Loci::hdf5CloseFile(file_id) ;

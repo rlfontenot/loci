@@ -49,8 +49,8 @@ using std::sort;
 
 namespace Loci {
 
-  void get_clone(gfact_db &facts, const rule_db &rdb) {
-    gfact_db::distribute_infoP df = facts.get_distribute_info()  ;
+  void get_clone(fact_db &facts, const rule_db &rdb) {
+    fact_db::distribute_infoP df = facts.get_distribute_info()  ;
     std::vector<entitySet> &ptn = facts.get_init_ptn() ;
     // reallocate constraints on whole domain(instead of local domain) on each process
     variableSet tmp_vars = facts.get_typed_variables();
@@ -331,10 +331,10 @@ namespace Loci {
       entities in their original global numbering.*/ 
     for(ei=send_neighbour.begin(); ei != send_neighbour.end();++ei)
       df->xmit.push_back
-        (gfact_db::distribute_info::dist_data(*ei,send_entities[*ei])) ;
+        (fact_db::distribute_info::dist_data(*ei,send_entities[*ei])) ;
     for(ei=recv_neighbour.begin(); ei != recv_neighbour.end();++ei)
       df->copy.push_back
-        (gfact_db::distribute_info::dist_data(*ei,recv_entities[*ei])) ;
+        (fact_db::distribute_info::dist_data(*ei,recv_entities[*ei])) ;
 
     int total = 0 ;
     for(size_t i=0;i<df->xmit.size();++i)
@@ -355,7 +355,7 @@ namespace Loci {
   //rule_part = 0: Output and Input of the rule mapping
   //          = 1: Only Outupt
   //          = 2: Only Input
-  void get_mappings(const rule_db &rdb, gfact_db &facts,
+  void get_mappings(const rule_db &rdb, fact_db &facts,
                     set<vector<variableSet> > &maps_ret, unsigned int rule_part) {
     ruleSet rules = rdb.all_rules("main") ;
     set<vector<variableSet> > maps ;
@@ -498,7 +498,7 @@ namespace Loci {
   
   //This routine  is similar to the expand map but it works for maps
   //which are distributed across processors. 
-  entitySet dist_expand_map(entitySet domain, gfact_db &facts,
+  entitySet dist_expand_map(entitySet domain, fact_db &facts,
 			    const std::set<std::vector<variableSet> > &maps) {
     
     std::vector<entitySet> ptn = facts.get_init_ptn() ;
@@ -543,12 +543,12 @@ namespace Loci {
     returned: entitySet I received
   */
   
-  entitySet fill_entitySet(const entitySet& e, gfact_db &facts) {
+  entitySet fill_entitySet(const entitySet& e, fact_db &facts) {
     
     entitySet re ;
     
     if(facts.isDistributed()) {  
-      gfact_db::distribute_infoP d = facts.get_distribute_info() ;
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
 
       int **send_buffer = 0 ;
       int **recv_buffer = 0 ;
@@ -640,12 +640,12 @@ namespace Loci {
   /*! ev: the entitySets I send if they are in my xmit region
     return: the entitySets I recieve*/
   vector<entitySet> fill_entitySet(const vector<entitySet>& ev,
-                                   gfact_db &facts) {
+                                   fact_db &facts) {
 
     vector<entitySet> re(ev.size()) ;
 
     if(facts.isDistributed()) {
-      gfact_db::distribute_infoP d = facts.get_distribute_info() ;
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
 
       const int evsz = ev.size() ;
       int *evtmp = new int[evsz] ;
@@ -747,10 +747,10 @@ namespace Loci {
   /*! e: the entitySet I send if it's in my clone region
     return: the entitySet I  receive
   */
-  entitySet send_entitySet(const entitySet& e, gfact_db &facts) {
+  entitySet send_entitySet(const entitySet& e, fact_db &facts) {
     entitySet re ;
     if(facts.isDistributed()) {  
-      gfact_db::distribute_infoP d = facts.get_distribute_info() ;
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
 
       int **send_buffer = 0 ;
       int **recv_buffer = 0 ;
@@ -834,10 +834,10 @@ namespace Loci {
   //Instead of returning set of entities, it returns
   //vector of entitySet describing exactly which entities 
   //are received from which processor.
-  vector<entitySet> send_entitySetv(const entitySet& e, gfact_db &facts) {
+  vector<entitySet> send_entitySetv(const entitySet& e, fact_db &facts) {
     vector<entitySet> re(MPI_processes);
     if(facts.isDistributed()) {  
-      gfact_db::distribute_infoP d = facts.get_distribute_info() ;
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
 
       int **send_buffer = 0 ;
       int **recv_buffer = 0 ;
@@ -919,10 +919,10 @@ namespace Loci {
   /*! ev: the entittySets that I send if they are in my clone region
     return: the entitySets I receive; its index is the same as that of ev*/
   vector<entitySet> send_entitySet(const vector<entitySet>& ev,
-                                   gfact_db &facts) {
+                                   fact_db &facts) {
     vector<entitySet> re(ev.size()) ;
     if(facts.isDistributed()) {  
-      gfact_db::distribute_infoP d = facts.get_distribute_info() ;
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
 
       const int evsz = ev.size() ;
       int **send_buffer = 0 ; 
@@ -1007,7 +1007,7 @@ namespace Loci {
     return re ;
   }
 
-  std::set<std::vector<variableSet> > classify_moderate_maps(gfact_db &facts, const std::set<std::vector<variableSet> > &maps) {
+  std::set<std::vector<variableSet> > classify_moderate_maps(fact_db &facts, const std::set<std::vector<variableSet> > &maps) {
     variableSet vars = facts.get_typed_variables() ;
     std::set<std::vector<variableSet> >::const_iterator smi ;
     std::set<std::vector<variableSet> > return_maps;
@@ -1061,7 +1061,7 @@ namespace Loci {
 
   
   //Finds the context for maps whose final image will be in provided domain.
-  entitySet context_for_map_output(entitySet domain, gfact_db &facts,
+  entitySet context_for_map_output(entitySet domain, fact_db &facts,
 	      const std::set<std::vector<variableSet> > &maps) {
     std::vector<entitySet> ptn = facts.get_init_ptn() ;
     entitySet context;
@@ -1098,7 +1098,7 @@ namespace Loci {
   //It works just like dist_expand_map except the return entities only contain the image
   //of the last map in the chain.
   //the difference of the returned value is only 1 or 2 entities
-  entitySet dist_special_expand_map(entitySet domain, gfact_db &facts,
+  entitySet dist_special_expand_map(entitySet domain, fact_db &facts,
 				    const std::set<std::vector<variableSet> > &maps) {
     entitySet special_return;
     std::vector<entitySet> ptn = facts.get_init_ptn() ;
@@ -1137,11 +1137,11 @@ namespace Loci {
     return special_return ;
   }
 
-  // function that restores the gfact_db back to its global numbering
-  void restore_global_facts(gfact_db& facts) {
+  // function that restores the fact_db back to its global numbering
+  void restore_global_facts(fact_db& facts) {
     if(MPI_rank == 0)
       cerr << "restore_global_facts" << endl ;
-    gfact_db::distribute_infoP df = facts.get_distribute_info() ;
+    fact_db::distribute_infoP df = facts.get_distribute_info() ;
     // not yet distributed, we don't need to do anything
     if(df == 0)
       return ;
@@ -1182,7 +1182,7 @@ namespace Loci {
   // we would be allocating the Map on domains that do not have
   // meaningful values for the Map.
   rule_db
-  replace_map_constraints(gfact_db& facts, const rule_db& rdb) {
+  replace_map_constraints(fact_db& facts, const rule_db& rdb) {
 
     rule_db new_rdb ;
     ruleSet all_rules = rdb.all_rules() ;

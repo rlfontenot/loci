@@ -61,7 +61,7 @@ public:
      }
      return;
    }
-   gfact_db::distribute_infoP df = Loci::exec_current_fact_db->get_distribute_info() ;
+   fact_db::distribute_infoP df = Loci::exec_current_fact_db->get_distribute_info() ;
     Map l2g ;
     l2g = df->l2g.Rep() ;
     dMap g2f ;

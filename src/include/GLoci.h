@@ -61,7 +61,7 @@ namespace Loci {
   extern double random() ;
   extern int irandom() ;
 }
-using Loci::gfact_db;
+using Loci::fact_db;
 using Loci::gParam;
 using Loci::gConstraint;
 using Loci::gMap;

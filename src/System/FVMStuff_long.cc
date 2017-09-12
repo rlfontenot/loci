@@ -60,7 +60,7 @@ namespace Loci{
   void get_vect3d(const options_list &ol,std::string vname,
                   vector3d<real_t> &vec); 
 
-  void createLowerUpper(gfact_db &facts) {
+  void createLowerUpper(fact_db &facts) {
     gConstraint faces, geom_cells,interior_faces,boundary_faces ;
     faces = facts.get_gvariable("faces") ;
     geom_cells = facts.get_gvariable("geom_cells") ;
@@ -512,7 +512,7 @@ namespace Loci{
 
   
   void
-  createEdgesPar(gfact_db &facts) {
+  createEdgesPar(fact_db &facts) {
     gMultiMap face2node ;
     face2node = facts.get_gvariable("face2node") ;
    
@@ -1041,7 +1041,7 @@ namespace Loci{
   }
 
   void setup_periodic_bc(list<pair<gperiodic_info,gperiodic_info> >
-                         &periodic_list,gfact_db &facts) {
+                         &periodic_list,fact_db &facts) {
 
     gMap pmap ;
     gStore<rigid_transform> periodic_transform ;
@@ -1164,7 +1164,7 @@ namespace Loci{
     facts.create_gfact("periodicTransform",periodic_transform, bc_space) ;
   } 
 
-  void create_ci_map(gfact_db &facts) {
+  void create_ci_map(fact_db &facts) {
     gConstraint boundary_faces ;
     boundary_faces = facts.get_gvariable("boundary_faces") ;
     gEntitySet ci_faces = *boundary_faces ;
@@ -1201,7 +1201,7 @@ namespace Loci{
       name(n),key(k),apply_set(a),bc_options(o) {}
     
   } ; 
-  void setupBoundaryConditions(gfact_db &facts) {
+  void setupBoundaryConditions(fact_db &facts) {
     list<gBCinfo> BCinfo_list ;
     std::map<std::string,gEntitySet> BCsets ;
     

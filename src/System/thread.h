@@ -159,7 +159,7 @@ namespace Loci {
     virtual ~ThreadPartition() {}
     // this interface generates the partitioned 
     // domain and block entities for all threads
-    virtual void create_thread_domain(gfact_db& facts) = 0;
+    virtual void create_thread_domain(fact_db& facts) = 0;
     // this is for generate thread-domain partitioned execution sequence
     // for a threaded rule.
     virtual std::vector<sequence> 
@@ -196,7 +196,7 @@ namespace Loci {
        // we take in a vector of these because a thread could execute
        // a series of reduction rules as a group
        const std::vector<vmap_info>& map_info,
-       gfact_db& facts, sched_db& scheds) const = 0;
+       fact_db& facts, sched_db& scheds) const = 0;
     virtual ReductionLock generate_empty_conflict_lock() const = 0;
   };
 
@@ -221,7 +221,7 @@ namespace Loci {
       blocks(std::vector<std::vector<entitySet> >(tn)) {}
     ~ThreadPartition_simple();
     // the implementation
-    void create_thread_domain(gfact_db& facts);
+    void create_thread_domain(fact_db& facts);
     std::vector<sequence> partition_by_domain(const sequence& s) const;
     std::vector<int> partition_by_blocks(int t, const sequence& s) const;
     sequence refine_seq_by_block(int t, int b, const sequence& s) const;
@@ -230,7 +230,7 @@ namespace Loci {
     ReductionLock generate_conflict_lock
       (const std::vector<std::vector<int> >& blocks_id,
        const std::vector<vmap_info>& map_info,
-       gfact_db& facts,sched_db& scheds) const;
+       fact_db& facts,sched_db& scheds) const;
     ReductionLock generate_empty_conflict_lock() const;
   private:
     void partition_topology(constraint& geom_cells,
@@ -244,7 +244,7 @@ namespace Loci {
   // described later in this file
   class ThreadedExecutionModule : public CPTR_type {
   public:
-    virtual void execute(gfact_db& facts, sched_db& scheds) = 0;
+    virtual void execute(fact_db& facts, sched_db& scheds) = 0;
     // print execution sequence for the current thread
     virtual void print_seq(std::ostream& s) const = 0;
     // return the timing information of this execution module
@@ -289,7 +289,7 @@ namespace Loci {
     // returns the total number of work threads created so far
     virtual int num_threads() const = 0;
     // sets up the the global fact and sched database for use in execution.
-    virtual void setup_facts_scheds(gfact_db&, sched_db&) = 0;
+    virtual void setup_facts_scheds(fact_db&, sched_db&) = 0;
     // this just returns the minimum work per thread (as entity size)
     // i.e., if the total work is less than this value times the
     // number of threads, then it is not worth to lauch the work on
@@ -342,11 +342,11 @@ namespace Loci {
     virtual ReductionLock create_conflict_lock
       (const std::vector<std::vector<int> >& blocks,
        const vmap_info& map_info,
-       gfact_db& facts, sched_db& scheds) const = 0;
+       fact_db& facts, sched_db& scheds) const = 0;
     virtual ReductionLock create_conflict_lock
       (const std::vector<std::vector<int> >& blocks,
        const std::vector<vmap_info>& map_info,
-       gfact_db& facts, sched_db& scheds) const = 0;
+       fact_db& facts, sched_db& scheds) const = 0;
 
     virtual ~ThreadControl() {}
   };
@@ -357,7 +357,7 @@ namespace Loci {
   // based on the POSIX thread and semaphore implementation.
   class ThreadControl_pthread : public ThreadControl {
   public:
-    ThreadControl_pthread(int n,gfact_db& facts, sched_db& scheds);
+    ThreadControl_pthread(int n,fact_db& facts, sched_db& scheds);
     ~ThreadControl_pthread();
     void create_threads();
     void shutdown();
@@ -365,7 +365,7 @@ namespace Loci {
     void sequential_restart(std::vector<ThreadedEMP>&);
     void wait_threads();
     int num_threads() const { return tnum; }
-    void setup_facts_scheds(gfact_db& facts, sched_db& scheds)
+    void setup_facts_scheds(fact_db& facts, sched_db& scheds)
     { factsP = &facts; schedsP = &scheds; }
     // 10 is just an arbitrary value for now...
     // we may want to define a better measure in the future...
@@ -385,11 +385,11 @@ namespace Loci {
     ReductionLock create_conflict_lock
       (const std::vector<std::vector<int> >& blocks,
        const vmap_info& map_info,
-       gfact_db& facts, sched_db& scheds) const;
+       fact_db& facts, sched_db& scheds) const;
     ReductionLock create_conflict_lock
       (const std::vector<std::vector<int> >& blocks,
        const std::vector<vmap_info>& map_info,
-       gfact_db& facts, sched_db& scheds) const;
+       fact_db& facts, sched_db& scheds) const;
 
   private:
     // disable copy and assignment
@@ -404,7 +404,7 @@ namespace Loci {
     // this would point to the actual work for each work thread
     std::vector<ThreadedEMP>* work;
     // pointers to the current fact and sched database
-    gfact_db* factsP;
+    fact_db* factsP;
     sched_db* schedsP;
     // a small structure to build the argument to the thread function
     struct TArg {
@@ -451,7 +451,7 @@ namespace Loci {
   class StartThreads : public execute_modules {
   public:
     StartThreads() {}
-    void execute(gfact_db& facts, sched_db& scheds)
+    void execute(fact_db& facts, sched_db& scheds)
     {
       stopWatch s;
       s.start();
@@ -474,7 +474,7 @@ namespace Loci {
   // and the thread control object to be deleted.
   class ShutDownThreads : public execute_modules {
   public:
-    void execute(gfact_db& facts, sched_db& scheds)
+    void execute(fact_db& facts, sched_db& scheds)
     {
       stopWatch s;
       s.start();
@@ -503,7 +503,7 @@ namespace Loci {
   public:
     ExecuteThreaded_pointwise(const sequence& s, executeP er)
       :seq(s), exec_size(s.size()), exec_rule(er) {}
-    void execute(gfact_db& facts, sched_db& scheds)
+    void execute(fact_db& facts, sched_db& scheds)
     { 
       stopWatch s;
       s.start();
@@ -537,7 +537,7 @@ namespace Loci {
   class Threaded_execute_rule: public execute_modules {
   public:
     Threaded_execute_rule(rule r, const sequence& s,
-                          gfact_db& facts, sched_db& scheds)
+                          fact_db& facts, sched_db& scheds)
       :rule_name(r), seq(s)
     {
       exec_rule = new execute_rule(r, s, facts, scheds);
@@ -562,7 +562,7 @@ namespace Loci {
       //                  << " size: " << partition[i].size() << std::endl;
       ////////
     }
-    void execute(gfact_db& facts, sched_db& scheds)
+    void execute(fact_db& facts, sched_db& scheds)
     {
       current_rule_id = rule_name.ident();
       stopWatch s;
@@ -679,7 +679,7 @@ namespace Loci {
        join_op(jop),partners(rp),done_signals(ds),partial(pr),
        final_s(f) {}
     
-    void execute(gfact_db& facts, sched_db& scheds)
+    void execute(fact_db& facts, sched_db& scheds)
     {
       stopWatch s;
       s.start();
@@ -783,7 +783,7 @@ namespace Loci {
     Threaded_execute_param_reduction(rule r, const sequence& s,
                         // target is the name of the final result
                                      const variable& target,
-                                     gfact_db& facts, sched_db& scheds)
+                                     fact_db& facts, sched_db& scheds)
       :rule_name(r), seq(s)
     {
       exec_rule = new execute_rule(r, s, facts, scheds);
@@ -836,7 +836,7 @@ namespace Loci {
         partial[i]->allocate(EMPTY);
     }
     
-    void execute(gfact_db& facts, sched_db& scheds)
+    void execute(fact_db& facts, sched_db& scheds)
     {
       current_rule_id = rule_name.ident();
       stopWatch s;
@@ -943,7 +943,7 @@ namespace Loci {
   public:
     ExecuteThreaded_chomp(int i, const entitySet* s, const size_t* ces,
        const std::vector<rule>& crs, const std::deque<entitySet>& rss,
-       const variableSet& cvr, gfact_db& facts) 
+       const variableSet& cvr, fact_db& facts) 
       :tid(i), seq(s), chomp_entity_size(ces), chomp_rules(&crs),
        rule_seqs(&rss), chomp_vars(&cvr)
     {
@@ -997,7 +997,7 @@ namespace Loci {
     // what it does is that it prepares the local chomping storage to
     // be setup properly.  
 
-    void execute(gfact_db& facts, sched_db& scheds)
+    void execute(fact_db& facts, sched_db& scheds)
     {
       stopWatch s;
       s.start();
@@ -1284,7 +1284,7 @@ namespace Loci {
         const std::vector<int>& bs, ReductionLock* l,
         const size_t* ces, const std::vector<rule>& crs,
         const std::deque<entitySet>& rss, const variableSet& cvr,
-        gfact_db& facts)
+        fact_db& facts)
       :tid(i), seq(s), exec_size(s.size()), lock(l)
     {
       // the main task in the contructor is to create the real
@@ -1299,7 +1299,7 @@ namespace Loci {
       }
     } 
 
-    void execute(gfact_db& facts, sched_db& scheds)
+    void execute(fact_db& facts, sched_db& scheds)
     {
       stopWatch s;
       s.start();
@@ -1382,7 +1382,7 @@ namespace Loci {
     (const sequence& s,
      const std::vector<std::pair<rule,rule_compilerP> >& comp,
      const std::deque<entitySet>& rseq,
-     const variableSet& cv,gfact_db& facts,sched_db& scheds)
+     const variableSet& cv,fact_db& facts,sched_db& scheds)
       :rule_seqs(rseq),chomp_vars(cv),seq(s),chomp_entity_size(1)
     {
       seq_size = s.size();
@@ -1475,7 +1475,7 @@ namespace Loci {
               rule_seqs, chomp_vars, facts));
       }
     }
-    void execute(gfact_db& facts, sched_db& scheds)
+    void execute(fact_db& facts, sched_db& scheds)
     {
       stopWatch s;
       s.start();
@@ -1653,7 +1653,7 @@ namespace Loci {
       :tid(i), seq(s), exec_size(s.size()), exec_rule(er),
        blocks(bs.begin(),bs.end()), lock(l) {}
 
-    void execute(gfact_db& facts, sched_db& scheds)
+    void execute(fact_db& facts, sched_db& scheds)
     {
       stopWatch s;
       s.start();
@@ -1717,7 +1717,7 @@ namespace Loci {
   class Threaded_execute_local_reduction: public execute_modules {
   public:
     Threaded_execute_local_reduction
-      (rule r,rule u,const sequence& s,gfact_db& facts,sched_db& scheds)
+      (rule r,rule u,const sequence& s,fact_db& facts,sched_db& scheds)
       :rule_name(r), unit_rule(u), seq(s)
       {
         exec_rule = new execute_rule(r, s, facts, scheds);
@@ -1741,7 +1741,7 @@ namespace Loci {
               (i, partition[i], exec_rule, blocks[i], &lock));
       } 
 
-    void execute(gfact_db& facts, sched_db& scheds) 
+    void execute(fact_db& facts, sched_db& scheds) 
     {
       current_rule_id = rule_name.ident();
       stopWatch s;

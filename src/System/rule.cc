@@ -583,7 +583,7 @@ namespace Loci {
     return retval ;
   }
 
-  void rule_impl::initialize(gfact_db &facts) {
+  void rule_impl::initialize(fact_db &facts) {
     storeIMap::iterator sp ;
     
     for(sp=var_table.begin();sp!=var_table.end();++sp) {
@@ -602,7 +602,7 @@ namespace Loci {
 
   
   void
-  rule_impl::replace_map_constraints(gfact_db& facts) {
+  rule_impl::replace_map_constraints(fact_db& facts) {
     // NOTE: because the rule_info utilizes a set<vmap_info> as
     // the basic components, it is therefore more complicated
     // to replace any contents inside, since the iterator
@@ -630,7 +630,7 @@ namespace Loci {
       variableSet new_constraints ;
       for(variableSet::const_iterator vi=si->var.begin();
           vi!=si->var.end();++vi) {
-        // get the storeRepP in the gfact_db for the var
+        // get the storeRepP in the fact_db for the var
         storeRepP srp = facts.get_variable(*vi) ;
         if(srp == 0)
           continue ;
@@ -650,7 +650,7 @@ namespace Loci {
         if(crp == 0) {
           Loci::constraint mapc ;
           *mapc = srp->domain() ;
-          // install it in gfact_db
+          // install it in fact_db
           facts.create_fact(new_name, mapc) ;
         }
         // record the changes

@@ -50,7 +50,7 @@ namespace Loci {
     return rule(oss.str()) ;
   }
 
-  entitySet vmap_source_exist(const vmap_info &vmi, gfact_db &facts, sched_db &scheds) {
+  entitySet vmap_source_exist(const vmap_info &vmi, fact_db &facts, sched_db &scheds) {
     variableSet::const_iterator vi ;
     entitySet sources = ~EMPTY ;
     for(vi=vmi.var.begin();vi!=vmi.var.end();++vi) {
@@ -70,7 +70,7 @@ namespace Loci {
   }
 
 
-  entitySet vmap_target_exist(const vmap_info &vmi, gfact_db &facts,
+  entitySet vmap_target_exist(const vmap_info &vmi, fact_db &facts,
                               entitySet compute, sched_db &scheds) {
     vector<variableSet>::const_iterator mi ;
     for(mi=vmi.mapping.begin();mi!=vmi.mapping.end();++mi) {

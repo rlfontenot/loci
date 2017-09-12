@@ -32,8 +32,8 @@ using std::cerr;
 using std::ios;
 
 namespace Loci{
-  void parallelClassifyCell(gfact_db &facts) ;
-  void createEdgesPar(gfact_db &facts);
+  void parallelClassifyCell(fact_db &facts) ;
+  void createEdgesPar(fact_db &facts);
 }
 
 
@@ -118,7 +118,7 @@ int main(int argc, char ** argv) {
 
 
   // Setup the gfact database.
-  gfact_db gfacts;
+  fact_db gfacts;
   
 
   

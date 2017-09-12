@@ -39,10 +39,10 @@
 namespace Loci {
 
   void redistribute_write_container(hid_t file_id, std::string vname,
-                                    Loci::storeRepP var, gfact_db &facts) ;
+                                    Loci::storeRepP var, fact_db &facts) ;
   void read_container_redistribute(hid_t file_id, std::string vname,
                                    Loci::storeRepP var, entitySet read_set,
-                                   gfact_db &facts) ;
+                                   fact_db &facts) ;
 
   inline hid_t hdf5CreateFile(const char *name, unsigned flags, hid_t create_id, hid_t access_id) {
     hid_t file_id = 0 ;
@@ -98,11 +98,11 @@ namespace Loci {
       return 0 ;
   }
     
-  inline void writeContainer(hid_t file_id,std::string vname, Loci::storeRepP var, gfact_db &facts) {
+  inline void writeContainer(hid_t file_id,std::string vname, Loci::storeRepP var, fact_db &facts) {
 
     redistribute_write_container(file_id,vname,var,facts) ;
   }
-  inline void readContainer(hid_t file_id, std::string vname, Loci::storeRepP var, entitySet readSet, gfact_db &facts) {
+  inline void readContainer(hid_t file_id, std::string vname, Loci::storeRepP var, entitySet readSet, fact_db &facts) {
     read_container_redistribute(file_id,vname,var,readSet, facts) ;
   }
 
@@ -265,10 +265,10 @@ namespace Loci {
   
  
   
-  void writeSetIds(hid_t file_id, entitySet local_set, gfact_db &facts) ;
+  void writeSetIds(hid_t file_id, entitySet local_set, fact_db &facts) ;
   
   hid_t createUnorderedFile(const char * filename, entitySet set,
-                            gfact_db &facts) ;
+                            fact_db &facts) ;
 
   inline hid_t createUnorderedFile(const char * filename, entitySet set) {
     if(Loci::exec_current_fact_db == 0) {
@@ -302,7 +302,7 @@ namespace Loci {
                                  storeRepP bnamesRep,
                                  storeRepP posRep,
                                  entitySet localCells,
-                                 gfact_db &facts) ;
+                                 fact_db &facts) ;
 
   inline
   void parallelWriteGridTopology(const char *filename,
@@ -342,12 +342,12 @@ namespace Loci {
                                storeRepP refRep, // ref map
                                storeRepP bnamesRep,//bounadry name store
                                entitySet fset, //all boundary faces 
-                               gfact_db &facts );
+                               fact_db &facts );
 
   void writeBoundaryTopo(hid_t file_id, //file_id of this boudnary surface
                          storeRepP face2nodeRep,
                          entitySet bfaces, //boundary faces belong to this surface 
-                         gfact_db &facts ); 
+                         fact_db &facts ); 
   
 
 
@@ -391,7 +391,7 @@ namespace Loci {
                        storeRepP edge2nodeRep,
                        storeRepP posRep,
                        entitySet localCells,//all geom_cells
-                       gfact_db &facts);
+                       fact_db &facts);
 
   inline
   CutPlane getCutPlane(storeRepP upperRep,
@@ -423,10 +423,10 @@ namespace Loci {
   // Convert container from local numbering to output file numbering
   // pass in store rep pointer: sp
   // entitySet to write: dom
-  // gfact_db pointer  (facts)
+  // fact_db pointer  (facts)
   // MPI Communicator
   storeRepP Local2FileOrder_output(storeRepP sp, entitySet dom,
-                                   gfact_db& facts, MPI_Comm comm);
+                                   fact_db& facts, MPI_Comm comm);
  
   template<class T>   void writeCutPlaneNodalVal(hid_t file_id,
                                                  std::string element_name,
@@ -434,7 +434,7 @@ namespace Loci {
                                                  storeRepP edge2nodeRep,
                                                  const_store<T> & pos,
                                                  const Loci::CutPlane &cp,
-                                                 gfact_db &facts){
+                                                 fact_db &facts){
     
    
     
@@ -506,7 +506,7 @@ namespace Loci {
                           
   void writeCutPlaneTopo(hid_t bc_id,
                          const CutPlane& cp,
-                         gfact_db &facts) ;
+                         fact_db &facts) ;
    
 }
 #endif

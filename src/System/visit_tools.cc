@@ -1490,7 +1490,7 @@ namespace Loci {
   /////////////////////////////////////////////////////////////////
   namespace {
     variableSet
-    remove_synonym(const variableSet& vs, gfact_db& facts) {
+    remove_synonym(const variableSet& vs, fact_db& facts) {
       variableSet ret ;
       for(variableSet::const_iterator vi=vs.begin();vi!=vs.end();++vi)
         ret += facts.remove_synonym(*vi) ;
@@ -1522,7 +1522,7 @@ namespace Loci {
       string ks_tag = ri->get_info().rule_impl->get_keyspace_tag() ;
       if(ks_tag == "main")
         continue ;
-      // get the corresponding keyspace impl from gfact_db
+      // get the corresponding keyspace impl from fact_db
       map<string,KeySpaceP>::const_iterator mi ;
       mi = facts.keyspace.find(ks_tag) ;
       if(mi == facts.keyspace.end()) {
@@ -2079,7 +2079,7 @@ namespace Loci {
   
   DynamicCloneInvalidatorVisitor::
   DynamicCloneInvalidatorVisitor
-  (gfact_db& fd,
+  (fact_db& fd,
    const std::map<variable,std::string>& sc,
    const std::map<variable,std::set<std::string> >& sac)
     :facts(fd),self_clone(sc),shadow_clone(sac) {

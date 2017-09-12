@@ -170,13 +170,13 @@ namespace Loci {
   
     
     
-  class gfact_db ;
+  class fact_db ;
   class sched_db ;
   class execute_modules : public CPTR_type {
   public:
     execute_modules() {}
     virtual ~execute_modules() {}
-    virtual void execute(gfact_db &facts, sched_db &scheds) = 0 ;
+    virtual void execute(fact_db &facts, sched_db &scheds) = 0 ;
     virtual void execute_kernel(const sequence&) {}
     virtual void execute_prelude(const sequence&) {}
     virtual void execute_postlude(const sequence&) {}
@@ -193,7 +193,7 @@ namespace Loci {
     execute_list() { }
     virtual ~execute_list() {}
     // Execute object code
-    virtual void execute(gfact_db &facts, sched_db &scheds) ;
+    virtual void execute(fact_db &facts, sched_db &scheds) ;
     // Print schedule to stream s
     virtual void Print(std::ostream &s) const ;
     // Collect accumulated data
@@ -212,7 +212,7 @@ namespace Loci {
     execute_sequence() { }
     virtual ~execute_sequence() {}
     // Execute object code
-    virtual void execute(gfact_db &facts, sched_db& scheds) ;
+    virtual void execute(fact_db &facts, sched_db& scheds) ;
     // Print schedule to stream s
     virtual void Print(std::ostream &s) const ;
     // collect accumulated data

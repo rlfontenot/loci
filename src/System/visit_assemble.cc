@@ -171,7 +171,7 @@ namespace Loci {
       timeAccumulator timer ;
     public:
       execute_dump_var(variableSet vars) : dump_vars(vars) {}
-      virtual void execute(gfact_db &facts, sched_db &scheds) ;
+      virtual void execute(fact_db &facts, sched_db &scheds) ;
       virtual void Print(std::ostream &s) const ;
       virtual string getName() { return "execute_dump_var";};
       virtual void dataCollate(collectData &data_collector) const ;
@@ -179,7 +179,7 @@ namespace Loci {
     
     map<variable, int> dump_var_lookup ;
     
-    void execute_dump_var::execute(gfact_db &facts, sched_db &scheds) {
+    void execute_dump_var::execute(fact_db &facts, sched_db &scheds) {
       stopWatch s ;
       s.start() ;
       for(variableSet::const_iterator vi=dump_vars.begin();
@@ -239,9 +239,9 @@ namespace Loci {
       dump_vars_compiler(variableSet &vars) : dump_vars(vars) {}
       virtual void compile() {}
       virtual void accept(visitor& v) {}
-      virtual void set_var_existence(gfact_db &facts, sched_db &scheds)  {}
-      virtual void process_var_requests(gfact_db &facts, sched_db &scheds) {}
-      virtual executeP create_execution_schedule(gfact_db &facts, sched_db &scheds) {
+      virtual void set_var_existence(fact_db &facts, sched_db &scheds)  {}
+      virtual void process_var_requests(fact_db &facts, sched_db &scheds) {}
+      virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) {
         return executeP(new execute_dump_var(dump_vars)) ;
       }
     } ;
@@ -249,7 +249,7 @@ namespace Loci {
   } // end of namespace
 
   assembleVisitor::
-  assembleVisitor(gfact_db& fd, sched_db& sd,
+  assembleVisitor(fact_db& fd, sched_db& sd,
                   const variableSet& arv,
                   const std::map<variable,
                   std::pair<rule,CPTR<joiner> > >& ri,
@@ -1435,7 +1435,7 @@ namespace Loci {
   }
   
   MemGreedyScheduler::
-  MemGreedyScheduler(gfact_db& fd,
+  MemGreedyScheduler(fact_db& fd,
                      sched_db& sd,
                      const std::map<variable,variableSet>& s,
                      const std::map<variable,variableSet>& t,

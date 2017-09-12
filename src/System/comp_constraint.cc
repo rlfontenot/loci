@@ -36,8 +36,8 @@ namespace Loci {
     timeAccumulator timer ;
   public:
     execute_constraint_rule(rule fi, sequence seq,
-                            gfact_db &facts, sched_db &scheds) ;
-    virtual void execute(gfact_db &facts, sched_db &scheds) ;
+                            fact_db &facts, sched_db &scheds) ;
+    virtual void execute(fact_db &facts, sched_db &scheds) ;
     virtual void Print(std::ostream &s) const ;
     virtual string getName() { return "execute_constraint_rule";};
     virtual void dataCollate(collectData &data_collector) const ;
@@ -45,14 +45,14 @@ namespace Loci {
 
   execute_constraint_rule::
   execute_constraint_rule(rule fi, sequence seq,
-                          gfact_db& facts, sched_db& scheds) {
+                          fact_db& facts, sched_db& scheds) {
     rp = fi.get_rule_implP() ;
     rule_tag = fi ;
     rp->initialize(facts) ;
     exec_seq = seq ;
   }
   
-  void execute_constraint_rule::execute(gfact_db &facts, sched_db &scheds) {
+  void execute_constraint_rule::execute(fact_db &facts, sched_db &scheds) {
     stopWatch s ;
     s.start() ;
     current_rule_id = rule_tag.ident() ;
@@ -72,13 +72,13 @@ namespace Loci {
     data_collector.accumulateTime(timer,EXEC_CONTROL,oss.str()) ;
   }
 
-  void constraint_compiler::set_var_existence(gfact_db& facts,
+  void constraint_compiler::set_var_existence(fact_db& facts,
                                               sched_db& scheds)
   {
     existential_rule_analysis(constraint_rule,facts, scheds) ;
   }
   
-  void constraint_compiler::process_var_requests(gfact_db& facts,
+  void constraint_compiler::process_var_requests(fact_db& facts,
                                                  sched_db& scheds) {
     variableSet var_requests = constraint_rule.targets() ;
     variableSet::const_iterator vi ;
@@ -91,7 +91,7 @@ namespace Loci {
     scheds.update_exec_seq(constraint_rule, exec_seq);
   }
   
-  executeP constraint_compiler::create_execution_schedule(gfact_db& facts,
+  executeP constraint_compiler::create_execution_schedule(fact_db& facts,
                                                           sched_db& scheds) {
     entitySet exec_seq = scheds.get_exec_seq(constraint_rule);
     executeP execute = new execute_constraint_rule(constraint_rule,

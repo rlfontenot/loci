@@ -58,7 +58,7 @@ void process_ascii_nodal(string casename, string iteration,
     exit(-1) ;
   }
 
-  gfact_db facts ;
+  fact_db facts ;
   Loci::readContainer(file_id,"pos",pos.Rep(),EMPTY,facts) ;
   Loci::hdf5CloseFile(file_id) ;
   int npnts = pos.domain().size() ;
@@ -81,7 +81,7 @@ void process_ascii_nodal(string casename, string iteration,
           return ;
         }
 
-        gfact_db facts ;
+        fact_db facts ;
         store<float> scalar ;
         Loci::readContainer(file_id,var_name,scalar.Rep(),EMPTY,facts) ;
         entitySet dom = scalar.domain() ;
@@ -116,7 +116,7 @@ void process_ascii_nodal(string casename, string iteration,
           exit(-1) ;
         }
       
-        gfact_db facts ;
+        fact_db facts ;
         store<vector3d<float> > vec ;
         Loci::readContainer(file_id,var_name,vec.Rep(),EMPTY,facts) ;
         entitySet dom = vec.domain() ;
@@ -151,7 +151,7 @@ void process_ascii_nodal(string casename, string iteration,
           exit(-1) ;
         }
 
-        gfact_db facts ;
+        fact_db facts ;
         storeVec<float> mix ;
         Loci::readContainer(file_id,"mixture",mix.Rep(),EMPTY,facts) ;
         param<string> species_names ;

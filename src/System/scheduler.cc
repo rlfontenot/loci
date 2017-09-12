@@ -742,7 +742,7 @@ namespace Loci {
   // }
 
   void prune_graph(digraph& gr, variableSet& given,
-                   const variableSet& target, gfact_db& facts) {
+                   const variableSet& target, fact_db& facts) {
     variableSet known_vars = facts.get_typed_variables() ;
     variableSet vars = extract_vars(gr.get_all_vertices()) ;
     variableSet empty_constraints ;
@@ -788,7 +788,7 @@ namespace Loci {
   //#define ENABLE_DYNAMIC_SCHEDULING
   //#define ENABLE_DYNAMIC_SCHEDULING_2
   executeP create_execution_schedule(const rule_db &rdb,
-                                     gfact_db &facts,
+                                     fact_db &facts,
                                      sched_db &scheds,
                                      const variableSet& target,
                                      int nth) {
@@ -1458,7 +1458,7 @@ namespace Loci {
   // and this expansion process only needs to be performed once.
   //#define INTERNAL_VERBOSE
   executeP create_internal_execution_schedule(rule_db& par_rdb,
-                                              gfact_db &facts,
+                                              fact_db &facts,
                                               sched_db &scheds,
                                               const variableSet& target,
                                               int nth) {
@@ -1596,7 +1596,7 @@ namespace Loci {
   // NOTE: the passed in rule database is the expanded parametric
   // rule database since the expanded rule base is what we needed
   // and this expansion process only needs to be performed once.
-  bool internalQuery(rule_db& par_rdb, gfact_db& facts,
+  bool internalQuery(rule_db& par_rdb, fact_db& facts,
                      const variableSet& query) {
     stopWatch sw ;
     sw.start() ;
@@ -1611,7 +1611,7 @@ namespace Loci {
     // start to make the query
     // This is because we want to only put the queried facts
     // back into the global fact_db
-    gfact_db local_facts(facts) ;
+    fact_db local_facts(facts) ;
     sched_db local_scheds ;
 
     executeP schedule =
@@ -1641,9 +1641,9 @@ namespace Loci {
     return true ;
   }
 
-  void copy_facts(gfact_db &facts) ;
+  void copy_facts(fact_db &facts) ;
   
-  bool makeQuery(const rule_db &rdb, gfact_db &facts,
+  bool makeQuery(const rule_db &rdb, fact_db &facts,
                  const std::string& query) {
     copy_facts(facts) ;
     /*	
@@ -1699,7 +1699,7 @@ namespace Loci {
       // then we need to copy the fact_db
       // This is because we want to only put the queried facts
       // back into the global fact_db
-      gfact_db local_facts(facts) ;
+      fact_db local_facts(facts) ;
       sched_db local_scheds ;
 
       /*
@@ -1857,7 +1857,7 @@ namespace Loci {
       // started distributed at the beginning, then we've already
       // done the local renumbering step to the facts.
       if(local_facts.is_distributed_start()) {
-        gfact_db::distribute_infoP df = local_facts.get_distribute_info() ;
+        fact_db::distribute_infoP df = local_facts.get_distribute_info() ;
         // first get the local to global dMap
         dMap l2g ;
         entitySet dom = df->l2g.domain() ;

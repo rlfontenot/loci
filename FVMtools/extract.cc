@@ -51,7 +51,7 @@ using std::ifstream ;
 
 string output_dir ;
 namespace Loci{
-    void copy_facts(gfact_db& gfacts); 
+    void copy_facts(fact_db& gfacts); 
 }
 void Usage(int ac, char *av[]) {
   cerr << av[0] << ": Incorrect Usage" << endl ;
@@ -238,7 +238,7 @@ volumePart::volumePart(string out_dir, string iteration, string casename,
     if(file_id < 0) {
       return ;
     }
-    gfact_db facts ;
+    fact_db facts ;
     store<unsigned char> iblank_tmp ;
     Loci::readContainer(file_id,"iblank",iblank_tmp.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
@@ -997,7 +997,7 @@ volumePartDerivedVars::volumePartDerivedVars(volumePartP part,
 				     H5P_DEFAULT) ;
   Pambient = 0 ;
   if(file_id >= 0) {
-    gfact_db facts ;
+    fact_db facts ;
     param<float> Pamb ;
     Loci::readContainer(file_id,"Pambient",Pamb.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
@@ -1668,7 +1668,7 @@ surfacePartDerivedVars::surfacePartDerivedVars(surfacePartP part,
 				     H5P_DEFAULT) ;
   Pambient = 0 ;
   if(file_id >= 0) {
-    gfact_db facts ;
+    fact_db facts ;
     param<float> Pamb ;
     Loci::readContainer(file_id,"Pambient",Pamb.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
@@ -2218,7 +2218,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
       return ;
     }
 
-    gfact_db facts ;
+    fact_db facts ;
     store<float> soundSpeed ;
     Loci::readContainer(file_id,"a",soundSpeed.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
@@ -2253,7 +2253,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
       return ;
     }
 
-    gfact_db facts ;
+    fact_db facts ;
     store<float> pg ;
     Loci::readContainer(file_id,"pg",pg.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
@@ -2282,7 +2282,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
         dval[c++] = p ;
     } ENDFORALL ;
   } else if (var_name == "u") {
-    gfact_db facts ;
+    fact_db facts ;
     string filename = output_dir+"/v_vec." + iteration +"_" + casename ;
     hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
                                        H5F_ACC_RDONLY,
@@ -2316,7 +2316,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
       exit(-1) ;
     }
 
-    gfact_db facts ;
+    fact_db facts ;
     Loci::readContainer(file_id,"pos",pos.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
     entitySet dom = pos.domain() ;
@@ -2337,7 +2337,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
       } ENDFORALL ;
     }
   } else if(var_name == "0" || var_name =="1" || var_name == "2") {
-    gfact_db facts ;
+    fact_db facts ;
     string filename = output_dir+"/v_vec." + iteration +"_" + casename ;
     hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
                                        H5F_ACC_RDONLY,
@@ -2375,7 +2375,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
 
 
 void setup_grid_topology(string casename, string iteration) {
-  gfact_db gfacts ;
+  fact_db gfacts ;
   string file = casename + ".vog" ;
   struct stat tmpstat ;
   if(stat(file.c_str(),&tmpstat) != 0) {

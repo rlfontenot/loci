@@ -30,7 +30,7 @@
 #include <utility>
 #include <distribute_long.h>
 namespace Loci {
-  class gfact_db;
+  class fact_db;
   // //assume in1, in2 are sorted and have the same domain
   // //out will be allocalted on in2's image
   // template<class T>  void localJoin(const gStore<T> &in1, const gMultiMap &in2, gStore<T> &out) {
@@ -61,9 +61,9 @@ namespace Loci {
     bool from_space1;//is space3  using space1's partition 
   };
   
-  void primary_partition_metis(gfact_db& facts, std::vector<int>& e2p,  parStrategy& s);
-  void primary_partition_orb(gfact_db& facts,  std::vector<int>& e2p,  parStrategy& s );
-  void affinity_partition(gfact_db &facts, const vector<int>& procmap,  parStrategy& s );
+  void primary_partition_metis(fact_db& facts, std::vector<int>& e2p,  parStrategy& s);
+  void primary_partition_orb(fact_db& facts,  std::vector<int>& e2p,  parStrategy& s );
+  void affinity_partition(fact_db &facts, const vector<int>& procmap,  parStrategy& s );
   //given send_split, return recv_split;
   //or given recv_split, return send_split
   //allow overlap between processes

@@ -51,13 +51,13 @@ namespace Loci {
       tlevel(tl),rotate_lists(rl) {
       warn(col==0 || advance==0) ; tvar = variable(tlevel) ;
     }
-    virtual void execute(gfact_db &facts, sched_db &scheds) ;
+    virtual void execute(fact_db &facts, sched_db &scheds) ;
     virtual void Print(std::ostream &s) const ;
     virtual string getName() { return "execute_loop";};
     virtual void dataCollate(collectData &data_collector) const ;
   } ;
   
-  void execute_loop::execute(gfact_db &facts, sched_db &scheds) {
+  void execute_loop::execute(fact_db &facts, sched_db &scheds) {
     param<bool> test ;
     test = facts.get_variable(cvar) ;
     // initialize conditional variables to true
@@ -323,7 +323,7 @@ namespace Loci {
     v.visit(*this) ;
   }
 
-  void loop_compiler::set_var_existence(gfact_db &facts, sched_db &scheds) {
+  void loop_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
     if(duplicate_work) {
       for(variableSet::const_iterator vi = advance_vars.begin();
 	  vi != advance_vars.end(); vi++) {
@@ -361,11 +361,11 @@ namespace Loci {
       (*i)->set_var_existence(facts, scheds) ;
   }
   
-  void loop_compiler::process_var_requests(gfact_db &facts, sched_db &scheds) {
+  void loop_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
     variableSet var_requests = advance_vars ;
     variableSet::const_iterator vi ;
     
-    Loci::gfact_db::distribute_infoP d ;
+    Loci::fact_db::distribute_infoP d ;
     if(facts.isDistributed()) {
       d = facts.get_distribute_info() ;
     }
@@ -436,7 +436,7 @@ namespace Loci {
     }
   }
   
-  executeP loop_compiler::create_execution_schedule(gfact_db &facts, sched_db &scheds) {
+  executeP loop_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     
     CPTR<execute_list> col = new execute_list ;
     

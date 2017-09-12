@@ -41,8 +41,8 @@ namespace Loci {
     execute_map_rule(rule fi, sequence seq,
                      const variableSet& svars,
                      const variableSet& tvars,
-                     gfact_db &facts, sched_db &scheds) ;
-    virtual void execute(gfact_db &facts, sched_db &scheds) ;
+                     fact_db &facts, sched_db &scheds) ;
+    virtual void execute(fact_db &facts, sched_db &scheds) ;
     virtual void Print(std::ostream &s) const ;
     virtual string getName() { return "execute_map_rule";};
     virtual void dataCollate(collectData &data_collector) const ;
@@ -52,7 +52,7 @@ namespace Loci {
   execute_map_rule(rule fi, sequence seq,
                    const variableSet& svars,
                    const variableSet& tvars,
-                   gfact_db& facts, sched_db& scheds) {
+                   fact_db& facts, sched_db& scheds) {
     rp = fi.get_rule_implP() ;
     sources = svars ;
     targets = tvars ;
@@ -61,7 +61,7 @@ namespace Loci {
     exec_seq = seq ;
   }
   
-  void execute_map_rule::execute(gfact_db &facts, sched_db &scheds) {
+  void execute_map_rule::execute(fact_db &facts, sched_db &scheds) {
     stopWatch s ;
     s.start() ;
     
@@ -70,7 +70,7 @@ namespace Loci {
     // all the facts associated with this map rule
     // to their global numbering scheme
     if(facts.is_distributed_start()) {
-      gfact_db::distribute_infoP df = facts.get_distribute_info() ;
+      fact_db::distribute_infoP df = facts.get_distribute_info() ;
       dMap dl2g ;
       dl2g = MapRepP(df->l2g.Rep())->thaw() ;
       for(variableSet::const_iterator vi=sources.begin();
@@ -78,7 +78,7 @@ namespace Loci {
         storeRepP srp = facts.get_variable(*vi) ;
         // Note, we can use facts.replace_fact here
         // But doing so will require rebind the rule
-        // to the gfact_db
+        // to the fact_db
         facts.update_fact(*vi,srp->remap(dl2g)) ;
         //facts.replace_fact(*vi,srp->remap(l2g)) ;
       }
@@ -94,7 +94,7 @@ namespace Loci {
     // facts since transforming the generated maps
     // at last will likely to lose data.
     if(facts.is_distributed_start()) {
-      gfact_db::distribute_infoP df = facts.get_distribute_info() ;
+      fact_db::distribute_infoP df = facts.get_distribute_info() ;
       dMap g2l ;
       entitySet ldom = df->l2g.domain() ;
       FORALL(ldom,i) {
@@ -120,11 +120,11 @@ namespace Loci {
     data_collector.accumulateTime(timer,EXEC_CONTROL,oss.str()) ;
   }
 
-  void map_compiler::set_var_existence(gfact_db& facts, sched_db& scheds) {
+  void map_compiler::set_var_existence(fact_db& facts, sched_db& scheds) {
     existential_rule_analysis(map_impl, facts, scheds) ;
   }
   
-  void map_compiler::process_var_requests(gfact_db& facts, sched_db& scheds) {
+  void map_compiler::process_var_requests(fact_db& facts, sched_db& scheds) {
     //variableSet sources = map_impl.sources() ;
     //variableSet::const_iterator vi ;
     //for(vi=sources.begin();vi!=sources.end();++vi) {
@@ -134,7 +134,7 @@ namespace Loci {
     scheds.update_exec_seq(map_impl, exec_seq);
   }
   
-  executeP map_compiler::create_execution_schedule(gfact_db& facts, sched_db& scheds) {
+  executeP map_compiler::create_execution_schedule(fact_db& facts, sched_db& scheds) {
     //return new execute_map_rule(map_impl, ~EMPTY, facts,scheds) ;
     entitySet exec_seq = scheds.get_exec_seq(map_impl);
     executeP execute = new execute_map_rule(map_impl, exec_seq, map_impl.sources(),

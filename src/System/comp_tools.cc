@@ -137,7 +137,7 @@ namespace Loci {
   /*The existential information is required to generate an execution
     schedule . This routine returns a set of entities such that the
     rule can be applied over those entities. */
-  void existential_rule_analysis(rule r, gfact_db &facts, sched_db &scheds) {
+  void existential_rule_analysis(rule r, fact_db &facts, sched_db &scheds) {
     FATAL(r.type() == rule::INTERNAL) ;
     entitySet sources = ~EMPTY ;
     entitySet constraints = ~EMPTY ;
@@ -164,7 +164,7 @@ namespace Loci {
     if(facts.isDistributed()) {
       // For the distributed memory case we restrict the sources and
       // constraints to be within my_entities.
-      gfact_db::distribute_infoP d = facts.get_distribute_info() ;
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
       sources &= d->my_entities ;
       constraints &= d->my_entities ;
       my_entities = d->my_entities ;
@@ -306,7 +306,7 @@ namespace Loci {
   //Mainly, this flag is useful with work duplication with a model
   //to precalculate the execution time to make decision of variable duplication.
   entitySet vmap_target_requests(const vmap_info &vmi, const vdefmap &tvarmap,
-                                 gfact_db &facts, sched_db &scheds,
+                                 fact_db &facts, sched_db &scheds,
 				 bool is_request_modification_allowed) {
     // Here we will compute the context implied by a particular target
     // mapping
@@ -354,7 +354,7 @@ namespace Loci {
     return targets ;
   }
 
-  entitySet vmap_source_requests(const vmap_info &vmi, gfact_db &facts,
+  entitySet vmap_source_requests(const vmap_info &vmi, fact_db &facts,
 				 entitySet context, sched_db &scheds) {
     // this routine computes the set of entities that a source mapping will
     // imply.  It does this by following the images of the mapping.
@@ -374,7 +374,7 @@ namespace Loci {
     return compute ;
   }
 
-  entitySet process_rule_requests(rule r, gfact_db &facts, sched_db &scheds) {
+  entitySet process_rule_requests(rule r, fact_db &facts, sched_db &scheds) {
     // Internal rules should be handling the appropriate rule requests via
     // their associated compiler.
     FATAL(r.type() == rule::INTERNAL) ;
@@ -396,7 +396,7 @@ namespace Loci {
 
     entitySet filter = ~EMPTY ;
     if(facts.isDistributed()) {
-      gfact_db::distribute_infoP d = facts.get_distribute_info() ;
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
       filter = d->my_entities ;
       isect = d->my_entities ;
     }
@@ -519,7 +519,7 @@ namespace Loci {
   // function version of apply_compiler::set_var_existence
   // used inside the chomp compiler
   ////////////////////////////////////////////////////////////////////
-  void existential_applyrule_analysis(rule apply, gfact_db &facts, sched_db &scheds) {
+  void existential_applyrule_analysis(rule apply, fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
 
       // Compute the shadow entities produced by using this apply rules.
@@ -561,7 +561,7 @@ namespace Loci {
 	comp_constraints = constraints;
       }
 
-      gfact_db::distribute_infoP d = facts.get_distribute_info() ;
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
       sources &= d->my_entities;
       constraints &= d->my_entities;
 
@@ -614,7 +614,7 @@ namespace Loci {
   // function version of apply_compiler::process_var_requests
   // used inside the chomp compiler
   ////////////////////////////////////////////////////////////////////
-  entitySet process_applyrule_requests(rule apply, rule unit_tag, bool &output_mapping, gfact_db &facts, sched_db &scheds) {
+  entitySet process_applyrule_requests(rule apply, rule unit_tag, bool &output_mapping, fact_db &facts, sched_db &scheds) {
 
 #ifdef VERBOSE
     debugout << "in process_applyrule_requests" << endl ;
@@ -634,7 +634,7 @@ namespace Loci {
     entitySet filter = ~EMPTY;
     entitySet reduce_filter = ~EMPTY;
     if(facts.isDistributed()) {
-      gfact_db::distribute_infoP d = facts.get_distribute_info() ;
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
       filter = d->my_entities ;
       if(multilevel_duplication)
 	reduce_filter = d->comp_entities;
@@ -795,7 +795,7 @@ namespace Loci {
   // special existential analysis functions designed for
   // the blackbox rules
   void existential_blackboxrule_analysis
-  (rule r, gfact_db &facts, sched_db &scheds) {
+  (rule r, fact_db &facts, sched_db &scheds) {
     FATAL(r.type() == rule::INTERNAL) ;
     entitySet sources = ~EMPTY ;
     entitySet constraints = ~EMPTY ;
@@ -814,7 +814,7 @@ namespace Loci {
     if(facts.isDistributed()) {
       // For the distributed memory case we restrict the sources and
       // constraints to be within my_entities.
-      gfact_db::distribute_infoP d = facts.get_distribute_info() ;
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
       sources &= d->my_entities ;
       constraints &= d->my_entities ;
       my_entities = d->my_entities ;
@@ -860,7 +860,7 @@ namespace Loci {
   }
 
   entitySet process_blackboxrule_requests
-  (rule r, gfact_db &facts, sched_db &scheds) {
+  (rule r, fact_db &facts, sched_db &scheds) {
     // Internal rules should be handling the appropriate rule requests via
     // their associated compiler.
     FATAL(r.type() == rule::INTERNAL) ;
@@ -882,7 +882,7 @@ namespace Loci {
 
     entitySet filter = ~EMPTY ;
     if(facts.isDistributed()) {
-      gfact_db::distribute_infoP d = facts.get_distribute_info() ;
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
       filter = d->my_entities ;
       isect = d->my_entities ;
     }
@@ -931,7 +931,7 @@ namespace Loci {
      that they are supposed to receive those entities. */
   std::list<comm_info>
   put_precomm_info(vector<pair<variable,entitySet> > send_entities,
-                   gfact_db &facts) {
+                   fact_db &facts) {
 
 
     std::list<comm_info> plist ;
@@ -939,7 +939,7 @@ namespace Loci {
       return plist ;
 
     if(facts.isDistributed()) {
-      gfact_db::distribute_infoP d = facts.get_distribute_info() ;
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
       const int sesz = send_entities.size() ;
       int **send_buffer = 0 ;
       int **recv_buffer = 0 ;
@@ -1044,7 +1044,7 @@ namespace Loci {
   }
 
   set<vector<variableSet> >
-  get_rule_output_mappings(rule my_rule, const gfact_db &facts) {
+  get_rule_output_mappings(rule my_rule, const fact_db &facts) {
     set<vector<variableSet> > return_maps;
     set<vmap_info>::const_iterator vmsi ;
     for(vmsi = my_rule.get_info().desc.targets.begin();
@@ -1079,7 +1079,7 @@ namespace Loci {
 
   }
 
-  bool is_intensive_rule_output_mapping(rule my_rule, const gfact_db &facts) {
+  bool is_intensive_rule_output_mapping(rule my_rule, const fact_db &facts) {
     if(!rule_has_mapping_in_output(my_rule))
       return false;
     set<vector<variableSet> > my_output_mappings = get_rule_output_mappings(my_rule, facts);
@@ -1144,9 +1144,9 @@ namespace Loci {
   */
   vector<pair<variable,entitySet> >
   barrier_existential_rule_analysis(variableSet vlst,
-                                    gfact_db &facts, sched_db &scheds) {
+                                    fact_db &facts, sched_db &scheds) {
     vector<pair<variable,entitySet> > send_entities ;
-    gfact_db::distribute_infoP d = facts.get_distribute_info() ;
+    fact_db::distribute_infoP d = facts.get_distribute_info() ;
     vector<entitySet> exinfo ;
     vector<ruleSet> rules ;
     vector<variable> vars ;
@@ -1248,11 +1248,11 @@ namespace Loci {
     need to be send or received from a particular processor so that
     the clone region is filled up . */
 
-  entitySet send_requests(const entitySet& e, variable v, gfact_db &facts,
+  entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
                           list<comm_info> &clist) {
     entitySet re ;
     if(facts.isDistributed()) {
-      gfact_db::distribute_infoP d = facts.get_distribute_info() ;
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
 
       int **send_buffer = 0 ;
       int **recv_buffer = 0;
@@ -1346,10 +1346,10 @@ namespace Loci {
 
 
   list<comm_info>
-  barrier_process_rule_requests(variableSet vars, gfact_db &facts, sched_db &scheds) {
+  barrier_process_rule_requests(variableSet vars, fact_db &facts, sched_db &scheds) {
     list<comm_info> clist ;
     entitySet reduce_filter = ~EMPTY ;
-    gfact_db::distribute_infoP d;
+    fact_db::distribute_infoP d;
     if(facts.isDistributed())
       d = facts.get_distribute_info() ;
 
@@ -1406,7 +1406,7 @@ namespace Loci {
 
   int execute_comm2::tag_base = 1500 ;
   
-  execute_comm2::execute_comm2(list<comm_info>& plist, gfact_db &facts) {
+  execute_comm2::execute_comm2(list<comm_info>& plist, fact_db &facts) {
     HASH_MAP(int,vector<send_unit>) send_data ;
     HASH_MAP(int,vector<recv_unit>) recv_data ;
 
@@ -1482,7 +1482,7 @@ namespace Loci {
   }
 
   void execute_comm2::
-  execute(gfact_db& facts, sched_db& scheds) {
+  execute(fact_db& facts, sched_db& scheds) {
     stopWatch s ; s.start() ;
 
     vector<MPI_Request> send_req(send_info.size()) ;
@@ -1725,7 +1725,7 @@ namespace Loci {
     data_collector.accumulateTime(timer,EXEC_COMMUNICATION,oss.str()) ;
   }
 
-  execute_comm::execute_comm(list<comm_info> &plist, gfact_db &facts) {
+  execute_comm::execute_comm(list<comm_info> &plist, fact_db &facts) {
     HASH_MAP(int,vector<send_var_info>) send_data ;
     HASH_MAP(int,vector<recv_var_info>) recv_data ;
     list<comm_info>::const_iterator cli ;
@@ -1812,7 +1812,7 @@ namespace Loci {
   static int recv_ptr_buf_size = 0;
   static unsigned char *send_ptr_buf = 0 ;
   static int send_ptr_buf_size = 0 ;
-  void execute_comm::execute(gfact_db  &facts, sched_db& scheds) {
+  void execute_comm::execute(fact_db  &facts, sched_db& scheds) {
     stopWatch s ;
     s.start() ;
     const int nrecv = recv_info.size() ;
@@ -2060,7 +2060,7 @@ namespace Loci {
 
   // Sort the communication list so that the receive sequence is in the
   // order corresponding to the sending entitySet
-  list<comm_info> sort_comm(list<comm_info> slist, gfact_db &facts) {
+  list<comm_info> sort_comm(list<comm_info> slist, fact_db &facts) {
     vector<pair<int,vector<send_var_info> > > send_info ;
     vector<pair<int,vector<recv_var_info> > > recv_info ;
 
@@ -2103,7 +2103,7 @@ namespace Loci {
 
     list<comm_info> clist ;
 
-    gfact_db::distribute_infoP d = facts.get_distribute_info() ;
+    fact_db::distribute_infoP d = facts.get_distribute_info() ;
     Map l2g ;
     l2g = d->l2g.Rep() ;
 
@@ -2209,14 +2209,14 @@ namespace Loci {
   }
 
    
-  void barrier_compiler::set_var_existence(gfact_db &facts, sched_db &scheds) {
+  void barrier_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()){
       std::vector<std::pair<variable,entitySet> > send_entities = barrier_existential_rule_analysis(barrier_vars, facts, scheds) ;
       scheds.update_send_entities(send_entities, sched_db::BARRIER);
     }
   }
 
-  void barrier_compiler::process_var_requests(gfact_db &facts, sched_db &scheds) {
+  void barrier_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
    
     
 #ifdef VERBOSE
@@ -2275,7 +2275,7 @@ namespace Loci {
 #endif
   }
 
-  executeP barrier_compiler::create_execution_schedule(gfact_db &facts, sched_db &scheds) {
+  executeP barrier_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     
     if(facts.isDistributed()) {
       std::list<comm_info> clist = scheds.get_comm_info_list(barrier_vars, facts, sched_db::BARRIER_CLIST);
@@ -2313,14 +2313,14 @@ namespace Loci {
     return exec_thrd_sync;
   }
 
-  void execute_msg::execute(gfact_db &facts, sched_db& scheds) {  }
+  void execute_msg::execute(fact_db &facts, sched_db& scheds) {  }
 
   void execute_msg::Print(std::ostream &s) const {
     printIndent(s) ;
     s << msg << endl ;
   }
 
-  void singleton_var_compiler::set_var_existence(gfact_db &facts, sched_db &scheds)  {
+  void singleton_var_compiler::set_var_existence(fact_db &facts, sched_db &scheds)  {
     if(facts.isDistributed())
       barrier_existential_rule_analysis(barrier_vars, facts, scheds) ;
     if(duplicate_work) {
@@ -2330,13 +2330,13 @@ namespace Loci {
     }
   }
 
-  void singleton_var_compiler::process_var_requests(gfact_db &facts, sched_db &scheds) {
+  void singleton_var_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
       barrier_process_rule_requests(barrier_vars, facts, scheds) ;
     }
   }
 
-  executeP singleton_var_compiler::create_execution_schedule(gfact_db &facts,
+  executeP singleton_var_compiler::create_execution_schedule(fact_db &facts,
                                                              sched_db &scheds){
     if(verbose) {
       variableSet vars ;
@@ -2367,13 +2367,13 @@ namespace Loci {
           vi!=allocate_vars.end();++vi)
         v_max_sizes[*vi] = 0 ;
     }
-    virtual void execute(gfact_db &facts, sched_db &scheds) ;
+    virtual void execute(fact_db &facts, sched_db &scheds) ;
     virtual void Print(std::ostream &s) const ;
     virtual string getName() { return "execute_allocate_var";};
     virtual void dataCollate(collectData &data_collector) const ;
   } ;
 
-  void execute_allocate_var::execute(gfact_db &facts, sched_db &scheds) {
+  void execute_allocate_var::execute(fact_db &facts, sched_db &scheds) {
 
     stopWatch s ;
     s.start() ;
@@ -2466,13 +2466,13 @@ namespace Loci {
         v_max_sizes[*vi] = 0 ;
       }
     }
-    virtual void execute(gfact_db &facts, sched_db &scheds) ;
+    virtual void execute(fact_db &facts, sched_db &scheds) ;
     virtual void Print(std::ostream &s) const ;
     virtual string getName() { return "execute_free_var";};
     virtual void dataCollate(collectData &data_collector) const ;
   } ;
 
-  void execute_free_var::execute(gfact_db &facts, sched_db &scheds) {
+  void execute_free_var::execute(fact_db &facts, sched_db &scheds) {
     stopWatch s ;
     s.start() ;
 
@@ -2529,13 +2529,13 @@ namespace Loci {
     }
   }
 
-  void allocate_var_compiler::set_var_existence(gfact_db &facts, sched_db &scheds) {
+  void allocate_var_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
   }
 
-  void allocate_var_compiler::process_var_requests(gfact_db &facts, sched_db &scheds) {
+  void allocate_var_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
   }
 
-  executeP allocate_var_compiler::create_execution_schedule(gfact_db &facts, sched_db &scheds) {
+  executeP allocate_var_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     variableSet::const_iterator vi,vii ;
 
     map<variable,entitySet> v_requests ;
@@ -2594,13 +2594,13 @@ namespace Loci {
     return execute;
   }
 
-  void free_var_compiler::set_var_existence(gfact_db &facts, sched_db &scheds) {
+  void free_var_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
   }
 
 
-  void free_var_compiler::process_var_requests(gfact_db &facts, sched_db &scheds) { }
+  void free_var_compiler::process_var_requests(fact_db &facts, sched_db &scheds) { }
 
-  executeP free_var_compiler::create_execution_schedule(gfact_db &facts, sched_db &scheds) {
+  executeP free_var_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     variableSet::const_iterator vi,vii ;
     map<variable,variable> v2alias ;
     for(vi=free_vars.begin();vi!=free_vars.end();++vi) {
@@ -2662,7 +2662,7 @@ namespace Loci {
   void execute_memProfileAlloc::dataCollate(collectData &data_collector) const {
   }
 
-  void execute_memProfileAlloc::execute(gfact_db& facts, sched_db &scheds) {
+  void execute_memProfileAlloc::execute(fact_db& facts, sched_db &scheds) {
     for(variableSet::const_iterator vi=vars.begin();
         vi!=vars.end();++vi) {
       //cerr<<"memory profiling (allocation) on: "<<*vi<<endl;
@@ -2698,7 +2698,7 @@ namespace Loci {
   void execute_memProfileFree::dataCollate(collectData &data_collector) const {
   }
 
-  void execute_memProfileFree::execute(gfact_db& facts, sched_db &scheds) {
+  void execute_memProfileFree::execute(fact_db& facts, sched_db &scheds) {
     for(variableSet::const_iterator vi=vars.begin();
         vi!=vars.end();++vi) {
       //cerr<<"memory profiling (free) on: "<<*vi<<endl;
@@ -2722,12 +2722,12 @@ namespace Loci {
     }
   }
 
-  executeP memProfileAlloc_compiler::create_execution_schedule(gfact_db &facts, sched_db &scheds) {
+  executeP memProfileAlloc_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     executeP execute = executeP(new execute_memProfileAlloc(vars)) ;
     return execute;
   }
 
-  executeP memProfileFree_compiler::create_execution_schedule (gfact_db &facts, sched_db &scheds) {
+  executeP memProfileFree_compiler::create_execution_schedule (fact_db &facts, sched_db &scheds) {
     executeP execute = executeP(new execute_memProfileFree(vars));
     return execute;
   }
@@ -2736,9 +2736,9 @@ namespace Loci {
   //owner processor based on the duplication policies.
   //Also defines which variables are duplicate variables.
   std::vector<std::pair<variable,entitySet> >
-  send_ent_for_plist(variableSet vlst, gfact_db &facts, sched_db &scheds) {
+  send_ent_for_plist(variableSet vlst, fact_db &facts, sched_db &scheds) {
     vector<pair<variable,entitySet> > send_entities ;
-    gfact_db::distribute_infoP d = facts.get_distribute_info() ;
+    fact_db::distribute_infoP d = facts.get_distribute_info() ;
     vector<entitySet> exinfo ;
     vector<variable> vars ;
     vector<ruleSet> rules;
@@ -2777,10 +2777,10 @@ namespace Loci {
     return send_entities;
   }
 
-  entitySet sending_comm_processors(entitySet sendSet, gfact_db &facts) {
+  entitySet sending_comm_processors(entitySet sendSet, fact_db &facts) {
     entitySet send_procs;
     if(facts.isDistributed()) {
-      gfact_db::distribute_infoP d = facts.get_distribute_info();
+      fact_db::distribute_infoP d = facts.get_distribute_info();
       for(unsigned int i = 0; i < d->copy.size(); i++) {
 	if((d->copy[i].entities & sendSet) != EMPTY)
 	  send_procs += d->copy[i].proc;
@@ -2791,7 +2791,7 @@ namespace Loci {
 
   //Based on the policy selected for a variable,
   //it sets the duplication
-  bool process_policy_duplication(variable v, sched_db &scheds, gfact_db &facts) {
+  bool process_policy_duplication(variable v, sched_db &scheds, fact_db &facts) {
     if(!scheds.is_policy(v, sched_db::NEVER)) {
       if(scheds.is_policy(v, sched_db::ALWAYS)) {
 	//scheds.set_duplicate_variable(v, true);
@@ -2801,7 +2801,7 @@ namespace Loci {
 	double original_comm_time = 0, duplication_comm_time = 0;
 	double original_comp_time = 0, duplication_comp_time = 0;
 
-	gfact_db::distribute_infoP d = facts.get_distribute_info();
+	fact_db::distribute_infoP d = facts.get_distribute_info();
 	ruleSet r = scheds.get_existential_rules(v);
 	bool reduction = false;
 	for(ruleSet::const_iterator ri = r.begin();
@@ -3034,7 +3034,7 @@ namespace Loci {
   //It considers all variables which are associated with rules that
   //compute tvars, and figures out if they are duplicate variables
   void set_duplication_of_variables(variableSet tvars, sched_db &scheds,
-				    gfact_db &facts) {
+				    fact_db &facts) {
     vector<variable> vars ;
     vector<ruleSet> rules;
     for(variableSet::const_iterator vi=tvars.begin();vi!=tvars.end();++vi) {

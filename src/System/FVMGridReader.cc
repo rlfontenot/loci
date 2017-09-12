@@ -1,4 +1,3 @@
-
 //#############################################################################
 //#
 //# Copyright 2008, 2015, Mississippi State University
@@ -584,7 +583,7 @@ namespace Loci {
   }
 
   //mpi communication of gEntity and gEntity using type MPI_BYTE
-  bool readGridVOG_raw(gfact_db& facts,
+  bool readGridVOG_raw(fact_db& facts,
                        string filename) {
 
     string casename = get_casename(filename);
@@ -1142,7 +1141,7 @@ namespace Loci {
   
   //after file is read in, this function collects domain of variables,
   //and then sets up the key partition for each space
-  void set_file_key_ptn(gfact_db& facts, const std::string& casename ){
+  void set_file_key_ptn(fact_db& facts, const std::string& casename ){
      
    
     // node space
@@ -1184,7 +1183,7 @@ namespace Loci {
    
 
   //remap all out_vars in space using m
-  void remap_space(gKeySpaceP space, gfact_db& facts, const gMap& m){
+  void remap_space(gKeySpaceP space, fact_db& facts, const gMap& m){
     variableSet vset =  space->get_out_vars(); 
     if(vset != EMPTY){
       for(variableSet::const_iterator vi = vset.begin(); vi != vset.end(); vi++){
@@ -1195,7 +1194,7 @@ namespace Loci {
     }
   }
   //This funntion remap all out_vars of space using its own f2g map
-  void remap_space_f2g(gfact_db& facts, gKeySpaceP space){
+  void remap_space_f2g(fact_db& facts, gKeySpaceP space){
     variableSet vset =  space->get_out_vars(); 
     if(vset != EMPTY){
       gMap f2g;
@@ -1209,7 +1208,7 @@ namespace Loci {
   }
   //each key space redistributes all its out_vars according to its send_ptn,
   //and then maps the result from file numbering to global numbering 
-  void redistribute_remap_all(gfact_db& facts){
+  void redistribute_remap_all(fact_db& facts){
     vector<gKeySpaceP> spaces = gKeySpace::get_all_spaces();
     for( unsigned int i = 0; i< spaces.size(); i++){
       variableSet vset = spaces[i]->get_out_vars(); 
@@ -1229,7 +1228,7 @@ namespace Loci {
   
   //each key space redistributes all its out_vars according to its key_ptn
   //exclude universeSpace
-  void split_redistribute_all(gfact_db& facts){
+  void split_redistribute_all(fact_db& facts){
     vector<gKeySpaceP> spaces = gKeySpace::get_all_spaces(); 
     for(unsigned int i = 0; i < spaces.size(); i++){
       variableSet vset = spaces[i]->get_out_vars();
@@ -1246,7 +1245,7 @@ namespace Loci {
   }
 
   //redistribute all out_vars in space using its send_ptn 
-  void redistribute_space(gfact_db& facts, gKeySpaceP space){
+  void redistribute_space(fact_db& facts, gKeySpaceP space){
     variableSet vset = space->get_out_vars(); 
     if(vset != EMPTY){
       vector<gEntitySet> ptn = space->get_send_ptn();
@@ -1260,7 +1259,7 @@ namespace Loci {
   }
   
   //each key space recomposes its their in_vars using its f2g map
-  void compose_all(gfact_db& facts){
+  void compose_all(fact_db& facts){
     vector<gKeySpaceP> spaces = gKeySpace::get_all_spaces(); 
     for( unsigned int i = 0; i < spaces.size(); i++){
       variableSet vset = spaces[i]->get_in_vars();
@@ -1284,7 +1283,7 @@ namespace Loci {
     and then renumbered.
     the image field of maps are then mapped from file numbering to global numbering
   */
-  void remapGrid(gfact_db &facts) {
+  void remapGrid(fact_db &facts) {
     string casename;
     
     //get key manager and key spaces
@@ -1386,7 +1385,7 @@ namespace Loci {
 
   //6. after partition, remapGrid is called to redistribute and remap all containers to global numbering
   
-  bool readFVMGrid(gfact_db &facts, string filename) {
+  bool readFVMGrid(fact_db &facts, string filename) {
     string casename = get_casename(filename);
     double t1 = MPI_Wtime() ;
     //	timer_token read_file_timer = new timer_token;
@@ -1500,7 +1499,7 @@ namespace Loci {
 
   enum matrix_coloring_type {COLOR_DEFAULT, COLOR_DFS} ;
 
-  void create_ref(gfact_db &facts) {
+  void create_ref(fact_db &facts) {
     string casename;
     gMap cr ;
     cr = facts.get_gfact("cr") ;
@@ -1522,7 +1521,7 @@ namespace Loci {
     facts.create_gfact("ref",ref, face_space, bc_space) ;
   }
 
-  void create_ghost_cells(gfact_db &facts) {
+  void create_ghost_cells(fact_db &facts) {
     string casename;
     gKeySpaceP cell_space = gKeySpace::get_space("CellSpace", casename);
     gKeySpaceP face_space = gKeySpace::get_space("FaceSpace", casename);
@@ -1564,7 +1563,7 @@ namespace Loci {
     Loci::debugout << "cells = " << *cells << endl ;
   }
 
-  void create_face_info(gfact_db &facts) {
+  void create_face_info(fact_db &facts) {
     string casename;
     gKeySpaceP face_space = gKeySpace::get_space("FaceSpace", casename);
     gConstraint faces;
@@ -1579,7 +1578,7 @@ namespace Loci {
 
  
 
-  void copy_facts(gfact_db& gfacts){
+  void copy_facts(fact_db& gfacts){
    
     string casename;
     gKeySpaceP face_space = gKeySpace::get_space("FaceSpace", casename);
@@ -1676,7 +1675,7 @@ namespace Loci {
 
   
  
-  bool setupFVMGrid(gfact_db &gfacts, string filename) {
+  bool setupFVMGrid(fact_db &gfacts, string filename) {
 
     string casename = get_casename(filename);
     if(!readFVMGrid(gfacts,filename))

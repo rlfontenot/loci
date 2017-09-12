@@ -45,7 +45,7 @@ namespace Loci {
     v.visit(*this) ;
   }
 
-  void impl_recurse_compiler::set_var_existence(gfact_db &facts, sched_db &scheds) {
+  void impl_recurse_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
     
 #ifdef VERBOSE
     debugout << "set var existence for recursive impl rule " << impl << endl ;
@@ -62,7 +62,7 @@ namespace Loci {
 
     entitySet my_entities = ~EMPTY ;
     if(facts.isDistributed()) {
-      gfact_db::distribute_infoP d = facts.get_distribute_info() ;
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
       variableSet recurse_vars = variableSet(impl.sources() & impl.targets()) ;
       //std::vector<std::pair<variable,entitySet> > pre_send_entities =
       barrier_existential_rule_analysis(recurse_vars,facts, scheds) ;
@@ -407,10 +407,10 @@ namespace Loci {
    
   }
 
-  void impl_recurse_compiler::process_var_requests(gfact_db &facts, sched_db &scheds) {
+  void impl_recurse_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
     entitySet my_entities = ~EMPTY ;
     if(facts.isDistributed()) {
-      gfact_db::distribute_infoP d = facts.get_distribute_info() ;
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
       my_entities = d->my_entities ;
     }
     process_rule_requests(impl,facts, scheds) ;
@@ -442,7 +442,7 @@ namespace Loci {
      
   }
 
-  executeP impl_recurse_compiler::create_execution_schedule(gfact_db &facts, sched_db &scheds) {
+  executeP impl_recurse_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
 
     executeP exe_rule = new execute_rule(impl, fastseq, facts, scheds);
     return exe_rule;
@@ -452,10 +452,10 @@ namespace Loci {
     v.visit(*this) ;
   }
 
-  void recurse_compiler::set_var_existence(gfact_db &facts, sched_db &scheds) {
+  void recurse_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
     entitySet my_entities = ~EMPTY ;
     if(facts.isDistributed()) {
-      gfact_db::distribute_infoP d = facts.get_distribute_info() ;
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
       
       std::vector<std::pair<variable,entitySet> > pre_send_entities
         = barrier_existential_rule_analysis(recurse_vars,facts, scheds) ;
@@ -705,10 +705,10 @@ namespace Loci {
     }
   }
 
-  void recurse_compiler::process_var_requests(gfact_db &facts, sched_db &scheds) {
+  void recurse_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
     entitySet my_entities = ~EMPTY ;
     if(facts.isDistributed()) {
-      gfact_db::distribute_infoP d = facts.get_distribute_info() ;
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
       my_entities = d->my_entities ;
     }
 
@@ -879,7 +879,7 @@ namespace Loci {
 
   }
 
-  executeP recurse_compiler::create_execution_schedule(gfact_db &facts, sched_db &scheds ) {
+  executeP recurse_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds ) {
 #ifdef PTHREADS
     ++num_total_recursion;
     bool num_threads_counted = false;

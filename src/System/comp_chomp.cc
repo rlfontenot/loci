@@ -74,7 +74,7 @@ namespace Loci {
    const vector<pair<rule,rule_compilerP> >& comp,
    const deque<entitySet>& seq,
    const variableSet& cv,
-   gfact_db& facts):
+   fact_db& facts):
     total_domain(td),chomp_comp(comp),rule_seq(seq),
     chomp_vars(cv),chomp_size(0),chomp_iter(0),
     D_cache_size(0), execute_times(0)
@@ -161,7 +161,7 @@ namespace Loci {
   }
   
     
-  void execute_chomp::execute(gfact_db& facts, sched_db &scheds) {
+  void execute_chomp::execute(fact_db& facts, sched_db &scheds) {
     stopWatch stot ;
     stot.start() ;
 
@@ -302,7 +302,7 @@ namespace Loci {
     :chomp_graph(cgraph),chomp_vars(cvars),apply2unit(a2u) {
   }
 
-  void chomp_compiler::set_var_existence(gfact_db& facts, sched_db& scheds) {
+  void chomp_compiler::set_var_existence(fact_db& facts, sched_db& scheds) {
     
     barrier_sets.clear();
     for(unsigned int i = 0; i < old_barrier_sets.size(); i++)
@@ -414,7 +414,7 @@ namespace Loci {
     }
   }
   
-  void chomp_compiler::process_var_requests(gfact_db& facts, sched_db& scheds) {
+  void chomp_compiler::process_var_requests(fact_db& facts, sched_db& scheds) {
     rule_seq.clear();
     deque<pair<rule,rule_compilerP> > new_chomp_comp ;
     vector<pair<rule,rule_compilerP> >::reverse_iterator ri ;
@@ -458,7 +458,7 @@ namespace Loci {
       chomp_comp.push_back(*di) ;
   }
 
-  executeP chomp_compiler::create_execution_schedule(gfact_db& facts,
+  executeP chomp_compiler::create_execution_schedule(fact_db& facts,
                                                      sched_db& scheds) {
     // we first union all the rule sequence
     entitySet total ;

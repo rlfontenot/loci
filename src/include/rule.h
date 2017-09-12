@@ -51,7 +51,7 @@
 
 namespace Loci {
  
-  class gfact_db ;
+  class fact_db ;
   class sched_db ;
   
   class joiner : public CPTR_type {
@@ -144,7 +144,7 @@ namespace Loci {
     variable get_parametric_variable() { return ParametricVariable ; }
     
     //add this method 
-    void initialize(gfact_db &facts) ;
+    void initialize(fact_db &facts) ;
     
     // this method returns all the keyspaces involved in a rule
     // that need to be considered for distribution
@@ -172,7 +172,7 @@ namespace Loci {
     // This function checks to
     // see if the rule contains constraints that are of type Map. In case
     // of yes, it creates identical constraints
-    // (whose value equal the Map domain) in the gfact_db and substitutes
+    // (whose value equal the Map domain) in the fact_db and substitutes
     // the Map constraints in the rule with the real constraints.
     //
     // The motivation of this function is that in the parallel code,
@@ -194,7 +194,7 @@ namespace Loci {
     // have happened, "facts" may include newly created constraints;
     // the rules may have its "vmap_info" structure modified
     // to reflect the substitution of constraints for maps.
-    void replace_map_constraints(gfact_db& facts) ;
+    void replace_map_constraints(fact_db& facts) ;
 
     void split_constraints(const variableSet& dc) ;
     
@@ -521,8 +521,8 @@ namespace Loci {
     { rule_impl::conditional(cond) ; }
     virtual CPTR<joiner> get_joiner() { return CPTR<joiner>(0) ; }
   public:
-    virtual void process_existential(rule r, gfact_db &facts, sched_db &scheds) = 0 ;
-    virtual void process_requests(rule r, gfact_db &facts, sched_db &scheds) = 0 ;
+    virtual void process_existential(rule r, fact_db &facts, sched_db &scheds) = 0 ;
+    virtual void process_requests(rule r, fact_db &facts, sched_db &scheds) = 0 ;
   } ;
 
   class pointwise_rule : public rule_impl {

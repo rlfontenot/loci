@@ -959,7 +959,7 @@ namespace Loci {
   // distribution info pointer (dist)
   // MPI Communicator
   storeRepP Local2FileOrder(storeRepP sp, entitySet dom, int &offset,
-                           gfact_db::distribute_infoP dist, MPI_Comm comm) {
+                           fact_db::distribute_infoP dist, MPI_Comm comm) {
 
 
     // Get local numbering of entities owned by this processor, only write
@@ -1104,10 +1104,10 @@ namespace Loci {
   // Convert container from local numbering to output file numbering
   // pass in store rep pointer: sp
   // entitySet to write: dom
-  //gfact_db pointer  (facts)
+  //fact_db pointer  (facts)
   // MPI Communicator
   storeRepP Local2FileOrder_output(storeRepP sp, entitySet dom, 
-                                  gfact_db& facts, MPI_Comm comm) {
+                                  fact_db& facts, MPI_Comm comm) {
    
     // Get number of processors
     int p = 0 ;
@@ -1118,7 +1118,7 @@ namespace Loci {
     if(p==1) return sp;
       
    
-   gfact_db::distribute_infoP dist = facts.get_distribute_info() ;
+   fact_db::distribute_infoP dist = facts.get_distribute_info() ;
     vector<entitySet> out_ptn = facts.get_init_ptn() ;
     // Get mapping from local to global numbering
     Map l2g ;
@@ -1233,7 +1233,7 @@ namespace Loci {
  
   void File2LocalOrder(storeRepP &result, entitySet resultSet,
                        storeRepP input, int offset,
-                      gfact_db::distribute_infoP dist,
+                      fact_db::distribute_infoP dist,
                        MPI_Comm comm) {
     Map newnum ;
     newnum.allocate(resultSet) ;
@@ -1389,8 +1389,8 @@ namespace Loci {
   }
 
   void redistribute_write_container(hid_t file_id, std::string vname,
-                                    storeRepP var,gfact_db &facts) {
-   gfact_db::distribute_infoP dist = facts.get_distribute_info() ;
+                                    storeRepP var,fact_db &facts) {
+   fact_db::distribute_infoP dist = facts.get_distribute_info() ;
     if(dist == 0) {
       writeContainerRAW(file_id,vname,var,MPI_COMM_WORLD) ;
       return ;
@@ -1425,7 +1425,7 @@ namespace Loci {
 
   void read_container_redistribute(hid_t file_id, std::string vname,
                                    storeRepP var, entitySet read_set,
-                                  gfact_db &facts) {
+                                  fact_db &facts) {
     hid_t group_id = 0;
     if(MPI_rank == 0)
       group_id = H5Gopen(file_id, vname.c_str(),H5P_DEFAULT) ;
@@ -1443,7 +1443,7 @@ namespace Loci {
       
     
     // map from file number to local numbering
-   gfact_db::distribute_infoP dist = facts.get_distribute_info() ;
+   fact_db::distribute_infoP dist = facts.get_distribute_info() ;
     if(dist != 0) {
       // Allocate space for reordered container
       storeRepP result = var->new_store(read_set) ;
@@ -1470,13 +1470,13 @@ namespace Loci {
       H5Gclose(group_id) ;
   }
 
-  void writeSetIds(hid_t file_id, entitySet local_set,gfact_db &facts) {
+  void writeSetIds(hid_t file_id, entitySet local_set,fact_db &facts) {
     vector<int> ids(local_set.size()) ;
 
     int c = 0 ;
     if(MPI_processes > 1) {
       Map l2g ;
-     gfact_db::distribute_infoP df = facts.get_distribute_info() ;
+     fact_db::distribute_infoP df = facts.get_distribute_info() ;
       l2g = df->l2g.Rep() ;
       dMap g2f ;
       g2f = df->g2f.Rep() ;
@@ -1493,7 +1493,7 @@ namespace Loci {
     writeUnorderedVector(file_id,"entityIds",ids) ;
   }
 
-  hid_t createUnorderedFile(const char * filename, entitySet set,gfact_db &facts) {
+  hid_t createUnorderedFile(const char * filename, entitySet set,fact_db &facts) {
     hid_t file_id = 0;
     hid_t group_id = 0 ;
     if(MPI_rank == 0) {

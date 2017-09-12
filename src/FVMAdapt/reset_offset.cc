@@ -49,11 +49,11 @@ namespace Loci{
   // distribution info pointer (dist)
   // MPI Communicator
   storeRepP Local2FileOrder(storeRepP sp, entitySet dom, int &offset,
-                            gfact_db::distribute_infoP dist, MPI_Comm comm);
+                            fact_db::distribute_infoP dist, MPI_Comm comm);
 
   void File2LocalOrder(storeRepP &result, entitySet resultSet,
                        storeRepP input, int offset,
-                       gfact_db::distribute_infoP dist,
+                       fact_db::distribute_infoP dist,
                        MPI_Comm comm);
   
 }
@@ -81,7 +81,7 @@ public:
 
     int num_procs = Loci::MPI_processes;
     int my_id = Loci::MPI_rank;
-    gfact_db::distribute_infoP dist = Loci::exec_current_fact_db->get_distribute_info() ;
+    fact_db::distribute_infoP dist = Loci::exec_current_fact_db->get_distribute_info() ;
    
   
     Loci::constraint edges, geom_cells, faces;
@@ -270,7 +270,7 @@ public:
     
     int num_procs = Loci::MPI_processes;
     int my_id = Loci::MPI_rank;
-    gfact_db::distribute_infoP dist = Loci::exec_current_fact_db->get_distribute_info() ;
+    fact_db::distribute_infoP dist = Loci::exec_current_fact_db->get_distribute_info() ;
     
     Loci::constraint  geom_cells = Loci::exec_current_fact_db->get_variable("geom_cells");
        

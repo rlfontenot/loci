@@ -208,7 +208,7 @@ namespace Loci {
   ReductionLock ThreadPartition_simple::generate_conflict_lock
     (const std::vector<std::vector<int> >& blocks_id,
      const std::vector<vmap_info>& map_info,
-     gfact_db& facts, sched_db& scheds) const
+     fact_db& facts, sched_db& scheds) const
   {
     // first create a vector for all the block mapping results.
     map<TBlockID,entitySet> bmapr;
@@ -593,7 +593,7 @@ namespace Loci {
       ptn[i] = cell_ptn[i]+face_ptn[i]+node_ptn[i];
   }
 
-  void ThreadPartition_simple::create_thread_domain(gfact_db& facts)
+  void ThreadPartition_simple::create_thread_domain(fact_db& facts)
   {
     // Note: this function is run on the main control thread
     // initially, there are no work threads created yet at this
@@ -608,7 +608,7 @@ namespace Loci {
     // if fact database is distributed, then we will trim the entities
     // down to those that are owned by the local process
     if(facts.isDistributed()) {
-      gfact_db::distribute_infoP d = facts.get_distribute_info();
+      fact_db::distribute_infoP d = facts.get_distribute_info();
       whole_entities = d->my_entities;
     } else
       whole_entities = facts.init_ptn[Loci::MPI_rank];
@@ -913,7 +913,7 @@ namespace Loci {
   }
   
   ThreadControl_pthread::ThreadControl_pthread
-    (int n, gfact_db& facts, sched_db& scheds)
+    (int n, fact_db& facts, sched_db& scheds)
     :active(false),stop(false),work(0),factsP(0),schedsP(0),tnum(n)
   {
     thread_args.resize(n);
@@ -997,7 +997,7 @@ namespace Loci {
   ReductionLock
     ThreadControl_pthread::create_conflict_lock
     (const vector<vector<int> >& blocks, const vmap_info& map_info,
-     gfact_db& facts, sched_db& scheds) const
+     fact_db& facts, sched_db& scheds) const
     { 
       vector<vmap_info> vm; vm.push_back(map_info);
       return tpn->generate_conflict_lock(blocks,vm,facts,scheds);
@@ -1005,7 +1005,7 @@ namespace Loci {
   ReductionLock
     ThreadControl_pthread::create_conflict_lock
     (const vector<vector<int> >& blocks,
-     const vector<vmap_info>& map_info, gfact_db& facts, sched_db& scheds)
+     const vector<vmap_info>& map_info, fact_db& facts, sched_db& scheds)
     const
     { return tpn->generate_conflict_lock(blocks,map_info,facts,scheds);}
 
@@ -1111,7 +1111,7 @@ namespace Loci {
 
       // do the module work
       w = (*(self->work))[tid];
-      gfact_db* f = self->factsP;
+      fact_db* f = self->factsP;
       sched_db* s = self->schedsP;
       if(w != 0 && f && s) {
         w->execute(*f, *s);

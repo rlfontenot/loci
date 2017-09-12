@@ -26,7 +26,7 @@ using std::vector;
 namespace Loci{
   int classify_cell(const gEntitySet& faces,const_gMultiMap &face2node);
 
-  void parallelClassifyCell(gfact_db &facts) {
+  void parallelClassifyCell(fact_db &facts) {
     //get variables
     const_gMultiMap face2node ;
     face2node = facts.get_gvariable("face2node") ;

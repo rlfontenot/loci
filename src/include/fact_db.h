@@ -19,8 +19,8 @@
 //#
 //#############################################################################
 
-#ifndef GFACT_DB_H
-#define GFACT_DB_H
+#ifndef FACT_DB_H
+#define FACT_DB_H
 
 #ifdef HAVE_CONFIG_H
 #include <config.h> // This must be the first file included
@@ -65,11 +65,11 @@ namespace Loci {
   class rule_db ;
 
   /*
-    Developer's notes: To repalce fact_db by gfact_db, first rename everything in gfact_db related to gcontainers so that
+    Developer's notes: To repalce fact_db by fact_db, first rename everything in fact_db related to gcontainers so that
     the member data and member method related to tradititional containers and other info will remains the same as fact_db.
-    At present time, gfact_db includes everything in fact_db, clean-up need to be done later. 
+    At present time, fact_db includes everything in fact_db, clean-up need to be done later. 
   */
-  class gfact_db {
+  class fact_db {
   private:
     // key manager
     gKeyManagerP gkey_manager ;
@@ -97,7 +97,7 @@ namespace Loci {
 
 
     // support for multiple queries and experimental
-    // extensions to the gfact_db to distinguish
+    // extensions to the fact_db to distinguish
     // extensional facts and intensional facts
     variableSet extensional_facts ;
 
@@ -160,7 +160,7 @@ namespace Loci {
     
   private:
     // a copy function
-    void copy_all_from(const gfact_db& f) ;
+    void copy_all_from(const fact_db& f) ;
     
 
     void set_variable_domain_space(const variable& v, gStoreRepP st, gKeySpaceP space);
@@ -169,7 +169,7 @@ namespace Loci {
     void remove_variable_image_space(const variable& v);
     
     // this is the basic method that creats a fact
-    // in the gfact_db. It is served as the basis
+    // in the fact_db. It is served as the basis
     // for create_gfact methods
     //this method adds st to gfmap with duplication check
     //this method will not process keyspace info
@@ -180,7 +180,7 @@ namespace Loci {
     //the following private methods are temporary
     //////////////////////////////////////////////////////////////////////////////////////////////////
     // this is the basic method that creats a fact
-    // in the gfact_db. It is served as the basis
+    // in the fact_db. It is served as the basis
     // for create_fact & the create_intensional_fact methods
     void create_pure_fact(const variable& v, storeRepP st) ;
    
@@ -192,20 +192,20 @@ namespace Loci {
     
   public:
     //constructor
-    gfact_db() ;
+    fact_db() ;
     // copy constructor
-    gfact_db(const gfact_db &f) {
+    fact_db(const fact_db &f) {
       copy_all_from(f) ;
     }
     // the assignment operator
-    gfact_db &operator=(const gfact_db &f) {
+    fact_db &operator=(const fact_db &f) {
       if(&f != this) {
         copy_all_from(f) ;
       }
       return *this ;
     }
     //destructor
-    ~gfact_db() ;
+    ~fact_db() ;
 
     void set_variable_type(variable v, storeRepP st) ;
     void set_variable_type(std::string vname, storeRepP st)
@@ -505,8 +505,8 @@ namespace Loci {
     std::vector<entitySet>& get_init_ptn() {return init_ptn ;}
     void  put_init_ptn(std::vector<entitySet> &t_init ) {init_ptn = t_init ;}
     
-    gfact_db::distribute_infoP get_distribute_info() ;
-    void put_distribute_info(gfact_db::distribute_infoP dp) ;
+    fact_db::distribute_infoP get_distribute_info() ;
+    void put_distribute_info(fact_db::distribute_infoP dp) ;
     bool isDistributed() ;
 
     void setupDefaults(const rule_db &rdb) ;
@@ -532,8 +532,8 @@ namespace Loci {
   ///////////////////////////////////////////////////////////////////////
   // temporary function
   /////////////////////////////////////////////////////////////////////////
-  void reorder_facts(gfact_db &facts, dMap &remap) ;
-  void serial_freeze(gfact_db &facts) ; 
+  void reorder_facts(fact_db &facts, dMap &remap) ;
+  void serial_freeze(fact_db &facts) ; 
 }
     
 

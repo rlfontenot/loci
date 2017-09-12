@@ -156,22 +156,22 @@ namespace Loci {
     }
   } ;
 
-  // bool readFVMGrid(gfact_db &facts, std::string filename) ;
+  // bool readFVMGrid(fact_db &facts, std::string filename) ;
   
-  bool setupFVMGrid(gfact_db &facts, std::string filename) ;
+  bool setupFVMGrid(fact_db &facts, std::string filename) ;
   
   bool readBCfromVOG(std::string filename,
                      std::vector<std::pair<int,std::string> > &boundary_ids) ;
   
-  void setupBoundaryConditions(gfact_db &facts) ;
+  void setupBoundaryConditions(fact_db &facts) ;
   
-  void createLowerUpper(gfact_db &facts) ; 
+  void createLowerUpper(fact_db &facts) ; 
 
   
-  void createEdgesPar(gfact_db& facts) ;
+  void createEdgesPar(fact_db& facts) ;
 
  
-  void create_ci_map(gfact_db &facts);
+  void create_ci_map(fact_db &facts);
 
   extern void writeVOG(std::string filename,store<vector3d<double> > &pos,
                        Map &cl, Map &cr, multiMap &face2node,

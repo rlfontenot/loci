@@ -41,7 +41,7 @@ namespace Loci {
       
       std::string mod_name ;
       void *m_library ;
-      void (*m_init_model)(gfact_db &facts, rule_db &rdb, const char *problem_name) ;
+      void (*m_init_model)(fact_db &facts, rule_db &rdb, const char *problem_name) ;
       std::string name() { return mod_name ; } 
       mod_info(rule_impl_list& rl, std::string str) {
 	loaded_rule_list.copy_rule_list(rl) ;
@@ -77,7 +77,7 @@ namespace Loci {
       }
       
       mod_info &get_info(const std::string &str) ;
-      mod_info &get_info(const std::string &str, const std::string &to_str, const char* problem_name, gfact_db &facts) ;
+      mod_info &get_info(const std::string &str, const std::string &to_str, const char* problem_name, fact_db &facts) ;
     } ;
   
     static mod_db *mdb ;
@@ -87,7 +87,7 @@ namespace Loci {
       create_mod_db() ;
       get_info(name) ;
     }
-    mod(const std::string& name, const std::string& to_str, const char* problem_name, gfact_db &facts) {
+    mod(const std::string& name, const std::string& to_str, const char* problem_name, fact_db &facts) {
       create_mod_db() ;
       get_info(name, to_str, problem_name, facts) ;
     }
@@ -97,7 +97,7 @@ namespace Loci {
     }
     mod_info &get_info(const std::string name) { 
       return mdb->get_info(name) ; }
-    mod_info &get_info(const std::string name, const std::string &to_str, const char* problem_name, gfact_db &facts) {
+    mod_info &get_info(const std::string name, const std::string &to_str, const char* problem_name, fact_db &facts) {
       return mdb->get_info(name, to_str, problem_name, facts); }
     void put_info(mod_info &md) {mdb->put_info(md) ; }
   } ;
@@ -108,7 +108,7 @@ namespace Loci {
     load_module(module_name,"",rdb,str_set) ;
   }
   
-  void load_module(const std::string from_str, const std::string to_str, const char* problem_name, gfact_db &facts, rule_db& rdb, std::set<std::string> &str_set) ;	 
+  void load_module(const std::string from_str, const std::string to_str, const char* problem_name, fact_db &facts, rule_db& rdb, std::set<std::string> &str_set) ;	 
   void AddModuleSearchDir(std::string dirname) ;
 }
 

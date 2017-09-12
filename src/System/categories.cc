@@ -65,7 +65,7 @@ namespace Loci {
   // Compute associations between variables and their domains
   // Note, we also create image variables to represent the images of maps
   //   over their domains.
-  void getVariableAssociations(map<variable,entitySet> &vm, gfact_db &facts) {
+  void getVariableAssociations(map<variable,entitySet> &vm, fact_db &facts) {
     vector<entitySet> ptn = facts.get_init_ptn() ;
     entitySet total_entities ;
     vm.clear() ;
@@ -312,7 +312,7 @@ namespace Loci {
     std::stable_sort(cat_keys.begin(),cat_keys.end(),compare_groups) ;
   }
                   
-  void categories(gfact_db &facts,vector<entitySet> &pvec) {
+  void categories(fact_db &facts,vector<entitySet> &pvec) {
     map<variable, entitySet> vm ;
     getVariableAssociations(vm,facts) ;
 

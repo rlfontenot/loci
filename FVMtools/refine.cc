@@ -38,11 +38,11 @@ using std::endl;
 using std::cerr;
 using std::ofstream;
 using Loci::MPI_processes;
-using Loci::gfact_db;
+using Loci::fact_db;
 using Loci::gParam;
 namespace Loci{
-  void parallelClassifyCell(gfact_db &gfacts) ;
-  void createEdgesPar(gfact_db &gfacts) ;
+  void parallelClassifyCell(fact_db &gfacts) ;
+  void createEdgesPar(fact_db &gfacts) ;
 }
 
 int main(int argc, char ** argv) {
@@ -335,7 +335,7 @@ int main(int argc, char ** argv) {
   rules.add_rules(global_rule_list);
   
   // Setup the gfact database.
-  gfact_db gfacts;
+  fact_db gfacts;
   
   if(Loci::MPI_rank == 0) cout <<"reading in meshfile" << std::endl;
 

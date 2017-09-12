@@ -168,7 +168,7 @@ namespace Loci{
   
   //merge cl, cr into a gMultiMap
   //For boundary faces, only merge cl
-  gStoreRepP merge_cl_cr( gfact_db& facts){
+  gStoreRepP merge_cl_cr( fact_db& facts){
     gMap cl, cr;
     gMultiMap result;
     cl = facts.get_gfact("cl");
@@ -525,7 +525,7 @@ namespace Loci{
   //this function returns if var_name is in_var of space
   //i.e., if the image space of var_name is space
   //var_name should be the name of a map
-  bool is_in_var(const string& var_name, gfact_db &facts, gKeySpaceP space){
+  bool is_in_var(const string& var_name, fact_db &facts, gKeySpaceP space){
     gStoreRepP st = facts.get_gvariable(var_name);
     gMapRepP mp = gMapRepP(st);
     if(mp==0){
@@ -537,7 +537,7 @@ namespace Loci{
     return false;
   }
               
-  void affinity_partition(gfact_db &facts, const vector<int>& procmap,parStrategy& s){
+  void affinity_partition(fact_db &facts, const vector<int>& procmap,parStrategy& s){
     bool need_reverse2 = !is_in_var(s.map2, facts, s.space2);
    
     //from space1 to space2
@@ -609,7 +609,7 @@ namespace Loci{
 
      
   //return entity2process vector     
-  void primary_partition_metis(gfact_db& facts, vector<int>& e2p, parStrategy& s){
+  void primary_partition_metis(fact_db& facts, vector<int>& e2p, parStrategy& s){
     int np = s.space1->get_np();
     vector<gEntitySet> init_ptn = s.space1->get_key_ptn(); 
     bool need_reverse1 = !is_in_var(s.map1, facts, s.space1);
@@ -647,7 +647,7 @@ namespace Loci{
  
           
   //return entity2process vector     
-  void primary_partition_orb(gfact_db& facts, vector<int>& e2p,parStrategy& s ){
+  void primary_partition_orb(fact_db& facts, vector<int>& e2p,parStrategy& s ){
     int np = s.space1->get_np();
     MPI_Comm comm = s.space1->get_mpi_comm();
     gEntitySet domain = s.space1->get_my_keys();
