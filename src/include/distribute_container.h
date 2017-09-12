@@ -32,7 +32,7 @@
 #include <DMap.h>
 #include <store_rep.h>
 #include <DMultiMap.h>
-#include <gfact_db.h>
+#include <fact_db.h>
 #include <Map.h>
 #include <multiMap.h>
 #include <distribute_io.h>

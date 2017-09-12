@@ -25,7 +25,7 @@
 #include <partition.h>
 #include <distribute_io.h>
 #include <gparameter.h>
-#include <gfact_db.h>
+#include <fact_db.h>
 #include <gconstraint.h>
 #ifdef HAS_MALLINFO
 #include <malloc.h>

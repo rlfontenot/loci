@@ -28,7 +28,7 @@ using std::vector ;
 #include "dist_tools.h"
 #include "dist_internal.h"
 #include <rule.h>
-#include <gfact_db.h>
+#include <fact_db.h>
 #include <constraint.h>
 #include <multiMap.h>
 

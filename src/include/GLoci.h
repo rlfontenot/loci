@@ -47,10 +47,9 @@
 #include <gmultistore.h>
 #include <mod_db.h>
 #include <gstore.h>
-#include <gfact_db.h>
+#include <fact_db.h>
 #include <gkeyspace.h>
 #include <gkey_manager.h>
-#include <gfact_db.h>
 //#include <blackbox.h>
 
 #include <LociGridReaders.h>

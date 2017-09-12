@@ -28,7 +28,7 @@
 
 #include <rule.h>
 #include <keyspace.h>
-#include <gfact_db.h>
+#include <fact_db.h>
 #include <string>
 namespace Loci {
   std::string remove_space(const std::string &str) ; 

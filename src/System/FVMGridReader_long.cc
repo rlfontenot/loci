@@ -29,7 +29,7 @@
 #include <gstore.h>
 #include <gmap.h>
 #include <gmultimap.h>
-#include <gfact_db.h>
+#include <fact_db.h>
 #include <gparameter.h>
 
 #include <Tools/intervalSet.h>

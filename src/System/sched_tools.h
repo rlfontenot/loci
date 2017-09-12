@@ -30,7 +30,7 @@
 #include <Tools/cptr.h>
 #include <scheduler.h>
 #include <Tools/digraph.h>
-#include <gfact_db.h>
+#include <fact_db.h>
 #include <sched_db.h>
 #include <execute.h>
 #include <depend_graph.h>

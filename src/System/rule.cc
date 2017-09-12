@@ -26,7 +26,7 @@
 
 #include "rule.h"
 
-#include <gfact_db.h>
+#include <fact_db.h>
 #include <constraint.h>
 
 #include <vector>

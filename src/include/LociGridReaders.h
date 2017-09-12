@@ -20,7 +20,7 @@
 //#############################################################################
 #ifndef LOCI_GRID_READERS_H
 #define LOCI_GRID_READERS_H
-#include <gfact_db.h>
+#include <fact_db.h>
 
 #include <string>
 

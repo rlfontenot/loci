@@ -41,7 +41,7 @@ using std::sort;
 #include <entitySet.h>
 #include "dist_tools.h"
 #include <rule.h>
-#include <gfact_db.h>
+#include <fact_db.h>
 #include <constraint.h>
 #include <multiMap.h>
 #include "loci_globs.h"

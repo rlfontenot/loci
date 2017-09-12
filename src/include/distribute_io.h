@@ -30,7 +30,7 @@
 
 #include <store_rep.h>
 #include <DMap.h>
-#include <gfact_db.h>
+#include <fact_db.h>
 #include <mpi.h>
 #include <store.h>
 #include <MapVec.h>

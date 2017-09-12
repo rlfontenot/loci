@@ -37,7 +37,7 @@
 
 #include <Map.h>
 #include <DMap.h>
-//#include <gfact_db.h>
+//#include <fact_db.h>
 #include <store_rep.h>
 
 namespace Loci {

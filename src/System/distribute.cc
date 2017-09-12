@@ -43,7 +43,7 @@ using std::endl ;
 using std::sort ;
 
 #include "execute.h"
-#include <gfact_db.h>
+#include <fact_db.h>
 namespace Loci {
    entitySet all_collect_entitySet(entitySet localset,gfact_db *facts) {
     if(facts->is_distributed_start())

@@ -47,7 +47,7 @@ using std::cout ;
 #include <gstore.h>
 #include <gmap.h>
 #include <gmultimap.h>
-#include <gfact_db.h>
+#include <fact_db.h>
 #include <gmapvec.h>
 #include <distribute_long.h>
 #include <LociGridReaders.h>

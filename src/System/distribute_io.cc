@@ -34,7 +34,7 @@ using std::pair ;
 #include <Tools/debug.h>
 #include <entitySet.h>
 #include "dist_tools.h"
-#include <gfact_db.h>
+#include <fact_db.h>
 #include <constraint.h>
 #include <multiMap.h>
 

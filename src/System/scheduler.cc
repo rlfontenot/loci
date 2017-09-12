@@ -26,7 +26,7 @@
 #include <Tools/except.h>
 #include <constraint.h>
 #include <new>
-#include <gfact_db.h>
+#include <fact_db.h>
 using std::bad_alloc ;
 using std::map ;
 using std::vector ;

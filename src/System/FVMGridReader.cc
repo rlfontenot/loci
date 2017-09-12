@@ -30,7 +30,7 @@
 #include <distribute.h>
 #include <distribute_container.h>
 #include <parameter.h>
-#include <gfact_db.h>
+#include <fact_db.h>
 #include <Loci_types.h>
 #include <LociGridReaders.h>
 #include "loci_globs.h"

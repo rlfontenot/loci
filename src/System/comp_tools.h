@@ -26,7 +26,7 @@
 #endif
 #include <Config/conf.h>
 
-#include <gfact_db.h>
+#include <fact_db.h>
 #include <execute.h>
 #include <Tools/digraph.h>
 
