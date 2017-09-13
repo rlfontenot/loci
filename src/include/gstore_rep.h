@@ -79,8 +79,6 @@ namespace Loci {
     virtual void set_domain_space(gKeySpaceP space) = 0;
     virtual gKeySpaceP get_domain_space()const = 0;
 
-    virtual void shift(gEntity offset) = 0 ;
-    
     virtual gStoreRepP clone() const = 0 ;
     virtual storeRepP copy2store() const = 0;
     // the remap method merely renumbers the container

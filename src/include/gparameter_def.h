@@ -100,7 +100,6 @@ namespace Loci {
     //         redistribute_omd(const std::vector<gEntitySet>& dom_ptn,
     //                          const dMap& remap, MPI_Comm comm=MPI_COMM_WORLD)  ;
 
-    virtual void shift(int_type offset) ;
     virtual gstore_type RepType() const { return GPARAMETER ;}
     virtual gEntitySet domain() const { return store_domain ;}
     virtual gStoreRepP remap(const gMap &m) const;

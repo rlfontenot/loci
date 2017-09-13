@@ -48,9 +48,6 @@ namespace Loci {
     virtual void allocate(const gEntitySet &p){
       constraint_set = p;
     }
-    virtual void shift(gEntity offset){
-      constraint_set >>= offset ;
-    }
 
     // this method redistributes the container according to the split of
     //local domain over a group of process

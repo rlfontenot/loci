@@ -59,8 +59,6 @@ namespace Loci {
     //dom is the domain after expansion, not out_of_dom
     virtual gStoreRepP expand(gEntitySet &dom, std::vector<gEntitySet> &init_ptn,MPI_Comm comm=MPI_COMM_WORLD)const = 0 ;
     virtual gStoreRepP local_inverse() const  = 0;
-    virtual void shift(gEntity)
-    {std::cerr<<"shift for Map has not been implemented!"<<std::endl ;}
   } ;
 
   typedef CPTR<gMapRep> gMapRepP ;

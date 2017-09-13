@@ -70,13 +70,6 @@ namespace Loci {
 
 
   template<class T>
-  void gStoreRepI<T>::shift(gEntity offset) {
-    for(iterator itr = attrib_data.begin(); itr != attrib_data.end(); itr++){
-      itr->first >>= offset ;
-    }
-  }
-  
-  template<class T>
   gStoreRepP gStoreRepI<T>::remap(const gMap &m) const{
     fatal(!sorted);
     fatal( !m.sorted());

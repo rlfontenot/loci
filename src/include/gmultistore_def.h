@@ -255,7 +255,6 @@ namespace Loci {
     }
       
    
-    virtual void shift(gEntity offset) ;
     virtual ~gMultiStoreRepI(){}
     virtual gStoreRepP clone() const{return new gMultiStoreRepI(*this);}
     virtual gStoreRepP remap(const gMap &m) const ;

@@ -268,7 +268,6 @@ namespace Loci {
       return s.Rep();
     }
    
-    virtual void shift(gEntity offset) ;
     virtual ~gStoreRepI(){}
     virtual gStoreRepP clone() const{return new gStoreRepI(*this);}
     virtual gStoreRepP remap(const gMap &m) const ;

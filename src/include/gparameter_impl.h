@@ -35,14 +35,8 @@ namespace Loci {
     *r = attrib_data;
     return r.Rep() ;
   }
-  //**************************************************************************/
 
-  template<class T> void gParamRepI<T>::shift(int_type offset) {
-    store_domain >>= offset ;
-  }
-    
   //**************************************************************************/
-
   template<class T>
   std::ostream &gParamRepI<T>::Print(std::ostream &s) const
   {

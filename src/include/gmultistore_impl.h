@@ -65,16 +65,6 @@ namespace Loci {
   //   cerr<<" WARNING:gMultiStoreRepI<T>::parSplitSort not implemented yet" << endl; 
   // }
  
-                         
-
-
-  template<class T>
-  void gMultiStoreRepI<T>::shift(gEntity offset) {
-    for(iterator itr = attrib_data.begin(); itr != attrib_data.end(); itr++){
-      itr->first >>= offset ;
-    }
-  }
-  
   template<class T>
   gStoreRepP gMultiStoreRepI<T>::remap(const gMap &m) const{
     fatal( !m.sorted());

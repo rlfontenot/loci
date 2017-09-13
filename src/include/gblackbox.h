@@ -70,7 +70,6 @@ namespace Loci {
     virtual gStoreRepP
     redistribute(const std::vector<gEntitySet>& dom_split,
                  const gMap& remap, MPI_Comm comm=MPI_COMM_WORLD)const;
-    virtual void shift(int_type offset) ;
     virtual gstore_type RepType() const;
     virtual gEntitySet domain() const;
     virtual gStoreRepP remap(const gMap &m) const;
@@ -139,12 +138,6 @@ namespace Loci {
 
   template<class T> gEntitySet gBlackboxRepI<T>::domain() const {
     return store_domain;
-  }
-
-  //**************************************************************************/
-
-  template<class T> void gBlackboxRepI<T>::shift(int_type offset) {
-    cerr << "shift not supported in GBLACKBOX!" << endl ;
   }
 
   //**************************************************************************/
