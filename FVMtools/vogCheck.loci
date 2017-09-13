@@ -28,8 +28,7 @@
 $include "FVM.lh"
 #include <GLoci.h>
 namespace Loci {
-  void create_ci_map(gfact_db &facts) ;
-//  void copy_facts(gfact_db& gfacts);
+  void create_ci_map(fact_db &facts) ;
 }
 
 using std::string ;
@@ -61,7 +60,7 @@ int main(int ac, char *av[]) {
   rule_db rdb ;
   rdb.add_rules(global_rule_list) ;
 
-  gfact_db gfacts ;
+  fact_db facts ;
   Loci::load_module("fvm",rdb) ;
 
   bool use_exact = false ;
@@ -111,11 +110,11 @@ int main(int ac, char *av[]) {
     gParam<std::string> modelName ;
     
     *modelName = basename ;
-    gfacts.create_gfact("modelName",modelName) ;
+    facts.create_gfact("modelName",modelName) ;
     
     if(Loci::MPI_rank == 0)
       cout << "Reading: '" << filename <<"' ..." <<  endl  ;
-    if(!Loci::setupFVMGrid(gfacts,filename)) {
+    if(!Loci::setupFVMGrid(facts,filename)) {
       if(Loci::MPI_rank == 0) {
         cerr << "Reading grid file '" << filename <<"' failed in grid reader!"
              << endl ;
@@ -127,17 +126,16 @@ int main(int ac, char *av[]) {
       cout << "finished reading grid." << endl ;
     }
     
-    Loci::create_ci_map(gfacts) ;
-    Loci::createLowerUpper(gfacts) ;
+    Loci::create_ci_map(facts) ;
+    Loci::createLowerUpper(facts) ;
 
     if(use_exact)  {
       gParam<std::string> centroid ;
       *centroid = "exact" ;
-      gfacts.create_gfact("centroid",centroid) ;
+      facts.create_gfact("centroid",centroid) ;
     }
     
-//    copy_facts(gfacts);
-    if(!Loci::makeQuery(rdb,gfacts,query)) {
+    if(!Loci::makeQuery(rdb,facts,query)) {
       cerr << "query for '" << query << "' failed. " << endl ;
       Loci::Abort() ;
     }
