@@ -179,7 +179,7 @@ namespace Loci {
 
 #define STRONG_CHECK
 
-  $type minVolume param<double> ;
+  $type minVolume param<real_t> ;
   $rule default(minVolume) {
     $minVolume = -1 ;
   }
@@ -338,16 +338,16 @@ namespace Loci {
       Loci::Abort() ;
     }
 
-    double volume = 0 ;
+    real_t volume = 0 ;
     for(const Entity *id=$boundary_map.begin();id!=$boundary_map.end();++id) {
       if(id->$area.n.z > .99) {
         int fsz = id->$face2node.size() ;
-        double len  = norm(id->$face2node[0]->$pos-id->$face2node[fsz-1]->$pos) ;
-        double len_sum = len ;
+        real_t len  = norm(id->$face2node[0]->$pos-id->$face2node[fsz-1]->$pos) ;
+        real_t len_sum = len ;
         vector3d<real_t> center = len*(id->$face2node[0]->$pos +
                                        id->$face2node[fsz-1]->$pos) ;
         for(int i=1;i<fsz;++i) {
-          double len  = norm(id->$face2node[i-1]->$pos-
+          real_t len  = norm(id->$face2node[i-1]->$pos-
                              id->$face2node[i]->$pos) ;
           len_sum += len ;
           center +=  len*(id->$face2node[i-1]->$pos +

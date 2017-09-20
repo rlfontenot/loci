@@ -142,7 +142,7 @@ namespace Loci {
   register_rule<zero_singleton> register_zero_singleton ;
 
   class min_Pg_singleton : public singleton_rule {
-    const_param<double> Pambient ;
+    const_param<real_t> Pambient ;
     param<real> minPg ;
   public:
     min_Pg_singleton() {
@@ -254,8 +254,8 @@ namespace Loci {
     real sum = 0.0, sumn = 0.0, sump = 0.0 ;
     for(int i=0;i<vs;++i) {
       sum += slopes[i] ;
-      sumn += min(0.0,slopes[i]) ;
-      sump += max(0.0,slopes[i]) ;
+      sumn += min(real_t(0.0),slopes[i]) ;
+      sump += max(real_t(0.0),slopes[i]) ;
     }
     if(sum < 0.0) {
       for(int i=0;i<vs;++i)

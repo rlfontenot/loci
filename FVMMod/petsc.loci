@@ -78,7 +78,7 @@ namespace Petsc {
 
 namespace Loci {
 
-  typedef real_t real ;
+  typedef double real ;
 
 //-----------------------------------------------------------------------------
 // Wrapper classes for PETSC objects. These have been created primarily to
