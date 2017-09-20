@@ -446,7 +446,7 @@ namespace Loci {
       for(size_t ii=0;ii<workingSet.size();++ii) {
         int i=workingSet[ii] ;
         int id = kd_xfer.find_closest(scopy[i].coords,rmin[i]) ;
-        if(id >=0)
+        if(id != std::numeric_limits<int>::min())
           close_pair[i].second = id ;
       }
     }
@@ -695,7 +695,7 @@ namespace Loci {
     // Check to see if we have a updated minimum
     for(int i=0;i<lM;++i) {
       int id = kd_xfer.find_closest(search_pnts[i],rmin[i]) ;
-      if(id >=0)
+      if(id != std::numeric_limits<int>::min())
         close_pt[i] = id ;
     }
 

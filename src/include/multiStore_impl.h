@@ -76,8 +76,8 @@ namespace Loci {
     if(alloc_pointer) delete[] alloc_pointer ;
     alloc_pointer = 0 ;
     if(index) delete[] index ;
-
     index = 0 ;
+
     int sz = 0 ;
     if(ptn != EMPTY) {
       int top  = ptn.Min() ;
@@ -133,10 +133,6 @@ namespace Loci {
 	new_base_ptr[i] = new_alloc_pointer + sz ;
       }
     }
-    
-    *index = new_index ;
-    *alloc_pointer = new_alloc_pointer ;
-    *base_ptr = new_base_ptr ;
     
   }
 
@@ -196,12 +192,14 @@ namespace Loci {
     // Objective : allocate memory specified by the entitySet. Allocation
     // doesn't resize the memory, therefore reclaims previously held memory.
     //------------------------------------------------------------------------
-    
+    if(ptn == store_domain)
+      return ;
+
     if(alloc_pointer) delete[] alloc_pointer ;
-    if(index) delete[] index ;
-    
     alloc_pointer = 0 ;
+    if(index) delete[] index ;
     index         = 0 ;
+    
     base_ptr      = 0 ;
 
     store_domain  = ptn ;
@@ -326,6 +324,7 @@ namespace Loci {
     T **new_base_ptr ;
     
     multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
+
     FORALL(domain()-context,i) {
       for(int j=0;j<count[i];++j) 
         new_base_ptr[i][j] = base_ptr[i][j] ;
@@ -341,6 +340,7 @@ namespace Loci {
     if(index) delete[] index ;
     index = new_index ;
     base_ptr = new_base_ptr ;
+
     dispatch_notify() ;
   }
 
@@ -381,9 +381,9 @@ namespace Loci {
     if(alloc_pointer) delete[] alloc_pointer ;
     alloc_pointer = new_alloc_pointer;
     if(index) delete[] index ;
-    
     index = new_index ;
     base_ptr = new_base_ptr ;
+
     dispatch_notify() ;
   }
 
@@ -670,7 +670,7 @@ namespace Loci {
     //-------------------------------------------------------------------------
     // Get the maximum size of container
     //-------------------------------------------------------------------------
-    int vecsize= 0, stateSize = 0, maxStateSize=0;
+    int vecsize, stateSize, maxStateSize=0;
 
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
       vecsize = end(*ci)-begin(*ci);
@@ -754,14 +754,11 @@ namespace Loci {
       }
       
       if(alloc_pointer) delete [] alloc_pointer ;
-      
-  
       alloc_pointer = new_alloc_pointer;
-      
       if(index) delete[] index ;
-      
       index = new_index ;
       base_ptr = new_base_ptr ;
+
       dispatch_notify() ;
     }
 
@@ -790,18 +787,18 @@ namespace Loci {
                                       int &position, int insize,
                                       const sequence &seq) 
   {
-    size_t  stateSize, outcount, vsize;
+    int  stateSize, outcount, vsize;
     sequence :: const_iterator ci;
 
     typedef data_schema_traits<T> schema_traits;
     typedef typename schema_traits::Converter_Base_Type dtype;
 
-    size_t typesize = sizeof(dtype);
+    int typesize = sizeof(dtype);
 
     std::vector<dtype> outbuf;
     for( ci = seq.begin(); ci != seq.end(); ++ci) {
       vsize  = end(*ci)-begin(*ci);
-      for( unsigned int ivec = 0; ivec < vsize; ivec++) {
+      for( int ivec = 0; ivec < vsize; ivec++) {
         MPI_Unpack( inbuf, insize, &position, &stateSize, 1,
                     MPI_INT, MPI_COMM_WORLD) ;
         if( stateSize > outbuf.size() ) outbuf.resize(stateSize);

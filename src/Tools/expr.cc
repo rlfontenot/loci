@@ -954,6 +954,7 @@ namespace Loci {
 	    exp = std::pow(10.0,double(e)) ;
 #endif
 	  }
+	  val2 *= (val1<0)?-1.0:1.0 ;
 	  double val = (val1+val2)*exp ;
 	  ival->real_val_priv = val ;
 	  ival->op_priv = OP_DOUBLE ;
@@ -977,6 +978,7 @@ namespace Loci {
     if (parse::is_int(s) || s.peek() == '.') {
       if(s.peek() == '.')
 	s.putback('0') ;
+      
       exprP ival = new expression ;
       ival->int_val_priv = parse::get_int(s) ;
       ival->op_priv = OP_INT ;
@@ -1002,6 +1004,7 @@ namespace Loci {
 	  exp = std::pow(10.0,double(e)) ;
 #endif
 	}
+	val2 *= (val1<0)?-1.0:1.0 ;
 	double val = (val1+val2)*exp ;
 	ival->real_val_priv = val ;
 	ival->op_priv = OP_DOUBLE ;
@@ -1260,12 +1263,12 @@ namespace Loci {
                 //increment expression list iterator
                 //increment counter_stack element to indicate number of operators needed
               case OP_INT:
-                c_expr.push_back(std::make_pair<OpType,double>(OP_INT, (*li)->int_val)) ;
+                c_expr.push_back(std::make_pair(OP_INT, (*li)->int_val)) ;
                 counter_stack[counter_stack.size()-1]++;
                 ++li;
                 break;
               case OP_DOUBLE:
-                c_expr.push_back(std::make_pair<OpType,double>(OP_DOUBLE, (*li)->real_val)) ;
+                c_expr.push_back(std::make_pair(OP_DOUBLE, (*li)->real_val)) ;
                 counter_stack[counter_stack.size()-1]++;
                 ++li;
                 break;
@@ -1321,9 +1324,9 @@ namespace Loci {
               case OP_NAME:
                 mi = c_expr.find((*li)->name) ;
                 if(mi != c_expr.end())
-                  c_expr.push_back(std::make_pair<OpType,double>(OP_NAME, mi->second)) ;
+                  c_expr.push_back(std::make_pair(OP_NAME, mi->second)) ;
                 if(name == "pi")
-                  c_expr.push_back(std::make_pair<OpType,double>(OP_DOUBLE, M_PI)) ;
+                  c_expr.push_back(std::make_pair(OP_DOUBLE, M_PI)) ;
                 counter_stack[counter_stack.size()-1]++;
                 ++li;
                 break;
@@ -1347,25 +1350,25 @@ namespace Loci {
         if ((*li)->op == OP_PLUS)
           {
             for (int x = 0; x < counter_stack.back() - 1; x++)
-              c_expr.push_back(std::make_pair<OpType,double>(OP_PLUS, (*li)->int_val));
+              c_expr.push_back(std::make_pair(OP_PLUS, (*li)->int_val));
             counter_stack.pop_back();
           } else
           if ((*li)->op == OP_MINUS)
             {
               for (int x = 0; x < counter_stack.back() - 1; x++)
-                c_expr.push_back(std::make_pair<OpType,double>(OP_MINUS, (*li)->int_val));
+                c_expr.push_back(std::make_pair(OP_MINUS, (*li)->int_val));
               counter_stack.pop_back();
             } else
             if ((*li)->op == OP_TIMES)
               {
                 for (int x = 0; x < counter_stack.back() - 1; x++)
-                  c_expr.push_back(std::make_pair<OpType,double>(OP_TIMES, (*li)->int_val));
+                  c_expr.push_back(std::make_pair(OP_TIMES, (*li)->int_val));
                 counter_stack.pop_back();
               } else
               if ((*li)->op == OP_DIVIDE)
 		{
                   for (int x = 0; x < counter_stack.back() - 1; x++)
-                    c_expr.push_back(std::make_pair<OpType,double>(OP_DIVIDE, (*li)->int_val));
+                    c_expr.push_back(std::make_pair(OP_DIVIDE, (*li)->int_val));
                   counter_stack.pop_back();
 		} else
 		if ((*li)->op == OP_FUNC)
@@ -1373,37 +1376,37 @@ namespace Loci {
                     for (int x = 0; x < counter_stack.back(); x++)
                       {
                         if((*li)->name == "pow") {
-                          c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 0));
+                          c_expr.push_back(std::make_pair(OP_FUNC, 0.));
                           x++;
                         }
                         else if((*li)->name == "sin")
-                          c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 1));
+                          c_expr.push_back(std::make_pair(OP_FUNC, 1.));
                         else if((*li)->name == "cos")
-                          c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 2));
+                          c_expr.push_back(std::make_pair(OP_FUNC, 2.));
                         else if((*li)->name == "tan")
-                          c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 3));
+                          c_expr.push_back(std::make_pair(OP_FUNC, 3.));
                         else if((*li)->name == "asin")
-                          c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 4));
+                          c_expr.push_back(std::make_pair(OP_FUNC, 4.));
                         else if((*li)->name == "acos")
-                          c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 5));
+                          c_expr.push_back(std::make_pair(OP_FUNC, 5.));
                         else if((*li)->name == "atan")
-                          c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 6));
+                          c_expr.push_back(std::make_pair(OP_FUNC, 6.));
                         else if((*li)->name == "sinh")
-                          c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 7));
+                          c_expr.push_back(std::make_pair(OP_FUNC, 7.));
                         else if((*li)->name == "cosh")
-                          c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 8));
+                          c_expr.push_back(std::make_pair(OP_FUNC, 8.));
                         else if((*li)->name == "tanh")
-                          c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 9));
+                          c_expr.push_back(std::make_pair(OP_FUNC, 9.));
                         else if((*li)->name == "exp")
-                          c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 10));
+                          c_expr.push_back(std::make_pair(OP_FUNC, 10.));
                         else if((*li)->name == "sqrt")
-                          c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 11));
+                          c_expr.push_back(std::make_pair(OP_FUNC, 11.));
                         else if((*li)->name == "ln")
-                          c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 12));
+                          c_expr.push_back(std::make_pair(OP_FUNC, 12.));
                         else if((*li)->name == "log")
-                          c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 13));
+                          c_expr.push_back(std::make_pair(OP_FUNC, 13.));
                         else if((*li)->name == "log10")
-                          c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 14));
+                          c_expr.push_back(std::make_pair(OP_FUNC, 14.));
                       }
                     counter_stack.pop_back();
                   }
@@ -2744,11 +2747,11 @@ namespace Loci {
         warn(expr_list.size() != 2) ;
         s += '(';
 
-        exprList::const_iterator func = expr_list.begin() ;
+        //exprList::const_iterator func = expr_list.begin() ;
         //(*func)->Print(s) ;
         s += ')' ;
 
-        exprList::const_iterator brace = ++func ;
+	//        exprList::const_iterator brace = ++func ;
         s += "{" ;
         //(*brace)->Print(s) ;
         s += "}" ;

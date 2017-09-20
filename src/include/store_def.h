@@ -165,13 +165,17 @@ namespace Loci {
     const_store<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
     entitySet domain() const { return Rep()->domain(); }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
-    const T &restrict elem(int indx) const restrict {
 #ifdef BOUNDS_CHECK
+    const T &elem(int indx) const {
       fatal(base_ptr==NULL);
       fatal(!Rep()->domain().inSet(indx)) ;
-#endif
+      return base_ptr[indx]; }
+    const T& operator[](int indx) const { return elem(indx); }
+#else
+    const T &restrict elem(int indx) const restrict {
       return base_ptr[indx]; }
     const T& restrict operator[](int indx) const restrict { return elem(indx); }
+#endif
   } ;
 
   

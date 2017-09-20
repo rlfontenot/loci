@@ -175,7 +175,49 @@ namespace Loci {
   mod::mod_db *mod::mdb = 0 ;
   vector<variableSet> unnamedVarList ;
 
-  void load_module(const std::string from_str, const std::string to_str, rule_db& rdb, std::set<std::string> &str_set) {
+
+  variable add_namespaceVar(variable v, 
+			    variableSet simpleVars,variableSet parametricVars,
+			    const std::vector<std::string> &using_ns_vec) {
+    
+    variable::info vinfo = v.get_info() ;
+    const int vidsz = vinfo.v_ids.size() ;
+    
+    // For simple (non-parametric variables) check to see if variable exempted,
+    // is an iteration variable, or already has a namespace identifier, 
+    // then don't process
+    if(vidsz == 0) {
+      if(simpleVars.inSet(v) || v.is_time_variable() ||
+	 vinfo.namespac.size() > 0 )
+	return v ;
+      // if not excepted, add namespace to this variable
+      variable tmp_var = v ;
+      for(int j = using_ns_vec.size()-1; j >= 0 ; --j)
+	tmp_var =  tmp_var.add_namespace(using_ns_vec[j]); 
+      return tmp_var ;
+    }
+    
+    // Only parametric variables get here
+    // Now convert paramteric arguments
+    vector<int> vids ;
+    for(int i=0;i<vidsz;++i) {
+      variable vnew = add_namespaceVar(variable(vinfo.v_ids[i]),
+				       simpleVars,parametricVars,
+				       using_ns_vec) ;
+      vids.push_back(vnew.ident()) ;
+    }
+    vinfo.v_ids = vids ;
+    
+    // If varaible still needs to be put in namespace
+    if(!parametricVars.inSet(variable(vinfo.name)) 
+       && vinfo.namespac.size() == 0) {
+      vinfo.namespac = using_ns_vec ;
+    }
+    return variable(vinfo) ;
+  }
+  
+  void load_module(const std::string from_str, const std::string to_str, 
+		   rule_db& rdb, std::set<std::string> &str_set) {
 #ifdef VERBOSE
     debugout << "Calling load_module with " << from_str
              << "," << to_str << endl ;
@@ -204,19 +246,22 @@ namespace Loci {
 	  rule_implP rp = *gi;
 	  variableSet vars = rp->get_var_list() ;
 	  std::map<variable,variable> new_vars;
-	  for(variableSet::variableSetIterator i=vars.begin();i!=vars.end();++i) {
-	    if(nonamespace_vars.inSet(*i) || 
-	       i->is_time_variable() || 
-	       i->get_info().name == "OUTPUT" ||
-	       i->get_info().name == "UNIVERSE" ||
-	       i->get_info().name == "EMPTY")
-	      new_vars[*i] = *i ;
-	    else {
-	      variable tmp_var = *i ;
-	      for(int j = using_ns_vec.size()-1; j >= 0 ; --j)
-		tmp_var =  tmp_var.add_namespace(using_ns_vec[j]); 
-	      new_vars[*i] = tmp_var ;
+	  variableSet simpleVars, parametricVars ;
+	  simpleVars += variable("OUTPUT") ;
+	  simpleVars += variable("UNIVERSE") ;
+	  simpleVars += variable("EMPTY") ;
+	  variableSet::variableSetIterator vi ;
+	  for(vi=nonamespace_vars.begin();vi!=nonamespace_vars.end();++vi) {
+	    const vector<int> &vids = vi->v_ids;
+	    if(vids.size() == 0) {
+	      simpleVars += *vi ;
+	    } else {
+	      parametricVars += variable(vi->name) ;
 	    }
+	  }
+	  for(variableSet::variableSetIterator i=vars.begin();i!=vars.end();++i) {
+	    new_vars[*i] = add_namespaceVar(*i, simpleVars,parametricVars,
+					      using_ns_vec) ;
 	  }
 	  rp->rename_vars(new_vars) ;
 	  rdb.add_rule(Loci::rule(rp)) ; 
@@ -259,6 +304,10 @@ namespace Loci {
     std::vector<std::string> using_ns_vec ;
     
     variableSet nonamespace_vars  ;
+#ifdef VERBOSE
+    debugout << "unnamedVarList.size on entry to loadModule = "
+	     << unnamedVarList.size() << endl ;
+#endif
     if(!unnamedVarList.empty())
       nonamespace_vars = unnamedVarList.back() ;
 
@@ -277,20 +326,24 @@ namespace Loci {
 	  std::string load  =  ((Loci::register_module*)(gi.get_p()->rr))->using_nspace() ;
 	  std::vector<std::string> str_vec ;
 	  parse_str(load, str_vec) ;
+	  load = ((Loci::register_module*)(gi.get_p()->rr))->input_vars() ;
+	  input_vars = variableSet(expression::create(load)) ;
+	  load = ((Loci::register_module*)(gi.get_p()->rr))->output_vars() ;
+	  output_vars = variableSet(expression::create(load)) ;
+	  variableSet nonameset = input_vars ;
+	  nonameset += output_vars ;
+	  unnamedVarList.push_back(nonameset) ;
 	  for(size_t i = 0; i < str_vec.size(); ++i) 
 	    if(str_set.find(str_vec[i]) == str_set.end()) {
 	      if(Loci::MPI_rank == 0)
 		cout << "loading in rules from " << str_vec[i] <<"  for module " << to_str << endl ; 
 	      load_module(str_vec[i], to_str, problem_name, facts, rdb, str_set) ;
 	    }
-	  load = ((Loci::register_module*)(gi.get_p()->rr))->input_vars() ;
-	  input_vars = variableSet(expression::create(load)) ;
-	  load = ((Loci::register_module*)(gi.get_p()->rr))->output_vars() ;
-	  output_vars = variableSet(expression::create(load)) ;
+	  unnamedVarList.pop_back() ;
+	  nonamespace_vars += input_vars + output_vars ;
 	  break ;
 	}
       }
-      nonamespace_vars += input_vars + output_vars ;
 
       for(rule_impl_list::iterator gi = m.loaded_rule_list.begin(); gi !=m.loaded_rule_list.end(); ++gi) {
 	if(!(gi.get_p())->rr->is_module_rule()) {
@@ -301,20 +354,27 @@ namespace Loci {
 	      vars += rp->get_parametric_variable() ;
 	  }
 	  std::map<variable,variable> new_vars;
-	  for(variableSet::variableSetIterator i=vars.begin();i!=vars.end();++i)
-	    if(nonamespace_vars.inSet(*i) || 
-	       i->is_time_variable() || 
-	       i->get_info().name == "OUTPUT" ||
-	       i->get_info().name == "UNIVERSE" ||
-	       i->get_info().name == "EMPTY")
-	      new_vars[*i] = *i ;
-	    else {
-	      variable tmp_var = *i ;
-	      for(int j = using_ns_vec.size()-1; j >= 0; --j) 
-		tmp_var = tmp_var.add_namespace(using_ns_vec[j]); 
-	      new_vars[*i] = tmp_var ;
+	  variableSet simpleVars, parametricVars ;
+	  simpleVars += variable("OUTPUT") ;
+	  simpleVars += variable("UNIVERSE") ;
+	  simpleVars += variable("EMPTY") ;
+	  variableSet::variableSetIterator vi ;
+	  for(vi=nonamespace_vars.begin();vi!=nonamespace_vars.end();++vi) {
+	    const vector<int> &vids = vi->v_ids;
+	    if(vids.size() == 0) {
+	      simpleVars += *vi ;
+	    } else {
+	      parametricVars += variable(vi->name) ;
 	    }
+	  }
+	  for(variableSet::variableSetIterator i=vars.begin();i!=vars.end();++i) {
+	    new_vars[*i] = add_namespaceVar(*i, simpleVars,parametricVars,
+					      using_ns_vec) ;
+	  }
+	  debugout << "processing " << Loci::rule(rp) << endl ;
 	  rp->rename_vars(new_vars) ;
+	  debugout << "installing " << Loci::rule(rp) << endl ;
+
 	  rdb.add_rule(Loci::rule(rp)) ;
 	}
       }
@@ -356,5 +416,9 @@ namespace Loci {
     }
     // finally add the keyspace list to the global one
     global_key_space_list.copy_space_list(m.loaded_keyspace_list) ;
+#ifdef VERBOSE
+    debugout << "unnamedVarList.size on exit to loadModule = "
+	     << unnamedVarList.size() << endl ;
+#endif
   }	 
 }

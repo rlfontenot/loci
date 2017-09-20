@@ -29,6 +29,9 @@
 #if ((PETSC_VERSION_MAJOR > 3) || (PETSC_VERSION_MAJOR == 3) && (PETSC_VERSION_MINOR > 2))
 #define PETSC_33_API
 #endif
+#if ((PETSC_VERSION_MAJOR > 3) || (PETSC_VERSION_MAJOR == 3) && (PETSC_VERSION_MINOR > 6))
+#define PETSC_37_API
+#endif
 
 // Force key petsc functions to load. (Helps when using static libraries)
 void dummyFunctionDependencies(int i) {
@@ -100,6 +103,18 @@ using std::cout ;
 using std::vector ;
 
 namespace Loci {
+  MPI_Datatype MPI_FADD ;
+  MPI_Op MPI_FADD_SUM ;
+  MPI_Op MPI_FADD_PROD ;
+  MPI_Op MPI_FADD_MIN ;
+  MPI_Op MPI_FADD_MAX ;
+
+  MPI_Datatype MPI_FADD2 ;
+  MPI_Op MPI_FADD2_SUM ;
+  MPI_Op MPI_FADD2_PROD ;
+  MPI_Op MPI_FADD2_MIN ;
+  MPI_Op MPI_FADD2_MAX ;
+
   int MPI_processes = 1;
   int MPI_rank = 0 ;
   bool useDebugDir = true ;
@@ -259,6 +274,42 @@ namespace Loci {
     }
     
   }
+
+  void sumFADd(FADd *rin, FADd *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] += rin[i] ;
+  }
+  void prodFADd(FADd *rin, FADd *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] *= rin[i] ;
+  }
+  void maxFADd(FADd *rin, FADd *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] = max(rinout[i],rin[i]) ;
+  }
+  void minFADd(FADd *rin, FADd *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] = min(rinout[i],rin[i]) ;
+  }
+
+  void sumFAD2d(FAD2d *rin, FAD2d *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] += rin[i] ;
+  }
+  void prodFAD2d(FAD2d *rin, FAD2d *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] *= rin[i] ;
+  }
+  void maxFAD2d(FAD2d *rin, FAD2d *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] = max(rinout[i],rin[i]) ;
+  }
+  void minFAD2d(FAD2d *rin, FAD2d *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] = min(rinout[i],rin[i]) ;
+  }
+
+
   //This is the first call to be made for any Loci program be it
   //sequential or parallel.
   void Init(int* argc, char*** argv)  {
@@ -269,12 +320,62 @@ namespace Loci {
     //total number of processes.
 #ifdef USE_PETSC
     PetscInitialize(argc,argv,(char*)0,(char*)0) ;
+#ifdef PETSC_37_API
+    PetscOptionsSetValue(0,"-options_left","false") ;
+#else
     PetscOptionsSetValue("-options_left","false") ;
+#endif
     PetscPopErrorHandler() ;
     PetscPushErrorHandler(PetscIgnoreErrorHandler,PETSC_NULL) ;
 #else
     MPI_Init(argc, argv) ;
 #endif
+
+    {
+      // Create FADD type
+      int count = 2 ;
+      int blocklens[] = {1,1} ;
+      MPI_Aint indices[2] ;
+      FADd tmp ;
+      indices[0] = (MPI_Aint)((char *) &(tmp.value) - (char *) &tmp) ;
+      indices[1] = (MPI_Aint)((char *) &(tmp.grad) - (char *) &tmp) ;
+      MPI_Datatype typelist[] = {MPI_DOUBLE,MPI_DOUBLE} ;
+      MPI_Datatype FADD_pre ;
+      MPI_Type_struct(count,blocklens,indices,typelist,&FADD_pre) ;
+      MPI_Type_create_resized(FADD_pre,indices[0],(MPI_Aint)sizeof(FADd),
+			      &MPI_FADD) ;
+      MPI_Type_commit(&MPI_FADD) ;
+      MPI_Type_free(&FADD_pre) ;
+      MPI_Op_create((MPI_User_function *)sumFADd,1,&MPI_FADD_SUM) ;
+      MPI_Op_create((MPI_User_function *)prodFADd,1,&MPI_FADD_PROD) ;
+      MPI_Op_create((MPI_User_function *)maxFADd,1,&MPI_FADD_MAX) ;
+      MPI_Op_create((MPI_User_function *)minFADd,1,&MPI_FADD_MIN) ;
+
+    }
+
+    {
+      // Create FADD type
+      int count = 3 ;
+      int blocklens[] = {1,1,1} ;
+      MPI_Aint indices[3] ;
+      FAD2d tmp ;
+      indices[0] = (MPI_Aint)((char *) &(tmp.value) - (char *) &tmp) ;
+      indices[1] = (MPI_Aint)((char *) &(tmp.grad) - (char *) &tmp) ;
+      indices[2] = (MPI_Aint)((char *) &(tmp.grad2) - (char *) &tmp) ;
+      MPI_Datatype typelist[] = {MPI_DOUBLE,MPI_DOUBLE,MPI_DOUBLE} ;
+      MPI_Datatype FADD2_pre ;
+      MPI_Type_struct(count,blocklens,indices,typelist,&FADD2_pre) ;
+      MPI_Type_create_resized(FADD2_pre,indices[0],(MPI_Aint)sizeof(FAD2d),
+			      &MPI_FADD2) ;
+      MPI_Type_commit(&MPI_FADD2) ;
+      MPI_Type_free(&FADD2_pre) ;
+      MPI_Op_create((MPI_User_function *)sumFAD2d,1,&MPI_FADD2_SUM) ;
+      MPI_Op_create((MPI_User_function *)prodFAD2d,1,&MPI_FADD2_PROD) ;
+      MPI_Op_create((MPI_User_function *)maxFAD2d,1,&MPI_FADD2_MAX) ;
+      MPI_Op_create((MPI_User_function *)minFAD2d,1,&MPI_FADD2_MIN) ;
+
+    }
+
     time_duration_to_collect_data = MPI_Wtick()*20;
     signal(SIGTERM,TerminateSignal) ;
 
@@ -299,42 +400,6 @@ namespace Loci {
     try {
 
       ostringstream oss ;
-
-      if(useDebugDir) {
-        //Create a debug file for each process
-        // if output directory doesn't exist, create one
-        bool debug_is_directory = true ;
-        struct stat statbuf ;
-        if(GLOBAL_OR(stat("debug",&statbuf)!=0)) {
-          if(MPI_rank == 0)
-            mkdir("debug",0755) ;
-          for(int i=0;i<1000;++i) {
-            if(GLOBAL_AND(stat("debug",&statbuf)==0))
-              break ;
-          }
-        } else {
-          if(!S_ISDIR(statbuf.st_mode)) {
-            cerr << "file 'debug' should be a directory!, rename 'output' and start again."
-                 << endl ;
-            debug_is_directory = false ;
-
-          }
-        }
-
-        if(debug_is_directory) {
-          if(MPI_processes == 1)
-            oss << "debug/debug" ;
-          else
-            oss << "debug/debug."<<MPI_rank ;
-        } else
-          oss << "debug."<< MPI_rank ;
-
-        string filename  = oss.str() ;
-        debugout.open(filename.c_str(),ios::out) ;
-      } else {
-        debugout.open("/dev/null",ios::out) ;
-      }
-
       char *p = 0 ;
       if((p = getenv("LOCI_MODULE_PATH")) == 0)
         p = getenv("LD_LIBRARY_PATH") ;
@@ -540,7 +605,7 @@ namespace Loci {
           cell_weight_file = (*argv)[i+1] ;
           i+=2 ;
 	} else if(!(strcmp((*argv)[i],"--set_4gig_entity_space"))) {
-	  factdb_allocated_base = std::numeric_limits<int>::min() + 256 ;
+	  factdb_allocated_base = std::numeric_limits<int>::min() + 2048 ;
 	  i++ ;
         } else if(!strcmp((*argv)[i],"--threads")) {
           // determine the number of threads to use.
@@ -593,6 +658,46 @@ namespace Loci {
         *argc -= (i-1) ;
         for(int k=1;k<*argc;++k)
           (*argv)[k] = (*argv)[k+i-1] ;
+      }
+
+      if(useDebugDir) {
+        //Create a debug file for each process
+        // if output directory doesn't exist, create one
+        bool debug_is_directory = true ;
+        struct stat statbuf ;
+        if(GLOBAL_OR(stat("debug",&statbuf)!=0)) {
+          if(MPI_rank == 0)
+            mkdir("debug",0755) ;
+          for(int i=0;i<1000;++i) {
+            if(GLOBAL_AND(stat("debug",&statbuf)==0))
+              break ;
+          }
+        } else {
+          if(!S_ISDIR(statbuf.st_mode)) {
+            cerr << "file 'debug' should be a directory!, rename 'output' and start again."
+                 << endl ;
+            debug_is_directory = false ;
+
+          }
+        }
+
+        if(debug_is_directory) {
+          if(MPI_processes == 1)
+            oss << "debug/debug" ;
+          else {
+	    if((MPI_rank == 0) || verbose || schedule_output) {
+	      oss << "debug/debug."<<MPI_rank ;
+	    } else {
+	      oss << "/dev/null" ;
+	    }
+	  }
+        } else
+          oss << "debug."<< MPI_rank ;
+
+        string filename  = oss.str() ;
+        debugout.open(filename.c_str(),ios::out) ;
+      } else {
+        debugout.open("/dev/null",ios::out) ;
       }
 
       init_sprng(sprng_gtype,sprng_seed,SPRNG_DEFAULT) ;

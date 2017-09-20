@@ -39,32 +39,32 @@ docs:
 	cd Tutorial/docs; $(MAKE) LOCI_BASE="$(LOCI_BASE)"
 
 install: default docs
-	INSTALL_DIR=$(INSTALL_DIR) LOCI_INSTALL_DIR=$(LOCI_INSTALL_DIR) bash Install.bash
+	INSTALL_DIR=$(INSTALL_DIR) LOCI_INSTALL_DIR=$(LOCI_INSTALL_DIR) INSTALL_METIS=$(INSTALL_METIS) bash Install.bash
 
 Tools : FRC
-	cd Tools; $(MAKE) LOCI_BASE="$(LOCI_BASE)" libTools.a
+	$(MAKE) -C Tools LOCI_BASE="$(LOCI_BASE)" libTools.a
 
 
 System : FRC
-	cd System; $(MAKE) LOCI_BASE="$(LOCI_BASE)" libLoci.a
+	$(MAKE) -C System LOCI_BASE="$(LOCI_BASE)" libLoci.a
 
 METIS : FRC
-	cd ParMetis-4.0; $(MAKE) LOCI_BASE="$(LOCI_BASE)" 
+	$(MAKE) -C ParMetis-4.0 LOCI_BASE="$(LOCI_BASE)" 
 
 SPRNG : FRC
-	cd sprng; $(MAKE) LOCI_BASE="$(LOCI_BASE)"
+	$(MAKE) -C sprng LOCI_BASE="$(LOCI_BASE)"
 
 Tools/libTools.so: FRC
-	cd Tools; $(MAKE) LOCI_BASE="$(LOCI_BASE)" libTools.so
+	$(MAKE) -C Tools LOCI_BASE="$(LOCI_BASE)" libTools.so
 
 System/libLoci.so: FRC
-	cd System; $(MAKE) LOCI_BASE="$(LOCI_BASE)" libLoci.so
+	$(MAKE) -C System LOCI_BASE="$(LOCI_BASE)" libLoci.so
 
 lpp: library
-	cd lpp; $(MAKE) LOCI_BASE="$(LOCI_BASE)" lpp
+	$(MAKE) -C lpp LOCI_BASE="$(LOCI_BASE)" lpp
 
 FVMtools: library lpp FVMAdapt
-	cd FVMtools; $(MAKE) LOCI_BASE="$(LOCI_BASE)" default
+	$(MAKE) -C FVMtools LOCI_BASE="$(LOCI_BASE)" default
 FRC :
 
 FVMMod: library lpp
@@ -77,23 +77,23 @@ JUNK =
 
 clean:
 	rm -f $(JUNK)
-	cd Tools ; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)" 
-	cd System ; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)" 
-	cd ParMetis-4.0 ; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)" 
-	cd sprng ; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)" 
-	cd FVMtools; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)"
-	cd FVMMod; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)"
-	cd FVMAdapt; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)"
-	cd lpp ; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)"
+	$(MAKE) -C Tools clean LOCI_BASE="$(LOCI_BASE)" 
+	$(MAKE) -C System clean LOCI_BASE="$(LOCI_BASE)" 
+	$(MAKE) -C ParMetis-4.0 clean LOCI_BASE="$(LOCI_BASE)" 
+	$(MAKE) -C sprng clean LOCI_BASE="$(LOCI_BASE)" 
+	$(MAKE) -C FVMtools clean LOCI_BASE="$(LOCI_BASE)"
+	$(MAKE) -C FVMMod clean LOCI_BASE="$(LOCI_BASE)"
+	$(MAKE) -C FVMAdapt clean LOCI_BASE="$(LOCI_BASE)"
+	$(MAKE) -C lpp clean LOCI_BASE="$(LOCI_BASE)"
 
 distclean:
 	rm -f $(JUNK)
-	cd Tools ; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
-	cd System ; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
-	cd ParMetis-4.0 ; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)" 
-	cd sprng ; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)" 
-	cd FVMtools; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
-	cd FVMMod; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
-	cd FVMAdapt; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
-	cd lpp ; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
+	$(MAKE) -C Tools distclean LOCI_BASE="$(LOCI_BASE)" 
+	$(MAKE) -C System distclean LOCI_BASE="$(LOCI_BASE)" 
+	$(MAKE) -C ParMetis-4.0 distclean LOCI_BASE="$(LOCI_BASE)" 
+	$(MAKE) -C sprng distclean LOCI_BASE="$(LOCI_BASE)" 
+	$(MAKE) -C FVMtools distclean LOCI_BASE="$(LOCI_BASE)"
+	$(MAKE) -C FVMMod distclean LOCI_BASE="$(LOCI_BASE)"
+	$(MAKE) -C FVMAdapt distclean LOCI_BASE="$(LOCI_BASE)"
+	$(MAKE) -C lpp distclean LOCI_BASE="$(LOCI_BASE)"
 

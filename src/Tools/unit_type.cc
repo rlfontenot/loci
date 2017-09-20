@@ -69,6 +69,8 @@ namespace Loci {
     {"K","kelvin",1},
     {"A","ampere",1},
     {"mol","mole",1},
+    {"kmol","mole",1000},
+    {"kmole","mole",1000},
     {"cd","candela",1},
 
     //metric system
@@ -111,6 +113,7 @@ namespace Loci {
     {"m^2","m^2",1},//area
 
     //composite unit
+    {"hertz","second/second/second",1},
     {"newton","kilogram*meter/second/second",1},
     {"N","kilogram*meter/second/second",1},
     {"joule","kilogram*meter/second/second*meter",1},
@@ -119,6 +122,11 @@ namespace Loci {
     {"W","kilogram*meter/second/second*meter/second",1},
     {"pascal","kilogram*meter/second/second/meter/meter",1},
     {"Pa","kilogram*meter/second/second/meter/meter",1},
+
+    {"Hz",  "second/second/second",1},
+    {"kHz", "second/second/second",1e3},
+    {"MHz", "second/second/second",1e6},
+    {"GHz", "second/second/second",1e9},
 
     {"rph","radians/second",1.7453292519943295769236907684887e-3},
     {"rpm","radians/second",0.10471975511965977461542144610932},
@@ -136,13 +144,13 @@ namespace Loci {
     {"hectare","m^2",1.0e4},
     {"ha","m^2",1.0e4},
 
-    {"calorie","joule",4.19002},//energy or work
-    {"cal","joule",4.19002},
+    {"calorie","joule",4.184},//thermochemical calorie
+    {"cal","joule",4.184},
     {"electronvolt","joule",1.602177e-19},
     {"eV","joule",1.602177e-19},
     {"erg","joule",1.0e-7},
-    {"kilocalorie","joule",4.19002e3},
-    {"kcal","joule",4.19002e3},
+    {"kilocalorie","joule",4.184e3},
+    {"kcal","joule",4.184e3},
     {"kW*h","joule",3.6e6},
     {"quad","joule",1.055056e18},
 
@@ -822,7 +830,7 @@ namespace Loci {
     }
 
   //change single temperature to basic type -kelvin- by special calculation
-  void UNIT_type::calculate_temperature(exprP &input_expr,double &val){
+  void UNIT_type::calculate_temperature(exprP &input_expr,FAD2d &val){
     seperate_unit(unit_num_map,unit_den_map,input_expr); 
     get_conversion(unit_num_map,unit_den_map,conversion_factor);
     if(conversion_factor>0){
@@ -843,7 +851,7 @@ namespace Loci {
   }
 
 //change basic type -kelvin- to other temperature by special calculation
-  void UNIT_type::reverse_calculate_temperature(exprP &input_expr,double &val){
+  void UNIT_type::reverse_calculate_temperature(exprP &input_expr,FAD2d &val){
     seperate_unit(unit_num_map,unit_den_map,input_expr); 
     get_conversion(unit_num_map,unit_den_map,conversion_factor);
     if(conversion_factor>0){
@@ -925,6 +933,47 @@ namespace Loci {
       return false;
   }
 
+  //-- check if there is unit and get the value input--//
+  bool UNIT_type::check_unit(std::istream &in, FAD2d &val){
+
+    parse::kill_white_space(in);
+  
+    if(in.eof()||in.peek()==EOF){
+      cout<<"Nothing input"<<endl;
+      return false;
+    }
+
+    else if(isdigit(in.peek())){
+      if(parse::is_real(in))  {
+	double real = parse::get_real(in) ;
+	double grad = 0 ;
+	double grad2 = 0 ;
+	if(in.peek() == '^') {
+	  in.get() ;
+	  grad = parse::get_real(in) ;
+	}
+	if(in.peek() == '^') {
+	  while(in.peek() == '^')
+	    in.get() ;
+	  grad2 = parse::get_real(in) ;
+	}
+	val=FAD2d(real,grad,grad2) ;
+      }
+    }
+    else if(!isdigit(in.peek())){
+      val=1;
+      cout<<"No input value, set default to 1"<<endl;
+    }
+    while(!in.eof()&&isspace(in.peek()))//kill white spaces between the value and unit
+      in.get();
+    value = val ;
+    input_value=val;
+    if(isalpha(in.peek())||parse::is_token(in,"("))
+      return true;
+    else
+      return false;
+  }
+
   //compare the two units, check if they are comparable
   bool UNIT_type::is_compatible(const std::string unit_str){
     UNIT_type sec_unit;
@@ -991,8 +1040,30 @@ namespace Loci {
 
     sec_exp=expression::create(unit_str);
     if(is_single_temperature(sec_exp)!=0){
-      reverse_calculate_temperature(sec_exp,value);
-      return value;
+      FAD2d val = value ;
+      reverse_calculate_temperature(sec_exp,val);
+      return val.value ;
+    }
+    else
+      sec_unit.output(sec_exp);
+    //cout<<sec_unit;
+
+    return (value.value)*(*this).conversion_factor/sec_unit.conversion_factor;
+  }
+
+  FAD2d UNIT_type::get_value_inD(const std::string unit_str){
+    UNIT_type sec_unit;
+    exprP sec_exp = 0 ;
+
+    sec_unit.mode=(*this).mode;
+    sec_unit.unit_kind=(*this).unit_kind;
+    sec_unit.value=1;
+
+    sec_exp=expression::create(unit_str);
+    if(is_single_temperature(sec_exp)!=0){
+      FAD2d val = value ;
+      reverse_calculate_temperature(sec_exp,val);
+      return val;
     }
     else
       sec_unit.output(sec_exp);
@@ -1000,6 +1071,7 @@ namespace Loci {
 
     return value*(*this).conversion_factor/sec_unit.conversion_factor;
   }
+
 
 }
 

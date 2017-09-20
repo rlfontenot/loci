@@ -787,8 +787,13 @@ namespace Loci {
     (rule_process[baserule])->set_var_existence(facts, scheds) ;
     variableSet var_requests = baserule.targets() ;
     variableSet::const_iterator vi ;
+    entitySet my_entities = ~EMPTY ;
+    if(facts.isDistributed()) {
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
+      my_entities = d->my_entities ;
+    }
     for(vi=var_requests.begin();vi!=var_requests.end();++vi) {
-      entitySet vexist = scheds.variable_existence(*vi) ;
+      entitySet vexist = scheds.variable_existence(*vi)&my_entities ;
       scheds.variable_request(*vi,vexist) ;
     }
     scheds.add_possible_duplicate_vars(var_requests);

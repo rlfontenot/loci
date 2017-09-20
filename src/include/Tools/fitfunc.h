@@ -25,6 +25,7 @@
 #include <string>
 #include <algorithm>
 #include <iostream>
+#include <Tools/basic_types.h>
 
 namespace fitfunction {
   using std::vector ;
@@ -36,32 +37,35 @@ namespace fitfunction {
   using std::cerr ;
   using std::min ;
   using std::max ;
+  using Loci::real_t ;
+  using Loci::realToDouble ;
+  using Loci::realToFloat ;
 
   struct spline_segments {
-    double y0,y1,a,b ;
-    double ft(double t) const { 
-      double omt = 1.-t ; 
+    real_t y0,y1,a,b ;
+    real_t ft(real_t t) const { 
+      real_t omt = 1.-t ; 
       return y0*omt+t*y1+t*omt*(a*omt+b*t) ;
     }
-    double ft(double t, double &fp) const {
-      const double omt = 1.-t ; 
-      const double ab=(a*omt+b*t) ;
+    real_t ft(real_t t, real_t &fp) const {
+      const real_t omt = 1.-t ; 
+      const real_t ab=(a*omt+b*t) ;
       fp = y1-y0+omt*ab-t*(ab+omt*(a-b)) ;
       return y0*omt+t*y1+t*omt*(ab) ;
     }
-    double ftp(double t) const {
-      double omt = 1.-t ; 
+    real_t ftp(real_t t) const {
+      real_t omt = 1.-t ; 
       return y1-y0+omt*(a*omt+b*t)-t*(a*omt+b*t+omt*(a-b)) ;
     }
   } ;
 
   // FitFunction is a class that stores and evaluates the fitted function.
   class FitFunction {
-    double start, delta,rdelta  ;
+    real_t start, delta,rdelta  ;
     vector<spline_segments> fit ;
   public:
     FitFunction() { start = 0; delta = 0; rdelta = 1.0; }
-    FitFunction(double constval) {  // Constant function
+    FitFunction(real_t constval) {  // Constant function
       start=-1e-30 ;
       delta = 2e30 ;
       rdelta = 1./delta ;
@@ -72,7 +76,7 @@ namespace fitfunction {
       fit[0].b = 0 ;
     }
     // Line Segment
-    FitFunction(double x0, double y0, double x1, double y1) {
+    FitFunction(real_t x0, real_t y0, real_t x1, real_t y1) {
       start =  x0 ;
       delta =  x1 - x0 ;
       rdelta = 1./delta ;
@@ -83,40 +87,40 @@ namespace fitfunction {
       fit[0].b = 0 ;
     }
 
-    FitFunction(double strt, double end, const vector<spline_segments> &spline) {
+    FitFunction(real_t strt, real_t end, const vector<spline_segments> &spline) {
       fit = spline ;
       start = strt ;
-      delta = (end-start)/double(fit.size()) ;
+      delta = (end-start)/real_t(fit.size()) ;
       rdelta = 1./delta ;
     }
 
     // Get minimum input for eval
-    double minInputValue() const { return start ; }
+    real_t minInputValue() const { return start ; }
     // Get maximum output for eval
-    double maxInputValue() const { return start + delta*double(fit.size()); }
+    real_t maxInputValue() const { return start + delta*real_t(fit.size()); }
     // Evaluate function
-    double eval(double x) const {
-      double c = (x-start)*rdelta ;
-      int i = max(0,min(int(c),int(fit.size())-1)) ;
-      double t = max(0.0,min(c-double(i),1.0)) ;
+    real_t eval(real_t x) const {
+      real_t c = (x-start)*rdelta ;
+      int i = max(0,min(int(realToDouble(c)),int(fit.size())-1)) ;
+      real_t t = max<real_t>(0.0,min<real_t>(c-real_t(i),1.0)) ;
       return fit[i].ft(t) ;
     }
     // Evaluate function and its derivative
-    double evalp(double x, double &fp) const {
-      const double c = (x-start)*rdelta ;
-      const int i = max(0,min(int(c),int(fit.size())-1)) ;
-      const double t = max(0.0,min(c-double(i),1.0)) ;
-      const double f = fit[i].ft(t,fp) ;
+    real_t evalp(real_t x, real_t &fp) const {
+      const real_t c = (x-start)*rdelta ;
+      const int i = max(0,min(int(realToDouble(c)),int(fit.size())-1)) ;
+      const real_t t = max<real_t>(0.0,min<real_t>(c-real_t(i),1.0)) ;
+      const real_t f = fit[i].ft(t,fp) ;
       //convert derivative to global coordinates (or zero if at endpoints)
-      fp = (c<0.0 || c > double(fit.size()))?0.0:fp*rdelta ;
+      fp = (c<0.0 || c > real_t(fit.size()))?0.0:fp*rdelta ;
 
       return f ;
     }
     // Evaluate inverse function
-    double evalInverse(double f, double tol = 1e-5, double xguess = 0) const {
-      double xmin = minInputValue() ;
-      double xmax = maxInputValue() ;
-      double x = xguess ;
+    real_t evalInverse(real_t f, real_t tol = 1e-5, real_t xguess = 0) const {
+      real_t xmin = minInputValue() ;
+      real_t xmax = maxInputValue() ;
+      real_t x = xguess ;
       if(xguess < xmin || xguess > xmax)
 	x = 0.5*(xmin+xmax) ;
 
@@ -124,8 +128,8 @@ namespace fitfunction {
       int iter = 0;
       // Use bracketed newton method to find solution
       for(iter=0;iter<MAXITER;++iter) {
-	double dfdx ;
-	double fdiff = evalp(x,dfdx)-f ;
+	real_t dfdx ;
+	real_t fdiff = evalp(x,dfdx)-f ;
 	if(fabs(fdiff)< tol*fabs(f))
 	  return x ;
 	if(xmax-xmin < tol*xmax)
@@ -145,13 +149,13 @@ namespace fitfunction {
     int SerializeSize() {
       return fit.size()*4+3 ;
     }
-    void injectBuffer(double *db, int size) {
+    void injectBuffer(real_t *db, int size) {
       if(size != SerializeSize()) {
 	std::cerr << "size error in injectBuffer" << std::endl ;
       }
       db[0] = start ;
       db[1] = delta ;
-      db[2] = double(fit.size()) ;
+      db[2] = real_t(fit.size()) ;
       for(size_t i=0;i<fit.size();++i) {
 	int off = 3+i*4 ;
 	db[off+0] = fit[i].y0 ;
@@ -160,11 +164,11 @@ namespace fitfunction {
 	db[off+3] = fit[i].b ;
       }
     }
-    void extractBuffer(double *db,int size) {
+    void extractBuffer(real_t *db,int size) {
       start = db[0] ;
       delta = db[1] ;
       rdelta = 1./delta ;
-      int nfit = int(db[2]);
+      int nfit = int(realToDouble(db[2]));
       fit = vector<spline_segments>(nfit) ;
       for(int i=0;i<nfit;++i) {
 	int off = 3+i*4 ;
@@ -178,34 +182,49 @@ namespace fitfunction {
 
     std::ostream &Print(std::ostream &s) const {
       s.precision(14) ;
-      s << start << ' ' << delta << ' ' << fit.size() << std::endl ;
+      s << realToDouble(start) << ' ' << realToDouble(delta) << ' ' << fit.size() << std::endl ;
       int n = fit.size() ;
-      s << fit[0].y0 << std::endl ;
+      s << realToDouble(fit[0].y0) << std::endl ;
 
       for(int i=0;i<n;++i) 
-	s << fit[i].y1 << std::endl ;
+	s << realToDouble(fit[i].y1) << std::endl ;
 
       for(int i=0;i<n;++i) 
-	s << fit[i].a << ' ' << fit[i].b << std::endl ;
+	s << realToDouble(fit[i].a) << ' ' << realToDouble(fit[i].b) << std::endl ;
 
       return s ;
     }
     std::istream &Input(std::istream &s) {
-      s >> start ;
-      s >> delta ;
+      double val = 0.0;
+      //      s >> start ;
+      s >> val ;
+      start = val ;
+      //      s >> delta ;
+      s >> val ;
+      delta = val ;
       rdelta = 1./delta ;
       int n = 0 ;
       s >> n ;
       fit = vector<spline_segments>(n) ;
-      s >> fit[0].y0 ;
-      for(int i=0;i<n;++i) 
-	s >> fit[i].y1 ;
+      //      s >> fit[0].y0 ;
+      s >> val ;
+      fit[0].y0 = val ;
+      for(int i=0;i<n;++i) {
+	//	s >> fit[i].y1 ;
+	s >> val ;
+	fit[i].y1 = val ;
+      }
 
       for(int i=0;i<n-1;++i) 
 	fit[i+1].y0 = fit[i].y1 ;
 
-      for(int i=0;i<n;++i) 
-	s >> fit[i].a >> fit[i].b  ;
+      for(int i=0;i<n;++i) {
+	//	s >> fit[i].a >> fit[i].b  ;
+	s >> val ;
+	fit[i].a = val ;
+	s >> val ;
+	fit[i].b = val ;
+      }
       return s ;
     }
   } ;
@@ -272,18 +291,18 @@ namespace fitfunction {
   // Find a cubic fit for a function using n segments.  Establish C1 continuity
   // with limiting to minimize oscillations in the fit.
   template <class FUNC> 
-  vector<spline_segments> fit_func(FUNC &f,double start, double end, int n) {
+  vector<spline_segments> fit_func(FUNC &f,real_t start, real_t end, int n) {
     vector<spline_segments> set1(n) ;
-    double delta = (end - start)/double(n) ;
+    real_t delta = (end - start)/real_t(n) ;
     // First fit the function within each interval
     for(int i=0;i<n;++i) {
-      double istart = start+delta*double(i) ;
-      double y0 = f(istart) ;
-      double y1 = f(istart+delta) ;
-      double ya = f(istart+delta/3.0) ;
-      double yb = f(istart+2.*delta/3.0) ;
-      double ca = 9.*(3.*ya-2.*y0-y1)/2. ;
-      double cb = 9.*(3.*yb-y0-2.*y1)/2. ;
+      real_t istart = start+delta*real_t(i) ;
+      real_t y0 = f(istart) ;
+      real_t y1 = f(istart+delta) ;
+      real_t ya = f(istart+delta/3.0) ;
+      real_t yb = f(istart+2.*delta/3.0) ;
+      real_t ca = 9.*(3.*ya-2.*y0-y1)/2. ;
+      real_t cb = 9.*(3.*yb-y0-2.*y1)/2. ;
 
       set1[i].y0 = y0 ;
       set1[i].y1 = y1 ;
@@ -293,8 +312,8 @@ namespace fitfunction {
 
     // Now we fix continuity with limiting
     for(int i=0;i<n-1;++i) {
-      double fpi = set1[i].ftp(1.0) ;
-      double fpn = set1[i+1].ftp(0.0) ;
+      real_t fpi = set1[i].ftp(1.0) ;
+      real_t fpn = set1[i+1].ftp(0.0) ;
       if(fabs(fpi) < fabs(fpn))
 	set1[i+1].a = fpi-(set1[i+1].y1-set1[i+1].y0) ;
       else
@@ -308,35 +327,35 @@ namespace fitfunction {
   // of intervals to meet target error.  By default, limits number of segments
   // to 1024.
   template <class FUNC> 
-  FitFunction fit_function(FUNC &f,double start, double end, double reltol, 
-			   int minn = 3, int maxn=1024, double abstol=1e-20) {
+  FitFunction fit_function(FUNC &f,real_t start, real_t end, real_t reltol, 
+			   int minn = 3, int maxn=1024, real_t abstol=1e-20) {
     int n = minn ;
-    double err = 0 ;
-    double err8 = 0 ;
+    real_t err = 0 ;
+    real_t err8 = 0 ;
     vector<spline_segments> spline ;
-    double delta = (end-start)/double(n) ;
+    real_t delta = (end-start)/real_t(n) ;
     do {
       spline=fit_func(f,start,end,n) ;
-      delta = (end-start)/double(n) ;
+      delta = (end-start)/real_t(n) ;
     
       err = 0 ;
       err8 = 0 ;
       for(int j=0;j<n;++j) {
 	for(int k=1;k<4;++k) {
-	  double t = double(k)*0.25 ;
-	  double fapprox = spline[j].ft(t) ;
-	  double fexact = f(start+(double(j)+t)*delta) ;
-	  double delta = (fexact-fapprox)/max(fabs(fexact),abstol) ;
+	  real_t t = real_t(k)*0.25 ;
+	  real_t fapprox = spline[j].ft(t) ;
+	  real_t fexact = f(start+(real_t(j)+t)*delta) ;
+	  real_t delta = (fexact-fapprox)/max(fabs(fexact),abstol) ;
 	  err8 = max(err8,fabs(delta)) ;
 	  err += delta*delta/3.0 ;
 	}
       }
       err = sqrt(err/n) ;
       if((err8 > 0.05 || err > reltol) && n < maxn) {
-	double factor=pow(err/reltol,1./3.)*.5 ;
+	real_t factor=pow(err/reltol,1./3.)*.5 ;
 	if(factor < 1.0)
 	  factor *= 2.0 ;
-	n = min(max(int(double(n)*factor),n+1),maxn) ;
+	n = min(max(int(realToDouble(real_t(n)*factor)),n+1),maxn) ;
       } else {
 	return FitFunction(start,end,spline) ;
       }

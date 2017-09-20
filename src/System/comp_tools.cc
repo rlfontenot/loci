@@ -1392,13 +1392,20 @@ namespace Loci {
 	  requests += fill_entitySet(requests, facts) ;
       }
       else {
-        entitySet filter = ~EMPTY ;
-        // Question?, why is this code needed at all for non-replication code?
-        if(v.get_info().offset ==1) // This is a HACK for advance variables
-          if(facts.isDistributed())
-            filter = d->my_entities ;
-        requests += fill_entitySet(requests, facts) & filter ;
+	// check to see if there is mapping in the output rules ;
+	ruleSet r = scheds.get_existential_rules(v);
+	bool map_output = false;
+	for(ruleSet::const_iterator ri = r.begin();
+	    ri != r.end(); ri++)
+	  if(rule_has_mapping_in_output(*ri)) 
+	    map_output = true ;
+
+	if(map_output) {
+	  // If mapping in output send requests from other processors
+	  requests += fill_entitySet(requests, facts) ;
+	}
       }
+      
       scheds.variable_request(v,requests) ;
     }
     return clist ;

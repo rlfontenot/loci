@@ -142,6 +142,12 @@ namespace Loci {
       fatal(p==0) ;
       p->allocate(sizes) ;
     }
+    void allocate(const_store<int> &sizes) {
+      NPTR<storeType> p(Rep()) ;
+      store<int> csizes(sizes.Rep()) ;
+      fatal(p==0) ;
+      p->allocate(csizes) ;
+    }
     void setSizes(const const_multiMap &m) {
       NPTR<storeType> p(Rep()) ;
       fatal(p==0) ;
