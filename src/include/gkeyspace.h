@@ -68,8 +68,6 @@ namespace Loci {
     //everything related to local number is not coded yet, maybe only one map
     //is needed between local and global numbering since gMap can be sorted
     //according to either domain field or image field
-    gMap g2l ;
-    gMap l2g ;
     gMap g2f ;
 
     //the following two vectors are used in partition stage,
@@ -163,9 +161,6 @@ namespace Loci {
       key_ptn = ks.key_ptn ;
       keys = ks.keys ;
       my_keys = ks.my_keys;
-      // deep copy g2l and l2g maps
-      g2l = ks.g2l.clone();
-      l2g = ks.l2g.clone();
       g2f = ks.g2f.clone(); 
     }
   public:
@@ -337,14 +332,10 @@ namespace Loci {
     }
 
     //inspectors for maps
-    const gMap&
-    get_g2l_map() const {return g2l ;}
     const gStoreRepP
     get_f2g_map() const {return g2f.local_inverse();}
     const gMap&
     get_g2f_map() const {return g2f ;} 
-    const gMap&
-    get_l2g_map() const {return l2g ;}
   } ; // end of class gKeySpace
    
 }// end of namespace Loci
