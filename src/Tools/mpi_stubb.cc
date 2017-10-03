@@ -506,6 +506,14 @@ extern "C" {
     err_report(); return -1;
   }
 
+  int MPI_Type_create_resized(MPI_Datatype oldtype,
+			      MPI_Aint lb,
+			      MPI_Aint extent,
+			      MPI_Datatype *newtype) {
+    cerr << "MPI_Type_create_resized" << endl ;
+    err_report(); return -1;
+  }    
+  
   int  MPI_Get_elements(MPI_Status *, MPI_Datatype, int *)
   {
     cerr << "MPI_Get_elements" << endl ;

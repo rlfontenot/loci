@@ -386,6 +386,8 @@ void err_report();
 
  int  MPI_Type_commit(MPI_Datatype *);
 
+ int  MPI_Type_create_resized(MPI_Datatype, MPI_Aint,MPI_Aint,MPI_Datatype *) ;
+
  int  MPI_Type_free(MPI_Datatype *);
 
  int  MPI_Get_elements(MPI_Status *, MPI_Datatype, int *);
