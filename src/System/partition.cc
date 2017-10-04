@@ -178,8 +178,6 @@ namespace Loci{
     gConstraint bcSurf;
     bcSurf = facts.get_gfact("bcSurf");
     gEntitySet refSet = g_all_collect_entitySet<gEntity>(*bcSurf);
-    gMap::const_iterator itr1 = cl.begin();
-    gMap::const_iterator itr2 = cr.begin();
    
     for( gMap::const_iterator itr1 = cl.begin(); itr1 != cl.end(); itr1++){
       result.insert(itr1->first, itr1->second);
