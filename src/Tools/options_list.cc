@@ -697,17 +697,24 @@ namespace Loci {
         int ch = EOF ;
         int opens = 0 ;
         do {
+	  int rc = 0 ;
           while(!s.eof() &&((ch=s.peek()) != EOF) &&
-                (isalnum(ch) || ch=='*' || ch == '/' ))
+                (isalnum(ch) || ch=='*' || ch == '/' )) {
             units += s.get() ;
+	    rc++ ;
+	  }
           if(ch == '(') {
             units += s.get() ;
+	    rc++ ;
             opens++ ;
           }
           if(opens != 0 && ch == ')') {
             units += s.get() ;
+	    rc++ ;
             opens-- ;
           }
+	  if(rc == 0) 
+	    throw StringError("having trouble reading units in input") ;
         } while(opens!=0) ;
 
         units_value = UNIT_type(UNIT_type::MKS,"general",
