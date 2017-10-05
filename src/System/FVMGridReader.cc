@@ -1128,8 +1128,6 @@ namespace Loci {
     gStoreRepP posRep = facts.get_gfact("pos");
     gKeySpaceP nodeSpace  = gKeySpace::get_space("NodeSpace", casename);
     gEntitySet node_dom = posRep->domain();
-    // nodeSpace->set_key_ptn(g_simple_partition<gEntity>(g_all_collect_entitySet<gEntity>(node_dom),
-    //  nodeSpace->get_mpi_comm()));
     nodeSpace->set_key_ptn(g_all_collect_vectors<gEntity>(node_dom));
 
     //face space
@@ -1137,7 +1135,6 @@ namespace Loci {
     gKeySpaceP faceSpace = gKeySpace::get_space("FaceSpace", casename);
     gEntitySet face_dom = clRep->domain();
     gEntitySet all_faces = g_all_collect_entitySet<gEntity>(face_dom);
-    // faceSpace->set_key_ptn(g_simple_partition<gEntity>(all_faces,faceSpace->get_mpi_comm()));
     faceSpace->set_key_ptn(g_all_collect_vectors<gEntity>(face_dom));
 
       
