@@ -331,6 +331,7 @@ namespace Loci {
     MPI_Init(argc, argv) ;
 #endif
 
+#ifndef MPI_STUBB
     {
       // Create FADD type
       int count = 2 ;
@@ -375,6 +376,7 @@ namespace Loci {
       MPI_Op_create((MPI_User_function *)minFAD2d,1,&MPI_FADD2_MIN) ;
 
     }
+#endif
 
     time_duration_to_collect_data = MPI_Wtick()*20;
     signal(SIGTERM,TerminateSignal) ;
