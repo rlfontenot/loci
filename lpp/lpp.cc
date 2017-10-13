@@ -1012,9 +1012,9 @@ void parseFile::process_Calculate(std::ostream &outputFile,
                                   const map<variable,string> &vnames,
                                   const set<list<variable> > &validate_set) {
   if(prettyOutput)
-    outputFile << "    void calculate(Entity e) { " << endl ;
+    outputFile << "    void calculate(Loci::Entity e) { " << endl ;
   else
-    outputFile << "    void calculate(Entity _e_) { " << endl ;
+    outputFile << "    void calculate(Loci::Entity _e_) { " << endl ;
   is.get() ;
   while(is.peek() == ' ' || is.peek() == '\t')
     is.get() ;
