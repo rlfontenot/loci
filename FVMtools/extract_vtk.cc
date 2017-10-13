@@ -242,7 +242,7 @@ void vtkSurfacePartConverter::exportPostProcessorFiles(string casename, string i
         int ngval = gvals.size();
         for (int fi=0;fi<nqval;fi++) valout[fi] = qvals[fi];
         for (int fi=0;fi<ntval;fi++) valout[fi+nqval] = tvals[fi];
-        for (int fi=0;fi<ngval;fi++) valout[fi+nqval+ntval] = tvals[fi];
+        for (int fi=0;fi<ngval;fi++) valout[fi+nqval+ntval] = gvals[fi];
       }
       for (int i=0;i<size;i++) elem_data.push_back(valout[i]);
     }
@@ -265,8 +265,16 @@ void vtkSurfacePartConverter::exportPostProcessorFiles(string casename, string i
         int ngval = gvals.size();
         
         for (int fi=0;fi<nqval;fi++) xvalout[fi] = qvals[fi].x;
+        for (int fi=0;fi<nqval;fi++) yvalout[fi] = qvals[fi].y;
+        for (int fi=0;fi<nqval;fi++) zvalout[fi] = qvals[fi].z;
+
+        for (int fi=0;fi<ntval;fi++) xvalout[fi+nqval] = tvals[fi].x;
         for (int fi=0;fi<ntval;fi++) yvalout[fi+nqval] = tvals[fi].y;
-        for (int fi=0;fi<ngval;fi++) zvalout[fi+nqval+ntval] = tvals[fi].z;
+        for (int fi=0;fi<ntval;fi++) zvalout[fi+nqval] = tvals[fi].z;
+
+        for (int fi=0;fi<ngval;fi++) xvalout[fi+nqval+ntval] = gvals[fi].x;
+        for (int fi=0;fi<ngval;fi++) yvalout[fi+nqval+ntval] = gvals[fi].y;
+        for (int fi=0;fi<ngval;fi++) zvalout[fi+nqval+ntval] = gvals[fi].z;
       }
       for (int i=0;i<(int)elem_ids.size();i++) {
 	elem_data.push_back(xvalout[i]);
@@ -283,7 +291,7 @@ void vtkSurfacePartConverter::exportPostProcessorFiles(string casename, string i
       surfacePartList[i]->getPos(pos) ;
       int npt  = pos.size();
       for (int j=0;j<npt;j++) {
-        position[3*j+0]   = pos[j].x; 
+        position[3*j+0] = pos[j].x; 
         position[3*j+1] = pos[j].y; 
         position[3*j+2] = pos[j].z; 
       }
@@ -1237,7 +1245,7 @@ void vtkPartConverter::exportPostProcessorFiles(string casename, string iteratio
         int ngval = gvals.size();
         for (int fi=0;fi<nqval;fi++) valout[fi] = qvals[fi];
         for (int fi=0;fi<ntval;fi++) valout[fi+nqval] = tvals[fi];
-        for (int fi=0;fi<ngval;fi++) valout[fi+nqval+ntval] = tvals[fi];
+        for (int fi=0;fi<ngval;fi++) valout[fi+nqval+ntval] = gvals[fi];
       }
       for (int i=0;i<size;i++) elem_data.push_back(valout[i]);
     }
@@ -1260,8 +1268,16 @@ void vtkPartConverter::exportPostProcessorFiles(string casename, string iteratio
         int ngval = gvals.size();
         
         for (int fi=0;fi<nqval;fi++) xvalout[fi] = qvals[fi].x;
+        for (int fi=0;fi<nqval;fi++) yvalout[fi] = qvals[fi].y;
+        for (int fi=0;fi<nqval;fi++) zvalout[fi] = qvals[fi].z;
+
+        for (int fi=0;fi<ntval;fi++) xvalout[fi+nqval] = tvals[fi].x;
         for (int fi=0;fi<ntval;fi++) yvalout[fi+nqval] = tvals[fi].y;
-        for (int fi=0;fi<ngval;fi++) zvalout[fi+nqval+ntval] = tvals[fi].z;
+        for (int fi=0;fi<ntval;fi++) zvalout[fi+nqval] = tvals[fi].z;
+
+        for (int fi=0;fi<ngval;fi++) xvalout[fi+nqval+ntval] = gvals[fi].x;
+        for (int fi=0;fi<ngval;fi++) yvalout[fi+nqval+ntval] = gvals[fi].y;
+        for (int fi=0;fi<ngval;fi++) zvalout[fi+nqval+ntval] = gvals[fi].z;
       }
       for (int i=0;i<(int)elem_ids.size();i++) {
 	elem_data.push_back(xvalout[i]);
