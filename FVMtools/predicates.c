@@ -121,6 +121,12 @@
 #include <fpu_control.h>
 #endif
 
+#ifdef DARWIN
+void set_ctrlword(int v) {
+  asm("fldcw %0" :: "m" (v)) ;
+}
+#endif
+
 /* On some machines, the exact arithmetic routines might be defeated by the  */
 /*   use of internal extended precision floating-point registers.  Sometimes */
 /*   this problem can be fixed by defining certain values to be volatile,    */
@@ -663,6 +669,15 @@ void exactinit()
 #endif /* not SINGLE */
   _FPU_SETCW(cword);
 #endif
+
+#ifdef DARWIN
+#ifdef SINGLE
+  set_ctrlword(4210) ;
+#else
+  set_ctrlword(4722) ;
+#endif
+#endif
+
   /* Repeatedly divide `epsilon' by two until it is too small to add to    */
   /*   one without causing roundoff.  (Also check if the sum is equal to   */
   /*   the previous sum, for machines that round up instead of using exact */

@@ -144,8 +144,11 @@ cgns2surf: cgns2surf.o hash.o
 ugrid2cgns: ugrid2cgns.o hash.o binaryio.o getargs.o
 	 $(LD) -o ugrid2cgns ugrid2cgns.o hash.o binaryio.o getargs.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
-predicates.o:
+predicates.o: predicates.c
 	$(CC) $(COPTLESS) -c $(DEFINES) predicates.c
+
+make_periodic.o: make_periodic.cc
+	$(CPP) $(COPTLESS) -c $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) -c make_periodic.cc
 
 refmesh: refmesh.o
 	$(LD) -o  refmesh  refmesh.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS) -lfvmadaptfunc
