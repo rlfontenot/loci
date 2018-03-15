@@ -1217,17 +1217,31 @@ namespace Loci {
       }
       
     } else {
-      idx_t ncon = 1 ;
+      //      idx_t ncon = 1 ;
+      idx_t ncon = 2 ;
       idx_t tpwgts_len = ncon*nparts ;
       vector<metisreal_t> tpwgts(tpwgts_len) ;
       for(idx_t i=0;i<tpwgts_len;++i)
         tpwgts[i] = 1.0 / double(nparts) ;
 
-      metisreal_t ubvec = 1.05 ;
-      wgtflag = 0 ;
-      ParMETIS_V3_PartKway(&vdist[0],&xadj[0],&adjncy[0],NULL,NULL,
+      vector<metisreal_t> ubvec(ncon) ;
+      for(idx_t i=0;i<ncon;++i)
+	ubvec[i] = 1.05 ;     // as recommended by the ParMETIS manual
+      wgtflag = 2 ;
+      // now construct the vertex weights
+      vector<idx_t> vwgt(ncon*size_map) ;
+
+      int cnt = 0 ;
+      for(int i=0;i<size_map;++i) {
+	// first weight for cell is 1 (the cell computation)
+	vwgt[cnt] = 1 ;
+	// the second weight is from the store cell_weights[*ei]
+	vwgt[cnt+1] =  size_adj[i] ;
+	cnt += ncon ;
+      }
+      ParMETIS_V3_PartKway(&vdist[0],&xadj[0],&adjncy[0],&vwgt[0],NULL,
                            &wgtflag,&numflag,&ncon,&nparts,
-                           &tpwgts[0],&ubvec,&options,&edgecut,
+                           &tpwgts[0],&ubvec[0],&options,&edgecut,
                            &part[0],&mc) ;
     }
 
