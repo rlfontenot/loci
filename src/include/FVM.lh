@@ -19,6 +19,7 @@
 //#
 //#############################################################################
 
+$type geom_cells Constraint ;
 $type pos store<Loci::vector3d<Loci::real_t> > ;
 $type cl Map ;
 $type cr Map ;
@@ -69,6 +70,9 @@ $type cell2nodeMin(X) store<float > ;
 $type cell2nodeMaxMag(X) store<float > ;
 $type cell2nodeMaxv3d(X) store<vector3d<float> > ;
 
+$type no_symmetry_BC Constraint ;
+$type boundary_faces Constraint ;
+$type firstOrder_BCoption Constraint ;
 $type BC_options store<Loci::options_list> ;
 
 $type integrateSurface(X) store<Loci::real_t> ;
@@ -83,3 +87,10 @@ $type L1Norm(X) param<Loci::real_t> ;
 $type LinfNorm(X) param<Loci::real_t> ;
 
 $type fileNumber(X) store<int> ;
+
+$type volumeTag(X) param<string> ;
+$type periodicFaces Constriant ;
+
+$type cartesianCoordinateModel Constraint ;
+$type axisymmetricCoordinateModel Constraint ;
+

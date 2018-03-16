@@ -811,7 +811,8 @@ string getNumber(std::istream &is) {
 }
 
 string parseFile::process_String(string in,
-                                 const map<variable,string> &vnames) {
+                                 const map<variable,string> &vnames,
+				 const set<list<variable> > &validate_set) {
   ostringstream outputFile ;
   istringstream is(in) ;
 
@@ -918,7 +919,7 @@ string parseFile::process_String(string in,
         if(is.peek() == '[') {
           nestedbracketstuff nb ;
           nb.get(is) ;
-          string binfo = process_String(nb.str(),vnames) ;
+          string binfo = process_String(nb.str(),vnames,validate_set) ;
           brackets = "[" + binfo + "]" ;
         }
       }
@@ -944,7 +945,7 @@ string parseFile::process_String(string in,
             if(is.peek() == '[') {
               nestedbracketstuff nb ;
               nb.get(is) ;
-              string binfo = process_String(nb.str(),vnames) ;
+              string binfo = process_String(nb.str(),vnames,validate_set) ;
               brk = "[" + binfo +"]";
             }
             blist.push_back(brk) ;
@@ -964,6 +965,8 @@ string parseFile::process_String(string in,
       if(dangling_arrow)
         throw parseError("syntax error, near '->' operator") ;
 
+      validate_VariableAccess(v,vlist,first_name,vnames,validate_set) ;
+      
       if(first_name && (vlist.size() == 0)) {
         outputFile << name << ' ' ;
         continue ;
@@ -1007,7 +1010,59 @@ string parseFile::process_String(string in,
   
   return outputFile.str() ;
 }
-                                 
+
+
+void parseFile::validate_VariableAccess(variable v, const list<variable> &vlist,
+					bool first_name,
+					const map<variable,string> &vnames,
+					const set<list<variable> > &validate_set) {
+
+  list<variable> vlistall ;
+  list<variable>::const_iterator vitmp ;
+  for(vitmp=vlist.begin();vitmp!=vlist.end();++vitmp) {
+    variable vt = *vitmp ;
+    while(vt.get_info().priority.size() != 0)
+      vt = vt.drop_priority() ;
+    vlistall.push_back(vt) ;
+  }
+  variable vt = v ;
+  while(vt.get_info().priority.size() != 0)
+    vt = vt.drop_priority() ;
+  vlistall.push_front(vt) ;
+  
+  if(!first_name && !vlistall.empty()
+     && validate_set.find(vlistall) == validate_set.end()) {
+    ostringstream msg ;
+    msg << "variable access " ;
+    list<variable>::const_iterator lvi ;
+    for(lvi=vlistall.begin();lvi!=vlistall.end();) {
+      msg << *lvi ;
+      ++lvi ;
+      if(lvi!=vlistall.end())
+	msg << "->" ;
+    }
+    msg << " not consistent with rule signature!" ;
+    throw parseError(msg.str()) ;
+  }
+  
+  list<variable>::const_reverse_iterator ri ;
+  for(ri=vlist.rbegin();ri!=vlist.rend();++ri) {
+    map<variable,string>::const_iterator vmi = vnames.find(*ri) ;
+    if(vmi == vnames.end()) {
+      cerr << "variable " << *ri << " is unknown to this rule!" << endl ;
+      throw parseError("type error") ;
+    }
+  }
+  if(!first_name) {
+    map<variable,string>::const_iterator vmi = vnames.find(v) ;
+    if(vmi == vnames.end()) {
+      cerr << "variable " << v << " is unknown to this rule!" << endl ;
+      throw parseError("type error: is this variable in the rule signature?") ;
+    }
+  }
+}
+
+
 void parseFile::process_Calculate(std::ostream &outputFile,
                                   const map<variable,string> &vnames,
                                   const set<list<variable> > &validate_set) {
@@ -1140,7 +1195,7 @@ void parseFile::process_Calculate(std::ostream &outputFile,
         if(is.peek() == '[') {
           nestedbracketstuff nb ;
           nb.get(is) ;
-          string binfo = process_String(nb.str(),vnames) ;
+          string binfo = process_String(nb.str(),vnames,validate_set) ;
           brackets = "[" + binfo + "]" ;
           line_no += nb.num_lines() ;
           lcount += nb.num_lines() ;
@@ -1168,7 +1223,7 @@ void parseFile::process_Calculate(std::ostream &outputFile,
             if(is.peek() == '[') {
               nestedbracketstuff nb ;
               nb.get(is) ;
-              string binfo = process_String(nb.str(),vnames) ;
+              string binfo = process_String(nb.str(),vnames,validate_set) ;
               brk = "[" + binfo +"]";
               line_no += nb.num_lines() ;
               lcount += nb.num_lines() ;
@@ -1195,33 +1250,7 @@ void parseFile::process_Calculate(std::ostream &outputFile,
         continue ;
       }
 
-      list<variable> vlistall ;
-      list<variable>::const_iterator vitmp ;
-      for(vitmp=vlist.begin();vitmp!=vlist.end();++vitmp) {
-        variable vt = *vitmp ;
-        while(vt.get_info().priority.size() != 0)
-          vt = vt.drop_priority() ;
-        vlistall.push_back(vt) ;
-      }
-      variable vt = v ;
-      while(vt.get_info().priority.size() != 0)
-        vt = vt.drop_priority() ;
-      vlistall.push_front(vt) ;
-      
-      if(!first_name && !vlistall.empty()
-         && validate_set.find(vlistall) == validate_set.end()) {
-        ostringstream msg ;
-        msg << "variable access " ;
-        list<variable>::const_iterator lvi ;
-        for(lvi=vlistall.begin();lvi!=vlistall.end();) {
-          msg << *lvi ;
-          ++lvi ;
-          if(lvi!=vlistall.end())
-            msg << "->" ;
-        }
-        msg << " not consistent with rule signature!" ;
-        throw parseError(msg.str()) ;
-      }
+      validate_VariableAccess(v,vlist,first_name,vnames,validate_set) ;
 
       list<variable>::reverse_iterator ri ;
       for(ri=vlist.rbegin();ri!=vlist.rend();++ri) {
@@ -1239,7 +1268,7 @@ void parseFile::process_Calculate(std::ostream &outputFile,
         if(vmi == vnames.end()) {
           cerr << "variable " << v << " is unknown to this rule!" << endl ;
           throw parseError("type error: is this variable in the rule signature?") ;
-        }
+	}
         if(prettyOutput)
           outputFile << vmi->second << "[e]" ;
         else
@@ -1403,8 +1432,7 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
         }
       }
       if(mi == type_map.end()) {
-        cerr << "Warning: type of conditional variable '" << v << "'not found!"  << endl 
-	     << "File: " << filename << ", line #" << line_no << endl ;
+        cerr << filename << ':' << line_no << ":0: warning: type of conditional variable '" << v << "' not found!"  << endl  ;
       } else {
         //        cout << "mi->first=" << mi->first << endl ;
         //        cout << "mi->second.first=" << mi->second.first
@@ -1815,6 +1843,45 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
   //  syncFile(outputFile) ;
 
   if(constraint!="") {
+    // Check to see that the constraint is typed
+    exprP C = expression::create(constraint) ;
+    set<vmap_info> Cdigest ;
+    fill_descriptors(Cdigest,collect_associative_op(C,OP_COMMA)) ;
+    set<vmap_info>::const_iterator i ;
+    variableSet constraint_vars ;
+    for(i=Cdigest.begin();i!=Cdigest.end();++i) {
+      for(size_t j=0;j<i->mapping.size();++j)
+	constraint_vars += i->mapping[j] ;
+      constraint_vars += i->var ;
+    }
+
+    for(variableSet::const_iterator vi=constraint_vars.begin();
+	vi!=constraint_vars.end();++vi) {
+      variable v = *vi ;
+      v = convertVariable(v) ;
+      map<variable,pair<string,string> >::const_iterator mi ;
+      if((mi = type_map.find(v)) == type_map.end()) {
+        v = v.new_offset(0) ;
+        v = v.drop_assign() ;
+        while(v.time() != time_ident())
+          v = v.parent() ;
+        
+        if((mi = type_map.find(v)) == type_map.end()) {
+          while(v.get_info().namespac.size() != 0)
+            v = v.drop_namespace() ;
+          mi = type_map.find(v) ;
+        }
+      }
+      if(mi == type_map.end()  && v.get_info().name != "UNIVERSE" &&
+	 v.get_info().name != "EMPTY") {
+
+        cerr << filename << ':' << line_no << ":0: warning: type of constraint variable '" << v << "' not found!"  << endl  ;
+
+      } 
+    }
+    
+    
+
     outputFile <<   "       constraint(\"" << constraint << "\") ;" << endl ;
     syncFile(outputFile) ;
   }

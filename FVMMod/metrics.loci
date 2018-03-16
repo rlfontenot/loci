@@ -42,9 +42,6 @@ namespace Loci {
     $centroid = "wireframe" ;
   }
 
-  $type cartesianCoordinateModel Constraint ;
-  $type axisymmetricCoordinateModel Constraint ;
-
   $rule constraint(cartesianCoordinateModel,axisymmetricCoordinateModel<-gridCoordinates) {
     $cartesianCoordinateModel = EMPTY ;
     $axisymmetricCoordinateModel = EMPTY ;
