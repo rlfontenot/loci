@@ -451,6 +451,8 @@ namespace Loci {
       }
       bool debug_setup = false ;
       int i = 1 ;
+      vector<string> arglist ;
+      arglist.push_back(string(*argv[0])) ;
       while(i<*argc) {
         if(!strcmp((*argv)[i],"--display")) {
           debug_setup = true ;
@@ -648,15 +650,18 @@ namespace Loci {
           threading_recursion = false;
           i++;
         }
-        else
-          break ;
+        else {
+	  //          break ;
+	  arglist.push_back(string((*argv)[i])) ;
+	  i++ ;
+	}
       }
 
-      if(i!=1) {
-        *argc -= (i-1) ;
-        for(int k=1;k<*argc;++k)
-          (*argv)[k] = (*argv)[k+i-1] ;
+      for(size_t k = 0;k<arglist.size();++k) {
+	(*argv)[k] = (char *)malloc(arglist[k].size()+1) ;
+	strcpy((*argv)[k],arglist[k].c_str()) ;
       }
+      *argc = arglist.size() ;
 
       if(useDebugDir) {
         //Create a debug file for each process
