@@ -89,7 +89,9 @@ namespace Loci {
     }
   } ;
   class storeRep : public NPTR_type {
+    int domainKeySpace ;
   public:
+    storeRep() { domainKeySpace = 0 ; }
     virtual ~storeRep() ;
     virtual void allocate(const entitySet &p) = 0 ;
     // erase part of the domain, useful for dynamic containers,
@@ -224,6 +226,8 @@ namespace Loci {
     virtual storeRepP getRep() const ;
     virtual  DatatypeP getType() = 0 ;
     virtual frame_info get_frame_info() = 0 ;
+    int getDomainKeySpace() const { return domainKeySpace ; }
+    void setDomainKeySpace(int v) { domainKeySpace = v ; }
   } ;
 
 
@@ -231,6 +235,8 @@ namespace Loci {
     friend class store_ref ;
     storeRepP rep ;
   public:
+    int getDomainKeySpace() const { return rep->getDomainKeySpace() ; }
+    void setDomainKeySpace(int v) { rep->setDomainKeySpace(v) ; }
     enum instance_type { READ_WRITE, READ_ONLY } ;
     void setRep(const storeRepP &p)
       { rep = p ; rep.set_notify(this); notification() ; }

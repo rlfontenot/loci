@@ -120,6 +120,8 @@ namespace Loci {
     const VEC &operator[](int indx) const { return const_elem(indx) ; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ; }
+    int getRangeKeySpace() const { return MapRepP(rep)->getRangeKeySpace() ; }
+    void setRangeKeySpace(int v) { MapRepP(rep)->setRangeKeySpace(v) ; }
   } ;
 
   template<int M> class const_MapVec : public store_instance {
@@ -155,6 +157,7 @@ namespace Loci {
       return base_ptr[indx]; }
     const VEC &operator[](int indx) const { return const_elem(indx) ; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
+    int getRangeKeySpace() const { return MapRepP(rep)->getRangeKeySpace() ; }
   } ;  
   
 } // end of namespace Loci

@@ -186,6 +186,8 @@ namespace Loci {
     int vec_size(int indx) const { return end(indx)-begin(indx) ; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ; }
+    int getRangeKeySpace() const { return MapRepP(Rep())->getRangeKeySpace() ; }
+    void setRangeKeySpace(int v) { MapRepP(Rep())->setRangeKeySpace(v) ; }
   } ;
   
   inline std::ostream & operator<<(std::ostream &s, const multiMap &m)
@@ -249,6 +251,7 @@ namespace Loci {
     const int *begin(int indx) const { return base_ptr[indx] ; }
     const int *end(int indx) const { return base_ptr[indx+1] ; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
+    int getRangeKeySpace() const { return MapRepP(Rep())->getRangeKeySpace() ; }
   } ;
 
 

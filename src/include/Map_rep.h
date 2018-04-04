@@ -35,7 +35,9 @@ namespace Loci {
   class Map ;
   
   class MapRep : public storeRep {
+    int rangeKeySpace ;
   public:
+    MapRep() { rangeKeySpace = 0 ; }
     virtual ~MapRep() ;
     virtual entitySet image(const entitySet &domain) const = 0 ;
     virtual std::pair<entitySet,entitySet>
@@ -46,6 +48,8 @@ namespace Loci {
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) = 0 ;
     virtual void shift(int_type)
     {std::cerr<<"shift for Map has not been implemented!"<<std::endl ;}
+    int getRangeKeySpace() const { return rangeKeySpace ; }
+    void setRangeKeySpace(int v) { rangeKeySpace = v ; }
   } ;
 
   typedef NPTR<MapRep> MapRepP ;

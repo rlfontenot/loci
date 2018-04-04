@@ -139,6 +139,8 @@ namespace Loci {
     std::pair<entitySet,entitySet> preimage(const entitySet &codomain) const {
       return MapRepP(Rep())->preimage(codomain) ;
     }
+    int getRangeKeySpace() const { return MapRepP(Rep())->getRangeKeySpace() ; }
+    void setRangeKeySpace(int v) { MapRepP(Rep())->setRangeKeySpace(v) ; }
   } ;
 
   inline std::ostream & operator<<(std::ostream &s, const Map &m)
@@ -177,6 +179,7 @@ namespace Loci {
       return base_ptr[indx]; }
     const Entity &operator[](Entity indx) const { return const_elem(indx) ; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
+    int getRangeKeySpace() const { return MapRepP(Rep())->getRangeKeySpace() ; }
   } ;
 
   inline std::ostream & operator<<(std::ostream &s, const const_Map &m)
