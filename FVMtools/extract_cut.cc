@@ -450,7 +450,7 @@ void cuttingplane::write_tets(const vector<Array<int,4> >&tets) {
 
 void cuttingplane::write_pyrm(const vector<Array<int,5> >& pyrm ) {  
   bool isCut;
-  size_t npyrm = 0;
+  size_t npyrm = pyrm.size() ;
   int prevNode, intersectStart = intersects.size();
   int faceNode[4];
 
