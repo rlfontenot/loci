@@ -60,17 +60,24 @@ namespace Loci {
     cerr << " This method should not be called for a Map " << endl ;
     return sp ;
   }
-  storeRepP MapRepI::remap(const dMap &m) const {
-    entitySet newdomain = m.domain() & domain() ;
-    pair<entitySet,entitySet> mappimage = preimage(m.domain()) ;
+  storeRepP MapRepI::MapRemap(const dMap &dm, const dMap &rm) const {
+    entitySet newdomain = dm.domain() & domain() ;
+    pair<entitySet,entitySet> mappimage = preimage(dm.domain()) ;
     newdomain &= mappimage.first ;
-    entitySet mapimage = m.image(newdomain) ;
+    entitySet mapimage = dm.image(newdomain) ;
     Map s ;
+    s.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(s.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
     s.allocate(mapimage) ;
     storeRepP my_store = getRep() ;
-    s.Rep()->scatter(m,my_store,newdomain) ;
-    MapRepP(s.Rep())->compose(m,mapimage) ;
+    s.Rep()->scatter(dm,my_store,newdomain) ;
+    MapRepP(s.Rep())->compose(rm,mapimage) ;
     return s.Rep() ;
+  }
+
+  storeRepP MapRepI::remap(const dMap &m) const {
+    cerr << "Map shouldn't use remap!" << endl ;
+    return MapRemap(m,m) ;
   }
 
   void MapRepI::compose(const dMap &m, const entitySet &context) {
@@ -473,6 +480,9 @@ namespace Loci {
       }
     }
     Map dm ;
+    dm.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(dm.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
+    
     entitySet tm = store_domain + out_of_dom ;
     dm.allocate(tm) ;
     for(ei = store_domain.begin(); ei != store_domain.end(); ++ei)
@@ -498,6 +508,8 @@ namespace Loci {
   storeRepP MapRepI::thaw() {
     
     dMap dm ;
+    dm.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(dm.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
     FORALL(store_domain,i) {
       dm[i] = base_ptr[i] ;
     } ENDFORALL ;
@@ -510,6 +522,8 @@ namespace Loci {
       sizes[i] = 1 ;
     } ENDFORALL ;
     multiMap result ;
+    result.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(result.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
     result.allocate(sizes) ;
     FORALL(store_domain,i) {
       result.begin(i)[0] = base_ptr[i] ;
@@ -705,6 +719,8 @@ namespace Loci {
       }
     }
     multiMap dmul ;
+    dmul.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(dmul.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
     entitySet tm = store_domain + out_of_dom ;
     store<int> count ;
     count.allocate(tm) ;
@@ -743,6 +759,8 @@ namespace Loci {
   
   storeRepP multiMapRepI::thaw() {
     dmultiMap dm ;
+    dm.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(dm.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
     FORALL(store_domain, i) {
       size_t sz = end(i)-begin(i) ;
       std::vector<int,malloc_alloc<int> >(sz).swap(dm[i]) ;
@@ -802,18 +820,25 @@ namespace Loci {
     } ENDFORALL ;
     return new multiMapRepI(count)  ;
   }
-  storeRepP multiMapRepI::remap(const dMap &m) const {
-    entitySet newdomain = m.domain() & domain() ;
+  storeRepP multiMapRepI::MapRemap(const dMap &dm, const dMap &rm) const {
+    entitySet newdomain = dm.domain() & domain() ;
     //    pair<entitySet,entitySet> mappimage = preimage(m.domain()) ;
     //    newdomain &= mappimage.first ;
-    entitySet mapimage = m.image(newdomain) ;
+    entitySet mapimage = dm.image(newdomain) ;
     multiMap s ;
+    s.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(s.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
+    
     s.allocate(mapimage) ;
     storeRepP my_store = getRep() ;
-    s.Rep()->scatter(m,my_store,newdomain) ;
-    MapRepP(s.Rep())->compose(m,mapimage) ;
+    s.Rep()->scatter(dm,my_store,newdomain) ;
+    MapRepP(s.Rep())->compose(rm,mapimage) ;
     return s.Rep() ;
   } 
+  storeRepP multiMapRepI::remap(const dMap &m) const {
+    cerr << "remap should not be used on Map!" << endl ;
+    return MapRemap(m,m) ;
+  }
 
   void multiMapRepI::compose(const dMap &m, const entitySet &context) {
     fatal(alloc_pointer == 0) ;
@@ -1212,6 +1237,8 @@ namespace Loci {
                   const entitySet &input_preimage) {
     store<int> sizes ;
     sizes.allocate(input_image) ;
+    result.Rep()->setDomainKeySpace(MapRepP(input_map.Rep())->getRangeKeySpace()) ;
+    MapRepP(result.Rep())->setRangeKeySpace(input_map.Rep()->getDomainKeySpace()) ;
 
     FORALL(input_image,i) {
       sizes[i] = 0 ;
@@ -1243,6 +1270,8 @@ namespace Loci {
                   const entitySet &input_preimage) {
     store<int> sizes ;
     sizes.allocate(input_image) ;
+    result.Rep()->setDomainKeySpace(MapRepP(input_map.Rep())->getRangeKeySpace()) ;
+    MapRepP(result.Rep())->setRangeKeySpace(input_map.Rep()->getDomainKeySpace()) ;
     
     FORALL(input_image,i) {
       sizes[i] = 0 ;

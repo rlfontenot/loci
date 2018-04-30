@@ -37,12 +37,15 @@
 #include <ostream>
 #include <fstream>
 #include <store_rep.h>
+#include <store.h>
 #include <variable.h>
 #include <Map_rep.h>
 #include <Map.h>
 #include <DMap.h>
 #include <key_manager.h>
 #include <keyspace.h>
+
+#define LOCI_COMPAT_MODE1
 
 namespace Loci {
   class rule_db ;
@@ -62,7 +65,14 @@ namespace Loci {
       int myid ;
       int isDistributed ;
       Map l2g ; // local numbering to global numbering
-      dMap g2l ; // global numbering to local numbering
+      store<unsigned char> key_domain ; // local numbering to key domain
+
+#ifdef LOCI_COMPAT_MODE1
+      dMap g2l,g2f ;
+#endif
+     
+      std::vector<dMap> g2lv ; // global numbering to local numbering
+                              // indexed by key domain
       
       entitySet my_entities ;
       entitySet comp_entities;//local numbering of global_comp_entities
@@ -74,10 +84,11 @@ namespace Loci {
       int copy_total_size ;
       int xmit_total_size ;
       //      dMap remap ;
-      dMap g2f ; // Global to file numbering
+      std::vector<dMap> g2fv ; // Global to file numbering
       distribute_info() {} ;
     }  ;
-    std::vector<entitySet> init_ptn ;
+    std::vector<std::vector<entitySet> > init_ptn ;
+    /// Global numbering partition indexed by key space
 
     //Related to Duplication: global_comp_entities set defines
     //entities that can be computed on a processor
@@ -111,7 +122,7 @@ namespace Loci {
     // a copy function
     void copy_all_from(const fact_db& f) ;
 
-    std::pair<entitySet, entitySet> get_dist_alloc(int size) ;
+    std::pair<entitySet, entitySet> get_dist_alloc(int size, size_t kd) ;
     
     int maximum_allocated ;
     int minimum_allocated ;
@@ -256,14 +267,25 @@ namespace Loci {
       return alloc ;
     }
 
-    void update_remap(const std::vector<std::pair<int, int> > &remap_update);
+    void update_remap(const std::vector<std::pair<int, int> > &remap_update,
+		      size_t kd);
 
-    std::pair<entitySet, entitySet> get_distributed_alloc(int size) ;
-    std::pair<entitySet, entitySet> get_distributed_alloc(const std::vector<int> &remap_entities);
-    std::pair<entitySet, entitySet> get_distributed_alloc(int size, int offset);
+    std::pair<entitySet, entitySet> get_distributed_alloc(int size,size_t kd) ;
+    std::pair<entitySet, entitySet> get_distributed_alloc(const std::vector<int> &remap_entities, size_t kd);
+    std::pair<entitySet, entitySet> get_distributed_alloc(int size, int offset, size_t kd);
     int is_distributed_start() {return dist_from_start ;}
-    std::vector<entitySet>& get_init_ptn() {return init_ptn ;}
-    void  put_init_ptn(std::vector<entitySet> &t_init ) {init_ptn = t_init ;}
+#ifdef LOCI_COMPAT_MODE1
+    std::vector<entitySet>& get_init_ptn() {return init_ptn[0] ;}
+    std::pair<entitySet, entitySet> get_distributed_alloc(int size) {
+      return get_distributed_alloc(size,0) ;
+    }
+    std::pair<entitySet, entitySet> get_distributed_alloc(const std::vector<int> &remap_entities) {
+      return get_distributed_alloc(remap_entities,0) ;
+    }
+#endif
+    std::vector<entitySet>& get_init_ptn(size_t kd) {return init_ptn[kd] ;}
+    void  put_init_ptn(std::vector<entitySet> &t_init, size_t kd ) {init_ptn[kd] = t_init ;}
+    int getNumKeyDomains() const { return init_ptn.size() ; }
     
     fact_db::distribute_infoP get_distribute_info() ;
     void put_distribute_info(fact_db::distribute_infoP dp) ;
@@ -376,6 +398,21 @@ namespace Loci {
   void reorder_facts(fact_db &facts, dMap &remap) ;
   void serial_freeze(fact_db &facts) ;
   
+
+  entitySet collect_entitySet(entitySet e, fact_db &facts) ;
+
+  extern fact_db *exec_current_fact_db ;
+
+  inline entitySet collect_entitySet(entitySet e)
+    { return collect_entitySet(e,*exec_current_fact_db) ; }
+
+  entitySet all_collect_entitySet(const entitySet &e) ;
+
+  inline entitySet all_collect_entitySet(entitySet localset,fact_db &facts) {
+    if(facts.is_distributed_start())
+      return Loci::all_collect_entitySet(localset) ;
+    return localset ;
+  }
 }
 
 #endif

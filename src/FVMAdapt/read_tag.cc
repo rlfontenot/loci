@@ -225,7 +225,7 @@ void add_to_datamap(entitySet dom, vector<pair<int,int> > &datamap, int offset,
     } ENDFORALL ;
   } else {
     dMap g2f ;
-    g2f = dist->g2f.Rep() ;
+    g2f = dist->g2fv[0].Rep() ; // FIX THIS
     Map l2g ;
     l2g = dist->l2g.Rep() ;
     FORALL(dom,nd) {
@@ -415,6 +415,8 @@ int getFileNumberOffset(const entitySet& locdom,MPI_Comm &comm){
     dom = locdom&(dist->my_entities) ;
     Map l2g ;
     l2g = dist->l2g.Rep() ;
+    store<unsigned char> key_domain ;
+    key_domain = dist->key_domain.Rep() ;
     // // Compute domain in global numbering
     //     entitySet dom_global = l2g.image(dom) ;
      
@@ -422,13 +424,14 @@ int getFileNumberOffset(const entitySet& locdom,MPI_Comm &comm){
     //     FATAL(dom.size() != dom_global.size()) ;
 
     // Now get global to file numbering
-    dMap g2f ;
-    g2f = dist->g2f.Rep() ;
+    //    dMap g2f ;
+    //    g2f = dist->g2f.Rep() ;
 
     // Compute map from local numbering to file numbering
     entitySet filedom = EMPTY;
     FORALL(dom,i) {
-      filedom += g2f[l2g[i]] ;
+      int kd = key_domain[i] ;
+      filedom += dist->g2fv[kd][l2g[i]] ;
     } ENDFORALL ;
 
     // int imx = std::numeric_limits<int>::min() ;

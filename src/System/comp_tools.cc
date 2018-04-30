@@ -948,24 +948,26 @@ namespace Loci {
         recv_buffer = new int*[d->xmit.size()] ;
         recv_size = new int[d->xmit.size()] ;
 
-        recv_buffer[0] = new int[d->xmit_total_size*sesz+sesz*d->xmit.size()] ;
-        recv_size[0] = d->xmit[0].size*sesz + sesz ;
+        recv_buffer[0] = new int[2*d->xmit_total_size*sesz+sesz*d->xmit.size()] ;
+        recv_size[0] = 2*d->xmit[0].size*sesz + sesz ;
 
         for(size_t i=1;i<d->xmit.size();++i) {
           recv_buffer[i] = recv_buffer[i-1]+recv_size[i-1] ;
-          recv_size[i] = d->xmit[i].size*sesz+sesz ;
+          recv_size[i] = 2*d->xmit[i].size*sesz+sesz ;
         }
       }
 
       if(d->copy.size() > 0 ) {
         send_buffer = new int*[d->copy.size()] ;
-        send_buffer[0] = new int[d->copy_total_size*sesz+sesz*d->copy.size()] ;
+        send_buffer[0] = new int[2*d->copy_total_size*sesz+sesz*d->copy.size()] ;
         for(size_t i=1;i<d->copy.size();++i)
-          send_buffer[i] = send_buffer[i-1]+d->copy[i-1].size*sesz+sesz ;
+          send_buffer[i] = send_buffer[i-1]+2*d->copy[i-1].size*sesz+sesz ;
       }
 
       Map l2g ;
       l2g = d->l2g.Rep() ;
+      store<unsigned char> key_domain ;
+      key_domain = d->key_domain.Rep() ;
 
       MPI_Request *recv_request = new MPI_Request[d->xmit.size()] ;
       MPI_Status *status = new MPI_Status[d->xmit.size()] ;
@@ -979,9 +981,11 @@ namespace Loci {
         for(int k=0;k<sesz;++k) {
           entitySet temp = send_entities[k].second & d->copy[i].entities ;
           send_buffer[i][k] = temp.size() ;
-
-          for(entitySet::const_iterator ei=temp.begin();ei!=temp.end();++ei)
+	  
+          for(entitySet::const_iterator ei=temp.begin();ei!=temp.end();++ei) {
+	    send_buffer[i][j++] = key_domain[*ei] ;
             send_buffer[i][j++] = l2g[*ei] ;
+	  }
 
           if(temp != EMPTY) {
             comm_info ci ;
@@ -1013,8 +1017,10 @@ namespace Loci {
         int j=sesz ;
         for(int k=0;k<sesz;++k) {
           sequence seq ;
-          for(int l=0;l<recv_buffer[i][k];++l)
-            seq += d->g2l[recv_buffer[i][j++]] ;
+          for(int l=0;l<recv_buffer[i][k];++l) {
+	    int kd = recv_buffer[i][j++] ;
+            seq += d->g2lv[kd][recv_buffer[i][j++]] ;
+	  }
           if(seq != EMPTY) {
             comm_info ci ;
             ci.v = send_entities[k].first ;
@@ -1262,23 +1268,25 @@ namespace Loci {
         recv_buffer = new int*[d->xmit.size()] ;
         recv_size = new int[d->xmit.size()] ;
 
-        recv_buffer[0] = new int[d->xmit_total_size] ;
-        recv_size[0] = d->xmit[0].size ;
+        recv_buffer[0] = new int[2*d->xmit_total_size] ;
+        recv_size[0] = 2*d->xmit[0].size ;
 
         for(size_t i=1;i<d->xmit.size();++i) {
-          recv_buffer[i] = recv_buffer[i-1]+d->xmit[i-1].size ;
-          recv_size[i] = d->xmit[i].size ;
+          recv_buffer[i] = recv_buffer[i-1]+2*d->xmit[i-1].size ;
+          recv_size[i] = 2*d->xmit[i].size ;
         }
       }
 
       if(d->copy.size() > 0 ) {
         send_buffer = new int*[d->copy.size()] ;
-        send_buffer[0] = new int[d->copy_total_size] ;
+        send_buffer[0] = new int[2*d->copy_total_size] ;
         for(size_t i=1;i<d->copy.size();++i)
-          send_buffer[i] = send_buffer[i-1]+d->copy[i-1].size ;
+          send_buffer[i] = send_buffer[i-1]+2*d->copy[i-1].size ;
       }
       Map l2g ;
       l2g = d->l2g.Rep() ;
+      store<unsigned char> key_domain ;
+      key_domain = d->key_domain.Rep() ;
 
       MPI_Request *recv_request = new MPI_Request[d->xmit.size()] ;
       MPI_Status *status = new MPI_Status[d->xmit.size()] ;
@@ -1298,10 +1306,11 @@ namespace Loci {
         clist.push_back(ci) ;
 
         int j=0 ;
-        for(entitySet::const_iterator ei=temp.begin();ei!=temp.end();++ei)
+        for(entitySet::const_iterator ei=temp.begin();ei!=temp.end();++ei) {
+	  send_buffer[i][j++] = key_domain[*ei] ;
           send_buffer[i][j++] = l2g[*ei] ;
-
-        int send_size = temp.size() ;
+	}
+        int send_size = 2*temp.size() ;
         MPI_Send(send_buffer[i],send_size, MPI_INT, d->copy[i].proc,
                  3,MPI_COMM_WORLD) ;
       }
@@ -1318,8 +1327,10 @@ namespace Loci {
         int recieved ;
         MPI_Get_count(&status[i], MPI_INT, &recieved) ;
         entitySet temp ;
-        for(int j=0;j<recieved;++j)
-          temp += d->g2l[recv_buffer[i][j]] ;
+        for(int j=0;j<recieved;++j) {
+	  int kd = recv_buffer[i][j++] ;
+          temp += d->g2lv[kd][recv_buffer[i][j]] ;
+	}
         re += temp ;
         comm_info ci ;
         ci.v = v ;
@@ -2071,7 +2082,6 @@ namespace Loci {
     vector<pair<int,vector<send_var_info> > > send_info ;
     vector<pair<int,vector<recv_var_info> > > recv_info ;
 
-
     // First collect information from slist
 
     HASH_MAP(int,vector<send_var_info>) send_data ;
@@ -2113,6 +2123,8 @@ namespace Loci {
     fact_db::distribute_infoP d = facts.get_distribute_info() ;
     Map l2g ;
     l2g = d->l2g.Rep() ;
+    store<unsigned char> key_domain ;
+    key_domain = d->key_domain.Rep() ;
 
     const int nrecv = recv_info.size() ;
     int *r_size = new int[nrecv] ;
@@ -2120,7 +2132,7 @@ namespace Loci {
     for(int i=0;i<nrecv;++i) {
       r_size[i] = 0 ;
       for(size_t j=0;j<recv_info[i].second.size();++j) {
-        r_size[i] += recv_info[i].second[j].seq.size() ;
+        r_size[i] += 2*recv_info[i].second[j].seq.size() ;
       }
       total_size += r_size[i] ;
     }
@@ -2135,7 +2147,7 @@ namespace Loci {
     for(int i=0;i<nsend;++i) {
       s_size[i] = 0 ;
       for(size_t j=0;j<send_info[i].second.size();++j) {
-        s_size[i] += send_info[i].second[j].set.size() ;
+        s_size[i] += 2*send_info[i].second[j].set.size() ;
       }
       total_size += s_size[i] ;
     }
@@ -2166,6 +2178,7 @@ namespace Loci {
         for(entitySet::const_iterator ei=ci.send_set.begin();
             ei!=ci.send_set.end();
             ++ei) {
+	  send_ptr[i][loc_pack++] = key_domain[*ei] ;
           send_ptr[i][loc_pack++] = l2g[*ei] ;
 	}
       }
@@ -2192,7 +2205,8 @@ namespace Loci {
       for(size_t j=0;j<recv_info[i].second.size();++j) {
         sequence seq ;
         for(size_t k=0;k<recv_info[i].second[j].seq.size();++k) {
-	  seq += d->g2l[recv_ptr[i][loc_unpack++]] ;
+	  int kd = recv_ptr[i][loc_unpack++] ;
+	  seq += d->g2lv[kd][recv_ptr[i][loc_unpack++]] ;
 	}
 	comm_info ci ;
         ci.v = recv_info[i].second[j].v ;

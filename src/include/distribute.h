@@ -37,11 +37,9 @@
 
 #include <Map.h>
 #include <DMap.h>
-#include <fact_db.h>
 #include <store_rep.h>
 
 namespace Loci {
-
   class joiner ;
   extern std::ofstream debugout ;
   extern int MPI_processes;
@@ -52,32 +50,18 @@ namespace Loci {
   void Abort() ;
   
   dMap send_map(Map &dm, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
+
   std::vector<dMap> send_global_map(Map &attrib_data, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
   void fill_clone(storeRepP& sp, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
   
   storeRepP send_clone_non(storeRepP& sp, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
   std::vector<storeRepP> send_global_clone_non(storeRepP &sp , entitySet &out_of_dom,  std::vector<entitySet> &init_ptn) ;
   
-  entitySet collect_entitySet(entitySet e, fact_db &facts) ;
-
   std::vector<entitySet>
   transpose_entitySet(const std::vector<entitySet>& in, MPI_Comm comm) ;
   std::vector<sequence>
   transpose_sequence(const std::vector<sequence>& in, MPI_Comm comm) ;
 
-  extern fact_db *exec_current_fact_db ;
-
-  inline entitySet collect_entitySet(entitySet e)
-    { return collect_entitySet(e,*exec_current_fact_db) ; }
-
-  entitySet all_collect_entitySet(const entitySet &e) ;
-
-  inline entitySet all_collect_entitySet(entitySet localset,fact_db &facts) {
-    if(facts.is_distributed_start())
-      return Loci::all_collect_entitySet(localset) ;
-    return localset ;
-  }
-  
   std::vector<entitySet> all_collect_vectors(entitySet &e,MPI_Comm comm) ;
   std::vector<entitySet> all_collect_vectors(entitySet &e) ;
   int GLOBAL_OR(int b, MPI_Comm comm=MPI_COMM_WORLD) ;
@@ -277,7 +261,13 @@ namespace Loci {
   // this function generates a unique name on each process/thread
   std::string gen_local_name(const std::string& prefix,
                              const std::string& suffix="");
+
+
 }
+
+
+
+
 
 #endif
  

@@ -55,6 +55,7 @@ namespace Loci {
     virtual storeRep *new_store(const entitySet &p) const ;
     virtual storeRep *new_store(const entitySet &p, const int* cnt) const ;
     virtual storeRepP remap(const dMap &m) const ;
+    virtual storeRepP MapRemap(const dMap &dm, const dMap &rm) const ;
     virtual storeRepP freeze() ;
     virtual storeRepP thaw() ;
     virtual void compose(const dMap &m, const entitySet &context) ;

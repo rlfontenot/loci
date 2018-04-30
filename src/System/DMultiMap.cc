@@ -43,6 +43,8 @@ namespace Loci
   }
   storeRepP dmultiMapRepI::freeze() {
     multiMap static_map ;
+    static_map.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(static_map.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
     store<int> count ;
     entitySet dom = domain() ;
     count.allocate(dom) ;
@@ -151,6 +153,8 @@ namespace Loci
 		  MPI_COMM_WORLD) ;
     
     dmultiMap hm ;
+    hm.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(hm.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
     std::vector<int,malloc_alloc<int> > ss ;
     for(int i = 0; i < MPI_processes; ++i) {
       for(int j = recv_displacement[i]; j <
@@ -170,6 +174,8 @@ namespace Loci
     for(entitySet::const_iterator hmi = dom.begin(); hmi != dom.end(); ++hmi)
       attrib_data[*hmi].swap(hm[*hmi]) ;
     dmultiMap dmul ;
+    dmul.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(dmul.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
     entitySet hdom = attrib_data.domain() ;
     for(entitySet::const_iterator hi = hdom.begin(); hi != hdom.end(); ++hi) {
       size_t sz = attrib_data.elem(*hi).size() ;
@@ -263,8 +269,10 @@ namespace Loci
   }
   //**************************************************************************/
   
-  storeRepP dmultiMapRepI::remap(const dMap &m) const {
+  storeRepP dmultiMapRepI::MapRemap(const dMap &dm, const dMap &rm) const {
     dmultiMap s ;
+    s.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(s.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
     
     //-------------------------------------------------------------------------
     // Select only those entities from domain of "m" (which is input) which 
@@ -272,29 +280,36 @@ namespace Loci
     // entities.
     //-------------------------------------------------------------------------
     
-    entitySet newdomain = m.domain() & domain() ;
+    entitySet newdomain = dm.domain() & domain() ;
     
     //-------------------------------------------------------------------------
     // Get the preimage of entire map. We will get two entity set. The
     // first is the intersection, and the second  is union of entities.
     //-------------------------------------------------------------------------
-    pair<entitySet,entitySet> mappimage = preimage(m.domain()) ;
+    pair<entitySet,entitySet> mappimage = preimage(dm.domain()) ;
     
     //
     // Get all entities which are both in preimage and newdomain
     //
     newdomain &= mappimage.first ;
-    entitySet mapimage = m.image(newdomain) ;
+    entitySet mapimage = dm.image(newdomain) ;
     s.allocate(mapimage) ;
     storeRepP my_store = getRep() ;
-    s.Rep()->scatter(m,my_store,newdomain) ;
-    MapRepP(s.Rep())->compose(m,mapimage) ;
+    s.Rep()->scatter(dm,my_store,newdomain) ;
+    MapRepP(s.Rep())->compose(rm,mapimage) ;
     
     multiMap   newmap; 
+    newmap.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(newmap.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
     newmap = MapRepP(s.Rep())->get_map() ;
     return newmap.Rep() ;  
    
     // return s.Rep() ;
+  }
+
+  storeRepP dmultiMapRepI::remap(const dMap &m) const {
+    cerr << "Map should not call remap!" << endl ;
+    return MapRemap(m,m) ;
   }
   
   //**************************************************************************/
@@ -496,6 +511,8 @@ namespace Loci
   storeRepP dmultiMapRepI::get_map() 
   {
     multiMap   newmap;
+    newmap.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(newmap.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
     entitySet::const_iterator  ei;
     store<int> count ;
     entitySet dom = domain() ;
@@ -634,6 +651,8 @@ namespace Loci
 		  const entitySet &input_preimage) {
     entitySet preloop = input_preimage & input_map.domain() ;
 
+    result.Rep()->setDomainKeySpace(MapRepP(input_map.Rep())->getRangeKeySpace()) ;
+    MapRepP(result.Rep())->setRangeKeySpace(input_map.Rep()->getDomainKeySpace()) ;
     std::vector<int,malloc_alloc<int> > tmp_vec ;
     FORALL(input_image,i) {
       result[i] = tmp_vec ;
@@ -648,6 +667,8 @@ namespace Loci
   void inverseMap(dmultiMap &result, const Map &input_map,
                   const entitySet &input_image,
 		  const entitySet &input_preimage) {
+    result.Rep()->setDomainKeySpace(MapRepP(input_map.Rep())->getRangeKeySpace()) ;
+    MapRepP(result.Rep())->setRangeKeySpace(input_map.Rep()->getDomainKeySpace()) ;
     entitySet preloop = input_preimage & input_map.domain() ;
     std::vector<int,malloc_alloc<int> > tmp_vec ;
     FORALL(input_image,i) {
@@ -663,6 +684,8 @@ namespace Loci
   void inverseMap(dmultiMap &result, const const_dMap &input_map,
                    const entitySet &input_image,
  		  const entitySet &input_preimage) {
+    result.Rep()->setDomainKeySpace(MapRepP(input_map.Rep())->getRangeKeySpace()) ;
+    MapRepP(result.Rep())->setRangeKeySpace(input_map.Rep()->getDomainKeySpace()) ;
      entitySet preloop = input_preimage & input_map.domain() ;
      std::vector<int,malloc_alloc<int> > tmp_vec ;
      FORALL(input_image,i) {
@@ -677,6 +700,8 @@ namespace Loci
    void inverseMap(dmultiMap &result, const const_Map &input_map,
                    const entitySet &input_image,
  		  const entitySet &input_preimage) {
+    result.Rep()->setDomainKeySpace(MapRepP(input_map.Rep())->getRangeKeySpace()) ;
+    MapRepP(result.Rep())->setRangeKeySpace(input_map.Rep()->getDomainKeySpace()) ;
      entitySet preloop = input_preimage & input_map.domain() ;
      std::vector<int,malloc_alloc<int> > tmp_vec ;
      FORALL(input_image,i) {
@@ -692,6 +717,8 @@ namespace Loci
    void inverseMap(dmultiMap &result, const dmultiMap &input_map,
                    const entitySet &input_image,
                    const entitySet &input_preimage) {
+    result.Rep()->setDomainKeySpace(MapRepP(input_map.Rep())->getRangeKeySpace()) ;
+    MapRepP(result.Rep())->setRangeKeySpace(input_map.Rep()->getDomainKeySpace()) ;
      entitySet preloop = input_preimage & input_map.domain() ;
      std::vector<int,malloc_alloc<int> > tmp_vec ;
      FORALL(input_image,i) {

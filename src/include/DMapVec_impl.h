@@ -575,21 +575,27 @@ namespace Loci {
   //------------------------------------------------------------------------
 
   template<unsigned int M> 
-  storeRepP dMapVecRepI<M>::remap(const dMap &m) const
+    storeRepP dMapVecRepI<M>::MapRemap(const dMap &dm, const dMap &rm) const
   {
-    entitySet newdomain = m.domain() & domain() ;
-    std::pair<entitySet,entitySet> mappimage = preimage(m.domain()) ;
+    entitySet newdomain = dm.domain() & domain() ;
+    std::pair<entitySet,entitySet> mappimage = preimage(dm.domain()) ;
     newdomain &= mappimage.first ;
-    entitySet mapimage = m.image(newdomain) ;
+    entitySet mapimage = dm.image(newdomain) ;
 
     dMapVec<M> s ;
     s.allocate(mapimage) ;
 
     storeRepP my_store = getRep() ;
       
-    s.Rep()->scatter(m,my_store,newdomain) ;
-    MapRepP(s.Rep())->compose(m,mapimage) ;
+    s.Rep()->scatter(dm,my_store,newdomain) ;
+    MapRepP(s.Rep())->compose(rm,mapimage) ;
     return s.Rep() ;
+  }
+//------------------------------------------------------------------------
+  template<unsigned int M> 
+    storeRepP dMapVecRepI<M>::remap(const dMap &m) const {
+    cerr << "incorrect remap use for DMapVec" << endl ;
+    return MapRemap(m,m) ;
   }
 
   // this method has the same dependency problem

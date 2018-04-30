@@ -141,6 +141,8 @@ namespace Loci {
       attrib_data[hmi->first] = hmi->second ;
     
     dMap dm ;
+    dm.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(dm.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
     dom = domain() ;
     for(entitySet::const_iterator ei = dom.begin(); ei != dom.end(); ++ei)
       dm[*ei] = attrib_data.elem(*ei) ;
@@ -213,19 +215,25 @@ namespace Loci {
   }
   //**************************************************************************/
   
-  storeRepP dMapRepI::remap(const dMap &newmap) const 
+  storeRepP dMapRepI::MapRemap(const dMap &dm, const dMap &rm) const 
   {
     dMap s ;
-    entitySet newdomain = newmap.domain() & domain() ;
-    pair<entitySet,entitySet> mappimage = preimage(newmap.domain()) ;
+    s.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(s.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
+    entitySet newdomain = dm.domain() & domain() ;
+    pair<entitySet,entitySet> mappimage = preimage(dm.domain()) ;
     newdomain &= mappimage.first ;
-    entitySet mapimage = newmap.image(newdomain) ;
+    entitySet mapimage = dm.image(newdomain) ;
     s.allocate(mapimage) ;
     storeRepP my_store = getRep() ;
-    s.Rep()->scatter(newmap,my_store,newdomain) ;
-    MapRepP(s.Rep())->compose(newmap,mapimage) ;
+    s.Rep()->scatter(dm,my_store,newdomain) ;
+    MapRepP(s.Rep())->compose(rm,mapimage) ;
         
     return s.Rep() ;
+  }
+  storeRepP dMapRepI::remap(const dMap &newmap) const {
+    cerr << "remap should not be called for a DMap!" << endl ;
+    return MapRemap(newmap,newmap) ;
   }
   
   storeRepP
@@ -296,6 +304,8 @@ namespace Loci {
     delete[] send_buffer ;
 
     dMap nm ;
+    nm.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(nm.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
     entitySet new_domain ;
     for(int i=0;i<np;++i)
       new_domain += entitySet(unpack_seq[i]) ;
@@ -332,6 +342,8 @@ namespace Loci {
     std::vector<P2pCommInfo> send, recv ;
     get_p2p_comm(dom_ptn, domain(), 0, 0, comm, recv, send) ;
     dMap new_map ;
+    new_map.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(new_map.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
     fill_store2(getRep(), 0, new_map.Rep(), &remap, send, recv, comm) ;
     return new_map.Rep() ;
   }
@@ -343,6 +355,8 @@ namespace Loci {
     std::vector<P2pCommInfo> send, recv ;
     get_p2p_comm(dom_ptn, domain(), 0, 0, comm, recv, send) ;
     dMap new_map ;
+    new_map.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(new_map.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
     fill_store_omd(getRep(), 0, new_map.Rep(), &remap, send, recv, comm) ;
     return new_map.Rep() ;
   }
@@ -350,6 +364,8 @@ namespace Loci {
   // ******************************************************************/
   storeRepP dMapRepI::freeze() {
     Map m ;
+    m.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(m.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
     m.allocate(domain()) ;
     FORALL(domain(), i) {
       m[i] = attrib_data[i] ;
@@ -527,6 +543,8 @@ namespace Loci {
   storeRepP dMapRepI::get_map() 
   {
     multiMap result ;
+    result.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(result.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
     store<int> sizes ;
     entitySet storeDomain = attrib_data.domain() ;
 

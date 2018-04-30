@@ -1411,7 +1411,7 @@ namespace Loci {
     // update remap from global to file numbering for faces after sorting
     fact_db::distribute_infoP df = facts.get_distribute_info() ;
     dMap g2f ;
-    g2f = df->g2f.Rep() ;
+    g2f = df->g2fv[0].Rep() ; // FIX THIS
     vector<pair<int, int> > remap_update(faces.size()) ;
     int cnt=0 ;
     FORALL(faces,fc) {
@@ -1419,7 +1419,7 @@ namespace Loci {
       remap_update[cnt].first = g2f[convert[fc]] ;
       cnt++ ;
     } ENDFORALL ;
-    facts.update_remap(remap_update) ;
+    facts.update_remap(remap_update,0) ;// FIX THIS
     
     using std::cout ;
     using std::endl ;
@@ -2076,10 +2076,10 @@ namespace Loci {
       int nfaces = local_faces[0].size();
       int ncells = local_cells[0].size();
       int nbcs = global_boundary_cells.size() ;
-      entitySet nodes = facts.get_distributed_alloc(npnts).first ;
-      entitySet faces = facts.get_distributed_alloc(nfaces).first ;
-      entitySet cells = facts.get_distributed_alloc(ncells).first;
-      entitySet bcset = facts.get_distributed_alloc(nbcs).first ;
+      entitySet nodes = facts.get_distributed_alloc(npnts,0).first ; // FIX THIS
+      entitySet faces = facts.get_distributed_alloc(nfaces,0).first ;
+      entitySet cells = facts.get_distributed_alloc(ncells,0).first;
+      entitySet bcset = facts.get_distributed_alloc(nbcs,0).first ;
 
 
       store<vector3d<double> > pos ;
@@ -2256,7 +2256,7 @@ namespace Loci {
         node_alloc[i++] = ni ;
       } ENDFORALL;
 
-    entitySet nodes = facts.get_distributed_alloc(node_alloc).first ;
+    entitySet nodes = facts.get_distributed_alloc(node_alloc,0).first ;// FIX THIS
     node_alloc.resize(0) ;
 
     int newfaces = 0 ;
@@ -2270,7 +2270,7 @@ namespace Loci {
         face_alloc[i++] = ni ;
       }ENDFORALL;
 
-    entitySet faces = facts.get_distributed_alloc(face_alloc).first ;
+    entitySet faces = facts.get_distributed_alloc(face_alloc,0).first ;// FIX THIS
     face_alloc.resize(0) ;
 
     int newcells = 0 ;
@@ -2284,7 +2284,7 @@ namespace Loci {
         cell_alloc[i++] = ni ;
       }ENDFORALL;
 
-    entitySet cells = facts.get_distributed_alloc(cell_alloc).first ;
+    entitySet cells = facts.get_distributed_alloc(cell_alloc,0).first ;//Fix This
 
     Loci::debugout << "nodes = " << nodes << ", size= "
                    << nodes.size() << endl;
@@ -2299,7 +2299,7 @@ namespace Loci {
       bcsurf_alloc[i++] = ii ;
     } ENDFORALL ;
     
-    entitySet bcsurfset = facts.get_distributed_alloc(bcsurf_alloc).first ;
+    entitySet bcsurfset = facts.get_distributed_alloc(bcsurf_alloc,0).first ;// FIX THIS
     
     memSpace("before remapGridStructures") ;
     Map cl, cr ;
@@ -2325,7 +2325,7 @@ namespace Loci {
     // update remap from global to file numbering for faces after sorting
     fact_db::distribute_infoP df = facts.get_distribute_info() ;
     dMap g2f ;
-    g2f = df->g2f.Rep() ;
+    g2f = df->g2fv[0].Rep() ; // FIX THIS
 
     for(size_t i=0;i<volTags.size();++i) {
       param<string> Tag ;
@@ -2396,11 +2396,11 @@ namespace Loci {
       *geom_cells += cl[fc] ;
     } ENDFORALL ;
 
-    std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
+    std::vector<entitySet> init_ptn = facts.get_init_ptn(0) ;//FIX THIS
     entitySet global_geom = all_collect_entitySet(*geom_cells,facts) ;
     *geom_cells = global_geom & init_ptn[ MPI_rank] ;
     *boundary_faces &= init_ptn[ MPI_rank] ;
-    std::pair<entitySet, entitySet> ghost_pair = facts.get_distributed_alloc((*boundary_faces).size()) ;
+    std::pair<entitySet, entitySet> ghost_pair = facts.get_distributed_alloc((*boundary_faces).size(),0) ; // FIX THIS
     entitySet tmp_ghost = ghost_pair.first ;
     entitySet::const_iterator ei = tmp_ghost.begin() ;
     FORALL(*boundary_faces,fc) {
@@ -2445,7 +2445,7 @@ namespace Loci {
   }
 
   void color_matrix(fact_db &facts, matrix_coloring_type mct) {
-    std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
+    std::vector<entitySet> init_ptn = facts.get_init_ptn(0) ; // FIX THIS
     multiMap c2c ;
     store<int> sizes ;
     constraint geom_cells ;
@@ -2539,7 +2539,7 @@ namespace Loci {
     faces = facts.get_variable("faces") ;
     interior_faces = facts.get_variable("interior_faces") ;
     entitySet total_dom = Loci::MapRepP(face2node.Rep())->image(*faces) + pos.domain() ;
-    std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
+    std::vector<entitySet> init_ptn = facts.get_init_ptn(0) ; // FIX THIS
     Loci::storeRepP pos_sp = pos.Rep() ;
     dstore<vector3d<double> > tmp_pos ;
     FORALL(pos.domain(), pi) {

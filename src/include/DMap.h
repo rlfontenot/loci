@@ -54,6 +54,7 @@ namespace Loci {
     virtual storeRep *new_store(const entitySet &p) const ;
     virtual storeRep *new_store(const entitySet &p, const int* cnt) const ;
     virtual storeRepP remap(const dMap &m) const ;
+    virtual storeRepP MapRemap(const dMap &dm, const dMap &rm) const ;
     virtual storeRepP
     redistribute(const std::vector<entitySet>& dom_ptn,
                  MPI_Comm comm=MPI_COMM_WORLD) ;

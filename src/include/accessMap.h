@@ -43,6 +43,10 @@ namespace Loci {
     { entitySet newImage = m.image(m.domain()&imageMap) ;
       return new accessMapRepI(newImage) ;
     } 
+    virtual storeRepP MapRemap(const dMap &dm, const dMap &rm) const
+    { entitySet newImage = dm.image(dm.domain()&imageMap) ;
+      return new accessMapRepI(newImage) ;
+    } 
     virtual void compose(const dMap &m, const entitySet &context) {}
     virtual void copy(storeRepP &st, const entitySet &context)
     { st = new_store(imageMap) ; }

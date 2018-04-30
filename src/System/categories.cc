@@ -52,6 +52,7 @@ using std::ostringstream ;
 
 namespace Loci {
 
+
   inline bool compare_var_sizes(const pair<variable,int> &p1, const pair<variable,int> &p2) {
     return p1.second > p2.second ;
   }
@@ -62,30 +63,33 @@ namespace Loci {
   }
 
 
+  namespace {
   // Compute associations between variables and their domains
   // Note, we also create image variables to represent the images of maps
   //   over their domains.
-  void getVariableAssociations(map<variable,entitySet> &vm, fact_db &facts) {
-    vector<entitySet> ptn = facts.get_init_ptn() ;
+  void getVariableAssociations(map<variable,entitySet> &vm, fact_db &facts, int kd) {
+    vector<entitySet> ptn = facts.get_init_ptn(kd) ;
     entitySet total_entities ;
     vm.clear() ;
     variableSet vars = facts.get_typed_variables() ;
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
       storeRepP p = facts.get_variable(*vi) ;
-      if((p->RepType() == MAP)) {
-        entitySet tmp = dist_collect_entitySet(p->domain(), ptn) ;
-        vm[*vi] = tmp ;
-        total_entities += tmp ;
-      } else if((p->RepType() == STORE)) {
-        entitySet tmp = dist_collect_entitySet(p->domain(), ptn) ;
-        vm[*vi] = tmp ;
-        total_entities += tmp ;
-      } else {
-        if(p->domain() != ~EMPTY) {
-          entitySet all_collect = dist_collect_entitySet(p->domain(),ptn) ;
-          vm[*vi] = all_collect ; 
-          total_entities += all_collect ;
-        }
+      if(p->getDomainKeySpace() == kd) {
+	if((p->RepType() == MAP)) {
+	  entitySet tmp = dist_collect_entitySet(p->domain(), ptn) ;
+	  vm[*vi] = tmp ;
+	  total_entities += tmp ;
+	} else if((p->RepType() == STORE)) {
+	  entitySet tmp = dist_collect_entitySet(p->domain(), ptn) ;
+	  vm[*vi] = tmp ;
+	  total_entities += tmp ;
+	} else {
+	  if(p->domain() != ~EMPTY) {
+	    entitySet all_collect = dist_collect_entitySet(p->domain(),ptn) ;
+	    vm[*vi] = all_collect ; 
+	    total_entities += all_collect ;
+	  }
+	}
       }
     }
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
@@ -93,19 +97,21 @@ namespace Loci {
       if((p->RepType() == MAP)) {
         // Add any map image that refers to entities not already identified.
         MapRepP mp = MapRepP(p->getRep()) ;
-        entitySet image_dom = mp->image(p->domain()) ;
-        image_dom = dist_collect_entitySet(image_dom, ptn) ;
-        entitySet testSet = image_dom - total_entities ;
-        int size = testSet.size() ;
-        int tsize = 0 ;
-        MPI_Allreduce(&size,&tsize,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD) ;
-        if(tsize != 0) {
-          std::string name = "image_" ;
-          name.append(vi->get_info().name) ;
-          variable v = variable(name) ;
-          vm[v] = image_dom ;
-          total_entities += image_dom ;
-        }
+	if(mp->getRangeKeySpace() == kd) {
+	  entitySet image_dom = mp->image(p->domain()) ;
+	  image_dom = dist_collect_entitySet(image_dom, ptn) ;
+	  entitySet testSet = image_dom - total_entities ;
+	  int size = testSet.size() ;
+	  int tsize = 0 ;
+	  MPI_Allreduce(&size,&tsize,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD) ;
+	  if(tsize != 0) {
+	    std::string name = "image_" ;
+	    name.append(vi->get_info().name) ;
+	    variable v = variable(name) ;
+	    vm[v] = image_dom ;
+	    total_entities += image_dom ;
+	  }
+	}
       }
     }
     variable v_leftout("SENTINEL_LEFTOUT") ;
@@ -311,10 +317,10 @@ namespace Loci {
     }
     std::stable_sort(cat_keys.begin(),cat_keys.end(),compare_groups) ;
   }
-                  
-  void categories(fact_db &facts,vector<entitySet> &pvec) {
+  }                  
+  void categories(fact_db &facts,vector<entitySet> &pvec, int kd) {
     map<variable, entitySet> vm ;
-    getVariableAssociations(vm,facts) ;
+    getVariableAssociations(vm,facts,kd) ; 
 
     map<variableSet, entitySet> cmap ;
     getLocalCategories(cmap,vm) ;

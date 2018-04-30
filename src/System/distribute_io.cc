@@ -823,6 +823,28 @@ namespace Loci {
     return sv_t ;
   }
 
+  // convert domain in local numbering into key space
+  int getKeyDomain(entitySet dom, fact_db::distribute_infoP dist, MPI_Comm comm) {
+    int kdl = -1 ;
+    FORALL(dom,i) {
+      int key = dist->key_domain[i] ;
+      kdl = std::max<int>(key,kdl) ;
+    } ENDFORALL ;
+    int kd=-1 ;
+    MPI_Allreduce(&kdl,&kd,1,MPI_INT,MPI_MAX,comm) ;
+    
+    bool failure = false ;
+    FORALL(dom,i) {
+      int key = dist->key_domain[i] ;
+      if(kd != key){
+	failure = true ;
+      }
+    } ENDFORALL ;
+
+    if(failure) return -1 ;
+    else return kd ;
+  }
+
 
   // Convert container from local numbering to file numbering
   // pass in store rep pointer: sp
@@ -850,9 +872,14 @@ namespace Loci {
     // This shouldn't happen
     FATAL(dom.size() != dom_global.size()) ;
 
+    int kd =  getKeyDomain(dom, dist, comm) ;
+    if(kd< 0) {
+      cerr << "Local2FileOrder not in single keyspace!" << endl ;
+      kd = 0 ;
+    }
     // Now get global to file numbering
     dMap g2f ;
-    g2f = dist->g2f.Rep() ;
+    g2f = dist->g2fv[kd].Rep() ;
 
     // Compute map from local numbering to file numbering
     Map newnum ;
@@ -992,7 +1019,13 @@ namespace Loci {
       
    
     fact_db::distribute_infoP dist = facts.get_distribute_info() ;
-    vector<entitySet> out_ptn = facts.get_init_ptn() ;
+    int kd =  getKeyDomain(dom, dist, comm) ;
+    if(kd < 0) {
+      cerr << "unable to finde key domain in File2LocalOrderOutput"
+	   << endl ;
+      kd = 0 ;
+    }
+    vector<entitySet> out_ptn = facts.get_init_ptn(kd) ; 
     // Get mapping from local to global numbering
     Map l2g ;
     l2g = dist->l2g.Rep() ;
@@ -1112,8 +1145,15 @@ namespace Loci {
     newnum.allocate(resultSet) ;
 
     if(dist !=0 ) {
+      int kd =  getKeyDomain(resultSet, dist, comm) ;
+
+      if(kd < 0) {
+	cerr << "File2LocalOrder not in single keyspace!" << endl ;
+	kd = 0 ;
+      }
+
       dMap g2f ;
-      g2f = dist->g2f.Rep() ;
+      g2f = dist->g2fv[kd].Rep() ;
       Map l2g ;
       l2g = dist->l2g.Rep() ;
       FORALL(resultSet,i) {
@@ -1366,9 +1406,15 @@ namespace Loci {
     if(MPI_processes > 1) {
       Map l2g ;
       fact_db::distribute_infoP df = facts.get_distribute_info() ;
+      int kd =  getKeyDomain(local_set, df, MPI_COMM_WORLD) ;
+      if(kd < 0) {
+	cerr << "unable to find distribute info in writeSetIds" << endl; 
+	kd = 0 ;
+      }
+
       l2g = df->l2g.Rep() ;
       dMap g2f ;
-      g2f = df->g2f.Rep() ;
+      g2f = df->g2fv[kd].Rep() ;
       FORALL(local_set,ii) {
         ids[c++] = g2f[l2g[ii]] ;
       } ENDFORALL ;

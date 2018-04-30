@@ -78,12 +78,12 @@ namespace Loci{
       return nm.Rep() ;
     }
     
-    vector<entitySet> init_ptn = facts.get_init_ptn() ;
+    vector<entitySet> init_ptn = facts.get_init_ptn(0) ;// FIX THIS
     fact_db::distribute_infoP df = facts.get_distribute_info() ;
     Map l2g ;
     l2g = df->l2g.Rep() ;
     dMap g2f ;
-    g2f = df->g2f.Rep() ;
+    g2f = df->g2fv[0].Rep() ;// FIX THIS
 
     entitySet gnodes = l2g.image(nodes&l2g.domain()) ;
     entitySet gset = findBoundingSet(gnodes) ;
@@ -714,7 +714,7 @@ namespace Loci{
     entitySet boundaries = boundary_names.domain() ;
     if(MPI_processes > 1) {
       entitySet local_boundaries ;
-      std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
+      std::vector<entitySet> init_ptn = facts.get_init_ptn(0) ; // FIX THIS
       Map l2g ;
       fact_db::distribute_infoP df = facts.get_distribute_info() ;
       l2g = df->l2g.Rep() ;
@@ -781,7 +781,7 @@ namespace Loci{
       if(MPI_processes > 1) {
         fact_db::distribute_infoP df = facts.get_distribute_info() ;
         l2g = df->l2g.Rep() ;
-        g2f = df->g2f.Rep() ;//why no map expanding? 
+        g2f = df->g2fv[0].Rep() ;//why no map expanding?  // FIX THIS
       } else {
         l2g.allocate(bfaces) ;
         FORALL(bfaces,fc) {
@@ -867,7 +867,7 @@ namespace Loci{
     entitySet boundaries = boundary_names.domain() ;
     if(MPI_processes > 1) {
       entitySet local_boundaries ;
-      std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
+      std::vector<entitySet> init_ptn = facts.get_init_ptn(0) ; // FIX THIS
       Map l2g ;
       fact_db::distribute_infoP df = facts.get_distribute_info() ;
       l2g = df->l2g.Rep() ;
@@ -1457,7 +1457,7 @@ namespace Loci{
     int tmp_out = out_of_dom.size() ;
     std::vector<entitySet> init_ptn ;
     if(facts.is_distributed_start()) {
-      init_ptn = facts.get_init_ptn() ;
+      init_ptn = facts.get_init_ptn(0) ;// FIX THIS
       if(GLOBAL_OR(tmp_out)) 
         fill_clone(sp, out_of_dom, init_ptn) ;
     }
@@ -1555,7 +1555,7 @@ namespace Loci{
       storeRepP sp = check.Rep() ;
       std::vector<entitySet> init_ptn ;
       if(facts.is_distributed_start()) {
-        init_ptn = facts.get_init_ptn() ;
+        init_ptn = facts.get_init_ptn(0) ; // FIX THIS
         fill_clone(sp, p1map, init_ptn) ;
       }
       bool periodic_problem = false ;
@@ -1904,11 +1904,11 @@ namespace Loci{
     global_geom_cells = all_collect_entitySet(*geom_cells,facts) ;
     multiMap lower,upper,boundary_map ;
     distributed_inverseMap(upper, cl, global_geom_cells, global_interior_faces,
-                           facts) ;
+                           facts,0) ; // FIX THIS
     distributed_inverseMap(lower, cr, global_geom_cells, global_interior_faces,
-                           facts) ;
+                           facts,0) ;
     distributed_inverseMap(boundary_map, cl, global_geom_cells,
-                           global_boundary_faces, facts) ;
+                           global_boundary_faces, facts,0) ;
     
     facts.create_fact("lower",lower) ;
     facts.create_fact("upper",upper) ;
@@ -2563,7 +2563,7 @@ namespace Loci{
     
     // Allocate entities for new edges
     int num_edges = emap.size() ;
-    entitySet edges = facts.get_distributed_alloc(num_edges).first ;
+    entitySet edges = facts.get_distributed_alloc(num_edges,0).first ;// FIX THIS
  
 
 
@@ -2751,12 +2751,12 @@ namespace Loci{
       }ENDFORALL;
     
       
-      std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
+      std::vector<entitySet> init_ptn = facts.get_init_ptn(0) ;// FIX THIS
       fact_db::distribute_infoP df = facts.get_distribute_info() ;
       storeRepP pos = facts.get_variable("pos");
       
       dMap g2f ;
-      g2f = df->g2f.Rep() ;
+      g2f = df->g2fv[0].Rep() ; // FIX THIS
       //don't use nodes & init_ptn to define local nodes,
       //because nodes may not cover all nodes in init_ptn
       entitySet localNodes = pos->domain()&init_ptn[MPI_rank] ;
@@ -2919,9 +2919,9 @@ namespace Loci{
       }
     
       fact_db::distribute_infoP dist = facts.get_distribute_info() ;
-    
+
       FORALL(global2file.domain(), ei){
-        dist->g2f[ei] = global2file[ei][0] ;
+        dist->g2fv[0][ei] = global2file[ei][0] ;
       }ENDFORALL;
     
     }
