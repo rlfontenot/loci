@@ -26,7 +26,6 @@
 #endif
 #include <Config/conf.h>
 
-
 #include <store_rep.h>
 
 namespace Loci {

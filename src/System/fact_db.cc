@@ -894,7 +894,15 @@ namespace Loci {
     } else {
       for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
 	storeRepP p = facts.get_variable(*vi) ;
-	facts.update_fact(*vi,(p->remap(remap))->freeze()) ;
+	if(p->domain() == ~EMPTY) {
+	  // For universal set, keep set universal
+	  facts.update_fact(*vi,p->freeze()) ;
+	} else if(p->RepType() != Loci::MAP) {
+	  facts.update_fact(*vi,(p->remap(remap))->freeze()) ;
+	} else {
+	  MapRepP mp = MapRepP(p->getRep()) ;
+	  facts.update_fact(*vi,(mp->MapRemap(remap,remap))->freeze()) ;
+	}
       }
     }
   }

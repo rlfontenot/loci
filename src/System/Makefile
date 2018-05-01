@@ -46,7 +46,7 @@ OBJS = Loci_version.o  Initialize.o Loci_Datatypes.o variable.o \
        keyspace.o interpolate_tools.o thread.o
 
 COPT = $(CC_LIB_FLAGS) $(COPTLESS) -DLOCI_RPATH=\"$(LOCI_RPATH)\"
-#COPT = $(CC_LIB_FLAGS) -g -O0 -DLOCI_RPATH=\"$(LOCI_RPATH)\"
+#COPT = $(CC_LIB_FLAGS) -g -O0 -DLOCI_RPATH=\"$(LOCI_RPATH)\" -DDEBUG
 
 default:
 	cd .. ; make -f Makefile System

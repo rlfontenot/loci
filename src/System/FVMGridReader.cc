@@ -1564,8 +1564,8 @@ namespace Loci {
     } ENDFORALL ;
 
     pos = t_pos.Rep()->remap(identity_map);
-    cl = tmp_cl.Rep()->remap(identity_map);
-    cr = tmp_cr.Rep()->remap(identity_map);
+    cl = MapRepP(tmp_cl.getRep())->MapRemap(identity_map,identity_map);
+    cr = MapRepP(tmp_cr.getRep())->MapRemap(identity_map,identity_map);
     face2node = MapRepP(tmp_face2node.Rep())->get_map();
     boundary_names = tmp_boundary_names.Rep()->remap(identity_map) ;
     boundary_tags = tmp_boundary_tags.Rep()->remap(identity_map) ;
