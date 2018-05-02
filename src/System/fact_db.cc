@@ -55,7 +55,6 @@ namespace Loci {
   fact_db::fact_db() {
     distributed_info = 0 ;
     maximum_allocated = factdb_allocated_base+0 ;
-    minimum_allocated = factdb_allocated_base-1 ;
     vector<entitySet> baseline_ptn ;
     for(int i = 0; i < MPI_processes; ++i) {
       baseline_ptn.push_back(EMPTY) ;
@@ -79,7 +78,6 @@ namespace Loci {
     global_comp_entities = f.global_comp_entities ;
     synonyms = f.synonyms ;
     maximum_allocated = f.maximum_allocated ;
-    minimum_allocated = f.minimum_allocated ;
     dist_from_start = f.dist_from_start ;
     fmap = f.fmap ;
     tmap = f.tmap ;
@@ -167,10 +165,10 @@ namespace Loci {
   void fact_db::set_maximum_allocated(int i) {
     maximum_allocated = i ;
   }
-  void fact_db::set_minimum_allocated(int i) {
-    minimum_allocated = i ;
-  }
   
+  int fact_db::getKeySpace(std::string name) {
+    return 0 ;
+  }
   void fact_db::synonym_variable(variable v, variable synonym) {
     // Find all variables that should be synonymous with v
     variableSet synonym_set ;
@@ -356,6 +354,7 @@ namespace Loci {
 	distributed_info->g2f.setRep(distributed_info->g2fv[0].Rep()) ;
 	distributed_info->g2l.setRep(distributed_info->g2lv[0].Rep()) ;
       }
+
 
       int* send_buf = new int[MPI_processes] ;
       int* size_send = new int[MPI_processes] ;

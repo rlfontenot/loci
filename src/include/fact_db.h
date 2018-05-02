@@ -73,7 +73,6 @@ namespace Loci {
      
       std::vector<dMap> g2lv ; // global numbering to local numbering
                               // indexed by key domain
-      
       entitySet my_entities ;
       entitySet comp_entities;//local numbering of global_comp_entities
       
@@ -89,6 +88,8 @@ namespace Loci {
     }  ;
     std::vector<std::vector<entitySet> > init_ptn ;
     /// Global numbering partition indexed by key space
+    std::vector<int> gmax_alloc ;
+    std::vector<std::string> keyDomainName ;
 
     //Related to Duplication: global_comp_entities set defines
     //entities that can be computed on a processor
@@ -125,7 +126,6 @@ namespace Loci {
     std::pair<entitySet, entitySet> get_dist_alloc(int size, size_t kd) ;
     
     int maximum_allocated ;
-    int minimum_allocated ;
     int dist_from_start ;
     
     std::map<variable,fact_info> fmap ;
@@ -156,13 +156,11 @@ namespace Loci {
       return *this ;
     }
     void set_maximum_allocated(int i) ;
-    void set_minimum_allocated(int i) ;
     int get_max_alloc() {
       return maximum_allocated ;
     }
-    int get_min_alloc() {
-      return minimum_allocated ;
-    }
+    int getKeySpace(std::string name) ;
+
     void set_variable_type(variable v, storeRepP st) ;
     void set_variable_type(std::string vname, storeRepP st)
       { set_variable_type(variable(vname),st) ;}
@@ -259,11 +257,6 @@ namespace Loci {
     entitySet get_allocation(int size) {
       entitySet alloc = interval(maximum_allocated,maximum_allocated+size-1) ;
       maximum_allocated += size ;
-      return alloc ;
-    }
-    entitySet negative_allocation(int size) {
-      entitySet alloc = interval(minimum_allocated-size+1, minimum_allocated) ;
-      minimum_allocated -= size ;
       return alloc ;
     }
 
