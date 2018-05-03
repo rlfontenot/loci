@@ -159,7 +159,7 @@ namespace Loci {
     int get_max_alloc() {
       return maximum_allocated ;
     }
-    int getKeySpace(std::string name) ;
+    int getKeyDomain(std::string name) ;
 
     void set_variable_type(variable v, storeRepP st) ;
     void set_variable_type(std::string vname, storeRepP st)

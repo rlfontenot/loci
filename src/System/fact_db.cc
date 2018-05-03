@@ -75,6 +75,8 @@ namespace Loci {
   void
   fact_db::copy_all_from(const fact_db& f) {
     init_ptn = f.init_ptn ;
+    gmax_alloc = f.gmax_alloc ;
+    keyDomainName = f.keyDomainName ;
     global_comp_entities = f.global_comp_entities ;
     synonyms = f.synonyms ;
     maximum_allocated = f.maximum_allocated ;
@@ -166,9 +168,15 @@ namespace Loci {
     maximum_allocated = i ;
   }
   
-  int fact_db::getKeySpace(std::string name) {
-    return 0 ;
+  int fact_db::getKeyDomain(std::string name) {
+    for(size_t i=0;i<keyDomainName.size();++i)
+      if(name == keyDomainName[i])
+	return i ;
+    gmax_alloc.push_back(maximum_allocated) ;
+    keyDomainName.push_back(name) ;
+    return keyDomainName.size()-1 ;
   }
+
   void fact_db::synonym_variable(variable v, variable synonym) {
     // Find all variables that should be synonymous with v
     variableSet synonym_set ;
@@ -223,7 +231,10 @@ namespace Loci {
     //if st is STORE or MAP, update maximum_allocated
     if(st->RepType() == Loci::MAP || st->RepType() == Loci::STORE) {
       int max_val = st->domain().Max() ;
-      maximum_allocated = max(maximum_allocated,max_val+1) ;
+      if(gmax_alloc.size()==0)
+	getKeyDomain("Main") ;
+      int kd = st->getDomainKeySpace() ;
+      gmax_alloc[kd] = max(gmax_alloc[kd],max_val+1) ;
     }
     //add namespace
     variable tmp_v = add_namespace(v) ;
@@ -254,7 +265,10 @@ namespace Loci {
     
     if(st->RepType() == Loci::MAP || st->RepType() == Loci::STORE) {
       int max_val = st->domain().Max() ;
-      maximum_allocated = max(maximum_allocated,max_val+1) ;
+      if(gmax_alloc.size()==0)
+	getKeyDomain("Main") ;
+      int kd = st->getDomainKeySpace() ;
+      gmax_alloc[kd] = max(gmax_alloc[kd],max_val+1) ;
     }
     variable tmp_v ;
     tmp_v = v ;
@@ -342,11 +356,14 @@ namespace Loci {
 
   std::pair<entitySet, entitySet> fact_db::get_dist_alloc(int size, size_t kd) {
 
+    if(gmax_alloc.size() == 0) {
+      getKeyDomain("Main") ;
+    }
     if(MPI_processes > 1) {
       if(!dist_from_start) {
 	dist_from_start = 1 ;
 	distributed_info = new distribute_info;
-	int num_keyspace = 1 ;
+	int num_keyspace = gmax_alloc.size() ;
 	for(int i=0;i<num_keyspace;++i) {
 	  distributed_info->g2fv.push_back(dMap()) ;
 	  distributed_info->g2lv.push_back(dMap()) ;
@@ -361,14 +378,14 @@ namespace Loci {
       int* size_recv = new int[MPI_processes] ;
       int* recv_buf = new int[MPI_processes] ;
       for(int i = 0; i < MPI_processes; ++i) {
-	send_buf[i] = maximum_allocated ;
+	send_buf[i] = gmax_alloc[kd] ;
 	size_send[i] = size ;
       } 
       MPI_Alltoall(send_buf, 1, MPI_INT, recv_buf, 1, MPI_INT, MPI_COMM_WORLD) ;
       MPI_Alltoall(size_send, 1, MPI_INT, size_recv, 1, MPI_INT, MPI_COMM_WORLD) ;
       std::sort(recv_buf, recv_buf+MPI_processes) ;
-      maximum_allocated = recv_buf[MPI_processes-1] ;
-      int local_max = maximum_allocated ;
+      gmax_alloc[kd] = recv_buf[MPI_processes-1] ;
+      int local_max = gmax_alloc[kd] ;
       int global_max = 0 ;
       for(int i = 0; i < MPI_rank; ++i)
 	local_max += size_recv[i] ;
@@ -376,7 +393,7 @@ namespace Loci {
 	global_max += size_recv[i] ;
       
       for(int i = 0 ; i < MPI_processes; ++i) {
-	int local = maximum_allocated ;
+	int local = gmax_alloc[kd] ;
 	for(int j = 0; j < i; ++j)
 	  local += size_recv[j] ;
 	if(size_recv[i] > 0 )
@@ -389,7 +406,7 @@ namespace Loci {
 	local_ivl = EMPTY ;
       }
       
-      global_ivl = entitySet(interval(maximum_allocated, maximum_allocated+global_max-1)) ;
+      global_ivl = entitySet(interval(gmax_alloc[kd], gmax_alloc[kd]+global_max-1)) ;
 
       global_comp_entities += local_ivl;
       
@@ -397,11 +414,11 @@ namespace Loci {
       delete [] recv_buf ;
       delete [] size_send ;
       delete [] size_recv ;
-      maximum_allocated = max(maximum_allocated,global_ivl.Max()+1) ;
+      gmax_alloc[kd] = max(gmax_alloc[kd],global_ivl.Max()+1) ;
       return(make_pair(local_ivl, global_ivl)) ;
     }
-    entitySet alloc = entitySet(interval(maximum_allocated,maximum_allocated+size-1)) ;
-    maximum_allocated += size ;
+    entitySet alloc = entitySet(interval(gmax_alloc[kd],gmax_alloc[kd]+size-1)) ;
+    gmax_alloc[kd] += size ;
     
     init_ptn[kd][0] += alloc ;
     global_comp_entities += alloc;
