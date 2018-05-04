@@ -156,9 +156,8 @@ namespace Loci {
       return *this ;
     }
     void set_maximum_allocated(int i) ;
-    int get_max_alloc() {
-      return maximum_allocated ;
-    }
+    int get_max_alloc(int kd ) ;
+
     int getKeyDomain(std::string name) ;
 
     void set_variable_type(variable v, storeRepP st) ;
@@ -254,11 +253,11 @@ namespace Loci {
     void unset_namespace() {
       nspace_vec.clear() ;
     }
-    entitySet get_allocation(int size) {
-      entitySet alloc = interval(maximum_allocated,maximum_allocated+size-1) ;
-      maximum_allocated += size ;
-      return alloc ;
-    }
+    //    entitySet get_allocation(int size) {
+    //      entitySet alloc = interval(maximum_allocated,maximum_allocated+size-1) ;
+    //      maximum_allocated += size ;
+    //      return alloc ;
+    //    }
 
     void update_remap(const std::vector<std::pair<int, int> > &remap_update,
 		      size_t kd);

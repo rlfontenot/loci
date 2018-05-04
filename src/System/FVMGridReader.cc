@@ -915,7 +915,6 @@ namespace Loci {
       face_base += nfaces ;
     }
 
-
     for(size_t i=0;i<volTags.size();++i)
       volTags[i].second = (volTags[i].second >> cells_base) ;
     entitySet boundary_faces ;
@@ -2037,7 +2036,7 @@ namespace Loci {
     store<string> tmp_boundary_names ;
     store<string> tmp_boundary_tags ;
 
-    int max_alloc = facts.get_max_alloc() ;
+    int max_alloc = facts.get_max_alloc(0) ; // FIX THIS
 
     bool useVOG = true ;
 

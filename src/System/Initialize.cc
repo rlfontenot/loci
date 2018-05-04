@@ -611,7 +611,8 @@ namespace Loci {
           load_cell_weights = true ;
           cell_weight_file = (*argv)[i+1] ;
           i+=2 ;
-	} else if(!(strcmp((*argv)[i],"--set_4gig_entity_space"))) {
+	} else if(!(strcmp((*argv)[i],"--set_4gig_entity_space")) ||
+		  !(strcmp((*argv)[i],"--big"))) {
 	  factdb_allocated_base = std::numeric_limits<int>::min() + 2048 ;
 	  i++ ;
         } else if(!strcmp((*argv)[i],"--threads")) {

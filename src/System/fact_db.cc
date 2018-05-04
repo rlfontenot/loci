@@ -354,6 +354,12 @@ namespace Loci {
       extensional_facts -= v ;
   }
 
+  int fact_db::get_max_alloc(int kd) {
+    if(gmax_alloc.size() == 0) {
+      getKeyDomain("Main") ;
+    }
+    return gmax_alloc[kd] ;
+  }
   std::pair<entitySet, entitySet> fact_db::get_dist_alloc(int size, size_t kd) {
 
     if(gmax_alloc.size() == 0) {
@@ -1029,7 +1035,7 @@ namespace Loci {
   
   void
   fact_db::init_key_manager() {
-    int max_alloc = get_max_alloc() ;
+    int max_alloc = get_max_alloc(0) ;
     int global_max = 0 ;
     MPI_Allreduce(&max_alloc, &global_max, 1,
                   MPI_INT, MPI_MAX, MPI_COMM_WORLD) ;
