@@ -226,8 +226,8 @@ namespace Loci {
     virtual storeRepP getRep() const ;
     virtual  DatatypeP getType() = 0 ;
     virtual frame_info get_frame_info() = 0 ;
-    int getDomainKeySpace() const { return domainKeySpace ; }
-    void setDomainKeySpace(int v) { domainKeySpace = v ; }
+    virtual int getDomainKeySpace() const { return domainKeySpace ; }
+    virtual void setDomainKeySpace(int v) { domainKeySpace = v ; }
   } ;
 
 
@@ -319,6 +319,8 @@ namespace Loci {
                       int& size, const entitySet& e, const Map& remap) ;
     virtual void unpack(void* ptr, int& loc,
                         int& size, const sequence& seq, const dMap& remap) ;
+    virtual int getDomainKeySpace() const { return Rep()->getDomainKeySpace() ; }
+    virtual void setDomainKeySpace(int v) { Rep()->setDomainKeySpace(v) ; }
     
   } ;
   typedef NPTR<store_ref> store_refP ;
