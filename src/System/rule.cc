@@ -648,6 +648,7 @@ namespace Loci {
         if(crp == 0) {
           Loci::constraint mapc ;
           *mapc = srp->domain() ;
+	  mapc.Rep()->setDomainKeySpace(srp->getDomainKeySpace()) ;
           // install it in fact_db
           facts.create_fact(new_name, mapc) ;
         }
