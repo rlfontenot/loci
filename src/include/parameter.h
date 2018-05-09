@@ -425,7 +425,10 @@ namespace Loci {
   storeRepP paramRepI<T>::remap(const dMap &m) const
   {
     param<T> r ;
-    r.set_entitySet(m.image(m.domain()&domain())) ;
+    if(domain() != ~EMPTY)
+      r.set_entitySet(m.image(m.domain()&domain())) ;
+    else
+      r.set_entitySet(~EMPTY) ;
     *r = attrib_data ;
     return r.Rep() ;
   }
