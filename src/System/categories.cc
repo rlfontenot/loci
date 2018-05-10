@@ -74,6 +74,7 @@ namespace Loci {
     variableSet vars = facts.get_typed_variables() ;
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
       storeRepP p = facts.get_variable(*vi) ;
+
       if(p->getDomainKeySpace() == kd) {
 	if((p->RepType() == MAP)) {
 	  entitySet tmp = dist_collect_entitySet(p->domain(), ptn) ;
@@ -97,6 +98,7 @@ namespace Loci {
       if((p->RepType() == MAP)) {
         // Add any map image that refers to entities not already identified.
         MapRepP mp = MapRepP(p->getRep()) ;
+
 	if(mp->getRangeKeySpace() == kd) {
 	  entitySet image_dom = mp->image(p->domain()) ;
 	  image_dom = dist_collect_entitySet(image_dom, ptn) ;
@@ -320,8 +322,11 @@ namespace Loci {
   }                  
   void categories(fact_db &facts,vector<entitySet> &pvec, int kd) {
     map<variable, entitySet> vm ;
-    getVariableAssociations(vm,facts,kd) ; 
+    getVariableAssociations(vm,facts,kd) ;
 
+    if(vm.size() == 1) // Empty kd
+      return ;
+    
     map<variableSet, entitySet> cmap ;
     getLocalCategories(cmap,vm) ;
 

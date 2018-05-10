@@ -221,7 +221,7 @@ namespace Loci {
     s.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
     MapRepP(s.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
     entitySet newdomain = dm.domain() & domain() ;
-    pair<entitySet,entitySet> mappimage = preimage(dm.domain()) ;
+    pair<entitySet,entitySet> mappimage = preimage(rm.domain()) ;
     newdomain &= mappimage.first ;
     entitySet mapimage = dm.image(newdomain) ;
     s.allocate(mapimage) ;

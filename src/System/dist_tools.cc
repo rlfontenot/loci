@@ -207,10 +207,12 @@ namespace Loci {
       for(smi = maps.begin(); smi != maps.end(); ++smi) {
 	vector<entitySet> locdom = domain ;
 	const vector<variableSet> &mv = *smi ;
+	      
 	for(size_t i = 0; i < mv.size(); ++i) {
 	  variableSet v = mv[i] ;
 	  v &= vars ;
 	  vector<entitySet> image(domain.size()) ;
+
 	  for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
 	    storeRepP p = facts.get_variable(*vi) ;
 	    if(p->RepType() ==  MAP) {      
@@ -224,10 +226,14 @@ namespace Loci {
 	      storeRepP sp = mp->expand(tmp_out, ptn) ;
 	      if(sp->domain() != tmp_dom) {
 		//facts.update_fact(variable(*vi), sp) ;
+		sp->setDomainKeySpace(kd) ;
+		MapRepP(sp)->setRangeKeySpace(mp->getRangeKeySpace()) ;
 		facts.replace_fact(*vi,sp) ;
 	      }
 	      int ki = mp->getRangeKeySpace() ;
-	      image[ki] +=  MapRepP(sp)->image((sp->domain()) & locdom[kd]) ;
+	      entitySet tmp = MapRepP(sp)->image((sp->domain()) & locdom[kd]) ;
+	      image[ki] +=  tmp ;
+
 	    }
 	  }
 	  for(size_t i=0;i<domain.size();++i)
@@ -463,15 +469,16 @@ namespace Loci {
 
 
     double clone_time_start = MPI_Wtime() ;
-    //changed here
+
     vector<entitySet> image =dist_expand_map(tmp_set, facts, dist_maps) ;
+
     vector<vector<entitySet> > copyv(nkd), send_clonev(nkd) ;
     for(int kd=0;kd<nkd;++kd) {
       vector<entitySet>  copy(MPI_processes), send_clone(MPI_processes) ;
       entitySet tmp_copy ;
       std::vector<entitySet> &ptn = facts.get_init_ptn(kd) ; 
       tmp_copy =  image[kd] - ptn[MPI_rank] ;
-
+      
       int *recv_count = new int[MPI_processes] ;
       int *send_count = new int[MPI_processes] ;
       int *send_displacement = new int[MPI_processes];
@@ -598,7 +605,7 @@ namespace Loci {
 	entitySet::const_iterator ei ;
 	for(ei = proc_entities[kd][i].begin(); ei != proc_entities[kd][i].end(); ++ei ) {
 	  l2g[j] = *ei ;
-	  key_domain[j] = 0 ;
+	  key_domain[j] = kd ;
 	  ++j ;
 	}
       }
@@ -609,10 +616,12 @@ namespace Loci {
     s.start() ;
     df->l2g = l2g.Rep() ;
     df->key_domain = key_domain.Rep() ; // FIX THIS
-    dMap tmp ;
+
     vector<dMap> tmp2(nkd) ;
     df->g2lv=tmp2 ;
     for(int kd=0;kd<nkd;++kd) {
+      dMap tmp ;
+      df->g2lv[kd].setRep(tmp.Rep()) ;
       df->g2lv[kd].allocate(glist[kd]) ;
     }
     entitySet ldom = l2g.domain() ;
@@ -621,6 +630,8 @@ namespace Loci {
       int kd = key_domain[*ei] ;
       df->g2lv[kd][l2g[*ei]] = *ei ;
     }
+
+
     entitySet send_neighbour ;
     entitySet recv_neighbour ;
     store<entitySet> send_entities ;
@@ -653,6 +664,7 @@ namespace Loci {
 	  send_entities[*ei] +=  df->g2lv[kd][*ti] ;
     }
 
+
     debugout << "time setting up send and recieve info = " << s.stop() << endl ;
     //	if(collect_perf_data)
     //		perfAnalysis->stop_timer(creating_initial_info_timer);
@@ -679,14 +691,21 @@ namespace Loci {
     for(int kd=0;kd<nkd;++kd)  {
       entitySet g ;
       std::vector<entitySet> &ptn = facts.get_init_ptn(kd) ; 
+
 #ifdef DEBUG
       entitySet g2ldom = df->g2lv[kd].domain() ;
       if(ptn[myid]-g2ldom != EMPTY) {
 	cerr << "problem with g2lv " << ptn[myid]-g2ldom << endl ;
       }
 #endif
-      for(ei = ptn[myid].begin(); ei != ptn[myid].end(); ++ei)
-	g += df->g2lv[kd][*ei] ;
+      for(ei = ptn[myid].begin(); ei != ptn[myid].end(); ++ei) {
+	int gv = df->g2lv[kd][*ei] ;
+	if(g.inSet(gv)) 
+	  cerr << "repeated values in gv!" << endl ;
+	g += gv ;
+      }
+      if((g&mySetLocal) != EMPTY)
+	cerr << "intersection between mySetLocals from keyspaces!" << endl ;
       mySetLocal += g ;
     }
     //Add comp_entities
@@ -715,10 +734,13 @@ namespace Loci {
     constraint my_entities ;
     my_entities = mySetLocal ;
     df->my_entities = mySetLocal ;
+
     int total = 0 ;
+
     for(size_t i=0;i<df->xmit.size();++i)
       total += df->xmit[i].size ;
     df->xmit_total_size = total ;
+
     total = 0 ;
     for(size_t i=0;i<df->copy.size();++i)
       total += df->copy[i].size ;
@@ -726,6 +748,7 @@ namespace Loci {
     facts.put_distribute_info(df) ;
     // this needs to be an intensional fact
     facts.create_intensional_fact("my_entities",my_entities);
+
   }
 
   /*! The fill_entitySet routine fills in the clone region entities

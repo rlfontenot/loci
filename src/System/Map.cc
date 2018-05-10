@@ -62,7 +62,7 @@ namespace Loci {
   }
   storeRepP MapRepI::MapRemap(const dMap &dm, const dMap &rm) const {
     entitySet newdomain = dm.domain() & domain() ;
-    pair<entitySet,entitySet> mappimage = preimage(dm.domain()) ;
+    pair<entitySet,entitySet> mappimage = preimage(rm.domain()) ;
     newdomain &= mappimage.first ;
     entitySet mapimage = dm.image(newdomain) ;
     Map s ;

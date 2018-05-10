@@ -1570,7 +1570,6 @@ namespace Loci{
       }
     }
 
-
     // Add periodic datastructures to fact database
     facts.create_fact("pmap",pmap) ;
     facts.create_fact("periodicTransform",periodic_transform) ;
@@ -1600,6 +1599,7 @@ namespace Loci{
     constraint boundary_faces ;
     boundary_faces = facts.get_variable("boundary_faces") ;
     entitySet ci_faces = *boundary_faces ;
+
     storeRepP pfacesP = facts.get_variable("periodicFaces") ;
     if(pfacesP != 0) {
       constraint periodicFaces ;
@@ -1616,6 +1616,7 @@ namespace Loci{
     FORALL(ci_faces,fc) {
       ci[fc] = cl[fc] ;
     } ENDFORALL ;
+    ci.Rep()->setDomainKeySpace(cl.Rep()->getDomainKeySpace()) ;
     facts.create_fact("ci",ci) ;
     debugout << "boundary_faces = " << *boundary_faces << endl ;
     debugout << "ci_faces = " << ci_faces << endl ;
@@ -1909,7 +1910,15 @@ namespace Loci{
                            facts,0) ;
     distributed_inverseMap(boundary_map, cl, global_geom_cells,
                            global_boundary_faces, facts,0) ;
-    
+
+    MapRepP clr = MapRepP(cl.Rep()) ;
+    MapRepP crr = MapRepP(cr.Rep()) ;
+    lower.Rep()->setDomainKeySpace(crr->getRangeKeySpace()) ;
+    upper.Rep()->setDomainKeySpace(clr->getRangeKeySpace()) ;
+    boundary_map.Rep()->setDomainKeySpace(clr->getRangeKeySpace()) ;
+    MapRepP(lower.Rep())->setRangeKeySpace(crr->getDomainKeySpace()) ;
+    MapRepP(upper.Rep())->setRangeKeySpace(clr->getDomainKeySpace()) ;
+    MapRepP(boundary_map.Rep())->setRangeKeySpace(clr->getDomainKeySpace()) ;
     facts.create_fact("lower",lower) ;
     facts.create_fact("upper",upper) ;
     facts.create_fact("boundary_map",boundary_map) ;

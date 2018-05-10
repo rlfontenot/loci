@@ -146,6 +146,11 @@ namespace Loci {
     int num_keydomains = fdf->g2lv.size() ; ;
     df->g2lv = vector<dMap>(num_keydomains) ;
     for(int i=0;i<num_keydomains;++i) {
+      dMap tmp ;
+      df->g2lv[i].setRep(tmp.Rep()) ;
+    }
+
+    for(int i=0;i<num_keydomains;++i) {
       entitySet g2l_alloc = fdf->g2lv[i].domain() ;
       df->g2lv[i].allocate(g2l_alloc) ;
       for(entitySet::const_iterator ei=g2l_alloc.begin();
@@ -172,8 +177,20 @@ namespace Loci {
     for(size_t i=0;i<keyDomainName.size();++i)
       if(name == keyDomainName[i])
 	return i ;
-    gmax_alloc.push_back(maximum_allocated) ;
+    gmax_alloc.push_back(maximum_allocated+100000*keyDomainName.size()) ;
     keyDomainName.push_back(name) ;
+    if(dist_from_start) {
+      while(distributed_info->g2fv.size() < keyDomainName.size())
+	distributed_info->g2fv.push_back(dMap()) ;
+      while(distributed_info->g2lv.size() < keyDomainName.size())
+	distributed_info->g2lv.push_back(dMap()) ;
+    }
+    vector<entitySet> baseline_ptn ;
+    for(int i = 0; i < MPI_processes; ++i) {
+      baseline_ptn.push_back(EMPTY) ;
+    }
+    while(init_ptn.size() < keyDomainName.size())
+      init_ptn.push_back(baseline_ptn) ;
     return keyDomainName.size()-1 ;
   }
 
@@ -902,15 +919,22 @@ namespace Loci {
 	if(p->domain() == ~EMPTY) {
 	  // For universal set, keep set universal
 	  facts.replace_fact(*vi,p->freeze()) ;
+	  p = facts.get_variable(*vi) ;
 	} else if(p->RepType() != Loci::MAP) {
 	  int kd = p->getDomainKeySpace() ;
-	  facts.replace_fact(*vi,(p->remap(df->g2lv[kd]))->freeze()) ;
+	  entitySet rdom = p->domain() & df->g2lv[kd].domain() ;
+	  storeRepP fp = (p->remap(df->g2lv[kd]))->freeze() ;
+	  facts.replace_fact(*vi,fp) ;
+	  p = facts.get_variable(*vi) ;
 	} else {
 	  MapRepP mp = MapRepP(p->getRep()) ;
 	  int kd = p->getDomainKeySpace() ;
 	  int rd = mp->getRangeKeySpace() ;
-	  facts.replace_fact(*vi,(mp->MapRemap(df->g2lv[kd],
-					       df->g2lv[rd]))->freeze()) ;
+	  storeRepP fp = (mp->MapRemap(df->g2lv[kd],
+					 df->g2lv[rd]))->freeze() ;
+	  facts.replace_fact(*vi,fp) ;
+	  p = facts.get_variable(*vi) ;
+	  mp = MapRepP(p->getRep()) ;
 	}
       }
     } else {

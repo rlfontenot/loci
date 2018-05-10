@@ -70,6 +70,7 @@ typedef double metisreal_t ;
 #endif
 
 namespace Loci {
+  extern  bool test  ;
 //#define MEMDIAG
   
 #ifdef MEMDIAG
@@ -887,6 +888,9 @@ namespace Loci {
 
     int face_accum = 0 ;
     int faces_base = max_alloc + nnodes ;
+    if(Loci::MPI_processes > 1) {
+      faces_base = max_alloc ;
+    }
     for(int i = 0; i < MPI_processes; ++i) {
       local_faces[i] = EMPTY ;
       if(faces_pp[i] > 0)
@@ -895,6 +899,8 @@ namespace Loci {
       face_accum += faces_pp[i] ;
     }
     int cells_base = faces_base + face_accum ;
+    if(Loci::MPI_processes > 1)
+      cells_base = max_alloc+nnodes ;
 
 
     store<int> counts ;
@@ -1346,9 +1352,13 @@ namespace Loci {
 		 entitySet bcsurfset,
                  fact_db &facts) {
 
+    int faceKeySpace = tmp_face2node.Rep()->getDomainKeySpace() ;
     pos.allocate(nodes) ;
     cl.allocate(faces) ;
     cr.allocate(faces) ;
+    cl.Rep()->setDomainKeySpace(faceKeySpace) ;
+    cr.Rep()->setDomainKeySpace(faceKeySpace) ;
+
     entitySet old_nodes = t_pos.domain() ;
     redistribute_container(node_ptn,node_ptn_t,nodes,t_pos.Rep(),pos.Rep()) ;
     t_pos.allocate(EMPTY) ;
@@ -1356,6 +1366,9 @@ namespace Loci {
     tmp_cr.allocate(EMPTY) ;
     redistribute_container(face_ptn,face_ptn_t,faces,tmp_cl.Rep(),cl.Rep()) ;
     tmp_cl.allocate(EMPTY) ;
+
+    cl.Rep()->setDomainKeySpace(faceKeySpace) ;
+    cr.Rep()->setDomainKeySpace(faceKeySpace) ;
 
     using std::pair ;
     vector<pair<Entity,Entity> > sortlist(faces.size()) ;
@@ -1370,6 +1383,7 @@ namespace Loci {
     redistribute_container(face_ptn,face_ptn_t,faces,count.Rep(),count_reorder.Rep()) ;
 
     face2node.allocate(count_reorder) ;
+    face2node.Rep()->setDomainKeySpace(tmp_face2node.Rep()->getDomainKeySpace()) ;
     redistribute_container(face_ptn,face_ptn_t,faces,tmp_face2node.Rep(),
                            face2node.Rep()) ;
     tmp_face2node.allocate(EMPTY) ;
@@ -1390,6 +1404,8 @@ namespace Loci {
                            face2node.begin(convert[fc])) ;
     } ENDFORALL ;
     Map clt,crt ;
+    clt.Rep()->setDomainKeySpace(faceKeySpace) ;
+    crt.Rep()->setDomainKeySpace(faceKeySpace) ;
     clt.allocate(faces) ;
     crt.allocate(faces) ;
     FORALL(faces,fc) {
@@ -1400,6 +1416,7 @@ namespace Loci {
     cr.setRep(crt.Rep()) ;
     multiMap face2nodet ;
     face2nodet.allocate(count_reorder) ;
+    face2nodet.Rep()->setDomainKeySpace(faceKeySpace) ;
     FORALL(faces,fc) {
       int sz = count_reorder[fc] ;
       for(int j=0;j<sz;++j)
@@ -1418,7 +1435,7 @@ namespace Loci {
       remap_update[cnt].first = g2f[convert[fc]] ;
       cnt++ ;
     } ENDFORALL ;
-    facts.update_remap(remap_update,0) ;// FIX THIS
+    facts.update_remap(remap_update,face2node.Rep()->getDomainKeySpace()) ;// FIX THIS
     
     using std::cout ;
     using std::endl ;
@@ -2097,6 +2114,7 @@ namespace Loci {
       facts.create_fact("cl", cl) ;
       facts.create_fact("cr", cr) ;
       facts.create_fact("pos", pos) ;
+
       facts.create_fact("face2node",face2node) ;
       facts.create_fact("boundary_names", boundary_names) ;
       facts.create_fact("boundary_tags", boundary_tags) ;
@@ -2269,7 +2287,13 @@ namespace Loci {
         face_alloc[i++] = ni ;
       }ENDFORALL;
 
-    entitySet faces = facts.get_distributed_alloc(face_alloc,0).first ;// FIX THIS
+    int fk = facts.getKeyDomain("Faces") ;
+
+    //    std::cout << "fk = " << fk << endl ;
+    if(!test)
+      fk = 0 ;
+
+    entitySet faces = facts.get_distributed_alloc(face_alloc,fk).first ;// FIX THIS
     face_alloc.resize(0) ;
 
     int newcells = 0 ;
@@ -2303,6 +2327,10 @@ namespace Loci {
     memSpace("before remapGridStructures") ;
     Map cl, cr ;
     multiMap face2node ;
+    tmp_cl.Rep()->setDomainKeySpace(fk) ;
+    tmp_cr.Rep()->setDomainKeySpace(fk) ;
+    tmp_face2node.Rep()->setDomainKeySpace(fk) ;
+
     store<vector3d<double> > pos ;
     store<string> boundary_names,boundary_tags ;
     remapGrid(node_ptn, face_ptn, cell_ptn,
@@ -2317,6 +2345,7 @@ namespace Loci {
     facts.create_fact("cl", cl) ;
     facts.create_fact("cr", cr) ;
     facts.create_fact("pos", pos) ;
+
     facts.create_fact("face2node",face2node) ;
     facts.create_fact("boundary_names", boundary_names) ;
     facts.create_fact("boundary_tags", boundary_tags) ;
@@ -2368,6 +2397,7 @@ namespace Loci {
     FORALL(refdom,i1) {
       ref[i1] = cr[i1] ;
     } ENDFORALL ;
+    ref.Rep()->setDomainKeySpace(cr.Rep()->getDomainKeySpace()) ;
     facts.create_fact("ref",ref) ;
   }
 
@@ -2396,7 +2426,13 @@ namespace Loci {
     std::vector<entitySet> init_ptn = facts.get_init_ptn(0) ;//FIX THIS
     entitySet global_geom = all_collect_entitySet(*geom_cells,facts) ;
     *geom_cells = global_geom & init_ptn[ MPI_rank] ;
-    *boundary_faces &= init_ptn[ MPI_rank] ;
+
+
+    int fk = boundary_faces.Rep()->getDomainKeySpace()  ;
+    std::vector<entitySet> initf_ptn = facts.get_init_ptn(fk) ;
+     
+    *boundary_faces &= initf_ptn[ MPI_rank] ;
+
     std::pair<entitySet, entitySet> ghost_pair = facts.get_distributed_alloc((*boundary_faces).size(),0) ; // FIX THIS
     entitySet tmp_ghost = ghost_pair.first ;
     entitySet::const_iterator ei = tmp_ghost.begin() ;
@@ -2426,17 +2462,22 @@ namespace Loci {
     faces = (cl.domain() & cr.domain()) ;
     
     //    faces = all_collect_entitySet(*faces) ;
-
+    int fk = cl.Rep()->getDomainKeySpace() ;
+    faces.Rep()->setDomainKeySpace(fk) ;
     facts.create_fact("faces",faces) ;
     store<string> boundary_names ;
     boundary_names = facts.get_variable("boundary_names") ;
     entitySet bcset = boundary_names.domain() ;
+
     entitySet bcfaces = cr.preimage(bcset).first ;
     constraint boundary_faces ;
+
     boundary_faces = bcfaces ;
     //    boundary_faces = all_collect_entitySet(bcfaces) ;
     constraint interior_faces ;
     interior_faces = (*faces-*boundary_faces) ;
+    boundary_faces.Rep()->setDomainKeySpace(fk) ;
+    interior_faces.Rep()->setDomainKeySpace(fk) ;
     facts.create_fact("boundary_faces",boundary_faces) ;
     facts.create_fact("interior_faces",interior_faces) ;
   }

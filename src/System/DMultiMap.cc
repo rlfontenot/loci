@@ -286,7 +286,7 @@ namespace Loci
     // Get the preimage of entire map. We will get two entity set. The
     // first is the intersection, and the second  is union of entities.
     //-------------------------------------------------------------------------
-    pair<entitySet,entitySet> mappimage = preimage(dm.domain()) ;
+    pair<entitySet,entitySet> mappimage = preimage(rm.domain()) ;
     
     //
     // Get all entities which are both in preimage and newdomain

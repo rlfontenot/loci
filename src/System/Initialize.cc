@@ -120,6 +120,7 @@ namespace Loci {
   int MPI_processes = 1;
   int MPI_rank = 0 ;
   bool useDebugDir = true ;
+  bool test = false ;
 
   int method = 1 ; // Iterative Weighted Static
   bool verbose = false ;
@@ -611,6 +612,9 @@ namespace Loci {
           load_cell_weights = true ;
           cell_weight_file = (*argv)[i+1] ;
           i+=2 ;
+	} else if(!(strcmp((*argv)[i],"--test"))) {
+	  test = true ;
+	  i++ ;
 	} else if(!(strcmp((*argv)[i],"--set_4gig_entity_space")) ||
 		  !(strcmp((*argv)[i],"--big"))) {
 	  factdb_allocated_base = std::numeric_limits<int>::min() + 2048 ;
