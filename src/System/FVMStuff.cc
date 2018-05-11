@@ -1447,6 +1447,7 @@ namespace Loci{
     // it from face2node on this processor.
     multiMap face2node ;
     face2node = facts.get_variable("face2node") ;
+    int fk = face2node.Rep()->getDomainKeySpace() ;
     entitySet f2n_image = MapRepP(face2node.Rep())->image(face2node.domain()) ;
     entitySet out_of_dom = f2n_image - pos.domain() ;
     dstore<vector3d<double> > tmp_pos ;
@@ -1571,6 +1572,7 @@ namespace Loci{
     }
 
     // Add periodic datastructures to fact database
+    pmap.Rep()->setDomainKeySpace(fk) ;
     facts.create_fact("pmap",pmap) ;
     facts.create_fact("periodicTransform",periodic_transform) ;
 
@@ -1646,6 +1648,7 @@ namespace Loci{
     ref = facts.get_variable("ref") ;
     entitySet dom = boundary_names.domain() ;
     dom = all_collect_entitySet(dom) ;
+    int fk = ref.Rep()->getDomainKeySpace() ;
     
     param<options_list> bc_info ;
     tmp = facts.get_variable("boundary_conditions") ;
@@ -1676,6 +1679,7 @@ namespace Loci{
 
       constraint bconstraint ;
       *bconstraint = bfaces ;
+      bconstraint.Rep()->setDomainKeySpace(fk) ;
 
       facts.create_fact(tname,bconstraint) ;
       debugout << "boundary " << bname << "("<< tname << ") = "
@@ -1684,6 +1688,7 @@ namespace Loci{
       *boundarySet = bname ;
       string factname = "boundaryName(" + bname + ")" ;
       boundarySet.set_entitySet(bfaces) ;
+      boundarySet.Rep()->setDomainKeySpace(fk) ;
       facts.create_fact(factname,boundarySet) ;
       
       option_value_type vt =
@@ -1765,6 +1770,7 @@ namespace Loci{
           constraint bc_constraint ;
           bc_constraint = mi->second ;
           std::string constraint_name = mi->first + std::string("_BC") ;
+	  bc_constraint.Rep()->setDomainKeySpace(fk) ;
           facts.create_fact(constraint_name,bc_constraint) ;
           if(MPI_processes == 1)
             std::cout << constraint_name << ' ' << mi->second << endl ;
@@ -1805,6 +1811,7 @@ namespace Loci{
     
     if(periodic_data.size() != 0) {
       periodic_faces = periodic ;
+      periodic_faces.Rep()->setDomainKeySpace(fk) ;
       facts.create_fact("periodicFaces",periodic_faces) ;
 
       list<pair<periodic_info,periodic_info> > periodic_list ;
@@ -1869,6 +1876,7 @@ namespace Loci{
     allfaces = facts.get_variable("faces") ;
     no_symmetry  = *allfaces - symmetry ;
     no_symmetry_BC = no_symmetry ;
+    no_symmetry_BC.Rep()->setDomainKeySpace(fk) ;
     facts.create_fact("no_symmetry_BC",no_symmetry_BC) ;
 
     facts.create_fact("BC_options",BC_options) ;
