@@ -1458,7 +1458,8 @@ namespace Loci{
     int tmp_out = out_of_dom.size() ;
     std::vector<entitySet> init_ptn ;
     if(facts.is_distributed_start()) {
-      init_ptn = facts.get_init_ptn(0) ;// FIX THIS
+      int pk = pos.Rep()->getDomainKeySpace() ;
+      init_ptn = facts.get_init_ptn(pk) ;
       if(GLOBAL_OR(tmp_out)) 
         fill_clone(sp, out_of_dom, init_ptn) ;
     }
@@ -1556,7 +1557,7 @@ namespace Loci{
       storeRepP sp = check.Rep() ;
       std::vector<entitySet> init_ptn ;
       if(facts.is_distributed_start()) {
-        init_ptn = facts.get_init_ptn(0) ; // FIX THIS
+        init_ptn = facts.get_init_ptn(fk) ; 
         fill_clone(sp, p1map, init_ptn) ;
       }
       bool periodic_problem = false ;
@@ -1573,6 +1574,7 @@ namespace Loci{
 
     // Add periodic datastructures to fact database
     pmap.Rep()->setDomainKeySpace(fk) ;
+    MapRepP(pmap.Rep())->setRangeKeySpace(fk) ;
     facts.create_fact("pmap",pmap) ;
     facts.create_fact("periodicTransform",periodic_transform) ;
 
