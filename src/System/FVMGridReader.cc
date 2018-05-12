@@ -70,7 +70,7 @@ typedef double metisreal_t ;
 #endif
 
 namespace Loci {
-  extern  bool test  ;
+  extern  bool useDomainKeySpaces  ;
 //#define MEMDIAG
   
 #ifdef MEMDIAG
@@ -2289,11 +2289,10 @@ namespace Loci {
 
     int fk = facts.getKeyDomain("Faces") ;
 
-    //    std::cout << "fk = " << fk << endl ;
-    if(!test)
+    if(!useDomainKeySpaces)
       fk = 0 ;
 
-    entitySet faces = facts.get_distributed_alloc(face_alloc,fk).first ;// FIX THIS
+    entitySet faces = facts.get_distributed_alloc(face_alloc,fk).first ;
     face_alloc.resize(0) ;
 
     int newcells = 0 ;

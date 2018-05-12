@@ -210,7 +210,7 @@ namespace Loci {
 
   template<int M> storeRepP MapVecRepI<M>::MapRemap(const dMap &dm, const dMap &rm) const {
     entitySet newdomain = dm.domain() & domain() ;
-    std::pair<entitySet,entitySet> mappimage = preimage(dm.domain()) ;
+    std::pair<entitySet,entitySet> mappimage = preimage(rm.domain()) ;
     newdomain &= mappimage.first ;
     entitySet mapimage = dm.image(newdomain) ;
     MapVec<M> s ;

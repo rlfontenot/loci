@@ -44,6 +44,7 @@ using std::cout ;
 #define vect3d vector3d<double>
 
 namespace Loci{
+  extern  bool useDomainKeySpaces  ;
   // Convert container from local numbering to file numbering
   // pass in store rep pointer: sp
   // entitySet to write: dom
@@ -2582,17 +2583,24 @@ namespace Loci{
     
     // Allocate entities for new edges
     int num_edges = emap.size() ;
-    entitySet edges = facts.get_distributed_alloc(num_edges,0).first ;// FIX THIS
+    int ek = facts.getKeyDomain("Edges") ;
+    if(!useDomainKeySpaces)
+      ek = 0 ;
+    int fk = face2node.Rep()->getDomainKeySpace() ;
+    
+    entitySet edges = facts.get_distributed_alloc(num_edges,ek).first ;// FIX THIS
  
 
 
     //create constraint edges
     constraint edges_tag;
     *edges_tag = edges;
+    edges_tag.Rep()->setDomainKeySpace(ek) ;
     facts.create_fact("edges", edges_tag);
     
     // Copy edge nodes into a MapVec
     MapVec<2> edge ;
+    edge.Rep()->setDomainKeySpace(ek) ;
     edge.allocate(edges) ;
     vector<pair<Entity,Entity> >::iterator pi = emap.begin() ;
     for(entitySet::const_iterator ei=edges.begin();
@@ -2756,6 +2764,8 @@ namespace Loci{
       
     }
     // Add face2edge to the fact database
+    face2edge.Rep()->setDomainKeySpace(fk) ;
+    MapRepP(face2edge.Rep())->setRangeKeySpace(ek) ;
     facts.create_fact("face2edge",face2edge) ;
 
 
@@ -2924,11 +2934,13 @@ namespace Loci{
       //the input_image is not really the image, it should be the global2file's domain
       //if it doesn't include all corresponding entities in init_ptn, error will occur
       //also input_preimage is never used
+      std::vector<entitySet> init_ptne = facts.get_init_ptn(ek) ;// FIX THIS
+
       Loci::distributed_inverseMap(global2file,
                                    file2global,
                                    input_image,
                                    input_preimage,
-                                   init_ptn);
+                                   init_ptne);
     
     
       if(global2file.domain() != edges){
@@ -2954,6 +2966,7 @@ namespace Loci{
     }ENDFORALL;
     
     // Add edge3node data structure to fact databse
+    edge3.Rep()->setDomainKeySpace(ek) ;
     facts.create_fact("edge2node",edge3) ;  
     
   } // end of createEdgesPar
