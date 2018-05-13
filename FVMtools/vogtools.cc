@@ -252,12 +252,64 @@ namespace VOG {
     return nums ;
   }
 
+  vector<entitySet> getNodesDist(entitySet &nodes, store<vector3d<double> > &pos) {
+    // First establish current distribution of entities across processors
+    vector<entitySet> ptn(MPI_processes) ; // entity Partition
+    // Get entity distributions
+    nodes = pos.domain() ;
+    entitySet allNodes = Loci::all_collect_entitySet(nodes) ;
+    vector<int> nodesizes(MPI_processes) ;
+    int size = nodes.size() ;
+    MPI_Allgather(&size,1,MPI_INT,&nodesizes[0],1,MPI_INT,MPI_COMM_WORLD) ;
+    int cnt = allNodes.Min() ;
+    for(int i=0;i<MPI_processes;++i) {
+      ptn[i] = interval(cnt,cnt+nodesizes[i]-1) ;
+      cnt += nodesizes[i] ;
+    }
+    nodes = allNodes ;
+    return ptn ;
+  }
+
+  vector<entitySet> getFacesDist(entitySet &faces,multiMap &face2node) {
+    // First establish current distribution of entities across processors
+    vector<entitySet> ptn(MPI_processes) ; // entity Partition
+    
+    faces = face2node.domain() ;
+    entitySet allFaces = Loci::all_collect_entitySet(faces) ;
+    vector<int> facesizes(MPI_processes) ;
+    int size = faces.size() ;
+    MPI_Allgather(&size,1,MPI_INT,&facesizes[0],1,MPI_INT,MPI_COMM_WORLD) ;
+    int cnt = allFaces.Min() ;
+    for(int i=0;i<MPI_processes;++i) {
+      ptn[i] += interval(cnt,cnt+facesizes[i]-1) ;
+      cnt += facesizes[i] ;
+    }
+    faces = allFaces ;
+    return ptn ;
+  }
+
+  vector<entitySet> getCellsDist(entitySet &cells,Map &cl, Map &cr) {
+    // First establish current distribution of entities across processors
+    vector<entitySet> ptn(MPI_processes) ; // entity Partition
+
+    entitySet tmp_cells = cl.image(cl.domain())+cr.image(cr.domain()) ;
+    entitySet loc_geom_cells = tmp_cells & interval(0,Loci::UNIVERSE_MAX) ;
+    entitySet geom_cells = Loci::all_collect_entitySet(loc_geom_cells) ;
+    int mn = geom_cells.Min() ;
+    int mx = geom_cells.Max() ;
+    vector<int> pl = simplePartitionVec(mn,mx,MPI_processes) ;
+    for(int i=0;i<MPI_processes;++i)
+      ptn[i] += interval(pl[i],pl[i+1]-1) ;
+    cells = geom_cells ;
+
+    return ptn ;
+  }
+
   vector<entitySet> getDist(entitySet &nodes, entitySet &faces,
                             entitySet &cells,
                             store<vector3d<double> > &pos,
                             Map &cl, Map &cr, multiMap &face2node) {
-                            
-  // First establish current distribution of entities across processors
+    // First establish current distribution of entities across processors
     vector<entitySet> ptn(MPI_processes) ; // entity Partition
 
     // Get entity distributions
@@ -464,10 +516,13 @@ namespace VOG {
                    Map &cl, Map &cr, multiMap &face2node) {
     
     entitySet nodes, faces,cells ;
-    vector<entitySet> ptn = getDist(nodes,faces,cells,
-                                    pos,cl,cr,face2node);
-    entitySet loc_faces = faces & ptn[MPI_rank] ;
-    entitySet geom_cells = cells & ptn[MPI_rank] ;
+    //    vector<entitySet> ptn = getDist(nodes,faces,cells,
+    //                                    pos,cl,cr,face2node);
+    vector<entitySet> nptn = getNodesDist(nodes,pos) ;
+    vector<entitySet> fptn = getFacesDist(faces,face2node) ;
+    vector<entitySet> cptn = getCellsDist(cells,cl,cr) ;
+    entitySet loc_faces = faces & fptn[MPI_rank] ;
+    entitySet geom_cells = cells & cptn[MPI_rank] ;
     entitySet negs = interval(UNIVERSE_MIN,-1) ;
     entitySet boundary_faces = cr.preimage(negs).first ;
     entitySet interior_faces = loc_faces - boundary_faces ;
@@ -480,7 +535,7 @@ namespace VOG {
       cellmap[cnt++] = pair<Entity,Entity>(cr[fc],cl[fc]) ;
     } ENDFORALL ;
     multiMap c2c ;
-    Loci::distributed_inverseMap(c2c,cellmap,cells,cells,ptn) ;
+    Loci::distributed_inverseMap(c2c,cellmap,cells,cells,cptn) ;
     int ncells = cells.size() ;
 
     store<int> ctmp ;
@@ -533,7 +588,7 @@ namespace VOG {
       + cr.image(interior_faces) ;
     clone_cells -= geom_cells ;
     Loci::storeRepP cp_sp = color.Rep() ;
-    Loci::fill_clone(cp_sp, clone_cells, ptn) ;
+    Loci::fill_clone(cp_sp, clone_cells, cptn) ;
 
     FORALL(interior_faces,fc) {
       int color_l = color[cl[fc]] ;
@@ -562,7 +617,9 @@ namespace VOG {
   void getCellCenters(store<vector3d<double> > &cellcenter,
                       store<vector3d<double> > &pos,
                       Map &cl, Map &cr, multiMap &face2node,
-                      vector<entitySet> &ptn) {
+                      vector<entitySet> &nptn,
+		      vector<entitySet> &cptn,
+		      vector<entitySet> &fptn) {
     entitySet faces = face2node.domain() ;
     entitySet tmp_cells = cl.image(cl.domain())+cr.image(cr.domain()) ;
     entitySet loc_geom_cells = tmp_cells & interval(0,Loci::UNIVERSE_MAX) ;
@@ -579,7 +636,7 @@ namespace VOG {
     
     if(MPI_processes > 1) {
       Loci::storeRepP sp = tmp_pos.Rep() ;
-      Loci::fill_clone(sp, total_dom, ptn) ;
+      Loci::fill_clone(sp, total_dom, nptn) ;
     }
     
     store<vector3d<double> > fpos, area ;
@@ -614,7 +671,7 @@ namespace VOG {
 
     // Add cells owned by this processor!
     tmp_cells &= interval(0,UNIVERSE_MAX) ;
-    tmp_cells += geom_cells & ptn[MPI_rank] ; 
+    tmp_cells += geom_cells & cptn[MPI_rank] ; 
     cpos.allocate(tmp_cells) ;
     cnum.allocate(tmp_cells) ;
     FORALL(tmp_cells,cc) {
@@ -634,14 +691,14 @@ namespace VOG {
       }
     } ENDFORALL ;
 
-    entitySet clone_cells = tmp_cells - ptn[MPI_rank] ;
+    entitySet clone_cells = tmp_cells - cptn[MPI_rank] ;
 
     Loci::storeRepP cp_sp = cpos.Rep() ;
     Loci::storeRepP cn_sp = cnum.Rep() ;
     std::vector<Loci::storeRepP> v_cpos =
-      Loci::send_global_clone_non(cp_sp, clone_cells, ptn) ;
+      Loci::send_global_clone_non(cp_sp, clone_cells, cptn) ;
     std::vector<Loci::storeRepP> v_cnum =
-      Loci::send_global_clone_non(cn_sp, clone_cells, ptn) ;
+      Loci::send_global_clone_non(cn_sp, clone_cells, cptn) ;
 
     for(int i = 0; i < Loci::MPI_processes; ++i) {
       entitySet dom = v_cpos[i]->domain() & cpos.domain() ;
@@ -652,10 +709,10 @@ namespace VOG {
 	cnum[di] += tmp_cnum[di] ;
       } ENDFORALL ;
     }
-    Loci::fill_clone(cp_sp, clone_cells, ptn) ;
-    Loci::fill_clone(cn_sp, clone_cells, ptn) ;   
+    Loci::fill_clone(cp_sp, clone_cells, cptn) ;
+    Loci::fill_clone(cn_sp, clone_cells, cptn) ;   
 
-    tmp_cells = geom_cells & ptn[MPI_rank] ;
+    tmp_cells = geom_cells & cptn[MPI_rank] ;
     cellcenter.allocate(tmp_cells) ;
     FORALL(tmp_cells,cc) {
       cellcenter[cc] = cpos[cc]/cnum[cc] ;
@@ -825,7 +882,9 @@ namespace VOG {
     
     memSpace("start optimizeMesh") ;
     // First establish current distribution of entities across processors
-    vector<entitySet> ptn(MPI_processes) ; // entity Partition
+    vector<entitySet> nptn(MPI_processes) ; // entity Partition
+    vector<entitySet> cptn(MPI_processes) ; // entity Partition
+    vector<entitySet> fptn(MPI_processes) ; // entity Partition
 
     // Get entity distributions
     entitySet nodes = pos.domain() ;
@@ -835,7 +894,7 @@ namespace VOG {
     MPI_Allgather(&size,1,MPI_INT,&nodesizes[0],1,MPI_INT,MPI_COMM_WORLD) ;
     int cnt = allNodes.Min() ;
     for(int i=0;i<MPI_processes;++i) {
-      ptn[i] = interval(cnt,cnt+nodesizes[i]-1) ;
+      nptn[i] = interval(cnt,cnt+nodesizes[i]-1) ;
       cnt += nodesizes[i] ;
     }
       
@@ -846,7 +905,7 @@ namespace VOG {
     MPI_Allgather(&size,1,MPI_INT,&facesizes[0],1,MPI_INT,MPI_COMM_WORLD) ;
     cnt = allFaces.Min() ;
     for(int i=0;i<MPI_processes;++i) {
-      ptn[i] += interval(cnt,cnt+facesizes[i]-1) ;
+      fptn[i] += interval(cnt,cnt+facesizes[i]-1) ;
       cnt += facesizes[i] ;
     }
     
@@ -857,17 +916,17 @@ namespace VOG {
     int mx = geom_cells.Max() ;
     vector<int> pl = simplePartitionVec(mn,mx,MPI_processes) ;
     for(int i=0;i<MPI_processes;++i)
-      ptn[i] += interval(pl[i],pl[i+1]-1) ;
+      cptn[i] += interval(pl[i],pl[i+1]-1) ;
 
 
     memSpace("collect partition Info") ;
     // Compute distribution of cells based on space filling curve
     store<vector3d<double> > cellcenter ;
-    getCellCenters(cellcenter, pos, cl,  cr, face2node, ptn) ;
+    getCellCenters(cellcenter, pos, cl,  cr, face2node, nptn, cptn, fptn) ;
     vector3d<double> maxVec, minVec,tmaxVec, tminVec ;
     
     memSpace("get cell centers") ;
-    loc_geom_cells = geom_cells & ptn[MPI_rank] ;
+    loc_geom_cells = geom_cells & cptn[MPI_rank] ;
 
     
     maxVec = cellcenter[loc_geom_cells.Min()] ;
@@ -922,7 +981,7 @@ namespace VOG {
     }
     multiMap mapping ;
 
-    Loci::distributed_inverseMap(mapping,keypair,geom_cells,geom_cells,ptn) ;
+    Loci::distributed_inverseMap(mapping,keypair,geom_cells,geom_cells,cptn) ;
     memSpace("inverseMap") ;
     // renumber cells 
     dMap cell2cell ;
@@ -934,7 +993,7 @@ namespace VOG {
                                
     entitySet cimage = tmp_cells & interval(0,Loci::UNIVERSE_MAX) ;
 
-    cell2cell.setRep(MapRepP(cell2cell.Rep())->expand(cimage,ptn)) ;
+    cell2cell.setRep(MapRepP(cell2cell.Rep())->expand(cimage,cptn)) ;
     
     memSpace("expand cell2cell map") ;
     FORALL(faces,fc) {
@@ -947,7 +1006,7 @@ namespace VOG {
     int p = MPI_processes ;
     vector<entitySet> send_sets(p) ;
     for(int i=0;i<MPI_processes;++i) 
-      send_sets[i] = cl.preimage(ptn[i]&geom_cells).first ;
+      send_sets[i] = cl.preimage(cptn[i]&geom_cells).first ;
 
     vector<int> scounts(p,0) ;
     for(size_t i=0;i<send_sets.size();++i) {
@@ -1089,7 +1148,7 @@ namespace VOG {
     entitySet clone_nodes = node_access - pos.domain() ;
     Loci::storeRepP nk_sp = node_key.Rep() ;
     std::vector<Loci::storeRepP> v_nk =
-      Loci::send_global_clone_non(nk_sp,clone_nodes,ptn) ;
+      Loci::send_global_clone_non(nk_sp,clone_nodes,nptn) ;
     for(int i=0;i<MPI_processes;++i) {
       entitySet dom = v_nk[i]->domain() & pos.domain() ;
       dstore<int> tmp_nk(v_nk[i]) ;
@@ -1135,7 +1194,7 @@ namespace VOG {
     
     multiMap nmapping ;
 
-    Loci::distributed_inverseMap(nmapping,nodepair,allNodes,allNodes,ptn) ;
+    Loci::distributed_inverseMap(nmapping,nodepair,allNodes,allNodes,nptn) ;
     memSpace("inverseMap nmapping") ;
     // renumber nodes
     dMap node2node ;
@@ -1145,7 +1204,7 @@ namespace VOG {
       node2node[nd] = nmapping[nd][0] ;
     } ENDFORALL ;
 
-    node2node.setRep(MapRepP(node2node.Rep())->expand(node_access,ptn)) ;
+    node2node.setRep(MapRepP(node2node.Rep())->expand(node_access,nptn)) ;
     memSpace("expanding node2node") ;
     FORALL(face2node.domain(),fc) {
       for(int i=0;i<face2node[fc].size();++i)

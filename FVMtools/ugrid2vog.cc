@@ -1947,16 +1947,17 @@ void convert2face(store<vector3d<double> > &pos,
   if(MPI_rank==0)cerr<<"start convert2face" << endl;
   
   //compute the start cellid of each process
-  int maxid = std::numeric_limits<int>::min()+2048 ;
+  int maxid = 0 ; //std::numeric_limits<int>::min()+2048 ;
   entitySet posDom = pos.domain() ;
   if(posDom != EMPTY)
     maxid = posDom.Max()+1 ;
-  int cellid ;
-  MPI_Allreduce(&maxid,&cellid,1,MPI_INT,MPI_MAX,MPI_COMM_WORLD) ;
-  int cellbase = cellid ;
+  int cellid  = 0;
+  //  MPI_Allreduce(&maxid,&cellid,1,MPI_INT,MPI_MAX,MPI_COMM_WORLD) ;
+  //  int cellbase = cellid ;
   int ncells = tets.size()+pyramids.size()+prisms.size()+hexs.size() ;
   vector<int> cellsizes(MPI_processes) ;
   MPI_Allgather(&ncells,1,MPI_INT,&cellsizes[0],1,MPI_INT,MPI_COMM_WORLD) ;
+
   for(int i=0;i<MPI_rank;++i)
     cellid += cellsizes[i] ;
 
@@ -2258,16 +2259,15 @@ void convert2face(store<vector3d<double> > &pos,
     Loci::Abort() ;
   }
 
-  if(MPI_rank==0)cerr<<" collecting edge splits" << endl;
+  if(split_file_exist && MPI_rank==0)cerr<<" collecting edge splits" << endl;
 
   //collect edge splits before quad splits are modified
   vector<edgeSplit> edge_splits;
   if(split_file_exist)collect_edge_split(edge_splits, splits); 
   //release the memory for quad splits
   vector<quadSplit>().swap(splits);
-
   
-  if(MPI_processes > 1) {
+  if(split_file_exist && MPI_processes > 1) {
     vector<pair<int, int> > edges;
 
     if(MPI_rank == 0)
@@ -2291,7 +2291,8 @@ void convert2face(store<vector3d<double> > &pos,
   ncells = 0 ;
   for(int i=0;i<MPI_processes;++i)
     ncells += cellsizes[i] ;
-  int facebase = cellbase + ncells ;
+  int facebase = std::numeric_limits<int>::min()+2048 ;
+
   vector<int> facesizes(MPI_processes) ;
   MPI_Allgather(&nfaces,1,MPI_INT,&facesizes[0],1,MPI_INT,MPI_COMM_WORLD) ;
   for(int i=0;i<MPI_rank;++i)
@@ -2990,15 +2991,16 @@ void convert2cellVertexface(store<vector3d<double> > &pos,
   cout << triangles.size()+nodefacets.size()+bface_sizes.size() << " total faces"<< endl ;
     
 
-  int nfaces = triangles.size()+nodefacets.size()+bface_sizes.size() ;
+  size_t nfaces = triangles.size()+nodefacets.size()+bface_sizes.size() ;
   
-  entitySet fdom = interval(cellid+ncells,cellid+ncells+nfaces-1) ;
+  //  entitySet fdom = interval(cellid+ncells,cellid+ncells+nfaces-1) ;
+  entitySet fdom = interval(0,nfaces-1) ;
   Map ncl,ncr ;
   store<int> count ;
   ncl.allocate(fdom) ;
   ncr.allocate(fdom) ;
   count.allocate(fdom) ;
-  int fbase = cellid+ncells ;
+  int fbase = fdom.Min() ;
   for(size_t i=0;i<triangles.size();++i) {
     count[i+fbase] = 6 ;
     for(int j=0;j<3;++j)

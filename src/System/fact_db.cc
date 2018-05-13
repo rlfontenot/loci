@@ -177,7 +177,7 @@ namespace Loci {
     for(size_t i=0;i<keyDomainName.size();++i)
       if(name == keyDomainName[i])
 	return i ;
-    gmax_alloc.push_back(maximum_allocated+100000*keyDomainName.size()) ;
+    gmax_alloc.push_back(maximum_allocated) ;
     keyDomainName.push_back(name) ;
     if(dist_from_start) {
       while(distributed_info->g2fv.size() < keyDomainName.size())
