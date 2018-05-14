@@ -160,9 +160,11 @@ refine: refine.o
 
 clean:
 	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(OTHER_APPS) $(JUNK) *.o
+	(cd libadf; $(MAKE) clean)
 
 distclean:
 	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(JUNK) $(DEPEND_FILES) $(OTHER_APPS) *.o
+	(cd libadf; $(MAKE) distclean)
 
 DEPEND_FILES=$(subst .o,.d,$(OBJS))
 
