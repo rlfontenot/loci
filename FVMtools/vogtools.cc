@@ -536,7 +536,6 @@ namespace VOG {
     } ENDFORALL ;
     multiMap c2c ;
     Loci::distributed_inverseMap(c2c,cellmap,cells,cells,cptn) ;
-    int ncells = cells.size() ;
 
     store<int> ctmp ;
     ctmp.allocate(geom_cells) ;
@@ -544,6 +543,9 @@ namespace VOG {
       ctmp[cc] = -1 ;
     } ENDFORALL ;
 
+    int ncells_local = geom_cells.size() ;
+    int ncells = 0 ; 
+    MPI_Allreduce(&ncells_local,&ncells, 1, MPI_INT, MPI_MAX,MPI_COMM_WORLD) ;
     int col = ncells*Loci::MPI_rank ;
     
     vector<int> visited ;
