@@ -770,34 +770,63 @@ namespace Loci {
     return(dm.Rep()) ;
   }
   
-  void multiMapRepI::allocate(const store<int> &sizes) {
-    
+  void multialloc(const store<int> &count, int ***index, int **alloc_pointer,
+                  int ***base_ptr) {
+    entitySet ptn = count.domain() ;
+    int top = ptn.Min() ;
+    int len = ptn.Max() - top + 2 ;
+    int **new_index = 0 ;
+    try {
+      new_index = new int *[len] ;
+    } catch(std::exception &e) {
+      std::cerr << " a standard exception was caught in new_index "
+		<< ", len=" << len << " with message :"
+		<< e.what() << endl;
+    }
+
+    int **new_base_ptr = new_index-top ;
     size_t sz = 0 ;
+    int min_count = 0x8fffffff ;
+    int max_count = 0 ;
+    FORALL(ptn,i) {
+      max_count = max(count[i],max_count) ;
+      min_count = min(count[i],min_count) ;
+      sz += count[i] ;
+    } ENDFORALL ;
+    int *new_alloc_pointer = 0 ;
+    try {
+      new_alloc_pointer = new int[sz+1] ;
+    } catch(std::exception &e) {
+      std::cerr << " a standard exception was caught in new_alloc_pointer "
+		<< ", sz=" << sz << ", min_cnt=" << min_count 
+		<< ", max_cnt=" << max_count
+		<< ", pnt.size() = " << ptn.size() 
+		<< ", exception = " 
+		<< e.what() << endl;
+    }
+    sz = 0 ;
+    for(size_t ivl=0;ivl<ptn.num_intervals();++ivl) {
+      int i = ptn[ivl].first ;
+      new_base_ptr[i] = new_alloc_pointer + sz ;
+      while(i<=ptn[ivl].second) {
+        sz += count[i] ;
+        ++i ;
+        new_base_ptr[i] = new_alloc_pointer + sz ;
+      }
+    }
+    *index = new_index ;
+    *alloc_pointer = new_alloc_pointer ;
+    *base_ptr = new_base_ptr ;
+  }
+
+  void multiMapRepI::allocate(const store<int> &sizes) {
     entitySet ptn = sizes.domain() ;
     if(alloc_pointer) delete[] alloc_pointer ;
     alloc_pointer = 0 ;
     if(index) delete[] index ;
     index = 0 ;
-    if(ptn != EMPTY) {
-      int top = ptn.Min() ;
-      int len = ptn.Max() - top + 2 ;
-      index = new int *[len] ;
-      base_ptr = index - top ;
-      FORALL(ptn,i) {
-        sz += sizes[i] ;
-      } ENDFORALL ;
-      alloc_pointer = new int[sz+1] ;
-      sz = 0 ;
-      for(size_t ivl=0;ivl<ptn.num_intervals();++ivl) {
-        int i = ptn[ivl].first ;
-        base_ptr[i] = alloc_pointer + sz ;
-        while(i<=ptn[ivl].second) {
-          sz += sizes[i] ;
-          ++i ;
-          base_ptr[i] = alloc_pointer + sz ;
-        }
-      }
-    }
+    multialloc(sizes, &index, &alloc_pointer, &base_ptr) ;
+   
     store_domain = ptn ;
     dispatch_notify() ;
   }
@@ -855,32 +884,6 @@ namespace Loci {
     } ENDFORALL ;
   }
 
-  void multialloc(const store<int> &count, int ***index, int **alloc_pointer,
-                  int ***base_ptr) {
-    entitySet ptn = count.domain() ;
-    int top = ptn.Min() ;
-    int len = ptn.Max() - top + 2 ;
-    int **new_index = new int *[len] ;
-    int **new_base_ptr = new_index-top ;
-    size_t sz = 0 ;
-    FORALL(ptn,i) {
-      sz += count[i] ;
-    } ENDFORALL ;
-    int *new_alloc_pointer = new int[sz+1] ;
-    sz = 0 ;
-    for(size_t ivl=0;ivl<ptn.num_intervals();++ivl) {
-      int i = ptn[ivl].first ;
-      new_base_ptr[i] = new_alloc_pointer + sz ;
-      while(i<=ptn[ivl].second) {
-        sz += count[i] ;
-        ++i ;
-        new_base_ptr[i] = new_alloc_pointer + sz ;
-      }
-    }
-    *index = new_index ;
-    *alloc_pointer = new_alloc_pointer ;
-    *base_ptr = new_base_ptr ;
-  }
     
   void multiMapRepI::copy(storeRepP &st, const entitySet &context) {
     const_multiMap s(st) ;
