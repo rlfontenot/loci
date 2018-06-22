@@ -250,7 +250,7 @@ namespace Loci {
       MPI_Type_commit(&bytearray) ;
       if(r < target_p) {
         color = 0 ;
-        int loc_size = int(lsz) ;
+        size_t loc_size = int(lsz) ;
         std::vector<int> recv_sizes ;
         for(int i=r+target_p;i<p;i+=target_p) {
           int tmp = 0 ;
@@ -264,7 +264,7 @@ namespace Loci {
         for(long long i=0;i<lsz;++i)
           nlist[i] = list[i] ;
 
-        int loc = lsz ;
+        size_t loc = lsz ;
         int cnt = 0 ;
         for(int i=r+target_p;i<p;i+=target_p) {
 
