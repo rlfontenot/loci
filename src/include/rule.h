@@ -773,6 +773,8 @@ namespace Loci {
   template <class T> struct NullOp {
     void operator()(T &res, const T &arg)
     { std::cerr << "join should not be called for NullOp" << std::endl; }
+    void operator()(Vect<T> &res, const Vect<T> &arg)
+    { std::cerr << "join should not be called for NullOp" << std::endl; }
   } ;
 
   template <class T> struct Summation {
