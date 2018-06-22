@@ -775,13 +775,19 @@ namespace Loci {
     entitySet ptn = count.domain() ;
     int top = ptn.Min() ;
     int len = ptn.Max() - top + 2 ;
+    if(ptn == EMPTY) {
+      top = 0 ;
+      len = 0 ;
+    }
     int **new_index = 0 ;
     try {
-      new_index = new int *[len] ;
+      if(ptn != EMPTY)
+	new_index = new int *[len] ;
     } catch(std::exception &e) {
-      std::cerr << " a standard exception was caught in new_index "
-		<< ", len=" << len << " with message :"
-		<< e.what() << endl;
+      std::cerr << " a standard exception was caught in new_index"
+      		<< ", len=" << len << " with message: "
+      		<< e.what() << endl;
+      Loci::Abort() ;
     }
 
     int **new_base_ptr = new_index-top ;
