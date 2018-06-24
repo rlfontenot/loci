@@ -1947,10 +1947,10 @@ void convert2face(store<vector3d<double> > &pos,
   if(MPI_rank==0)cerr<<"start convert2face" << endl;
 
   //compute the start cellid of each process
-  int maxid = 0 ; //std::numeric_limits<int>::min()+2048 ;
+  //  int maxid = 0 ; //std::numeric_limits<int>::min()+2048 ;
   entitySet posDom = pos.domain() ;
-  if(posDom != EMPTY)
-    maxid = posDom.Max()+1 ;
+  //  if(posDom != EMPTY)
+  //    maxid = posDom.Max()+1 ;
   int cellid  = 0;
   //  MPI_Allreduce(&maxid,&cellid,1,MPI_INT,MPI_MAX,MPI_COMM_WORLD) ;
   //  int cellbase = cellid ;
@@ -2346,9 +2346,19 @@ void convert2face(store<vector3d<double> > &pos,
   for(int i=0;i<MPI_rank;++i)
     facebase += facesizes[i] ;
 
+  if(Loci::MPI_rank == 0) {
+    for(int i=0;i<MPI_processes;++i) 
+      if(facesizes[i] == 0) {
+	cerr << "Run ugrid2vog with fewer than " << i << " processors for this mesh!" << endl ;
+	Loci::Abort() ;
+	break ;
+      }
+  }
   entitySet faces = interval(facebase,facebase+nfaces-1) ;
-  if(nfaces == 0)
+
+  if(nfaces == 0) {
     faces = EMPTY ;
+  }
   store<int> count ;
   cl.allocate(faces) ;
   cr.allocate(faces) ;
@@ -3404,7 +3414,8 @@ int main(int ac, char* av[]) {
     cerr << "coloring matrix" << endl ;
   VOG::colorMatrix(pos,cl,cr,face2node) ;
   MPI_Barrier(MPI_COMM_WORLD) ;
-  cerr << "done  coloring" << endl ;
+  if(MPI_rank == 0)
+    cerr << "done  coloring" << endl ;
   if(optimize) {
     if(MPI_rank == 0)
       cerr << "optimizing mesh layout" << endl ;
