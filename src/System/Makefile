@@ -45,7 +45,8 @@ OBJS = Loci_version.o  Initialize.o Loci_Datatypes.o variable.o \
        FVMGridReader.o FVMGridWriter.o FVMStuff.o kd_tree.o pnn.o orb.o \
        keyspace.o interpolate_tools.o thread.o
 
-COPT = $(CC_LIB_FLAGS) $(COPTLESS) -DLOCI_RPATH=\"$(LOCI_RPATH)\"
+COPT = $(CC_LIB_FLAGS) $(CC_OPTIMIZE) -DLOCI_RPATH=\"$(LOCI_RPATH)\"
+#COPT = $(CC_LIB_FLAGS) $(COPTLESS) -DLOCI_RPATH=\"$(LOCI_RPATH)\"
 #COPT = $(CC_LIB_FLAGS) -g -O0 -DLOCI_RPATH=\"$(LOCI_RPATH)\" -DDEBUG
 
 default:
