@@ -46,6 +46,7 @@
 #include <keyspace.h>
 
 #define LOCI_COMPAT_MODE1
+#define LOCI_HAS_STATIC_KEYSPACE 1
 
 namespace Loci {
   class rule_db ;

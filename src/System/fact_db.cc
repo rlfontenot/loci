@@ -164,9 +164,11 @@ namespace Loci {
     df->copy_total_size = fdf->copy_total_size ;
     df->xmit_total_size = fdf->xmit_total_size ;
     //      df->remap = fdf->remap ;
+#ifdef LOCI_COMPAT_MODE1
     df->g2fv = fdf->g2fv ;
     df->g2l.setRep(df->g2lv[0].Rep()) ;
     df->g2f.setRep(df->g2fv[0].Rep()) ;
+#endif
   }
   
   void fact_db::set_maximum_allocated(int i) {
@@ -391,8 +393,10 @@ namespace Loci {
 	  distributed_info->g2fv.push_back(dMap()) ;
 	  distributed_info->g2lv.push_back(dMap()) ;
 	}
+#ifdef LOCI_COMPAT_MODE1
 	distributed_info->g2f.setRep(distributed_info->g2fv[0].Rep()) ;
 	distributed_info->g2l.setRep(distributed_info->g2lv[0].Rep()) ;
+#endif
       }
 
 
