@@ -171,7 +171,9 @@ public:
               if(*split_mode_par == 2){
                 double min_edge_length =cells[i]->get_min_edge_length();
                 int split_level = Globals::levels;
-                if(Globals::tolerance > 0.0) split_level = int(log(min_edge_length/Globals::tolerance)/log(2.0));                  cells[i]->resplit(min(Globals::levels,split_level),node_list, edge_list, face_list);
+                if(Globals::tolerance > 0.0)
+		  split_level = int(log(min_edge_length/Globals::tolerance)/log(2.0));
+		cells[i]->resplit(min(Globals::levels,split_level),node_list, edge_list, face_list);
                 cell_split = true;
               }else{
                 cell_split = true;
@@ -1202,7 +1204,8 @@ public:
               if(*split_mode_par == 2){
                 double min_edge_length =cells[i]->get_min_edge_length();
                 int split_level = Globals::levels;
-                if(Globals::tolerance > 0.0) split_level = int(log(min_edge_length/Globals::tolerance)/log(2.0));                  cells[i]->resplit(min(Globals::levels,split_level),node_list, edge_list, face_list);
+                if(Globals::tolerance > 0.0) split_level = int(log(min_edge_length/Globals::tolerance)/log(2.0));
+		cells[i]->resplit(min(Globals::levels,split_level),node_list, edge_list, face_list);
                 cell_split = true;
               }else{
                 cell_split = true;
