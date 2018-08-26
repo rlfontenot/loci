@@ -1049,7 +1049,7 @@ bool operator <(const timingData &d) const {
         return (max(accumTime.getTime(),maxTime) < 
 		max(d.accumTime.getTime(),d.maxTime)) ;
       }
-      timingData() : totalTime(0),maxTime(0),meanTime(0),totalEvents(0),maxEvents(0) {}
+      timingData() : eventType(EXEC_CONTROL),totalTime(0),maxTime(0),meanTime(0),totalEvents(0),maxEvents(0) {}
     } ;
     std::list<timingData>  timing_data ;
 
