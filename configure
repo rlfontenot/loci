@@ -419,7 +419,6 @@ if [ ! -d "$H5PATH" ]; then
 	H5PATH=${RETURN_VALUE%/lib*}
     fi
 fi
-
 if [ ! -d $H5PATH ]; then
     echo Unable to find hdf5 libararies!
     echo Make sure hdf5 executables are in your PATH and that the library
@@ -440,11 +439,17 @@ echo \# HDF5 File I/O Libraries Setup >> sys.conf
 echo HDF5_BASE = $H5PATH >> sys.conf
 echo Using HDF5 libraries in directory \"$H5PATH\".
 if [ -e $H5PATH/lib64/libhdf5.so ]; then
-echo HDF5_LIBS = -L\$\(HDF5_BASE\)/lib64 \$\(RPATH\)\$\(HDF5_BASE\)/lib64 -L\$\(HDF5_BASE\)/lib \$\(RPATH\)\$\(HDF5_BASE\)/lib -lhdf5 -lz >> sys.conf
+    echo HDF5_LIBS = -L\$\(HDF5_BASE\)/lib64 \$\(RPATH\)\$\(HDF5_BASE\)/lib64 -L\$\(HDF5_BASE\)/lib \$\(RPATH\)\$\(HDF5_BASE\)/lib -lhdf5 -lz >> sys.conf
+elif [ -e $H5PATH/lib/x86_64-linux-gnu/libhdf5_serial.so ]; then
+    echo HDF5_LIBS = -L\$\(HDF5_BASE\)/lib/x86_64-linux-gnu/ \$\(RPATH\)\$\(HDF5_BASE\)/lib/x86_64-linux-gnu -lhdf5_serial -lz >> sys.conf
 else
-echo HDF5_LIBS = -L\$\(HDF5_BASE\)/lib -lhdf5 \$\(RPATH\)\$\(HDF5_BASE\)/lib $H5SUPPORTLIBSPATHS $H5SUPPORTLIBS >> sys.conf
+    echo HDF5_LIBS = -L\$\(HDF5_BASE\)/lib -lhdf5 \$\(RPATH\)\$\(HDF5_BASE\)/lib $H5SUPPORTLIBSPATHS $H5SUPPORTLIBS >> sys.conf
 fi
-echo HDF5_INCLUDE = -I\$\(HDF5_BASE\)/include  >> sys.conf
+if [ -e $H5PATH/lib/x86_64-linux-gnu/libhdf5_serial.so ]; then
+   echo HDF5_INCLUDE = -I\$\(HDF5_BASE\)/include/hdf5/serial  >> sys.conf
+else
+    echo HDF5_INCLUDE = -I\$\(HDF5_BASE\)/include/  >> sys.conf
+fi
 echo >> sys.conf
 
 echo "# libxml2 library setup" >> sys.conf
