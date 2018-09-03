@@ -282,6 +282,10 @@ int *gen;
 	return get_seed_rng_tbl[((struct rngen *)gen)->rng_type](gen);
 }
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpointer-sign"
+#endif
 
 #ifdef __STDC__
 int *unpack_rng( char *packed)
@@ -321,6 +325,9 @@ int *igen;
 	return print_rng_tbl[((struct rngen *)igen)->rng_type](igen);
 }
 
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 
 #include "sprng/simple_.h"
 #include "sprng/fwrap_.h"

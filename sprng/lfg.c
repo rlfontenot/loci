@@ -563,6 +563,12 @@ unsigned *nstart, seed, initseed;
   return((int **)q);
 }
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+#pragma GCC diagnostic ignored "-Wpointer-sign"
+#endif
+
 /*************************************************************************/
 /*************************************************************************/
 /*            INIT_RNG's: user interface to start things off             */
@@ -831,6 +837,7 @@ int *a, length;
   a[length-2] >>= 1;
 }
 
+
 #ifdef __STDC__
 static int *get_node_index_rng( int *genptr)
 #else
@@ -869,7 +876,7 @@ int *genptr;
 char **buffer;
 #endif
 {
-  int i, size;
+  int size;
   struct rngen *q;
   unsigned char *p, *initp;
   
@@ -903,7 +910,6 @@ char **buffer;
   return p-initp;
 }
 
-
 #ifdef __STDC__
 int *unpack_rng( char *p)
 #else
@@ -911,7 +917,7 @@ int *unpack_rng(p)
 char *p;
 #endif
 {
-  int doexit=0,i, found, length, k, param;
+  int i, found, length, k, param;
   struct rngen *q;
   unsigned seed, lag1, lag2;
   unsigned char *packed;
@@ -1040,3 +1046,6 @@ int *igen;
   return 1;
 }
 
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif

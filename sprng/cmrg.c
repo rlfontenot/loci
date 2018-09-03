@@ -131,6 +131,10 @@ int NGENS=0;		  /* number of random streams in current process */
 
 
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+#endif
 
 /* Initialize random number stream */
 
@@ -677,4 +681,7 @@ int *igen;
   return 1;
 }
 
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 
