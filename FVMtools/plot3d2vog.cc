@@ -218,10 +218,19 @@ int fscanread(double *entries, int nentries, FILE *fp) {
     if(cnt == 1)
       nr++ ;
     else {
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
+#endif
+      
       char buf[512] ;
       fscanf(fp,"%s",buf) ;
       cerr << "failure reading grid near " << buf << endl ;
       return nr ;
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
+      
     }
   }
   return nr ;

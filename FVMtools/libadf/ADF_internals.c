@@ -745,6 +745,10 @@ input:	unsigned int index			The input file
 input:	unsigned long start_block		The start of the range
 input:	unsigned long end_block 		The end of the range
 ***********************************************************************/
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+#endif
 void DC_flush_range(
 		unsigned int index,
 		unsigned long start_block,
@@ -765,6 +769,9 @@ void DC_flush_range(
 	DC_flush();
 #endif /* CACHEWRITES */
 }
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 
 /* file ADFI_ASCII_Hex_2_unsigned_int.c */
 /***********************************************************************
