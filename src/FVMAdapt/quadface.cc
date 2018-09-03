@@ -168,6 +168,11 @@ char orient_edgeID_f2c(char edgeID, char orientCode){
   }
 }
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wchar-subscripts"
+#endif
+
 //used in building cells, quadface is built as defined in cell, and split with orientCode
 //all new nodes and edges are put into node_list and edge_list
 void QuadFace::split(char splitCode, char orientCode, 
@@ -1347,3 +1352,6 @@ void tag_quad_face( const Entity* face2node,
   cleanup_list(tmp_node_list2);
   cleanup_list(tmp_bnode_list);
 }
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif

@@ -374,6 +374,10 @@ HexCell* HexCell::findNeighbor(DIRECTION dd)
 //nodes: in and out, initially the nodes after resplit(), when return, all the new points
 //from split the faces are added
 // faces: in and out, initially empty, return all the indivial faces and its two cell inex
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wchar-subscripts"
+#endif
 
 void set_hex_faces(const std::vector<HexCell*>& cells,
                    std::map<QuadFace*, NeibIndex>& faces){
@@ -1758,3 +1762,6 @@ void reorder_faces(const const_store<int>& node_remap, std::vector<Entity>& lowe
   reorder_faces(node_remap, boundary_map);
 }
 
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif

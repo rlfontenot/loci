@@ -91,8 +91,10 @@ public:
 register_rule<node_output_file> register_node_output_file;
 
 
-
-
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+#endif
 
 class face_output_file : public pointwise_rule {
  
@@ -203,6 +205,9 @@ public:
 
 register_rule<face_output_file> register_face_output_file;
 
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 
 
 class volTag_output_file : public singleton_rule {

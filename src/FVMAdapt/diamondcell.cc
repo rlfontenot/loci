@@ -287,6 +287,11 @@ void DiamondCell::empty_split(){
   }
 };
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wchar-subscripts"
+#endif
+
 //this function return my sibling neighbor, mf is my faceID,
 //nf is neighbor's faceId 
 DiamondCell* DiamondCell::getSiblingNeib(const Cell* aCell,
@@ -1503,3 +1508,6 @@ void DiamondCell::derefine(){
   }
 }
  
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
