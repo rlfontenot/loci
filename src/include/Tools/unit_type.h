@@ -172,7 +172,10 @@ namespace Loci {
   };
 
   inline std::ostream &operator<<(std::ostream &s, const UNIT_type &o_unit){
-    s << o_unit.input_value << ' ' << o_unit.input_unit ;
+    if(o_unit.input_value.grad==0 && o_unit.input_value.grad2 == 0) 
+      s << o_unit.input_value.value << ' ' << o_unit.input_unit ;
+    else
+      s << o_unit.input_value << ' ' << o_unit.input_unit ;
     return s ;
   }
 
