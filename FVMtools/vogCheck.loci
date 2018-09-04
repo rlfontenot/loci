@@ -1000,5 +1000,86 @@ $rule pointwise(alpha_cell<-upper->(alpha_geom_f,area),lower->(alpha_geom_f,area
   $alpha_cell = alpha_sum/max(area_sum,real_t(1e-30)) ;
 }
 
-
 OUTPUT_SCALAR("cell2nodeMax(alpha_cell)",alpha) ;
+
+$type dihedral_max store<real_t> ;
+$type dihedral_min store<real_t> ;
+
+$rule pointwise(dihedral_max,dihedral_min<-
+		(upper,lower,boundary_map)->(face2node,area)) {
+  vector<entitySet> fnds ;
+  vector<vector3d<real_t> > ns ;
+  int  usz = $upper.size() ;
+  for(int i=0;i<usz;++i) {
+    int fsz = $upper[i]->$face2node.size() ;
+    entitySet tmp ;
+    for(int j=0;j<fsz;++j)
+      tmp += $upper[i]->$face2node[j] ;
+    fnds.push_back(tmp) ;
+    ns.push_back($upper[i]->$area.n) ;
+  }
+  int  lsz = $lower.size() ;
+  for(int i=0;i<lsz;++i) {
+    int fsz = $lower[i]->$face2node.size() ;
+    entitySet tmp ;
+    for(int j=0;j<fsz;++j)
+      tmp += $lower[i]->$face2node[j] ;
+    fnds.push_back(tmp) ;
+    ns.push_back((-1.0*$lower[i]->$area.n)) ;
+  }
+  int bsz = $boundary_map.size() ;
+  for(int i=0;i<bsz;++i) {
+    int fsz = $boundary_map[i]->$face2node.size() ;
+    entitySet tmp ;
+    for(int j=0;j<fsz;++j)
+      tmp += $boundary_map[i]->$face2node[j] ;
+    fnds.push_back(tmp) ;
+    ns.push_back($boundary_map[i]->$area.n) ;
+  }
+  // Now check dihedral angle
+  int nf = ns.size() ;
+  real_t amax = -1.0 ;
+  real_t amin = 1.0 ;
+  for(int i=0;i<nf;++i) {
+    entitySet sf = fnds[i] ;
+    for(int j=i+1;j<nf;++j) {
+      entitySet cn = sf&fnds[j] ;
+      if(cn.size() == 2) {
+	real_t ndn= -1.0*dot(ns[i],ns[j]) ;
+	amax = max(amax,ndn) ;
+	amin = min(amin,ndn) ;
+      }
+    }
+  }
+  $dihedral_max = acos(amin)*180./M_PI ;
+  $dihedral_min = acos(amax)*180./M_PI ;
+}
+
+$type max_dihedral param<real_t> ;
+
+$rule unit(max_dihedral),constraint(UNIVERSE) {
+  $max_dihedral = 0 ;
+}
+$rule apply(max_dihedral<-dihedral_max)[Loci::Maximum] {
+  join($max_dihedral,$dihedral_max) ;
+}
+
+$type min_dihedral param<real_t> ;
+
+$rule unit(min_dihedral),constraint(UNIVERSE) {
+  $min_dihedral = 180 ;
+}
+$rule apply(min_dihedral<-dihedral_min)[Loci::Minimum] {
+  join($min_dihedral,$dihedral_min) ;
+}
+$rule apply(topo<-max_dihedral,min_dihedral)[Loci::Maximum],
+  option(disable_threading), prelude {
+  $[Once] {
+    cout << "Cell dihedral angles, Max: " << *$max_dihedral 
+	 << " Min: " << *$min_dihedral << endl ;
+  }
+} ;
+
+
+OUTPUT_SCALAR("cell2nodeMax(dihedral_max)",dihedral_max) ;
+OUTPUT_SCALAR("cell2nodeMin(dihedral_min)",dihedral_min) ;
