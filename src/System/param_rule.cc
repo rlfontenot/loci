@@ -152,7 +152,9 @@ namespace Loci {
 #endif
     }
 
-
+#ifdef VERBOSE
+    debugout << "generating variable renaming map" << endl ;
+#endif
     // variable renaming map
     map<variable,variable> vm ;
     // Now loop over variables and apply substitution rules
@@ -161,7 +163,15 @@ namespace Loci {
     variableSet:: const_iterator vi ;
 
     for(vi=all_vars.begin();vi!=all_vars.end();++vi) {
+#ifdef VERBOSE
+      debugout << "result from applySubstitution("<< *vi << ") = " ;
+      debugout.flush() ;
+#endif
+      
       variable sv = applySubstitution(transform_map,*vi) ;
+#ifdef VERBOSE
+      debugout << sv << endl ;
+#endif
       if(sv != *vi) {
         vm[*vi] = sv ;
       }

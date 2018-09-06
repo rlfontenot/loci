@@ -48,7 +48,8 @@ void dummyFunctionDependencies(int i) {
   ierr = MatCreateMPIAIJ(MPI_COMM_WORLD,0,0,0,0,0,0,0,0,&m) ;
 #endif
   ierr = KSPSetFromOptions(ksp) ;
-  dummyFunctionDependencies(ierr) ;
+  if(i==0) 
+    dummyFunctionDependencies(ierr) ;
 }
 #endif
 

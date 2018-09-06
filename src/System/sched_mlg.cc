@@ -26,6 +26,8 @@ using std::ostringstream ;
 //#define VERBOSE
 namespace Loci {
 
+  extern bool verbose ;
+
   void multiLevelGraph::subGraph::create(digraph &gin,
                                          digraph::vertexSet &grvtx) {
     digraph gint = gin.transpose() ;
@@ -57,6 +59,13 @@ namespace Loci {
     variableSet tv = extract_vars(g.outgoing_v) ;
 
     rule r = make_super_rule(sv,tv) ;
+    if(verbose) {
+      debugout << "----------------------------------------------------------------------------" << endl ;
+      debugout << "creating super node: " << r << endl ;
+      ruleSet rset = extract_rules(g.graph_v) ;
+      debugout << rset << endl ;
+      debugout << "----------------------------------------------------------------------------" << endl ;
+    }
 
     toplevel = r.ident() ;
 
@@ -101,6 +110,13 @@ namespace Loci {
     variableSet sv = extract_vars(sg.incoming_v) ;
     variableSet tv = extract_vars(sg.outgoing_v) ;
     rule r = make_super_rule(sv,tv,cond_var) ;
+    if(verbose) {
+      debugout << "----------------------------------------------------------------------------" << endl ;
+      debugout << "creating super node: " << r << endl ;
+      ruleSet rset = extract_rules(sg.graph_v) ;
+      debugout << rset << endl ;
+      debugout << "----------------------------------------------------------------------------" << endl ;
+    }
     insert(r.ident(),sg) ;
 #ifdef VERBOSE
     if(extract_rules(sg.incoming_v).size() !=0) {
