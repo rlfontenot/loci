@@ -461,6 +461,10 @@ namespace Loci {
         //	distributed_info->remap[vi->first] = vi->second;
         distributed_info->g2fv[kd][vi->second] = vi->first ;
       }
+#ifdef LOCI_COMPAT_MODE1
+      distributed_info->g2f.setRep(distributed_info->g2fv[0].Rep()) ;
+      //      distributed_info->g2l.setRep(distributed_info->g2lv[0].Rep()) ;
+#endif
     }
   }
 
@@ -935,12 +939,17 @@ namespace Loci {
 	  int kd = p->getDomainKeySpace() ;
 	  int rd = mp->getRangeKeySpace() ;
 	  storeRepP fp = (mp->MapRemap(df->g2lv[kd],
-					 df->g2lv[rd]))->freeze() ;
+				       df->g2lv[rd]))->freeze() ;
 	  facts.replace_fact(*vi,fp) ;
 	  p = facts.get_variable(*vi) ;
 	  mp = MapRepP(p->getRep()) ;
 	}
       }
+#ifdef LOCI_COMPAT_MODE1
+      df->g2f.setRep(df->g2fv[0].Rep()) ;
+      df->g2l.setRep(df->g2lv[0].Rep()) ;
+#endif
+
     } else {
       for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
 	storeRepP p = facts.get_variable(*vi) ;
