@@ -89,6 +89,45 @@ namespace VOG {
     }
     char buf[1024] ;
     buf[1023] = '\0' ;
+    if(file.peek() != '#') {
+      while(file.peek() != EOF) {
+        int id = -1;
+        file >> id ;
+        if(id == -1)
+          break ;
+        string name ;
+        file >> name ;
+        if(name == "")
+          break ;
+        string tmp = name ;
+        size_t nsz = name.size() ;
+        if(!(name[0] >= 'a' && name[0] <= 'z') &&
+           !(name[0] >= 'A' && name[0] <= 'Z'))
+          name[0] = '_' ;
+        for(size_t i=1;i<nsz;++i) 
+          if(!(name[i] >= 'a' && name[i] <= 'z') &&
+             !(name[i] >= 'A' && name[i] <= 'Z') &&
+             !(name[i] >= '0' && name[i] <= '9'))
+            name[i] = '_' ;
+        if(tmp != name) 
+          cerr << "Renaming tag '" << tmp << "' to '" << name << "'!" << endl ;
+        
+        BC_descriptor BC ;
+        BC.id = id ;
+        BC.name = name ;
+        BC.Trans = false ;
+        file.getline(buf,1023) ;
+        bcs.push_back(BC) ;
+        while(file.peek() != EOF && (isspace(file.peek())))
+          file.get() ;
+        while(file.peek() == '#') { // eat comments
+          file.getline(buf,1023) ;
+          while(file.peek() != EOF && (isspace(file.peek())))
+            file.get() ;
+        }
+      }
+      return bcs ;
+    }
     file.getline(buf,1023) ;
     if(strncmp(buf,"# Generated",11) == 0) {
       cout << "Tagfile: " << buf << endl ;
