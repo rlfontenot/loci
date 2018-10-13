@@ -1347,6 +1347,30 @@ namespace Loci {
       H5Gclose(group_id) ;
   }
 
+  int getMinFileNumberFromLocal(entitySet read_set,
+				fact_db::distribute_infoP dist ) {
+
+    int minIDfl = std::numeric_limits<int>::max() ;
+    int kd =  getKeyDomain(read_set, dist, MPI_COMM_WORLD) ;
+    if(kd< 0) {
+      cerr << "read_set not in single keyspace!" << endl ;
+      kd = 0 ;
+    }
+    // Now get global to file numbering
+    dMap g2f ;
+    g2f = dist->g2fv[kd].Rep() ;
+    Map l2g ;
+    l2g = dist->l2g.Rep() ;
+    
+    // Compute map from local numbering to file numbering
+    FORALL(read_set,ii) {
+      minIDfl = min(minIDfl,g2f[l2g[ii]]) ;
+    } ENDFORALL ;
+    int minIDf = minIDfl ;
+    MPI_Allreduce(&minIDfl,&minIDf,1,MPI_INT,MPI_MIN,MPI_COMM_WORLD) ;
+    return minIDf ;
+  }
+  
   void read_container_redistribute(hid_t file_id, std::string vname,
                                    storeRepP var, entitySet read_set,
                                    fact_db &facts) {
@@ -1370,10 +1394,18 @@ namespace Loci {
     storeRepP new_store = var->new_store(EMPTY) ;
     read_store( group_id, new_store,offset,MPI_COMM_WORLD) ;
       
-    
+
     // map from file number to local numbering
     fact_db::distribute_infoP dist = facts.get_distribute_info() ;
     if(dist != 0) {
+      // Correct offset if file numbering changes.  Assume read_set is being
+      // read in over the same set
+      int minID = offset ;
+      MPI_Bcast(&minID,1,MPI_INT,0,MPI_COMM_WORLD) ;
+      const int minIDf = getMinFileNumberFromLocal(read_set,dist) ;
+      const int correct = minIDf - minID ;
+      offset += correct  ;
+
       // Allocate space for reordered container
       storeRepP result = var->new_store(read_set) ;
       File2LocalOrder(result,read_set,new_store,offset,dist,MPI_COMM_WORLD) ;
@@ -1384,13 +1416,15 @@ namespace Loci {
       }
       var->copy(result,read_set) ;
     } else {
-      if(offset != 0) {
-        // shift new store by offset to correct alignment
-        new_store->shift(offset) ;
-      }
       if(read_set == EMPTY) {
         read_set = new_store->domain() ;
         var->allocate(read_set) ;
+      } else {
+	offset = read_set.Min() - new_store->domain().Min() ;
+	if(offset != 0) {
+	  // shift new store by offset to correct alignment
+	  new_store->shift(offset) ;
+	}
       }
       var->copy(new_store,read_set) ;
     }
