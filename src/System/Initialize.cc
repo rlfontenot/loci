@@ -177,7 +177,16 @@ namespace Loci {
   bool collect_timings = false;
   double time_duration_to_collect_data = 0 ;
   bool use_duplicate_model = false;
-  bool use_simple_partition = false ;
+
+#ifdef LOCI_USE_METIS
+  bool use_simple_partition=false;
+#else 
+  // RSM COMMENT 20181108 setting this to true,
+  // automatically disables calls to METIS decomposition
+  // when we add support for ZOLTAN this will need to be 
+  // REVISITED: METIS_DISABLE_NOTE
+  bool use_simple_partition=true;
+#endif /* ifndef LOCI_USE_METIS */
   bool use_orb_partition = false ;
   extern int factdb_allocated_base ;
 

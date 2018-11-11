@@ -59,13 +59,16 @@ using std::map ;
 // doesn't work with large interval sets.  This needs to be fixed... however
 // we are reworking how the fact_db will be created so this can wait until that
 // process is further along.
+
+// RSM MOD 20181108
+#ifdef LOCI_USE_METIS
 #include <parmetis.h>
 #if REALTYPEWIDTH == 32
 typedef float metisreal_t ;
 #else
 typedef double metisreal_t ;
 #endif
-
+#endif
 namespace Loci {
 
   extern void memSpace(string s) ;
@@ -194,6 +197,8 @@ namespace Loci {
 
   }
 
+  // RSM MOD 20181108
+#ifdef LOCI_USE_METIS
   vector<entitySet> newMetisPartitionOfCells(const vector<entitySet> &local_cells,
                                              const Map &cl, const Map &cr) {
 
@@ -420,6 +425,8 @@ namespace Loci {
     return ptn;
 
   }
+
+#endif /* #ifdef LOCI_USE_METIS */
 
   vector<entitySet> partitionFaces(vector<entitySet> cell_ptn, const Map &cl,
                                    const Map &cr) {
@@ -953,7 +960,13 @@ namespace Loci{
     } else {
       // Partition Cells
       if(!use_simple_partition) {
+#ifdef LOCI_USE_METIS
         cell_ptn = newMetisPartitionOfCells(local_cells,tmp_cl,tmp_cr) ;
+#else
+	if(MPI_rank==0){
+	  debugout << "METIS is DISABLED.  SFC based simple_partition is default use. Please recompile" << endl;
+	}
+#endif
       } else {
         cell_ptn = vector<entitySet>(MPI_processes) ;
         cell_ptn[MPI_rank] = local_cells[MPI_rank] ;

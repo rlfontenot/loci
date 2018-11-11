@@ -61,6 +61,9 @@ using std::istringstream ;
 #include <stdio.h>
 #include <strings.h>
 
+// RSM MOD 20181108
+// WRAP METIS in LOCI_USE_METIS
+#ifdef LOCI_USE_METIS
 #include <parmetis.h>
 
 #if REALTYPEWIDTH == 32
@@ -68,6 +71,10 @@ typedef float metisreal_t ;
 #else
 typedef double metisreal_t ;
 #endif
+
+
+#endif
+
 
 namespace Loci {
   extern  bool useDomainKeySpaces  ;
@@ -1025,6 +1032,8 @@ namespace Loci {
                                      entitySet input_preimage,
                                      const std::vector<entitySet> &init_ptn) ;
 
+
+#ifdef LOCI_USE_METIS
   vector<entitySet> newMetisPartitionOfCells(const vector<entitySet> &local_cells,
                                              const Map &cl, const Map &cr,
 					     const store<string> &boundary_tags) {
@@ -1265,7 +1274,7 @@ namespace Loci {
     return ptn;
 
   }
-
+#endif /* LOCI_USE_METIS */
 
   void redistribute_container(const vector<entitySet> &ptn,
                               const vector<entitySet> &ptn_t,
@@ -2153,8 +2162,15 @@ namespace Loci {
 	useMetis = false ;
       }
       if(useMetis) {
-        cell_ptn = newMetisPartitionOfCells(local_cells,tmp_cl,tmp_cr,
-					    tmp_boundary_tags) ;
+
+#ifdef LOCI_USE_METIS
+        cell_ptn = newMetisPartitionOfCells(local_cells,tmp_cl,tmp_cr,tmp_boundary_tags) ;
+#else
+	if(MPI_rank==0) {
+	debugout << "METIS disabled:: Use Simple Partition - Based on Space Filling Curve! "<< endl ;
+	useMetis = false ;
+      }
+#endif
       } else {
         cell_ptn = vector<entitySet>(MPI_processes) ;
         cell_ptn[MPI_rank] = local_cells[MPI_rank] ;
