@@ -49,7 +49,9 @@ System : FRC
 	$(MAKE) -C System LOCI_BASE="$(LOCI_BASE)" libLoci.a
 
 METIS : FRC
-	$(MAKE) -C ParMetis-4.0 LOCI_BASE="$(LOCI_BASE)" 
+ifeq ($(INSTALL_METIS),1)
+	$(MAKE) -C ParMetis-4.0 LOCI_BASE="$(LOCI_BASE)"
+endif
 
 SPRNG : FRC
 	$(MAKE) -C sprng LOCI_BASE="$(LOCI_BASE)"

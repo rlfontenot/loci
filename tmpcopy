@@ -81,9 +81,13 @@ fi
 
 TARGET_DIRS="System Tools FVMAdapt include include/Tools include/Config include/MPI_stubb include/FVMAdapt"
 TOOLS_DIRS="lpp FVMtools FVMtools/libadf FVMMod sprng sprng/include sprng/include/sprng"
-if [ ! ${INSTALL_METIS} == 0 ]; then
+
+DO_METIS_INSTALL=${INSTALL_METIS:-1}
+if [ ! ${DO_METIS_INSTALL} == 0 ]; then
     TOOLS_DIRS=$TOOLS_DIRS" ParMetis-4.0 ParMetis-4.0/GKLib ParMetis-4.0/METISLib ParMetis-4.0/ParMETISLib"
 fi
+
+echo TOOLS_DIR=${TOOLS_DIRS}
 
 echo -n "Making Directory Structure: "
 mkdir -p $target
@@ -169,7 +173,7 @@ fi
 if [ ! -h fvmadapt_m.so ]; then
   ln -s ../FVMAdapt/fvmadapt_m.so fvmadapt_m.so
 fi
-if [ ! ${INSTALL_METIS} == 0 ]; then
+if [ ! ${DO_METIS_INSTALL} == 0 ]; then
     if [ ! -h libgk.${LIB_POSTFIX} ] ; then
 	ln -s ../ParMetis-4.0/GKLib/libgk.${LIB_POSTFIX} libgk.${LIB_POSTFIX}
     fi
@@ -259,11 +263,11 @@ if [ ! -h $fulltarget/lpp/variable.cc ] ; then
     echo ln -s $source/src/System/variable.cc $fulltarget/lpp/variable.cc
     ln -s $source/src/System/variable.cc $fulltarget/lpp/variable.cc
 fi
-if [ ${INSTALL_METIS} == 0 ]; then
+#if [ ${DO_METIS_INSTALL} == 0 ]; then
 #make dummy metis directory
-    mkdir -p $fulltarget/ParMetis-4.0
-    cp $source/ParMetis-4.0/Makefile.dummy $fulltarget/ParMetis-4.0/Makefile
-fi
+#    mkdir -p $fulltarget/ParMetis-4.0
+#    cp $source/ParMetis-4.0/Makefile.dummy $fulltarget/ParMetis-4.0/Makefile
+#fi
 #echo "** Be sure to set LOCI_BASE=\"$target/Loci\" **"
 
 

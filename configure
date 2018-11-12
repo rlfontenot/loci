@@ -22,11 +22,20 @@
 
 LD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:$LD_LIBRARY_PATH:/:/usr:/usr/local:/opt:/opt/local
 PETSC_BASE=$PETSC_DIR
-
+if [ -e ParMetis-4.0/metis.h ] ; then
 INSTALL_METIS=1
+USE_METIS=1
 METIS_BASE="\$(LOCI_BASE)/ParMetis-4.0"
 METIS_LIBS="-lparmetis -lmetis -lgk"
 METIS_INCLUDE="-I\$(METIS_BASE) -DLOCI_USE_METIS"
+else
+INSTALL_METIS=0
+USE_METIS=0
+METIS_BASE=
+METIS_LIBS=
+METIS_INCLUDE=
+fi
+
 set +e
 set -u
 set -f
@@ -123,6 +132,20 @@ while [ $# -ne 0 ]; do
 	--with-petsc\=*)
 	    tmp=$1
 	    PETSC_BASE=${tmp#--with-petsc\=}
+	    ;;
+	--no-metis)
+	    METIS_BASE=""
+	    METIS_LIBS=""
+	    METIS_INCLUDE=""
+	    INSTALL_METIS=0
+	    USE_METIS=0
+	    ;;
+	--nometis)
+	    METIS_BASE=""
+	    METIS_LIBS=""
+	    METIS_INCLUDE=""
+	    INSTALL_METIS=0
+	    USE_METIS=0
 	    ;;
 	--with-metis)
 	    shift
@@ -235,6 +258,7 @@ while [ $# -ne 0 ]; do
 	    echo "  --nompi                         : tell configure to build without using MPI"
 	    echo "  --with-petsc <PETSc directory>  : tell configure where to find PETSc package."
 	    echo "  --with-metis <parMETIS dir>     : tell configure where to find alternative    Parallel METIS package."
+	    echo "  --no-metis                      : tell configure not to install or use metis"
 	    echo "  --compiler <compiler name>      : tell configure what compiler to use"
 	    echo "  --obj-dir <OBJDIR name>         : tell configure where to put object files"
 	    echo "  --help                          : output this help information"
@@ -262,8 +286,13 @@ fi
 if [ -f ${METIS_BASE}/lib/libgk.dylib ] ; then
     GKLIB="-lgk"
 fi
+if [ ${USE_METIS} == 0 ] ; then
+METIS_LIBS=""
+METIS_INCLUDE=""
+else
 METIS_LIBS="-L\$(METIS_BASE)/lib -lparmetis -lmetis $GKLIB"
 METIS_INCLUDE="-I\$(METIS_BASE)/include -DLOCI_USE_METIS"
+fi
 fi
 
 echo Setup for compiler \"$COMPILER\".
@@ -483,6 +512,7 @@ echo INSTALL_METIS=$INSTALL_METIS >> sys.conf
 echo METIS_BASE= $METIS_BASE >> sys.conf
 echo METIS_LIBS= $METIS_LIBS >> sys.conf
 echo METIS_INCLUDE= $METIS_INCLUDE >> sys.conf
+
 echo >> sys.conf
 
 
@@ -711,12 +741,13 @@ echo "MACHINE_SPECIFIC = \$(PETSC_DEFINE) \$(PETSC_INCLUDE) \$(HDF5_INCLUDE)\\">
 echo "                   \$(MPI_INCLUDE) \$(METIS_INCLUDE) \$(CGNS_INCLUDE) \$(MISC)\\" >> sys.conf
 echo "                   \$(DYNAMIC_LOADING_DEFINES) " >> sys.conf
 echo >> sys.conf
-echo "BASE_LIBS = \$(HDF5_LIBS) \$(PETSC_LIBS) \$(MPI_LIBS) \$(METIS_LIBS) \\" >> sys.conf
-echo "            \$(MISC_LIBS) \$(CGNS_LIBS) \$(DYNAMIC_LOADING_LINK)" >> sys.conf
+echo "BASE_LIBS = \$(HDF5_LIBS) \$(PETSC_LIBS)  \$(METIS_LIBS) \\" >> sys.conf
+echo "            \$(MISC_LIBS) \$(CGNS_LIBS) \$(DYNAMIC_LOADING_LINK) \$(MPI_LIBS)" >> sys.conf
 
 
 echo Making compile subdirectory ${OBJDIR}...
-INSTALL_METIS=$INSTALL_METIS ./tmpcopy --target $OBJDIR --compiler $COMPILER > copy.out 
+
+INSTALL_METIS=$INSTALL_METIS ./tmpcopy --target $OBJDIR --compiler $COMPILER > copy.out
 mv sys.conf ${OBJDIR}/sys.conf
 
 # Make makefile
