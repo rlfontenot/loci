@@ -952,7 +952,8 @@ int main(int ac, char *av[]) {
       for(entitySet::const_iterator ei = domain.begin(); ei != domain.end(); ei++){
         if(cellMap[*ei] >=0)image += cellMap[*ei];
       }
-      if(image != EMPTY) volTags.push_back(make_pair<string, entitySet>(volDat[j].first, image));
+      if(image != EMPTY)
+	volTags.push_back(std::pair<string, entitySet>(volDat[j].first, image));
     }
         
 

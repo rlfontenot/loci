@@ -429,7 +429,8 @@ void QuadFace::split(char splitCode, char orientCode,
       //split edges
       for(char i = 0; i < 4; i++){
         char edgeID = orient_edgeID_f2c(i, orientCode);
-        if(edge[edgeID]->child == 0) edge[edgeID]->split(node_list);
+        if(edge[edgeID]->child == 0)
+	  edge[edgeID]->split(node_list);
       }
       
       //define new Node

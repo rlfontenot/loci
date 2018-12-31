@@ -289,7 +289,7 @@ namespace Loci {
   gEntitySet gMapVecRepI<M>::image( gEntity iset) const 
   {
     gEntitySet codomain ;
-    std::pair<gEntity, gEntity> p = make_pair<gEntity, gEntity>(iset, gEntity(0));
+    std::pair<gEntity, gEntity> p(iset, gEntity(0));
     std::pair<const_iterator, const_iterator> range = std::equal_range(begin(), end(), p, fieldSort1<gEntity>);
     if(range.first != range.second){
       for(const_iterator itr= range.first; itr != range.second; itr++) codomain += itr->second;
@@ -696,7 +696,7 @@ namespace Loci {
     gEntitySet store_domain = domain();
     gEntitySet  domaini,domainu ;
     GFORALL(store_domain,i) {
-      std::pair<gEntity, gEntity> p = make_pair<gEntity, gEntity>(i, gEntity(0));
+      std::pair<gEntity, gEntity> p(i, gEntity(0));
       std::pair<const_iterator, const_iterator> range = std::equal_range(begin(), end(), p, fieldSort1<gEntity>);
       if(range.first != range.second){
         bool vali = true ;

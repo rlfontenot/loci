@@ -182,29 +182,11 @@ fi
 if [ ! -h extract ] ; then
   ln -s ../FVMtools/extract extract
 fi
-if [ ! -h pb ] ; then
-  ln -s ../FVMtools/pb pb
-fi
-if [ ! -h xdr2vog ] ; then
-  ln -s ../FVMtools/xdr2vog xdr2vog
-fi
-if [ ! -h vog2xdr ] ; then
-  ln -s ../FVMtools/vog2xdr vog2xdr
+if [ ! -h vogcheck ] ; then
+  ln -s ../FVMtools/vogcheck vogcheck
 fi
 if [ ! -h ugrid2vog ] ; then
   ln -s ../FVMtools/ugrid2vog ugrid2vog
-fi
-if [ ! -h solidMesh2xdr ] ; then
-  ln -s ../FVMtools/solidMesh2xdr solidMesh2xdr
-fi
-if [ ! -h xdr2cobalt ] ; then
-  ln -s ../FVMtools/xdr2cobalt xdr2cobalt
-fi
-if [ ! -h cobalt2xdr ] ; then
-  ln -s ../FVMtools/cobalt2xdr cobalt2xdr
-fi
-if [ ! -h plot3d2xdr ] ; then
-  ln -s ../FVMtools/plot3d2xdr plot3d2xdr
 fi
 if [ ! -h marker ] ; then
   ln -s ../FVMtools/marker marker

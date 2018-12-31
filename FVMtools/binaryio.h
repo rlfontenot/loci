@@ -175,8 +175,8 @@ int  bf_skipspace (BINARYIO *bf);
 
 /* information */
 
-char *bf_machname (int mach);
-char *bf_archname (int mach);
+const char *bf_machname (int mach);
+const char *bf_archname (int mach);
 
 /* reads */
 

@@ -22,6 +22,7 @@
 #include <ostream>
 #include <iostream>
 #include <fstream>
+#include <algorithm>
 
 #include <gmap.h>
 #include <gmultimap.h>	
@@ -436,7 +437,7 @@ namespace Loci {
   {
     
     gEntity codomain = 0 ;
-    std::pair<gEntity, gEntity> p = make_pair<gEntity, gEntity>(iset, gEntity(0));
+    std::pair<gEntity, gEntity> p = std::make_pair(iset, gEntity(0));
     const_iterator itr = std::lower_bound(begin(), end(), p, gmap_porder1);
     if(itr != end()){
       codomain = itr->second;

@@ -22,6 +22,7 @@
 #include <ostream>
 #include <iostream>
 #include <fstream>
+#include <algorithm>
 
 #include <store.h>
 #include <multiMap.h>
@@ -271,7 +272,7 @@ namespace Loci {
   {
     fatal(!sorted);
     gEntitySet codomain ;
-    std::pair<gEntity, gEntity> p = make_pair<gEntity, gEntity>(iset, gEntity(0));
+    std::pair<gEntity, gEntity> p(iset, gEntity(0));
     std::pair<const_iterator, const_iterator> range = std::equal_range(begin(), end(), p, fieldSort1<gEntity>);
     if(range.first != range.second){
       for(const_iterator itr= range.first; itr != range.second; itr++) codomain += itr->second;
@@ -283,14 +284,14 @@ namespace Loci {
   int gMultiMapRepI::num_elems( gEntity iset) const 
   {
     fatal(!sorted);
-    std::pair<gEntity, gEntity> p = make_pair<gEntity, gEntity>(iset, gEntity(0));
+    std::pair<gEntity, gEntity> p(iset, gEntity(0));
     std::pair<const_iterator, const_iterator> range = std::equal_range(begin(), end(), p, fieldSort1<gEntity>);
     return std::distance(range.first, range.second);
   }
   
   std::pair<gMultiMapRepI::const_iterator, gMultiMapRepI::const_iterator> gMultiMapRepI::range(gEntity iset)const{
     fatal(!sorted);
-    std::pair<gEntity, gEntity> p = make_pair<gEntity, gEntity>(iset, gEntity(0));
+    std::pair<gEntity, gEntity> p(iset, gEntity(0));
     std::pair<const_iterator, const_iterator> range = std::equal_range(begin(), end(), p, fieldSort1<gEntity>);
     return range;
   }
@@ -701,7 +702,7 @@ namespace Loci {
     gEntitySet store_domain = domain();
     gEntitySet  domaini,domainu ;
     GFORALL(store_domain,i) {
-      std::pair<gEntity, gEntity> p = make_pair<gEntity, gEntity>(i, gEntity(0));
+      std::pair<gEntity, gEntity> p(i, gEntity(0));
       std::pair<const_iterator, const_iterator> range = std::equal_range(begin(), end(), p, fieldSort1<gEntity>);
       if(range.first != range.second){
         bool vali = true ;

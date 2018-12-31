@@ -267,7 +267,7 @@ namespace Loci {
       return *data;
     }
 
-    void set_entitySet(const gEntitySet &ptn) {Rep()->allocate(ptn); }
+    //    void set_entitySet(const gEntitySet &ptn) {Rep()->allocate(ptn); }
 
     gEntitySet domain() const { return Rep()->domain(); }
 

@@ -60,7 +60,7 @@ enum ERRCODES {
     BIOERR_BADEOR
 };
 
-static char *errmsg[] = {
+static const char *errmsg[] = {
     "tried to read from file opened for write",
     "tried to write to file opened for read",
     "Fortran EOR mark not found",
@@ -358,7 +358,7 @@ static int set_flags (BINARYIO *bf, int flags)
  * default fatal error handler
  *-------------------------------------------------------------------*/
 
-static int fatal_error (char *funcname, int errcode)
+static int fatal_error (const char *funcname, int errcode)
 {
     char msg[81];
 
@@ -1106,7 +1106,7 @@ int bf_skipspace (BINARYIO *bf)
  * return machine name for given type
  *---------------------------------------------------------------------*/
 
-static char *machnames[] = {
+static const char *machnames[] = {
     "unknown",
     "Sun",
     "Iris",
@@ -1126,7 +1126,7 @@ static char *machnames[] = {
 
 #define NUM_MACH    (sizeof(machnames)/sizeof(char *))
 
-char *bf_machname (int mach)
+const char *bf_machname (int mach)
 {
     if (MACH_DEFAULT == mach)
         mach = MACH_LOCAL;
@@ -1139,7 +1139,7 @@ char *bf_machname (int mach)
  * return the architecture name
  *--------------------------------------------------------------------*/
 
-static char *arch_name[] = {
+static const char *arch_name[] = {
     "32-bit IEEE",
     "32-bit byteswapped IEEE",
     "64-bit Cray",
@@ -1148,7 +1148,7 @@ static char *arch_name[] = {
     "16-bit DOS",
 };
 
-char *bf_archname (int mach)
+const char *bf_archname (int mach)
 {
     int arch;
 
@@ -1198,7 +1198,7 @@ char *bf_archname (int mach)
 int bf_getbytes (BINARYIO *bf, int count, unsigned char *data)
 {
     int n = 0;
-    static char *fname = "bf_getbytes";
+    static const char *fname = "bf_getbytes";
 
     if (OPEN_WRITE == (bf->flags & OPEN_WRITE))
         return (fatal_error (fname, BIOERR_WRITE));
@@ -1260,7 +1260,7 @@ int bf_getbytes (BINARYIO *bf, int count, unsigned char *data)
 int bf_getstring (BINARYIO *bf, int count, char *data)
 {
     int n = 0;
-    static char *fname = "bf_getstring";
+    static const char *fname = "bf_getstring";
 
     if (OPEN_WRITE == (bf->flags & OPEN_WRITE))
         return (fatal_error (fname, BIOERR_WRITE));
@@ -1328,7 +1328,7 @@ int bf_getstring (BINARYIO *bf, int count, char *data)
 int bf_getshorts (BINARYIO *bf, int count, short *data)
 {
     int n = 0, cnt;
-    static char *fname = "bf_getshorts";
+    static const char *fname = "bf_getshorts";
 
     if (OPEN_WRITE == (bf->flags & OPEN_WRITE))
         return (fatal_error (fname, BIOERR_WRITE));
@@ -1392,7 +1392,7 @@ int bf_getshorts (BINARYIO *bf, int count, short *data)
 int bf_getints (BINARYIO *bf, int count, int *data)
 {
     int n = 0, cnt;
-    static char *fname = "bf_getints";
+    static const char *fname = "bf_getints";
 
     if (OPEN_WRITE == (bf->flags & OPEN_WRITE))
         return (fatal_error (fname, BIOERR_WRITE));
@@ -1456,7 +1456,7 @@ int bf_getints (BINARYIO *bf, int count, int *data)
 int bf_getlongs (BINARYIO *bf, int count, long *data)
 {
     int n = 0, cnt;
-    static char *fname = "bf_getlongs";
+    static const char *fname = "bf_getlongs";
 
     if (OPEN_WRITE == (bf->flags & OPEN_WRITE))
         return (fatal_error (fname, BIOERR_WRITE));
@@ -1521,7 +1521,7 @@ int bf_getfloats (BINARYIO *bf, int count, float *data)
 {
     int n = 0;
     double dval;
-    static char *fname = "bf_getfloats";
+    static const char *fname = "bf_getfloats";
 
     if (OPEN_WRITE == (bf->flags & OPEN_WRITE))
         return (fatal_error (fname, BIOERR_WRITE));
@@ -1585,7 +1585,7 @@ int bf_getfloats (BINARYIO *bf, int count, float *data)
 int bf_getdoubles (BINARYIO *bf, int count, double *data)
 {
     int n = 0;
-    static char *fname = "bf_getdoubles";
+    static const char *fname = "bf_getdoubles";
 
     if (OPEN_WRITE == (bf->flags & OPEN_WRITE))
         return (fatal_error (fname, BIOERR_WRITE));
