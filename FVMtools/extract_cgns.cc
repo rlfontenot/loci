@@ -90,7 +90,11 @@ void read_surf_info(string casename, string iteration,
 
   file_id = H5Fopen(gridtopo.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   
+#ifdef H5_USE_16_API  
   hid_t bndg = H5Gopen(file_id,"boundaries") ;
+#else
+  hid_t bndg = H5Gopen(file_id,"boundaries",H5P_DEFAULT) ;
+#endif
   hsize_t num_bcs = 0 ;
   H5Gget_num_objs(bndg,&num_bcs) ;
   
@@ -103,7 +107,11 @@ void read_surf_info(string casename, string iteration,
     memset(buf, '\0', 1024) ;
     H5Gget_objname_by_idx(bndg,bc,buf,sizeof(buf)) ;
     buf[1023]='\0' ;
+#ifdef H5_USE_16_API
     hid_t bcg = H5Gopen(bndg,buf) ;
+#else
+    hid_t bcg = H5Gopen(bndg,buf,H5P_DEFAULT) ;
+#endif
     
     int nquads = sizeElementType(bcg,"quads") ;
     int ntrias = sizeElementType(bcg,"triangles") ;
