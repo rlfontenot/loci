@@ -855,6 +855,7 @@ namespace Loci {
 
   
   //copy gMultiMap to traditional Loci multiMap
+#ifdef COPY2STORE  
   storeRepP gMultiMapRepI::copy2store() const{
     fatal(!sorted);
     gEntitySet dom = domain();
@@ -891,7 +892,7 @@ namespace Loci {
     
     return s.Rep();
   }
-
+#endif
 
   
 }

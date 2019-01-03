@@ -331,6 +331,24 @@ namespace Loci {
   } ;
 
   template <>
+  struct data_schema_traits<long long> {
+    typedef IDENTITY_CONVERTER Schema_Converter;
+
+    static DatatypeP get_type() {
+      return DatatypeP(new AtomicType(LONGLONG)) ;
+    }      
+  } ;
+
+  template <>
+  struct data_schema_traits<unsigned long long> {
+    typedef IDENTITY_CONVERTER Schema_Converter;
+
+    static DatatypeP get_type() {
+      return DatatypeP(new AtomicType(UNSIGNED_LONGLONG)) ;
+    }      
+  } ;
+
+  template <>
   struct data_schema_traits<float> {
     typedef IDENTITY_CONVERTER Schema_Converter;
 

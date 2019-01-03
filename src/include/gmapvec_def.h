@@ -142,7 +142,9 @@ namespace Loci {
   
     virtual void* get_attrib_data() {return &attrib_data; }
     virtual const void* get_attrib_data() const{return &attrib_data; }
+#ifdef COPY2STORE  
     virtual storeRepP copy2store() const;
+#endif
     virtual DatatypeP getType()const ;
   
   } ;

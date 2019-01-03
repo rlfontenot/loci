@@ -539,6 +539,7 @@ namespace Loci {
   }
 
   //copy gMap to traditional Loci Map 
+#ifdef COPY2STORE  
   storeRepP gMapRepI::copy2store() const{
     // if(!sorted)throw(bad_access);
     entitySet dom = domain();
@@ -551,6 +552,7 @@ namespace Loci {
     } 
     return s.Rep();
   }
+#endif
     
   frame_info gMapRepI::get_frame_info()const {
     warn(true) ;

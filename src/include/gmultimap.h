@@ -74,7 +74,9 @@ namespace Loci {
     virtual gStoreRepP clone() const{return new gMultiMapRepI(*this); }  
     virtual gStoreRepP remap(const gMap &m) const ;
     virtual void inplace_remap(const gMap &m); 
+#ifdef COPY2STORE  
     virtual storeRepP copy2store() const;
+#endif
     virtual gStoreRepP
     redistribute(const std::vector<gEntitySet>& dom_split,
                  MPI_Comm comm=MPI_COMM_WORLD)const ;

@@ -55,6 +55,10 @@ namespace Loci {
       return (H5Tcopy(H5T_NATIVE_LONG));
     case UNSIGNED_LONG:
       return (H5Tcopy(H5T_NATIVE_ULONG));
+    case LONGLONG:
+      return (H5Tcopy(H5T_NATIVE_LLONG)) ;
+    case UNSIGNED_LONGLONG:
+      return (H5Tcopy(H5T_NATIVE_ULLONG)) ;
     default:
       cerr << "Unknown Basic datatype  " << atom << endl;
       abort();

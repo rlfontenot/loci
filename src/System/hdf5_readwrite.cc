@@ -105,7 +105,7 @@ namespace Loci {
     dataspace  = H5Dget_space(dataset);
     H5Sget_simple_extent_dims (dataspace, &dimension, NULL);
 
-    int *data = new int[dimension];
+    Entity *data = new Entity[dimension];
 
     H5Dread( dataset, H5T_NATIVE_INT, H5S_ALL, dataspace,
              H5P_DEFAULT, data);

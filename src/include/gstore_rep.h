@@ -80,7 +80,9 @@ namespace Loci {
     virtual gKeySpaceP get_domain_space()const = 0;
 
     virtual gStoreRepP clone() const = 0 ;
+#ifdef COPY2STORE  
     virtual storeRepP copy2store() const = 0;
+#endif
     // the remap method merely renumbers the container
     // according to the passed in map
     virtual gStoreRepP remap(const gMap &m) const = 0 ;

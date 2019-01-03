@@ -772,6 +772,7 @@ namespace Loci {
   
   //**************************************************************************/
   //copy gMultiMap to traditional Loci multiMap
+#ifdef COPY2STORE  
   template<unsigned int M> 
   storeRepP gMapVecRepI<M>::copy2store() const{
     entitySet dom = domain();
@@ -786,7 +787,7 @@ namespace Loci {
     }
     return s.Rep();
   }
-
+#endif
 
   
 }

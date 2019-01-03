@@ -87,8 +87,6 @@ typedef double metisreal_t ;
 
 namespace Loci {
 #define MEMDIAG
-  typedef int int_type; 
-  typedef Loci::int_type gEntity ;
  
 #ifdef MEMDIAG
   void *memtop =0;
@@ -385,7 +383,7 @@ namespace Loci {
       int nfaces = *cluster ;
       cluster++ ;
       for(int i=0;i<nfaces;++i) {
-        int fc = face_base+num_faces+i ;
+        gEntity fc = face_base+num_faces+i ;
         for(int j=0;j<npnts;++j){
           gEntity val = nodeTable[*cluster++];
           face2node.insert(gEntity(fc), val) ;
@@ -501,7 +499,7 @@ namespace Loci {
   //no modification,
   //modify later when entites are stored as 64-bit in file 
   bool readVolTags(hid_t input_fid,
-                   vector<pair<string,Loci::entitySet> > &volDat) {
+                   vector<pair<string,Loci::gEntitySet> > &volDat) {
     using namespace Loci ;
     /* Save old error handler */
     H5E_auto_t old_func = 0;
@@ -510,11 +508,11 @@ namespace Loci {
     /* Turn off error handling */
     H5Eset_auto(H5E_DEFAULT, NULL, NULL);
     
-    vector<pair<string,entitySet> > volTags ;
+    vector<pair<string,gEntitySet> > volTags ;
     hid_t cell_info = H5Gopen(input_fid,"cell_info", H5P_DEFAULT) ;
     if(cell_info > 0) {
       vector<string> vol_tag ;
-      vector<entitySet> vol_set ;
+      vector<gEntitySet> vol_set ;
       vector<int> vol_id ;
       
       hsize_t num_tags = 0 ;
@@ -531,8 +529,8 @@ namespace Loci {
         int ident ;
         H5Aread(id_a,H5T_NATIVE_INT,&ident) ;
         H5Aclose(id_a) ;
-        entitySet dom ;
-        HDF5_ReadDomain(vt_g,dom) ;
+        gEntitySet dom ;
+        g_HDF5_ReadDomain(vt_g,dom) ;
         vol_tag.push_back(name) ;
         vol_set.push_back(dom) ;
         vol_id.push_back(ident) ;
@@ -541,7 +539,7 @@ namespace Loci {
       int maxi =0 ;
       for(size_t i=0;i<vol_id.size();++i)
         maxi = max(vol_id[i],maxi) ;
-      vector<pair<string,entitySet> > tmp(maxi+1) ;
+      vector<pair<string,gEntitySet> > tmp(maxi+1) ;
       volTags.swap(tmp) ;
       for(size_t i=0;i<vol_id.size();++i) {
         volTags[vol_id[i]].first = vol_tag[i] ;
@@ -550,9 +548,9 @@ namespace Loci {
     } else {
       hid_t file_info = H5Gopen(input_fid,"file_info", H5P_DEFAULT) ;
       long numCells = readAttributeLong(file_info,"numCells") ;
-      volTags.push_back(pair<string,entitySet>
+      volTags.push_back(pair<string,gEntitySet>
                         (string("Main"),
-                         entitySet(interval(0,numCells-1)))) ;
+                         gEntitySet(interval(0,numCells-1)))) ;
       H5Gclose(file_info) ;
     }
   
@@ -947,7 +945,7 @@ namespace Loci {
     gStore<string> boundary_names;
     gStore<string> boundary_tags;
     if(MPI_rank==0){
-      FORALL(boundary_taglist, ii) {
+      GFORALL(boundary_taglist, ii) {
         int_type bc = ii;
         char buf[128] ;
         bzero(buf,128) ;

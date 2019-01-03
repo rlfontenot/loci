@@ -110,7 +110,9 @@ namespace Loci {
     virtual const void* get_attrib_data() const{
       return  static_cast<const void*>(&attrib_data);
     }
+#ifdef COPY2STORE  
     virtual storeRepP copy2store()const;
+#endif
      
     virtual int pack_size(const gEntitySet &e)const ;
     virtual void pack(void *ptr, int &loc, int size, const gEntitySet &e)const ;//only pack attrib_data

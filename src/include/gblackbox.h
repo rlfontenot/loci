@@ -80,8 +80,9 @@ namespace Loci {
     virtual const void* get_attrib_data() const{
       return  static_cast<const void*>(&attrib_data);
     }
+#ifdef COPY2STORE  
     virtual storeRepP copy2store()const;
-    
+#endif    
     // virtual int pack_size(const gEntitySet& e, gEntitySet& packed) ;
     virtual int pack_size(const gEntitySet &e) const;
     // virtual int estimated_pack_size(const gEntitySet &e);
@@ -359,6 +360,7 @@ namespace Loci {
   
   //**************************************************************************/
 
+#ifdef COPY2STORE  
   template<class T> 
   storeRepP gBlackboxRepI<T>::copy2store()const 
   {
@@ -368,7 +370,7 @@ namespace Loci {
       *r = *attrib_data ;
     return r.Rep();
   }
-
+#endif
  
   //**************************************************************************/
  

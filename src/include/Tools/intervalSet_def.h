@@ -37,9 +37,15 @@
 namespace Loci {
 
   typedef int int_type ;
-  //  typedef long long int gEntity;
-  typedef int_type gEntity;
 
+  //#define LONG_GENTITY
+
+#ifdef LONG_GENTITY
+  typedef long long int gEntity;
+#else
+#define COPY2STORE
+  typedef int_type gEntity;
+#endif
   //num_intervals return size_t, instead of int
   //use size_t for size of genIntervalSet
   //use size_t for index of genIntervalSet

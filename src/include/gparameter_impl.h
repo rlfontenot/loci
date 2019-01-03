@@ -27,7 +27,7 @@ namespace Loci {
   //allow overlap between processes
    std::vector<gEntitySet> transposePtn(const std::vector<gEntitySet> &ptn, MPI_Comm comm);
 
-  
+#ifdef COPY2STORE  
   //**************************************************************************/
   template<class T> storeRepP gParamRepI<T>::copy2store()const{
     param<T> r ;
@@ -35,7 +35,7 @@ namespace Loci {
     *r = attrib_data;
     return r.Rep() ;
   }
-
+#endif
   //**************************************************************************/
   template<class T>
   std::ostream &gParamRepI<T>::Print(std::ostream &s) const
@@ -471,8 +471,9 @@ namespace Loci {
 
   //**************************************************************************/
   template<class T>
-  void gParamRepI<T>::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension,
-                              const char* name, frame_info &fi, const gEntitySet &eset)
+  void gParamRepI<T>::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, 
+			       hsize_t dimension, const char* name, 
+			       frame_info &fi, const gEntitySet &eset)
   {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_output_type;

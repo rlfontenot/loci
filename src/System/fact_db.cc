@@ -258,11 +258,14 @@ namespace Loci {
   
   void fact_db::copy_facts(){
     fmap.clear();
+#ifdef COPY2STORE  
     for(std::map<variable,gStoreRepP>::const_iterator itr = gfmap.begin(); itr != gfmap.end(); itr++){
       variable v = itr->first;
       create_fact(v, itr->second->copy2store());
     }
-    
+#else
+    cerr << "copy_facts not implemented: " << endl ;
+#endif    
   }
  
  

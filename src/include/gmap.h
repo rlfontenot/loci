@@ -129,7 +129,9 @@ namespace Loci {
     virtual std::pair<gEntitySet,gEntitySet>
     preimage(const gEntitySet &codomain) const ;
     //copy to traditional Loci Map
+#ifdef COPY2STORE  
     virtual storeRepP copy2store() const;
+#endif
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
     //different from traditional maps, this method is const method

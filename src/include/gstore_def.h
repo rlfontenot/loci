@@ -256,6 +256,7 @@ namespace Loci {
     }
     //copy gstore to traditional Loci store, storevec or multistore
     //partially implemented
+#ifdef COPY2STORE  
     virtual storeRepP copy2store() const{
       fatal(!sorted);
       entitySet dom = domain();
@@ -267,6 +268,7 @@ namespace Loci {
       }
       return s.Rep();
     }
+#endif
    
     virtual ~gStoreRepI(){}
     virtual gStoreRepP clone() const{return new gStoreRepI(*this);}

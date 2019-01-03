@@ -218,6 +218,8 @@ namespace Loci {
       return first;
     }
 
+#ifdef COPY2STORE  
+
     //copy gMultiStore to traditional Loci multiStore
     virtual storeRepP copy2store() const{
       entitySet dom = domain();
@@ -253,7 +255,7 @@ namespace Loci {
       }ENDGFORALL;
       return s.Rep();
     }
-      
+#endif      
    
     virtual ~gMultiStoreRepI(){}
     virtual gStoreRepP clone() const{return new gMultiStoreRepI(*this);}

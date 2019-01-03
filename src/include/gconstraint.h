@@ -80,7 +80,9 @@ namespace Loci {
     virtual gStoreRepP clone() const{
       return new gConstraintRep(constraint_set); 
     }
+#ifdef COPY2STORE  
     virtual storeRepP copy2store()const ;
+#endif
     virtual void* get_attrib_data() {
       return static_cast<void*>(&constraint_set);
     }
