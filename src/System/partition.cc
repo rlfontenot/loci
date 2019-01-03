@@ -120,9 +120,9 @@ namespace Loci{
         send_store[send_displacement[i]+j*2+1] = ptn[i][j].second ;
       }
 
-
-    MPI_Alltoallv(send_store,&send_sz[0], send_displacement , MPI_GENTITY_TYPE,
-		  recv_store, &recv_sz[0], recv_displacement, MPI_GENTITY_TYPE,
+    MPI_Datatype MPI_T_type = MPI_traits<gEntity>::get_MPI_type() ;
+    MPI_Alltoallv(send_store,&send_sz[0], send_displacement , MPI_T_type,
+		  recv_store, &recv_sz[0], recv_displacement, MPI_T_type,
 		  comm) ;
 
     vector<gEntitySet> ptn_t(MPI_processes) ;

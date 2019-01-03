@@ -35,9 +35,7 @@
 #include <iostream>
 
 //this directive should be paired with the typedef of gEntity
-//#define MPI_GENTITY_TYPE MPI_LONG_LONG_INT
 //#define HDF5_GENTITY_TYPE  H5T_NATIVE_LLONG
-#define MPI_GENTITY_TYPE MPI_INT
 #define HDF5_GENTITY_TYPE  H5T_NATIVE_INT
 
 namespace Loci {

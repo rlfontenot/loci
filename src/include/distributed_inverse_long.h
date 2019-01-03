@@ -103,15 +103,10 @@ namespace Loci {
       send_store[send_displacement[current_p]+offsets[current_p]++] = from ;
     }
  
-    if(sizeof(T)==sizeof(int)){ 
-      MPI_Alltoallv(&send_store[0],&send_sz[0], send_displacement , MPI_INT,
-                    &recv_store[0], &recv_sz[0], recv_displacement, MPI_INT,
-                    MPI_COMM_WORLD) ;
-    }else{
-      MPI_Alltoallv(&send_store[0],&send_sz[0], send_displacement , MPI_GENTITY_TYPE,
-                    &recv_store[0], &recv_sz[0], recv_displacement, MPI_GENTITY_TYPE,
-                    MPI_COMM_WORLD) ;
-    }
+    MPI_Datatype MPI_T_type = MPI_traits<T>::get_MPI_type() ;
+    MPI_Alltoallv(&send_store[0], &send_sz[0], send_displacement, MPI_T_type,
+		  &recv_store[0], &recv_sz[0], recv_displacement, MPI_T_type,
+		  MPI_COMM_WORLD) ;
  
     delete[] recv_displacement ;
     delete[] send_displacement ;

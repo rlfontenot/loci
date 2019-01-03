@@ -1544,13 +1544,15 @@ namespace Loci{
 
       gEntity vp_size = vp.size() ;
       gEntity global_vp_size = 0 ;
+      MPI_Datatype MPI_T_type = MPI_traits<gEntity>::get_MPI_type() ;
+
       MPI_Allreduce(&vp_size, &global_vp_size,
-                    1, MPI_GENTITY_TYPE, MPI_SUM, comm) ;
+                    1, MPI_T_type, MPI_SUM, comm) ;
 
       gEntity space = global_vp_size / num_procs ;
       // compute a global range for the elements on each process
       gEntity global_end = 0 ;
-      MPI_Scan(&vp_size, &global_end, 1, MPI_GENTITY_TYPE, MPI_SUM, comm) ;
+      MPI_Scan(&vp_size, &global_end, 1, MPI_T_type, MPI_SUM, comm) ;
       gEntity global_start = global_end - vp_size ;
 
       vector<gEntity> splitters(num_procs) ;
@@ -1586,8 +1588,8 @@ namespace Loci{
         send_displs[i] = send_displs[i-1] + send_counts[i-1] ;
 
       vector<gEntity> recv_counts(num_procs) ;
-      MPI_Alltoall(&send_counts[0], 1, MPI_GENTITY_TYPE,
-                   &recv_counts[0], 1, MPI_GENTITY_TYPE, comm) ;
+      MPI_Alltoall(&send_counts[0], 1, MPI_T_type,
+                   &recv_counts[0], 1, MPI_T_type, comm) ;
 
       vector<gEntity> recv_displs(num_procs) ;
       recv_displs[0] = 0 ;
@@ -1610,9 +1612,9 @@ namespace Loci{
       vector<gEntity> recv_buf(total_recv_size) ;
 
       MPI_Alltoallv(&send_buf[0], &send_counts[0],
-                    &send_displs[0], MPI_GENTITY_TYPE,
+                    &send_displs[0], MPI_T_type,
                     &recv_buf[0], &recv_counts[0],
-                    &recv_displs[0], MPI_GENTITY_TYPE, comm) ;
+                    &recv_displs[0], MPI_T_type, comm) ;
       // finally extract the data to fill the pair vector
       // release send_buf first to save some memory
       vector<gEntity>().swap(send_buf) ;
@@ -1648,8 +1650,9 @@ namespace Loci{
       // gather the splitters to all processors as samples
       int sample_size = num_procs * (num_procs-1) ;
       gEntity* samples = new gEntity[sample_size] ;
-      MPI_Allgather(splitters, num_procs-1, MPI_GENTITY_TYPE,
-                    samples, num_procs-1, MPI_GENTITY_TYPE, comm) ;
+      MPI_Datatype MPI_T_type = MPI_traits<gEntity>::get_MPI_type() ;
+      MPI_Allgather(splitters, num_procs-1, MPI_T_type,
+                    samples, num_procs-1, MPI_T_type, comm) ;
       // now we've obtained all the samples, first we sort them
       sort(samples, samples+sample_size) ;
       // select new splitters in the sorted samples
@@ -1713,8 +1716,8 @@ namespace Loci{
       int new_local_size = rdispls[num_procs-1] + rcounts[num_procs-1] ;
       gEntity* sorted_pairs = new gEntity[new_local_size] ;
       // finally we communicate local_pairs to each processor
-      MPI_Alltoallv(local_pairs, scounts, sdispls, MPI_GENTITY_TYPE,
-                    sorted_pairs, rcounts, rdispls, MPI_GENTITY_TYPE, comm) ;
+      MPI_Alltoallv(local_pairs, scounts, sdispls, MPI_T_type,
+                    sorted_pairs, rcounts, rdispls, MPI_T_type, comm) ;
       // release buffers
       delete[] splitters ;
       delete[] samples ;
@@ -1753,8 +1756,9 @@ namespace Loci{
       // gather the splitters to all processors as samples
       gEntity sample_size = num_procs * (num_procs-1) ;
       pair<gEntity, gEntity>* samples = new pair<gEntity, gEntity>[sample_size] ;
-      MPI_Allgather(splitters, (num_procs-1)*2, MPI_GENTITY_TYPE,
-                    samples, (num_procs-1)*2, MPI_GENTITY_TYPE, comm) ;
+      MPI_Datatype MPI_T_type = MPI_traits<gEntity>::get_MPI_type() ;
+      MPI_Allgather(splitters, (num_procs-1)*2, MPI_T_type,
+                    samples, (num_procs-1)*2, MPI_T_type, comm) ;
       // now we've obtained all the samples, first we sort them
       sort(samples, samples+sample_size) ;
       // select new splitters in the sorted samples
@@ -1821,8 +1825,8 @@ namespace Loci{
       int new_local_size = rdispls[num_procs-1] + rcounts[num_procs-1] ;
       gEntity* sorted_pairs = new gEntity[new_local_size] ;
       // finally we communicate local_pairs to each processor
-      MPI_Alltoallv(local_pairs, scounts, sdispls, MPI_GENTITY_TYPE,
-                    sorted_pairs, rcounts, rdispls, MPI_GENTITY_TYPE, comm) ;
+      MPI_Alltoallv(local_pairs, scounts, sdispls, MPI_T_type,
+                    sorted_pairs, rcounts, rdispls, MPI_T_type, comm) ;
       // release buffers
       delete[] splitters ;
       delete[] samples ;
@@ -1857,13 +1861,14 @@ namespace Loci{
   
       gEntity vp_size = vp.size() ;
       gEntity global_vp_size = 0 ;
+      MPI_Datatype MPI_T_type = MPI_traits<gEntity>::get_MPI_type() ;
       MPI_Allreduce(&vp_size, &global_vp_size,
-                    1, MPI_GENTITY_TYPE, MPI_SUM, comm) ;
+                    1, MPI_T_type, MPI_SUM, comm) ;
   
       gEntity space = global_vp_size / num_procs ;
       // compute a global range for the elements on each process
       gEntity global_end = 0 ;
-      MPI_Scan(&vp_size, &global_end, 1, MPI_GENTITY_TYPE, MPI_SUM, comm) ;
+      MPI_Scan(&vp_size, &global_end, 1, MPI_T_type, MPI_SUM, comm) ;
       gEntity global_start = global_end - vp_size ;
   
       vector<gEntity> splitters(num_procs) ;
@@ -1899,8 +1904,8 @@ namespace Loci{
         send_displs[i] = send_displs[i-1] + send_counts[i-1] ;
   
       vector<gEntity> recv_counts(num_procs) ;
-      MPI_Alltoall(&send_counts[0], 1, MPI_GENTITY_TYPE,
-                   &recv_counts[0], 1, MPI_GENTITY_TYPE, comm) ;
+      MPI_Alltoall(&send_counts[0], 1, MPI_T_type,
+                   &recv_counts[0], 1, MPI_T_type, comm) ;
   
       vector<gEntity> recv_displs(num_procs) ;
       recv_displs[0] = 0 ;
@@ -1924,9 +1929,9 @@ namespace Loci{
       vector<gEntity> recv_buf(total_recv_size) ;
   
       MPI_Alltoallv(&send_buf[0], &send_counts[0],
-                    &send_displs[0], MPI_GENTITY_TYPE,
+                    &send_displs[0], MPI_T_type,
                     &recv_buf[0], &recv_counts[0],
-                    &recv_displs[0], MPI_GENTITY_TYPE, comm) ;
+                    &recv_displs[0], MPI_T_type, comm) ;
       // finally extract the data to fill the pair vector
       // release send_buf first to save some memory
       vector<gEntity>().swap(send_buf) ;
@@ -2032,20 +2037,21 @@ namespace Loci{
         sendbuf[1] = std::numeric_limits<gEntity>::max() ;
       }
       MPI_Status status ;
+      MPI_Datatype MPI_T_type = MPI_traits<gEntity>::get_MPI_type() ;
       if(MPI_rank == 0) {
         // rank 0 only receives from 1, no sending needed
-        MPI_Recv(recvbuf, 2, MPI_GENTITY_TYPE,
+        MPI_Recv(recvbuf, 2, MPI_T_type,
                  1/*source*/, 0/*msg tag*/,
                  MPI_COMM_WORLD, &status) ;
       } else if(MPI_rank == MPI_processes-1) {
         // the last processes only sends to the second last processes,
         // no receiving is needed
-        MPI_Send(sendbuf, 2, MPI_GENTITY_TYPE,
+        MPI_Send(sendbuf, 2, MPI_T_type,
                  MPI_rank-1/*dest*/, 0/*msg tag*/, MPI_COMM_WORLD) ;
       } else {
         // others will send to MPI_rank-1 and receive from MPI_rank+1
-        MPI_Sendrecv(sendbuf, 2, MPI_GENTITY_TYPE, MPI_rank-1/*dest*/,0/*msg tag*/,
-                     recvbuf, 2, MPI_GENTITY_TYPE, MPI_rank+1/*source*/,0/*tag*/,
+        MPI_Sendrecv(sendbuf, 2, MPI_T_type, MPI_rank-1/*dest*/,0/*msg tag*/,
+                     recvbuf, 2, MPI_T_type, MPI_rank+1/*source*/,0/*tag*/,
                      MPI_COMM_WORLD, &status) ;
       }
       // then compare the results with last element in local emap
@@ -2333,20 +2339,21 @@ namespace Loci{
           sendbuf[2] = std::numeric_limits<int>::max() ;
         }
         MPI_Status status ;
+	MPI_Datatype MPI_T_type = MPI_traits<gEntity>::get_MPI_type() ;
         if(MPI_rank == 0) {
           // rank 0 only receives from 1, no sending needed
-          MPI_Recv(recvbuf, 3, MPI_GENTITY_TYPE,
+          MPI_Recv(recvbuf, 3, MPI_T_type,
                    1/*source*/, 0/*msg tag*/,
                    MPI_COMM_WORLD, &status) ;
         } else if(MPI_rank == MPI_processes-1) {
           // the last processes only sends to the second last processes,
           // no receiving is needed
-          MPI_Send(sendbuf, 3, MPI_GENTITY,
+          MPI_Send(sendbuf, 3, MPI_T_type,
                    MPI_rank-1/*dest*/, 0/*msg tag*/, MPI_COMM_WORLD) ;
         } else {
           // others will send to MPI_rank-1 and receive from MPI_rank+1
-          MPI_Sendrecv(sendbuf, 3, MPI_GENTITY_TYPE, MPI_rank-1/*dest*/,0/*msg tag*/,
-                       recvbuf, 3, MPI_GENTITY_TYPE, MPI_rank+1/*source*/,0/*tag*/,
+          MPI_Sendrecv(sendbuf, 3, MPI_T_type, MPI_rank-1/*dest*/,0/*msg tag*/,
+                       recvbuf, 3, MPI_T_type, MPI_rank+1/*source*/,0/*tag*/,
                        MPI_COMM_WORLD, &status) ;
         }
         // then compare the results with last element in local emap

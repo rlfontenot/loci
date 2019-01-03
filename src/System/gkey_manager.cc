@@ -28,7 +28,8 @@ namespace Loci {
   distKeyManager::generate_key(gEntity size) {
     if(p>1){
       vector<gEntity> recv_buf(p) ;
-      MPI_Allgather(&size, 1, MPI_GENTITY_TYPE, &recv_buf[0], 1, MPI_GENTITY_TYPE, comm) ;
+      MPI_Datatype MPI_T_type = MPI_traits<gEntity>::get_MPI_type() ;
+      MPI_Allgather(&size, 1, MPI_T_type, &recv_buf[0], 1, MPI_T_type, comm) ;
       gEntity local_min = max_allocated+1 ;
       for(int i = 0; i < rank; ++i)
         local_min += recv_buf[i] ;

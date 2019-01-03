@@ -34,6 +34,7 @@
 #include <fstream>
 #include <string>
 #include <mpi.h>
+#include <data_traits.h>
 
 #include <execute.h>
 
@@ -44,7 +45,7 @@ namespace Loci {
   extern std::ofstream debugout ;
   extern int MPI_processes;
   extern int MPI_rank ;
-  
+
   template<class T> inline bool g_spec_ival_compare(const std::pair<T, T> &i1,
                                                     const std::pair<T, T> &i2) {
     if(i1.first < i2.first)
@@ -57,21 +58,15 @@ namespace Loci {
   
   template<class T> T g_GLOBAL_MAX(T b, MPI_Comm comm=MPI_COMM_WORLD) {
     T result ;
-    if(sizeof(T)==sizeof(int)){
-      MPI_Allreduce(&b, &result, 1, MPI_INT, MPI_MAX, comm) ;
-    }else{
-      MPI_Allreduce(&b, &result, 1, MPI_GENTITY_TYPE, MPI_MAX, comm) ;
-    }
+    MPI_Datatype MPI_T_type = MPI_traits<T>::get_MPI_type() ;
+    MPI_Allreduce(&b, &result, 1, MPI_T_type, MPI_MAX, comm) ;
     return result ;
   }
   
   template<class T> T g_GLOBAL_MIN(T b, MPI_Comm comm=MPI_COMM_WORLD) {
     T result ;
-    if(sizeof(T)==sizeof(int)){
-      MPI_Allreduce(&b, &result, 1, MPI_INT, MPI_MIN, comm) ;
-    }else{
-      MPI_Allreduce(&b, &result, 1, MPI_GENTITY_TYPE, MPI_MIN, comm) ;
-    }
+    MPI_Datatype MPI_T_type = MPI_traits<T>::get_MPI_type() ;
+    MPI_Allreduce(&b, &result, 1, MPI_T_type, MPI_MIN, comm) ;
     return result ;
   }
     
@@ -90,13 +85,9 @@ namespace Loci {
         ivl_large = e[i] ;
     
     std::vector<std::pair<T, T> > ivl_large_p(p) ;
-    if(sizeof(T)==sizeof(int)){
-      MPI_Allgather(&ivl_large,2,MPI_INT,&(ivl_large_p[0]),2,MPI_INT,
-                    comm) ;
-    }else{
-      MPI_Allgather(&ivl_large,2,MPI_GENTITY_TYPE,&(ivl_large_p[0]),2,MPI_GENTITY_TYPE,
-                    comm) ; 
-    }
+    MPI_Datatype MPI_T_type = MPI_traits<T>::get_MPI_type() ;
+    MPI_Allgather(&ivl_large,2,MPI_T_type,&(ivl_large_p[0]),2,MPI_T_type, comm) ;
+
     genIntervalSet<T> lset ;
     for(int i=0;i<p;++i)
       if(ivl_large_p[i].first <= ivl_large_p[i].second)
@@ -105,6 +96,7 @@ namespace Loci {
     return lset ;
   }
 
+
   // Return union of all entitySets from all processors, the actual user interface is g_all_collect_entitySet()
   template<class T> genIntervalSet<T>  g_all_gather_entitySet(const  genIntervalSet<T> &e,MPI_Comm comm = MPI_COMM_WORLD ) {
     int p = 1;
@@ -112,35 +104,27 @@ namespace Loci {
     if(p == 1)
       return e ;
     
-    T send_count = 2*e.num_intervals() ; //must be int*
-    std::vector<T> recv_count(p) ;//must be int*
-    if(sizeof(T)==sizeof(int)){
-      MPI_Allgather(&send_count,1,MPI_INT,&recv_count[0],1,MPI_INT,
-                    comm) ;
-    }else{
-      MPI_Allgather(&send_count,1,MPI_GENTITY_TYPE,&recv_count[0],1,MPI_GENTITY_TYPE,
-                    comm) ;
-    }
-    std::vector<T> recv_disp(p) ;//must be int*
+    int send_count = 2*e.num_intervals() ; //must be int*
+    std::vector<int> recv_count(p) ;//must be int*
+    MPI_Allgather(&send_count,1,MPI_INT,&recv_count[0],1,MPI_INT, comm) ;
+
+    std::vector<int> recv_disp(p) ;//must be int*
     recv_disp[0] = 0 ;
     for(int i=1;i<p;++i)
       recv_disp[i] = recv_disp[i-1]+recv_count[i-1] ;
-    T tot = recv_disp[p-1]+recv_count[p-1] ;
+    int tot = recv_disp[p-1]+recv_count[p-1] ;
     if(tot == 0)
       return  genIntervalSet<T>::EMPTY ;
     std::vector<std::pair<T, T> > ivl_list(tot/2) ;
     std::vector<std::pair<T, T> > snd_list(send_count/2) ;
     for(long i=0;i<send_count/2;++i)
       snd_list[i] = e[i] ;
-    if(sizeof(T)==sizeof(int)){
-      MPI_Allgatherv(&(snd_list[0]),send_count,MPI_INT,
-                     &(ivl_list[0]),&(recv_count[0]), &(recv_disp[0]), MPI_INT,
-                     comm) ;
-    }else{
-      MPI_Allgatherv(&(snd_list[0]),send_count,MPI_GENTITY_TYPE,
-                     &(ivl_list[0]),&(recv_count[0]), &(recv_disp[0]), MPI_GENTITY_TYPE,
-                     comm) ; 
-    }
+
+    MPI_Datatype MPI_T_type = MPI_traits<T>::get_MPI_type() ;
+    MPI_Allgatherv(&(snd_list[0]),send_count,MPI_T_type,
+		   &(ivl_list[0]),&(recv_count[0]), &(recv_disp[0]), MPI_T_type,
+		   comm) ;
+
     std::sort(ivl_list.begin(),ivl_list.end(),g_spec_ival_compare<T>) ;
     genIntervalSet<T> tmp = ivl_list[0] ;
     for(size_t i=1;i<ivl_list.size();++i)
@@ -262,17 +246,10 @@ namespace Loci {
       snd_list[i*2] = e[i].first ;
       snd_list[i*2+1] = e[i].second ;
     }
-    if(sizeof(T)==sizeof(int_type)){
-      MPI_Allgatherv(&(snd_list[0]),send_count,MPI_INT,
-                     &(ivl_list[0]),&(recv_count[0]), &(recv_disp[0]), MPI_INT,
-                     comm) ;
-      
-    }else{
-      
-      MPI_Allgatherv(&(snd_list[0]),send_count,MPI_GENTITY_TYPE,
-                     &(ivl_list[0]),&(recv_count[0]), &(recv_disp[0]), MPI_GENTITY_TYPE,
-                     comm) ;
-    }
+    MPI_Datatype MPI_T_type = MPI_traits<T>::get_MPI_type() ;
+    MPI_Allgatherv(&(snd_list[0]),send_count,MPI_T_type,
+		   &(ivl_list[0]),&(recv_count[0]), &(recv_disp[0]), MPI_T_type,
+		   comm) ;
     
     for(int i = 0; i < p ; ++i) {
       int ind = recv_disp[i] ;
