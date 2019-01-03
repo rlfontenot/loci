@@ -341,12 +341,8 @@ namespace Loci {
       indices[0] = (MPI_Aint)((char *) &(tmp.value) - (char *) &tmp) ;
       indices[1] = (MPI_Aint)((char *) &(tmp.grad) - (char *) &tmp) ;
       MPI_Datatype typelist[] = {MPI_DOUBLE,MPI_DOUBLE} ;
-      MPI_Datatype FADD_pre ;
-      MPI_Type_struct(count,blocklens,indices,typelist,&FADD_pre) ;
-      MPI_Type_create_resized(FADD_pre,indices[0],(MPI_Aint)sizeof(FADd),
-			      &MPI_FADD) ;
+      MPI_Type_create_struct(count,blocklens,indices,typelist,&MPI_FADD) ;
       MPI_Type_commit(&MPI_FADD) ;
-      MPI_Type_free(&FADD_pre) ;
       MPI_Op_create((MPI_User_function *)sumFADd,1,&MPI_FADD_SUM) ;
       MPI_Op_create((MPI_User_function *)prodFADd,1,&MPI_FADD_PROD) ;
       MPI_Op_create((MPI_User_function *)maxFADd,1,&MPI_FADD_MAX) ;
@@ -364,12 +360,8 @@ namespace Loci {
       indices[1] = (MPI_Aint)((char *) &(tmp.grad) - (char *) &tmp) ;
       indices[2] = (MPI_Aint)((char *) &(tmp.grad2) - (char *) &tmp) ;
       MPI_Datatype typelist[] = {MPI_DOUBLE,MPI_DOUBLE,MPI_DOUBLE} ;
-      MPI_Datatype FADD2_pre ;
-      MPI_Type_struct(count,blocklens,indices,typelist,&FADD2_pre) ;
-      MPI_Type_create_resized(FADD2_pre,indices[0],(MPI_Aint)sizeof(FAD2d),
-			      &MPI_FADD2) ;
+      MPI_Type_create_struct(count,blocklens,indices,typelist,&MPI_FADD2) ;
       MPI_Type_commit(&MPI_FADD2) ;
-      MPI_Type_free(&FADD2_pre) ;
       MPI_Op_create((MPI_User_function *)sumFAD2d,1,&MPI_FADD2_SUM) ;
       MPI_Op_create((MPI_User_function *)prodFAD2d,1,&MPI_FADD2_PROD) ;
       MPI_Op_create((MPI_User_function *)maxFAD2d,1,&MPI_FADD2_MAX) ;
@@ -385,8 +377,8 @@ namespace Loci {
     //    MPI_Errhandler_set(MPI_COMM_WORLD,MPI_ERRORS_ARE_FATAL) ;
 
     MPI_Errhandler err_handler ;
-    MPI_Errhandler_create(&MPI_errors_reporter,&err_handler) ;
-    MPI_Errhandler_set(MPI_COMM_WORLD,err_handler) ;
+    MPI_Comm_create_errhandler(&MPI_errors_reporter,&err_handler) ;
+    MPI_Comm_set_errhandler(MPI_COMM_WORLD,err_handler) ;
 
     MPI_Comm_size(MPI_COMM_WORLD, &MPI_processes) ;
     MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank) ;
