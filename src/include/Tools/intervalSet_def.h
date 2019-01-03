@@ -34,23 +34,11 @@
 #include <vector>
 #include <iostream>
 
-//this directive should be paired with the typedef of gEntity
-//#define HDF5_GENTITY_TYPE  H5T_NATIVE_LLONG
-#define HDF5_GENTITY_TYPE  H5T_NATIVE_INT
-
 namespace Loci {
 
   typedef int int_type ;
   //  typedef long long int gEntity;
   typedef int_type gEntity;
-
-  
-  
-
- 
-  //c++ can not typedef a template class, so interval is replaced by genInterval and moved into genIntervalSet class
-  //outside class definition, interval is replaced by std::pair<T, T>. same with pair_vector
-  
 
   //num_intervals return size_t, instead of int
   //use size_t for size of genIntervalSet

@@ -42,8 +42,8 @@ namespace Loci {
     size_t num_intervals = en.num_intervals(); 
 
     hid_t dataspace, dataset;
-    hid_t datatype  = H5T_NATIVE_INT;
-    if(sizeof(T) != sizeof(int)) datatype = HDF5_GENTITY_TYPE;
+    hid_t datatype  = HDF5_traits<T>::get_HDF5_type() ;
+
     if( num_intervals < 1) return;
 
     dimension = num_intervals*2; //size of 1D Array
@@ -116,8 +116,7 @@ namespace Loci {
    int     rank = 1;
    if(dimension == 0) return;
    hid_t vDataspace = H5Screate_simple(rank, &dimension, NULL);
-   hid_t vDatatype  = H5T_NATIVE_INT;
-   if(sizeof(T) != sizeof(int)) vDatatype = HDF5_GENTITY_TYPE;
+   hid_t vDatatype  = HDF5_traits<T>::get_HDF5_type() ;
    hid_t vDataset   = H5Dcreate(group_id, "VecSize", vDatatype, vDataspace,
                                 H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT);
    
