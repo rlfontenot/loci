@@ -567,14 +567,19 @@ namespace Loci {
 
   template <class T> class HDF5_traits {} ;
 
-  template<> class HDF5_traits <int> {
+  template<> class HDF5_traits <char> {
   public:
-    static hid_t get_HDF5_type() { return H5T_NATIVE_INT ; } ;
+    static hid_t get_HDF5_type() { return H5T_NATIVE_CHAR ; } ;
   } ;
 
   template<> class HDF5_traits <short> {
   public:
     static hid_t get_HDF5_type() { return H5T_NATIVE_SHORT ; } ;
+  } ;
+
+  template<> class HDF5_traits <int> {
+  public:
+    static hid_t get_HDF5_type() { return H5T_NATIVE_INT ; } ;
   } ;
 
   template<> class HDF5_traits <long> {
@@ -588,14 +593,19 @@ namespace Loci {
   } ;
 
 
-  template<> class HDF5_traits <unsigned int> {
+  template<> class HDF5_traits <unsigned char> {
   public:
-    static hid_t get_HDF5_type() { return H5T_NATIVE_UINT ; } ;
+    static hid_t get_HDF5_type() { return H5T_NATIVE_UCHAR ; } ;
   } ;
 
   template<> class HDF5_traits <unsigned short> {
   public:
     static hid_t get_HDF5_type() { return H5T_NATIVE_USHORT ; } ;
+  } ;
+
+  template<> class HDF5_traits <unsigned int> {
+  public:
+    static hid_t get_HDF5_type() { return H5T_NATIVE_UINT ; } ;
   } ;
 
   template<> class HDF5_traits <unsigned long> {
