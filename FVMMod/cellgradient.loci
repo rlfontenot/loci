@@ -555,11 +555,11 @@ namespace Loci {
       if(badcount ==0)
         return ;
 
-      //      cout << "bad stencil, retrying" << endl ;
-      //      cout << "badcount = " << badcount << endl ;
-      //      cout << "cent = " << center << endl ;
-      //      cout << "vx = " << vx  << ",k="<<k<<",wsum="<< wsum << ",newcent="<<
-      //        newcent << endl;
+      std::cout << "bad stencil, retrying" << endl ;
+      std::cout << "badcount = " << badcount << endl ;
+      std::cout << "cent = " << center << endl ;
+      std::cout << "vx = " << vx  << ",k="<<k<<",wsum="<< wsum << ",newcent="<<
+	newcent << endl;
       
     }
     cerr << "Warning: BAD STENCIL after second try " << endl ;
@@ -569,7 +569,7 @@ namespace Loci {
   $type LSBWeights multiStore<vector3d<real_t> > ;
   $type cellStencil multiMap ;
   $rule pointwise(LSWeights,LSBWeights<-
-		  (lower,upper,boundary_map)->area,
+		  (lower,upper,boundary_map)->(facecenter),
 		  cellcenter,cellStencil->cellcenter,
 		  boundary_map->facecenter), prelude {
     $LSWeights.setSizes($cellStencil) ;
@@ -602,17 +602,19 @@ namespace Loci {
 
     // If this is defined, try to select the most suitable subset of points
     // for the stencil based on cell face normals
-    //#define SELECTIVE_STENCIL  
+//#define SELECTIVE_STENCIL  
 #ifdef SELECTIVE_STENCIL
     for(int i=0;i<ndeltas;++i)
       wcent[i] = 0.0 ;
     const int lsz = $lower.size() ;
     for(int i = 0;i<lsz; ++i) {
-      vector3d<real_t> n = $lower[i]->$area.n ;
+      //      vector3d<real_t> n = $lower[i]->$area.n ;
+      vector3d<real_t> n = $lower[i]->$facecenter - center ;
+      n *= 1./max(norm(n),1e-20) ;
       int mindir = 0 ;
       int maxdir = 0 ;
       real_t mindot = dot(n,deltas[0]) ;
-      real_t maxdot = dot(n,deltas[0]) ;
+      real_t maxdot = mindot ;
       
       for(int i=1;i<ndeltas;++i) {
 	real_t dotnx = dot(n,deltas[i]) ;
@@ -630,11 +632,13 @@ namespace Loci {
     }
     const int usz = $upper.size() ;
     for(int i=0;i<usz;++i) {
-      vector3d<real_t> n = $upper[i]->$area.n ;
+      vector3d<real_t> n = $upper[i]->$facecenter - center ;
+      n *= 1./max(norm(n),1e-20) ;
+      //      vector3d<real_t> n = $upper[i]->$area.n ;
       int mindir = 0 ;
       int maxdir = 0 ;
       real_t mindot = dot(n,deltas[0]) ;
-      real_t maxdot = dot(n,deltas[0]) ;
+      real_t maxdot = mindot ;
         
       for(int i=1;i<ndeltas;++i) {
 	real_t dotnx = dot(n,deltas[i]) ;
@@ -652,11 +656,13 @@ namespace Loci {
     }
     const int bsz = $boundary_map.size() ;
     for(int i=0;i<bsz;++i) {
-      vector3d<real_t> n = $boundary_map[i]->$area.n ;
+      vector3d<real_t> n = $boundary_map[i]->$facecenter - center ;
+      n *= 1./max(norm(n),1e-20) ;
+      //      vector3d<real_t> n = $boundary_map[i]->$area.n ;
       int mindir = 0 ;
       int maxdir = 0 ;
       real_t mindot = dot(n,deltas[0]) ;
-      real_t maxdot = dot(n,deltas[0]) ;
+      real_t maxdot = mindot ;
         
       for(int i=1;i<ndeltas;++i) {
 	real_t dotnx = dot(n,deltas[i]) ;
@@ -672,12 +678,17 @@ namespace Loci {
       wcent[mindir] = 1.0 ;
       wcent[maxdir] = 1.0 ;
     }
+//    int ncnts = 0 ;
+//    for(int i=0;i<ndeltas;++i)
+//      if(wcent[i] > 0.01)
+//	ncnts++ ;
+//    std::cout << "ncnts = " << ncnts << "ndeltas=" << ndeltas << endl ;
 #else
     for(int i=0;i<ndeltas;++i)
       wcent[i] = 1.0 ;
 #endif
       
-    centerWeights(wcent,deltas,ndeltas) ;
+    //    centerWeights(wcent,deltas,ndeltas) ;
 
     for(int i=0;i<ndeltas;++i) {
       areas[i] *= wcent[i] ;
@@ -772,6 +783,4 @@ namespace Loci {
       }
     }
   }
-  
-  
 }
