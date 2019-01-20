@@ -1888,6 +1888,343 @@ namespace Loci{
     
   }
 
+  // Create Cell Stencil Plan:
+
+  // Get relations from face2cell and face2node
+  // Join to get node2cell
+  // join node2cell & node2cell to get cell2cell (through shared nodes)
+  // remove self2self references
+  // Convert resulting structure to multiMap
+
+  void getFaceCenter(fact_db &facts, dstore<vector3d<real_t> > &fcenter, dstore<real_t> &area) {
+    // Compute face centers
+    store<vector3d<real_t> > pos ;
+    pos = facts.get_variable("pos") ;
+
+    multiMap face2node ;
+    face2node = facts.get_variable("face2node") ;
+    entitySet fdom = face2node.domain() ;
+    entitySet f2n_image = Loci::MapRepP(face2node.Rep())->image(fdom) ;
+
+    entitySet out_of_dom = f2n_image - pos.domain() ;
+
+    dstore<vector3d<real_t> > tmp_pos ;
+    FORALL(pos.domain(), pi) {
+      tmp_pos[pi] = pos[pi] ;
+    } ENDFORALL ;
+    Loci::storeRepP sp = tmp_pos.Rep() ;
+    int tmp_out = out_of_dom.size() ;
+    std::vector<entitySet> init_ptn ;
+    if(facts.is_distributed_start()) {
+      init_ptn = facts.get_init_ptn() ;
+      if(GLOBAL_OR(tmp_out)) 
+	fill_clone(sp, out_of_dom, init_ptn) ;
+    }
+
+    param<std::string> centroid ;
+    centroid = facts.get_variable("centroid") ;
+    bool exact = false ;
+    if(*centroid == "exact") 
+      exact = true ;
+
+    FORALL(fdom,fc) {
+      int fsz = face2node[fc].size() ;
+      vector3d<real_t>  center = vector3d<real_t> (0,0,0) ;
+      real_t wsum = 0 ;
+	
+      for(int i=1;i<fsz;++i) {
+	real_t len = norm(tmp_pos[face2node[fc][i-1]]-tmp_pos[face2node[fc][i]]) ;
+	vector3d<real_t>  eloc = 0.5*(tmp_pos[face2node[fc][i-1]]+tmp_pos[face2node[fc][i]]) ;
+	center += len*eloc ;
+	wsum += len ;
+      }
+      real_t lenr = norm(tmp_pos[face2node[fc][0]]-tmp_pos[face2node[fc][fsz-1]]) ;
+      vector3d<real_t>  elocr = 0.5*(tmp_pos[face2node[fc][0]]+tmp_pos[face2node[fc][fsz-1]]) ;
+      center += lenr*elocr ;
+      wsum += lenr ;
+      center *= 1./wsum ;
+      fcenter[fc] = center ;
+      if(exact) {	
+	// Iterate to find exact centroid that is on the face
+	vector3d<real_t>  tmpcenter = center ;
+	const int NITER=4 ;
+	for(int iter=0;iter<NITER;++iter) {
+    
+	  // compute centroid using triangles formed by wireframe centroid
+	  vector3d<real_t>  centroidsum(0.0,0.0,0.0) ;
+	  real_t facearea = 0 ;
+	  for(int i=0;i<fsz;++i) {
+	    int n1 = i ;
+	    int n2 = (i+1==fsz)?0:i+1 ;
+	    vector3d<real_t>  p1 = tmp_pos[face2node[fc][n1]] ;
+	    vector3d<real_t>  p2 = tmp_pos[face2node[fc][n2]] ;
+	    
+	    const vector3d<real_t>  t_centroid = (p1 + p2 + tmpcenter)/3.0 ;
+	    const real_t t_area = 0.5*norm(cross(p1-tmpcenter,p2-tmpcenter)) ;
+	    centroidsum += t_area*t_centroid ;
+	    facearea += t_area ;
+	  }
+	  tmpcenter = centroidsum/facearea ;
+	}
+	fcenter[fc] = tmpcenter ;
+      }
+      real_t facearea = 0 ;
+      vector3d<real_t>  tmpcenter = fcenter[fc] ;
+      for(int i=0;i<fsz;++i) {
+	int n1 = i ;
+	int n2 = (i+1==fsz)?0:i+1 ;
+	vector3d<real_t>  p1 = tmp_pos[face2node[fc][n1]] ;
+	vector3d<real_t>  p2 = tmp_pos[face2node[fc][n2]] ;
+	
+	const real_t t_area = 0.5*norm(cross(p1-tmpcenter,p2-tmpcenter)) ;
+	facearea += t_area ;
+      }
+      area[fc] = facearea ;
+    } ENDFORALL ;
+  }
+
+  void getCellCenter(fact_db &facts, dstore<vector3d<real_t> > &fcenter,
+		     dstore<vector3d<real_t> > &ccenter) {
+
+    dstore<real_t> area ;
+    getFaceCenter(facts,fcenter,area) ;
+    multiMap upper,lower,boundary_map ;
+    upper = facts.get_variable("upper") ;
+    lower = facts.get_variable("lower") ;
+    boundary_map = facts.get_variable("boundary_map") ;
+    entitySet cells = upper.domain()&lower.domain()&boundary_map.domain() ;
+    entitySet faceimage  ;
+    faceimage += Loci::MapRepP(upper.Rep())->image(cells) ;
+    faceimage += Loci::MapRepP(lower.Rep())->image(cells) ;
+    faceimage += Loci::MapRepP(boundary_map.Rep())->image(cells) ;
+    entitySet out_of_dom = faceimage - fcenter.domain() ;
+    int tmp_out = out_of_dom.size() ;
+    std::vector<entitySet> init_ptn ;
+    if(facts.is_distributed_start()) {
+      init_ptn = facts.get_init_ptn() ;
+      if(GLOBAL_OR(tmp_out)) {
+	Loci::storeRepP sp = fcenter.Rep() ;
+	fill_clone(sp, out_of_dom, init_ptn) ;
+	sp = area.Rep() ;
+	fill_clone(sp, out_of_dom, init_ptn) ;
+      }
+    }
+    dstore<vector3d<real_t> > wccenter ;
+    // compute wireframe centroid
+    FORALL(cells,cc) {
+      vector3d<real_t>  csum = vector3d<real_t> (0,0,0) ;
+      real_t wsum = 0 ;
+      int lsz = lower[cc].size() ;
+      for(int i=0;i<lsz;++i) {
+	int f = lower[cc][i] ;
+	real_t w = area[f] ;
+	vector3d<real_t>  v = fcenter[f] ;
+	csum += w*v ;
+	wsum += w ;
+      }
+      int usz = upper[cc].size() ;
+      for(int i=0;i<usz;++i) {
+	int f = upper[cc][i] ;
+	real_t w = area[f] ;
+	vector3d<real_t>  v = fcenter[f] ;
+	csum += w*v ;
+	wsum += w ;
+      }
+      int bsz = boundary_map[cc].size() ;
+      for(int i=0;i<bsz;++i) {
+	int f = boundary_map[cc][i] ;
+	real_t w = area[f] ;
+	vector3d<real_t>  v = fcenter[f] ;
+	csum += w*v ;
+	wsum += w ;
+      }
+      csum *= 1./wsum ;
+      wccenter[cc] = csum ;
+      ccenter[cc] = csum ;
+    } ENDFORALL ;
+    param<std::string> centroid ;
+    centroid = facts.get_variable("centroid") ;
+    if(*centroid == "exact")  {
+      // Here we add code to compute exact centroid.
+    }
+    
+  }
+  
+  void create_cell_stencil(fact_db & facts) {
+    using std::vector ;
+    using std::pair ;
+    Map cl,cr ;
+    multiMap face2node ;
+    cl = facts.get_variable("cl") ;
+    cr = facts.get_variable("cr") ;
+    face2node = facts.get_variable("face2node") ;
+    constraint geom_cells_c ;
+    geom_cells_c = facts.get_variable("geom_cells") ;
+    entitySet geom_cells = *geom_cells_c ;
+    entitySet faces = face2node.domain() ;
+    Loci::protoMap f2cell ;
+
+    // Get mapping from face to geometric cells
+    Loci::addToProtoMap(cl,f2cell) ;
+    FORALL(faces,fc) {
+      if(geom_cells.inSet(cr[fc]))
+        f2cell.push_back(pair<int,int>(fc,cr[fc])) ;
+    } ENDFORALL ;
+
+    // Get mapping from face to nodes
+    Loci::protoMap f2node ;
+    Loci::addToProtoMap(face2node,f2node) ;
+
+    // Equijoin on first of pairs to get node to neighboring cell mapping
+    // This will give us a mapping from nodes to neighboring cells
+    Loci::protoMap n2c ;
+    Loci::equiJoinFF(f2node,f2cell,n2c) ;
+
+    // Equijoin node2cell with itself to get cell to cell map of
+    // all cells that share one or more nodes
+    Loci::protoMap n2cc = n2c ;
+    Loci::protoMap c2c ;
+    Loci::equiJoinFF(n2c,n2cc,c2c) ;
+
+    // Remove self references
+    Loci::removeIdentity(c2c) ;
+
+    //
+    // Create cell stencil map from protoMap
+    multiMap cellStencil ;
+    std::vector<entitySet> ptn = facts.get_init_ptn() ;
+    distributed_inverseMap(cellStencil,c2c,geom_cells,geom_cells,ptn) ;
+
+    // Now downselect cells
+    dstore<vector3d<real_t> > fcenter ;
+    dstore<vector3d<real_t> > ccenter ;
+    getCellCenter(facts, fcenter, ccenter) ;
+
+    entitySet cells = cellStencil.domain() ;
+    multiMap upper,lower,boundary_map ;
+    upper = facts.get_variable("upper") ;
+    lower = facts.get_variable("lower") ;
+    boundary_map = facts.get_variable("boundary_map") ;
+
+    entitySet cellImage = Loci::MapRepP(cellStencil.Rep())->image(cells) ;
+    cellImage -= cells ;
+    if(facts.is_distributed_start()) {
+      std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
+      int tmp_out = cellImage.size() ;
+      if(GLOBAL_OR(tmp_out)) {
+	Loci::storeRepP sp = ccenter.Rep() ;
+	fill_clone(sp, cellImage, init_ptn) ;
+      }
+    }
+
+    store<int> sizes ;
+    sizes.allocate(cells) ;
+    vector<int> cellmap ;
+    FORALL(cells,cc) {
+      int csz = cellStencil[cc].size() ;
+      int bsz = boundary_map[cc].size() ; ;
+      vector3d<real_t>  ccent = ccenter[cc] ;
+      vector<vector3d<real_t> > cdirs(csz+bsz) ;
+      for(int i=0;i<csz;++i) {
+	cdirs[i] = ccenter[cellStencil[cc][i]]-ccent ;
+	cdirs[i] *= 1./norm(cdirs[i]) ;
+      }
+      for(int i=0;i<bsz;++i) {
+	cdirs[csz+i] = fcenter[boundary_map[cc][i]] ;
+	cdirs[csz+i] *= 1./norm(cdirs[csz+i]) ;
+      }
+	
+      vector<int> flags(csz+bsz,0) ;
+      int lsz = lower[cc].size() ;
+      for(int i=0;i<lsz;++i) {
+	vector3d<real_t>  dir = fcenter[lower[cc][i]] -ccent;
+	dir *= 1./norm(dir) ;
+	int minid = 0 ;
+	int maxid = 0 ;
+	real_t minval = dot(dir,cdirs[0]) ;
+	real_t maxval = minval ;
+	for(int i=1;i<csz+bsz;++i) {
+	  real_t v = dot(dir,cdirs[i]) ;
+	  if(minval < v) {
+	    minid = i ;
+	    minval = v ;
+	  }
+	  if(maxval > v) {
+	    maxid = i ;
+	    maxval = v ;
+	  }
+	}
+	flags[minid] = 1 ;
+	flags[maxid] = 1 ;
+      }
+      int usz = upper[cc].size() ;
+      for(int i=0;i<usz;++i) {
+	vector3d<real_t>  dir = fcenter[upper[cc][i]] -ccent;
+	dir *= 1./norm(dir) ;
+	int minid = 0 ;
+	int maxid = 0 ;
+	real_t minval = dot(dir,cdirs[0]) ;
+	real_t maxval = minval ;
+	for(int i=1;i<csz+bsz;++i) {
+	  real_t v = dot(dir,cdirs[i]) ;
+	  if(minval < v) {
+	    minid = i ;
+	    minval = v ;
+	  }
+	  if(maxval > v) {
+	    maxid = i ;
+	    maxval = v ;
+	  }
+	}
+	flags[minid] = 1 ;
+	flags[maxid] = 1 ;
+      }
+
+      for(int i=0;i<bsz;++i) {
+	vector3d<real_t>  dir = fcenter[boundary_map[cc][i]] -ccent;
+	dir *= 1./norm(dir) ;
+	int minid = 0 ;
+	int maxid = 0 ;
+	real_t minval = dot(dir,cdirs[0]) ;
+	real_t maxval = minval ;
+	for(int i=1;i<csz+bsz;++i) {
+	  real_t v = dot(dir,cdirs[i]) ;
+	  if(minval < v) {
+	    minid = i ;
+	    minval = v ;
+	  }
+	  if(maxval > v) {
+	    maxid = i ;
+	    maxval = v ;
+	  }
+	}
+	flags[minid] = 1 ;
+	flags[maxid] = 1 ;
+      }
+
+      int cnt = 0 ;
+      for(int i=0;i<csz;++i)
+	if(flags[i] > 0) {
+	  cellmap.push_back(cellStencil[cc][i]) ;
+	  cnt++ ;
+	}
+      sizes[cc] = cnt ;
+    } ENDFORALL ;
+
+    multiMap cellStencilFiltered ;
+    cellStencilFiltered.allocate(sizes) ;
+    int cnt = 0 ;
+    FORALL(cells,cc) {
+      for(int i=0;i<cellStencilFiltered[cc].size();++i) {
+	cellStencilFiltered[cc][i] = cellmap[cnt] ;
+	cnt++ ;
+      }
+    } ENDFORALL ;
+    // Put in fact database
+    facts.create_fact("cellStencil",cellStencilFiltered) ;
+  }
+
+  
   void createLowerUpper(fact_db &facts) {
     constraint geom_cells,interior_faces,boundary_faces ;
     constraint faces = facts.get_variable("faces") ;
@@ -1933,6 +2270,11 @@ namespace Loci{
     facts.create_fact("lower",lower) ;
     facts.create_fact("upper",upper) ;
     facts.create_fact("boundary_map",boundary_map) ;
+
+    param<std::string> gradStencil ;
+    gradStencil = facts.get_variable("gradStencil") ;
+    if(*gradStencil == "stable")
+      create_cell_stencil(facts) ;
   }
 
   

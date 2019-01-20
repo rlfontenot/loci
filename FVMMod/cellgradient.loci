@@ -26,23 +26,23 @@ namespace Loci {
   $type gradStencil param<std::string> ;
   
   $rule default(gradStencil),
-    comments("Select stencil used for computing gradients.  Options include 'standard', 'full', and 'green'.  Standard includes cells that share a face, while the full stencil includes any cell that shares a node, 'green' implements a green's theorem gradient.")
+    comments("Select stencil used for computing gradients.  Options include 'standard', 'stable', and 'green'.  Standard includes cells that share a face, while the stable stencil includes any cell that satisfies geometric requirements of cell face reconstructions, and 'green' implements a green's theorem gradient.")
   {
     $gradStencil = "standard" ;
   }
 
   $type stencilStandard Constraint ;
-  $type stencilFull Constraint ;
+  $type useCellStencil Constraint ;
   $type greensGradient Constraint ;
  
-  $rule constraint(stencilStandard,stencilFull,greensGradient<-gradStencil) {
+  $rule constraint(stencilStandard,useCellStencil,greensGradient<-gradStencil) {
     $stencilStandard = EMPTY ;
-    $stencilFull = EMPTY ;
+    $useCellStencil = EMPTY ;
     $greensGradient = EMPTY ;
     if($gradStencil == "standard") {
       $stencilStandard = $*gradStencil.domain() ;
-    } else if($gradStencil == "full") {
-      $stencilFull = $*gradStencil.domain() ;
+    } else if($gradStencil == "full" || $gradStencil == "stable") {
+      $useCellStencil = $*gradStencil.domain() ;
     } else if($gradStencil == "green") {
       $greensGradient = $*gradStencil.domain() ;
     }else {
@@ -709,7 +709,7 @@ namespace Loci {
   
   $rule pointwise(grads(X)<-LSWeights,LSBWeights,cellStencil->X,
 		  boundary_map->X_f,X),
-    constraint(geom_cells,stencilFull) {
+    constraint(geom_cells,useCellStencil) {
     vector3d<real_t> Qt_b = vector3d<real_t>(0,0,0) ;
     real_t X_center = $X ;
     const int stsz = $cellStencil.size() ;
@@ -731,7 +731,7 @@ namespace Loci {
   
   $rule pointwise(gradv3d(X)<-LSWeights,LSBWeights,cellStencil->X,
 		  boundary_map->X_f,X),
-    constraint(geom_cells,stencilFull) {
+    constraint(geom_cells,useCellStencil) {
     tensor3d<real_t> Qt_b = tensor3d<real_t> (vector3d<real_t>(0,0,0),
 					      vector3d<real_t>(0,0,0),
 					      vector3d<real_t>(0,0,0)) ;
@@ -762,7 +762,7 @@ namespace Loci {
   
   $rule pointwise(gradv(X)<-LSWeights,LSBWeights,cellStencil->X,
 		  boundary_map->X_f,X),
-    constraint(geom_cells,stencilFull), prelude {
+    constraint(geom_cells,useCellStencil), prelude {
     $gradv(X).setVecSize($X.vecSize()) ;
   } compute {
     const int vsz = $*X.vecSize() ;
