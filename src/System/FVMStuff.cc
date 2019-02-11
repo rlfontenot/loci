@@ -2272,12 +2272,14 @@ namespace Loci{
     facts.create_fact("boundary_map",boundary_map) ;
 
     param<std::string> gradStencil ;
-    gradStencil = facts.get_variable("gradStencil") ;
-    if(*gradStencil == "stable")
-      create_cell_stencil(facts) ;
-  }
+    storeRepP var = facts.get_variable("gradStencil") ;
+    if(var != 0) {
+      gradStencil = var ;
+      if(*gradStencil == "stable")
+	create_cell_stencil(facts) ;
+    }
 
-  
+  }
 
   // this is a general routine that balances the pair vector
   // on each process, it redistributes the pair vector
