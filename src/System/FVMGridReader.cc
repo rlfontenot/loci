@@ -78,7 +78,7 @@ typedef double metisreal_t ;
 
 namespace Loci {
   extern  bool useDomainKeySpaces  ;
-//#define MEMDIAG
+  //#define MEMDIAG
   
 #ifdef MEMDIAG
   void *memtop =0;
@@ -96,6 +96,8 @@ namespace Loci {
                            vector<int> &procid,
                            MPI_Comm comm) ;
 
+  bool redistribute_cell_weight(storeRepP old_store, storeRepP new_store);
+  extern vector<entitySet> simplePartition(int mn, int mx, MPI_Comm comm);
   void memSpace(string s) {
 #ifdef MEMDIAG
 
@@ -119,6 +121,7 @@ namespace Loci {
   extern bool use_orb_partition ;
   extern bool load_cell_weights ;
   extern string cell_weight_file ;
+  extern storeRepP cell_weight_store ; 
   //Following assumption is needed for the next three functions
   //Assumption: We follow the convention that boundary cells are always on right side
   //of a face.
@@ -336,7 +339,7 @@ namespace Loci {
   }
 
   bool readBCfromVOG(string filename,
-                 vector<pair<int,string> > &boundary_ids) {
+                     vector<pair<int,string> > &boundary_ids) {
     hid_t file_id = 0 ;
     int failure = 0 ; // No failure
     /* Save old error handler */
@@ -1010,7 +1013,7 @@ namespace Loci {
 	boundary_names[mi->second] = boundary_ids[i].second ;
       else 
 	debugout << "id " << id << " for boundary surface " << boundary_ids[i].second
-	     << " not found!" << endl ;
+                 << " not found!" << endl ;
     }
 
       
@@ -1037,8 +1040,6 @@ namespace Loci {
   vector<entitySet> newMetisPartitionOfCells(const vector<entitySet> &local_cells,
                                              const Map &cl, const Map &cr,
 					     const store<string> &boundary_tags) {
-
-
     entitySet dom = cl.domain() & cr.domain() ;
     entitySet refset = boundary_tags.domain() ;
     entitySet bcfaces = cr.preimage(refset).first ;
@@ -1138,6 +1139,9 @@ namespace Loci {
 
     // read in additional vertex weights if any
     if(load_cell_weights) {
+
+      store<int> cell_weights ;
+
       // check if the file exists
       int file_exists = 1 ;
       if(Loci::MPI_rank == 0) {
@@ -1149,6 +1153,7 @@ namespace Loci {
       MPI_Bcast(&file_exists,1,MPI_INT,0,MPI_COMM_WORLD) ;
       
       if(file_exists == 1) {
+        
         if(Loci::MPI_rank == 0) {
           std::cout << "ParMETIS reading additional cell weights from: "
                     << cell_weight_file << std::endl ;
@@ -1164,18 +1169,24 @@ namespace Loci {
         
         // read
         entitySet dom = local_cells[Loci::MPI_rank] ;
-        store<int> cell_weights ;
-
-        readContainerRAW(file_id,"cell weight", cell_weights.Rep(),
+        
+        readContainerRAW(file_id,"cellweights", cell_weights.Rep(),
                          MPI_COMM_WORLD) ;
 
+        Loci::hdf5CloseFile(file_id) ;
+      }else if(cell_weight_store !=0){
+        
+        entitySet dom = local_cells[Loci::MPI_rank] ;
+        cell_weights.allocate(dom);
+        redistribute_cell_weight(cell_weight_store,cell_weights.Rep()); 
+      }
+
+      if(file_exists || cell_weight_store != 0){
         if(cell_weights.domain() != local_cells[Loci::MPI_rank]) {
           cerr << "cell weights partition inconsistent!" << endl ;
           Loci::Abort() ;
         }
-        
-        Loci::hdf5CloseFile(file_id) ;
-
+              
         // compute necessary ParMETIS data-structure
         wgtflag = 2 ;           // weights on the vertices only
         idx_t ncon = 2 ;          // number of weights per vertex
@@ -1207,26 +1218,32 @@ namespace Loci {
                              &tpwgts[0],&ubvec[0],&options,&edgecut,&part[0],
                              &mc) ;
 
-          
-      } else {
-        // if weight file does not exist, then we would
-        // fall back to the non weighted partition
-        if(Loci::MPI_rank == 0) {
-          std::cout << "ParMETIS cell weight file not found, "
-                    << "using non-weighted partition..." << std::endl ;
-        }
-        idx_t ncon = 1 ;
+      }else{//same as not load_cell_weight
+            //      idx_t ncon = 1 ;
+        idx_t ncon = 2 ;
         idx_t tpwgts_len = ncon*nparts ;
         vector<metisreal_t> tpwgts(tpwgts_len) ;
         for(idx_t i=0;i<tpwgts_len;++i)
           tpwgts[i] = 1.0 / double(nparts) ;
-        
-        
-        metisreal_t ubvec = 1.05 ;
-        wgtflag = 0 ;
-        ParMETIS_V3_PartKway(&vdist[0],&xadj[0],&adjncy[0],NULL,NULL,
+
+        vector<metisreal_t> ubvec(ncon) ;
+        for(idx_t i=0;i<ncon;++i)
+          ubvec[i] = 1.05 ;     // as recommended by the ParMETIS manual
+        wgtflag = 2 ;
+        // now construct the vertex weights
+        vector<idx_t> vwgt(ncon*size_map) ;
+
+        int cnt = 0 ;
+        for(int i=0;i<size_map;++i) {
+          // first weight for cell is 1 (the cell computation)
+          vwgt[cnt] = 1 ;
+          // the second weight is from the store cell_weights[*ei]
+          vwgt[cnt+1] =  size_adj[i] ;
+          cnt += ncon ;
+        }
+        ParMETIS_V3_PartKway(&vdist[0],&xadj[0],&adjncy[0],&vwgt[0],NULL,
                              &wgtflag,&numflag,&ncon,&nparts,
-                             &tpwgts[0],&ubvec,&options,&edgecut,
+                             &tpwgts[0],&ubvec[0],&options,&edgecut,
                              &part[0],&mc) ;
       }
       
@@ -1271,6 +1288,7 @@ namespace Loci {
     for(int i=0;i<size_map;++i) {
       ptn[part[i]] += i + cmin ;
     }
+   
     return ptn;
 
   }
@@ -2167,9 +2185,9 @@ namespace Loci {
         cell_ptn = newMetisPartitionOfCells(local_cells,tmp_cl,tmp_cr,tmp_boundary_tags) ;
 #else
 	if(MPI_rank==0) {
-	debugout << "METIS disabled:: Use Simple Partition - Based on Space Filling Curve! "<< endl ;
-	useMetis = false ;
-      }
+          debugout << "METIS disabled:: Use Simple Partition - Based on Space Filling Curve! "<< endl ;
+          useMetis = false ;
+        }
 #endif
       } else {
         cell_ptn = vector<entitySet>(MPI_processes) ;
@@ -2185,7 +2203,8 @@ namespace Loci {
 	      file_exists = 0 ;
 	  }
 	  MPI_Bcast(&file_exists,1,MPI_INT,0,MPI_COMM_WORLD) ;
-	  
+          store<int> cell_weights ;
+          
 	  if(file_exists == 1) {
 	    if(Loci::MPI_rank == 0) {
 	      std::cout << "simple partition reading additional cell weights from: "
@@ -2199,19 +2218,27 @@ namespace Loci {
 	      std::cerr << "...file reading failed..., Aborting" << std::endl ;
 	      Loci::Abort() ;
 	    }
-        
+            
 	    // read
-	    store<int> cell_weights ;
+	   
 	    
 	    readContainerRAW(file_id,"cell weight", cell_weights.Rep(),
 			     MPI_COMM_WORLD) ;
-	    
+            Loci::hdf5CloseFile(file_id) ;
+          }else if(cell_weight_store != 0){
+            entitySet dom = local_cells[MPI_rank];
+            cell_weights.allocate(dom);
+            redistribute_cell_weight(cell_weight_store, cell_weights.Rep());
+          }
+          
+          if(file_exists == 1 || cell_weight_store != 0){ 
+            
 	    if(cell_weights.domain() != local_cells[Loci::MPI_rank]) {
 	      cerr << "cell weights partition inconsistent!" << endl ;
 	      Loci::Abort() ;
 	    }
         
-	    Loci::hdf5CloseFile(file_id) ;
+	   
 	    int tot_weight = 0 ;
 
 	    cell_ptn[MPI_rank] = EMPTY ;
@@ -2509,6 +2536,87 @@ namespace Loci {
 
     return true ;
   }
+
+
+  
+  bool redistribute_cell_weight(storeRepP old_store, storeRepP new_store){
+    //this function is used when weight store is from DB,
+    //old_store is distributed according to the mesh distribution from last cycle
+    //new_store is distributed according to simplePartition
+    entitySet cells = old_store->domain();
+    vector<entitySet> ptn_cells = all_collect_vectors(cells) ;
+    int np = ptn_cells.size();
+    
+    entitySet q_dom = EMPTY;
+    for(int i = 0; i < np; i++){
+      q_dom += ptn_cells[i];
+    }
+    vector<entitySet> simple_ptn = Loci::simplePartition(q_dom.Min(),q_dom.Max(),MPI_COMM_WORLD) ; 
+    vector<entitySet> cell_ptn(np);
+    for(int i = 0; i < np; i++){
+      cell_ptn[i] = cells&simple_ptn[i];
+    }
+    vector<entitySet> cell_ptn_t = transposePtn(cell_ptn);
+    redistribute_container(cell_ptn,cell_ptn_t,cells,old_store,new_store) ;
+    old_store->allocate(EMPTY) ;
+    return true;
+  }
+     
+
+                                
+  bool setupFVMGridWithWeightInFile(fact_db &facts, string filename, string weightfile) {
+    // if(MPI_rank==0)std::cout<<" using setupFVMGridWithWeight" << std::endl;
+    bool orig_load_cell_weights = load_cell_weights;
+    string orig_cell_weight_file = cell_weight_file;
+
+    cell_weight_store = 0;
+    load_cell_weights = true;
+    cell_weight_file = weightfile;
+    
+    if(!readFVMGrid(facts,filename))
+      return false ;
+    
+    memSpace("before create_face_info") ;
+    create_face_info(facts) ;
+    
+    create_ref(facts) ;
+    create_ghost_cells(facts) ;
+    
+    load_cell_weights = orig_load_cell_weights;
+    cell_weight_file = orig_cell_weight_file;  
+    return true ;
+  }
+
+
+ 
+  bool setupFVMGridWithWeightInStore(fact_db &facts, string filename, storeRepP cellwt ) {
+    //if(MPI_rank==0)std::cout<<" using setupFVMGridWithWeightInStore" << std::endl;
+    bool orig_load_cell_weights = load_cell_weights;
+    string orig_cell_weight_file = cell_weight_file;
+    cell_weight_file = "";
+    cell_weight_store = cellwt;
+
+    load_cell_weights = true;
+    
+    
+    if(!readFVMGrid(facts,filename))
+      return false ;
+    
+    memSpace("before create_face_info") ;
+    create_face_info(facts) ;
+    
+    create_ref(facts) ;
+    create_ghost_cells(facts) ;
+
+    load_cell_weights = orig_load_cell_weights;
+    cell_weight_file = orig_cell_weight_file; 
+    cell_weight_store = 0;
+    cellwt = 0;
+    return true ;
+  }
+
+
+  
 
 
 }
