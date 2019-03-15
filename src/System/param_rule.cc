@@ -69,6 +69,17 @@ namespace Loci {
   }
 
   variable applySubstitution(map<string,variable> &transform_map, variable v) {
+#ifdef VERBOSE2
+    {
+      debugout << "applySubstitution([ " ;
+      map<string,variable>::const_iterator ii ;
+      for(ii=transform_map.begin();ii!=transform_map.end();++ii)
+	debugout << ii->first << ">"<<ii->second<<" ";
+      debugout << "], " << v << ")" << endl ;
+    }
+#endif
+    
+      
     variable::info vinfo = v.get_info() ;
     // Substitute name with underscore separation
     string name = vinfo.name ;
@@ -105,11 +116,15 @@ namespace Loci {
         args = subst[i].get_info().v_ids ;
       }
     }
-    for(size_t i=0;i<args.size();++i) {
-      variable tmp(args[i]) ;
-      tmp = applySubstitution(transform_map,tmp) ;
-      args[i] = tmp.ident() ;
-    }
+
+    if(v.get_info().v_ids.size()  != 0) {
+      for(size_t i=0;i<args.size();++i) {
+	variable tmp(args[i]) ;
+	tmp = applySubstitution(transform_map,tmp) ;
+	args[i] = tmp.ident() ;
+      }
+    } 
+      
     vinfo.v_ids = args ;
 
     return variable(vinfo) ;
@@ -140,7 +155,7 @@ namespace Loci {
       Loci::Abort() ;
     }
 #ifdef VERBOSE
-    debugout << "instantiateRule("<<r<< "," << v<< ")" << endl ;
+    debugout << "instantiateRule("<<r<< ":[" << v<< "])" << endl ;
     debugout << "transform_map =" ;
 #endif
     for(size_t i=0;i<alt.size();++i) {
@@ -227,17 +242,20 @@ namespace Loci {
 #ifdef VERBOSE
 	  debugout << "parametric variable provided = " << pv << endl ;
 #endif
-          int psize = pv.get_arg_list().size() ;
-          param_rule_key rk(var2key(pv),psize) ;
-          prule_db[rk] += *rsi ;
+	  vector<int> vlist = pv.get_arg_list() ;
+          int psize = vlist.size() ;
+	  param_rule_key rk(var2key(pv),psize) ;
+	  prule_db[rk] += *rsi ;
           param = true ;
         } else {
           for(variableSet::const_iterator vsi = target.begin(); vsi !=
-                target.end(); ++vsi) { 
-            int psize = variable(*vsi).get_arg_list().size() ;
-            if(psize > 0) {
-              param_rule_key rk(var2key(*vsi),psize) ;
-              prule_db[rk] += *rsi ;
+                target.end(); ++vsi) {
+	    variable pv = *vsi ;
+	    vector<int> vlist = pv.get_arg_list() ;
+	    int psize = vlist.size() ;
+	    if(psize > 0) {
+	      param_rule_key rk(var2key(*vsi),psize) ;
+	      prule_db[rk] += *rsi ;
               param = true ;
             }
           }
