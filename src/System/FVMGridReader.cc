@@ -1451,18 +1451,20 @@ namespace Loci {
     } ENDFORALL ;
     face2node.setRep(face2nodet.Rep()) ;
 
-    // update remap from global to file numbering for faces after sorting
-    fact_db::distribute_infoP df = facts.get_distribute_info() ;
-    dMap g2f ;
-    g2f = df->g2fv[0].Rep() ; // FIX THIS
-    vector<pair<int, int> > remap_update(faces.size()) ;
-    int cnt=0 ;
-    FORALL(faces,fc) {
-      remap_update[cnt].second = fc ;
-      remap_update[cnt].first = g2f[convert[fc]] ;
-      cnt++ ;
-    } ENDFORALL ;
-    facts.update_remap(remap_update,face2node.Rep()->getDomainKeySpace()) ;// FIX THIS
+    {
+      // update remap from global to file numbering for faces after sorting
+      fact_db::distribute_infoP df = facts.get_distribute_info() ;
+      dMap g2f ;
+      g2f = df->g2fv[face2node.Rep()->getDomainKeySpace()].Rep() ; 
+      vector<pair<int, int> > remap_update(faces.size()) ;
+      int cnt=0 ;
+      FORALL(faces,fc) {
+	remap_update[cnt].second = fc ;
+	remap_update[cnt].first = g2f[convert[fc]] ;
+	cnt++ ;
+      } ENDFORALL ;
+      facts.update_remap(remap_update,face2node.Rep()->getDomainKeySpace()) ;
+    }
     
     using std::cout ;
     using std::endl ;

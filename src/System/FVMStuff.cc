@@ -44,6 +44,7 @@ using std::cout ;
 #define vect3d vector3d<double>
 
 namespace Loci{
+  extern int getKeyDomain(entitySet dom, fact_db::distribute_infoP dist, MPI_Comm comm) ;
   extern  bool useDomainKeySpaces  ;
   // Convert container from local numbering to file numbering
   // pass in store rep pointer: sp
@@ -751,6 +752,29 @@ namespace Loci{
     entitySet  fset = (MapRepP(boundary_mapRep)->image(localCells)+
                        MapRepP(upperRep)->image(localCells)) & ref.domain() ;
 
+    Map l2g ;
+    dMap g2f ;
+    if(MPI_processes > 1) {
+      fact_db::distribute_infoP df = facts.get_distribute_info() ;
+      int kd =  getKeyDomain(fset, df, MPI_COMM_WORLD) ;
+      
+      if(kd < 0) {
+	cerr << "gridTopology, boundary faces not in single keyspace!"
+	     << endl ;
+	kd = 0 ;
+      }
+      //      debugout << "in write gridTopology, face key domain is " << kd
+      //	       << endl ;
+      l2g = df->l2g.Rep() ;
+      g2f = df->g2fv[kd].Rep() ;
+    } else {
+      l2g.allocate(fset) ;
+      FORALL(fset,fc) {
+	l2g[fc] = fc ;
+	g2f[fc] = fc ;
+      } ENDFORALL ;
+    }
+
     for(size_t i=0;i<bnamelist.size();++i) {
       hid_t bc_id = 0 ;
       string current_bc = bnamelist[i] ;
@@ -776,19 +800,6 @@ namespace Loci{
           if(ref[fc] == id)
             bfaces+= fc ;
         }ENDFORALL ;
-      }
-      Map l2g ;
-      dMap g2f ;
-      if(MPI_processes > 1) {
-        fact_db::distribute_infoP df = facts.get_distribute_info() ;
-        l2g = df->l2g.Rep() ;
-        g2f = df->g2fv[0].Rep() ;//why no map expanding?  // FIX THIS
-      } else {
-        l2g.allocate(bfaces) ;
-        FORALL(bfaces,fc) {
-          l2g[fc] = fc ;
-          g2f[fc] = fc ;
-        } ENDFORALL ;
       }
       
       int ntria=0, nquad=0, nsided =0;
