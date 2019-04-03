@@ -92,7 +92,7 @@ void process_mean(string casename, string iteration,
 
           fact_db facts ;
           store<float> scalar ;
-          Loci::readContainer(file_id,var_name,scalar.Rep(),EMPTY,facts) ;
+          readData(file_id,var_name,scalar.Rep(),EMPTY,facts) ;
           entitySet dom = scalar.domain() ;
           Loci::hdf5CloseFile(file_id) ;
           if(it == start_iter) {
@@ -157,7 +157,7 @@ void process_mean(string casename, string iteration,
         }
 
         fact_db facts ;
-        Loci::readContainer(file_id,"pos",pos.Rep(),EMPTY,facts) ;
+        readData(file_id,"pos",pos.Rep(),EMPTY,facts) ;
         Loci::hdf5CloseFile(file_id) ;
         int npnts = pos.domain().size() ;
         entitySet dom = pos.domain() ;
@@ -256,7 +256,7 @@ void process_mean(string casename, string iteration,
 
           fact_db facts ;
           store<vector3d<float> > vect ;
-          Loci::readContainer(file_id,var_name,vect.Rep(),EMPTY,facts) ;
+          readData(file_id,var_name,vect.Rep(),EMPTY,facts) ;
           entitySet dom = vect.domain() ;
           Loci::hdf5CloseFile(file_id) ;
           if(it == start_iter) {
@@ -399,9 +399,9 @@ void process_mean(string casename, string iteration,
         
           fact_db facts ;
           storeVec<float> mix ;
-          Loci::readContainer(file_id,"mixture",mix.Rep(),EMPTY,facts) ;
+          readData(file_id,"mixture",mix.Rep(),EMPTY,facts) ;
           param<string> species_names ;
-          Loci::readContainer(file_id,"species_names",species_names.Rep(),EMPTY,facts) ;
+          readData(file_id,"species_names",species_names.Rep(),EMPTY,facts) ;
           Loci::hdf5CloseFile(file_id) ;
       
           map<string,int> smap ;
@@ -774,7 +774,7 @@ void combine_mean(string casename, string iteration,
 	    hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
 						H5F_ACC_RDONLY,
 						H5P_DEFAULT) ;
-	    Loci::readContainer(file_id,vname,scalar_mean.Rep(),EMPTY,facts) ;
+	    readData(file_id,vname,scalar_mean.Rep(),EMPTY,facts) ;
 	    Loci::hdf5CloseFile(file_id) ;
 	  }
 	  entitySet dom = scalar_mean.domain() ;
@@ -787,7 +787,7 @@ void combine_mean(string casename, string iteration,
 	    hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
 						H5F_ACC_RDONLY,
 						H5P_DEFAULT) ;
-	    Loci::readContainer(file_id,vname,scalar_var.Rep(),EMPTY,facts) ;
+	    readData(file_id,vname,scalar_var.Rep(),EMPTY,facts) ;
 	    Loci::hdf5CloseFile(file_id) ;
 	  }
 
@@ -799,7 +799,7 @@ void combine_mean(string casename, string iteration,
 	    hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
 						H5F_ACC_RDONLY,
 						H5P_DEFAULT) ;
-	    Loci::readContainer(file_id,vname,rentry.Rep(),EMPTY,facts) ;
+	    readData(file_id,vname,rentry.Rep(),EMPTY,facts) ;
 	    Loci::hdf5CloseFile(file_id) ;
 	  } else {
 	    rentry.allocate(dom) ;
@@ -897,7 +897,7 @@ void combine_mean(string casename, string iteration,
 	    hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
 						H5F_ACC_RDONLY,
 						H5P_DEFAULT) ;
-	    Loci::readContainer(file_id,vname,vect_mean.Rep(),EMPTY,facts) ;
+	    readData(file_id,vname,vect_mean.Rep(),EMPTY,facts) ;
 	    Loci::hdf5CloseFile(file_id) ;
 	  }
 	  entitySet dom = vect_mean.domain() ;
@@ -910,7 +910,7 @@ void combine_mean(string casename, string iteration,
 	    hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
 						H5F_ACC_RDONLY,
 						H5P_DEFAULT) ;
-	    Loci::readContainer(file_id,vname,vect_var.Rep(),EMPTY,facts) ;
+	    readData(file_id,vname,vect_var.Rep(),EMPTY,facts) ;
 	    Loci::hdf5CloseFile(file_id) ;
 	  }
 
@@ -922,7 +922,7 @@ void combine_mean(string casename, string iteration,
 	    hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
 						H5F_ACC_RDONLY,
 						H5P_DEFAULT) ;
-	    Loci::readContainer(file_id,vname,rentry.Rep(),EMPTY,facts) ;
+	    readData(file_id,vname,rentry.Rep(),EMPTY,facts) ;
 	    Loci::hdf5CloseFile(file_id) ;
 	  } else {
 	    rentry.allocate(dom) ;

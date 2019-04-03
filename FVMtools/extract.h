@@ -689,4 +689,6 @@ public:
   virtual void exportPostProcessorFiles(string casename, string iteration) const ;
 } ;
 
+extern void readData(hid_t file_id, std::string vname, Loci::storeRepP var, entitySet readSet, fact_db &facts) ;
+
 #endif

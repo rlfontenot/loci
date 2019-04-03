@@ -49,7 +49,45 @@ using std::ifstream ;
 #include "extract.h"
 
 string output_dir ;
+#define MAX_NAME 1024
+string getVarNameFromFile(hid_t file_id, string varName) {
+  string name = varName ;
+  hid_t grp = H5Gopen(file_id,"/", H5P_DEFAULT);
+  hsize_t nobj ;
+  H5Gget_num_objs(grp,&nobj) ;
+  if(nobj == 1) {
+    char memb_name[MAX_NAME] ;
+    ssize_t len = H5Gget_objname_by_idx(grp,(hsize_t)0,
+					memb_name,(size_t)MAX_NAME) ;
+     name = string(memb_name) ;
+  }
+  H5Gclose(grp) ;
+  return name ;
+}
 
+
+void readData(hid_t file_id, std::string vname, Loci::storeRepP var, entitySet readSet, fact_db &facts) {
+  hid_t grp = H5Gopen(file_id,"/", H5P_DEFAULT);
+  hsize_t nobj ;
+  H5Gget_num_objs(grp,&nobj) ;
+  if(nobj == 1) {
+    char memb_name[MAX_NAME] ;
+    ssize_t len = H5Gget_objname_by_idx(grp,(hsize_t)0,
+					memb_name,(size_t)MAX_NAME) ;
+    string name(memb_name) ;
+
+#ifdef VERBOSE
+    if(name != vname) {
+      cerr << "NOTE: reading dataset '" << name << "' instead of '" << vname << "'" << endl ;
+    }
+#endif
+    H5Gclose(grp) ;
+    Loci::readContainer(file_id,name,var,readSet,facts) ;
+  } else {
+    H5Gclose(grp) ;
+    Loci::readContainer(file_id,vname,var,readSet,facts) ;
+  }
+}
     
 
 void Usage(int ac, char *av[]) {
@@ -245,7 +283,7 @@ volumePart::volumePart(string out_dir, string iteration, string casename,
     }
     fact_db facts ;
     store<unsigned char> iblank_tmp ;
-    Loci::readContainer(file_id,"iblank",iblank_tmp.Rep(),EMPTY,facts) ;
+    readData(file_id,"iblank",iblank_tmp.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
     entitySet pdom = interval(1,nnodes) ;
     iblank.allocate(pdom) ;
@@ -965,10 +1003,17 @@ void volumePart::getNodalScalar(string varname, vector<float> &vals) const {
   hid_t file_id = H5Fopen(filename.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0)
     return ;
+  string vname = getVarNameFromFile(file_id,varname) ;
+#ifdef VERBOSE
+  if(vname != varname) {
+    cerr << "reading var '" << vname << "' from file '" << filename << "'" << endl ;
+  }
+#endif
 #ifdef H5_USE_16_API
-  hid_t elg = H5Gopen(file_id,varname.c_str()) ;
+  hid_t elg = H5Gopen(file_id,vname.c_str()) ;
 #else
-  hid_t elg = H5Gopen(file_id,varname.c_str(),H5P_DEFAULT) ;
+  hid_t elg = H5Gopen(file_id,vname.c_str(),H5P_DEFAULT) ;
+
 #endif
   if(elg < 0)
     return ;
@@ -989,10 +1034,14 @@ void volumePart::getNodalVector(string varname, vector<vector3d<float> > &vals) 
   hid_t file_id = H5Fopen(filename.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0)
     return ;
+  string vname = getVarNameFromFile(file_id,varname) ;
+  if(vname != varname) {
+    cerr << "reading var '" << vname << "' from file '" << filename << "'" << endl ;
+  }
 #ifdef H5_USE_16_API
-  hid_t elg = H5Gopen(file_id,varname.c_str()) ;
+  hid_t elg = H5Gopen(file_id,vname.c_str()) ;
 #else
-  hid_t elg = H5Gopen(file_id,varname.c_str(),H5P_DEFAULT) ;
+  hid_t elg = H5Gopen(file_id,vname.c_str(),H5P_DEFAULT) ;
 #endif
   if(elg < 0)
     return ;
@@ -1094,7 +1143,7 @@ volumePartDerivedVars::volumePartDerivedVars(volumePartP part,
     if(file_id >= 0) {
       fact_db facts ;
       param<float> Pamb ;
-      Loci::readContainer(file_id,"Pambient",Pamb.Rep(),EMPTY,facts) ;
+      readData(file_id,"Pambient",Pamb.Rep(),EMPTY,facts) ;
       Loci::hdf5CloseFile(file_id) ;
       Pambient = *Pamb ;
     } else {
@@ -1786,7 +1835,7 @@ surfacePartDerivedVars::surfacePartDerivedVars(surfacePartP part,
     if(file_id >= 0) {
       fact_db facts ;
       param<float> Pamb ;
-      Loci::readContainer(file_id,"Pambient",Pamb.Rep(),EMPTY,facts) ;
+      readData(file_id,"Pambient",Pamb.Rep(),EMPTY,facts) ;
       Loci::hdf5CloseFile(file_id) ;
       Pambient = *Pamb ;
     } else { 
@@ -2351,7 +2400,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
 
     fact_db facts ;
     store<float> soundSpeed ;
-    Loci::readContainer(file_id,"a",soundSpeed.Rep(),EMPTY,facts) ;
+    readData(file_id,"a",soundSpeed.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
 
     filename = output_dir+"/v_vec." + iteration +"_" + casename ;
@@ -2364,7 +2413,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
     }
 
     store<vector3d<float> > u ;
-    Loci::readContainer(file_id,"v",u.Rep(),EMPTY,facts) ;
+    readData(file_id,"v",u.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
 
     entitySet dom = u.domain() ;
@@ -2386,7 +2435,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
 
     fact_db facts ;
     store<float> pg ;
-    Loci::readContainer(file_id,"pg",pg.Rep(),EMPTY,facts) ;
+    readData(file_id,"pg",pg.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
 
     filename = output_dir+"/Pambient_par." + iteration +"_" + casename ;
@@ -2400,7 +2449,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
     }
 
     param<float> Pambient ;
-    Loci::readContainer(file_id,"Pambient",Pambient.Rep(),EMPTY,facts) ;
+    readData(file_id,"Pambient",Pambient.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
 
     entitySet dom = pg.domain() ;
@@ -2425,7 +2474,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
     }
 
     store<vector3d<float> > u ;
-    Loci::readContainer(file_id,"v",u.Rep(),EMPTY,facts) ;
+    readData(file_id,"v",u.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
 
     entitySet dom = u.domain() ;
@@ -2449,7 +2498,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
     }
 
     fact_db facts ;
-    Loci::readContainer(file_id,"pos",pos.Rep(),EMPTY,facts) ;
+    readData(file_id,"pos",pos.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
     entitySet dom = pos.domain() ;
     int c = 0 ;
@@ -2480,7 +2529,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
     }
 
     store<vector3d<float> > u ;
-    Loci::readContainer(file_id,"v",u.Rep(),EMPTY,facts) ;
+    readData(file_id,"v",u.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
 
     entitySet dom = u.domain() ;
