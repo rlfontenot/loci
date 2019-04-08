@@ -1035,9 +1035,11 @@ void volumePart::getNodalVector(string varname, vector<vector3d<float> > &vals) 
   if(file_id < 0)
     return ;
   string vname = getVarNameFromFile(file_id,varname) ;
+#ifdef VERBOSE
   if(vname != varname) {
     cerr << "reading var '" << vname << "' from file '" << filename << "'" << endl ;
   }
+#endif
 #ifdef H5_USE_16_API
   hid_t elg = H5Gopen(file_id,vname.c_str()) ;
 #else
