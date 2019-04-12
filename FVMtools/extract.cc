@@ -48,6 +48,8 @@ using std::ifstream ;
 #include <dirent.h>
 #include "extract.h"
 
+#pragma  GCC diagnostic ignored "-Wunused-variable"
+
 string output_dir ;
 #define MAX_NAME 1024
 string getVarNameFromFile(hid_t file_id, string varName) {
