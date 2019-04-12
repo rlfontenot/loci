@@ -733,6 +733,7 @@ int *genptr;
   return NGENS;
 }
 
+#pragma GCC diagnostic ignored "-Wunused-variable"
 
 #ifdef __STDC__
 int pack_rng( int *genptr, char **buffer)

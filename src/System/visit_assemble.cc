@@ -659,6 +659,7 @@ namespace Loci {
   // utility functions
   /////////////////////////////////////////////////////////////////
   namespace {
+#pragma GCC diagnostic ignored "-Wunused-function"
 
     vector<digraph::vertexSet> insertAlloc2Sched
     (const digraph &gr,
@@ -1073,7 +1074,9 @@ namespace Loci {
     (cc.dag_comp).clear();
   }
   
-  
+ 
+ #pragma GCC diagnostic ignored "-Wunused-function"
+
   /////////////////////////////////////////////////////////////////
   // graphSchedulerVisitor
   /////////////////////////////////////////////////////////////////

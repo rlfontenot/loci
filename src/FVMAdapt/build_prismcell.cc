@@ -389,6 +389,8 @@ Prism* build_prism_cell(const Entity* lower, int lower_size,
   
   return aCell;
 }
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+
 //build a cell with edgePlan and facePlan, tag the nodes
 //then resplit the edges and faces with edgePlan1 and facePlan1
 Prism* build_resplit_prism_cell(const Entity* lower, int lower_size,

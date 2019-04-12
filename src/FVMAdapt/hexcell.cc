@@ -52,6 +52,7 @@ using std::cout;
 
 //cells: in and out, return all the leaves cells in a std::vector
 
+#pragma GCC diagnostic ignored "-Wchar-subscripts"
 
 void HexCell::resplit( const std::vector<char>& cellPlan,
                        std::list<Node*>& node_list,

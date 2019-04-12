@@ -131,6 +131,7 @@ int NGENS=0;		  /* number of random streams in current process */
 
 
 
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 
 /* Initialize random number stream */
 

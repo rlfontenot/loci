@@ -79,7 +79,6 @@ void vtkSurfacePartConverter::exportPostProcessorFiles(string casename, string i
     long long unsigned int npnts, ncells;
     
     long long unsigned int elem_offset;
-    int part_index;
     
     vector<int> elem_ids ;
     vector<int> elem_conn ;
@@ -97,7 +96,6 @@ void vtkSurfacePartConverter::exportPostProcessorFiles(string casename, string i
     vector<float>  position;
     int int_size;
     
-    part_index = 0;
     npnts = 0; ncells = 0; elem_offset = 0;
     int_size = bit64 ? sizeof(long long unsigned int) : sizeof(int);
   
@@ -958,7 +956,6 @@ void vtkPartConverter::exportPostProcessorFiles(string casename, string iteratio
     long long unsigned int npnts, ncells;
     
     long long unsigned int elem_offset;
-    int part_index;
     
     vector<int> elem_ids ;
     vector<int> elem_conn ;
@@ -976,7 +973,6 @@ void vtkPartConverter::exportPostProcessorFiles(string casename, string iteratio
     vector<float>  position;
     int int_size;
     
-    part_index = 0;
     npnts = 0; ncells = 0; elem_offset = 0;
     int_size = bit64 ? sizeof(long long unsigned int) : sizeof(int);
   

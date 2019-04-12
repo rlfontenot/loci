@@ -24,6 +24,7 @@
 using std::cout;
 using std::endl;
 
+#pragma GCC diagnostic ignored "-Wchar-subscripts"
 
 //for get_c1_hex and get_c1_prism,when a cell is empty_split, faceMap is created
 // and face is split to generate leaves, by look-up the faceMap, c1 can be computed

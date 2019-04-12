@@ -32,6 +32,8 @@ using std::set ;
 #include <string>
 using std::string ;
 
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+
 #ifndef M_PI
 #define M_PI	3.14159265358979323846
 #endif

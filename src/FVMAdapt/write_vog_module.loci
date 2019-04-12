@@ -92,6 +92,7 @@ register_rule<node_output_file> register_node_output_file;
 
 
 
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 
 
 class face_output_file : public pointwise_rule {

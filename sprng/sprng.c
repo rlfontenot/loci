@@ -282,6 +282,7 @@ int *gen;
 	return get_seed_rng_tbl[((struct rngen *)gen)->rng_type](gen);
 }
 
+#pragma GCC diagnostic ignored "-Wpointer-sign"
 
 #ifdef __STDC__
 int *unpack_rng( char *packed)

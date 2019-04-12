@@ -25,6 +25,8 @@
 #include <DMultiStore_def.h>
 
 namespace Loci {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
   
   template <class T> 
   inline std::ostream & operator<<(std::ostream &s, const multiStore<T> &m)
@@ -133,7 +135,7 @@ namespace Loci {
 	new_base_ptr[i] = new_alloc_pointer + sz ;
       }
     }
-    
+    *base_ptr = new_base_ptr ;
   }
 
   //*************************************************************************/
@@ -1016,6 +1018,7 @@ namespace Loci {
     }
 
   //*************************************************************************/
+#pragma GCC diagnostic pop
 
 } // end of namespace Loci
 

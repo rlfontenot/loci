@@ -44,6 +44,8 @@ using std::cerr ;
 using std::cout ;
 using namespace Loci ;
 
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+
 bool is_name(istream &s) {
   int ch = s.peek() ;
   return isalpha(ch) || ch == '_' ;

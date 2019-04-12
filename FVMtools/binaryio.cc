@@ -1130,7 +1130,7 @@ const char *bf_machname (int mach)
 {
     if (MACH_DEFAULT == mach)
         mach = MACH_LOCAL;
-    if (mach < 0 || mach > NUM_MACH)
+    if (mach < 0 || mach > int(NUM_MACH))
         mach = 0;
     return (machnames[mach]);
 }
@@ -1237,7 +1237,7 @@ int bf_getbytes (BINARYIO *bf, int count, unsigned char *data)
             if (nread > count - n)
                 nread = count - n;
 
-            if (nread != fread (data, 1, nread, bf->fp))
+            if (nread != int(fread (data, 1, nread, bf->fp)))
                 return (n + nread);
             bf->rec_read += (long)nread;
             data += nread;

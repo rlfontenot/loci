@@ -860,6 +860,8 @@ int *genptr;
 /*************************************************************************/
 /*************************************************************************/
 
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wpointer-sign"
 
 #ifdef __STDC__
 int pack_rng( int *genptr, char **buffer)

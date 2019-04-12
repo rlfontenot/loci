@@ -275,6 +275,7 @@ namespace Loci {
     // this function merges two chomping graphs and
     // returns the new resulting graph
 
+#pragma GCC diagnostic ignored "-Wunused-function"
     // this function works the same as the above one (gen_tmp_graph)
     // we will have to repeat until no new internal variables are
     // introduced into the new graph
