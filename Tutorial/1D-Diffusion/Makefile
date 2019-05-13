@@ -1,5 +1,5 @@
 # This is the Loci base directory.
-LOCI_BASE = /opt/loci
+LOCI_BASE ?= /opt/loci
 # List the name of your compiled program here
 TARGET = heat
 

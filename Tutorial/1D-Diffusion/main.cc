@@ -6,8 +6,8 @@ using namespace std ;
 // Generate a 1d grid over the number line from [0,1] consiting of N segments
 void generate_grid(fact_db &facts, int N) {
   // Allocate the nodes and cells of the grid
-  entitySet nodes = facts.get_allocation(N+1) ;
-  entitySet cells = facts.get_allocation(N) ;
+  entitySet nodes = interval(0,N) ; //facts.get_allocation(N+1) ;
+  entitySet cells = interval(N,2*N-1) ; //facts.get_allocation(N) ;
 
   // setup x coordinates for nodes
   store<float> x ;
