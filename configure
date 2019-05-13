@@ -415,13 +415,13 @@ else
 	else
 	    echo MPI_BASE =  $MPI_BASE >> sys.conf
 	    echo MPI_LIBS =  -L$MPI_BASE/lib $MPI_LIBRARY >> sys.conf
-	    echo MPI_INCLUDE = -I$MPI_BASE/include  >> sys.conf
+	    echo MPI_INCLUDE = -DMPI_NO_CPPBIND -I$MPI_BASE/include  >> sys.conf
 	    echo MPI_RUN=$MPI_PATH/$MPIEXEC >> sys.conf
 	fi
     else
 	echo MPI_BASE =  $MPI_BASE >> sys.conf
 	echo MPI_LIBS =   >> sys.conf
-	echo MPI_INCLUDE = -DMPICH_IGNORE_CXX_SEEK >> sys.conf
+	echo MPI_INCLUDE = -DMPI_NO_CPPBIND -DMPICH_IGNORE_CXX_SEEK >> sys.conf
 	echo MPI_RUN=$MPI_PATH/$MPIEXEC >> sys.conf
     fi
     echo MPI_C_COMPILER = $MPI_C_COMPILER >> sys.conf
