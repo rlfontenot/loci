@@ -1,4 +1,6 @@
 #include <Loci.h>
+#include <unistd.h>
+
 using namespace std ;
 $include "FVM.lh"
 $include "heat.lh"
