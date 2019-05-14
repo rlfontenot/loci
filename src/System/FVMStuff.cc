@@ -2072,7 +2072,11 @@ namespace Loci{
     constraint geom_cells_c ;
     geom_cells_c = facts.get_variable("geom_cells") ;
     entitySet geom_cells = *geom_cells_c ;
+    // We need to have all of the geom_cells to do the correct test in the
+    // loop before, so gather with all_collect_entitySet
+    geom_cells = all_collect_entitySet(geom_cells) ;
     entitySet faces = face2node.domain() ;
+
     Loci::protoMap f2cell ;
 
     // Get mapping from face to geometric cells
@@ -2091,6 +2095,9 @@ namespace Loci{
     Loci::protoMap n2c ;
     Loci::equiJoinFF(f2node,f2cell,n2c) ;
 
+    // In case there are processors that have no n2c's allocated to them
+    // re-balance map distribution
+    Loci::balanceDistribution(n2c,MPI_COMM_WORLD) ;
     // Equijoin node2cell with itself to get cell to cell map of
     // all cells that share one or more nodes
     Loci::protoMap n2cc = n2c ;
@@ -2141,7 +2148,7 @@ namespace Loci{
 	cdirs[i] *= 1./norm(cdirs[i]) ;
       }
       for(int i=0;i<bsz;++i) {
-	cdirs[csz+i] = fcenter[boundary_map[cc][i]] ;
+	cdirs[csz+i] = fcenter[boundary_map[cc][i]]-ccent ;
 	cdirs[csz+i] *= 1./norm(cdirs[csz+i]) ;
       }
 	
