@@ -2222,14 +2222,14 @@ namespace Loci{
 	int maxid = 0 ;
 	real_t minval = dot(dir,cdirs[0]) ;
 	real_t maxval = minval ;
-	for(int i=1;i<csz+bsz;++i) {
-	  real_t v = dot(dir,cdirs[i]) ;
+	for(int j=1;j<csz+bsz;++j) {
+	  real_t v = dot(dir,cdirs[j]) ;
 	  if(minval < v) {
-	    minid = i ;
+	    minid = j ;
 	    minval = v ;
 	  }
 	  if(maxval > v) {
-	    maxid = i ;
+	    maxid = j ;
 	    maxval = v ;
 	  }
 	}
@@ -2240,14 +2240,14 @@ namespace Loci{
 	dir = fnormal[lower[cc][i]] ;
 	minval = dot(dir,cdirs[0]) ;
 	maxval = minval ;
-	for(int i=1;i<csz+bsz;++i) {
-	  real_t v = dot(dir,cdirs[i]) ;
+	for(int j=1;j<csz+bsz;++j) {
+	  real_t v = dot(dir,cdirs[j]) ;
 	  if(minval < v) {
-	    minid = i ;
+	    minid = j ;
 	    minval = v ;
 	  }
 	  if(maxval > v) {
-	    maxid = i ;
+	    maxid = j ;
 	    maxval = v ;
 	  }
 	}
@@ -2262,14 +2262,14 @@ namespace Loci{
 	int maxid = 0 ;
 	real_t minval = dot(dir,cdirs[0]) ;
 	real_t maxval = minval ;
-	for(int i=1;i<csz+bsz;++i) {
-	  real_t v = dot(dir,cdirs[i]) ;
+	for(int j=1;j<csz+bsz;++j) {
+	  real_t v = dot(dir,cdirs[j]) ;
 	  if(minval < v) {
-	    minid = i ;
+	    minid = j ;
 	    minval = v ;
 	  }
 	  if(maxval > v) {
-	    maxid = i ;
+	    maxid = j ;
 	    maxval = v ;
 	  }
 	}
@@ -2280,14 +2280,14 @@ namespace Loci{
 	dir = fnormal[upper[cc][i]] ;
 	minval = dot(dir,cdirs[0]) ;
 	maxval = minval ;
-	for(int i=1;i<csz+bsz;++i) {
-	  real_t v = dot(dir,cdirs[i]) ;
+	for(int j=1;j<csz+bsz;++j) {
+	  real_t v = dot(dir,cdirs[j]) ;
 	  if(minval < v) {
-	    minid = i ;
+	    minid = j ;
 	    minval = v ;
 	  }
 	  if(maxval > v) {
-	    maxid = i ;
+	    maxid = j ;
 	    maxval = v ;
 	  }
 	}
@@ -2302,14 +2302,14 @@ namespace Loci{
 	int maxid = 0 ;
 	real_t minval = dot(dir,cdirs[0]) ;
 	real_t maxval = minval ;
-	for(int i=1;i<csz+bsz;++i) {
-	  real_t v = dot(dir,cdirs[i]) ;
+	for(int j=1;j<csz+bsz;++j) {
+	  real_t v = dot(dir,cdirs[j]) ;
 	  if(minval < v) {
-	    minid = i ;
+	    minid = j ;
 	    minval = v ;
 	  }
 	  if(maxval > v) {
-	    maxid = i ;
+	    maxid = j ;
 	    maxval = v ;
 	  }
 	}
@@ -2320,14 +2320,14 @@ namespace Loci{
 	dir = fnormal[boundary_map[cc][i]] ;
 	minval = dot(dir,cdirs[0]) ;
 	maxval = minval ;
-	for(int i=1;i<csz+bsz;++i) {
+	for(int j=1;j<csz+bsz;++j) {
 	  real_t v = dot(dir,cdirs[i]) ;
 	  if(minval < v) {
-	    minid = i ;
+	    minid = j ;
 	    minval = v ;
 	  }
 	  if(maxval > v) {
-	    maxid = i ;
+	    maxid = j ;
 	    maxval = v ;
 	  }
 	}
