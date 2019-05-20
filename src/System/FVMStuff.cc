@@ -1907,7 +1907,7 @@ namespace Loci{
   // remove self2self references
   // Convert resulting structure to multiMap
 
-  void getFaceCenter(fact_db &facts, dstore<vector3d<real_t> > &fcenter, dstore<real_t> &area) {
+  void getFaceCenter(fact_db &facts, dstore<vector3d<real_t> > &fcenter, dstore<real_t> &area, dstore<vector3d<real_t> > &normal) {
     // Compute face centers
     store<vector3d<real_t> > pos ;
     pos = facts.get_variable("pos") ;
@@ -1979,7 +1979,7 @@ namespace Loci{
 	}
 	fcenter[fc] = tmpcenter ;
       }
-      real_t facearea = 0 ;
+      vector3d<real_t> facearea = vector3d<real_t>(0,0,0) ;
       vector3d<real_t>  tmpcenter = fcenter[fc] ;
       for(int i=0;i<fsz;++i) {
 	int n1 = i ;
@@ -1987,18 +1987,20 @@ namespace Loci{
 	vector3d<real_t>  p1 = tmp_pos[face2node[fc][n1]] ;
 	vector3d<real_t>  p2 = tmp_pos[face2node[fc][n2]] ;
 	
-	const real_t t_area = 0.5*norm(cross(p1-tmpcenter,p2-tmpcenter)) ;
-	facearea += t_area ;
+	facearea += cross(p1-tmpcenter,p2-tmpcenter) ;
       }
-      area[fc] = facearea ;
+      real_t nfacearea = norm(facearea) ;
+      area[fc] = 0.5*nfacearea ;
+      normal[fc] = (1./nfacearea)*facearea ;
     } ENDFORALL ;
   }
 
   void getCellCenter(fact_db &facts, dstore<vector3d<real_t> > &fcenter,
+		     dstore<vector3d<real_t> > &fnormal,
 		     dstore<vector3d<real_t> > &ccenter) {
 
     dstore<real_t> area ;
-    getFaceCenter(facts,fcenter,area) ;
+    getFaceCenter(facts,fcenter,area,fnormal) ;
     multiMap upper,lower,boundary_map ;
     upper = facts.get_variable("upper") ;
     lower = facts.get_variable("lower") ;
@@ -2017,6 +2019,8 @@ namespace Loci{
 	Loci::storeRepP sp = fcenter.Rep() ;
 	fill_clone(sp, out_of_dom, init_ptn) ;
 	sp = area.Rep() ;
+	fill_clone(sp, out_of_dom, init_ptn) ;
+	sp = fnormal.Rep() ;
 	fill_clone(sp, out_of_dom, init_ptn) ;
       }
     }
@@ -2057,8 +2061,64 @@ namespace Loci{
     centroid = facts.get_variable("centroid") ;
     if(*centroid == "exact")  {
       // Here we add code to compute exact centroid.
+      // face2node needs to be expanded to do this...
     }
     
+  }
+
+  void create_cell_stencil_full(fact_db &facts) {
+    using std::vector ;
+    using std::pair ;
+    Map cl,cr ;
+    multiMap face2node ;
+    cl = facts.get_variable("cl") ;
+    cr = facts.get_variable("cr") ;
+    face2node = facts.get_variable("face2node") ;
+    constraint geom_cells_c ;
+    geom_cells_c = facts.get_variable("geom_cells") ;
+    entitySet geom_cells = *geom_cells_c ;
+    // We need to have all of the geom_cells to do the correct test in the
+    // loop before, so gather with all_collect_entitySet
+    geom_cells = all_collect_entitySet(geom_cells) ;
+    entitySet faces = face2node.domain() ;
+
+    Loci::protoMap f2cell ;
+
+    // Get mapping from face to geometric cells
+    Loci::addToProtoMap(cl,f2cell) ;
+    FORALL(faces,fc) {
+      if(geom_cells.inSet(cr[fc]))
+        f2cell.push_back(pair<int,int>(fc,cr[fc])) ;
+    } ENDFORALL ;
+
+    // Get mapping from face to nodes
+    Loci::protoMap f2node ;
+    Loci::addToProtoMap(face2node,f2node) ;
+
+    // Equijoin on first of pairs to get node to neighboring cell mapping
+    // This will give us a mapping from nodes to neighboring cells
+    Loci::protoMap n2c ;
+    Loci::equiJoinFF(f2node,f2cell,n2c) ;
+
+    // In case there are processors that have no n2c's allocated to them
+    // re-balance map distribution
+    Loci::balanceDistribution(n2c,MPI_COMM_WORLD) ;
+    // Equijoin node2cell with itself to get cell to cell map of
+    // all cells that share one or more nodes
+    Loci::protoMap n2cc = n2c ;
+    Loci::protoMap c2c ;
+    Loci::equiJoinFF(n2c,n2cc,c2c) ;
+
+    // Remove self references
+    Loci::removeIdentity(c2c) ;
+
+    //
+    // Create cell stencil map from protoMap
+    multiMap cellStencil ;
+    std::vector<entitySet> ptn = facts.get_init_ptn() ;
+    distributed_inverseMap(cellStencil,c2c,geom_cells,geom_cells,ptn) ;
+    // Put in fact database
+    facts.create_fact("cellStencil",cellStencil) ;
   }
   
   void create_cell_stencil(fact_db & facts) {
@@ -2115,8 +2175,9 @@ namespace Loci{
 
     // Now downselect cells
     dstore<vector3d<real_t> > fcenter ;
+    dstore<vector3d<real_t> > fnormal ;
     dstore<vector3d<real_t> > ccenter ;
-    getCellCenter(facts, fcenter, ccenter) ;
+    getCellCenter(facts, fcenter, fnormal, ccenter) ;
 
     entitySet cells = cellStencil.domain() ;
     multiMap upper,lower,boundary_map ;
@@ -2174,6 +2235,24 @@ namespace Loci{
 	}
 	flags[minid] = 1 ;
 	flags[maxid] = 1 ;
+	minid = 0 ;
+	maxid = 0 ;
+	dir = fnormal[lower[cc][i]] ;
+	minval = dot(dir,cdirs[0]) ;
+	maxval = minval ;
+	for(int i=1;i<csz+bsz;++i) {
+	  real_t v = dot(dir,cdirs[i]) ;
+	  if(minval < v) {
+	    minid = i ;
+	    minval = v ;
+	  }
+	  if(maxval > v) {
+	    maxid = i ;
+	    maxval = v ;
+	  }
+	}
+	flags[minid] = 1 ;
+	flags[maxid] = 1 ;
       }
       int usz = upper[cc].size() ;
       for(int i=0;i<usz;++i) {
@@ -2196,6 +2275,24 @@ namespace Loci{
 	}
 	flags[minid] = 1 ;
 	flags[maxid] = 1 ;
+	minid = 0 ;
+	maxid = 0 ;
+	dir = fnormal[upper[cc][i]] ;
+	minval = dot(dir,cdirs[0]) ;
+	maxval = minval ;
+	for(int i=1;i<csz+bsz;++i) {
+	  real_t v = dot(dir,cdirs[i]) ;
+	  if(minval < v) {
+	    minid = i ;
+	    minval = v ;
+	  }
+	  if(maxval > v) {
+	    maxid = i ;
+	    maxval = v ;
+	  }
+	}
+	flags[minid] = 1 ;
+	flags[maxid] = 1 ;
       }
 
       for(int i=0;i<bsz;++i) {
@@ -2205,6 +2302,24 @@ namespace Loci{
 	int maxid = 0 ;
 	real_t minval = dot(dir,cdirs[0]) ;
 	real_t maxval = minval ;
+	for(int i=1;i<csz+bsz;++i) {
+	  real_t v = dot(dir,cdirs[i]) ;
+	  if(minval < v) {
+	    minid = i ;
+	    minval = v ;
+	  }
+	  if(maxval > v) {
+	    maxid = i ;
+	    maxval = v ;
+	  }
+	}
+	flags[minid] = 1 ;
+	flags[maxid] = 1 ;
+	minid = 0 ;
+	maxid = 0 ;
+	dir = fnormal[boundary_map[cc][i]] ;
+	minval = dot(dir,cdirs[0]) ;
+	maxval = minval ;
 	for(int i=1;i<csz+bsz;++i) {
 	  real_t v = dot(dir,cdirs[i]) ;
 	  if(minval < v) {
@@ -2295,6 +2410,8 @@ namespace Loci{
       gradStencil = var ;
       if(*gradStencil == "stable")
 	create_cell_stencil(facts) ;
+      if(*gradStencil == "full")
+	create_cell_stencil_full(facts) ;
     }
 
   }
