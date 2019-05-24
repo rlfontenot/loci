@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -18,13 +18,14 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
-///////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 //                          hexcell.h
 //  This file includes the declaration of class HexCell, it's designed for
-//anisotropic refinement of hexahedra.
-//  In a HexCell, all edges and all faces  point to the positive x, y, or z direction  
+//  anisotropic refinement of hexahedra.
+//  In a HexCell, all edges and all faces  point to the positive 
+//  x, y, or z direction  
 //   
-///////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 
 #ifndef HEXCELL_H
 #define HEXCELL_H
