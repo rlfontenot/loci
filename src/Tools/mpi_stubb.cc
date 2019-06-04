@@ -313,8 +313,9 @@ extern "C" {
 
   int  MPI_Waitall(int, MPI_Request *, MPI_Status *)
   {
-    cerr << "MPI_Waitall" << endl ;
-    err_report(); return -1;
+    //    cerr << "MPI_Waitall" << endl ;
+    //    err_report(); return -1;
+    return 0 ;
   }
 
   int  MPI_Testall(int, MPI_Request *, int *, MPI_Status *)
@@ -1439,5 +1440,8 @@ extern "C" {
     err_report();
     return 0;
   }
+  void MPI_Comm_create_errhandler(void (*v)(MPI_Comm *,int*,...),
+				  MPI_Errhandler *e) {}
+  void MPI_Comm_set_errhandler(MPI_Comm comm, unsigned int f) {}
 }
 #endif
