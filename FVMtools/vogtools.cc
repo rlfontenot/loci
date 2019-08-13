@@ -20,6 +20,7 @@
 //#############################################################################
 #include "vogtools.h"
 #include <map>
+#include <unistd.h>
 
 #include <list>
 using std::list ;
@@ -1044,99 +1045,108 @@ namespace VOG {
     } ENDFORALL ;
 
     // Now renumber faces to match cell numbering
-    int p = MPI_processes ;
-    vector<entitySet> send_sets(p) ;
-    for(int i=0;i<MPI_processes;++i) 
-      send_sets[i] = cl.preimage(cptn[i]&geom_cells).first ;
-
-    vector<int> scounts(p,0) ;
-    for(size_t i=0;i<send_sets.size();++i) {
-      int nod_tot = 0 ;
-      FORALL(send_sets[i],fc) {
-        nod_tot += face2node[fc].size() ;
-      } ENDFORALL ;
-      scounts[i] = 1 + send_sets[i].size()*3+nod_tot ;
-    }
-    vector<int> sdispls(p) ;
-    sdispls[0] = 0 ;
-    for(int i=1;i<p;++i)
-      sdispls[i] = sdispls[i-1]+scounts[i-1] ;
-
-    int send_size = sdispls[p-1]+scounts[p-1] ;
-    vector<int> sbuffer(send_size) ;
-    // Fill in send buffers
-    for(size_t i=0;i<send_sets.size();++i) {
-      int k = sdispls[i] ;
-      sbuffer[k++] = send_sets[i].size() ;
-      FORALL(send_sets[i],fc) {
-        sbuffer[k++] = cl[fc] ;
-        sbuffer[k++] = cr[fc] ;
-        sbuffer[k++] = face2node[fc].size() ;
-      } ENDFORALL ;
-      FORALL(send_sets[i],fc) {
-        for(int j=0;j<face2node[fc].size();++j)
-          sbuffer[k++] = face2node[fc][j] ;
-      } ENDFORALL ;
-    }
-
-    vector<int> rcounts(p) ;
-    MPI_Alltoall(&scounts[0],1,MPI_INT,&rcounts[0],1,MPI_INT,MPI_COMM_WORLD) ;
-
-    vector<int> rdispls(p) ;
-    rdispls[0] = 0 ;
-    for(int i=1;i<p;++i) {
-      rdispls[i] = rdispls[i-1]+rcounts[i-1] ;
-    }
-    int recv_size = rdispls[p-1]+rcounts[p-1] ;
-    vector<int> rbuffer(recv_size) ;
-    
-    MPI_Alltoallv(&sbuffer[0],&scounts[0],&sdispls[0],MPI_INT,
-                  &rbuffer[0],&rcounts[0],&rdispls[0],MPI_INT,
-                  MPI_COMM_WORLD) ;
-
-    int num_recv_faces = 0 ;
-    for(int i=0;i<p;++i) {
-      num_recv_faces += rbuffer[rdispls[i]] ;
-    }
-    vector<int> face_dist(p) ;
-    MPI_Allgather(&num_recv_faces,1,MPI_INT,&face_dist[0],1,
-                  MPI_INT,MPI_COMM_WORLD) ;
-    int face_off = allFaces.Min() ;
-    for(int i=0;i<MPI_rank-1;++i)
-      face_off += face_dist[i] ;
-    entitySet newFaces = interval(face_off,face_off+num_recv_faces-1) ;
+    multiMap nf2n ;
     Map ncl,ncr ;
     store<int> count ;
-    ncl.allocate(newFaces) ;
-    ncr.allocate(newFaces) ;
-    count.allocate(newFaces) ;
+    entitySet newFaces ;
+    const int p = MPI_processes ;
+    if(p == 1) {
+      newFaces = face2node.domain() ;
+      nf2n.setRep(face2node.Rep()) ;
+      ncl.setRep(cl.Rep()) ;
+      ncr.setRep(cr.Rep()) ;
+      count.allocate(newFaces) ;
+    } else {
+      vector<entitySet> send_sets(p) ;
+      for(int i=0;i<MPI_processes;++i) 
+	send_sets[i] = cl.preimage(cptn[i]&geom_cells).first ;
+
+      vector<int> scounts(p,0) ;
+      for(size_t i=0;i<send_sets.size();++i) {
+	int nod_tot = 0 ;
+	FORALL(send_sets[i],fc) {
+	  nod_tot += face2node[fc].size() ;
+	} ENDFORALL ;
+	scounts[i] = 1 + send_sets[i].size()*3+nod_tot ;
+      }
+      vector<int> sdispls(p) ;
+      sdispls[0] = 0 ;
+      for(int i=1;i<p;++i)
+	sdispls[i] = sdispls[i-1]+scounts[i-1] ;
+      
+      int send_size = sdispls[p-1]+scounts[p-1] ;
+      vector<int> sbuffer(send_size) ;
+      // Fill in send buffers
+      for(size_t i=0;i<send_sets.size();++i) {
+	int k = sdispls[i] ;
+	sbuffer[k++] = send_sets[i].size() ;
+	FORALL(send_sets[i],fc) {
+	  sbuffer[k++] = cl[fc] ;
+	  sbuffer[k++] = cr[fc] ;
+	  sbuffer[k++] = face2node[fc].size() ;
+	} ENDFORALL ;
+	FORALL(send_sets[i],fc) {
+	  for(int j=0;j<face2node[fc].size();++j)
+	    sbuffer[k++] = face2node[fc][j] ;
+	} ENDFORALL ;
+      }
+      
+      vector<int> rcounts(p) ;
+      MPI_Alltoall(&scounts[0],1,MPI_INT,&rcounts[0],1,MPI_INT,MPI_COMM_WORLD) ;
+      
+      vector<int> rdispls(p) ;
+      rdispls[0] = 0 ;
+      for(int i=1;i<p;++i) {
+	rdispls[i] = rdispls[i-1]+rcounts[i-1] ;
+      }
+      int recv_size = rdispls[p-1]+rcounts[p-1] ;
+      vector<int> rbuffer(recv_size) ;
+      
+      MPI_Alltoallv(&sbuffer[0],&scounts[0],&sdispls[0],MPI_INT,
+		    &rbuffer[0],&rcounts[0],&rdispls[0],MPI_INT,
+		    MPI_COMM_WORLD) ;
+      
+      int num_recv_faces = 0 ;
+      for(int i=0;i<p;++i) {
+	num_recv_faces += rbuffer[rdispls[i]] ;
+      }
+      vector<int> face_dist(p) ;
+      MPI_Allgather(&num_recv_faces,1,MPI_INT,&face_dist[0],1,
+		    MPI_INT,MPI_COMM_WORLD) ;
+      int face_off = allFaces.Min() ;
+      for(int i=0;i<MPI_rank-1;++i)
+	face_off += face_dist[i] ;
+      newFaces = interval(face_off,face_off+num_recv_faces-1) ;
+      ncl.allocate(newFaces) ;
+      ncr.allocate(newFaces) ;
+      count.allocate(newFaces) ;
     
-    memSpace("allocate new faces") ;
-    int off = face_off ;
-    for(int i=0;i<p;++i) {
-      int k = rdispls[i] ;
-      int nf = rbuffer[k++] ;
-      for(int j=0;j<nf;++j) {
-        int fc = off+j ;
-        ncl[fc] = rbuffer[k++] ;
-        ncr[fc] = rbuffer[k++] ;
-        count[fc] = rbuffer[k++] ;
+      memSpace("allocate new faces") ;
+      int off = face_off ;
+      for(int i=0;i<p;++i) {
+	int k = rdispls[i] ;
+	int nf = rbuffer[k++] ;
+	for(int j=0;j<nf;++j) {
+	  int fc = off+j ;
+	  ncl[fc] = rbuffer[k++] ;
+	  ncr[fc] = rbuffer[k++] ;
+	  count[fc] = rbuffer[k++] ;
+	}
+	off += nf ;
       }
-      off += nf ;
-    }
-    multiMap nf2n ;
-    nf2n.allocate(count) ;
-    off = face_off ;
-    for(int i=0;i<p;++i) {
-      int k = rdispls[i] ;
-      int nf = rbuffer[k++] ;
-      k += nf*3 ;
-      for(int j=0;j<nf;++j) {
-        int fc = off+j ;
-        for(int c=0;c<count[fc];++c)
-          nf2n[fc][c] = rbuffer[k++] ;
+      nf2n.allocate(count) ;
+      off = face_off ;
+      for(int i=0;i<p;++i) {
+	int k = rdispls[i] ;
+	int nf = rbuffer[k++] ;
+	k += nf*3 ;
+	for(int j=0;j<nf;++j) {
+	  int fc = off+j ;
+	  for(int c=0;c<count[fc];++c)
+	    nf2n[fc][c] = rbuffer[k++] ;
+	}
+	off += nf ;
       }
-      off += nf ;
     }
 
     vector<pair<pair<int,int>,int> > sort_list(newFaces.size()) ;
