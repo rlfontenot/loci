@@ -79,7 +79,7 @@ if [ ${target:0:1} != "/" ]; then
    echo setting target to \'$target\'
 fi
 
-TARGET_DIRS="System Tools FVMAdapt include include/Tools include/Config include/MPI_stubb include/FVMAdapt"
+TARGET_DIRS="System Tools FVMAdapt FVMOverset include include/Tools include/Config include/MPI_stubb include/FVMAdapt include/FVMOverset"
 TOOLS_DIRS="lpp FVMtools FVMtools/libadf FVMMod sprng sprng/include sprng/include/sprng"
 
 DO_METIS_INSTALL=${INSTALL_METIS:-1}
@@ -172,6 +172,9 @@ if [ ! -h libfvmadaptfunc.${LIB_POSTFIX} ]; then
 fi
 if [ ! -h fvmadapt_m.so ]; then
   ln -s ../FVMAdapt/fvmadapt_m.so fvmadapt_m.so
+fi
+if [ ! -h fvmoverset_m.so ]; then
+  ln -s ../FVMOverset/fvmoverset_m.so fvmoverset_m.so
 fi
 if [ ! ${DO_METIS_INSTALL} == 0 ]; then
     if [ ! -h libgk.${LIB_POSTFIX} ] ; then
