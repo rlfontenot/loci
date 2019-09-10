@@ -1,0 +1,558 @@
+#include <Loci.h>
+#include <Tools/tools.h>
+#include "FVMOverset/overset.h"
+#include <iostream>
+#include <fstream>
+#include <string>
+using std::string ;
+using std::endl ;
+using std::cout ;
+using std::cerr ;
+using std::ifstream ;
+using std::ios ;
+#include <vector>
+using std::vector ;
+#include <map>
+using std::map ;
+#include <set>
+using std::set ;
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+$include "FVM.lh"
+$include "FVMOverset/overset.lh"
+
+namespace Loci {
+
+  $type componentMotionTypes blackbox<std::set<std::string> > ;
+
+  $rule unit(componentMotionTypes<-componentMotion),prelude {
+    *$componentMotionTypes = std::set<std::string>() ;
+  } ;
+
+  $rule apply(componentMotionTypes)[Loci::NullOp],
+    constraint(UNIVERSE),prelude {
+    $componentMotionTypes->insert(string("rotation")) ;
+    $componentMotionTypes->insert(string("servo")) ;
+    $componentMotionTypes->insert(string("prescribed")) ;
+    $componentMotionTypes->insert(string("stationary")) ;
+  } ;
+    
+  
+  $type componentRotation_X Constraint ;
+  $type componentServo_X Constraint ;
+  $type componentPrescribed_X Constraint ;
+  $type componentStationary_X Constraint ;
+  $type volumeTag(X) param<string> ;
+  
+  $rule constraint(componentServo_X,componentRotation_X,componentPrescribed_X,componentStationary_X<-volumeTag(X),componentMotion,componentMotionTypes),
+    parametric(volumeTag(X)) {
+    string tag = $volumeTag(X) ;
+    $componentRotation_X = EMPTY ;
+    $componentPrescribed_X = EMPTY ;
+    $componentStationary_X = EMPTY ;
+    $componentServo_X = EMPTY ;
+    if($componentMotion.optionExists(tag)) {
+      string name ;
+      Loci::options_list::arg_list value_list ;
+      $componentMotion.getOption(tag,name,value_list) ;
+      if($componentMotionTypes.find(name) == $componentMotionTypes.end()) {
+        cerr << "unknown component motion directive '" << name << "' for component '"
+             << tag << "'" << endl ;
+        Loci::Abort() ;
+      }
+        
+      if(name == "rotation") {
+        $componentRotation_X = ~EMPTY ;
+      } else if(name == "servo") {
+        $componentServo_X = ~EMPTY ;
+      } else if(name == "prescribed") {
+        $componentPrescribed_X = ~EMPTY ;
+      } else if(name == "stationary") {
+        $componentStationary_X = ~EMPTY ;
+      }
+    } else {
+      cerr << "No componentMotion information for component '" << tag << "'" << endl ;
+      Loci::Abort() ;
+    }
+  }
+
+  // Compute spline derivatives
+  void splineD(vector<real_t> &xp, const vector<real_t> &x,
+               const vector<real_t> &t) {
+    int n = x.size() ;
+    vector<real_t> tmp(n) ;
+    xp.swap(tmp) ;
+    for(int i=1;i<n-1;++i) {
+      const real_t dt1 = t[i+1]-t[i] ;
+      const real_t dt2 = t[i]-t[i-1] ;
+      const real_t dx1 = x[i+1]-x[i] ;
+      const real_t dx2 = x[i]-x[i-1] ;
+      if(dt1 < 1e-33)
+        xp[i] = dx2/dt2 ;
+      else if(dt2 < 1e-33)
+        xp[i] = dx1/dt1 ;
+      else
+        xp[i] = (dx1+dx2)/(dt1+dt2) ;
+    }
+    real_t x1l = x[1]-x[0] ;
+    real_t t1l = t[1]-t[0] ;
+    xp[0] = x1l/max<real_t>(t1l,1e-33) ;
+    if(n>2 && t1l > 1e-33) {
+      real_t x2l = x[2]-x[0] ;
+      real_t t2l = t[2]-t[0] ;
+      if(t[2]-t[1] > 1e-33)
+        xp[0] = (t2l*t2l*x1l-t1l*t1l*x2l)/(t1l*t2l*t2l-t2l*t1l*t1l) ;
+    }
+    int N = n-1 ;
+    x1l = x[N-1]-x[N] ;
+    t1l = t[N-1]-t[N] ;
+    xp[N] = x1l/t1l ;
+    if(n>2) {
+      real_t t2l = t[N-2]-t[N] ;
+      real_t x2l = x[N-2]-x[N] ;
+      if(t[N-1]-t[N-2] > 1e-33)
+        xp[N] = (t2l*t2l*x1l-t1l*t1l*x2l)/(t1l*t2l*t2l-t2l*t1l*t1l) ;
+    }
+  }
+
+  // Find the time interval that we are splining
+  int findt(const vector<real_t> &t, real_t tval) {
+    int n = t.size() ;
+    real_t tmin = t[0] ;
+    real_t tmax = t[n-1] ;
+    int nmin = 0 ;
+    int nmax = n-1 ;
+    if(tval < tmin)
+      return 0 ;
+    if(tval > tmax)
+      return n-1 ;
+    int pt = int(floor((tval-tmin)/(tmax-tmin))) ;
+    while(t[pt+1]<tval || t[pt] > tval) {
+      if(t[pt] < tval)
+        nmin = pt+1 ;
+      if(t[pt+1] > tval)
+        nmax = pt-1 ;
+      pt = (nmin+nmax)/2 ;
+    }
+    return pt ;
+  }
+
+  real_t spline(int ind,real_t tval,const vector<real_t> &t,
+                const vector<real_t> &x,
+                const vector<real_t> &xp) {
+    const real_t dt = max<real_t>((t[ind+1]-t[ind]),1e-33) ;
+    const real_t T = max<real_t>(0.0,min<real_t>(1.0,(tval-t[ind])/dt)) ;
+    const real_t p0 = x[ind] ;
+    const real_t p1 = x[ind+1] ;
+    const real_t m0 = xp[ind]*dt ;
+    const real_t m1 = xp[ind+1]*dt ;
+    const real_t T2 = T*T ;
+    const real_t T3 = T*T2 ;
+    real_t xi = ((2.*T3-3.*T2+1.)*p0 + (T3-2.*T2+T)*m0 +
+                 (-2.*T3+3.*T2  )*p1 + (T3-T2     )*m1 ) ;
+    return xi ;
+  }
+
+  class stationaryMotion : public motionType {
+  public:
+    stationaryMotion(std::string name, options_list &ol) {}
+    void initialState(vector<real_t> &state) const ;
+    vector<real_t> advanceStateInTime(const vector<real_t> &state,
+				    const map<string,real_t> &vals) const ;
+    componentXform getXform(const vector<real_t> &state) const ;
+  } ;
+
+  void stationaryMotion::initialState(vector<real_t> &state) const {
+    vector<real_t> tmp(1) ;
+    tmp[0] = 0.0 ;
+    state = tmp ;
+  }
+
+  vector<real_t> stationaryMotion::advanceStateInTime(const vector<real_t> &state,
+						    const map<string,real_t> &vals) const  {
+    return vector<real_t>(state) ;
+  }
+
+  componentXform stationaryMotion::getXform(const vector<real_t> &state) const {
+    return componentXform() ;
+  }
+     
+  class rotationMotion : public motionType {
+    vector3d<real_t> axis ;
+    vector3d<real_t> center ;
+    real_t speed ;
+  public:
+    rotationMotion(std::string name, options_list &ol) ;
+    void initialState(vector<real_t> &state) const  ;
+    vector<real_t> advanceStateInTime(const vector<real_t> &state,
+				    const map<string,real_t> &vals) const ;
+    componentXform getXform(const vector<real_t> &state) const ;
+  } ;
+
+  rotationMotion::rotationMotion(std::string name, options_list &ol) {
+    vector3d<real_t> vec(1,0,0) ;
+    if(ol.optionExists("axis")) { 
+      ol.getOptionUnits("axis","",vec) ;
+      vec = vec/(norm(vec)+1e-30) ;
+    } else {
+      if(Loci::MPI_rank) {
+        cerr << "WARNING: " << name << ": Defaulting to x-axis in component rotation!" << endl ;
+      }
+    }
+    axis = vec ;
+
+    center = vector3d<real_t>(0,0,0) ;
+    if(ol.optionExists("center")) { 
+      ol.getOptionUnits("center","m",center) ;
+    } else {
+      if(Loci::MPI_rank) {
+        cerr << "WARNING: " << name << ": Defaulting to origin for center of component rotation!" << endl ;
+      }
+    }
+
+    speed = 0 ;
+    if(ol.optionExists("speed")) {
+      ol.getOptionUnits("speed","rpm",speed) ;
+      speed *= 2.*M_PI/60.;  //changes rpm to rad/s
+    } else {
+      if(Loci::MPI_rank) {
+        cerr << "FATAL:  No speed specified in componentMotion rotation specification for '" << name << "'" << endl ;
+        Loci::Abort() ;
+      }
+    }
+  }
+  void rotationMotion::initialState(vector<real_t> &state) const {
+    vector<real_t> tmp(1) ;
+    tmp[0] = 0.0 ;
+    state = tmp ;
+  }
+
+  vector<real_t> rotationMotion::advanceStateInTime(const vector<real_t> &state,
+						  const std::map<string,real_t> &vals) const  {
+    std::map<string,real_t>::const_iterator mi ;
+    real_t dt = 0.0 ;
+    if((mi = vals.find("timeStep"))!=vals.end())
+      dt = mi->second ;
+    else {
+      cerr << "advanceStateinTime for rotationMotion expected  to find 'timeStep' in vals" << endl ;
+      Loci::Abort() ;
+    }
+    vector<real_t> tmp = state ;
+    real_t dtheta = dt*speed ;
+    tmp[0] += dtheta ;
+    if(tmp[0] > 2.*M_PI)
+      tmp[0] -= 2.*M_PI ;
+    if(tmp[0] < 0.0)
+      tmp[0] += 2.*M_PI ;
+    return tmp ;
+  }
+
+  componentXform rotationMotion::getXform(const vector<real_t> &state) const {
+    const real_t angle = state[0] ;
+    Quaternion rotation(axis,angle) ;
+    const vector3d<real_t> cg = center ;
+    componentXform xform ;
+    xform.cg = cg ;
+    xform.new_cg = cg ;
+    xform.q = rotation ;
+    return xform ;
+  }
+
+  class prescribedMotion : public motionType {
+    motionSplines motion ;
+  public:
+    prescribedMotion(std::string name, options_list &ol) ;
+    void initialState(vector<real_t> &state) const  ;
+    vector<real_t> advanceStateInTime(const vector<real_t> &state,
+				    const map<string,real_t> &vals) const ;
+    componentXform getXform(const vector<real_t> &state) const ;
+  } ;
+
+  prescribedMotion::prescribedMotion(std::string name, options_list &ol) {
+    if(Loci::MPI_rank==0) {
+      string filename = "motion_" + name + ".dat" ;
+      ifstream infile(filename.c_str(),ios::in) ;
+      if(infile.fail()) {
+        cerr << "open failed on '" << filename <<"'"<< endl ;
+        Loci::Abort() ;
+      }
+
+      int npnts = 0 ;
+      infile >> npnts ;
+
+      if(npnts <= 1 || npnts > 10000000) {
+        cerr << "unreasonable number of points, " << npnts << ", in file '" << filename << "'." << endl ;
+        cerr << "check file for validity"<< endl ;
+        Loci::Abort() ;
+      }
+      vector<real_t> t(npnts),x(npnts),y(npnts),z(npnts) ;
+      vector<real_t> q0(npnts),q1(npnts),q2(npnts),q3(npnts) ;
+      for(int i=0;i<npnts;++i) {
+        infile >> t[i] >> x[i] >> y[i] >> z[i]
+               >> q0[i] >> q1[i] >> q2[i] >> q3[i] ;
+        if(infile.fail()) {
+          cerr << "problem reading data from file '" << filename << endl ;
+          Loci::Abort() ;
+        }
+        if(i>0 && t[i-1] > t[i]) {
+          cerr << "time series should be in order of increasing time in file '" << filename << endl ;
+          Loci::Abort() ;
+        }
+      }
+      MPI_Bcast(&npnts,1,MPI_INT,0,MPI_COMM_WORLD) ;
+      MPI_Bcast(&t[0],npnts,MPI_DOUBLE,0,MPI_COMM_WORLD) ;
+      MPI_Bcast(&x[0],npnts,MPI_DOUBLE,0,MPI_COMM_WORLD) ;
+      MPI_Bcast(&y[0],npnts,MPI_DOUBLE,0,MPI_COMM_WORLD) ;
+      MPI_Bcast(&z[0],npnts,MPI_DOUBLE,0,MPI_COMM_WORLD) ;
+      MPI_Bcast(&q0[0],npnts,MPI_DOUBLE,0,MPI_COMM_WORLD) ;
+      MPI_Bcast(&q1[0],npnts,MPI_DOUBLE,0,MPI_COMM_WORLD) ;
+      MPI_Bcast(&q2[0],npnts,MPI_DOUBLE,0,MPI_COMM_WORLD) ;
+      MPI_Bcast(&q3[0],npnts,MPI_DOUBLE,0,MPI_COMM_WORLD) ;
+      motion.initialize(t,x,y,z,q0,q1,q2,q3) ;
+    } else {
+      int npnts ;
+      MPI_Bcast(&npnts,1,MPI_INT,0,MPI_COMM_WORLD) ;
+      vector<real_t> t(npnts),x(npnts),y(npnts),z(npnts) ;
+      vector<real_t> q0(npnts),q1(npnts),q2(npnts),q3(npnts) ;
+      MPI_Bcast(&t[0],npnts,MPI_DOUBLE,0,MPI_COMM_WORLD) ;
+      MPI_Bcast(&x[0],npnts,MPI_DOUBLE,0,MPI_COMM_WORLD) ;
+      MPI_Bcast(&y[0],npnts,MPI_DOUBLE,0,MPI_COMM_WORLD) ;
+      MPI_Bcast(&z[0],npnts,MPI_DOUBLE,0,MPI_COMM_WORLD) ;
+      MPI_Bcast(&q0[0],npnts,MPI_DOUBLE,0,MPI_COMM_WORLD) ;
+      MPI_Bcast(&q1[0],npnts,MPI_DOUBLE,0,MPI_COMM_WORLD) ;
+      MPI_Bcast(&q2[0],npnts,MPI_DOUBLE,0,MPI_COMM_WORLD) ;
+      MPI_Bcast(&q3[0],npnts,MPI_DOUBLE,0,MPI_COMM_WORLD) ;
+      motion.initialize(t,x,y,z,q0,q1,q2,q3) ;
+    }
+  }
+  void prescribedMotion::initialState(vector<real_t> &state) const {
+    vector<real_t> tmp(1) ;
+    tmp[0] = 0.0 ;
+    state = tmp ;
+  }
+
+  vector<real_t> prescribedMotion::advanceStateInTime(const vector<real_t> &state,
+						  const std::map<string,real_t> &vals) const  {
+    std::map<string,real_t>::const_iterator mi ;
+    real_t dt = 0.0 ;
+    if((mi = vals.find("timeStep"))!=vals.end())
+      dt = mi->second ;
+    else {
+      cerr << "advanceStateinTime for prescribedMotion expected  to find 'timeStep' in vals" << endl ;
+      Loci::Abort() ;
+    }
+    vector<real_t> tmp = state ;
+    tmp[0] += dt ;
+    return tmp ;
+  }
+
+
+  componentXform prescribedMotion::getXform(const vector<real_t> &state) const {
+    real_t t = state[0] ;
+    vector3d<real_t> cg, cg_new ;
+    Quaternion q ;
+    motion.getMotion(cg,q,0) ;
+    motion.getMotion(cg_new,q,t) ;
+    componentXform xform ;
+    xform.cg = cg ;
+    xform.new_cg = cg_new ;
+    xform.q = q ;
+    return xform ;
+  }
+
+  class servoMotion : public motionType {
+    vector3d<real_t> axis ;
+    vector3d<real_t> center ;
+    string name ;
+  public:
+    servoMotion(std::string name, options_list &ol) ;
+    void initialState(vector<real_t> &state) const  ;
+    vector<real_t> advanceStateInTime(const vector<real_t> &state,
+				    const map<string,real_t> &vals) const ;
+    componentXform getXform(const vector<real_t> &state) const ;
+  } ;
+
+  servoMotion::servoMotion(std::string servoName, options_list &ol) {
+    name = servoName ;
+    vector3d<real_t> vec(1,0,0) ;
+    if(ol.optionExists("axis")) { 
+      ol.getOptionUnits("axis","",vec) ;
+      vec = vec/(norm(vec)+1e-30) ;
+    } else {
+      if(Loci::MPI_rank) {
+        cerr << "WARNING: " << name << ": Defaulting to x-axis in component servo!" << endl ;
+      }
+    }
+    axis = vec ;
+
+    center = vector3d<real_t>(0,0,0) ;
+    if(ol.optionExists("center")) { 
+      ol.getOptionUnits("center","m",center) ;
+    } else {
+      if(Loci::MPI_rank) {
+        cerr << "WARNING: " << name << ": Defaulting to origin for center of component servo!" << endl ;
+      }
+    }
+
+  }
+  void servoMotion::initialState(vector<real_t> &state) const {
+    vector<real_t> tmp(1) ;
+    tmp[0] = 0.0 ;
+    state = tmp ;
+  }
+
+  vector<real_t> servoMotion::advanceStateInTime(const vector<real_t> &state,
+					       const std::map<string,real_t> &vals) const  {
+    std::map<string,real_t>::const_iterator mi ;
+    real_t val = 0.0 ;
+    if((mi = vals.find(name))!=vals.end())
+      val = mi->second ;
+    else {
+      cerr << "advanceStateinTime for servoMotion expected  to find '" << name << "' in vals" << endl ;
+      Loci::Abort() ;
+    }
+    vector<real_t> tmp = state ;
+    tmp[0] = val ;
+    return tmp ;
+  }
+
+  componentXform servoMotion::getXform(const vector<real_t> &state) const {
+    const real_t angle = state[0] ;
+    Quaternion servo(axis,angle) ;
+    const vector3d<real_t> cg = center ;
+    componentXform xform ;
+    xform.cg = cg ;
+    xform.new_cg = cg ;
+    xform.q = servo ;
+    return xform ;
+  }
+  
+  $type motionBehavior_X blackbox<Loci::CPTR<motionType> > ;
+
+  $rule singleton(motionBehavior_X <- componentMotion,componentName_X),constraint(componentStationary_X),parametric(volumeTag(X)),option(disable_threading) {
+    string tag = $componentName_X ;
+    string name ;
+    Loci::options_list::arg_list value_list ;
+    $componentMotion.getOption(tag,name,value_list) ;
+    options_list ol ; 
+    ol.Input(value_list) ; // Convert to an options list
+    Loci::CPTR<motionType> ptr = new stationaryMotion(tag,ol) ;
+    $motionBehavior_X = ptr ;
+  }
+
+    $rule singleton(motionBehavior_X <- componentMotion,componentName_X),constraint(componentRotation_X),parametric(volumeTag(X)),option(disable_threading) {
+    string tag = $componentName_X ;
+    string name ;
+    Loci::options_list::arg_list value_list ;
+    $componentMotion.getOption(tag,name,value_list) ;
+    options_list ol ; 
+    ol.Input(value_list) ; // Convert to an options list
+    Loci::CPTR<motionType> ptr = new rotationMotion(tag,ol) ;
+    $motionBehavior_X = ptr ;
+  }
+
+  $rule singleton(motionBehavior_X <- componentMotion,componentName_X),constraint(componentPrescribed_X),parametric(volumeTag(X)),option(disable_threading) {
+    string tag = $componentName_X ;
+    string name ;
+    Loci::options_list::arg_list value_list ;
+    $componentMotion.getOption(tag,name,value_list) ;
+    options_list ol ; 
+    ol.Input(value_list) ; // Convert to an options list
+    Loci::CPTR<motionType> ptr = new prescribedMotion(tag,ol) ;
+    $motionBehavior_X = ptr ;
+  }
+
+  $rule singleton(motionBehavior_X <- componentMotion,componentName_X),constraint(componentServo_X),parametric(volumeTag(X)),option(disable_threading) {
+    string tag = $componentName_X ;
+    string name ;
+    Loci::options_list::arg_list value_list ;
+    $componentMotion.getOption(tag,name,value_list) ;
+    options_list ol ; 
+    ol.Input(value_list) ; // Convert to an options list
+    Loci::CPTR<motionType> ptr = new servoMotion(tag,ol) ;
+    $motionBehavior_X = ptr ;
+  }
+
+  $type motionInfo blackbox<map<string,real_t> > ;
+  $rule unit(motionInfo),constraint(UNIVERSE),prelude {
+    map<string,real_t> tmp ;
+    *$motionInfo = tmp ;
+  } ;
+
+
+  $type componentTransformMap blackbox<map<string,vector<componentXform> > > ;
+
+  $rule unit(componentTransformMap),constraint(componentMotionData), prelude {
+  } ;
+
+  $rule apply(componentTransformMap<-componentTransformsn_X,componentName_X)[Loci::NullOp],parametric(volumeTag(X)),option(disable_threading), prelude {
+    (*$componentTransformMap)[(*$componentName_X)] = (*$componentTransformsn_X) ;
+  } ;
+  
+  $rule singleton(componentTransforms_X<-componentMotionData,componentName_X,
+                  componentRelationships_X),
+    parametric(volumeTag(X)) {
+    $componentTransforms_X.clear() ;
+    componentXform xform ;
+    map<string,componentXform>::const_iterator mi ;
+    mi = $componentMotionData.find($componentName_X) ;
+    if(mi != $componentMotionData.end())
+      xform = mi->second ;
+    else {
+      cerr << "problem finding component " << $componentName_X << endl ;
+    }
+    $componentTransforms_X.push_back(xform) ;
+    for(size_t i=0;i<$componentRelationships_X.size();++i) {
+      mi = $componentMotionData.find($componentRelationships_X[i]) ;
+      if(mi != $componentMotionData.end()) {
+        $componentTransforms_X.push_back(mi->second) ;
+      } else {
+        cerr << "component '" << $componentName_X << "' unable to find parent '"
+             << $componentRelationships_X[i] << "'!" << endl ;
+        Loci::Abort() ;
+      }
+    }
+  }
+
+
+  $type componentVectorRotation_X param<tensor3d<real_t> > ;
+
+  $rule singleton(componentVectorRotation_X<-componentTransformsn_X), parametric(volumeTag(X)) {
+    int sz = $componentTransformsn_X.size() ;
+    vector3d<real_t> v = vector3d<real_t>(1,0,0) ;
+    for(int i=0;i<sz;++i)
+      v = $componentTransformsn_X[i].applyRotation(v) ;
+    $componentVectorRotation_X.x = v ;
+    v = vector3d<real_t> (0,1,0) ;
+    for(int i=0;i<sz;++i)
+      v = $componentTransformsn_X[i].applyRotation(v) ;
+    $componentVectorRotation_X.y = v ;
+    v = vector3d<real_t> (0,0,1) ;
+    for(int i=0;i<sz;++i)
+      v = $componentTransformsn_X[i].applyRotation(v) ;
+    $componentVectorRotation_X.z = v ;
+  }
+
+  $type componentVectorRotation_X param<tensor3d<real_t> > ;
+
+  $rule singleton(componentVectorRotation_X<-componentTransformsn_X), parametric(volumeTag(X)) {
+    int sz = $componentTransformsn_X.size() ;
+    vector3d<real_t> v = vector3d<real_t>(1,0,0) ;
+    for(int i=0;i<sz;++i)
+      v = $componentTransformsn_X[i].applyRotation(v) ;
+    $componentVectorRotation_X.x = v ;
+    v = vector3d<real_t>(0,1,0) ;
+    for(int i=0;i<sz;++i)
+      v = $componentTransformsn_X[i].applyRotation(v) ;
+    $componentVectorRotation_X.y = v ;
+    v = vector3d<real_t>(0,0,1) ;
+    for(int i=0;i<sz;++i)
+      v = $componentTransformsn_X[i].applyRotation(v) ;
+    $componentVectorRotation_X.z = v ;
+  }
+
+
+}

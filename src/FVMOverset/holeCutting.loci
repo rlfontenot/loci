@@ -1,0 +1,839 @@
+#include <Loci.h>
+#include <Tools/tools.h>
+#include "FVMOverset/overset.h"
+#include <iostream>
+#include <fstream>
+#include <string>
+using std::string ;
+using std::endl ;
+using std::cout ;
+using std::cerr ;
+using std::ifstream ;
+using std::ios ;
+#include <vector>
+using std::vector ;
+#include <map>
+using std::map ;
+#include <set>
+using std::set ;
+
+$include "FVM.lh"
+$include "FVMOverset/overset.lh"
+
+namespace Loci {
+
+  $rule default(holeCuttingTolerance),
+    comments("Specifies the distance to surface that becomes ambiguous for determining which component is closest.") {
+    $holeCuttingTolerance = 1e-3 ; // default 1mm
+  }
+
+  $rule default(componentPriority),
+    comments("Specifies component priority in hole cutting") {}
+
+
+  $rule optional(componentMotion),
+    comments("Specify motions of individual mesh components") {
+  }
+
+  $rule default(componentHierarchy),
+    comments("Specifies the parent/child relationships between components") {
+  }
+
+
+  //--------------------------------------------------------------------------
+  //--
+  //-- Establish component identities and relationships.  Parse
+  //-- componentHierarchy and componentPriority so that they can be
+  //-- processed in later stages
+  //--
+  //--------------------------------------------------------------------------
+
+
+  // Collect the names of the current components in the grids
+  $type componentName_X blackbox<string> ;
+  $rule blackbox(componentName_X<-volumeTag(X)),parametric(volumeTag(X)),
+    prelude {
+    *$componentName_X = *$volumeTag(X) ;
+  } ;
+
+  $rule unit(componentNameList),constraint(UNIVERSE) { }
+
+  $rule apply(componentNameList<-componentName_X)[Loci::NullOp],
+    parametric(volumeTag(X)), prelude {
+    (*$componentNameList).push_back(*$componentName_X) ;
+    std::sort((*$componentNameList).begin(),(*$componentNameList).end()) ;
+  } ;
+
+  // Convert component names to integer id which is just the index in the 
+  // componentNameList
+  $type componentID_X param<int> ;
+  $rule singleton(componentID_X<-componentName_X,componentNameList),parametric(volumeTag(X)) {
+    $componentID_X = -1 ;
+    
+    for(size_t i=0;i<$componentNameList.size();++i)
+      if($componentNameList[i] == $componentName_X)
+        $componentID_X = i ;
+  }
+
+
+  // Extract Parent and children ids from componentHierarcy Information
+  $type componentParents blackbox< vector<int> > ;
+  $type componentChildren blackbox< vector<vector<int> > > ;
+
+  // Parse componentHierarchy, componentRelationships_X contains names of all
+  // the parents of the current component.
+  $rule blackbox(componentRelationships_X<-componentName_X,componentHierarchy),
+    parametric(volumeTag(X)), prelude {
+    vector<string> tmp ;
+    string tag = *$componentName_X ;
+    while((*$componentHierarchy).optionExists(tag)) {
+      string name ;
+      Loci::options_list::arg_list value_list ;
+      (*$componentHierarchy).getOption(tag,name,value_list) ;
+      if(name != "parent") {
+        cerr << "unknown keyword, '" << name << "', in componentHierarchy!" << endl;
+        Loci::Abort() ;
+      }
+      if(value_list.size() != 1 ||
+         value_list[0].type_of() != Loci::NAME) {
+        cerr << "parent takes single named argument in componentHierarchy!" << endl ;
+        Loci::Abort() ;
+      }
+      value_list[0].get_value(tag) ;
+      // Now tag is updated to parent!
+      for(size_t i=0;i<tmp.size();++i)
+        if(tmp[i] == tag) {
+          cerr << "cycle in componentHierarchy!" << endl ;
+          Loci::Abort() ;
+        }
+      tmp.push_back(tag) ;
+    }
+
+    *$componentRelationships_X = tmp ;
+  } ;
+
+  // Initially componentParent is initialized to -1 (e.g. they are not a child)
+  $rule unit(componentParents<-componentNameList), prelude {
+    int sz = ($componentNameList)->size() ;
+    vector<int> vtmp(sz,-1) ;
+    (*$componentParents).swap(vtmp) ;
+  } ;
+
+
+  $rule apply(componentParents<-componentRelationships_X,componentID_X,componentNameList)[Loci::NullOp],parametric(volumeTag(X)), prelude {
+    int rsz = ($componentRelationships_X)->size() ;
+    if(rsz > 1) {
+      cerr << "only one parent allowed" << endl ;
+    }
+    int cid = *$componentID_X ;
+    int csz = ($componentNameList)->size() ;
+    for(int i=0;i<rsz;++i) {
+      int id = -1 ;
+      string name =(*$componentRelationships_X)[i] ;
+      for(int j=0;j<csz;++j) {
+        if(name == (*$componentNameList)[j])
+          id = j ;
+      }
+      (*$componentParents)[cid] = id ;
+    }
+  } ;
+
+  $rule singleton(componentChildren<-componentParents) {
+    int sz = $componentParents.size() ;
+    // transpose structure to convert parent relationship to child
+    vector<vector<int> > children(sz) ;
+    for(int i=0;i<sz;++i) {
+      if($componentParents[i] >=0)
+        children[$componentParents[i]].push_back(i) ;
+    }
+    $componentChildren.swap(children) ;
+  }
+
+
+
+  $rule singleton(componentPriorityList<-componentNameList,componentPriority) {
+    int sz = $componentNameList.size() ;
+    vector<real_t> priorities(sz,1.0) ;
+    for(int i=0;i<sz;++i) {
+      string componentName = $componentNameList[i] ;
+
+      if($componentPriority.optionExists(componentName)) {
+	real_t p = 1.0 ;
+	$componentPriority.getOption(componentName,p) ;
+	priorities[i] = p ;
+      }
+    }
+    $componentPriorityList = priorities ;
+  }
+
+
+  $type componentID store<int> ;
+  // Assign component ID to each cell
+  $rule pointwise(componentID<-cellcenter,componentID_X),
+    constraint(volumeTag(X)),parametric(volumeTag(X)) {
+    $componentID = $componentID_X ;
+  }
+
+  $type componentID_node store<int> ;
+
+  // Assign Component ID to each node, tie break by using larger id for
+  // nodes that are shared between components.
+  $rule unit(componentID_node),constraint(pos) {
+    $componentID_node = -1 ;
+  }
+  $rule apply(face2node->componentID_node<-cl->componentID)[Loci::Maximum] {
+    int fsz = $face2node.size() ;
+    int cid = $cl->$componentID ;
+    for(int i=0;i<fsz;++i)
+      join($face2node[i]->$componentID_node,cid) ;
+  }
+
+  $rule apply(face2node->componentID_node<-cr->componentID)[Loci::Maximum] {
+    int fsz = $face2node.size() ;
+    int cid = $cr->$componentID ;
+    for(int i=0;i<fsz;++i)
+      join($face2node[i]->$componentID_node,cid) ;
+  }
+  
+  //--------------------------------------------------------------------------
+  //--
+  //-- Surface2surface distance evaluatons
+  //--
+  //--------------------------------------------------------------------------
+  $type stencilSize2 param<double> ;
+  $type crossComponentDist_node store<float> ;
+  $type crossComponentDistGrad_node store<vector3d<float> > ;
+  $type crossComponentID_node store<int> ;
+
+  $type node2surf Map ;
+
+  $type distanceFieldGradient store<vector3d<float> > ;
+
+  $type surfaceNodeNormal store<vector3d<float> > ;
+
+  $rule unit(surfaceNodeNormal<-pos) {
+    $surfaceNodeNormal = vector3d<float>(0,0,0) ;
+  }
+
+
+  $rule apply(face2node->surfaceNodeNormal<-area)[Loci::Summation],constraint(AllWallBCs) {
+    vector3d<real_t> n = $area.n ;
+    real_t a = 1.0; //$area.sada ;
+    vector3d<float> an(realToFloat(a*n.x),
+		       realToFloat(a*n.y),
+		       realToFloat(a*n.z)) ;
+    int sz = $face2node.size() ;
+    for(int i=0;i<sz;++i)
+      join($face2node[i]->$surfaceNodeNormal,an) ;
+  }
+
+  // Compute the cone angle (in dot product form) for surfaceNodeNormal
+
+  $rule pointwise(distanceFieldGradient<-pos,node2surf->(pos,surfaceNodeNormal)) {
+    vector3d<float> dv = realToFloat($pos-$node2surf->$pos) ;
+    float ldv = max(norm(dv),1e-30f) ;
+    vector3d<float> sn = -1.*$node2surf->$surfaceNodeNormal ;
+    float lsn = max(norm(sn),1e-30f) ;
+    $distanceFieldGradient = (ldv< 1e-10)?((1./lsn)*sn):((1./ldv)*dv) ;
+  }
+
+  $rule pointwise(crossComponentDist_node,crossComponentDistGrad_node,crossComponentID_node<-pos,distanceFieldGradient,node2surf->pos,componentID_node,componentPriorityList,holeCuttingTolerance,componentNameList,componentGeometryList,stencilSize2),
+  option(disable_threading),prelude {
+    entitySet dom = entitySet(seq) ;
+    int nc = (*$componentNameList).size() ;
+    float delta = realToFloat(sqrt(*$stencilSize2)) ;
+    //    Loci::debugout << "delta = " << delta << endl ;
+    vector<Array<float,6> > bbox_set(nc) ;
+    for(int i=0;i<nc;++i) {
+      bbox_set[i][0] = 1e33 ;
+      bbox_set[i][1] =-1e33 ;
+      bbox_set[i][2] = 1e33 ;
+      bbox_set[i][3] =-1e33 ;
+      bbox_set[i][4] = 1e33 ;
+      bbox_set[i][5] =-1e33 ;
+    }
+    // Find bounding box for each component
+    FORALL(dom,nd) {
+      int id = $componentID_node[nd] ;
+      $crossComponentID_node[nd] = -1 ; // No component by default
+      $crossComponentDist_node[nd] = 1e30 ;
+      $crossComponentDistGrad_node[nd] = vector3d<float>(0,0,0) ;
+      bbox_set[id][0] = min(bbox_set[id][0],realToFloat($pos[nd].x-delta)) ;
+      bbox_set[id][1] = max(bbox_set[id][1],realToFloat($pos[nd].x+delta)) ;
+      bbox_set[id][2] = min(bbox_set[id][2],realToFloat($pos[nd].y-delta)) ;
+      bbox_set[id][3] = max(bbox_set[id][3],realToFloat($pos[nd].y+delta)) ;
+      bbox_set[id][4] = min(bbox_set[id][4],realToFloat($pos[nd].z-delta)) ;
+      bbox_set[id][5] = max(bbox_set[id][5],realToFloat($pos[nd].z+delta)) ;
+    } ENDFORALL ;
+    int p = Loci::MPI_processes ;
+
+    vector<Array<float,6> > bbox_all(nc*p) ;
+#ifdef VERBOSE
+    Loci::debugout << "local bbox set for components:" << endl ;
+    for(int i=0;i<nc;++i) {
+      Loci::debugout << "c=" << i
+		     << "- [" << bbox_set[i][0] << ","<< bbox_set[i][1] << "] ["
+		     << bbox_set[i][2] << ","<< bbox_set[i][3] << "] ["
+		     << bbox_set[i][4] << ","<< bbox_set[i][5] << "] " << endl ;
+    }
+#endif
+    // Exchange request bounding boxes
+    MPI_Allgather(&bbox_set[0],sizeof(Array<float,6>)*nc,MPI_BYTE,
+                  &bbox_all[0],sizeof(Array<float,6>)*nc,MPI_BYTE,
+                  MPI_COMM_WORLD) ;
+
+    vector<vector<int> > send_sets ;
+    vector<int> component_search ;
+
+    vector<pair<int,int> > send_list ;
+    for(int j=0;j<nc;++j) { // loop over components
+      if(bbox_set[j][0] < bbox_set[j][1]) { // valid bbox
+        // does it intersect any other processors
+        for(int i=0;i<p;++i) {
+          int ic = i*nc ;
+          for(int k=0;k<nc;++k)
+            if(k!=j && bbox_all[ic+k][0] < bbox_all[ic+k][1]) {
+              // does the bounding box intersect
+              if(bbox_set[j][1] >= bbox_all[ic+k][0] &&
+                 bbox_set[j][0] <= bbox_all[ic+k][1] &&
+                 bbox_set[j][3] >= bbox_all[ic+k][2] &&
+                 bbox_set[j][2] <= bbox_all[ic+k][3] &&
+                 bbox_set[j][5] >= bbox_all[ic+k][4] &&
+                 bbox_set[j][4] <= bbox_all[ic+k][5]) {
+                send_list.push_back(pair<int,int>(i,k)) ;
+              }
+            }
+        }
+      }
+    }
+#ifdef VERBOSE
+    Loci::debugout << "send_list =" ;
+    for(size_t i=0;i<send_list.size();++i)
+      Loci::debugout << " (" << send_list[i].first << ' ' << send_list[i].second
+                     << ")" ;
+    Loci::debugout << endl ;
+#endif
+
+    vector<vector<int> > send_set(p) ;
+    for(size_t i=0;i<send_list.size();++i) {
+      int proc = send_list[i].first ; // processor
+      int comp = send_list[i].second ; // component
+      Array<float,6> bbox = bbox_all[proc*nc+comp] ;
+      FORALL(dom,nd) {
+        int id = $componentID_node[nd] ;
+        if(id != comp &&
+           $pos[nd].x > bbox[0] && $pos[nd].x < bbox[1] &&
+	   $pos[nd].y > bbox[2] && $pos[nd].y < bbox[3] &&
+	   $pos[nd].z > bbox[4] && $pos[nd].z < bbox[5]) {
+          send_set[proc].push_back(nd) ;
+        }
+      } ENDFORALL ;
+    }
+
+    // remove duplicates
+    for(int i=0;i<p;++i) {
+      if(send_set[i].size() > 1) {
+	std::sort(send_set[i].begin(),send_set[i].end()) ;
+	vector<int>::const_iterator se =
+	  std::unique(send_set[i].begin(),send_set[i].end()) ;
+	vector<int> tmp(se-send_set[i].begin()) ;
+	for(size_t j=0;j<tmp.size();++j)
+	  tmp[j] = send_set[i][j] ;
+	tmp.swap(send_set[i]) ;
+      }
+    }
+
+#ifdef VERBOSE
+    Loci::debugout << "send_sizes =" ;
+    for(int i=0;i<p;++i)
+      Loci::debugout << ' ' << send_set[i].size() ;
+    Loci::debugout << endl;
+#endif
+
+    vector<int> send_sz(p) ;
+    for(int i=0;i<p;++i)
+      send_sz[i] = send_set[i].size() ;
+    vector<int> recv_sz(p) ;
+    MPI_Alltoall(&send_sz[0],1,MPI_INT,&recv_sz[0],1,MPI_INT,
+		 MPI_COMM_WORLD) ;
+
+    vector<int> recv_off(p+1) ;
+    recv_off[0] = 0 ;
+    for(int i=0;i<p;++i)
+      recv_off[i+1] = recv_off[i]+recv_sz[i] ;
+    vector<Array<float,7> > recv_pnts(recv_off[p]) ;
+    vector<int> recv_ids(recv_off[p]) ;
+
+    // Post Irecv's
+    vector<MPI_Request> req_queue ;
+    for(int i=0;i<p;i++) {
+      if(recv_sz[i] > 0) {
+	if(i != Loci::MPI_rank) {
+	  MPI_Request tmp ;
+	  MPI_Irecv(&recv_pnts[recv_off[i]],7*recv_sz[i],MPI_FLOAT,i,10,
+		    MPI_COMM_WORLD,&tmp) ;
+	  req_queue.push_back(tmp) ;
+	  MPI_Irecv(&recv_ids[recv_off[i]],recv_sz[i],MPI_INT,i,11,
+		    MPI_COMM_WORLD,&tmp) ;
+	  req_queue.push_back(tmp) ;
+	}
+      }
+    }
+
+    bool self_send = false ;
+    // Post sends
+    for(int i=0;i<p;i++) {
+      if(send_sz[i] > 0) {
+	if(i == Loci::MPI_rank) {
+	  int sz = send_sz[i] ;
+	  if(sz > 0)
+	    self_send = true ;
+
+	  for(int j=0;j<sz;++j) {
+	    int nd = send_set[i][j] ;
+	    recv_pnts[recv_off[i]+j][0] = realToFloat($pos[nd].x) ;
+	    recv_pnts[recv_off[i]+j][1] = realToFloat($pos[nd].y) ;
+	    recv_pnts[recv_off[i]+j][2] = realToFloat($pos[nd].z) ;
+	    float dist = realToFloat(norm($pos[nd]-$pos[$node2surf[nd]])) ;
+	    recv_pnts[recv_off[i]+j][3] = dist ;
+	    vector3d<float> ncorrect = $distanceFieldGradient[nd] ;
+	    recv_pnts[recv_off[i]+j][4] = ncorrect.x ;
+	    recv_pnts[recv_off[i]+j][5] = ncorrect.y ;
+	    recv_pnts[recv_off[i]+j][6] = ncorrect.z ;
+	    recv_ids[recv_off[i]+j] = $componentID_node[nd] ;
+	  }
+	} else {
+	  int sz = send_sz[i] ;
+	  vector<Array<float,7> > send_buf(send_sz[i]) ;
+	  vector<int> send_id(send_sz[i]) ;
+
+	  for(int j=0;j<sz;++j) {
+	    int nd = send_set[i][j] ;
+	    send_buf[j][0] = realToFloat($pos[nd].x) ;
+	    send_buf[j][1] = realToFloat($pos[nd].y) ;
+	    send_buf[j][2] = realToFloat($pos[nd].z) ;
+	    float dist = realToFloat(norm($pos[nd]-$pos[$node2surf[nd]])) ;
+	    send_buf[j][3] = dist ;
+	    vector3d<float> ncorrect = $distanceFieldGradient[nd] ;
+	    send_buf[j][4] = ncorrect.x ;
+	    send_buf[j][5] = ncorrect.y ;
+	    send_buf[j][6] = ncorrect.z ;
+	    send_id[j] = $componentID_node[nd] ;
+	    if(send_id[j] > nc || send_id[j]<0) {
+	      cerr << "Something wrong with componentID" << endl ;
+	    }
+	  }
+	  MPI_Send(&send_buf[0],7*sz,MPI_FLOAT,i,10,MPI_COMM_WORLD) ;
+	  MPI_Send(&send_id[0],sz,MPI_INT,i,11,MPI_COMM_WORLD) ;
+	}
+      }
+    }
+
+    if(req_queue.size() > 0) {
+      vector<MPI_Status> stat_queue(req_queue.size()) ;
+      MPI_Waitall(req_queue.size(),&req_queue[0],&stat_queue[0]) ;
+    }
+
+#ifdef VERBOSE
+    Loci::debugout << "req_queue.size() ==" << req_queue.size() << endl ;
+    Loci::debugout << "recv_sizes =" ;
+    for(int i=0;i<p;++i)
+      Loci::debugout << ' ' << recv_sz[i] ;
+    Loci::debugout << endl;
+#endif
+
+    if(req_queue.size() > 0 || self_send) {
+      // Now create kd tree and search for closest pt
+      int rsz = recv_pnts.size() ;
+      // break out data by component
+      vector<vector<Loci::kdTree::coord3d> > pnts(nc) ;
+      vector<vector<int> > pnt_id(nc) ;
+      for(int i=0;i<rsz;++i) {
+	Loci::kdTree::coord3d c3d ;
+
+	c3d[0] = recv_pnts[i][0] ;
+	c3d[1] = recv_pnts[i][1] ;
+	c3d[2] = recv_pnts[i][2] ;
+	int id = recv_ids[i] ;
+	if(id > nc || id<0) {
+	  cerr << "received_id invalid" << endl ;
+	} else {
+	  pnts[id].push_back(c3d) ;
+	  pnt_id[id].push_back(i) ;
+	}
+      }
+      vector<Loci::kdTree::kd_tree *> kdlist(nc) ;
+      for(int i=0;i<nc;++i)
+	if(pnts[i].size() == 0)
+	  kdlist[i] = 0 ;
+	else {
+	  kdlist[i] = new Loci::kdTree::kd_tree(pnts[i],pnt_id[i]) ;
+	}
+
+      real_t rmin2 = delta*delta ;
+      FORALL(dom,nd) {
+	int id = $componentID_node[nd] ;
+	Loci::kdTree::coord3d p(realToFloat($pos[nd].x),
+				realToFloat($pos[nd].y),
+				realToFloat($pos[nd].z)) ;
+	float nearest_dist = 1e30 ;
+	for(int i=0;i<nc;++i) {
+	  if(id != i) {
+	    double rmin = realToDouble(rmin2) ;
+	    int pi = -1 ;
+	    // If no geometry is defined, then by default the geometry
+	    // is everything.  Otherwise check to see if it is in geometry
+	    bool inGeom =
+	      ($componentGeometryList[nd][i] == 0 ||
+	       $componentGeometryList[nd][i]->inGeometry($pos[nd])) ;
+	    if(kdlist[i] != 0 && inGeom) {
+	      pi = kdlist[i]->find_closest(p,rmin) ;
+	    }
+	    if(pi >= 0) {
+	      vector3d<real_t> loc(recv_pnts[pi][0],recv_pnts[pi][1],recv_pnts[pi][2]) ;
+	      real_t distloc = recv_pnts[pi][3] ;
+	      vector3d<real_t> n(recv_pnts[pi][4],recv_pnts[pi][5],recv_pnts[pi][6]) ;
+	      vector3d<real_t> dv = $pos[nd] -loc ;
+	      real_t dn = distloc + dot(dv,n) ;
+	      real_t epsdist = *$holeCuttingTolerance ;
+	      real_t d = (dn > -epsdist && dn < epsdist)?epsdist:dn ;
+	      real_t priority = (*$componentPriorityList)[i] ;
+	      real_t dp = d*priority ;
+	      if($crossComponentID_node[nd] < 0 || nearest_dist > realToFloat(dp)) {
+		nearest_dist = realToFloat(dp) ;
+		$crossComponentID_node[nd] = i ;
+		$crossComponentDist_node[nd] = realToFloat(d) ;
+		$crossComponentDistGrad_node[nd] = realToFloat(n) ;
+	      }
+	    } else {
+	      if(inGeom) {
+		nearest_dist = -1e30 ;
+		$crossComponentDist_node[nd] = -1e30 ;
+		$crossComponentID_node[nd] = i ;
+		$crossComponentDistGrad_node[nd] = vector3d<float>(0,0,0) ;
+	      }
+	    }
+	  }
+	}
+      } ENDFORALL ;
+      for(int i=0;i<nc;++i)
+	if(kdlist[i] != 0)
+	  delete kdlist[i] ;
+    }
+
+  } ;
+
+  //--------------------------------------------------------------------------
+  //--
+  //-- Compute iblanking based on hole cutting
+  //--
+  //--------------------------------------------------------------------------
+
+  // Note on iblank values:
+  // iblank = 0: not blanked, simulate as normal, donate simulated value to
+  //             interpolation
+  // iblank = 1: Simulate, but don't donate simulated value to interpolation
+  // iblank = 2: Don't Simulate, instead interpolate values "cloud"
+  // iblank = 3: Don't simulate, advance values in time as constant function
+  //
+
+
+
+  $type xblank store<Loci::byte_t> ; // Just hole cutting
+  $type yblank store<Loci::byte_t> ; // With proximity override
+
+  $rule pointwise(xblank<-pos) {
+    $xblank = 0 ;
+  }
+
+  $rule pointwise(component::xblank<-pos,componentGeometryData,componentName_X), constraint(pos,componentNodes_X,componentGeometry), parametric(volumeTag(X)), option(disable_threading), prelude {
+
+    Loci::entitySet e = Loci::entitySet(seq) ;
+    FORALL(e,nd) {
+      $xblank[nd] = 0 ;
+    } ENDFORALL ;
+    map<string, Loci::CPTR<geometry_type> >:: const_iterator ii ;
+    for(ii=$componentGeometryData->begin();
+        ii!=$componentGeometryData->end();++ii) {
+      if(ii->first != *$componentName_X) {
+        Loci::CPTR<geometry_type> gp = ii->second ;
+
+        FORALL(e,nd) {
+          if(gp->inGeometry($pos[nd]))
+            $xblank[nd] = 2 ;
+        } ENDFORALL ;
+      } else {
+        FORALL(e,nd) {
+          $xblank[nd] = 2 ;
+        } ENDFORALL ;
+      }
+    }
+  } ;
+
+  $rule pointwise(motion::component::xblank<-pos,componentGeometryData,
+                  componentName_X, componentTransformMap),
+    constraint(pos,componentNodes_X,componentTransformMap,componentGeometry),
+    parametric(volumeTag(X)), option(disable_threading), prelude {
+
+    Loci::entitySet e = Loci::entitySet(seq) ;
+    FORALL(e,nd) {
+      $xblank[nd] = 0 ;
+    } ENDFORALL ;
+    map<string, Loci::CPTR<geometry_type> >:: const_iterator ii ;
+    for(ii=$componentGeometryData->begin();
+        ii!=$componentGeometryData->end();++ii) {
+      if(ii->first != *$componentName_X) {
+        Loci::CPTR<geometry_type> gp = ii->second ;
+
+        // Transform geometry to global coordinates
+        map<string,vector<componentXform> >::const_iterator mi ;
+        mi = $componentTransformMap->find(ii->first) ;
+        if(mi != $componentTransformMap->end()) {
+          int sz = mi->second.size() ;
+          for(int i=0;i<sz;++i) {
+            Loci::CPTR<geometry_type> ngp = gp->applyXform(mi->second[i]) ;
+            gp = ngp ;
+          }
+        }
+        FORALL(e,nd) {
+          if(gp->inGeometry($pos[nd]))
+            $xblank[nd] = 2 ;
+        } ENDFORALL ;
+      } else {
+        FORALL(e,nd) {
+          $xblank[nd] = 2 ;
+        } ENDFORALL ;
+      }
+
+    }
+  } ;
+
+
+  $type interpolateMinStencilSize param<double> ;
+
+  $rule unit(stencilSize2<-interpolateMinStencilSize) {
+    $stencilSize2 = $interpolateMinStencilSize*$interpolateMinStencilSize ;
+  }
+
+  $rule apply(stencilSize2<-facecenter,ci->cellcenter,face2node->pos)
+  [Loci::Maximum],constraint(interface_BC) {
+    vector3d<double> d1 = realToDouble($facecenter-$ci->$cellcenter) ;
+    double md = 4.*dot(d1,d1) ;
+    join($stencilSize2,md) ;
+  }
+
+  $rule apply(stencilSize2<-face2node->(xblank,pos))[Loci::Maximum] {
+    int sz = $face2node.size() ;
+    int xsum = 0;
+    for(int i=0;i<sz;++i)
+      xsum += $face2node[i]->$xblank ;
+    if(xsum > 0) {
+      vector3d<double> d = realToDouble($face2node[0]->$pos - $face2node[sz-1]->$pos) ;
+      double len = dot(d,d) ;
+      for(int i=1;i<sz;++i) {
+        d = realToDouble($face2node[i-1]->$pos - $face2node[i]->$pos) ;
+        len = max(len,dot(d,d)) ;
+      }
+      join($stencilSize2,len) ;
+    }
+  }
+
+  $rule pointwise(yblank<-xblank,pos,node2surf->pos,
+		  crossComponentDist_node,crossComponentID_node,
+		  componentID_node,componentPriorityList,holeCuttingTolerance) {
+    $yblank = $xblank ;
+
+    if($xblank != 0) {
+      real_t priority = $componentPriorityList[$componentID_node] ;
+      if($crossComponentDist_node < 0 || $crossComponentID_node < 0)
+        $yblank = 3 ;
+      else {
+	real_t epsdist = $holeCuttingTolerance ;
+        real_t dist = norm($pos - $node2surf->$pos) ;
+        real_t d = priority*max(dist,epsdist) ;
+	real_t cross_priority = $componentPriorityList[$crossComponentID_node] ;
+        if(d < cross_priority*$crossComponentDist_node) {
+          $yblank = 0 ;
+        }
+      }
+    }
+  }
+
+  $type zblank_init store<Loci::byte_t> ;
+  $type zblank store<Loci::byte_t> ;
+  $type zblank_layer store<Loci::byte_t> ;
+  $type zblank_layer2 store<Loci::byte_t> ;
+
+  $rule unit(zblank_init),constraint(pos) {
+    $zblank_init=0 ;
+  }
+
+  $rule apply(face2node->zblank_init<-face2node->yblank)[Loci::Maximum] {
+    int fsz = $face2node.size() ;
+    Loci::byte_t ymx = $face2node[0]->$yblank ;
+    Loci::byte_t ymn = ymx ;
+    for(int i=1;i<fsz;++i) {
+      Loci::byte_t yi = $face2node[i]->$yblank ;
+      ymx = max(ymx,yi) ;
+      ymn = min(ymn,yi) ;
+    }
+    if(ymn == 0 && ymx !=0) { // on interface
+      for(int i=0;i<fsz;++i) {
+        join($face2node[i]->$zblank_init,ymx) ;
+      }
+    }
+  }
+
+#ifdef HACK
+  $rule apply(face2node->zblank_init)[Loci::Maximum],constraint(interface_BC) {
+    int fsz = $face2node.size() ;
+    Loci::byte_t ymx = 1 ;
+    for(int i=0;i<fsz;++i) {
+      join($face2node[i]->$zblank_init,ymx) ;
+    }
+  }
+#endif
+
+  $rule unit(zblank_layer),constraint(pos) {
+    $zblank_layer=0 ;
+  }
+
+  $rule apply(face2node->zblank_layer<-face2node->zblank_init)[Loci::Maximum] {
+    int fsz = $face2node.size() ;
+    Loci::byte_t ymx = $face2node[0]->$zblank_init ;
+    for(int i=1;i<fsz;++i) {
+      Loci::byte_t yi = $face2node[i]->$zblank_init ;
+      ymx = max(ymx,yi) ;
+    }
+    if(ymx != 0)
+      for(int i=0;i<fsz;++i) {
+        join($face2node[i]->$zblank_layer,ymx) ;
+      }
+  }
+
+  $rule unit(zblank_layer2),constraint(pos) {
+    $zblank_layer2=0 ;
+  }
+
+  $rule apply(face2node->zblank_layer2<-face2node->zblank_layer)[Loci::Maximum] {
+    int fsz = $face2node.size() ;
+    Loci::byte_t ymx = $face2node[0]->$zblank_layer ;
+    for(int i=1;i<fsz;++i) {
+      Loci::byte_t yi = $face2node[i]->$zblank_layer ;
+      ymx = max(ymx,yi) ;
+    }
+    if(ymx != 0)
+      for(int i=0;i<fsz;++i) {
+        join($face2node[i]->$zblank_layer2,ymx) ;
+      }
+  }
+
+
+  $rule unit(zblank),constraint(pos) {
+    $zblank=0 ;
+  }
+
+  $rule apply(face2node->zblank<-face2node->zblank_layer)[Loci::Maximum] {
+    int fsz = $face2node.size() ;
+    Loci::byte_t ymx = $face2node[0]->$zblank_layer ;
+    for(int i=1;i<fsz;++i) {
+      Loci::byte_t yi = $face2node[i]->$zblank_layer ;
+      ymx = max(ymx,yi) ;
+    }
+    if(ymx != 0)
+      for(int i=0;i<fsz;++i) {
+        join($face2node[i]->$zblank,ymx) ;
+      }
+  }
+
+#ifdef TRYIT_LATER
+  $rule pointwise(zblank{iblanking=0}<-zblank_init) {
+    $zblank{iblanking=0} = $zblank_init ;
+  }
+  $rule pointwise(zblank{iblanking+1}<-zblank_layer{iblanking}) {
+    $zblank{iblanking+1}=$zblank_layer{iblanking} ;
+  }
+
+  $type blanking_layer_finished param<bool> ;
+  $type OversetStencilLayerSize param<int> ;
+
+  $rule default(OversetStencilLayerSize) {
+    $OversetStencilLayerSize = 4 ;
+  }
+
+  $rule singleton(blanking_layer_finished<-$iblanking,OversetStencilLayerSize) {
+    $blanking_layer_finished = ($$iblanking >=
+                                $OversetStencilLayerSize) ;
+  }
+
+  $rule pointwise(zblank<-zblank{iblanking}),conditional(blanking_layer_finished{iblanking}) {
+    $zblank = $zblank{iblanking} ;
+  }
+#endif
+
+
+  $rule pointwise(iblank<-cellcenter),constraint(geom_cells) {
+    $iblank = 0 ;
+  }
+
+  $rule pointwise(non_trivial::iblank<-(upper,lower,boundary_map)->face2node->(yblank,zblank)),
+    constraint((upper,lower,boundary_map)->face2node->yblank,componentGeometry) {
+    $iblank = 10 ;
+    Loci::byte_t maxblank = 0 ;
+    Loci::byte_t maxzblank = 0 ;
+    int usz = $upper.size() ;
+    for(int i=0;i<usz;++i) {
+      int fsz = $upper[i]->$face2node.size() ;
+      for(int f=0;f<fsz;++f) {
+        $iblank = min($iblank,$upper[i]->$face2node[f]->$yblank) ;
+        maxblank = max(maxblank,$upper[i]->$face2node[f]->$yblank) ;
+        maxzblank = max(maxzblank,$upper[i]->$face2node[f]->$zblank) ;
+      }
+
+    }
+    int lsz = $lower.size() ;
+    for(int i=0;i<lsz;++i) {
+      int fsz = $lower[i]->$face2node.size() ;
+      for(int f=0;f<fsz;++f) {
+        $iblank = min($iblank,$lower[i]->$face2node[f]->$yblank) ;
+        maxblank = max(maxblank,$lower[i]->$face2node[f]->$yblank) ;
+        maxzblank = max(maxzblank,$lower[i]->$face2node[f]->$zblank) ;
+      }
+    }
+    if(maxblank == 3)
+      if($iblank == 0)
+        $iblank = 2 ;
+    // If blanked outsided of layer then change mode to 3
+    if($iblank == 2 && maxzblank == 0)
+      $iblank = 3 ;
+    //    if($iblank == 0 && maxzblank == 0)
+    //      $iblank = 1 ;
+  }
+
+  // nodal values of iblank
+  $type nblank store<Loci::byte_t> ;
+  $rule unit(nblank),constraint(pos) {
+    $nblank = 0 ;
+  }
+
+  $rule apply(face2node->nblank<-(cl,cr)->iblank)[Loci::Maximum] {
+    Loci::byte_t tmp = max($cl->$iblank,$cr->$iblank) ;
+    int fsz = $face2node.size() ;
+    for(int i=0;i<fsz;++i)
+      join($face2node[i]->$nblank,tmp) ;
+  }
+  $rule apply(face2node->nblank<-(ci)->iblank)[Loci::Maximum] {
+    Loci::byte_t tmp = $ci->$iblank ;
+    int fsz = $face2node.size() ;
+    for(int i=0;i<fsz;++i)
+      join($face2node[i]->$nblank,tmp) ;
+  }
+
+  $type nblankf store<float> ;
+  // This is available for plotting functions
+  $rule pointwise(nblankf<-nblank) {
+    $nblankf = float($nblank) ;
+    if($nblank == 0)
+      $nblankf = 0.0 ;
+  }
+}

@@ -1,0 +1,36 @@
+$type node2surf Map ;
+$type componentMotion param<options_list> ;
+$type componentHierarchy param<options_list> ;
+$type componentGeometry param<options_list> ;
+$type componentGeometryData blackbox<map<string, Loci::CPTR<geometry_type> > > ;
+$type componentGeometryList blackbox<vector<Loci::CPTR<geometry_type> > > ;
+
+$type componentMotionData blackbox<map<string,Loci::componentXform> > ;
+$type componentPriority param<options_list> ;
+$type componentPriorityList param< vector<Loci::real_t> > ;
+
+$type componentNameList blackbox<vector<string> > ;
+
+$type iblank store<Loci::byte_t> ;
+$type holeCuttingTolerance param<Loci::real_t> ;
+
+$type crossComponentDist_node store<float> ;
+$type crossComponentDistGrad_node store<vector3d<float> > ;
+$type crossComponentID_node store<int> ;
+$type distanceFieldGradient store<vector3d<float> > ;
+$type componentTransformMap blackbox<map<string,vector<componentXform> > > ;
+
+$type componentID_node store<int> ;
+$type componentPriorityList param< vector<Loci::real_t> > ;
+
+// Used for parametric rule defintions
+$type componentTransforms_X param<vector<Loci::componentXform> > ;
+$type componentTransformsn_X param<vector<Loci::componentXform> > ;
+$type componentRotation_X Constraint ;
+$type componentServo_X Constraint ;
+$type componentPrescribed_X Constraint ;
+$type componentStationary_X Constraint ;
+$type componentName_X blackbox<string> ;
+$type componentNodes_X store<bool> ;
+$type componentRelationships_X blackbox<vector<string> > ;
+
