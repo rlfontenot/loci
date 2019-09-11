@@ -181,6 +181,8 @@ namespace Loci {
     $donorCell = 0 ;
   }
 
+  $type interface_BC Constraint ;
+
   $rule apply(ci->donorCell<-ci->iblank)[Loci::Maximum],constraint(interface_BC) {
 
     Loci::byte_t val = 1 ;
@@ -324,7 +326,6 @@ namespace Loci {
   } ;
   
 
-  $type interpolateFaceStencil blackbox<stencil_info> ;
   $rule unit(interpolateFaceStencil), constraint(UNIVERSE),option(disable_threading),prelude {} ;
   
 
@@ -865,7 +866,6 @@ namespace Loci {
 
 
   $type X store<real_t> ;
-  $type interpolateFace(X) store<real_t> ;
   // Please note this is where we might want to use an access map
   $rule pointwise(interpolateFace(X)<-interpolateFaceStencil,ci->(X,iblank)),option(disable_threading), prelude {
     MEMORY_PROFILE(compute_start) ;
@@ -919,7 +919,6 @@ namespace Loci {
     MEMORY_PROFILE(compute_end) ;
   } ;
 
-  $type interpolateFace_v3d(X) store<vector3d<real_t> > ;
   $type X store<vector3d<real_t> > ;
   
   // Please note this is where we might want to use an access map
@@ -992,7 +991,76 @@ namespace Loci {
       } ENDFORALL ;
       MEMORY_PROFILE(compute_end) ;
   } ;
-  
+
+  $type X storeVec<real_t> ;  
+  $rule pointwise(interpolateFacev(X)<-ci->(X,iblank),interpolateFaceStencil),
+    option(disable_threading),prelude {
+    MEMORY_PROFILE(compute_start) ;
+    const int vs = $X.vecSize() ;
+    $interpolateFacev(X).setVecSize($X.vecSize()) ;
+    entitySet odom = entitySet(seq) ;
+    entitySet dom ;
+    FORALL(odom,fc) {
+      if($iblank[$ci[fc]] > 2) {
+	$interpolateFacev(X)[fc] = $X[$ci[fc]] ;
+      } else
+	dom += fc ;
+    } ENDFORALL ;
+      
+    if(vs == 1) {
+      FORALL(dom,fc) {
+	$interpolateFacev(X)[fc][0] = 1.0 ;
+      } ENDFORALL ;
+      return ;
+    }
+    
+    Map slookup ;
+    slookup = $interpolateFaceStencil->slookup ;
+    storeVec<real_t> Xstencil ;
+    sendStencilData(Xstencil,$X,
+		    $interpolateFaceStencil->send_info,
+		    $interpolateFaceStencil->req_sizes,
+		    $interpolateFaceStencil->snd_sizes)  ;
+    const vector<Array<real_t,4> > &weights 
+      = $interpolateFaceStencil->weights ;
+    const vector<Array<int,4> > &stencils 
+      = $interpolateFaceStencil->stencils ;
+
+    FORALL(dom,fc) {
+      int cnt = slookup[fc]*2 ;
+      int cll = cnt+0 ;
+      int cl =  cnt+1 ;
+
+      for(int i=0;i<vs;++i) {
+	real_t vll = 0 ;
+	for(int j=0;j<4;++j) 
+	  vll += weights[cll][j]*Xstencil[stencils[cll][j]][i] ;
+	  
+	real_t vl = 0 ;
+	for(int j=0;j<4;++j) 
+	  vl += weights[cl][j]*Xstencil[stencils[cl][j]][i] ;
+	  
+	real_t vr = 0 ;
+	vr = $X[$ci[fc]][i] ;
+          
+	real_t dv = (vl-vll) ;
+	if(dv < 0.)
+	  dv += -1e-30 ;
+	else
+	  dv += 1e-30 ;
+          
+	// Use Van Albada limiter to estimate second order upwind
+	// extrapolation to the face
+	const real_t r = (vr-vl)/dv ;
+	const real_t lim = (r+r*r)/(1.+r*r) ;
+	// Limit mixture fractions should be between 0 and 1
+	$interpolateFacev(X)[fc][i] = min<real_t>(max<real_t>(vl + 0.5*lim*(vl-vll),0.0),1.0) ;
+      }
+    } ENDFORALL ;
+    MEMORY_PROFILE(compute_end) ;
+  } ;
+
+
   $type interpolateConnectCell store<int> ;
 
   $rule pointwise(interpolateConnectCell<-interpolateFaceStencil,ci->iblank),
@@ -1561,11 +1629,104 @@ namespace Loci {
 
   } ;
 
+  $type Xin storeVec<real_t> ;
+  $type Xout storeVec<real_t> ;
+
+  $rule pointwise(iblank::Xout<-iblank,Xin,upper->cr->(iblank,Xin),lower->cl->(iblank,Xin),(upper,lower)->area,interpolateCellStencil),inplace(iblank::Xout|Xin),constraint(Xin,iblank,componentGeometry),parametric(vecInterpolateToBlankedCells(Xout,Xin)),prelude {
+    MEMORY_PROFILE(compute_start) ;
+    const int vs = $Xin.vecSize() ;
+    entitySet odom = entitySet(seq) ;
+    entitySet dom = EMPTY ;
+    FORALL(odom,ii) {
+      if($iblank[ii] == 2)
+	dom += ii ;
+    } ENDFORALL ;
+      
+    Map slookup ;
+    slookup = $interpolateCellStencil->slookup ;
+    storeVec<real_t> qstencil ;
+    const_storeVec<real_t> X_c ;
+    X_c.setRep($Xin.Rep()) ;
+
+    sendStencilData(qstencil,X_c,
+		    $interpolateCellStencil->send_info,
+		    $interpolateCellStencil->req_sizes,
+		    $interpolateCellStencil->snd_sizes)  ;
+    const vector<Array<real_t,4> > &weights = $interpolateCellStencil->weights ;
+    const vector<Array<int,4> > &stencils = $interpolateCellStencil->stencils ;
+    
+    FORALL(dom,cc) {
+      // lookup cell number
+      int cnt = slookup[cc] ;
+      
+      int co = cnt ;
+      
+      // Weighted sum interpolation
+      for(int iv=0;iv<vs;++iv) {
+	real_t v = 0 ;
+	for(int j=0;j<4;++j) 
+	  v += weights[co][j]*qstencil[stencils[co][j]][iv] ;
+	$iblank::Xout[cc][iv] = v ;
+      }
+    } ENDFORALL ;
+
+    // Now for all non-participating cells, average appropriately
+    
+    vector<real_t> qpsum(vs) ;
+    FORALL(odom,ii) {
+      if($iblank[ii] == 3) {
+	int usz = $upper[ii].size() ;
+	int lsz = $lower[ii].size() ;
+	int imin = 3 ;
+	for(int i=0;i<usz;++i) {
+	  int ib = $iblank[$cr[$upper[ii][i]]] ;
+	  imin = min(imin,ib) ;
+	}
+	for(int i=0;i<lsz;++i) {
+	  int ib = $iblank[$cl[$lower[ii][i]]] ;
+	  imin = min(imin,ib) ;
+	}
+	for(int iv=0;iv<vs;++iv)
+	  qpsum[iv] = 0 ;
+	real_t sum = 0 ;
+	
+	
+	for(int i=0;i<usz;++i) {
+	  int crc = $cr[$upper[ii][i]] ;
+	  int ib = $iblank[crc] ;
+	  if(ib == imin) {
+	    real_t w = $area[$upper[ii][i]].sada ;
+	    sum += w ;
+	    for(int iv=0;iv<vs;++iv)
+	      qpsum[iv] += w*$Xin[crc][iv] ;
+	  }
+	}
+	for(int i=0;i<lsz;++i) {
+	  int clc = $cl[$lower[ii][i]] ;
+	  int ib = $iblank[clc] ;
+	  if(ib == imin) {
+	    real_t w = $area[$lower[ii][i]].sada ;
+	    sum += w ;
+	    for(int iv=0;iv<vs;++iv)
+	      qpsum[iv] += w*$Xin[clc][iv] ;
+	  }
+	}
+
+	real_t rsum = 1./sum ;
+	for(int iv=0;iv<vs;++iv)
+	$iblank::Xout[ii][iv] = qpsum[iv]*rsum ;
+      }
+    } ENDFORALL ;
+
+    MEMORY_PROFILE(compute_end) ;
+
+  } ;
+
   $type iblankCell store<int> ;
 
   $rule pointwise(iblankCell<-interpolateCellStencil,iblank,
 		  upper->cr->(iblank), lower->cl->(iblank),
-		  (upper,lower)->area), constraint(iblank,componentGoemetry),
+		  (upper,lower)->area), constraint(iblank,componentGeometry),
   prelude {
     MEMORY_PROFILE(compute_start) ;
     entitySet odom = entitySet(seq) ;

@@ -615,6 +615,8 @@ namespace Loci {
     $stencilSize2 = $interpolateMinStencilSize*$interpolateMinStencilSize ;
   }
 
+  $type interface_BC Constraint ;
+
   $rule apply(stencilSize2<-facecenter,ci->cellcenter,face2node->pos)
   [Loci::Maximum],constraint(interface_BC) {
     vector3d<double> d1 = realToDouble($facecenter-$ci->$cellcenter) ;

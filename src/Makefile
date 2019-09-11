@@ -75,7 +75,7 @@ FVMMod: library lpp
 FVMAdapt: library
 	cd FVMAdapt; $(MAKE) LOCI_BASE="$(LOCI_BASE)" all
 
-FVMOverset: library
+FVMOverset: library lpp
 	cd FVMOverset; $(MAKE) LOCI_BASE="$(LOCI_BASE)" all
 
 JUNK =

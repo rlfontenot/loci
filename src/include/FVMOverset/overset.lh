@@ -34,3 +34,10 @@ $type componentName_X blackbox<string> ;
 $type componentNodes_X store<bool> ;
 $type componentRelationships_X blackbox<vector<string> > ;
 
+$type interpolateFaceStencil blackbox<stencil_info> ;
+$type interpolateFace(X) store<real_t> ;
+$type interpolateFace_v3d(X) store<vector3d<real_t> > ;
+$type interpolateFacev(X) storeVec<real_t> ;
+
+
+
