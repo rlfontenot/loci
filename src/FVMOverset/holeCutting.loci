@@ -462,6 +462,9 @@ namespace Loci {
     $xblank = 0 ;
   }
 
+  $rule pointwise(face2node->componentNodes_X),constraint(cl->volumeTag(X)),parametric(volumeTag(X)) {} 
+  $rule pointwise(face2node->right::componentNodes_X),constraint(cr->volumeTag(X)),parametric(volumeTag(X)) {} 
+  
   $rule pointwise(component::xblank<-pos,componentGeometryData,componentName_X), constraint(pos,componentNodes_X,componentGeometry), parametric(volumeTag(X)), option(disable_threading), prelude {
 
     Loci::entitySet e = Loci::entitySet(seq) ;
