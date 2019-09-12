@@ -155,6 +155,7 @@ namespace Loci {
                        std::vector<std::pair<int,std::string> >& surfaceids,
                        std::vector<std::pair<std::string,entitySet> >& volTags) ;
 
+  void setupOverset(fact_db &facts) ;
   void setupPosAutoDiff(fact_db &facts) ;
   void setupPosAutoDiff(fact_db &facts,std::string filename) ;
 

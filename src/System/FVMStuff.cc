@@ -37,6 +37,7 @@ using std::pair ;
 #include <algorithm>
 using std::sort ;
 using std::unique ;
+#include <Tools/stream.h>
 
 #include "dist_tools.h"
 using std::cout ;
@@ -3470,6 +3471,154 @@ namespace Loci{
 #endif
   }
 
+
+  void setupOverset(fact_db &facts) {
+    using namespace Loci ;
+    using std::map ;
+    storeRepP sp = facts.get_variable("componentGeometry") ;
+    if(sp == 0)
+      return ;
+    sp = facts.get_variable("ci") ;
+    if(sp == 0)
+      return ;
+    entitySet bfaces = sp->domain() ;
+    sp = facts.get_variable("interface_BC") ;
+    if(sp != 0) {
+      constraint tmp ;
+      tmp = sp ;
+      bfaces -= *tmp ;
+    }
+    sp = facts.get_variable("symmetry_BC") ;
+    if(sp != 0) {
+      constraint tmp ;
+      tmp = sp ;
+      bfaces -= *tmp ;
+    }
+    sp = facts.get_variable("face2node") ;
+    
+    MapRepP mp = MapRepP(sp->getRep()) ;
+    entitySet nodeSet = mp->image(bfaces) ;
+
+    store<vector3d<double> > pos ;
+
+    pos = facts.get_variable("pos") ;
+    entitySet dom = pos.domain() ;
+    vector<entitySet> posptn = all_collect_vectors(dom,MPI_COMM_WORLD) ;
+    entitySet surfNodes = dist_collect_entitySet(nodeSet,posptn) ;
+    
+    // Now get volume tags
+    variableSet vars = facts.get_extensional_facts() ;
+    map<string,entitySet> volMap ;
+
+    for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
+      if(variable(*vi).get_arg_list().size() > 0 &&
+         variable(*vi).get_info().name == "volumeTag") {
+        param<string> vname(facts.get_variable(*vi)) ;
+
+        ostringstream vn ;
+        vn << *vi ;
+        string name = vn.str() ;
+        volMap[name] = vname.domain() ;
+      }
+    }
+
+    // If no volume tags (Weird), then make default tag.
+    if(volMap.begin() == volMap.end()) {
+      volMap[string("Main")] = ~EMPTY ;
+    }
+    vector<entitySet> volSets ;
+    map<string,entitySet>::const_iterator mi ;
+    for(mi=volMap.begin();mi!=volMap.end();++mi) {
+      // This could be a scalability problem!!!!
+      volSets.push_back(all_collect_entitySet(mi->second)) ;
+    }
+
+    // Now get face associations with volumes
+    vector<entitySet> facesets ;
+    int sz = volSets.size() ;
+    Map cl,cr ;
+    cl = facts.get_variable("cl") ;
+    cr = facts.get_variable("cr") ;
+    entitySet domf = cl.domain()+cr.domain() ;
+    for(int i=0;i<sz;++i) {
+      entitySet faces = (cr.preimage(volSets[i]).first +
+                         cl.preimage(volSets[i]).first) ;
+      
+      facesets.push_back(all_collect_entitySet(faces)) ;
+    }
+
+    // Now get node associations with volumes
+
+    vector<entitySet> nodesets ;
+    for(int i=0;i<sz;++i) {
+      entitySet nodes = mp->image(facesets[i]) ;
+      nodesets.push_back(all_collect_entitySet(nodes)) ;
+    }
+    
+
+    Map min_node2surf_loc ;
+    min_node2surf_loc.allocate(pos.domain()) ;
+
+    entitySet excludeSet ;
+    
+    for(int i=0;i<sz;++i) {
+      entitySet nodeSet = nodesets[i] & pos.domain() ;
+      entitySet nodeSetsurf = nodesets[i] & surfNodes ;
+      if(!GLOBAL_OR(nodeSetsurf.size()!=0)) {
+        excludeSet += nodeSet ;
+        continue ;
+      }
+      vector<Loci::kdTree::coord3d> bcnodes_pts(nodeSetsurf.size()) ;
+      vector<int> bcnodes_ids(nodeSetsurf.size()) ;
+
+      int cnt = 0 ;
+      FORALL(nodeSetsurf,nd) {
+        bcnodes_pts[cnt][0] = pos[nd].x ;
+        bcnodes_pts[cnt][1] = pos[nd].y ;
+        bcnodes_pts[cnt][2] = pos[nd].z ;
+        bcnodes_ids[cnt] = nd ;
+        cnt++ ;
+      } ENDFORALL ;
+
+
+      
+      
+      vector<Loci::kdTree::coord3d> node_pts(nodeSet.size()) ;
+      vector<int> closest(nodeSet.size(),-1) ;
+      cnt = 0 ;
+      FORALL(nodeSet,nd) {
+        node_pts[cnt][0] = pos[nd].x ;
+        node_pts[cnt][1] = pos[nd].y ;
+        node_pts[cnt][2] = pos[nd].z ;
+        cnt++ ;
+      } ENDFORALL ;
+      
+      Loci::parallelNearestNeighbors(bcnodes_pts,bcnodes_ids,node_pts,closest,
+                                     MPI_COMM_WORLD) ;
+
+      cnt = 0 ;
+      FORALL(nodeSet,nd) {
+        min_node2surf_loc[nd] = closest[cnt] ;
+        cnt++ ;
+      } ENDFORALL ;
+    }
+
+    Map min_node2surf ;
+
+    if(excludeSet == EMPTY) {
+      min_node2surf.setRep(min_node2surf_loc.Rep()) ;
+    } else {
+      entitySet dom = pos.domain()-excludeSet ;
+      min_node2surf.allocate(dom) ;
+      FORALL(dom,nd) {
+        min_node2surf[nd] = min_node2surf_loc[nd] ;
+      } ENDFORALL ;
+    }
+
+    facts.create_fact("node2surf",min_node2surf) ;
+  }    
+
+  
   void setupPosAutoDiff(fact_db &facts, std::string filename) {
 #ifdef USE_AUTODIFF
     setupPosAutoDiff(facts) ;
