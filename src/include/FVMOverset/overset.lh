@@ -39,5 +39,6 @@ $type interpolateFace(X) store<real_t> ;
 $type interpolateFace_v3d(X) store<vector3d<real_t> > ;
 $type interpolateFacev(X) storeVec<real_t> ;
 
-
-
+$type scalarInterpolateToBlankedCells(Xout,Xin) store<real_t> ;
+$type v3dInterpolateToBlankedCells(Xout,Xin) store<vector3d<real_t> > ;
+$type vecInterpolateToBlankedCells(Xout,Xin) storeVec<real_t> ;

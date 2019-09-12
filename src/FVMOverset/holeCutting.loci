@@ -31,19 +31,10 @@ namespace Loci {
     comments("Specifies component priority in hole cutting") {}
 
 
-  $rule optional(componentMotion),
-    comments("Specify motions of individual mesh components") {
-  }
-
-  $rule default(componentHierarchy),
-    comments("Specifies the parent/child relationships between components") {
-  }
-
-
   //--------------------------------------------------------------------------
   //--
   //-- Establish component identities and relationships.  Parse
-  //-- componentHierarchy and componentPriority so that they can be
+  //-- componentPriority so that they can be
   //-- processed in later stages
   //--
   //--------------------------------------------------------------------------
@@ -74,81 +65,6 @@ namespace Loci {
       if($componentNameList[i] == $componentName_X)
         $componentID_X = i ;
   }
-
-
-  // Extract Parent and children ids from componentHierarcy Information
-  $type componentParents blackbox< vector<int> > ;
-  $type componentChildren blackbox< vector<vector<int> > > ;
-
-  // Parse componentHierarchy, componentRelationships_X contains names of all
-  // the parents of the current component.
-  $rule blackbox(componentRelationships_X<-componentName_X,componentHierarchy),
-    parametric(volumeTag(X)), prelude {
-    vector<string> tmp ;
-    string tag = *$componentName_X ;
-    while((*$componentHierarchy).optionExists(tag)) {
-      string name ;
-      Loci::options_list::arg_list value_list ;
-      (*$componentHierarchy).getOption(tag,name,value_list) ;
-      if(name != "parent") {
-        cerr << "unknown keyword, '" << name << "', in componentHierarchy!" << endl;
-        Loci::Abort() ;
-      }
-      if(value_list.size() != 1 ||
-         value_list[0].type_of() != Loci::NAME) {
-        cerr << "parent takes single named argument in componentHierarchy!" << endl ;
-        Loci::Abort() ;
-      }
-      value_list[0].get_value(tag) ;
-      // Now tag is updated to parent!
-      for(size_t i=0;i<tmp.size();++i)
-        if(tmp[i] == tag) {
-          cerr << "cycle in componentHierarchy!" << endl ;
-          Loci::Abort() ;
-        }
-      tmp.push_back(tag) ;
-    }
-
-    *$componentRelationships_X = tmp ;
-  } ;
-
-  // Initially componentParent is initialized to -1 (e.g. they are not a child)
-  $rule unit(componentParents<-componentNameList), prelude {
-    int sz = ($componentNameList)->size() ;
-    vector<int> vtmp(sz,-1) ;
-    (*$componentParents).swap(vtmp) ;
-  } ;
-
-
-  $rule apply(componentParents<-componentRelationships_X,componentID_X,componentNameList)[Loci::NullOp],parametric(volumeTag(X)), prelude {
-    int rsz = ($componentRelationships_X)->size() ;
-    if(rsz > 1) {
-      cerr << "only one parent allowed" << endl ;
-    }
-    int cid = *$componentID_X ;
-    int csz = ($componentNameList)->size() ;
-    for(int i=0;i<rsz;++i) {
-      int id = -1 ;
-      string name =(*$componentRelationships_X)[i] ;
-      for(int j=0;j<csz;++j) {
-        if(name == (*$componentNameList)[j])
-          id = j ;
-      }
-      (*$componentParents)[cid] = id ;
-    }
-  } ;
-
-  $rule singleton(componentChildren<-componentParents) {
-    int sz = $componentParents.size() ;
-    // transpose structure to convert parent relationship to child
-    vector<vector<int> > children(sz) ;
-    for(int i=0;i<sz;++i) {
-      if($componentParents[i] >=0)
-        children[$componentParents[i]].push_back(i) ;
-    }
-    $componentChildren.swap(children) ;
-  }
-
 
 
   $rule singleton(componentPriorityList<-componentNameList,componentPriority) {
