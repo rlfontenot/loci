@@ -166,14 +166,19 @@ namespace Loci {
   } ;
 
   void stationaryMotion::initialState(vector<real_t> &state) const {
-    vector<real_t> tmp(1) ;
-    tmp[0] = 0.0 ;
+    vector<real_t> tmp(2) ;
+    tmp[0] = 1 ;
+    tmp[1] = 0.0 ;
     state = tmp ;
   }
 
   vector<real_t> stationaryMotion::advanceStateInTime(const vector<real_t> &state,
 						    const map<string,real_t> &vals) const  {
-    return vector<real_t>(state) ;
+    vector<real_t> tmp = state ;
+    if(tmp.size() == 0) {
+      initialState(tmp) ;
+    }
+    return tmp ;
   }
 
   componentXform stationaryMotion::getXform(const vector<real_t> &state) const {
@@ -225,8 +230,9 @@ namespace Loci {
     }
   }
   void rotationMotion::initialState(vector<real_t> &state) const {
-    vector<real_t> tmp(1) ;
-    tmp[0] = 0.0 ;
+    vector<real_t> tmp(2) ;
+    tmp[0] = 2 ; // 2 is for rotational motion
+    tmp[1] = 0 ;
     state = tmp ;
   }
 
@@ -241,17 +247,20 @@ namespace Loci {
       Loci::Abort() ;
     }
     vector<real_t> tmp = state ;
+    if(tmp.size() == 0) {
+      initialState(tmp) ;
+    }
     real_t dtheta = dt*speed ;
-    tmp[0] += dtheta ;
-    if(tmp[0] > 2.*M_PI)
-      tmp[0] -= 2.*M_PI ;
-    if(tmp[0] < 0.0)
-      tmp[0] += 2.*M_PI ;
+    tmp[1] += dtheta ;
+    if(tmp[1] > 2.*M_PI)
+      tmp[1] -= 2.*M_PI ;
+    if(tmp[1] < 0.0)
+      tmp[1] += 2.*M_PI ;
     return tmp ;
   }
 
   componentXform rotationMotion::getXform(const vector<real_t> &state) const {
-    const real_t angle = state[0] ;
+    const real_t angle = state[1] ;
     Quaternion rotation(axis,angle) ;
     const vector3d<real_t> cg = center ;
     componentXform xform ;
@@ -329,8 +338,9 @@ namespace Loci {
     }
   }
   void prescribedMotion::initialState(vector<real_t> &state) const {
-    vector<real_t> tmp(1) ;
-    tmp[0] = 0.0 ;
+    vector<real_t> tmp(2) ;
+    tmp[0] = 3 ; // thres is for prescribed motion
+    tmp[1] = 0.0 ;
     state = tmp ;
   }
 
@@ -345,13 +355,15 @@ namespace Loci {
       Loci::Abort() ;
     }
     vector<real_t> tmp = state ;
-    tmp[0] += dt ;
+    if(tmp.size() == 0)
+      initialState(tmp) ;
+    tmp[1] += dt ;
     return tmp ;
   }
 
 
   componentXform prescribedMotion::getXform(const vector<real_t> &state) const {
-    real_t t = state[0] ;
+    real_t t = state[1] ;
     vector3d<real_t> cg, cg_new ;
     Quaternion q ;
     motion.getMotion(cg,q,0) ;
@@ -399,13 +411,14 @@ namespace Loci {
 
   }
   void servoMotion::initialState(vector<real_t> &state) const {
-    vector<real_t> tmp(1) ;
-    tmp[0] = 0.0 ;
+    vector<real_t> tmp(2) ;
+    tmp[0] = 4 ;
+    tmp[1] = 0 ;
     state = tmp ;
   }
 
   vector<real_t> servoMotion::advanceStateInTime(const vector<real_t> &state,
-					       const std::map<string,real_t> &vals) const  {
+						 const std::map<string,real_t> &vals) const  {
     std::map<string,real_t>::const_iterator mi ;
     real_t val = 0.0 ;
     if((mi = vals.find(name))!=vals.end())
@@ -415,12 +428,14 @@ namespace Loci {
       Loci::Abort() ;
     }
     vector<real_t> tmp = state ;
-    tmp[0] = val ;
+    if(tmp.size() == 0)
+      initialState(tmp) ;
+    tmp[1] = val ;
     return tmp ;
   }
 
   componentXform servoMotion::getXform(const vector<real_t> &state) const {
-    const real_t angle = state[0] ;
+    const real_t angle = state[1] ;
     Quaternion servo(axis,angle) ;
     const vector3d<real_t> cg = center ;
     componentXform xform ;
