@@ -37,7 +37,7 @@ $type componentRelationships_X blackbox<vector<string> > ;
 $type interpolateFaceStencil blackbox<stencil_info> ;
 $type interpolateFace(X) store<Loci::real_t> ;
 $type interpolateFace_v3d(X) store<Loci::vector3d<Loci::real_t> > ;
-$type interpolateFacev(X) storeVec<Loci::real_t> ;
+$type interpolateFace_vec(X) storeVec<Loci::real_t> ;
 
 $type scalarInterpolateToBlankedCells(Xout,Xin) store<Loci::real_t> ;
 $type v3dInterpolateToBlankedCells(Xout,Xin) store<Loci::vector3d<Loci::real_t> > ;

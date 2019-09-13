@@ -993,23 +993,23 @@ namespace Loci {
   } ;
 
   $type X storeVec<real_t> ;  
-  $rule pointwise(interpolateFacev(X)<-ci->(X,iblank),interpolateFaceStencil),
+  $rule pointwise(interpolateFace_vec(X)<-ci->(X,iblank),interpolateFaceStencil),
     option(disable_threading),prelude {
     MEMORY_PROFILE(compute_start) ;
     const int vs = $X.vecSize() ;
-    $interpolateFacev(X).setVecSize($X.vecSize()) ;
+    $interpolateFace_vec(X).setVecSize($X.vecSize()) ;
     entitySet odom = entitySet(seq) ;
     entitySet dom ;
     FORALL(odom,fc) {
       if($iblank[$ci[fc]] > 2) {
-	$interpolateFacev(X)[fc] = $X[$ci[fc]] ;
+	$interpolateFace_vec(X)[fc] = $X[$ci[fc]] ;
       } else
 	dom += fc ;
     } ENDFORALL ;
       
     if(vs == 1) {
       FORALL(dom,fc) {
-	$interpolateFacev(X)[fc][0] = 1.0 ;
+	$interpolateFace_vec(X)[fc][0] = 1.0 ;
       } ENDFORALL ;
       return ;
     }
@@ -1054,7 +1054,7 @@ namespace Loci {
 	const real_t r = (vr-vl)/dv ;
 	const real_t lim = (r+r*r)/(1.+r*r) ;
 	// Limit mixture fractions should be between 0 and 1
-	$interpolateFacev(X)[fc][i] = min<real_t>(max<real_t>(vl + 0.5*lim*(vl-vll),0.0),1.0) ;
+	$interpolateFace_vec(X)[fc][i] = min<real_t>(max<real_t>(vl + 0.5*lim*(vl-vll),0.0),1.0) ;
       }
     } ENDFORALL ;
     MEMORY_PROFILE(compute_end) ;

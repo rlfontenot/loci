@@ -74,14 +74,19 @@ $include "FVMOverset/overset.lh"
 \section{Hole Cutting and Interpolation}
 
 
-There are two capabilities that need to be implemented to provide the basic overset mesh functionality in a solver.  The first of these is the implementation of interface boundary conditions that provide interpolated values from other meshes.  This boundary condition implements a Dirichlet condition and the values at the interface are provided by the following interpolation parametric variables:
+There are two capabilities that need to be implemented to provide the
+basic overset mesh functionality in a solver.  The first of these is
+the implementation of interface boundary conditions that provide
+interpolated values from other meshes.  This boundary condition
+implements a Dirichlet condition and the values at the interface are
+provided by the following interpolation parametric variables:
 \begin{verbatim}
 // Interpolate Scalar variable X
 $type interpolateFace(X) store<real_t> ;
 // Interpolate 3d vector variable X
 $type interpolateFace_v3d(X) store<vector3d<real_t> > ;
 // Interpolate generic vector variable X
-$type interpolateFacev(X) storeVec<real_t> ;
+$type interpolateFace_vec(X) storeVec<real_t> ;
 \end{verbatim}
 
 So for example to interpolate the scalar variable {\tt temperature}, the vector velocity variable {\tt v} and the mixture variable {\tt Y} use the following
@@ -89,7 +94,7 @@ So for example to interpolate the scalar variable {\tt temperature}, the vector 
 
 $rule pointwise(flux<-interpolateFace(temperature),
                       interpolate_v3d(v),
-                      interpolateFacev(Y)) { 
+                      interpolateFace_vec(Y)) { 
 ...
 \end{verbatim}
 
@@ -177,21 +182,23 @@ will be as follows:
   }
 \end{verbatim}
 
-There may be other subtle issues that also need to be changed.  For
-example, residual and other solver monitoring code should be modified
-to not include iblanked cells. 
+There may be other subtle issues that also need to be changed in your
+solver.  For example, residual and other solver monitoring code should
+be modified to not include iblanked cells.
 
 \section{ComponentMotion}
 
-The above should work for stationary overset mesh files.  In order to
-support rigid body mesh motion for the components of the overset mesh
-the solver needs to provide some rules to describe how the state of
-the component motion evolves in time and how when the grid positions
-are updated.  The component motion facility is for prescribed mesh
+The above modifications should be all that is necessary for
+simulations using stationary overset mesh files.  In order to support
+rigid body mesh motion for the components of the overset mesh the
+solver needs to provide some rules to describe how the state of the
+component motion evolves in time and how when the grid positions are
+updated.  The component motion facility is for prescribed mesh
 movement and so can be computed once per timestep. The motion state of
 each component is stored in a parameter of vector of doubles.  A
 version of this state is created for each component by using rules
-that are parametric on {\tt volumeTag(X)}.  First to initialize the state we can use the following rules:
+that are parametric on {\tt volumeTag(X)}.  First to initialize the
+state we can use the following rules:
 
 \begin{verbatim}
   $type componentMotionState_X_ic param<vector<real> > ;
@@ -199,13 +206,16 @@ that are parametric on {\tt volumeTag(X)}.  First to initialize the state we can
 
   // We use a unit/apply instead of singlton for initialization so that 
   // we can override for restarting
-  $rule unit(componentMotionState_X_ic<-motionBehavior_X), parametric(volumeTag(X)) {
+  $rule unit(componentMotionState_X_ic<-motionBehavior_X), 
+             parametric(volumeTag(X)) {
     $componentMotionState_X_ic = vector<real>() ;
   }
   // A default apply rule to silence warnings
-  $rule apply(componentMotionState_X_ic<-volumeTag(X))[Loci::NullOp], parametric(volumeTag(X)), prelude {} ;
+  $rule apply(componentMotionState_X_ic<-volumeTag(X))[Loci::NullOp], 
+              parametric(volumeTag(X)), prelude {} ;
 \end{verbatim}
 
+// Now build a time iteration about for the componentMotionState
 \begin{verbatim}
   $rule singleton(componentMotionState_X{n=0} <- componentMotionState_X_ic),
   parametric(volumeTag(X)) {
@@ -213,6 +223,11 @@ that are parametric on {\tt volumeTag(X)}.  First to initialize the state we can
   }
 \end{verbatim}
 
+Depending on the type of motion, the steps that advance in time will
+need to be included in the motionInfo.  The most basic information is
+the timestep.  For a solver that uses a uniform timestep this will be
+estimated simply set to a constant value which is added to motionInfo
+using an apply rule such as the example below:
 \begin{verbatim}
   $type motionInfo blackbox<map<string,real> > ;
 
@@ -221,12 +236,23 @@ that are parametric on {\tt volumeTag(X)}.  First to initialize the state we can
   } ;
 \end{verbatim}
 
+To advance the motion state to the next timestep we call the
+{\tt advanceStateInTime} method of the {\tt motionBehavior} type for each
+component.  The parameters of the advance state is added using the
+{\tt motionInfo} defined in the previous paragraph.  An example of how the
+state is advanced to the next level is below:
 \begin{verbatim}
-  $rule singleton(componentMotionState_X_next{n}<-componentMotionState_X{n},motionBehavior_X{n},motionInfo{n}),parametric(volumeTag(X)) {
-    $componentMotionState_X_next{n} = $motionBehavior_X{n}->advanceStateInTime($componentMotionState_X{n},$motionInfo{n}) ;
+  $rule singleton(componentMotionState_X_next{n}<-componentMotionState_X{n},
+                  motionBehavior_X{n},motionInfo{n}),
+                  parametric(volumeTag(X)) {
+    $componentMotionState_X_next{n} = 
+        $motionBehavior_X{n}->advanceStateInTime($componentMotionState_X{n},
+                                                 $motionInfo{n}) ;
   }
 \end{verbatim}
 
+Finally we advance the state to the next iteration using an advance
+rule such as:
 \begin{verbatim}
   $rule singleton(componentMotionState_X{n+1}<-componentMotionState_X_next{n}),
   parametric(volumeTag(X)) {
@@ -234,27 +260,43 @@ that are parametric on {\tt volumeTag(X)}.  First to initialize the state we can
   }
 \end{verbatim}
 
+We then extract the local frame component motion transformations from
+each component and place it in {\tt componentMotionData}. Note that
+how this is computed determines when motion will be computed. Since
+the motion is prescribed we would like to compute this outside of the
+inner nonlinear iteration so that hole cutting and stencils are only
+computed once per timestep.  The example below shows one way this can
+be accomplished:
 \begin{verbatim}
   $rule unit(componentMotionData<-componentMotion), prelude {
     *$componentMotionData = map<string,Loci::componentXform>() ;
   } ;
 
-  $rule apply(componentMotionData<-componentMotionState_X_next,motionBehavior_X,componentName_X)[Loci::NullOp],
+  $rule apply(componentMotionData<-componentMotionState_X_next,
+              motionBehavior_X,componentName_X)[Loci::NullOp],
     parametric(volumeTag(X)), prelude {
-
-    Loci::componentXform xform = (*$motionBehavior_X)->getXform(*$componentMotionState_X_next) ;
+    Loci::componentXform xform = 
+          (*$motionBehavior_X)->getXform(*$componentMotionState_X_next) ;
     string name = *$componentName_X ;
     (*$componentMotionData)[name] = xform ;
   } ;
 \end{verbatim}
 
+We now need to define the transformations that will be used by the
+hole cutting to transform the given component geometries or to define
+the transformed mesh positions.  This rule controls where in the
+iteration process this operation ins performed.
 \begin{verbatim}
   $rule singleton(componentTransformsn_X{n}<-componentTransforms_X{n}),
     parametric(volumeTag(X)) {
     $componentTransformsn_X{n} = $componentTransforms_X{n} ;
   }
-  
+\end{verbatim}
 
+Now we need to compute the mesh positions using the transformations
+defined by the component motion.  This is accomplished within an inner
+newton iteration with the iteration variable {\tt it} as follows:
+\begin{verbatim}
   $rule pointwise(pos{n,it}<-pos{n},pos,componentTransformsn_X{n,it}),
     constraint(componentNodes_X{n},componentMotion),
     parametric(volumeTag(X)) {
@@ -266,5 +308,62 @@ that are parametric on {\tt volumeTag(X)}.  First to initialize the state we can
 \end{verbatim}
 
 \subsection{Restarting}
+For restarting the state of the component motion will need to be
+saved.  This can be done when the restart save state is specified
+using HDF5 file I/O similar to other restart functions.  For example
+\begin{verbatim}
+  $rule pointwise(OUTPUT{n}<-componentMotionState_X{n},componentName_X{n},
+                  modelName{n},restart_modulo{n},
+                  restart_directory{n},ncycle{n},
+                  restart_postfix{n},$n{n}),parametric(volumeTag(X)),
+  conditional(do_restart{n}),prelude {
+    hid_t file_id = 0 ;
+    string filename = *$restart_directory{n} + "componentMotionState_" +
+       *$componentName_X{n} +  "_" + *$modelName{n} ;
+    file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
+                                   H5P_DEFAULT, H5P_DEFAULT) ;
+      
+    Loci::writeContainer(file_id,"motionState",
+                         $componentMotionState_X{n}.Rep()) ;
+    Loci::hdf5CloseFile(file_id) ;
+  } ;
+\end{verbatim}
+
+The state can now be loaded to replace the initial state.  In this
+case we assume that when restarting the directory that contains the
+restart information is given in the variable {\tt icfile} such that
+the restarted data is provided by an apply rule augmenting the code
+given earlier:
+\begin{verbatim}
+  $rule apply(componentMotionState_X_ic<-icfile,modelName,
+              componentName_X)[Loci::NullOp],
+  parametric(volumeTag(X)), prelude {
+    string filename = *$icfile + "componentMotionState_" +
+                      *$componentName_X +  "_" + *$modelName ;
+    struct stat buf ;
+    int has_file = 0 ;
+    $[Once] {
+      if(stat(filename.c_str(),&buf)==0) {
+        if(buf.st_size != 0 && S_ISREG(buf.st_mode))
+          has_file = 1 ;
+        else
+          has_file = 2 ;
+      }
+    }
+    MPI_Bcast(&has_file,1,MPI_INT,0,MPI_COMM_WORLD) ;
+    if(has_file == 2)  {
+      $[Once] {
+         cerr << "unable to find file '" << filename << "'" << endl ;
+      }
+      Loci::Abort() ;
+    }
+    hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
+                                       H5F_ACC_RDONLY, H5P_DEFAULT);
+    entitySet read_set = entitySet(seq) ;
+    Loci::readContainer(file_id,"motionState",
+           $componentMotionState_X_ic.Rep(),read_set) ;
+    Loci::hdf5CloseFile(file_id) ;
+  } ;
+\end{verbatim}
 
 \end{document}
