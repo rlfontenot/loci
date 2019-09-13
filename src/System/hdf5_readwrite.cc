@@ -125,9 +125,8 @@ namespace Loci {
              H5P_DEFAULT, data);
 
     eset = EMPTY;
-    for(size_t i=0;i< dimension;i++){
+    for(size_t i=0;i< dimension;i+=2){
       eset |= interval(data[i],data[i+1]);
-      i++;
     }
     delete [] data;
     H5Sclose(dataspace);
