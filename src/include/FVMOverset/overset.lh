@@ -18,7 +18,7 @@ $type crossComponentDist_node store<float> ;
 $type crossComponentDistGrad_node store<vector3d<float> > ;
 $type crossComponentID_node store<int> ;
 $type distanceFieldGradient store<vector3d<float> > ;
-$type componentTransformMap blackbox<map<string,vector<componentXform> > > ;
+$type componentTransformMap blackbox<map<string,vector<Loci::componentXform> > > ;
 
 $type componentID_node store<int> ;
 $type componentPriorityList param< vector<Loci::real_t> > ;
