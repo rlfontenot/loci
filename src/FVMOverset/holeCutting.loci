@@ -132,6 +132,8 @@ namespace Loci {
   }
 
 
+  $type AllWallBCs Constraint ;
+
   $rule apply(face2node->surfaceNodeNormal<-area)[Loci::Summation],constraint(AllWallBCs) {
     vector3d<real_t> n = $area.n ;
     real_t a = 1.0; //$area.sada ;
