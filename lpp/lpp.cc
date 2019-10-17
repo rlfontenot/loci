@@ -1663,6 +1663,7 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
       }
     }
   }    
+  
   for(vi=all_vars.begin();vi!=all_vars.end();++vi) {
     vnames[*vi] = var2name(*vi) ;
     if(vi->get_info().priority.size() != 0) {
@@ -1673,9 +1674,34 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
     }
   }
 
+
+  variableSet checkset ;
+  for(vi=all_vars.begin();vi!=all_vars.end();++vi) {
+    variable v = *vi ;
+    while(v.get_info().priority.size() != 0)
+      v = v.drop_priority() ;
+    checkset += v ;
+  }
   list<pair<variable,variable> >::const_iterator ipi ;
   for(ipi=inplace.begin();ipi!=inplace.end();++ipi) {
     vnames[ipi->first] = vnames[ipi->second] ;
+    variable v = ipi->first ;
+    while(v.get_info().priority.size() != 0)
+      v = v.drop_priority() ;
+    if(!checkset.inSet(v)) {
+      ostringstream oss ;
+      oss << "inplace variable '"<< ipi->first << "' not input or output variable!" ;
+      throw parseError(oss.str()) ;
+    }
+    v = ipi->second ;
+    while(v.get_info().priority.size() != 0)
+      v = v.drop_priority() ;
+    if(!checkset.inSet(v)) {
+      ostringstream oss ;
+      oss << "inplace variable '"<< ipi->second << "' not input or output variable!" ;
+      throw parseError(oss.str()) ;
+    }
+    
   }
   
   map<variable,pair<string,string> > local_type_map ;
