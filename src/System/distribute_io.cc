@@ -825,7 +825,7 @@ namespace Loci {
 
   // convert domain in local numbering into key space
   int getKeyDomain(entitySet dom, fact_db::distribute_infoP dist, MPI_Comm comm) {
-    int kdl = -1 ;
+    int kdl = 0 ;
     FORALL(dom,i) {
       int key = dist->key_domain[i] ;
       kdl = std::max<int>(key,kdl) ;
@@ -841,8 +841,10 @@ namespace Loci {
       }
     } ENDFORALL ;
 
-    if(failure) return -1 ;
-    else return kd ;
+
+    kdl = failure?-1:kd ;
+    MPI_Allreduce(&kdl,&kd,1,MPI_INT,MPI_MIN,comm) ;
+    return kd ;
   }
 
 
