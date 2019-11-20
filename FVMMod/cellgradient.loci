@@ -571,7 +571,8 @@ namespace Loci {
   $rule pointwise(LSWeights,LSBWeights<-
 		  (lower,upper,boundary_map)->(facecenter),
 		  cellcenter,cellStencil->cellcenter,
-		  boundary_map->facecenter), prelude {
+		  boundary_map->facecenter), option(disable_threading),
+  prelude {
     $LSWeights.setSizes($cellStencil) ;
     $LSBWeights.setSizes($boundary_map) ;
   } compute {
