@@ -786,9 +786,8 @@ namespace Loci {
     HASH_MAP(int, int) hm ;
     for(int i = 0; i <  MPI_processes; ++i) {
       for(int j = recv_displacement[i]; j <
-	    recv_displacement[i]+recv_count[i]-1; ++j) {
+	    recv_displacement[i]+recv_count[i]-1; j+=2) {
 	hm[recv_map[j]] = recv_map[j+1];
-	j++ ;
       }
     }
     dMap tmp_dm ;
@@ -896,9 +895,8 @@ namespace Loci {
     for(int i = 0; i <  MPI_processes; ++i) {
       HASH_MAP(int, int) tmp_hm ;
       for(int j = recv_displacement[i]; j <
-	    recv_displacement[i]+recv_count[i]-1; ++j) {
+	    recv_displacement[i]+recv_count[i]-1; j+=2) {
 	tmp_hm[recv_map[j]] = recv_map[j+1];
-	j++ ;
       }
       hm[i] = tmp_hm ;
     }
