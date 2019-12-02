@@ -79,7 +79,7 @@ namespace Loci {
     if(index) delete[] index ;
     index = 0 ;
 
-    int sz = 0 ;
+    size_t sz = 0 ;
     if(ptn != EMPTY) {
       int top  = ptn.Min() ;
       int len  = ptn.Max() - top + 2 ;
@@ -116,7 +116,7 @@ namespace Loci {
     int len = ptn.Max() - top + 2 ;
     T **new_index = new T *[len] ;
     T **new_base_ptr = new_index - top ;
-    int sz = 0 ;
+    size_t sz = 0 ;
     
     FORALL(ptn, i) {
       sz += count[i] ;
