@@ -172,6 +172,7 @@ namespace Loci {
 
  
   void create_ci_map(fact_db &facts);
+  void setupOverset(fact_db &facts) ;
 
   extern void writeVOG(std::string filename,store<vector3d<double> > &pos,
                        Map &cl, Map &cr, multiMap &face2node,

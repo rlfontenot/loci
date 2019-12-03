@@ -19,6 +19,7 @@
 //#
 //#############################################################################
 #include <Loci>
+#include <sstream>
 #include <LociGridReaders.h>
 #include <Tools/tools.h>
 #include <map>
@@ -68,6 +69,159 @@ namespace Loci{
                                    fact_db& facts, MPI_Comm comm);
   
   
+  void setupOverset(fact_db &facts) {
+    using namespace Loci ;
+    using std::map ;
+    gStoreRepP sp = facts.get_gvariable("componentGeometry") ;
+    if(sp == 0)
+      return ;
+    sp = facts.get_gvariable("ci") ;
+    if(sp == 0)
+      return ;
+    gEntitySet bfaces = sp->domain() ;
+    sp = facts.get_gvariable("interface_BC") ;
+    if(sp != 0) {
+      gConstraint tmp ;
+      tmp = sp ;
+      bfaces -= *tmp ;
+    }
+    sp = facts.get_gvariable("symmetry_BC") ;
+    if(sp != 0) {
+      gConstraint tmp ;
+      tmp = sp ;
+      bfaces -= *tmp ;
+    }
+    sp = facts.get_gvariable("face2node") ;
+    
+    gMapRepP mp = gMapRepP(sp->getRep()) ;
+    gEntitySet nodeSet = mp->image(bfaces) ;
+
+    gStore<vect3d> pos ;
+
+    pos = facts.get_gvariable("pos") ;
+    gEntitySet dom = pos.domain() ;
+    vector<gEntitySet> posptn = g_all_collect_vectors<gEntity>(dom,MPI_COMM_WORLD) ;
+    gEntitySet surfNodes = g_dist_collect_entitySet<gEntity>(nodeSet,posptn,MPI_COMM_WORLD) ;
+    
+    // Now get volume tags
+    variableSet vars = facts.get_extensional_facts() ;
+    map<string,gEntitySet> volMap ;
+    for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
+      if(variable(*vi).get_arg_list().size() > 0 &&
+         variable(*vi).get_info().name == "volumeTag") {
+        gParam<string> vname(facts.get_gvariable(*vi)) ;
+	std::ostringstream vn ;
+        vn << *vi ;
+        string name = vn.str() ;
+        volMap[name] = vname.domain() ;
+      }
+    }
+
+    // If no volume tags (Weird), then make default tag.
+    if(volMap.begin() == volMap.end()) {
+      volMap[string("Main")] = ~GEMPTY ;
+    }
+    vector<gEntitySet> volSets ;
+    map<string,gEntitySet>::const_iterator mi ;
+    for(mi=volMap.begin();mi!=volMap.end();++mi) {
+      // This could be a scalability problem!!!!
+      volSets.push_back(g_all_collect_entitySet<gEntity>(mi->second)) ;
+    }
+
+    // Now get face associations with volumes
+    vector<gEntitySet> facesets ;
+    int sz = volSets.size() ;
+    gMap cl,cr ;
+    cl = facts.get_gvariable("cl") ;
+    cr = facts.get_gvariable("cr") ;
+    gEntitySet domf = cl.domain()+cr.domain() ;
+    for(int i=0;i<sz;++i) {
+      gEntitySet faces = (cr.preimage(volSets[i]).first +
+                          cl.preimage(volSets[i]).first) ;
+      
+      facesets.push_back(all_collect_entitySet(faces)) ;
+    }
+
+    // Now get node associations with volumes
+
+    vector<gEntitySet> nodesets ;
+    for(int i=0;i<sz;++i) {
+      gEntitySet nodes = mp->image(facesets[i]) ;
+      nodesets.push_back(g_all_collect_entitySet<gEntity>(nodes)) ;
+    }
+    
+
+    gMap min_node2surf_loc ;
+    gEntitySet excludeSet ;
+    
+    for(int i=0;i<sz;++i) {
+      gEntitySet nodeSet = nodesets[i] & pos.domain() ;
+      gEntitySet nodeSetsurf = nodesets[i] & surfNodes ;
+      if(!GLOBAL_OR(nodeSetsurf.size()!=0)) {
+        excludeSet += nodeSet ;
+        continue ;
+      }
+      vector<Loci::kdTree::coord3d> bcnodes_pts(nodeSetsurf.size()) ;
+      vector<gEntity> bcnodes_ids(nodeSetsurf.size()) ;
+
+      int cnt = 0 ;
+      gStore<vect3d>::const_iterator p_itr = pos.begin();
+      for(gEntitySet::const_iterator itr = nodeSetsurf.begin(); itr != nodeSetsurf.end(); itr++){
+        gEntity node = *itr;
+        while(p_itr != pos.end() && p_itr->first < node) p_itr++;
+        if(p_itr->first == node){
+          bcnodes_pts[cnt][0] = (p_itr->second).x ;
+          bcnodes_pts[cnt][1] = (p_itr->second).y ;
+          bcnodes_pts[cnt][2] = (p_itr->second).z ;
+          bcnodes_ids[cnt] = node ;
+          cnt++ ;
+        }
+      }
+
+
+      
+      
+      vector<Loci::kdTree::coord3d> node_pts(nodeSet.size()) ;
+      vector<gEntity> closest(nodeSet.size(),-1) ;
+      cnt = 0 ;
+      p_itr = pos.begin();
+      for(gEntitySet::const_iterator itr = nodeSet.begin(); itr != nodeSet.end(); itr++){
+        gEntity node = *itr;
+        while(p_itr != pos.end() && p_itr->first < node) p_itr++; 
+        if(p_itr->first == node){
+          node_pts[cnt][0] = (p_itr->second).x ;
+          node_pts[cnt][1] = (p_itr->second).y ;
+          node_pts[cnt][2] =  (p_itr->second).z ;
+          cnt++ ;
+        }
+      }
+      
+      Loci::parallelNearestNeighbors(bcnodes_pts,bcnodes_ids,node_pts,closest,
+                                     MPI_COMM_WORLD) ;
+
+      cnt = 0 ;
+      GFORALL(nodeSet,nd) {
+        min_node2surf_loc.insert(nd, closest[cnt]) ;
+        cnt++ ;
+      } ENDGFORALL ;
+    }
+
+    gMap min_node2surf ;
+
+    if(excludeSet == GEMPTY) {
+      min_node2surf.setRep(min_node2surf_loc.Rep()) ;
+    } else {
+      for(gMap::const_iterator itr =  min_node2surf_loc.begin();
+          itr != min_node2surf_loc.end(); itr++){
+        if(!excludeSet.inSet(itr->first)){
+          min_node2surf.insert(itr->first, itr->second);
+        }
+      }
+    }
+    gKeySpaceP node_space = gKeySpace::get_space("NodeSpace", "");
+    facts.create_gfact("node2surf",min_node2surf, node_space, node_space) ;
+  }
+
   //map from local numbering to input file numbering
   //assume the union of nodes on all processors will be either all the nodes,
   //all the faces, or all the cells. i.e., one interval in file numbering

@@ -894,8 +894,8 @@ namespace Loci {
     // Now get a face allocation for each processor
     vector<gEntity> faces_pp(MPI_processes,0) ;
     
-    MPI_Datatype MPI_T_type = MPI_traits<gEntity>::get_MPI_type() ;
-    MPI_Allgather(&tot_faces, 1,MPI_T_type,&faces_pp[0],1,MPI_T_type,
+    MPI_Datatype MPI_GE_type = MPI_traits<gEntity>::get_MPI_type() ;
+    MPI_Allgather(&tot_faces, 1,MPI_GE_type,&faces_pp[0],1,MPI_GE_type,
                   MPI_COMM_WORLD) ;
 
     gEntity face_base = 0 ;

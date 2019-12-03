@@ -79,8 +79,15 @@ if [ ${target:0:1} != "/" ]; then
    echo setting target to \'$target\'
 fi
 
-TARGET_DIRS="System Tools FVMAdapt include include/Tools include/Config include/MPI_stubb include/FVMAdapt"
-TOOLS_DIRS="lpp FVMtools FVMtools/libadf FVMMod ParMetis-4.0 ParMetis-4.0/GKLib ParMetis-4.0/METISLib ParMetis-4.0/ParMETISLib sprng sprng/include sprng/include/sprng"
+TARGET_DIRS="System Tools FVMAdapt FVMOverset include include/Tools include/Config include/MPI_stubb include/FVMAdapt include/FVMOverset"
+TOOLS_DIRS="lpp FVMtools FVMtools/libadf FVMMod sprng sprng/include sprng/include/sprng"
+
+DO_METIS_INSTALL=${INSTALL_METIS:-1}
+if [ ! ${DO_METIS_INSTALL} == 0 ]; then
+    TOOLS_DIRS=$TOOLS_DIRS" ParMetis-4.0 ParMetis-4.0/GKLib ParMetis-4.0/METISLib ParMetis-4.0/ParMETISLib"
+fi
+
+echo TOOLS_DIR=${TOOLS_DIRS}
 
 echo -n "Making Directory Structure: "
 mkdir -p $target
@@ -105,6 +112,9 @@ for i in $TARGET_DIRS ; do
 done
 echo
 
+# remove Makefile link if it already exists in case external metis option
+# changed
+rm -f $fulltarget/ParMetis-4.0/Makefile
 for i in $TOOLS_DIRS ; do
   echo -n $i " "
   mkdir -p $fulltarget/$i
@@ -163,14 +173,21 @@ fi
 if [ ! -h fvmadapt_m.so ]; then
   ln -s ../FVMAdapt/fvmadapt_m.so fvmadapt_m.so
 fi
-if [ ! -h libgk.${LIB_POSTFIX} ] ; then
-  ln -s ../ParMetis-4.0/GKLib/libgk.${LIB_POSTFIX} libgk.${LIB_POSTFIX}
+if [ ! -h fvmoverset_m.so ]; then
+  ln -s ../FVMOverset/fvmoverset_m.so fvmoverset_m.so
 fi
-if [ ! -h libmetis.${LIB_POSTFIX} ] ; then
-  ln -s ../ParMetis-4.0/METISLib/libmetis.${LIB_POSTFIX} libmetis.${LIB_POSTFIX}
-fi
-if [ ! -h libparmetis.${LIB_POSTFIX} ] ; then
-  ln -s ../ParMetis-4.0/ParMETISLib/libparmetis.${LIB_POSTFIX} libparmetis.${LIB_POSTFIX}
+if [ ! ${DO_METIS_INSTALL} == 0 ]; then
+    if [ ! -h libgk.${LIB_POSTFIX} ] ; then
+	ln -s ../ParMetis-4.0/GKLib/libgk.${LIB_POSTFIX} libgk.${LIB_POSTFIX}
+    fi
+    if [ ! -h libmetis.${LIB_POSTFIX} ] ; then
+	ln -s ../ParMetis-4.0/METISLib/libmetis.${LIB_POSTFIX} libmetis.${LIB_POSTFIX}
+    fi
+    if [ ! -h libparmetis.${LIB_POSTFIX} ] ; then
+	ln -s ../ParMetis-4.0/ParMETISLib/libparmetis.${LIB_POSTFIX} libparmetis.${LIB_POSTFIX}
+    fi
+else
+    rm -f libgk.* libmetis.* libparmetis.*
 fi
 if [ ! -h libsprng.${LIB_POSTFIX} ] ; then
     ln -s ../sprng/libsprng.${LIB_POSTFIX} libsprng.${LIB_POSTFIX}
@@ -182,11 +199,17 @@ fi
 if [ ! -h extract ] ; then
   ln -s ../FVMtools/extract extract
 fi
+if [ ! -h ugrid2vog ] ; then
+  ln -s ../FVMtools/ugrid2vog ugrid2vog
+fi
 if [ ! -h vogcheck ] ; then
   ln -s ../FVMtools/vogcheck vogcheck
 fi
-if [ ! -h ugrid2vog ] ; then
-  ln -s ../FVMtools/ugrid2vog ugrid2vog
+if [ ! -h vogmerge ] ; then
+  ln -s ../FVMtools/vogmerge vogmerge
+fi
+if [ ! -h vog2surf ] ; then
+  ln -s ../FVMtools/vog2surf vog2surf
 fi
 if [ ! -h marker ] ; then
   ln -s ../FVMtools/marker marker
@@ -196,6 +219,21 @@ if [ ! -h refmesh ] ; then
 fi
 if [ ! -h refine ] ; then
   ln -s ../FVMtools/refine refine
+fi
+if [ ! -h cgns2surf ] ; then
+  ln -s ../FVMtools/cgns2surf cgns2surf
+fi
+if [ ! -h cgns2ensight ] ; then
+  ln -s ../FVMtools/cgns2ensight cgns2ensight
+fi
+if [ ! -h cgns2ugrid ] ; then
+  ln -s ../FVMtools/cgns2ugrid cgns2ugrid
+fi
+if [ ! -h cgns2vog ] ; then
+  ln -s ../FVMtools/cgns2vog cgns2vog
+fi
+if [ ! -h ugrid2cgns ] ; then
+  ln -s ../FVMtools/ugrid2cgns ugrid2cgns
 fi
 
 
@@ -228,7 +266,11 @@ if [ ! -h $fulltarget/lpp/variable.cc ] ; then
     echo ln -s $source/src/System/variable.cc $fulltarget/lpp/variable.cc
     ln -s $source/src/System/variable.cc $fulltarget/lpp/variable.cc
 fi
-
+#if [ ${DO_METIS_INSTALL} == 0 ]; then
+#make dummy metis directory
+#    mkdir -p $fulltarget/ParMetis-4.0
+#    cp $source/ParMetis-4.0/Makefile.dummy $fulltarget/ParMetis-4.0/Makefile
+#fi
 #echo "** Be sure to set LOCI_BASE=\"$target/Loci\" **"
 
 

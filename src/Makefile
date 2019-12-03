@@ -28,7 +28,7 @@ include Loci.conf
 
 DEFINES = $(DEBUG) $(SYSTEM_DEFINES) $(MACHINE_SPECIFIC) 
 
-default: library lpp FVMtools FVMMod FVMAdapt 
+default: library lpp FVMtools FVMMod FVMAdapt FVMOverset
 
 library: shared
 
@@ -49,7 +49,9 @@ System : FRC
 	$(MAKE) -C System LOCI_BASE="$(LOCI_BASE)" libLoci.a
 
 METIS : FRC
-	$(MAKE) -C ParMetis-4.0 LOCI_BASE="$(LOCI_BASE)" 
+ifeq ($(INSTALL_METIS),1)
+	$(MAKE) -C ParMetis-4.0 LOCI_BASE="$(LOCI_BASE)"
+endif
 
 SPRNG : FRC
 	$(MAKE) -C sprng LOCI_BASE="$(LOCI_BASE)"
@@ -63,7 +65,7 @@ System/libLoci.so: FRC
 lpp: library
 	$(MAKE) -C lpp LOCI_BASE="$(LOCI_BASE)" lpp
 
-FVMtools: library lpp FVMAdapt
+FVMtools: library lpp FVMAdapt 
 	$(MAKE) -C FVMtools LOCI_BASE="$(LOCI_BASE)" default
 FRC :
 
@@ -72,6 +74,9 @@ FVMMod: library lpp
 
 FVMAdapt: library
 	cd FVMAdapt; $(MAKE) LOCI_BASE="$(LOCI_BASE)" all
+
+FVMOverset: library lpp
+	cd FVMOverset; $(MAKE) LOCI_BASE="$(LOCI_BASE)" all
 
 JUNK =
 
@@ -84,6 +89,7 @@ clean:
 	$(MAKE) -C FVMtools clean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C FVMMod clean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C FVMAdapt clean LOCI_BASE="$(LOCI_BASE)"
+	$(MAKE) -C FVMOverset clean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C lpp clean LOCI_BASE="$(LOCI_BASE)"
 
 distclean:
@@ -95,5 +101,6 @@ distclean:
 	$(MAKE) -C FVMtools distclean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C FVMMod distclean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C FVMAdapt distclean LOCI_BASE="$(LOCI_BASE)"
+	$(MAKE) -C FVMOverset distclean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C lpp distclean LOCI_BASE="$(LOCI_BASE)"
 
