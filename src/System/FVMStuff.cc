@@ -3515,7 +3515,7 @@ namespace Loci{
          variable(*vi).get_info().name == "volumeTag") {
         param<string> vname(facts.get_variable(*vi)) ;
 
-        ostringstream vn ;
+	std::ostringstream vn ;
         vn << *vi ;
         string name = vn.str() ;
         volMap[name] = vname.domain() ;
