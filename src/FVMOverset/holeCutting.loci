@@ -530,7 +530,11 @@ namespace Loci {
   } ;
 
 
-  $type interpolateMinStencilSize param<double> ;
+  $rule default(interpolateMinStencilSize),
+    comments("Minimum distance that we should use in excluding points from interpolation stencils.  The default is zero, in which case the estimate used from the number of points and volume of space are used.  In some cases, this may be used to improve interpolation quality") {
+    $interpolateMinStencilSize = 0 ;
+  }
+
 
   $rule unit(stencilSize2<-interpolateMinStencilSize) {
     $stencilSize2 = $interpolateMinStencilSize*$interpolateMinStencilSize ;
