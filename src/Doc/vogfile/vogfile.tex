@@ -10,8 +10,8 @@
 \evensidemargin \oddsidemargin
 \textwidth 5.8in
 
-\usepackage{clrscode}
-\input{epsf}
+%%\usepackage{clrscode}
+%%\input{epsf}
 
 \pagestyle{myheadings}
 \markright{\bf Volume Grid Format}
@@ -102,7 +102,7 @@ from left to right and ever arrive back to the same cell from which
 they started.  This coloring is used when the symmetric Gauss Seidel
 solver is employed and is usually determined by the level parameter
 that is obtained from a depth first search of cell-to-cell
-connectivities implied by the faces.
+connectivity implied by the faces.
 
 \begin{figure}[htbp]
 \begin{center}
@@ -111,5 +111,99 @@ connectivities implied by the faces.
  \label{fig:face}
 \end{center}
 \end{figure}
+
+\subsection{Optimizing Mesh Element Ordering}
+
+Face clusters are designed to compactly store face connectivity
+information in a compressed form that can dynamically expand to an
+arbitrary number of bits for identifiers.  The compression as well as
+parallel reading efficiency of the file can be improved if the mesh
+elements are renumbered to increase locality.  These optimization
+are not required but tend to reduce file size and improve solver
+performance.  The current optimization scheme uses space filling
+curves (Hilbert Curve) to enhance spatial locality.  The optimization
+follows the following steps starting with the un-optimized mesh:
+
+\begin{enumerate}
+  \item Compute cell centers
+  \item Determine Hilbert key, Reorder (sort cells) according to
+    Hilbert space filling curve
+  \item Reorder faces according to first visited order when passing
+    through cells in optimized order
+  \item Reorder nodes according to first visited order when passing through
+    faces in optimized order.
+\end{enumerate}
+
+The resulting mesh will allow more faces to be packed into each face
+cluster but will also improve cache performance when processing the
+mesh by the Loci file reader and subsequent solver steps.
+
+\subsection{Matrix Coloring}
+
+The matrix coloring phase determines the left-right assignment of
+faces in the mesh.  The left-right ordering must correspond to a
+coloring for some of the linear system solvers to function correctly.
+Some matrix coloring will give better linear system solver
+performance.  A good coloring can be defined by coloring according to
+the order that a depth first search of the cell-to-cell connectivity.
+When running in parallel, use the space-filling curve described above
+to partition the mesh and perform the depth first search within each
+processor.
+
+\subsection{Face Cluster Data Structure}
+
+The face cluster stores connectivity information using unsigned
+char data and then includes a translation table to convert these
+unsigned char representations to an arbitrary precision integer
+format.  Therefore a cluster can refer to at most 256 distinct nodes
+and 256 distinct cells.  The number of faces that can be packed into a
+clusters is determined by iterating over faces until either the number
+of unique nodes or cells accessed exceeds 256.  The faces are then
+encoded using the following encoding protocol:
+\begin{enumerate}
+  \item First the number of nodes in the face is provided (A zero
+    means this is the end of the face information in the cluster)
+    followed by the number of faces of this size.
+  \item For each face of that size the nodes are listed and then the
+    left and right cell. (Boundary faces will have a negative number in
+    the right cell which is the boundary facet id.)
+  \item If the number of faces of the same side happens to exceed 255,
+    then the remaining faces will be encoded in the next face block.
+  \item If the number of nodes in the face is zero, then there will be
+    no more face information and the translation tables will follow.
+\end{enumerate}
+
+The protocol described above is illustrated in figure
+\ref{fig:clusterencoding} where {\tt fsz} is the number of nodes that
+describe the face (e.g. 3 for triangle, 4 for quad), {\tt nfc} is the
+number of faces of that size, {\tt nd}{\em x} is are the nodes that
+form the face, and {\tt cl} and {\tt cr} are the left and right cells.
+
+
+\begin{figure}[htbp]
+\begin{center}
+  \includegraphics[width=10cm]{fcluster}
+ \caption{The face encoding within a face cluster.  Each block is a byte.}
+ \label{fig:clusterencoding}
+\end{center}
+\end{figure}
+
+
+Then next part of the face cluster are the maps that list the global
+node and cell ids that translate from the cluster local numbering
+(using bytes) to the global file numbering.  The node table is written
+first followed by the cell table.  The first entry in the table is the
+number of items in the table followed by a list of arbitrary precision
+formatted integers with one for each table entry.  The most
+significant bit of every byte is the continue bit, if it is set then
+the number continues to the next byte.  For the first byte in the
+number the bit defined by {\tt 0x40} is the sign bit which is set if the
+number is negative.  The next 6 bits is the Least Significant Bits of
+the number.  Each subsequent byte adds 7 more bits to the integer in 
+increasing significance.  The end of the integer is indicated by a byte
+that has a zero in MSB defined by {\tt 0x80}.   This format allows the
+mesh format to represent identifiers up to 64 bits without uniformly
+adding a 64 bit storage cost.
+
 
 \end{document}
