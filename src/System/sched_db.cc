@@ -38,6 +38,8 @@ using std::cerr ;
 using std::endl ;
 using std::ofstream ;
 
+//#define VERBOSE
+
 namespace Loci {
   extern int MPI_processes ;
   extern int MPI_rank ;
@@ -191,7 +193,13 @@ namespace Loci {
  
   
   void sched_db::set_existential_info(variable v, rule f, entitySet x) {
+#ifdef VERBOSE
+    debugout << "set_existential_info(v="<< v << ",rule="<< f << ",set=" << x << endl ;
+#endif
     sched_info &finfo = get_sched_info(v) ;
+#ifdef VERBOSE
+    debugout << "finfo.existence = " << finfo.existence << endl ;
+#endif
     if((finfo.existence & x) != EMPTY) {
       ruleSet conflicts ;
       map<rule,existential_info>::iterator mi ;
@@ -242,8 +250,13 @@ namespace Loci {
       }
     }
     existential_info &einfo = finfo.exist_map[f] ;
+
+#ifdef VERBOSE
+    debugout << "einfo.v=" << einfo.v << ",v=" << v << ",x=" << x << ",rule=" << f << endl  ;
+#endif
     einfo.v = v ;
     einfo.exists += x ;
+    
     finfo.existence += x ;
   }
   
@@ -370,10 +383,10 @@ namespace Loci {
       else if(sp->RepType() == CONSTRAINT)
 	s << " Container = CONSTRAINT " << endl ;
       
-      double size = 0 ;
-      size = sp->pack_size(mi->second.requested) / 1000000 ;
+      //      double size = 0 ;
+      //      size = sp->pack_size(mi->second.requested) / 1000000 ;
       s << mi->first << " " <<mi->second.synonyms << " "<< mi->second.existence
-        << " request= " << mi->second.requested << "  size requested = " << size << " MB " << endl ;
+        << " request= " << mi->second.requested <<endl ; //<< "  size requested = " << size << " MB " << endl ;
     }
     return s ;
   }

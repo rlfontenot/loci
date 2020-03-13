@@ -1143,7 +1143,8 @@ namespace Loci {
      values for some of the entities in the clone region. In that case
      we need to send these values to the processor that actually owns
      them. The information as to what entities are to be sent for a
-     particular variable is returned by the barrier_existential_rule_analysis routine. */
+     particular variable is returned by the barrier_existential_rule_analysis 
+     routine. */
   /*! vlst: input, variables that need synchronization
     scheds: input and output, first existential_info of vlst is obtained from scheds.
     after send_entitySet and fill_entitySet, the existential_info of scheds is updated.
@@ -1191,6 +1192,9 @@ namespace Loci {
     for(size_t i=0;i<send_vars.size();++i) {
       variable v = send_vars[i] ;
       entitySet send_ents = exinfo[exent[i]] - d->my_entities ;
+#ifdef VERBOSE
+      debugout << "v=" << v << ", (map on output) send_ents = " << send_ents << endl ;
+#endif
       seinfo.push_back(send_ents) ;
       vmap[v] += send_ents ;
     }
@@ -1229,14 +1233,22 @@ namespace Loci {
 
       for(ruleSet::const_iterator rsi = rs.begin(); rsi != rs.end(); ++rsi) {
 	exinfo[j] += fill_sets[j] ;
+#ifdef VERBOSE
+	debugout << "rule " << *rsi << ", fill_sets=" << fill_sets[j] << endl ;
+#endif
         variableSet tvars = rsi->targets() ;
         variable rv = v ;
-        const string &vname = v.get_info().name ;
-        // Find corresponding name from rule targets
-        for(variableSet::const_iterator vi=tvars.begin();vi!=tvars.end();++vi) {
-          if(vi->get_info().name == vname)
-            rv = *vi ;
-        }
+	// const string &vname = v.get_info().name ;
+        // // Find corresponding name from rule targets
+        // for(variableSet::const_iterator vi=tvars.begin();vi!=tvars.end();++vi) {
+        //   if(vi->get_info().name == vname) 
+        //     rv = *vi ;
+        // }
+
+#ifdef VERBOSE
+	debugout << "set_existential_info(" << rv << ",rule=" << *rsi <<
+	  exinfo[j] << endl ;
+#endif
 	scheds.set_existential_info(rv,*rsi,exinfo[j]) ;
 	++j ;
       }
