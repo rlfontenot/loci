@@ -437,7 +437,7 @@ namespace Loci {
     
 
     //For map variables, it is necessary to change existence without
-    //supllying any rules because Loci does not have rules
+    //supplying any rules because Loci does not have rules
     //that create maps
     void set_variable_existence(variable v, entitySet x) {
       sched_info &finfo = get_sched_info(v);
