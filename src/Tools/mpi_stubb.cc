@@ -1440,8 +1440,13 @@ extern "C" {
     err_report();
     return 0;
   }
-  void MPI_Comm_create_errhandler(void (*v)(MPI_Comm *,int*,...),
-				  MPI_Errhandler *e) {}
-  void MPI_Comm_set_errhandler(MPI_Comm comm, unsigned int f) {}
+  int  MPI_Comm_create_errhandler(MPI_Handler_function *, MPI_Errhandler *) {
+    return 0 ;
+  }
+ 
+  int  MPI_Comm_set_errhandler(MPI_Comm, MPI_Errhandler) {
+    return 0 ;
+  }
+
 }
 #endif
