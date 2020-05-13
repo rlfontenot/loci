@@ -32,6 +32,7 @@
 #include <sstream>
 #include <vector>
 #include <sstream>
+#include <numeric>
 using std::istringstream ;
 using std::vector ;
 using std::pair ;
@@ -368,7 +369,7 @@ int getNumFaces(double topoID){
 
 
 //read in pos  
-void readVertices( double vertices,  store<vector3d<double> >& pos)
+void readVertices( double vertices,  vector<vector3d<double> >& pos)
 {
   
   string type = getDataType(vertices,"Coordinates");
@@ -709,7 +710,6 @@ void getMeshID(double processorID, double* verticesID, double* topoID){
       checkError(err, processorID, "Error get root ID");
     }
     
-    
     int topoIndex = readNodei32(processorID, "TopologyId"); 
   
     char nodeName[ADF_NAME_LENGTH]={'\0'};
@@ -720,151 +720,129 @@ void getMeshID(double processorID, double* verticesID, double* topoID){
     checkError(err, root, string("Error getting node ID ")+ string(nodeName));
   }
 
-  
 }
 
-
-  
-//facemap is not read, assume no duplicate faces between processors
-int main( int argc, char *argv[])
-{
-  bool optimize = true ;
-  Loci::Init(&argc,&argv) ;//Loci initialize
-
-  if(Loci::MPI_processes > 1){
-    cerr<<"ccm2vog can not run in parallel at present" << endl;
-    exit(1);
+void partitionCCMData(vector<vector3d<double> > &global_pos,
+                      vector<int32 *> &global_allFaces,
+                      vector<int32 *> &global_allFaceCells,
+                      const vector<int64> &global_faceSizes,
+                      const vector<int64> &global_faceCellSizes,
+                      const int &totalNumFaces, vector<vector3d<double> > &local_pos, vector<int32> &local_face2nodes,
+                      vector<int32> &local_face2cells,
+                      vector<entitySet> &local_nodes,
+                      vector<entitySet> &local_faces) {
+  // convert global data into contiguous memory layout
+  // determine vector sizes
+  vector<int32> global_face2nodes, global_face2cells;
+  int R = Loci::MPI_rank;
+  int P = Loci::MPI_processes;
+  if (R == 0) {
+    int nodeMapSize = std::accumulate(std::begin(global_faceSizes),
+                                      std::end(global_faceSizes), 0);
+    global_face2nodes.reserve(nodeMapSize);
+    int cellMapSize = std::accumulate(std::begin(global_faceCellSizes),
+                                      std::end(global_faceCellSizes), 0);
+    global_face2cells.reserve(cellMapSize);
+    for (unsigned int ii = 0; ii < global_faceSizes.size(); ++ii) {
+      std::copy(global_allFaces[ii],
+                global_allFaces[ii] + global_faceSizes[ii],
+                std::back_inserter(global_face2nodes));
+      delete[] global_allFaces[ii];
+      std::copy(global_allFaceCells[ii],
+                global_allFaceCells[ii] + global_faceCellSizes[ii],
+                std::back_inserter(global_face2cells));
+      delete[] global_allFaceCells[ii];
+    }
   }
-  string Lref = "NOSCALE" ;
-    
-  while(argc>=2 && argv[1][0] == '-') {
-    // If user specifies an alternate query, extract it from the
-    // command line.
-    if(argc >= 3 && !strcmp(argv[1],"-Lref")) {
-      Lref = argv[2] ;
-      argc -= 2 ;
-      argv += 2 ;
-    } else if(argc >= 2 && !strcmp(argv[1],"-v")) {
-      cout << "Loci version: " << Loci::version() << endl ;
-      if(argc == 2) {
-        Loci::Finalize() ;
-        exit(0) ;
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  // determine each processor's share of the faces
+  local_faces.resize(P);
+  vector<int> sendCount_f2n(P, 0);
+  vector<int> locations_f2n(P, 0);
+  vector<int> sendCount_f2c(P, 0);
+  vector<int> locations_f2c(P, 0);
+  vector<int> faceSetPartitions =
+      VOG::simplePartitionVec(0, totalNumFaces - 1, P);
+  int pos = 0;
+  for (int ii = 0; ii < P; ++ii) {
+    local_faces[ii] =
+        interval(faceSetPartitions[ii], faceSetPartitions[ii + 1] - 1);
+    // 2x b/c there's a left/right cell for each face
+    sendCount_f2c[ii] = local_faces[ii].size() * 2;
+    if (R == 0) {
+      unsigned int faceCount = 0;
+      while (faceCount < local_faces[ii].size()) {
+        // add number of nodes on face (+1 for face size)
+        sendCount_f2n[ii] += global_face2nodes[pos] + 1;
+        pos += global_face2nodes[pos] + 1;
+        faceCount++;
       }
-      argc-- ;
-      argv++ ;
-    } else if(argc >= 2 && !strcmp(argv[1],"-o")) {
-      optimize = false ;
-      argc-- ;
-      argv++ ;
-    } else if(argc >= 2 && !strcmp(argv[1],"-in")) {
-      Lref = "1 inch" ;
-      argc-- ;
-      argv++ ;
-    } else if(argc >= 2 && !strcmp(argv[1],"-ft")) {
-      Lref = "1 foot" ;
-      argc-- ;
-      argv++ ;
-    } else if(argc >= 2 && !strcmp(argv[1],"-cm")) {
-      Lref = "1 centimeter" ;
-      argc-- ;
-      argv++ ;
-    } else if(argc >= 2 && !strcmp(argv[1],"-m")) {
-      Lref = "1 meter" ;
-      argc-- ;
-      argv++ ;
-    } else if(argc >= 2 && !strcmp(argv[1],"-mm")) {
-      Lref = "1 millimeter" ;
-      argc-- ;
-      argv++ ;
-    } else {
-      cerr << "argument " << argv[1] << " is not understood." << endl ;
-      argc-- ;
-      argv++ ;
+    }
+    if (ii > 0) {
+      locations_f2c[ii] = locations_f2c[ii - 1] + sendCount_f2c[ii - 1];
+      locations_f2n[ii] = locations_f2n[ii - 1] + sendCount_f2n[ii - 1];
     }
   }
-  
-  if(Lref == "NOSCALE") {
-    cerr << "Must set grid units!" << endl
-         << "Use options -in, -ft, -cm, -m, or -Lref to set grid units." << endl ;
-    exit(-1) ;
-  }
+  MPI_Bcast(&(*std::begin(sendCount_f2n)), P, MPI_INT, 0, MPI_COMM_WORLD);
 
-  if(Lref == "")
-    Lref = "1 meter" ;
-  
-  if(!isdigit(Lref[0])) {
-    Lref = string("1") + Lref ;
-  }
+  // scatter face-to-cell data to respective processors
+  local_face2cells.resize(2 * local_faces[R].size());
+  MPI_Scatterv(&(*std::begin(global_face2cells)), &(*std::begin(sendCount_f2c)),
+               &(*std::begin(locations_f2c)), MPI_INT32_T,
+               &(*std::begin(local_face2cells)), local_face2cells.size(),
+               MPI_INT32_T, 0, MPI_COMM_WORLD);
+  global_face2cells.clear();
 
-  Loci::UNIT_type tp ;
-  istringstream iss(Lref) ;
-  iss >> tp ;
-  double posScale = tp.get_value_in("meter") ;
-  
-  if (argc < 2 || argc > 3){
-    cerr << "Usage: ccm2vog input.ccm[g] [output.vog]"<<endl;
-    exit(1);
-  }
-  
-  
-  string infile=string(argv[1]);
-  string outfile;
-  string case_name;
-  
-  //only accept "*.ccm" or "*.ccmg" file as input
-  size_t p = infile.rfind('.');
-  if(p != string::npos){
-    if(infile.substr(p,infile.size())!=".ccm" &&infile.substr(p,infile.size())!=".ccmg"){
-      cerr << "Usage: ccm2vog input.ccm[g] [output.vog]"<<endl;
-      exit(1);
+  // scatter face-to-node data to respective processors
+  local_face2nodes.resize(sendCount_f2n[R]);
+  MPI_Scatterv(&(*std::begin(global_face2nodes)), &(*std::begin(sendCount_f2n)),
+               &(*std::begin(locations_f2n)), MPI_INT32_T,
+               &(*std::begin(local_face2nodes)), local_face2nodes.size(),
+               MPI_INT32_T, 0, MPI_COMM_WORLD);
+  global_face2nodes.clear();
+
+  // allocate nodal positions
+  int totalNumNodes = global_pos.size();
+  MPI_Bcast(&totalNumNodes, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  local_nodes.resize(P);
+  vector<int> sendCount_pos(P, 0);
+  vector<int> locations_pos(P, 0);
+  vector<int> localNodesSet = VOG::simplePartitionVec(0, totalNumNodes - 1, P);
+  for (int ii = 0; ii < P; ++ii) {
+    local_nodes[ii] = interval(localNodesSet[ii], localNodesSet[ii + 1] - 1);
+    sendCount_pos[ii] = local_nodes[ii].size() * 3;
+    if (ii > 0) {
+      locations_pos[ii] = locations_pos[ii - 1] + sendCount_pos[ii - 1];
     }
-    case_name = infile.substr(0, p);
-  }else{
-    cerr << "Usage: ccm2vog [options] input.ccm[g] [output.vog]"<<endl
-         << "options:" << endl
-         << "  -o  : disable optimization that reorders nodes and faces" << endl
-         << "  -v  : display version" << endl
-         << "  -in : input grid is in inches" << endl
-         << "  -ft : input grid is in feet" << endl
-         << "  -cm : input grid is in centimeters" << endl
-         << "  -m  : input grid is in meters" << endl
-         << "  -Lref <units> : 1 unit in input grid is <units> long" << endl
-         << endl ;
-
-    exit(1); 
   }
-  
-    
-  if(argc==2)outfile = case_name +".vog"; 
-  else outfile=argv[2];
-  
+  local_pos.resize(local_nodes[R].size());
 
- 
-  if(string(argv[1]) == string("-o")) {
-    optimize = false ;
-    argv++ ;
-    argc-- ;
-  }
-  //Loci data structures
-  store<vector3d<double> > pos;
-  Map cl, cr;
-  store<int> facecount;
-  multiMap face2node;
+  MPI_Scatterv(&(*std::begin(global_pos)), &(*std::begin(sendCount_pos)),
+               &(*std::begin(locations_pos)), MPI_DOUBLE,
+               &(*std::begin(local_pos)), 3 * local_pos.size(),
+               MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  global_pos.clear();
+}
 
-  //open file
+void readCCM(const double &posScale, const char *argv1,
+             vector<vector3d<double> > &pos, vector<int32 *> &allFaces,
+             vector<int32 *> &allFaceCells, vector<int64> &faceSizes,
+             vector<int64> &faceCellSizes, vector<pair<int, string> > &surf_ids,
+             int &totalNumFace) {
+  // open file
   double root;
   int err;
-  ADF_Database_Open(argv[1], "READ_ONLY",
-                    "NATIVE", &root, &err);
-  checkError(err,  root,string("Can not open ")+string(argv[1])+ string(" for reading"));
+  ADF_Database_Open(argv1, "READ_ONLY", "NATIVE", &root, &err);
+  checkError(err, root,
+             string("Can not open ") + string(argv1) + string(" for reading"));
 
-
-  //get node States
+  // get node states
   double statesID;
   ADF_Get_Node_ID(root,"States", &statesID, &err);
   checkError(err, root, "Can not get node ID of States");
 
-  //get first State
+  // get first state
   int num_ret;
   char name[ADF_NAME_LENGTH]={'\0'};
   double stateID;
@@ -874,11 +852,10 @@ int main( int argc, char *argv[])
   ADF_Get_Node_ID(statesID, name, &stateID, &err);
   checkError(err, stateID, "Can not get the node ID of the first child of States");
   
-  //get all Processors
+  // get all processors
   int numChildren;
   ADF_Number_of_Children(stateID, &numChildren, &err);
   checkError(err, stateID, "Can not get number of children of the first child of States");
- 
  
   vector<double> processorIDs;
   for(int start = 1; start<=numChildren; start++){
@@ -894,43 +871,33 @@ int main( int argc, char *argv[])
     }
   }
   
-  //go through all processors, compute total number of nodes
+  // go through all processors, compute total number of nodes
   int totalNumNode = 0;
   for(size_t i = 0; i < processorIDs.size(); i++){
     double verticesID;
     getMeshID(processorIDs[i], &verticesID, NULL);  
     totalNumNode += getNumNodes(verticesID);
   }
-  
  
-  //allocate pos read pos, pos always use local number
-  entitySet nodes = interval(0, totalNumNode-1);
-  pos.allocate(nodes);
+  // allocate pos, read pos, pos always use local number
+  entitySet nodes = interval(0, totalNumNode - 1);
+  pos.resize(nodes.size());
   for(size_t i = 0; i < processorIDs.size(); i++){
     double verticesID;
     getMeshID(processorIDs[i], &verticesID, NULL);  
     readVertices(verticesID, pos);
   }
 
-  FORALL(nodes,nn) {
-    pos[nn] *= posScale ;
-  } ENDFORALL ;
+  for (unsigned int ii = 0; ii < pos.size(); ++ii) {
+    pos[ii] *= posScale;
+  }
   
-  //go through all processors, compute total number of faces
-  int totalNumFace = 0;
+  // go through all processors, compute total number of faces
   for(size_t i = 0; i < processorIDs.size(); i++){
     double topoID;
     getMeshID(processorIDs[i], NULL, &topoID);  
     totalNumFace += getNumFaces(topoID);
-  }
-  
-
-  //allocate maps
-  entitySet facesSet = interval(0, totalNumFace-1);
-  cl.allocate(facesSet);
-  cr.allocate(facesSet);
-  facecount.allocate(facesSet);
- 
+  } 
   
   // get node ProblemDescriptions
   double probDescID;
@@ -938,16 +905,11 @@ int main( int argc, char *argv[])
   checkError(err, root, "Can not get node ID of States");
 
   // get boundary condition names and indices
-  vector<pair<int,string> > surf_ids;
   getSurfaceNames(probDescID, surf_ids);
-  
-  //read in all face info, the vertices and cell indexes will be
-  //mapped to local numbering is they are not local
-  vector<int32*> allFaces;
-  vector<int64> faceSizes;
-  vector<int32*> allFaceCells;
-  vector<int64> faceCellSizes;
-  for(size_t i = 0; i < processorIDs.size(); i++){
+
+  // read in all face info, the vertices and cell indexes will be
+  // mapped to local numbering is they are not local
+  for (size_t i = 0; i < processorIDs.size(); i++) {
     double topoID;
     getMeshID(processorIDs[i], NULL, &topoID);  
     readMesh( topoID,
@@ -957,78 +919,209 @@ int main( int argc, char *argv[])
               faceCellSizes);
   }
   
-  //close data base
-  ADF_Database_Close(root, &err); 
-   
-  //put face info into maps
-  entitySet::const_iterator ei = facesSet.begin();
-  
-  for(size_t fid = 0; fid < allFaces.size(); fid++){
-    int pointer = 0;
-   
-    while(pointer < faceSizes[fid])
-      { 
-        
-        facecount[*ei] = allFaces[fid][pointer];
-        pointer += allFaces[fid][pointer]+1;
-        ei++;
-       
+  // close data base
+  ADF_Database_Close(root, &err);
+}
+
+void getDataFromCCM(const double &posScale, const char *argv1,
+                    store<vector3d<double> > &pos, multiMap &face2node, Map &cl,
+                    Map &cr, vector<pair<int, string> > &surf_ids) {
+  vector<int32 *> allFaces, allFaceCells;
+  vector<int64> faceSizes, faceCellSizes;
+  vector<vector3d<double> > pos_vec;
+  int totalNumFaces = 0;
+  if (Loci::MPI_rank == 0) {
+    cout << "reading ccm file on rank 0" << endl;
+    readCCM(posScale, argv1, pos_vec, allFaces, allFaceCells, faceSizes,
+            faceCellSizes, surf_ids, totalNumFaces);
+  }
+  MPI_Bcast(&totalNumFaces, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  vector<vector3d<double> > local_pos;
+  vector<int32> local_face2nodes;
+  vector<int32> local_face2cells;
+  vector<entitySet> local_nodes, local_faces;
+  if (Loci::MPI_rank == 0) cout << "partitioning ccm data" << endl;
+  partitionCCMData(pos_vec, allFaces, allFaceCells, faceSizes, faceCellSizes,
+                   totalNumFaces, local_pos, local_face2nodes, local_face2cells,
+                   local_nodes, local_faces);
+
+  // put data into loci containers
+  if (Loci::MPI_rank == 0) cout << "putting data into Loci containers" << endl;
+  int R = Loci::MPI_rank;
+  int cnt = 0;
+  pos.allocate(local_nodes[R]);
+  FORALL(local_nodes[R], ei) {
+    pos[ei] = local_pos[cnt++];
+  }ENDFORALL;
+
+  cnt = 0;
+  cl.allocate(local_faces[R]);
+  cr.allocate(local_faces[R]);
+  FORALL(local_faces[R], ei) { 
+    cl[ei] = local_face2cells[cnt++]; 
+    cr[ei] = local_face2cells[cnt++];
+  }ENDFORALL;
+
+  cnt = 0;
+  store<int> nodes_per_face;
+  nodes_per_face.allocate(local_faces[R]);
+  FORALL(local_faces[R], ei) { 
+    nodes_per_face[ei] = local_face2nodes[cnt];
+    cnt += nodes_per_face[ei] + 1;
+  }ENDFORALL;
+
+  cnt = 0;
+  face2node.allocate(nodes_per_face);
+  FORALL(local_faces[R], ei) {
+    for (int ii = 0; ii < nodes_per_face[ei]; ++ii) {
+      face2node[ei][ii] = local_face2nodes[cnt + ii + 1] - 1;
+    }
+    cnt += nodes_per_face[ei] + 1;
+  }ENDFORALL;
+}
+
+// facemap is not read, assume no duplicate faces between processors
+int main(int argc, char *argv[]) {
+  bool optimize = true;
+  Loci::Init(&argc, &argv);  // Loci initialize
+
+  string Lref = "NOSCALE";
+
+  while (argc >= 2 && argv[1][0] == '-') {
+    // If user specifies an alternate query, extract it from the
+    // command line.
+    if (argc >= 3 && !strcmp(argv[1], "-Lref")) {
+      Lref = argv[2];
+      argc -= 2;
+      argv += 2;
+    } else if (argc >= 2 && !strcmp(argv[1], "-v")) {
+      cout << "Loci version: " << Loci::version() << endl;
+      if (argc == 2) {
+        Loci::Finalize();
+        exit(0);
       }
-  }
-  face2node.allocate(facecount);
-  
-  
-  ei = facesSet.begin();
-  for(size_t fid = 0; fid < allFaces.size(); fid++){
-    int pointer = 0;
-    while(pointer < faceSizes[fid]){
-      for(int  i = 0; i < facecount[*ei]; i++){
-        face2node[*ei][i]=allFaces[fid][pointer+i+1]-1;
-      } 
-      
-      pointer += allFaces[fid][pointer]+1;
-      ei++;
+      argc--;
+      argv++;
+    } else if (argc >= 2 && !strcmp(argv[1], "-o")) {
+      optimize = false;
+      argc--;
+      argv++;
+    } else if (argc >= 2 && !strcmp(argv[1], "-in")) {
+      Lref = "1 inch";
+      argc--;
+      argv++;
+    } else if (argc >= 2 && !strcmp(argv[1], "-ft")) {
+      Lref = "1 foot";
+      argc--;
+      argv++;
+    } else if (argc >= 2 && !strcmp(argv[1], "-cm")) {
+      Lref = "1 centimeter";
+      argc--;
+      argv++;
+    } else if (argc >= 2 && !strcmp(argv[1], "-m")) {
+      Lref = "1 meter";
+      argc--;
+      argv++;
+    } else if (argc >= 2 && !strcmp(argv[1], "-mm")) {
+      Lref = "1 millimeter";
+      argc--;
+      argv++;
+    } else {
+      cerr << "argument " << argv[1] << " is not understood." << endl;
+      argc--;
+      argv++;
     }
   }
- 
-  ei = facesSet.begin();
-  for(size_t fid = 0; fid < allFaces.size(); fid++){
-    int64 pointer = 0;
-    while(pointer < faceCellSizes[fid]){
-      cl[*ei] = allFaceCells[fid][pointer];
-      cr[*ei] = allFaceCells[fid][pointer+1];
-      pointer += 2;
-      ei++;
-      
+
+  if (Lref == "NOSCALE") {
+    cerr << "Must set grid units!" << endl
+         << "Use options -in, -ft, -cm, -m, or -Lref to set grid units."
+         << endl;
+    exit(-1);
+  }
+
+  if (Lref == "") Lref = "1 meter";
+
+  if (!isdigit(Lref[0])) {
+    Lref = string("1") + Lref;
+  }
+
+  Loci::UNIT_type tp;
+  istringstream iss(Lref);
+  iss >> tp;
+  double posScale = tp.get_value_in("meter");
+
+  if (argc < 2 || argc > 3) {
+    cerr << "Usage: ccm2vog input.ccm[g] [output.vog]" << endl;
+    exit(1);
+  }
+
+  string infile = string(argv[1]);
+  string outfile;
+  string case_name;
+
+  // only accept "*.ccm" or "*.ccmg" file as input
+  size_t p = infile.rfind('.');
+  if (p != string::npos) {
+    if (infile.substr(p, infile.size()) != ".ccm" &&
+        infile.substr(p, infile.size()) != ".ccmg") {
+      cerr << "Usage: ccm2vog input.ccm[g] [output.vog]" << endl;
+      exit(1);
     }
-    
+    case_name = infile.substr(0, p);
+  } else {
+    cerr << "Usage: ccm2vog [options] input.ccm[g] [output.vog]" << endl
+         << "options:" << endl
+         << "  -o  : disable optimization that reorders nodes and faces" << endl
+         << "  -v  : display version" << endl
+         << "  -in : input grid is in inches" << endl
+         << "  -ft : input grid is in feet" << endl
+         << "  -cm : input grid is in centimeters" << endl
+         << "  -m  : input grid is in meters" << endl
+         << "  -Lref <units> : 1 unit in input grid is <units> long" << endl
+         << endl;
+    exit(1);
   }
-  
-  //release memory
-  for(size_t fid = 0; fid < allFaces.size(); fid++)delete [] allFaces[fid];
-  for(size_t fid = 0; fid < allFaceCells.size(); fid++)delete [] allFaceCells[fid];
-  
-  entitySet cellSet = cl.image(facesSet)+cr.image(facesSet);
-    
-  //Loci takes over
-  if(Loci::MPI_rank == 0)
-    cerr << "coloring matrix" << endl ;
-  VOG::colorMatrix(pos,cl,cr,face2node) ;
-  
-  if(optimize) {
-    if(Loci::MPI_rank == 0) 
-      cerr << "optimizing mesh layout" << endl ;
-    VOG::optimizeMesh(pos,cl,cr,face2node) ;
+
+  if (argc == 2)
+    outfile = case_name + ".vog";
+  else
+    outfile = argv[2];
+
+  if (string(argv[1]) == string("-o")) {
+    optimize = false;
+    argv++;
+    argc--;
   }
-  
-   
-  if(Loci::MPI_rank == 0)
-    cerr << "writing VOG file" << endl ;
-  Loci::writeVOG(outfile, pos, cl, cr, face2node ,surf_ids) ;
-  
-  Loci::Finalize() ;
-  return 0 ;
-  
+
+  // read ccm file
+  store<vector3d<double> > pos;
+  multiMap face2node;
+  Map cl, cr;
+  vector<pair<int, string> > surf_ids;
+  getDataFromCCM(posScale, argv[1], pos, face2node, cl, cr, surf_ids);
+
+  // Loci takes over
+  if (Loci::MPI_rank == 0) {
+    cout << "converting to VOG format using " << Loci::MPI_processes
+         << " processors" << endl;
+  }
+
+  if (Loci::MPI_rank == 0) cout << "coloring matrix" << endl;
+  VOG::colorMatrix(pos, cl, cr, face2node);
+
+  if (optimize) {
+    if (Loci::MPI_rank == 0) cout << "optimizing mesh layout" << endl;
+    VOG::optimizeMesh(pos, cl, cr, face2node);
+  }
+
+  if (Loci::MPI_rank == 0) cout << "writing VOG file" << endl;
+  Loci::writeVOG(outfile, pos, cl, cr, face2node, surf_ids);
+
+  Loci::Finalize();
+  return 0;
 }
 
 
