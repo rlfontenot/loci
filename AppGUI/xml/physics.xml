@@ -1,0 +1,185 @@
+<?xml version='1.0' encoding='ISO-8859-1'?>
+
+
+
+ <!-- specify the interface here. -->
+
+<!-- attribute "element" specify classes, can only  be changed by -->
+<!-- programmer.-->
+
+<!-- element can be 'float', 'int', 'all', 'choice','stack' or -->
+<!-- 'models'-->
+
+<!-- all: all the children need to be specified, so children are not-->
+<!-- checkable --> 
+
+<!-- 'stack': the user can clicked on one of the checkable children,-->
+<!--  the input interface for the checked child will be -->
+<!--  displayed. Here the interface can also be stacked--> 
+
+<!-- 'models': go to models to find the node,the choices are -->
+<!-- specified there -->
+
+ 
+<!-- 'choice': the user can select one from the several available -->
+<!-- choices, some choice may need specifying parameters, which is -->
+<!-- defined as 'editable' -->
+  
+
+<!-- attribute 'editable' is used to specify the values of -->
+<!-- parameters. go to 'editable' to find the node, -->
+<!-- the parameters are specified there -->
+
+
+<!-- attribute "current" specify currentIndex or currentValue, -->
+<!-- currentText, depend on the calss used, its value should is set by program-->
+
+
+<!-- attribute "title" specify the text displayed on the interface, -->
+<!-- its value can be modified by advanced user  -->
+
+<!-- attribute "define" specify the group of variables need to be -->
+<!-- defined when add a module button is pressed, the variables are -->
+<!-- specified in models -->
+
+
+<physics>
+  <mainPage>
+    <Temporal title="temporal" current="0" element="stack" >
+      <steady title="steady state" />
+      <unsteady title="unsteady" />
+    </Temporal>
+    <Material title="fluid material properties" current="0" element="stack" >
+      <single title="single component model" current="0" element="stack" >
+        <ideal title="ideal gas"  element="models" define="specified_ideal_gas_model" >
+          <ideal_gas_model/>
+        </ideal>
+        <gamma title="specified gamma" current="" define="gamma_model" />
+        <polynomial title="fit CP polynomial" current="" define="cp_model" />
+      </single>
+      <multi title="multiple components model" current="0" element="stack" >
+        <mixture title="mixture of ideal gasses" 
+	element="models"
+	 define="specified_mixture_model" >
+          <mixture_model/>
+        </mixture>
+        <chemistry title="chemically reacting model" 
+	element="models"
+	 define="specified_chemistry_model" >
+          <chemistry_model/>
+        </chemistry>
+      </multi>
+    </Material>
+    <Regime title="Flow Regime" current="0" element="stack" >
+      <inviscid title="inviscid"  />
+      <laminar title="laminar" element="models" toolTip="i'm laminar">
+        <transport_model  />
+        <diffusion_model condition="Material==multi"  conditionSatisfied="false" />
+      </laminar>
+      <turbulent title="turbulent" element="models" >
+        <transport_model  />
+        <diffusion_model condition="Material==multi"  conditionSatisfied="false" />
+        <turbulence_model  />
+      </turbulent>
+    </Regime>
+  </mainPage>
+
+  <!-- specify all models here , if they are  models already defined in-->
+  <!-- database, then the children nodes are a bunch of choices -->
+  <!-- otherwise, the children nodes are the variables need to be specified-->
+  <models>
+    <specified_ideal_gas_model title="please specify an ideal gas model"
+     element="all"  state="Material=single,ideal" >
+      <m title="molecular mass" current="0" element="float" />
+      <n title="linear component of e(T)" current="0" element="float" />
+    </specified_ideal_gas_model>
+    <ideal_gas_model>
+      <air_1s0r/>
+    </ideal_gas_model>
+    <gamma_model title="please specify a parameters for gamma model" 
+    element="all"  state="Material=single,gamma" >
+      <m title="molecular mass" current="0" element="float" />
+      <gamma title="gamma" current="0" element="float" />
+      <!--
+     <theta_v title="Vibrational Temperature(s)">theta_v</theta_v>
+     <href title="Reference enthalpy used for Kc"  element="float" current="0"></href>
+     <sref title="Reference entropy used for Kc"  element="float" current="0"></sref>
+     <Tref title="Reference temperature used for Kc"  element="float" current="0"></Tref>
+     <Pref title="Reference pressure used for Kc"  element="float" current="0"></Pref>
+     <mf title="mass fraction used to specify default mixture"  element="float" current="0"></mf>
+-->
+    </gamma_model>
+    <cp_model title="please specify the parameters" 
+    element="CpWindow" condition="Material=single,polynomial" />
+    <mixture_model   element="choice" 
+    toolTips="describe the chemistry model to use" >
+      <cl2air_3s0r/>
+      <cl2n2_2s0r/>
+    </mixture_model>
+    <specified_mixture_model/>
+    <chemistry_model  
+     element="choice" toolTips="describe the chemistry model to use" >
+      <air_5s17r/>
+      <H2O2_6328r/>
+      <H2air_7s32r/>
+    </chemistry_model>
+    <specified_chemistry_model/>
+    <thermodynamic_model element="choice" toolTips="select the type of thermodynamic model used" >
+      <adaptive/>
+      <vibrational_equilibrrium/>
+      <curve_fit/>
+    </thermodynamic_model>
+    <transport_model element="choice" toolTips="select the type of transport model used" >
+      <sutherland editable="Sland" />
+      <powerLaw editable="powerLawParam" />
+      <chemkin action="get file" />
+      <const_viscosity editable="const_viscosity" />
+    </transport_model>
+    <diffusion_model element="choice" toolTips="select the type of diffusion model used" >
+      <laminarSchmidt editable="LaminarSchmidtNumber" />
+      <chemkin action="get file" />
+      <const_diffusivity editable="rhod" />
+    </diffusion_model>
+    <turbulence_model element="choice" toolTips="select the type of turbulence model used" >
+      <SST editable="kprod_clip" />
+      <BSL editable="kprod_clip" />
+      <Wilcox98/>
+      <KW editable="kprod_clip" />
+      <RKE/>
+      <Spalart_Allmaras/>
+    </turbulence_model>
+  </models>
+  
+<!-- specify all editables here -->
+  <editable>
+    <Sland element="initialPage" >
+      <a1 current="0" element="float" name="a1" />
+      <a2 current="0" element="float" name="a2" />
+      <a3 current="0" element="float" name="a3"/>
+      <k1 current="0" element="float" name="k1"/>
+      <k2 current="0" element="float" name="k2"/>
+      <k3 current="0" element="float" name="k3"/>
+      <pr current="0" element="float" name="pr"/>
+      <usepr current="0" element="float" name="usepr"/>
+    </Sland>
+    <powerLawParam element="initialPage" >
+      <mu_ref current="0" element="float" name="mu_ref"/>
+      <T_ref current="0" element="float" name="T_ref"/>
+      <power current="0" element="float" name="power"/>
+      <Pr current="0" element="float" name="Pr"/>
+    </powerLawParam>
+    <const_viscosity element="initialPage" >
+      <mu current="0" element="float" />
+      <kcond current="0" element="float" />
+    </const_viscosity>
+    <LaminarSchmidtNumber current="0" element="float" name="LaminarSchmidtNumber" />
+    <rhod current="0" element="float" />
+    <kprod_clip current="0" element="float" />
+    <kprod_func current="0" element="choice" >
+      <total/>
+      <vortivity/>
+      <S0mega/>
+    </kprod_func>
+  </editable>
+
+</physics>

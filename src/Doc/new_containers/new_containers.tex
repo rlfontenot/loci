@@ -1,0 +1,687 @@
+\documentclass{article}
+
+\usepackage{amsmath}
+\usepackage{fullpage}
+\usepackage[dvipdf]{graphicx}
+\usepackage[svgnames]{xcolor}
+\DeclareGraphicsExtensions{.pdf,.jpeg,.png}
+\usepackage{threeparttable}
+
+\newcommand{\lstfontfamily}{\ttfamily}
+\usepackage{listings}
+\lstset{%listings package
+  language=c++,
+  basicstyle=\lstfontfamily,
+  emphstyle=\color{red}\bfseries, 
+  keywordstyle=\color{DarkViolet}\bfseries,
+  commentstyle=\color{DarkGreen},
+  stringstyle=\color{DarkBlue},
+  numberstyle=\color{DarkGrey}\lstfontfamily,
+  emphstyle=\color{red},
+  % get also javadoc style comments
+  morecomment=[s][\color{Maroon}]{/**}{*/},
+  % morekeywords=[1]{include},
+  columns=fullflexible,
+  % escapeinside=`',
+  % escapechar=@,
+  showstringspaces=false,
+  numbers=left}
+
+\lstdefinelanguage{plain}{
+  keywords={}}
+
+\usepackage{enumitem}
+
+\begin{document}
+
+\title{Design guideline and documentation for the new Loci fact database}
+
+\author{The Loci Group}
+
+\maketitle
+
+The purpose of this document is to outline the redesign of the Loci fact
+database and its associated infrastructures.  This document is meant to
+be updated incrementally by all the people involved in this project and
+serves as a medium to document ideas and progress along the way.  In the
+end, when everything is finished and settled, this document will become
+a manual for the code that have been developed for this part of the Loci
+framework.
+
+\section{Motivations and ideas}
+One of the motivations for this redesign is to be able to support
+extremely large meshes in the Loci framework.  Currently the mesh size
+is limited by the use of the 32-bit integers in the Loci framework as
+entity IDs.  We want to use a hybrid scheme where the global IDs will
+use 64-bit integers (or whatever suitable type) and the local IDs will
+continue to use 32-bit integers.  Such a scheme will support almost all
+imaginable mesh sizes we will ever need in the future.
+
+Another motivation is to use this as a good opportunity to reorganize
+the container and fact database part of the Loci framework so that they
+become: 1) better organized 2) more streamlined 3) more generic and
+abstract (which allow us to build increasingly more complex and modular
+codes).  We are particularly interested in having a new database
+design that will also incorporate several new ideas we have been
+considering (e.g, key-spaces, data distribution independent grid reader,
+etc.).
+
+Currently not all ideas and approaches are clear to us (part of the
+reasons why we have such a document).  Below are some discussions of the
+perceived problems and some of the current thoughts we have on them.
+
+The current data-flow in a Loci program starts with the grid reader.
+The grid reader first reads in the raw data in a mesh using the IDs
+stored inside the mesh file (called the ``file number'').  Then the grid
+reader redistributes the data read in using a new ID scheme (called the
+``global scheme'').  Before the Loci scheduling phase, another ID scheme
+(called the ``local number'') is created to facilitate the compaction
+of data storage per distributed process and optimization of a
+distributed memory schedule.
+
+The current problem with this design and the code is that the entire
+process is tightly integrated and hard to reuse.  In principle, Loci
+does not mandate any particular parallel data distribution scheme and
+can certainly use any data distribution scheme correctly provided.  In
+practise though, applications almost always rely on the default grid
+reader to generate a proper data distribution since it is quite hard and
+involved to define any new plugins for data distribution (if not
+impossible).
+
+Another problem concerns the current design of the fact database.  The
+current fact database has evolved to be a quite complex piece of code
+with multiple layers of functionality involved.  Ideally the fact
+database is just a central place where data containers are registered so
+that they can be properly called for when a computation needs them.
+However currently the fact database 1) manages the state of the data
+distribution (which includes the partition information and the mapping
+information between different numbering schemes). 2) The fact database
+also manages the state for \textit{all} the containers at once (meaning
+either all containers will be in global number scheme or the local
+number scheme).  3) the containers themselves utilize a quite
+sophisticated shell/handle and notification design approach that would
+in some degree automatically manage the content pointers underneath.
+While this is convenient at times, it will get in the way in certain
+parts of the code (e.g., the multi-threaded infrastructure).
+
+Currently we would like to use this chance of increasing mesh size to
+64-bit to address all the above issues so that the data containers and
+the fact database are redesigned to support future tasks.  Currently we
+are considering the following ideas/approaches:
+
+\begin{itemize}
+  \item We would like to reorganize the grid reader so that every step
+    in the current reader is separated and preferably better abstracted.
+  \item We would also like to redesign the file number and global number
+    stages so that they become more modular and flexible.  Our current
+    ideas are to have the grid reader generate raw data in the form of
+    file number directly obtained from the mesh files.  Then a separate
+    process will supply the data distribution criteria and then perform
+    the data distribution in a global numbering scheme.  Finally when
+    everything (mainly data) is properly distributed/settled on each
+    distributed process, we will convert everything into a local number
+    scheme.  The scheduling/computation process then begins.  The local
+    number part will largely stay unchanged.  We just want to change the
+    part before the local number stage.
+  \item We also want to incorporate the idea of ``key-space'' into
+    the design.  Roughly speaking, our current understanding of the
+    key-space concept is that it provides better structuring support.  A
+    key-space is mostly similar to a name-space in the C++ language.  It
+    allows one to define multiple things within such a space without the
+    worry that they will be in conflict with others defined in different
+    spaces.  However in our case, the Loci system also automatically
+    provides some guarantees and utilities that will facilitate the
+    interactions between different key-spaces (thus liberating the
+    programmers from manually coding and checking several tedious and
+    error prone tasks). The entire concept of key-space and its utility
+    are still unclear to us at this moment.  We still need to discuss it
+    more in the future.  Hopefully this document will provide a place
+    where thoughts and ideas can be formally documented and clarified.
+\end{itemize}
+
+\section{The new container type}
+\label{section::container-type}
+For the tasks to begin, we will need to pick something to start with.
+We have decided that the designing of several new data container types
+will probably provide a gentle start.  This also allows us to evaluate
+the situation as things progress.
+
+As said, we want to separate the current grid reader into multiple
+abstract steps. We think the starting place for this process is to
+change the current grid reader so that it writes out the mesh structure
+into these new data container types.
+
+These new container types are mainly for the dynamic phase of the Loci
+framework (i.e., the global numbering stage).  They will feature a new
+concept.  We just wanted to express data conceptually as a list of
+pairs.  For example, in the current Loci framework, a
+\verb|store<string>| is an array of strings that starts with an
+arbitrary index number and it supports fast random access.  In our new
+container type (which we will just call \texttt{gstore} for now), it can
+be \emph{viewed} as a long list of ``(ID,string)'' pairs (e.g.,
+\texttt{(10,"okay")}, \texttt{(4,"yes")}, \texttt{(394,"name")},
+\ldots).  These pairs are essentially the same index and value contents
+in the current Loci \texttt{store}.  In this new container type,
+individual pairs can be inserted (and possibly removed) from the store
+dynamically.  In addition, pairs are just appended to the list and are
+unordered.  Thus random access is not supported in this new container
+type in general.  Only if the list of pairs is sorted, then can we have
+a faster binary-search based access method (in $\log n$ time
+complexity).  The main reason to have such a concept and organization is
+to be flexible.  When we are creating the initial data for the Loci
+framework to process/schedule, we want to be as dynamic as we would like
+to.  This conceptual view also affords increased abstraction for other
+parts of the framework.
+
+To implement this concept though, there are many other details that need
+to be resolved.  We will discuss several of them below.  It is very
+likely that there will be more that need to be resolved.  Thus we may
+need to iterate on this design.
+
+First of all, the new container types are broadly based on the list of
+pair concept.  We still need to distinguish the concrete types (i.e., a
+\texttt{store} or a \texttt{map}).  Further in the list of pairs
+concept, we do not necessarily care about the individual types (e.g., a
+\texttt{multistore} or \texttt{multimap}).  However when we wanted to
+convert these lists into array based forms, we will want to know the
+exact type.  Therefore we need to tag each such list of pairs the
+intended types.  So far, we will want to support the general
+\texttt{store}, a \texttt{storevec} with same vector length per key, and
+a \texttt{multistore} with variable value length per key.  Also needed
+are a general \texttt{map} and a \texttt{multimap}.  Notice, when
+creating these containers, we will only insert pairs in the form
+``(ID,value)'' and not ``(ID,vector$\langle$value$\rangle$)'' for the
+\texttt{storevec} and \texttt{multistore} version.  For example, the
+array form of a \texttt{storevec} might look like:
+\texttt{([1]->[a|b|c]}, \texttt{[2]->[e|f|g])}, i.e., there are two keys
+\texttt{1} and \texttt{2} each associates a value of size three vectors.
+When creating such a new container, we will just have a list of pairs
+as: \texttt{[(1,a),} \texttt{(1,b),} \texttt{(2,e),} \texttt{(2,f)}
+\texttt{(1,c),} \texttt{(2,g)]}.  There are two things to be noted: 1)
+it is generally not possible to deduce the type automatically.  For
+example, we do not know the type just by looking at the list in the
+previous example.  Although apparently each key has three values
+associated, it could be a special case of \texttt{multistore}.  2) the
+order among the values associated per key is generally important.  In
+the previous example, \texttt{[a|b|c]} and \texttt{[e|f|g]} might encode
+or represent some kind of embedded information (such as a topological
+structure) and therefore their insertion order in the list needs to be
+preserved.  This means we want to use a stable sorting algorithm when
+we sort the list.
+
+As indicated, these container types are generally not ordered.  However
+the users can choose to order them manually and thus gain the ability to
+have faster access using binary search based method.  Thus we need to
+distinguish the state these containers will be in.  After each sorting,
+we will be in an ordered state and as soon as an insertion takes place,
+we will be back in the unordered state.  And if an access request is
+made in the unordered state, an exception should be thrown to indicate
+the usage error.  Another problem concerns the sorting is that whether
+the sorting will be a local sort on each parallel process or a global
+parallel sorting.  So far, we know that we do need the global parallel
+sort for all the pairs across all processes.  We do not yet know if
+local sort will be needed and in what condition.  Nevertheless since
+local sort is trivial (just use the \texttt{std::sort} method) it can be
+added easily.  However a global parallel sort is not trivial to do.  So
+far the Loci framework provides a parallel sample sort routine (in the
+\texttt{System/pnn.c} file).  One issue with parallel sample sort is
+that it does not scale very well.  Thus we may want to use a different
+sorting approach for the global sort.  For now, we could probably use
+the sample sort first and address this issue later on. 
+
+Another issue is about what to do and how to handle a container that
+violates its declared type.  For example, if we find that there are
+pairs like \texttt{(1,a)} and \texttt{(1,b)} in a container created to
+be a straight \texttt{store}.  What do we do?  This is clearly a
+violation of the type requirements (for a straight \texttt{store}, only
+one value is permitted for each key).  Note this could happen from real
+data creation, e.g., if data are created in a distributed fashion.  So
+it will be nice to have a graceful way to handle this problem.
+Currently we think that it is probably wise to automatically remove such
+duplications and keep the container type requirements.  There are
+basically two cases.  In the first case, if we have identical pairs such
+as if we have two \texttt{(1,a)} pairs in the list, then we would want
+to drop one of them (it is a case of duplication).  Second, if we have
+different pairs like \texttt{(1,a)} and \texttt{(1,b)}, then we wanted
+to keep the most important pair.  For the first case, we can rely on the
+default ``\texttt{=}'' operator on the value type.  For the second case,
+we can rely on the default ``\texttt{<}'' operator on the value type,
+i.e., we will order the values for the same key and keep the one that is
+at the end of the order (either the ``smallest'' or the ``largest''
+one, we just need to be consistent).  In fact, we can merge these two
+cases and only rely on the single ``\texttt{<}'' operator.  For example,
+in the case of pairs \texttt{(1,a)} and \texttt{(1,b)}, since
+\texttt{a<b} (assuming a dictionary order), we will drop \texttt{b} and
+keep \texttt{a} (i.e., we keep the smallest value).  In the case of two
+\texttt{(1,a)} pairs, since \texttt{a<a} is false, we will just drop the
+first \texttt{a} since it is not ``smaller'' than the second \texttt{a}.
+
+Now this decision brings two additional questions: 1) when do we perform
+such a ``fix'' and 2) does this mean that we will force the user to
+supply a ``\texttt{<}'' operator for all the container types that
+require such a ``fix?''  The answer to these questions are somewhat
+linked together.  For the second question, we think that we do not want
+to force the users to define a ``\texttt{<}'' operator for all the value
+types since some value types may not be able to be ordered in a
+meaningful way.  For the first question, a natural and good place to
+carry out such a ``fix'' seems to be during the sorting phase (since
+once we sorted all the pairs, we can easily identify a duplication
+problem).  However this may not be a good idea for 1) a user may not
+request any sorting at all for the list of pairs 2) this implies an
+automatic check point for such a problem, if we want ``fixes'' then we
+will force the users to define the ``\texttt{<}'' operator.  Thus it
+seems that it is best to provide an additional method that the users can
+call to make sure the container data are consistent with respect to its
+type requirements.  Then if they called such a method, then they are
+aware that a ``\texttt{<}'' operator should be defined for the values.
+Otherwise if they do not initiate such a method, then it maybe okay to
+skip the ``\texttt{<}'' operator.  The final issue is that if the users
+do not want to ``fix'' possible duplication problems, then at least the
+container need to fail at some point to indicate such a problem.  If we
+do not support pair removal, then the sorting phase will be a place to
+carry out such a check.  If a duplicate is found, then an exception will
+be thrown.  However sorting may not be called and insertion (and
+possibly deletion if supported) may be carried out afterwards.
+Currently the best and final place to give such warning seems to be when
+the list of pairs is ``frozen'' as conventional array based container.
+
+Below is an example of what an interface of a \texttt{store} might look
+like:
+\begin{lstlisting}
+template<typename T>
+class gstore {
+public: // the interface
+  void insert(Entity, T);
+  void sort();
+  void retrieve(Entity); // throws exception if not sorted
+                           // may also be defined as operator[] overload
+  void make_consistent();
+  template<typename CMP>
+  void make_consistent(CMP cmp); // a version that overloads the < operator
+private: // suggestions how data might be represented
+  std::vector<std::pair<Entity,T>> table;
+  bool sorted; GSTORE_TYPE gt;
+};
+\end{lstlisting}
+
+We will still utilize the shell/handle approach to design the new
+container type.  In this paradigm, the real data is stored in a handle
+part and then multiple shells can share the same handle (thus have
+access to the same data).  This has the advantage of giving the same
+data multiple names as well as avoiding unnecessary copies.  The C++
+language's current standard offers several additional new semantics that
+might help improve (or completely remove) such design patterns.  This
+needs to be investigated further.  For the time being, we will use this
+shell/handle paradigm.  In the current Loci container design, in order
+to remove an indirect reference access, each shell is given direct
+access to the handle's internal data pointer (thus provides faster
+access time and potentially improve cache utilization).  However doing
+so requires that the handle notify all the shells that are connected to
+change their pointers whenever the handle changes its data layout.  In
+this new design, we want to remove such a mechanism.  Instead, each
+shell will just ask the handle to supply any data that it needs.  This
+removes the notification needs but introduces a layer of indirection.
+We think at this stage this is acceptable.
+
+Another minor requirement is to provide a way to access the range of
+values associated with a single key (for the multi-container types).
+This could be done by implementing an iterator interface that returns
+the begin and end range of the values associated with a particular key
+queried.
+
+There are several other details concerning the container type that we
+are not very clear at the moment.  They will need to be addressed in the
+future when we have more experience.  Some of these issues include 1)
+how to introduce the key-space concept into the container types
+(existing code inside the \texttt{include/keyspace.h} and
+\texttt{System/keyspace.cc} files can perhaps be borrowed or referenced,
+however these codes are experimental and they have a different purpose
+and are also perhaps somewhat dated and more complex than is needed in
+this case) 2) we will need to have each container aware of their own
+data distribution for the ultimate flexibility.  Then how do we
+incorporate such information into the container type?
+
+Besides these issues, we also need several global functions that
+operate on these container types.  For now, we will want to implement
+the equi-join operations on these containers.  An equi-join
+implementation already exists in the current Loci codebase (the
+\texttt{equiJoinFF} function inside
+\verb|include/distribute_container.h| file).  We just need to adapt
+the implementation to the new container type.  Since our \texttt{map}
+and \texttt{store} types are only pairs and not full-blown relations,
+the join operations are limited and essentially the same as multiple
+nested array access as we did in the past (e.g., \texttt{m1->m2->s}
+denotes \texttt{s[m2[m1[i]]]}.  The main difference between this and the
+now \texttt{eqjoin(eqjoin(m1,m2),s)} is that the equi-join will actually
+produce a new list that merges and flattens all these data while in the
+old way, no new data is created and we are just accessing the data
+indirectly.  Such data flattening may be useful as it removes the cost
+of indirect reference (i.e., improves cache performance).  It could also
+be beneficial to certain other parts of the Loci system where indirect
+data accesses may complicate or make impossible certain analyses.
+However in the future, we might consider to let the framework decide if
+such data flattening is beneficial.  Conceptually the users can creation
+equi-joins and ``think'' they will get a new list.  Underneath, whether
+or not an actual list is created or indirect accesses happened will be
+determined by the runtime system based on some analyses.
+
+Another related task is to clean up the current \texttt{intervalSet}
+type in Loci.  The current entity and entity set types are defined as
+aliases of integer and the \texttt{intervalSet} types.  Since we want to
+make the ID keys larger than 32-bit integers, we will want to produce
+new entity and entity set types that support this feature.  First the
+\texttt{intervalSet} codes are very old.  Initially it may be careful
+to use a parameterized integer type.  Over the years, there may be
+direct use of the C++ \texttt{int} type introduced into the code.  We
+want to carefully examine the code and remove these direct use of
+\texttt{int}.  Then we will want to parameterize the
+\texttt{intervalSet} so that it can use any arbitrary integer types as
+its components.  On top of this, we can \texttt{typedef} a bigger entity
+set type by making it use the \texttt{intervalSet} with bigger integers.
+
+Based on these discussions, the initial tasks we need may be 1) design
+the prototype of these data container types as discussed 2) to test them
+and to interface them gradually with the grid reader, we can change (or
+rewrite) the \texttt{readGridVOG} function (inside the
+\texttt{System/FVMGridReader.cc} file) to produce data in these new
+containers.  Currently the \texttt{readGridVOG} function reads a grid
+(in \texttt{VOG} format) into \texttt{pos}, \texttt{face2node},
+\texttt{cl}, and \texttt{cr}, which are \texttt{store},
+\texttt{multimap}, \texttt{map}, and \texttt{map} types respectively. 
+
+% \begin{lstlisting}
+% int main(void)
+% {
+%   return 0;
+% }
+% \end{lstlisting}
+% 
+% \begin{verbatim}
+%   class rule: public rule_type
+%   {
+%     virtual prelude(sequence seq) { /* definitions */ }
+%     virtual compute(sequence seq) { /* definitions */ } 
+%     virtual postlude(sequence seq) { /* definitions */ }
+%     // other parts
+%   }
+% \end{verbatim}
+\section{Documentation part}
+This part is for document the work that has been done and will likely
+stay stable.  For example, if we commit to certain design schemes and
+produced some codes, then we can put comments and documents here in this
+section.
+
+\section{Implementation progress September 2015}
+\subsection{genIntevalSet}
+In files \texttt{intervalSet.h} \texttt{intervalSet\_def.h} and \texttt{intervalSet\_impl.h},
+class \texttt{intervalSet} is parameterized and turn into template class
+\texttt{genIntervalSet}. 
+
+\texttt{int\_type} is used to represent 32-bit integer, and \texttt{gEntity} is used to
+represent entities in the global and file numbering, which can be
+64-bit integer or 32-bit intergers, switched by \texttt{typedef}. The corresponding MPI data type and hdf5
+data type for \texttt{gEntity} are also specified using \texttt{typedef}. macro \texttt{GFORALL}
+is added for \texttt{genIntervalSet<gEntity>}.
+
+To avoid
+polluting code in large amount of files, new files
+\texttt{Tools/simple\_partition\_long.h}, \texttt{hdf5\_readwrite\_long.h} and
+\texttt{distribute\_long.h} are added to deal with communication and
+io operations on 
+\texttt{gEntity}. The corresponding header files will be cleaned up later.
+
+
+{\it Notes: On some compilers, the initialization order of global
+  variables of template class may cause problems}
+  
+\subsection{gStore}
+The new container class \texttt{gStore} is partially implemented in \texttt{gstore.h},
+\texttt{gstore\_def.h} and \texttt{gstore\_impl.h}. 
+std iterator for \texttt{vector} are used for \texttt{gStore} so that the std iterator functions
+can be used. 
+
+Member function \texttt{copy2store}  are added to move the
+contents of \texttt{gStore} into traditional Loci stores. 
+
+Up to now, the \texttt{sort} and \texttt{make\_consistent} functions are ignored because
+they are not needed yet.  
+
+ 
+\subsection{FVMGridReader}  
+  In the current version of \texttt{FVMGridReader\_long.cc}, \texttt{readGridVOG} calls function \texttt{readGridVOG\_raw}
+  first,  which reads \texttt{pos}, \texttt{cl}, \texttt{cr}, \texttt{face2node} information into new
+  containers. \texttt{readGridVOG} function then  copys the information from new
+  containers into traditional Loci containers.
+
+  While reading from VOG files, the local variables need to be modified
+  to fit for larger integers, so are MPI communication functions and hdf5 io
+  functions. 
+
+
+   {\it Notes: \texttt{boundary\_names} and \texttt{boundary\_tags} are distributed
+     cross processes now. While defining something on all boundary
+     surfaces, need perform MPI all\_collect operation. }
+
+
+\subsection{Next step}        
+ so far, Loci is tested with \texttt{gEntity} is defined as c++ int. Next step,
+ partition functions will be modified in \texttt{FVMGridReader\_long.cc}.
+
+\section{Implementation progress January 2016}
+At this points, gContainers are used until just before \texttt{makeQuery()} is
+called in \texttt{chem, marker, refmesh, refine}, and \texttt{extract}. In \texttt{chem}, the
+adapt code is commented out, and this part of code will be updated
+later and should not be removed. 
+
+\subsection{gKeySpace, gKeySpaceManager and gKeyManager}  
+\texttt{gKeySpace} is used for the following purpose:
+\begin{itemize} 
+\item gKeySpace seperates nodes, faces, cells, edges and boundary surfaces
+into different spaces, so that they can have overlapped keysets in
+file numbering.
+ \item It allows adding and removing keys in each space independently(future
+use, while orthKeyManager is used) so that mesh refinement and
+derefinement can be done without massive communication. 
+\item Each variable knows its gKeySpace, so that it is possible in the
+  future, a query is made with only related keyset being transformed
+  between file, global and local numbering. 
+\item Each space knows its own in and out vars so that operations
+  such as \texttt{distribute} can be performed over a space.
+  
+\end{itemize}   
+
+
+
+class \texttt{gKeySpace} contains the following member data:
+
+\begin{itemize}
+ \item the MPI communicator information
+ \item the keyset distributed over all processes in the communicator and
+   the keyset that
+   this process owns
+ \item the maps between local numbering, global numbering and file
+   numbering
+ \item the distribution and the partition information
+ \item the scope: is this space in local numbering, global numbering
+   or file numbering
+ \item the variables whose domain is this space and the variables
+   whose image is this space
+ \item the gKeySpaceManager that this space is under control of.
+ \end{itemize}
+
+gKeySpaceManager is a singleton class, it can
+\begin{itemize}
+\item make sure that each gKeySpace is created only once
+\item given a name, return the pointer to the space
+\item return all spaces
+\end{itemize}
+
+
+gKeySpaceManager has a static member data \texttt{space\_map}, which maps the
+name of a space to its storage. The names of gKeySpaces are hard-coded,
+they can only be "NodeSpace", "FaceSpace", "CellSpace", "EdgeSpace", "BcSpace" and "UniverseSpace".
+"BcSpace" is for boundary surfaces. And "UniverseSpace" is a special gKeySpace designed for
+gParams, gConstraints and gBlackBoxs that are defined over all keys in all spaces.
+While a gKeySpace registers itself, it is added to the \texttt{space\_map} of
+the gKeySpaceManager.
+
+
+gKeyManager is responsible for generating keys for
+gKeySpaces. Different gKeyManagers generate keys in different
+ways. distKeyManager generates keys distributedly, i.e., each process
+tells the manager the number of keys it requests, and the manager
+will return the keys that are contiguous over processes. 
+
+\subsection{Partition of mesh }
+To make Loci more flexible, grid reader is separated from the mesh
+partition. This way, the user/developer can switch between different
+grid readers without changing the partition code. 
+
+
+To perform mesh partition, the user need specify the following
+information:
+\begin{itemize}
+\item the first space to partition: \texttt{NodeSpace}, \texttt{FaceSpace} or \texttt{CellSpace} 
+\item the strategy used to partition the first space:
+  \texttt{Simple},\texttt{Metis}, or \texttt{ORB}
+\item the second space to partition: \texttt{NodeSpace},
+  \texttt{FaceSpace} or \texttt{CellSpace}, which can not be the same
+  as the first space.
+\item the third space to partition: \texttt{NodeSpace},
+  \texttt{FaceSpace} or \texttt{CellSpace}, which can not be the same
+  as the first space or the second space
+\item The map used to partition the third space in the affinity
+  partition. 
+\item If Metis partition is used in the first space, the map used
+  to create the self-map in the first space. 
+  For example, if the first space is \texttt{CellSpace}, to create \texttt{cell2cell} self-map, if
+  \texttt{cell2face} map is used, a cell is mapped to all the cells
+  that share the same face with it. Same way, 
+  \texttt{cell2node} can also be used to create \texttt{cell2cell} map. The
+  user need specify which one to use.  
+\end{itemize} 
+
+At this stage, we assume that only \texttt{NodeSpace}, \texttt{FaceSpace} and \texttt{CellSpace}
+need to be partitioned, and edges are created after
+partition. Otherwise, more information need to be provided by users. 
+
+To ensure the partition code is genetic, the name of maps here are not variable
+names, instead it is composed of space names. For example, the maps from \texttt{FaceSpace}
+to \texttt{CellSpace} is named \texttt{face2cell}, instead of \texttt{cl} and \texttt{cr}. Loci will look
+up and find the variables, perform merging and distributed-reversing if necessary.
+
+An exemplary string provided by user can be: 'FaceSpace, Metis, NodeSpace, CellSpace,
+face2cell, face2node'. Loci will parse the string and perform Metis
+partition in FaceSpace, face2face map is created using face2node. Then
+NodeSpace is partitioned using face2node affinity. CellSpace is
+partitioned using face2cell affinity. 
+ 
+\subsection{gfact\_db}
+The new fact database \texttt{gfact\_db} is built
+incrementally. The member data is added to the database only if it is
+needed. Compared with old \texttt{fact\_db}, distribution information
+is stored in \texttt{gKeySpace} now and will be removed permanently from
+\texttt{gfact\_db}.
+
+\texttt{gfmap} is added to \texttt{gfact\_db}. It maps each variable
+to its gcontainer storage. It is modified and queried by
+\texttt{create\_gfact}, \texttt{update\_gfact},
+\texttt{replace\_gfact} and  \texttt{get\_gfact},
+\texttt{get\_gvariable}, \texttt{remove\_gvariable} methods.
+
+Like \texttt{fact\_db},  in \texttt{gfact\_db}, \texttt{fmap} is used to map each
+variable to its traditional Loci storage. In the long run, entries in this map are not inserted by \texttt{create\_fact} method,
+ instead, when variables freeze, they are removed from \texttt{gfmap}
+ and added to \texttt{fmap}. \texttt{get\_variable} method is
+ used to query the variable in this map. 
+
+
+\texttt{tmap} is used to map
+variables to their types. \texttt{tmap} is designed for optional rules
+which specify the type of variables and .vars file will provide the
+value of the variables.
+
+Same as \texttt{fact\_db}, in \texttt{gfact\_db},  \texttt{extensional\_facts} are used to support multiple
+queries;   \texttt{nspace\_vec} is used to allow namespaces in front of
+variable name; And \texttt{synonyms} is included to support multiple
+names of a variable.
+
+ 
+ 
+
+ In \texttt{read\_vars()} method, \texttt{fmap}
+  is also temporarily used to store the target variables of default
+ rules. Since we don't want to change \texttt{rule\_impl} class, whose
+ \texttt{get\_store()} method will return \texttt{storeRepP}, we
+ place the \texttt{storeRepP} in  \texttt{fmap} first. After \texttt{initialize()}
+ and \texttt{compute()} are performed for the \texttt{rule\_impl}, we
+ use newly-added \texttt{copy2gstore()} member method of
+ \texttt{storeRep} 
+ to transform the traditional container into gcontainer
+ and create gfacts in \texttt{gfact\_db}.  For target variables of
+ optional rules, they are placed into \texttt{tmap} as \texttt{storeRepP} first. After the
+ variable name is found in .vars file ,  \texttt{copy2gstore()} is
+ called followed by \texttt{create\_gfact()} in \texttt{gfact\_db}, and
+ then the value of the variable is read in. 
+ 
+ \texttt{gkey\_manager} is temporarily placed in \texttt{gfact\_db} because we did not
+ find a good place for it yet. 
+
+Another difference between \texttt{gfact\_db} and \texttt{fact\_db} is
+that in the member methods \texttt{create\_gfact}, \texttt{update\_gfact}
+and \texttt{replace\_gfact} of \texttt{gfact\_db}, \texttt{domain\_space} and/or
+\texttt{image\_space} of the variable need to be specified.
+
+ 
+\subsection{gcontainers} 
+Same as \texttt{gfact\_db}, gcontainers are also built incrementally,
+i.e., their members are added only if they are needed at this
+stage. Up to present time, classes \texttt{gBlackBox, gConstraint, gMap,
+  gMapVec, gMultiMap, gStore, gMultiStore, gParam} are designed and
+implemented.
+ 
+
+The new container design has been described in section
+~\ref{section::container-type}. More details worth mention here.
+
+\begin{itemize}
+\item Each container knows its own domain key space and/or image key space.
+\item Since the new containers use vector-of-pair storage, a set of
+  convenient functions for vector operations are added, such as
+  \texttt{size, reserve, clear local\_sort}. \texttt{size} will return
+  the size of the vector, not the size of domain. It turns out that
+  distribute method can be used to replace global sort method. For
+  local sort, \texttt{std::stable\_sort} is used for \texttt{gMultiMap},
+  \texttt{gMapVec} and \texttt{gMultiStore}. 
+  \item For \texttt{gMap}, a special
+  method \texttt{local\_sort2} is added and it will stable\_sort the
+  vector-of-pair according to the value field.  This method is used
+  in equiJoin operation. However, for \texttt{gMultiMap}, sorting the
+  vector according to the value field will mess up the order of the
+  values associated with the same key. To perform the equiJoin
+  operation, first vector-of-pair is copied into a vector-of-triplet,
+  which will record the key, the value and the index of the
+  value. After the  equiJoin
+  operation is finished, the resulted vector-of-triplet will be sorted
+  according to the key and the index field.
+\item For \texttt{gMultiMap} and \texttt{gMultiStore}, except for
+  domain field, we added another virtual domain field which includes
+  the keys that have no value associate with them. This is needed when
+  variables such as \texttt{lower, upper} and \texttt{boundary\_map}
+  are frozen into traditional containers 
+\end{itemize}  
+
+\subsection{Future work} 
+  Next step, the goals is to \texttt{makeQuery()} in \texttt{gfact\_db}. To be able to
+  do this, we will temporarily merge all the member data and member methods of
+  \texttt{fact\_db} into \texttt{gfact\_db}. And then
+  \texttt{copy\_facts()} function will copy all gcontainers from \texttt{gfmap}
+  to traditional containers in \texttt{fmap}. It also will collect the
+  distribute info and place it in  \texttt{gfact\_db} temporarily. 
+
+  Once Loci is able to \texttt{makeQuery()} in \texttt{gfact\_db}, we
+  will work on the part of code tranform global numbering to local numbering, and
+  then clean up the member data and member methods in \texttt{gfact\_db}.
+  
+  
+\end{document}
