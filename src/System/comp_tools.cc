@@ -63,7 +63,7 @@ namespace {
   }
 }
 
-//#define VERBOSE
+#define VERBOSE
 
 namespace Loci {
   extern bool profile_memory_usage ;
@@ -1238,12 +1238,15 @@ namespace Loci {
 #endif
         variableSet tvars = rsi->targets() ;
         variable rv = v ;
-	// const string &vname = v.get_info().name ;
-        // // Find corresponding name from rule targets
-        // for(variableSet::const_iterator vi=tvars.begin();vi!=tvars.end();++vi) {
-        //   if(vi->get_info().name == vname) 
-        //     rv = *vi ;
-        // }
+	// Find corresponding name from rule targets
+	for(variableSet::const_iterator vi=tvars.begin();vi!=tvars.end();++vi) {
+	  
+	  if(vi->get_info().name == v.get_info().name &&
+	     vi->get_info().namespac == v.get_info().namespac &&
+	     vi->get_info().v_ids == v.get_info().v_ids) {
+	    rv = *vi ;
+	  }
+	}
 
 #ifdef VERBOSE
 	debugout << "set_existential_info(" << rv << ",rule=" << *rsi <<
