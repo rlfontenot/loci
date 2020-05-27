@@ -840,7 +840,7 @@ namespace Loci {
 
   void gMultiMapRepI::remove_duplication(){
     std::sort(attrib_data.begin(), attrib_data.end(), fieldSort1_unique<gEntity>);
-    vector<pair<Entity,Entity> >::iterator uend ;
+    vector<pair<gEntity,gEntity> >::iterator uend ;
     uend = unique(attrib_data.begin(), attrib_data.end());
     attrib_data.erase(uend, attrib_data.end());
   }
@@ -859,12 +859,12 @@ namespace Loci {
   storeRepP gMultiMapRepI::copy2store() const{
     fatal(!sorted);
     gEntitySet dom = domain();
-    entitySet pdom = dom;
-    entitySet v_dom = vdom;
+    entitySet pdom = gconvert(dom);
+    entitySet v_dom = gconvert(vdom);
     store<int> count;
     count.allocate(pdom+v_dom);
     const_iterator itr = begin();
-    GFORALL(pdom, ei){
+    FORALL(pdom, ei){
       int cnt = 0;
       while(itr!=end() && itr->first < ei)itr++;
       while(itr!=end() && itr->first == ei){
@@ -874,7 +874,7 @@ namespace Loci {
       count[ei] = cnt;
     }ENDGFORALL;
     
-    GFORALL(v_dom, ei){
+    FORALL(v_dom, ei){
       count[ei] = 0;
     }ENDGFORALL;
     

@@ -245,9 +245,9 @@ namespace Loci {
   }
 
   void parallelNN_DistributedSearch(const vector<coord3d> &target_pnts,
-                                    const vector<int> &target_ids,
+                                    const vector<gEntity> &target_ids,
                                     const vector<coord3d> &search_pnts,
-                                    vector<int> &close_pt,
+                                    vector<gEntity> &close_pt,
                                     MPI_Comm comm) {
 
     int p = 0 ;
@@ -273,11 +273,11 @@ namespace Loci {
     int lM = search_pnts.size() ;
 
     MPI_Allgather(&lM,1,MPI_INT,&search_sizes[0],1,MPI_INT,comm) ;
-    vector<int> search_ids(p+1) ;
+    vector<gEntity> search_ids(p+1) ;
     search_ids[0] = 0 ;
     for(int i=1;i<p;++i)
       search_ids[i] = search_ids[i-1]+search_sizes[i-1] ;
-    search_ids[p] = std::numeric_limits<int>::max() ;
+    search_ids[p] = std::numeric_limits<gEntity>::max() ;
   
     vector<kd_tree::coord_info> scopy(search_pnts.size()) ;
     for(size_t i=0;i<search_pnts.size();++i) {
@@ -360,7 +360,7 @@ namespace Loci {
     }  
 
     vector<double> rmin(lM,1e65) ;
-    vector<pair<int,int> > close_pair(lM) ;
+    vector<pair<gEntity,gEntity> > close_pair(lM) ;
 
 
     // First search with the points that we have
@@ -445,8 +445,8 @@ namespace Loci {
     
       for(size_t ii=0;ii<workingSet.size();++ii) {
         int i=workingSet[ii] ;
-        int id = kd_xfer.find_closest(scopy[i].coords,rmin[i]) ;
-        if(id != std::numeric_limits<int>::min())
+        gEntity id = kd_xfer.find_closest(scopy[i].coords,rmin[i]) ;
+        if(id != std::numeric_limits<gEntity>::min())
           close_pair[i].second = id ;
       }
     }
@@ -499,9 +499,9 @@ namespace Loci {
   }
 
   void parallelNN_GatherSearch(const vector<coord3d> &target_pnts,
-                               const vector<int> &target_ids,
+                               const vector<gEntity> &target_ids,
                                const vector<coord3d> &search_pnts,
-                               vector<int> &close_pt,
+                               vector<gEntity> &close_pt,
                                MPI_Comm comm) {
 
     int p = 0 ;
@@ -521,10 +521,11 @@ namespace Loci {
     int rsize = rdispls[p-1]+rcounts[p-1] ;
 
     vector<coord3d> tpnts(rsize);
-    vector<int> tids(rsize) ;
-    MPI_Allgatherv((void *)&target_ids[0],tsz,MPI_INT,
+    vector<gEntity> tids(rsize) ;
+    MPI_Datatype MPI_T_type = MPI_traits<gEntity>::get_MPI_type() ;
+    MPI_Allgatherv(&target_ids[0],tsz,MPI_T_type,
                    &tids[0],&rcounts[0],&rdispls[0],
-                   MPI_INT,comm) ;
+                   MPI_T_type,comm) ;
     for(int i=0;i<p;++i)
       rcounts[i] *= 3 ;
     rdispls[0] = 0 ;
@@ -545,9 +546,9 @@ namespace Loci {
   }
 
   void parallelNN_SampleSearch(const vector<coord3d> &target_pnts,
-                               const vector<int> &target_ids,
+                               const vector<gEntity> &target_ids,
                                const vector<coord3d> &search_pnts,
-                               vector<int> &close_pt,
+                               vector<gEntity> &close_pt,
                                MPI_Comm comm) {
 
     int p = 0 ;
@@ -575,7 +576,7 @@ namespace Loci {
 
     {// First sample the targets
       vector<coord3d> sample_pts(nsamples) ;
-      vector<int> sample_ids(nsamples) ;
+      vector<gEntity> sample_ids(nsamples) ;
       for(int i=0;i<nsamples;++i) {
         sample_pts[i] = target_pnts[i*samp_freq] ;
         sample_ids[i] = target_ids[i*samp_freq] ;
@@ -592,10 +593,11 @@ namespace Loci {
       int rsize = rdispls[p-1]+rcounts[p-1] ;
       
       vector<coord3d> tpnts(rsize);
-      vector<int> tids(rsize) ;
-      MPI_Allgatherv((void *)&sample_ids[0],tsz,MPI_INT,
+      vector<gEntity> tids(rsize) ;
+      MPI_Datatype MPI_T_type = MPI_traits<gEntity>::get_MPI_type() ;
+      MPI_Allgatherv(&sample_ids[0],tsz,MPI_T_type,
                      &tids[0],&rcounts[0],&rdispls[0],
-                     MPI_INT,comm) ;
+                     MPI_T_type,comm) ;
       for(int i=0;i<p;++i)
         rcounts[i] *= 3 ;
       rdispls[0] = 0 ;
@@ -695,16 +697,16 @@ namespace Loci {
     // Check to see if we have a updated minimum
     for(int i=0;i<lM;++i) {
       int id = kd_xfer.find_closest(search_pnts[i],rmin[i]) ;
-      if(id != std::numeric_limits<int>::min())
+      if(id != std::numeric_limits<gEntity>::min())
         close_pt[i] = id ;
     }
 
   }
 
   void parallelNearestNeighbors(const vector<coord3d> &target_pnts,
-                                const vector<int> &target_ids,
+                                const vector<gEntity> &target_ids,
                                 const vector<coord3d> &search_pnts,
-                                vector<int> &close_pt,
+                                vector<gEntity> &close_pt,
                                 MPI_Comm comm, bool rebalance) {
 
     int num_targets = 0 ;

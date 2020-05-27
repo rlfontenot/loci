@@ -118,7 +118,7 @@ namespace Loci {
     using namespace Loci::kdTree ;
     coord3df zero(0,0,0) ;
     vector<coord3df > pts(mydom.size(),zero) ;
-    vector<int> pt_id(mydom.size(),0) ;
+    vector<gEntity> pt_id(mydom.size(),0) ;
     MEMORY_PROFILE(before_pack) ;
 
     int cnt = 0 ;
@@ -308,7 +308,7 @@ namespace Loci {
     MPI_Allgatherv((void *)&results[0],sizeof(vpair)*tsz,MPI_BYTE,
                    (void *)&recvdata[0],&rcounts[0],&rdispls[0],MPI_BYTE,
                    MPI_COMM_WORLD) ;
-    vector<int> pt_id(rsize,0);
+    vector<gEntity> pt_id(rsize,0);
     coord3df pt0(0.0f,0.0f,0.0f) ;
     vector<coord3df > pts(rsize,pt0) ;
     for(int i=0;i<rsize;++i) {

@@ -199,13 +199,13 @@ namespace Loci{
   //return the owner(process) of entity in the local domain
   void newMetisPartition_raw( gMultiMap& selfmap,
                               const vector<gEntitySet> &init_ptn,//of the space to partition
-                              vector<int>& part
+                              vector<idx_t>& part
                               ) { //assignment of each entity to process  
-    int map_size = init_ptn[Loci::MPI_rank].size() ;
+    size_t map_size = init_ptn[Loci::MPI_rank].size() ;
     part.resize(map_size) ;
-    vector<int> xadj(map_size+1, 0) ;
-    int edgecut ;
-    vector<int> vdist(Loci::MPI_processes + 1) ;
+    vector<idx_t> xadj(map_size+1, 0) ;
+    idx_t edgecut ;
+    vector<idx_t> vdist(Loci::MPI_processes + 1) ;
     gEntity cmin = init_ptn[0].Min();
     for(int i = 0; i < Loci::MPI_processes; i++) {
       cmin = min(init_ptn[i].Min(), cmin);
@@ -225,11 +225,11 @@ namespace Loci{
          
     //turn multimap into two vectors: adjncy and xadj(offset in adjncy)
     edgecut = 0 ;
-    gEntity tot = selfmap.size(); 
-    vector<gEntity> adjncy(tot) ;
+    size_t tot = selfmap.size(); 
+    vector<idx_t> adjncy(tot) ;
   
-    int count = 0 ;
-    int ind = 0;
+    idx_t count = 0 ;
+    size_t ind = 0;
     xadj[ind] = count;
     gMultiMap::const_iterator itr = selfmap.begin();
     gEntity previous_value = itr->first;
@@ -249,20 +249,20 @@ namespace Loci{
     vdist[0] = 0 ;
     for(int i = 1; i <= Loci::MPI_processes; ++i)
       vdist[i] = vdist[i-1] + init_ptn[i-1].size() ;
-    int top = vdist[Loci::MPI_processes] ;
+    idx_t top = vdist[Loci::MPI_processes] ;
     
     bool trouble = false ;
-    for(int i=0;i<tot;++i)
+    for(size_t i=0;i<tot;++i)
       if(adjncy[i] >= top)
         trouble = true ;
     if(trouble)
       cerr << "adjacency list contains out of bounds reference" << endl ;
    
     MPI_Comm mc = MPI_COMM_WORLD ;
-    int nparts = Loci::MPI_processes ; // number of partitions
-    int wgtflag = 0 ;
-    int numflag = 0 ;
-    int options = 0 ;
+    idx_t nparts = Loci::MPI_processes ; // number of partitions
+    idx_t wgtflag = 0 ;
+    idx_t numflag = 0 ;
+    idx_t options = 0 ;
     
     
     
@@ -294,11 +294,19 @@ namespace Loci{
         
         // read
         gEntitySet dom = init_ptn[Loci::MPI_rank] ;
+	// Needs fixing
         store<int> cell_weights ;
 
         readContainerRAW(file_id,"cell weight", cell_weights.Rep(),
                          MPI_COMM_WORLD) ;
-        if(cell_weights.domain() != init_ptn[Loci::MPI_rank]) {
+
+	gEntitySet cwdom ;
+	entitySet cwdomb = cell_weights.domain() ;
+	size_t nivls = cwdomb.num_intervals() ;
+	for(size_t i=0;i<nivls;++i)
+	  cwdom += gInterval(cwdomb[i].first,cwdomb[i].second) ;
+	
+        if(cwdom != init_ptn[Loci::MPI_rank]) {
           cerr << "cell weights partition inconsistent!" << endl ;
           Loci::Abort() ;
         }
@@ -307,20 +315,20 @@ namespace Loci{
        
         // compute necessary ParMETIS data-structure
         wgtflag = 2 ;           // weights on the vertices only
-        int ncon = 2 ;          // number of weights per vertex
-        int tpwgts_len = ncon*nparts ;
+        idx_t ncon = 2 ;          // number of weights per vertex
+        size_t tpwgts_len = ncon*nparts ;
         vector<metisreal_t> tpwgts(tpwgts_len) ;
 
-        for(int i=0;i<tpwgts_len;++i)
+        for(size_t i=0;i<tpwgts_len;++i)
           tpwgts[i] = 1.0 / double(nparts) ;
         
         vector<metisreal_t> ubvec(ncon) ;
-        for(int i=0;i<ncon;++i)
+        for(idx_t i=0;i<ncon;++i)
           ubvec[i] = 1.05 ;     // as recommended by the ParMETIS manual
 
         // now construct the vertex weights
         vector<idx_t> vwgt(ncon*map_size) ;
-        int cnt = 0 ;
+        size_t cnt = 0 ;
         for(gEntitySet::const_iterator
               ei=init_ptn[Loci::MPI_rank].begin();
             ei!=init_ptn[Loci::MPI_rank].end();++ei,cnt+=ncon) {
@@ -346,10 +354,10 @@ namespace Loci{
           std::cout << "ParMETIS cell weight file not found, "
                     << "using non-weighted partition..." << std::endl ;
         }
-        int ncon = 1 ;
-        int tpwgts_len = ncon*nparts ;
+        idx_t ncon = 1 ;
+        size_t tpwgts_len = ncon*nparts ;
         vector<metisreal_t> tpwgts(tpwgts_len) ;
-        for(int i=0;i<tpwgts_len;++i)
+        for(size_t i=0;i<tpwgts_len;++i)
           tpwgts[i] = 1.0 / double(nparts) ;
        
         
@@ -367,10 +375,10 @@ namespace Loci{
     } else {
       
    
-      int ncon = 1 ;
-      int tpwgts_len = ncon*nparts ;
+      idx_t ncon = 1 ;
+      size_t tpwgts_len = ncon*nparts ;
       vector<metisreal_t> tpwgts(tpwgts_len) ;
-      for(int i=0;i<tpwgts_len;++i)
+      for(size_t i=0;i<tpwgts_len;++i)
         tpwgts[i] = 1.0 / double(nparts) ;
       
       metisreal_t ubvec = 1.05 ;
@@ -460,7 +468,7 @@ namespace Loci{
     
     //After processing, for each entity, how many times it fall onto to a process
     // Note, we are assuming scratch pad is non-zero size
-    vector<pair<int,pair<int,int> > >::iterator i1,i2 ;
+    vector<pair<gEntity,pair<int,int> > >::iterator i1,i2 ;
     if(scratchPad.size() > 0) {
       i1 = scratchPad.begin() ;
       i2 = i1 +1;
@@ -478,7 +486,7 @@ namespace Loci{
       }
       scratchPad.erase(i1,scratchPad.end()) ;
     }
-    vector<pair<int,pair<int,int> > > nsplits(MPI_processes-1) ;
+    vector<pair<gEntity,pair<int,int> > > nsplits(MPI_processes-1) ;
     for(int i=1;i<MPI_processes;++i) {
       nsplits[i-1].first = ptn[i].Min() ;
       nsplits[i-1].second.first = 0 ;
@@ -505,15 +513,15 @@ namespace Loci{
           pmax = scratchPad[j].second.first ;
         }
       }
-      int nd = scratchPad[x].first ;
+      gEntity nd = scratchPad[x].first ;
       out_ptn[pmax] += nd ;
       x = y ;
     }
     // Check to see if any sets are left out.
-    entitySet assigned ;
+    gEntitySet assigned ;
     for(int i=0;i<MPI_processes;++i)
       assigned += out_ptn[i] ;
-    entitySet unassigned = ptn[MPI_rank] - assigned ;
+    gEntitySet unassigned = ptn[MPI_rank] - assigned ;
     out_ptn[MPI_rank] += unassigned ; // allocate unassigned entities to
     // original processor
   }

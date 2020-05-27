@@ -37,5 +37,14 @@ namespace Loci {
   extern const gEntity GUNIVERSE_MAX ;
   typedef std::pair<int_type, int_type> interval;
   typedef std::pair<gEntity, gEntity> gInterval;
+  inline intervalSet gconvert(gEntitySet g) {
+    int nivals = g.num_intervals() ;
+    if(g==~GEMPTY)
+      return ~EMPTY ;
+    intervalSet tmp ;
+    for(int i=0;i<nivals;++i)
+      tmp += interval(g[i].first,g[i].second) ;
+    return tmp ;
+  }
 }
 #endif

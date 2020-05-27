@@ -222,14 +222,14 @@ namespace Loci {
 
     //copy gMultiStore to traditional Loci multiStore
     virtual storeRepP copy2store() const{
-      entitySet dom = domain();
-      entitySet v_dom = get_vdom();
+      entitySet dom = gconvert(domain());
+      entitySet v_dom = gconvert(get_vdom());
       fatal(size() != dom.size()) ;
       
       store<int> count;
       count.allocate(dom+v_dom);
       const_iterator itr = begin();
-      GFORALL(dom, ei){
+      FORALL(dom, ei){
         int cnt = 0;
         while(itr!=end() && itr->first < ei)itr++;
         while(itr!=end() && itr->first == ei){
@@ -238,14 +238,14 @@ namespace Loci {
         }
         count[ei] = cnt;
       }ENDGFORALL;
-      GFORALL(v_dom, ei){
+      FORALL(v_dom, ei){
         count[ei] = 0;
       }ENDGFORALL;
       
       multiStore<T> s;
       s.allocate(count);
       itr = begin();
-      GFORALL(dom, ei){
+      FORALL(dom, ei){
         int cnt = 0;
         while(itr!=end() && itr->first < ei)itr++;
         while(itr!=end() && itr->first == ei){

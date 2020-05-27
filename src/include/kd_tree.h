@@ -74,7 +74,7 @@ namespace Loci {
       // Coordinate Info for kd-tree
       struct coord_info {
         vector3d<T> coords ;
-        int id ;
+        gEntity id ;
       } ;
 
 
@@ -585,7 +585,7 @@ namespace Loci {
     public:
       // Build kd tree from list of points and their id's
       KDTree(const std::vector<vector3d<T> > &inpnts,
-             const std::vector<int> &ids) {
+             const std::vector<gEntity> &ids) {
         // Build kd tree using KDTree internal data structure
         // allocate space for pnts, copy input values into data structure
         pnts.reserve(inpnts.size()) ;
@@ -644,16 +644,16 @@ namespace Loci {
       // Search for the closest point using the KDTree
       // rmin is current best known radius (squared)
       // returns id if found, otherwise returns smallest int
-      int find_closest(vector3d<T> v, double &rmin) const {
+      gEntity find_closest(vector3d<T> v, double &rmin) const {
         const int sp = find_closest(0,pnts.size(),0,v,rmin,bbox) ;
         if(sp < 0)
-          return std::numeric_limits<int>::min() ;
+          return std::numeric_limits<gEntity>::min() ;
         // Look up id of matched point
         return pnts[sp].id ;
       }
       // Search for closest point without concern for current best known
       // rmin
-      int find_closest(vector3d<T> v) const {
+      gEntity find_closest(vector3d<T> v) const {
         // Start with infinite closest point distance
         double rmin = std::numeric_limits<double>::max() ;
         return find_closest(v,rmin) ;
@@ -686,7 +686,7 @@ namespace Loci {
       
       // Find the closest point that is within a given bounding box
       // rmin argument works like find_closest
-      int find_closest_box(vector3d<T> v, bounds box, double &rmin) const {
+      gEntity find_closest_box(vector3d<T> v, bounds box, double &rmin) const {
         if(box.maxc[0] < bbox.minc[0] ||
            box.minc[0] > bbox.maxc[0] ||
            box.maxc[1] < bbox.minc[1] ||
@@ -694,11 +694,11 @@ namespace Loci {
            box.maxc[2] < bbox.minc[2] ||
            box.minc[2] > bbox.maxc[2]) // Check for intersection
           // if boxes don't intersect, we don't search
-          return std::numeric_limits<int>::min() ;
+          return std::numeric_limits<gEntity>::min() ;
         // otherwise find points contained in box
         const int sp = find_closest_box(0,pnts.size(),0,v,rmin,box,bbox) ;
         if(sp < 0)
-          return std::numeric_limits<int>::min() ;
+          return std::numeric_limits<gEntity>::min() ;
         return pnts[sp].id ;
       }
       // Same as above, only no rmin provided by user.

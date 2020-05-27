@@ -59,7 +59,7 @@ namespace Loci {
     void hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension,
                   const char* name, IDENTITY_CONVERTER g, frame_info &fi, const gEntitySet &en);
     void hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension,
-                  const char* name, USER_DEFINED_CONVERTER g, frame_info &fi, const entitySet &en);
+                  const char* name, USER_DEFINED_CONVERTER g, frame_info &fi, const gEntitySet &en);
   
   public:
 

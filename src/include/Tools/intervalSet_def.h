@@ -38,10 +38,11 @@ namespace Loci {
 
   typedef int int_type ;
 
-  //#define LONG_GENTITY
+#define LONG_GENTITY
 
 #ifdef LONG_GENTITY
   typedef long long int gEntity;
+#define COPY2STORE
 #else
 #define COPY2STORE
   typedef int_type gEntity;

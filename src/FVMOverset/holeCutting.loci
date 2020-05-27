@@ -363,7 +363,7 @@ namespace Loci {
       int rsz = recv_pnts.size() ;
       // break out data by component
       vector<vector<Loci::kdTree::coord3d> > pnts(nc) ;
-      vector<vector<int> > pnt_id(nc) ;
+      vector<vector<gEntity> > pnt_id(nc) ;
       for(int i=0;i<rsz;++i) {
 	Loci::kdTree::coord3d c3d ;
 

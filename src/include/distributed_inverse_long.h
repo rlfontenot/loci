@@ -74,7 +74,7 @@ namespace Loci {
       size_recv += recv_sz[i] ;
     }
  
-    T *send_store = new int[size_send] ;
+    T *send_store = new T[size_send] ;
     recv_store.resize(size_recv) ;
     int *send_displacement = new int[MPI_processes] ;
     int *recv_displacement = new int[MPI_processes] ;

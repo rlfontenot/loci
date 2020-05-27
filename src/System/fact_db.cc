@@ -73,10 +73,10 @@ namespace Loci {
     dist_from_start = 0 ;
     //why need EMPTY and UNIVERSE?
     gConstraint EMPTY_constraint ;
-    EMPTY_constraint = EMPTY ;
+    EMPTY_constraint = GEMPTY ;
     create_gfact("EMPTY",EMPTY_constraint) ;
     gConstraint UNIVERSE_constraint ;
-    UNIVERSE_constraint = ~EMPTY ;
+    UNIVERSE_constraint = ~GEMPTY ;
     create_gfact("UNIVERSE",UNIVERSE_constraint) ;
     
   }

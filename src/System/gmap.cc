@@ -542,7 +542,7 @@ namespace Loci {
 #ifdef COPY2STORE  
   storeRepP gMapRepI::copy2store() const{
     // if(!sorted)throw(bad_access);
-    entitySet dom = domain();
+    entitySet dom = gconvert(domain());
     fatal(size() != dom.size()) ;
     Map s;
     s.allocate(dom);

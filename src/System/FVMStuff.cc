@@ -139,7 +139,7 @@ namespace Loci{
       gEntitySet faces = (cr.preimage(volSets[i]).first +
                           cl.preimage(volSets[i]).first) ;
       
-      facesets.push_back(all_collect_entitySet(faces)) ;
+      facesets.push_back(g_all_collect_entitySet(faces)) ;
     }
 
     // Now get node associations with volumes
@@ -492,29 +492,24 @@ namespace Loci{
     int sz = input.size()+1 ;
     int p = 1 ;
     MPI_Comm_size(comm,&p) ;
-    int *sizes = new int[p] ;
-    MPI_Allgather(&sz,1,MPI_INT,sizes,1,MPI_INT,comm) ;
+    vector<int> sizes(p) ;
+    MPI_Allgather(&sz,1,MPI_INT,&sizes[0],1,MPI_INT,comm) ;
     int tot = 0 ;
     for(int i=0;i<p;++i)
       tot += sizes[i] ;
-    char *buf = new char[tot] ;
-    int *displ = new int[p] ;
+    vector<char> buf(tot) ;
+    vector<int> displ(p) ;
     displ[0] = 0 ;
     for(int i=1;i<p;++i)
       displ[i] = displ[i-1]+sizes[i-1] ;
-    char *ibuf = new char[sz] ;
-    strcpy(ibuf,input.c_str()) ;
-    MPI_Allgatherv(ibuf,sz,MPI_CHAR,
-                   buf, sizes, displ,MPI_CHAR,comm) ;
+    vector<char> ibuf(sz) ;
+    strcpy(&ibuf[0],input.c_str()) ;
+    MPI_Allgatherv(&ibuf[0],sz,MPI_CHAR,
+                   &buf[0], &sizes[0], &displ[0],MPI_CHAR,comm) ;
     string retval ;
     for(int i=0;i<p;++i)
       retval += string(&(buf[displ[i]])) ;
 
-    delete[] sizes ;
-    delete[] buf ;
-    delete[] ibuf ;
-    delete[] displ ;
-    
     return retval ;
   }
   //node_id range is 1~numNodes
@@ -1717,7 +1712,7 @@ namespace Loci{
       splitters[num_procs-1] = global_vp_size ;
 
       // split and communicate the vector of particles
-      vector<gEntity> send_counts(num_procs, 0) ;
+      vector<int> send_counts(num_procs, 0) ;
       gEntity part_start = global_start ;
       for(int idx=0;idx<num_procs;++idx) {
         if(part_start == global_end)
@@ -1736,16 +1731,16 @@ namespace Loci{
       for(size_t i=0;i<send_counts.size();++i)
         send_counts[i] *= 2 ;
 
-      vector<gEntity> send_displs(num_procs) ;
+      vector<int> send_displs(num_procs) ;
       send_displs[0] = 0 ;
       for(gEntity i=1;i<num_procs;++i)
         send_displs[i] = send_displs[i-1] + send_counts[i-1] ;
 
-      vector<gEntity> recv_counts(num_procs) ;
+      vector<int> recv_counts(num_procs) ;
       MPI_Alltoall(&send_counts[0], 1, MPI_T_type,
                    &recv_counts[0], 1, MPI_T_type, comm) ;
 
-      vector<gEntity> recv_displs(num_procs) ;
+      vector<int> recv_displs(num_procs) ;
       recv_displs[0] = 0 ;
       for(gEntity i=1;i<num_procs;++i)
         recv_displs[i] = recv_displs[i-1] + recv_counts[i-1] ;
@@ -1795,7 +1790,7 @@ namespace Loci{
       // get the number of local elements
       int local_size = data.size() ;
       // then select num_procs-1 equally spaced elements as splitters
-      gEntity* splitters = new gEntity[num_procs] ;
+      vector<gEntity> splitters(num_procs) ;
       int even_space = local_size / (num_procs-1) ;
       int start_idx = even_space / 2 ;
       int space_idx = start_idx ;
@@ -1803,12 +1798,12 @@ namespace Loci{
         splitters[i] = data[space_idx].first ;
       // gather the splitters to all processors as samples
       int sample_size = num_procs * (num_procs-1) ;
-      gEntity* samples = new gEntity[sample_size] ;
+      vector<gEntity> samples(sample_size) ;
       MPI_Datatype MPI_T_type = MPI_traits<gEntity>::get_MPI_type() ;
-      MPI_Allgather(splitters, num_procs-1, MPI_T_type,
-                    samples, num_procs-1, MPI_T_type, comm) ;
+      MPI_Allgather(&splitters[0], num_procs-1, MPI_T_type,
+                    &samples[0], num_procs-1, MPI_T_type, comm) ;
       // now we've obtained all the samples, first we sort them
-      sort(samples, samples+sample_size) ;
+      sort(&samples[0], (&samples[0])+sample_size) ;
       // select new splitters in the sorted samples
       even_space = sample_size / (num_procs-1) ;
       start_idx = even_space / 2 ;
@@ -1821,7 +1816,7 @@ namespace Loci{
       // now we can assign local elements to buckets (processors)
       // according to the new splitters. first we will compute
       // the size of each bucket and communicate them first
-      int* scounts = new gEntity[num_procs] ;
+      vector<int> scounts(num_procs) ;
       for(int i=0;i<num_procs;++i)
         scounts[i] = 0 ;
       { // using a block just to make the definition of "i" and "j" local
@@ -1844,23 +1839,23 @@ namespace Loci{
       for(int i=0;i<num_procs;++i)
         scounts[i] *= 2 ;
       // now we compute the sending displacement for each bucket
-      int* sdispls = new gEntity[num_procs] ;
+      vector<int> sdispls(num_procs) ;
       sdispls[0] = 0 ;
       for(int i=1;i<num_procs;++i)
         sdispls[i] = sdispls[i-1] + scounts[i-1] ;
       // communicate this information to all processors so that each will
       // know how many elements are expected from every other processor
-      int* rcounts = new gEntity[num_procs] ;
-      MPI_Alltoall(scounts, 1, MPI_INT, rcounts, 1, MPI_INT, comm) ;
+      vector<int> rcounts(num_procs) ;
+      MPI_Alltoall(&scounts[0], 1, MPI_INT, &rcounts[0], 1, MPI_INT, comm) ;
       // then based on the received info. we will need to compute the
       // receive displacement
-      int* rdispls = new gEntity[num_procs] ;
+      vector<int> rdispls(num_procs) ;
       rdispls[0] = 0 ;
       for(int i=1;i<num_procs;++i)
         rdispls[i] = rdispls[i-1] + rcounts[i-1] ;
       // then we will need to pack the elements in local gEntityo
       // a buffer and communicate them
-      gEntity* local_pairs = new gEntity[local_size*2] ;
+      vector<gEntity> local_pairs(local_size*2) ;
       int count = 0 ;
       for(int i=0;i<local_size;++i) {
         local_pairs[count++] = data[i].first ;
@@ -1868,25 +1863,18 @@ namespace Loci{
       }
       // then we allocate buffer for new local elements
       int new_local_size = rdispls[num_procs-1] + rcounts[num_procs-1] ;
-      gEntity* sorted_pairs = new gEntity[new_local_size] ;
+      vector<gEntity> sorted_pairs(new_local_size) ;
       // finally we communicate local_pairs to each processor
-      MPI_Alltoallv(local_pairs, scounts, sdispls, MPI_T_type,
-                    sorted_pairs, rcounts, rdispls, MPI_T_type, comm) ;
+      MPI_Alltoallv(&local_pairs[0], &scounts[0], &sdispls[0], MPI_T_type,
+                    &sorted_pairs[0], &rcounts[0], &rdispls[0], MPI_T_type,
+		    comm) ;
       // release buffers
-      delete[] splitters ;
-      delete[] samples ;
-      delete[] scounts ;
-      delete[] sdispls ;
-      delete[] rcounts ;
-      delete[] rdispls ;
-      delete[] local_pairs ;
       // finally we unpack the buffer gEntityo a vector of pairs
       data.resize(new_local_size/2) ;
       int data_idx = 0 ;
       for(int i=0;i<new_local_size;i+=2,data_idx++)
         data[data_idx] = pair<gEntity,gEntity>(sorted_pairs[i],sorted_pairs[i+1]) ;
       // release the final buffer
-      delete[] sorted_pairs ;
       // finally we sort the new local vector
       sort(data.begin(), data.end()) ;
     }
@@ -1901,7 +1889,7 @@ namespace Loci{
       // get the number of local elements
       int local_size = data.size() ;
       // then select num_procs-1 equally spaced elements as splitters
-      pair<gEntity, gEntity> *splitters = new pair<gEntity, gEntity>[num_procs] ;
+      vector<pair<gEntity, gEntity> > splitters(num_procs) ;
       int even_space = local_size / (num_procs-1) ;
       int start_idx = even_space / 2 ;
       int space_idx = start_idx ;
@@ -1909,12 +1897,12 @@ namespace Loci{
         splitters[i] = data[space_idx].first ;
       // gather the splitters to all processors as samples
       gEntity sample_size = num_procs * (num_procs-1) ;
-      pair<gEntity, gEntity>* samples = new pair<gEntity, gEntity>[sample_size] ;
+      vector<pair<gEntity, gEntity> > samples(sample_size) ;
       MPI_Datatype MPI_T_type = MPI_traits<gEntity>::get_MPI_type() ;
-      MPI_Allgather(splitters, (num_procs-1)*2, MPI_T_type,
-                    samples, (num_procs-1)*2, MPI_T_type, comm) ;
+      MPI_Allgather(&splitters[0], (num_procs-1)*2, MPI_T_type,
+                    &samples[0], (num_procs-1)*2, MPI_T_type, comm) ;
       // now we've obtained all the samples, first we sort them
-      sort(samples, samples+sample_size) ;
+      sort(&samples[0], (&samples[0])+sample_size) ;
       // select new splitters in the sorted samples
       even_space = sample_size / (num_procs-1) ;
       start_idx = even_space / 2 ;
@@ -1929,7 +1917,7 @@ namespace Loci{
       // now we can assign local elements to buckets (processors)
       // according to the new splitters. first we will compute
       // the size of each bucket and communicate them first
-      int *scounts = new gEntity[num_procs] ;
+      vector<int> scounts(num_procs) ;
       for(gEntity i=0;i<num_procs;++i)
         scounts[i] = 0;
       { // using a block just to make the definition of "i" and "j" local
@@ -1952,23 +1940,23 @@ namespace Loci{
       for(int i=0;i<num_procs;++i)
         scounts[i] *= 3 ;
       // now we compute the sending displacement for each bucket
-      int* sdispls = new gEntity[num_procs] ;
+      vector<int> sdispls(num_procs) ;
       sdispls[0] = 0 ;
       for(int i=1;i<num_procs;++i)
         sdispls[i] = sdispls[i-1] + scounts[i-1] ;
       // communicate this information to all processors so that each will
       // know how many elements are expected from every other processor
-      int* rcounts = new int[num_procs] ;
-      MPI_Alltoall(scounts, 1, MPI_INT, rcounts, 1, MPI_INT, comm) ;
+      vector<int> rcounts(num_procs) ;
+      MPI_Alltoall(&scounts[0], 1, MPI_INT, &rcounts[0], 1, MPI_INT, comm) ;
       // then based on the received info. we will need to compute the
       // receive displacement
-      int* rdispls = new int[num_procs] ;
+      vector<int> rdispls(num_procs) ;
       rdispls[0] = 0 ;
       for(int i=1;i<num_procs;++i)
         rdispls[i] = rdispls[i-1] + rcounts[i-1] ;
       // then we will need to pack the elements in local gEntityo
       // a buffer and communicate them
-      gEntity* local_pairs = new gEntity[local_size*3] ;
+      vector<gEntity> local_pairs(local_size*3) ;
       int count = 0 ;
       for(int i=0;i<local_size;++i) {
         local_pairs[count++] = data[i].first.first ;
@@ -1977,25 +1965,17 @@ namespace Loci{
       }
       // then we allocate buffer for new local elements
       int new_local_size = rdispls[num_procs-1] + rcounts[num_procs-1] ;
-      gEntity* sorted_pairs = new gEntity[new_local_size] ;
+      vector<gEntity> sorted_pairs(new_local_size) ;
       // finally we communicate local_pairs to each processor
-      MPI_Alltoallv(local_pairs, scounts, sdispls, MPI_T_type,
-                    sorted_pairs, rcounts, rdispls, MPI_T_type, comm) ;
-      // release buffers
-      delete[] splitters ;
-      delete[] samples ;
-      delete[] scounts ;
-      delete[] sdispls ;
-      delete[] rcounts ;
-      delete[] rdispls ;
-      delete[] local_pairs ;
+      MPI_Alltoallv(&local_pairs[0], &scounts[0], &sdispls[0], MPI_T_type,
+                    &sorted_pairs[0], &rcounts[0], &rdispls[0], MPI_T_type,
+		    comm) ;
       // finally we unpack the buffer gEntityo a vector of pairs
       data.resize(new_local_size/3) ;
       int data_idx = 0 ;
       for(int i=0;i<new_local_size;i+=3,data_idx++)
         data[data_idx] = pair<pair<gEntity,gEntity>, gEntity>(pair<gEntity, gEntity>(sorted_pairs[i],sorted_pairs[i+1]), sorted_pairs[i+2]) ;
       // release the final buffer
-      delete[] sorted_pairs ;
       // finally we sort the new local vector
       sort(data.begin(), data.end()) ;
     }
@@ -2033,7 +2013,7 @@ namespace Loci{
       splitters[num_procs-1] = global_vp_size ;
   
       // split and communicate the vector of particles
-      vector<gEntity> send_counts(num_procs, 0) ;
+      vector<int> send_counts(num_procs, 0) ;
       gEntity part_start = global_start ;
       for(int idx=0;idx<num_procs;++idx) {
         if(part_start == global_end)
@@ -2052,16 +2032,16 @@ namespace Loci{
       for(size_t i=0;i<send_counts.size();++i)
         send_counts[i] *= 3 ;
   
-      vector<gEntity> send_displs(num_procs) ;
+      vector<int> send_displs(num_procs) ;
       send_displs[0] = 0 ;
       for(int i=1;i<num_procs;++i)
         send_displs[i] = send_displs[i-1] + send_counts[i-1] ;
   
-      vector<gEntity> recv_counts(num_procs) ;
+      vector<int> recv_counts(num_procs) ;
       MPI_Alltoall(&send_counts[0], 1, MPI_T_type,
                    &recv_counts[0], 1, MPI_T_type, comm) ;
   
-      vector<gEntity> recv_displs(num_procs) ;
+      vector<int> recv_displs(num_procs) ;
       recv_displs[0] = 0 ;
       for(int i=1;i<num_procs;++i)
         recv_displs[i] = recv_displs[i-1] + recv_counts[i-1] ;
@@ -2440,7 +2420,7 @@ namespace Loci{
       //unless parallel_balance_pair2_vector create duplicates, there should be no duplicates
       sort(edge_file_vec.begin(),edge_file_vec.end()) ;
 
-      vector<pair<pair<Entity,Entity>, Entity> >::iterator uend2 ;
+      vector<pair<pair<gEntity,gEntity>, gEntity> >::iterator uend2 ;
       uend2 = unique(edge_file_vec.begin(), edge_file_vec.end()) ;
       edge_file_vec.erase(uend2, edge_file_vec.end()) ;
            
@@ -2853,7 +2833,7 @@ namespace Loci{
     
     for(; bname_itr != boundary_names.end(); bname_itr++, btag_itr++) {
       gEntity bc = bname_itr->first ;
-      gEntitySet bcset = interval(bc,bc) ;
+      gEntitySet bcset = gInterval(bc,bc) ;
       gEntitySet bfaces = ref.preimage(bcset).first ;
       
       

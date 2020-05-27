@@ -152,7 +152,7 @@ namespace Loci {
 #ifdef COPY2STORE  
   storeRepP gConstraintRep::copy2store()const {
     constraint cs;
-    cs = constraint_set; 
+    cs = gconvert(constraint_set); 
     return cs.Rep(); 
   }
 #endif

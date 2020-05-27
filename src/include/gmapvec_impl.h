@@ -775,7 +775,7 @@ namespace Loci {
 #ifdef COPY2STORE  
   template<unsigned int M> 
   storeRepP gMapVecRepI<M>::copy2store() const{
-    entitySet dom = domain();
+    entitySet dom = gconvert(domain());
     MapVec<M> s ;
     s.allocate(dom) ;
     int ind = 0;

@@ -259,7 +259,7 @@ namespace Loci {
 #ifdef COPY2STORE  
     virtual storeRepP copy2store() const{
       fatal(!sorted);
-      entitySet dom = domain();
+      entitySet dom = gconvert(domain());
       fatal(size() != dom.size()) ;
       store<T> s;
       s.allocate(dom);

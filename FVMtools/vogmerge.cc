@@ -39,6 +39,8 @@ using std::cerr ;
 using std::endl ;
 using Loci::vector3d ;
 using Loci::entitySet;
+using Loci::gEntitySet ;
+using Loci::gEntity ;
 typedef vector3d<double> vect3d;
 
 FILE *mytmpfile() {
@@ -468,10 +470,10 @@ void createNodeMap(const vector<coord3d>& pos,
   int sz =pos.size();
 
   // Sparse matrix using entitySets  
-  vector<entitySet> matrix(sz)  ;
+  vector<Loci::gEntitySet> matrix(sz)  ;
   
   //each point get an id
-  vector<int> pntid(sz);
+  vector<Loci::gEntity> pntid(sz);
   for(int i=0;i<sz;++i)pntid[i] = i ;
 
   //build search tree
@@ -498,7 +500,7 @@ void createNodeMap(const vector<coord3d>& pos,
       vect3d p = vect3d(found_pts[pi].coords[0], found_pts[pi].coords[1], found_pts[pi].coords[2]);
       if(norm(p - center) <= min_len[i] && i != found_pts[pi].id){
 	matrix[i] += found_pts[pi].id ;
-	matrix[found_pts[pi].id] += i  ;
+	matrix[int(found_pts[pi].id)] += gEntity(i)  ;
       }   
     }
     
@@ -509,12 +511,12 @@ void createNodeMap(const vector<coord3d>& pos,
   while(updated){
     updated = false;
     for(int i = 0; i < sz; i++) {
-      for(entitySet::const_iterator ei=matrix[i].begin();
+      for(gEntitySet::const_iterator ei=matrix[i].begin();
 	  ei != matrix[i].end(); ++ei) {
 	int j = *ei ;
-	for(entitySet::const_iterator ek=matrix[j].begin();
+	for(gEntitySet::const_iterator ek=matrix[j].begin();
 	    ek!= matrix[j].end();++ek) {
-	  int k = *ek ;
+	  gEntity k = *ek ;
 	  if(i != k) {
 	    if(!matrix[i].inSet(k)){
 	      updated = true;
@@ -528,7 +530,7 @@ void createNodeMap(const vector<coord3d>& pos,
   
   for(int i = 0; i < sz; i++){
     vector<int> eqPoints;
-    for(entitySet::const_iterator ei=matrix[i].begin();
+    for(gEntitySet::const_iterator ei=matrix[i].begin();
 	ei != matrix[i].end(); ++ei) {
       int j = *ei ;
       eqPoints.push_back(j);

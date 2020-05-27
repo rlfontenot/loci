@@ -31,7 +31,7 @@ namespace Loci {
   //**************************************************************************/
   template<class T> storeRepP gParamRepI<T>::copy2store()const{
     param<T> r ;
-    r.set_entitySet(store_domain);
+    r.set_entitySet(gconvert(store_domain));
     *r = attrib_data;
     return r.Rep() ;
   }
@@ -443,7 +443,7 @@ namespace Loci {
 
   template <class T>
   void gParamRepI<T>::hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension,
-                              const char* name, USER_DEFINED_CONVERTER g, frame_info &fi, const entitySet &en)
+			       const char* name, USER_DEFINED_CONVERTER g, frame_info &fi, const gEntitySet &gen)
   {
     typedef data_schema_traits<T> schema_traits ;
     if(dimension != 0) {
