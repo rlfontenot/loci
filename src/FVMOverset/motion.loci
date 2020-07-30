@@ -632,23 +632,4 @@ namespace Loci {
     $componentVectorRotation_X.z = v ;
   }
 
-  $type componentVectorRotation_X param<tensor3d<real_t> > ;
-
-  $rule singleton(componentVectorRotation_X<-componentTransformsn_X), parametric(volumeTag(X)) {
-    int sz = $componentTransformsn_X.size() ;
-    vector3d<real_t> v = vector3d<real_t>(1,0,0) ;
-    for(int i=0;i<sz;++i)
-      v = $componentTransformsn_X[i].applyRotation(v) ;
-    $componentVectorRotation_X.x = v ;
-    v = vector3d<real_t>(0,1,0) ;
-    for(int i=0;i<sz;++i)
-      v = $componentTransformsn_X[i].applyRotation(v) ;
-    $componentVectorRotation_X.y = v ;
-    v = vector3d<real_t>(0,0,1) ;
-    for(int i=0;i<sz;++i)
-      v = $componentTransformsn_X[i].applyRotation(v) ;
-    $componentVectorRotation_X.z = v ;
-  }
-
-
 }
