@@ -63,7 +63,7 @@ namespace {
   }
 }
 
-#define VERBOSE
+//#define VERBOSE
 
 namespace Loci {
   extern bool profile_memory_usage ;
