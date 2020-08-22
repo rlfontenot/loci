@@ -2234,43 +2234,74 @@ namespace Loci {
           }
           
           if(file_exists == 1 || cell_weight_store != 0){ 
-            
+
+	    int offset = local_cells[Loci::MPI_rank].Min()-cell_weights.domain().Min() ;
+
+	    storeRepP sp = cell_weights.Rep();
+	    sp->shift(offset) ;
+	    
 	    if(cell_weights.domain() != local_cells[Loci::MPI_rank]) {
+	      cerr << "cell_weights=" << cell_weights.domain() << ", local_cells = " << local_cells[Loci::MPI_rank] << endl ;
 	      cerr << "cell weights partition inconsistent!" << endl ;
 	      Loci::Abort() ;
 	    }
         
-	   
-	    int tot_weight = 0 ;
 
+	    int tot_weight1 = 0 ;
+	    int tot_weight2 = 0 ;
+	    
 	    cell_ptn[MPI_rank] = EMPTY ;
 	    entitySet dom = cell_weights.domain() ;
 	    FORALL(dom,i) {
-	      tot_weight += cell_weights[i] ;
+	      if(cell_weights[i] <= 1)
+		tot_weight1++ ;
+	      else
+		tot_weight2 += cell_weights[i] ;
 	    } ENDFORALL ;
-	    vector<int> pweights(MPI_processes,0) ;
-	    MPI_Allgather(&tot_weight,1,MPI_INT,&pweights[0],1,MPI_INT,
+	    vector<int> pweights1(MPI_processes,0) ;
+	    MPI_Allgather(&tot_weight1,1,MPI_INT,&pweights1[0],1,MPI_INT,
 			  MPI_COMM_WORLD) ;
-	    vector<int> woffsets(MPI_processes+1,0) ;
-	    for(int i=0;i<MPI_processes;++i)
-	      woffsets[i+1] = pweights[i]+woffsets[i] ;
+	    vector<int> pweights2(MPI_processes,0) ;
+	    MPI_Allgather(&tot_weight2,1,MPI_INT,&pweights2[0],1,MPI_INT,
+			  MPI_COMM_WORLD) ;
+	    
+	    vector<int> woffsets1(MPI_processes+1,0) ;
+	    vector<int> woffsets2(MPI_processes+1,0) ;
+	    for(int i=0;i<MPI_processes;++i) {
+	      woffsets1[i+1] = pweights1[i]+woffsets1[i] ;
+	      woffsets2[i+1] = pweights2[i]+woffsets2[i] ;
+	    }
 
 	    // compute the weight per processor
-	    int wpp = ((woffsets[MPI_processes]+MPI_processes-1)/MPI_processes) ;
+	    int wpp1 = ((woffsets1[MPI_processes]+MPI_processes-1)/MPI_processes) ;
+	    int wpp2 = ((woffsets2[MPI_processes]+MPI_processes-1)/MPI_processes) ;
 	    // Now compute local weighted sums
-	    int ncel = cell_weights.domain().size() ;
-	    vector<int> wts(ncel+1,woffsets[MPI_rank]) ;
-	    int cnt = 0 ;
+	    int ncel = dom.size() ;
+	    vector<int> wts1(tot_weight1+1, woffsets1[MPI_rank]) ;
+	    vector<int> wts2(ncel-tot_weight1+1,woffsets2[MPI_rank]) ;
+	    int cnt1 = 0 ;
+	    int cnt2 = 0 ;
 	    FORALL(dom,i) {
-	      wts[cnt+1] = wts[cnt] + cell_weights[i] ;
-	      cnt++ ;
+	      if(cell_weights[i] <= 1) {
+		wts1[cnt1+1] = wts1[cnt1]+1 ;
+		cnt1++ ;
+	      } else { 
+		wts2[cnt2+1] = wts2[cnt2]+cell_weights[i] ;
+		cnt2++ ;
+	      }
 	    } ENDFORALL ;
-	    
+
 	    entitySet pdom = local_cells[MPI_rank] ;
-	    cnt = 0 ;
-	    FORALL(pdom,i) {
-	      cell_ptn[wts[cnt]/wpp] += i ;
-	      cnt++ ;
+	    cnt1 = 0 ;
+	    cnt2 = 0 ;
+	    FORALL(dom,i) {
+	      if(cell_weights[i] <= 1) {
+		cell_ptn[wts1[cnt1]/wpp1] += i ;
+		cnt1++ ;
+	      } else {
+		cell_ptn[wts2[cnt2]/wpp2] += i ;
+		cnt2++ ;
+	      }
 	    } ENDFORALL ;
 	  }
 	  
