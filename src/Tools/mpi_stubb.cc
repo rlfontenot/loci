@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -313,8 +313,9 @@ extern "C" {
 
   int  MPI_Waitall(int, MPI_Request *, MPI_Status *)
   {
-    cerr << "MPI_Waitall" << endl ;
-    err_report(); return -1;
+    //    cerr << "MPI_Waitall" << endl ;
+    //    err_report(); return -1;
+    return 0 ;
   }
 
   int  MPI_Testall(int, MPI_Request *, int *, MPI_Status *)
@@ -506,6 +507,14 @@ extern "C" {
     err_report(); return -1;
   }
 
+  int MPI_Type_create_resized(MPI_Datatype oldtype,
+			      MPI_Aint lb,
+			      MPI_Aint extent,
+			      MPI_Datatype *newtype) {
+    cerr << "MPI_Type_create_resized" << endl ;
+    err_report(); return -1;
+  }    
+  
   int  MPI_Get_elements(MPI_Status *, MPI_Datatype, int *)
   {
     cerr << "MPI_Get_elements" << endl ;
@@ -1431,5 +1440,13 @@ extern "C" {
     err_report();
     return 0;
   }
+  int  MPI_Comm_create_errhandler(MPI_Handler_function *, MPI_Errhandler *) {
+    return 0 ;
+  }
+ 
+  int  MPI_Comm_set_errhandler(MPI_Comm, MPI_Errhandler) {
+    return 0 ;
+  }
+
 }
 #endif

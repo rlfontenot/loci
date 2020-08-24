@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -110,7 +110,7 @@ namespace Loci {
     {"Celsius","kelvin",1},
     {"C","kelvin",1},
 
-    {"m^2","m^2",1},//area
+    {"centiare","m*m",1},//area
 
     //composite unit
     {"hertz","second/second/second",1},
@@ -136,13 +136,13 @@ namespace Loci {
   };
 
   UNIT_type::reference_units UNIT_type::reference_unit_table[]={
-    {"acre","m^2",404.6873},//area
-    {"are","m^2",100},
-    {"a","m^2",100},
-    {"barn","m^2",1e-28},
-    {"b","m^2",1e-28},
-    {"hectare","m^2",1.0e4},
-    {"ha","m^2",1.0e4},
+    {"acre","m*m",404.6873},//area
+    {"are","m*m",100},
+    {"a","m*m",100},
+    {"barn","m*m",1e-28},
+    {"b","m*m",1e-28},
+    {"hectare","m*m",1.0e4},
+    {"ha","m*m",1.0e4},
 
     {"calorie","joule",4.184},//thermochemical calorie
     {"cal","joule",4.184},
@@ -200,8 +200,8 @@ namespace Loci {
     {"denier","kg/m",1.111111e-7},//mass divided by length
     {"tex","kg/m",1e-6},
 
-    {"darcy","m^2",9.869233e-13},//permeability
-    {"perm","kg/(Pa*s*(m^2))",5.72135e-11},//(0C)
+    {"darcy","m*m",9.869233e-13},//permeability
+    {"perm","kg/Pa/s/m/m))",5.72135e-11},//(0C)
 
     {"horsepower","W",7.354988e2},//power(metric)
     {"hp","W",7.354988e2},
@@ -229,32 +229,32 @@ namespace Loci {
     {"P","Pa*s",1e-1},
     {"rhe","1/(Pa*s)",1e1},
     
-    {"centistokes","(m^2)/s",1e-6},//viscosity,kinematic
-    {"stokes","(m^2)/s",1e-4},
-    {"St","(m^2)/s",1e-4},
+    {"centistokes","m*m/s",1e-6},//viscosity,kinematic
+    {"stokes","m*m/s",1e-4},
+    {"St","m*m/s",1e-4},
     
-    {"acrefoot","m^3",1.233489e3},//volume
-    {"barrel","m^3",1.589873e-1},
-    {"bll","m^3",1.589873e-1},
-    {"bushel","m^3",3.523907e-2},
-    {"cord","m^3",3.624556},
-    {"cup","m^3",2.365882e-4},
-    {"gallon","m^3",4.54609e-3},
-    {"gal","m^3",4.54609e-3},
-    {"gill","m^3",1.420653e-4},
-    {"gi","m^3",1.420653e-4},
-    {"liter","m^3",1e-3},
-    {"peck","m^3",8.809768e-3},
-    {"pk","m^3",8.809768e-3},
-    {"pint","m^3",4.731765e-4},
-    {"quart","m^3",9.463529e-4},
-    {"stere","m^3",1},
-    {"st","m^3",1},
-    {"tablespoon","m^3",1.478676e-5},
-    {"teaspoon","m^3",4.928922e-6},
-    {"cc","m^3",1e-6}, // cubic centimeter
+    {"acrefoot","m*m*m",1.233489e3},//volume
+    {"barrel","m*m*m",1.589873e-1},
+    {"bll","m*m*m",1.589873e-1},
+    {"bushel","m*m*m",3.523907e-2},
+    {"cord","m*m*m",3.624556},
+    {"cup","m*m*m",2.365882e-4},
+    {"gallon","m*m*m",4.54609e-3},
+    {"gal","m*m*m",4.54609e-3},
+    {"gill","m*m*m",1.420653e-4},
+    {"gi","m*m*m",1.420653e-4},
+    {"liter","m*m*m",1e-3},
+    {"peck","m*m*m",8.809768e-3},
+    {"pk","m*m*m",8.809768e-3},
+    {"pint","m*m*m",4.731765e-4},
+    {"quart","m*m*m",9.463529e-4},
+    {"stere","m*m*m",1},
+    {"st","m*m*m",1},
+    {"tablespoon","m*m*m",1.478676e-5},
+    {"teaspoon","m*m*m",4.928922e-6},
+    {"cc","m*m*m",1e-6}, // cubic centimeter
 
-    {"clo","(m^2)*K/W",1.55e-1},//thermal insulance
+    {"clo","m*m*K/W",1.55e-1},//thermal insulance
 
     {"atm","pascal",101325},
     {"bar","pascal",100000},
@@ -328,7 +328,7 @@ namespace Loci {
     {0,0,0}
 
   };
-  
+
   UNIT_type::default_units UNIT_type::default_unit_table[]={
     {"general"," "},
     {"length","meter"},
@@ -345,13 +345,13 @@ namespace Loci {
     {"amount_of_substance","mole"},
     {"Luminous_intensity","candela"},
     {"luminous_intensity","candela"},
-    {"area","m^2"},
-    {"density","kg/(m^3)"},
+    {"area","m*m"},
+    {"density","kg/m/m/m"},
     {"energy","J"},
     {"power","W"},
     {"stress","Pa"},
-    {"capacity","m^3"},
-    {"density","kg/(m^3)"},
+    {"capacity","m*m*m"},
+    {"density","kg/m/m/m"},
     {"flow","kg/s"},
     {"force","N"},
     {"Power","J"},
@@ -361,9 +361,9 @@ namespace Loci {
     {"speed","m/s"},
     {"Speed","m/s"},
     {"viscocityD","Pa*s"},
-    {"viscocityK","(m^2)/s"},
-    {"volume","m^3"},
-    {"Volume","m^3"},
+    {"viscocityK","m*m/s"},
+    {"volume","m*m*m"},
+    {"Volume","m*m*m"},
     {"pressure","Pa"},
     {"Pressure","Pa"},
     {"heat","J"},

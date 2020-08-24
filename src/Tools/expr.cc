@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -31,8 +31,6 @@ using std::vector ;
 using std::set ;
 #include <string>
 using std::string ;
-
-#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 
 #ifndef M_PI
 #define M_PI	3.14159265358979323846
@@ -1108,6 +1106,10 @@ namespace Loci {
     This method is not recursive. While loops are used to reduce the amount of
     function calling overhead.
   */
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+#endif
   void expression::compile_expr(compiled_expr &c_expr, int dnum)
   {
     //a pointer to the expression being compiled
@@ -1421,6 +1423,9 @@ namespace Loci {
       }
   }
 
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 
 
   double expression::evaluate(const std::map<std::string, double> &varmap) const
