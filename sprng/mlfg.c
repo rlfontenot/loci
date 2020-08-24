@@ -249,7 +249,10 @@ static void si_double(uint64 *a,  uint64 *b, int length)
 }
 
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+#endif
 
 static void pow3(uint64 n, uint64 *ui)		/* return 3^n (mod 2^BITS) */
 {
@@ -675,8 +678,6 @@ int *genptr;
 }
 
 
-#pragma GCC diagnostic ignored "-Wunused-variable"
-
 
 #ifdef __STDC__
 int pack_rng( int *genptr, char **buffer)
@@ -687,7 +688,7 @@ char **buffer;
 #endif
 {
   unsigned char *p, *initp;
-  int size, i;
+  int size;
   struct rngen *q;
 
   q = (struct rngen *) genptr;
@@ -830,3 +831,6 @@ int *igen;
 }
 
 
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif

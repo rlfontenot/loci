@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -142,6 +142,7 @@ namespace Loci {
                 << std::endl ;
       Loci::Abort() ;
     }
+
     if(nlocal < p) {
       // If there aren't enough splitters, replicate the first entry
       // to fill in the rest.  May not be efficient, but the sort
@@ -150,9 +151,10 @@ namespace Loci {
         splitters[i] = input[i] ;
       for(int i=nlocal;i<p-1;++i)
         splitters[i] = input[0] ;
-    } else 
+    } else {
       for(int i=1;i<p;++i) 
-        splitters[i-1] = input[(i*nlocal)/p] ;
+        splitters[i-1] = input[i*(nlocal/p)] ;
+    }
 
     MPI_Allgather(&splitters[0],(p-1),bytearray,
                   &allsplits[0],(p-1),bytearray,comm) ;
@@ -209,7 +211,6 @@ namespace Loci {
     }
   
     int result_size = (rdispls[p-1]+rcounts[p-1]) ;
-    
     std::vector<T> sorted_pnts(result_size) ;
 
     MPI_Alltoallv(&list[0],&scounts[0],&sdispls[0],bytearray,
@@ -239,6 +240,7 @@ namespace Loci {
     // ideally this will have p^2 numbers per processor
     if(tsz == 0)
       return ;
+
     int target_p = max(1,int(floor(pow(double(tsz),1./3.)))) ;
 
     if(target_p < p) { // reduce to subset of processors
@@ -250,7 +252,7 @@ namespace Loci {
       MPI_Type_commit(&bytearray) ;
       if(r < target_p) {
         color = 0 ;
-        int loc_size = int(lsz) ;
+        size_t loc_size = int(lsz) ;
         std::vector<int> recv_sizes ;
         for(int i=r+target_p;i<p;i+=target_p) {
           int tmp = 0 ;
@@ -264,7 +266,7 @@ namespace Loci {
         for(long long i=0;i<lsz;++i)
           nlist[i] = list[i] ;
 
-        int loc = lsz ;
+        size_t loc = lsz ;
         int cnt = 0 ;
         for(int i=r+target_p;i<p;i+=target_p) {
 
@@ -306,9 +308,7 @@ namespace Loci {
         return ;
       
       std::vector<T> splitters ;
-
       parGetSplitters(splitters,list,cmp,comm) ;
-
       parSplitSort(list,splitters,cmp,comm) ;
     }
 

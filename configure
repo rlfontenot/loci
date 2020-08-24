@@ -22,10 +22,19 @@
 
 LD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:$LD_LIBRARY_PATH:/:/usr:/usr/local:/opt:/opt/local
 PETSC_BASE=$PETSC_DIR
-
+if [ -e ParMetis-4.0/metis.h ] ; then
+INSTALL_METIS=1
+USE_METIS=1
 METIS_BASE="\$(LOCI_BASE)/ParMetis-4.0"
 METIS_LIBS="-lparmetis -lmetis -lgk"
 METIS_INCLUDE="-I\$(METIS_BASE) -DLOCI_USE_METIS"
+else
+INSTALL_METIS=0
+USE_METIS=0
+METIS_BASE=
+METIS_LIBS=
+METIS_INCLUDE=
+fi
 
 set +e
 set -u
@@ -38,7 +47,7 @@ fi
 H5PATH=/notinstalled/hdf5
 
 CGNSPATH=none
-
+TEC360PATH=none
 
 find_exec() {
     RETURN_VALUE=0
@@ -124,6 +133,30 @@ while [ $# -ne 0 ]; do
 	    tmp=$1
 	    PETSC_BASE=${tmp#--with-petsc\=}
 	    ;;
+	--no-metis)
+	    METIS_BASE=""
+	    METIS_LIBS=""
+	    METIS_INCLUDE=""
+	    INSTALL_METIS=0
+	    USE_METIS=0
+	    ;;
+	--nometis)
+	    METIS_BASE=""
+	    METIS_LIBS=""
+	    METIS_INCLUDE=""
+	    INSTALL_METIS=0
+	    USE_METIS=0
+	    ;;
+	--with-metis)
+	    shift
+	    METIS_BASE=$1
+	    INSTALL_METIS=0
+	    ;;
+	--with-metis\=*)
+	    tmp=$1
+	    METIS_BASE=${tmp#--with-metis\=}
+	    INSTALL_METIS=0
+	    ;;
 	--hdf5-dir)
 	    shift
 	    H5PATH=$1
@@ -156,6 +189,23 @@ while [ $# -ne 0 ]; do
 	--with-cgns\=*)
 	    tmp=$1
 	    CGNSPATH=${tmp#--with-cgns\=}
+	    ;;
+
+	--tec360-dir)
+	    shift
+	    TEC360PATH=$1
+	    ;;
+	--tec360-dir\=*)
+	    tmp=$1
+	    TEC360PATH=${tmp#--tec360-dir\=}
+	    ;;
+	--with-tec360)
+	    shift
+	    TEC360PATH=$1
+	    ;;
+	--with-tec360\=*)
+	    tmp=$1
+	    TEC360PATH=${tmp#--with-tec360\=}
 	    ;;
 
 	--mpi-dir)
@@ -203,10 +253,12 @@ while [ $# -ne 0 ]; do
 	    echo "  --prefix <install directory>    : tell configure where to install Loci."
 	    echo "  --with-hdf5 <HDF5 directory>     : tell configure where to find HDF5 package."
 	    echo "  --with-cgns <CGNS directory>     : tell configure where to find CGNS package."
+	    echo "  --with-tec360 <tec360 directory> : tell configure where to find TECIO package."
 	    echo "  --with-mpi <MPI directory>      : tell configure where to find MPI package."
 	    echo "  --nompi                         : tell configure to build without using MPI"
-	    echo "  --with-petsc <PETSc directory>   : tell configure where to find PETSc package."
-	    
+	    echo "  --with-petsc <PETSc directory>  : tell configure where to find PETSc package."
+	    echo "  --with-metis <parMETIS dir>     : tell configure where to find alternative    Parallel METIS package."
+	    echo "  --no-metis                      : tell configure not to install or use metis"
 	    echo "  --compiler <compiler name>      : tell configure what compiler to use"
 	    echo "  --obj-dir <OBJDIR name>         : tell configure where to put object files"
 	    echo "  --help                          : output this help information"
@@ -222,6 +274,26 @@ while [ $# -ne 0 ]; do
     esac
     shift
 done
+
+if [ ${INSTALL_METIS} == 0 ] ; then
+GKLIB=""
+if [ -f ${METIS_BASE}/lib/libgk.so ] ; then
+    GKLIB="-lgk"
+fi
+if [ -f ${METIS_BASE}/lib/libgk.a ] ; then
+    GKLIB="-lgk"
+fi
+if [ -f ${METIS_BASE}/lib/libgk.dylib ] ; then
+    GKLIB="-lgk"
+fi
+if [ ${USE_METIS} == 0 ] ; then
+METIS_LIBS=""
+METIS_INCLUDE=""
+else
+METIS_LIBS="-L\$(METIS_BASE)/lib -lparmetis -lmetis $GKLIB"
+METIS_INCLUDE="-I\$(METIS_BASE)/include -DLOCI_USE_METIS"
+fi
+fi
 
 echo Setup for compiler \"$COMPILER\".
 #setup install directory
@@ -343,13 +415,13 @@ else
 	else
 	    echo MPI_BASE =  $MPI_BASE >> sys.conf
 	    echo MPI_LIBS =  -L$MPI_BASE/lib $MPI_LIBRARY >> sys.conf
-	    echo MPI_INCLUDE = -I$MPI_BASE/include  >> sys.conf
+	    echo MPI_INCLUDE = -DMPI_NO_CPPBIND -I$MPI_BASE/include  >> sys.conf
 	    echo MPI_RUN=$MPI_PATH/$MPIEXEC >> sys.conf
 	fi
     else
 	echo MPI_BASE =  $MPI_BASE >> sys.conf
 	echo MPI_LIBS =   >> sys.conf
-	echo MPI_INCLUDE = -DMPICH_IGNORE_CXX_SEEK >> sys.conf
+	echo MPI_INCLUDE = -DMPI_NO_CPPBIND -DMPICH_IGNORE_CXX_SEEK >> sys.conf
 	echo MPI_RUN=$MPI_PATH/$MPIEXEC >> sys.conf
     fi
     echo MPI_C_COMPILER = $MPI_C_COMPILER >> sys.conf
@@ -376,7 +448,6 @@ if [ ! -d "$H5PATH" ]; then
 	H5PATH=${RETURN_VALUE%/lib*}
     fi
 fi
-
 if [ ! -d $H5PATH ]; then
     echo Unable to find hdf5 libararies!
     echo Make sure hdf5 executables are in your PATH and that the library
@@ -397,11 +468,17 @@ echo \# HDF5 File I/O Libraries Setup >> sys.conf
 echo HDF5_BASE = $H5PATH >> sys.conf
 echo Using HDF5 libraries in directory \"$H5PATH\".
 if [ -e $H5PATH/lib64/libhdf5.so ]; then
-echo HDF5_LIBS = -L\$\(HDF5_BASE\)/lib64 \$\(RPATH\)\$\(HDF5_BASE\)/lib64 -L\$\(HDF5_BASE\)/lib \$\(RPATH\)\$\(HDF5_BASE\)/lib -lhdf5 -lz >> sys.conf
+    echo HDF5_LIBS = -L\$\(HDF5_BASE\)/lib64 \$\(RPATH\)\$\(HDF5_BASE\)/lib64 -L\$\(HDF5_BASE\)/lib \$\(RPATH\)\$\(HDF5_BASE\)/lib -lhdf5 -lz >> sys.conf
+elif [ -e $H5PATH/lib/x86_64-linux-gnu/libhdf5_serial.so ]; then
+    echo HDF5_LIBS = -L\$\(HDF5_BASE\)/lib/x86_64-linux-gnu/ \$\(RPATH\)\$\(HDF5_BASE\)/lib/x86_64-linux-gnu -lhdf5_serial -lz >> sys.conf
 else
-echo HDF5_LIBS = -L\$\(HDF5_BASE\)/lib -lhdf5 \$\(RPATH\)\$\(HDF5_BASE\)/lib $H5SUPPORTLIBSPATHS $H5SUPPORTLIBS >> sys.conf
+    echo HDF5_LIBS = -L\$\(HDF5_BASE\)/lib -lhdf5 \$\(RPATH\)\$\(HDF5_BASE\)/lib $H5SUPPORTLIBSPATHS $H5SUPPORTLIBS >> sys.conf
 fi
-echo HDF5_INCLUDE = -I\$\(HDF5_BASE\)/include >> sys.conf
+if [ -e $H5PATH/lib/x86_64-linux-gnu/libhdf5_serial.so ]; then
+   echo HDF5_INCLUDE = -I\$\(HDF5_BASE\)/include/hdf5/serial  >> sys.conf
+else
+    echo HDF5_INCLUDE = -I\$\(HDF5_BASE\)/include/  >> sys.conf
+fi
 echo >> sys.conf
 
 echo "# libxml2 library setup" >> sys.conf
@@ -431,10 +508,13 @@ fi
 echo >> sys.conf
 
 echo \# METIS Library Setup >> sys.conf
+echo INSTALL_METIS=$INSTALL_METIS >> sys.conf
 echo METIS_BASE= $METIS_BASE >> sys.conf
 echo METIS_LIBS= $METIS_LIBS >> sys.conf
 echo METIS_INCLUDE= $METIS_INCLUDE >> sys.conf
+
 echo >> sys.conf
+
 
 if [ ! -d $CGNSPATH/include ]; then
     find_lib cgns
@@ -442,6 +522,15 @@ if [ ! -d $CGNSPATH/include ]; then
 	CGNSPATH=${RETURN_VALUE%/lib*}
     fi
 fi
+
+if [ ! -f $TEC360PATH/lib/libtecio.a ]; then
+    find_lib tecio
+    if [ $RETURN_VALUE != 0 ]; then
+	TEC360PATH=${RETURN_VALUE%/lib*} 
+	echo Found tecplot360 IO libraries in $TEC360PATH
+    fi
+fi
+
 
 if [ -d $CGNSPATH/include ]; then
     echo Using CGNS library found in $CGNSPATH
@@ -457,6 +546,20 @@ else
     echo CGNS_LIBS = >> sys.conf
     echo >> sys.conf 
 fi
+
+if [ -f $TEC360PATH/lib/libtecio.a ]; then
+    echo Using TECPLOT native IO library found in $TEC360PATH
+    echo TEC360INCLUDE = -I$TEC360PATH/include -DUSE_NATIVE_TECPLOT >> sys.conf
+    echo TEC360LIB = $TEC360PATH/lib/libtecio.a >> sys.conf
+else
+    echo Note: TECPLOT native IO library not found, older ascii format will be used instead.
+    echo If you expected to include TECPLOT support, use --with-tec360 to specify where
+    echo tecplot360 is installed.
+    echo
+    echo TEC360INCLUDE = >> sys.conf
+    echo TEC360LIB = >> sys.conf
+fi
+echo >> sys.conf
 
 echo \# PETSc Library Setup >> sys.conf
 
@@ -636,14 +739,15 @@ echo >> sys.conf
 
 echo "MACHINE_SPECIFIC = \$(PETSC_DEFINE) \$(PETSC_INCLUDE) \$(HDF5_INCLUDE)\\">> sys.conf
 echo "                   \$(MPI_INCLUDE) \$(METIS_INCLUDE) \$(CGNS_INCLUDE) \$(MISC)\\" >> sys.conf
-echo "                   \$(DYNAMIC_LOADING_DEFINES)" >> sys.conf
+echo "                   \$(DYNAMIC_LOADING_DEFINES) " >> sys.conf
 echo >> sys.conf
-echo "BASE_LIBS = \$(HDF5_LIBS) \$(PETSC_LIBS) \$(MPI_LIBS) \$(METIS_LIBS) \\" >> sys.conf
-echo "            \$(MISC_LIBS) \$(CGNS_LIBS) \$(DYNAMIC_LOADING_LINK)" >> sys.conf
+echo "BASE_LIBS = \$(HDF5_LIBS) \$(PETSC_LIBS)  \$(METIS_LIBS) \\" >> sys.conf
+echo "            \$(MISC_LIBS) \$(CGNS_LIBS) \$(DYNAMIC_LOADING_LINK) \$(MPI_LIBS)" >> sys.conf
 
 
 echo Making compile subdirectory ${OBJDIR}...
-./tmpcopy --target $OBJDIR --compiler $COMPILER > copy.out 
+
+INSTALL_METIS=$INSTALL_METIS ./tmpcopy --target $OBJDIR --compiler $COMPILER > copy.out
 mv sys.conf ${OBJDIR}/sys.conf
 
 # Make makefile

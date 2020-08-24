@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -49,8 +49,15 @@ class parseFile {
       outputFile << "#line " << line_no << " \"" << filename << "\"" << std::endl ;
   }
 
+  void validate_VariableAccess(Loci::variable v, 
+			       const std::list<Loci::variable> &vlist,
+			       bool first_name,
+			       const std::map<Loci::variable,std::string> &vnames,
+			       const std::set<std::list<Loci::variable> > &validate_set) ;
+
   std::string process_String(std::string instring,
-                       const std::map<Loci::variable,std::string> &vnames) ;
+			     const std::map<Loci::variable,std::string> &vnames,
+			     const std::set<std::list<Loci::variable> > &validate_set) ;
   
   void process_SpecialCommand(std::ostream &outputFile,
                               const std::map<Loci::variable,std::string> &vnames,

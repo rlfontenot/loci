@@ -733,7 +733,6 @@ int *genptr;
   return NGENS;
 }
 
-#pragma GCC diagnostic ignored "-Wunused-variable"
 
 #ifdef __STDC__
 int pack_rng( int *genptr, char **buffer)
@@ -744,7 +743,10 @@ char **buffer;
 #endif
 {
   unsigned char *p, *initp;
-  unsigned int size, m[2], i;
+  unsigned int size ;
+#ifndef LONG64
+  unsigned int  m[2] ;
+#endif
   struct rngen *q;
   
   q = (struct rngen *) genptr;
@@ -816,7 +818,9 @@ char *packed;
 {
   struct rngen *q;
   unsigned char *p;
-  unsigned int m[4], m2[2], i;
+#ifndef LONG64
+  unsigned int m[4], m2[2] ;
+#endif
 
   p = (unsigned char *) packed;
   q = (struct rngen *) mymalloc(sizeof(struct rngen));

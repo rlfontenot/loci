@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -27,7 +27,7 @@ list<string> include_dirs ;
 
 bool prettyOutput = false ;
 namespace {
-  const char *revision_name = "$Name:  $" ;
+  const char *revision_name = "$Name: $" ;
 
   std::string version() {
     const char *p = revision_name;
