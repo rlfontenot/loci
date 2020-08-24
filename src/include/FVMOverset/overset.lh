@@ -34,6 +34,7 @@ $type componentName_X blackbox<string> ;
 $type componentNodes_X store<bool> ;
 $type componentRelationships_X blackbox<vector<string> > ;
 
+$type interpolateMinStencilSize param<double> ;
 $type interpolateFaceStencil blackbox<stencil_info> ;
 $type interpolateFace(X) store<Loci::real_t> ;
 $type interpolateFace_v3d(X) store<Loci::vector3d<Loci::real_t> > ;

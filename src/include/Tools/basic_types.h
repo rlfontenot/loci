@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2015, Mississippi State University
+//# Copyright 2015-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -18,8 +18,8 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
-#ifndef BASIC_TYPES_H
-#define BASIC_TYPES_H
+#ifndef LOCI_BASIC_TYPES_H
+#define LOCI_BASIC_TYPES_H
 
 #ifdef HAVE_CONFIG_H
 #include <config.h> // This must be the first file included

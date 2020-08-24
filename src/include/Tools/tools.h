@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -78,7 +78,7 @@ using std::fabs ;
 using std::ceil ;
 using std::floor ;
 using std::fmod ;
-using std::isnan ;
+//using std::isnan ;
 
 namespace Loci {
   // trigonemetric
