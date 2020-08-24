@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -41,9 +41,6 @@ namespace Loci {
     comments("Determines how centroids are computed.  'wireframe' assumes the mass is located at the surface of the cell.  'exact' uses an exact centroid computation assuming mass is distributed through the cell volume.") {
     $centroid = "wireframe" ;
   }
-
-  $type cartesianCoordinateModel Constraint ;
-  $type axisymmetricCoordinateModel Constraint ;
 
   $rule constraint(cartesianCoordinateModel,axisymmetricCoordinateModel<-gridCoordinates) {
     $cartesianCoordinateModel = EMPTY ;

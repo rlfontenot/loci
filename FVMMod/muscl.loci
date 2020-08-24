@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -20,6 +20,7 @@
 //#############################################################################
 #include <Loci>
 #include <Tools/tools.h>
+$include "FVM.lh"
 
 // The following functions help to construct the flux terms 
 // and flux Jacobian at the interface of the cell.
@@ -40,214 +41,85 @@ namespace Loci {
   typedef vector3d<real_t> vect3d ;
   typedef tensor3d<real_t> tens3d ;
   typedef real_t real ;
+
+  $type X store<real> ;
+  $type M param<real> ;
   
-  // The following is to get the face value using gradient approach.
-  class muscl_left_scalar : public pointwise_rule {
-    const_Map cl ;
-    const_store<real> X ;
-    const_store<vect3d> Xgrad ;
-    const_store<vect3d> facecenter ;
-    const_store<vect3d> cellcenter ;
-    //    const_Map pmap ;
-    const_store<real> grad_limiter ;
-    // extrapolation primitive variables at the left (X_l) and right (X_r)
-    // side of the interface (targets of this method)
-    store<real> X_l ;
-  public:
-    muscl_left_scalar() ;
-    void calculate(Entity e) ;
-    virtual void compute(const sequence &seq) ;
-  } ;
-
-  muscl_left_scalar::muscl_left_scalar() {
-    name_store("cl",cl) ;
-    name_store("X",X) ;
-    name_store("limiters(X)",grad_limiter) ;
-    name_store("lefts(X)",X_l) ;
-    name_store("facecenter",facecenter) ;
-    name_store("cellcenter",cellcenter) ;
-    name_store("grads(X)",Xgrad) ;
-    input("facecenter") ;
-    input("cl->(X,grads(X),limiters(X),cellcenter)") ; 
-    output("lefts(X)") ; 
-    constraint("facecenter") ;
+  $rule pointwise(lefts(X)<-facecenter,
+		  cl->(X,grads(X),limiters(X),cellcenter)),
+    constraint(cl->(X,geom_cells)) {
+    const vect3d drl = $facecenter - $cl->$cellcenter ;
+    $lefts(X) = $cl->$X + $cl->$limiters(X)*dot($cl->$grads(X),drl) ;
   }
 
-  inline void muscl_left_scalar::calculate(Entity fc) {
-    const int ccl = cl[fc] ;
-    const vect3d drl = facecenter[fc] - cellcenter[ccl] ;
-    X_l[fc] = X[ccl] + grad_limiter[ccl]*dot(Xgrad[ccl],drl) ;
+  $rule pointwise(rights(X)<-facecenter,
+		  cr->(X,grads(X),limiters(X),cellcenter)),
+    constraint(cr->(X,geom_cells)) {
+    const vect3d drl = $facecenter - $cr->$cellcenter ;
+    $rights(X) = $cr->$X + $cr->$limiters(X)*dot($cr->$grads(X),drl) ;
   }
 
-  void muscl_left_scalar::compute(const sequence &seq) {
-    do_loop(seq,this) ;
+  $rule pointwise(rights(X)<-pmap->lefts(X)),constraint(periodicFaces) {
+    $rights(X) = $pmap->$lefts(X) ;
   }
 
+  $type Zero param<real> ;
+  $rule singleton(Zero),constraint(UNIVERSE) { $Zero = 0.0; }
+  $type minPg param<real> ;
+  $type Pambient param<real> ;
+  $rule singleton(minPg<-Pambient) { $minPg = -$Pambient ;  }
 
-  class muscl_right_scalar : public pointwise_rule {
-    const_Map cr ;
-    const_store<real> X ;
-    const_store<vect3d> Xgrad ;
-    const_store<vect3d> facecenter ;
-    const_store<vect3d> cellcenter ;
-    const_store<real> grad_limiter ;
-    // extrapolation primitive variables at the left (X_l) and right (X_r)
-    // side of the interface (targets of this method)
-    store<real> X_r ;
-  public:
-    muscl_right_scalar() ;
-    void calculate(Entity e) ;
-    virtual void compute(const sequence &seq) ;
-  } ;
-
-  muscl_right_scalar::muscl_right_scalar() {
-    name_store("cr",cr) ;
-    name_store("X",X) ;
-    name_store("limiters(X)",grad_limiter) ;
-    name_store("rights(X)",X_r) ;
-    name_store("facecenter",facecenter) ;
-    name_store("cellcenter",cellcenter) ;
-    name_store("grads(X)",Xgrad) ;
-    input("facecenter") ;
-    input("cr->(X,grads(X),limiters(X),cellcenter)") ; 
-    output("rights(X)") ; 
-    constraint("cr->(X,geom_cells)") ;
+  $rule pointwise(leftsP(X,M)<-facecenter,M,
+		  cl->(X,grads(X),limiters(X),cellcenter)),
+    constraint(cl->(X,geom_cells)) {
+    const vect3d drl = $facecenter - $cl->$cellcenter ;
+    const real Xl = $cl->$X ;
+    const real XP = Xl + $cl->$limiters(X)*dot($cl->$grads(X),drl) ;
+    $leftsP(X,M) = (XP<$M)?Xl:XP ;
   }
 
-  inline void muscl_right_scalar::calculate(Entity fc) {
-    int ccr = cr[fc] ;
-    const vect3d drr = facecenter[fc] - cellcenter[ccr] ;
-    X_r[fc] = X[ccr] + grad_limiter[ccr]*dot(Xgrad[ccr],drr) ;
+  $rule pointwise(rightsP(X,M)<-facecenter,M,
+		  cr->(X,grads(X),limiters(X),cellcenter)),
+    constraint(cr->(X,geom_cells)) {
+    const vect3d drl = $facecenter - $cr->$cellcenter ;
+    const real Xr = $cr->$X ;
+    const real XP = Xr + $cr->$limiters(X)*dot($cr->$grads(X),drl) ;
+    $rightsP(X,M) = (XP<$M)?Xr:XP ;
   }
 
-  void muscl_right_scalar::compute(const sequence &seq) {
-    do_loop(seq,this) ;
+  $rule pointwise(rightsP(X,M)<-pmap->leftsP(X,M)),constraint(periodicFaces) {
+    $rightsP(X,M) = $pmap->$leftsP(X,M) ;
   }
 
-  register_rule<muscl_left_scalar> register_muscl_left_scalar ;
-  register_rule<muscl_right_scalar> register_muscl_right_scalar ;
-
-  class zero_singleton : public singleton_rule {
-    param<real> Zero ;
-  public:
-    zero_singleton() {
-      name_store("Zero",Zero) ;
-      output("Zero") ;
-      constraint("UNIVERSE") ;
-    }
-    void compute(const sequence &seq) {
-      *Zero = 0.0 ;
-    }
-  } ;
-  register_rule<zero_singleton> register_zero_singleton ;
-
-  class min_Pg_singleton : public singleton_rule {
-    const_param<real_t> Pambient ;
-    param<real> minPg ;
-  public:
-    min_Pg_singleton() {
-      name_store("Pambient",Pambient) ;
-      name_store("minPg",minPg) ;
-      input("Pambient") ;
-      output("minPg") ;
-    }
-    void compute(const sequence &seq) {
-      *minPg = -*Pambient ;
-    }
-  } ;
-
-  register_rule<min_Pg_singleton> register_min_Pg_singleton ;
+  $type X store<vect3d> ;
   
-  // The following is to get the face value using gradient approach.
-  class muscl_left_scalarP : public pointwise_rule {
-    const_Map cl ;
-    const_store<real> X ;
-    const_store<vect3d> Xgrad ;
-    const_store<vect3d> facecenter ;
-    const_store<vect3d> cellcenter ;
-    const_store<real> grad_limiter ;
-    const_param<real> min_value ;
-    store<real> X_l ;
-  public:
-    muscl_left_scalarP() ;
-    void calculate(Entity e) ;
-    virtual void compute(const sequence &seq) ;
-  } ;
-
-  muscl_left_scalarP::muscl_left_scalarP() {
-    name_store("cl",cl) ;
-    name_store("X",X) ;
-    name_store("limiters(X)",grad_limiter) ;
-    name_store("leftsP(X,M)",X_l) ;
-    name_store("facecenter",facecenter) ;
-    name_store("cellcenter",cellcenter) ;
-    name_store("grads(X)",Xgrad) ;
-    name_store("M",min_value) ;
-    input("M") ;
-    input("facecenter") ;
-    input("cl->(X,grads(X),limiters(X),cellcenter)") ; 
-    output("leftsP(X,M)") ; 
-    constraint("cl->(X,geom_cells)") ;
+  $rule pointwise(leftv3d(X)<-facecenter,
+		  cl->(X,gradv3d(X),limiterv3d(X),cellcenter)),
+    constraint(cl->(X,geom_cells)) {
+    const vect3d drl = $facecenter - $cl->$cellcenter ;
+    $leftv3d(X) = $cl->$X +
+      vect3d($cl->$limiterv3d(X).x*dot($cl->$gradv3d(X).x,drl),
+	     $cl->$limiterv3d(X).y*dot($cl->$gradv3d(X).y,drl),
+	     $cl->$limiterv3d(X).z*dot($cl->$gradv3d(X).z,drl)) ;
   }
 
-  inline void muscl_left_scalarP::calculate(Entity fc) {
-    const int ccl = cl[fc] ;
-    const vect3d drl = facecenter[fc] - cellcenter[ccl] ;
-    X_l[fc] = X[ccl] + grad_limiter[ccl]*dot(Xgrad[ccl],drl) ;
-    if(X_l[fc] < min_value[fc])
-      X_l[fc] = X[ccl] ;
+  $rule pointwise(rightv3d(X)<-facecenter,
+		  cr->(X,gradv3d(X),limiterv3d(X),cellcenter)),
+    constraint(cr->(X,geom_cells)) {
+    const vect3d drl = $facecenter - $cr->$cellcenter ;
+    $rightv3d(X) = $cr->$X +
+      vect3d($cr->$limiterv3d(X).x*dot($cr->$gradv3d(X).x,drl),
+	     $cr->$limiterv3d(X).y*dot($cr->$gradv3d(X).y,drl),
+	     $cr->$limiterv3d(X).z*dot($cr->$gradv3d(X).z,drl)) ;
   }
 
-  void muscl_left_scalarP::compute(const sequence &seq) {
-    do_loop(seq,this) ;
+  $type periodicTransform store<rigid_transform> ;
+  $rule pointwise(rightv3d(X)<-pmap->leftv3d(X),pmap->ref->periodicTransform),
+    constraint(periodicFaces) {
+    const rigid_transform &frame = $pmap->$ref->$periodicTransform ;
+    $rightv3d(X) = frame.rotate_vec($pmap->$leftv3d(X)) ;
   }
-
-
-  class muscl_right_scalarP : public pointwise_rule {
-    const_Map cr ;
-    const_store<real> X ;
-    const_store<vect3d> Xgrad, facecenter, cellcenter ;
-    const_store<real> grad_limiter ;
-    const_param<real> min_value ;
-    // extrapolation primitive variables at the left (X_l) and right (X_r)
-    // side of the interface (targets of this method)
-    store<real> X_r ;
-  public:
-    muscl_right_scalarP() ;
-    void calculate(Entity e) ;
-    virtual void compute(const sequence &seq) ;
-  } ;
-
-  muscl_right_scalarP::muscl_right_scalarP() {
-    name_store("cr",cr) ;
-    name_store("X",X) ;
-    name_store("limiters(X)",grad_limiter) ;
-    name_store("rightsP(X,M)",X_r) ;
-    name_store("facecenter",facecenter) ;
-    name_store("cellcenter",cellcenter) ;
-    name_store("grads(X)",Xgrad) ;
-    name_store("M",min_value) ;
-    input("M") ;
-    input("facecenter") ;
-    input("cr->(X,grads(X),limiters(X),cellcenter)") ; 
-    output("rightsP(X,M)") ; 
-    constraint("cr->(X,geom_cells)") ;
-  }
-
-  inline void muscl_right_scalarP::calculate(Entity fc) {
-    int ccr = cr[fc] ;
-    const vect3d drr = facecenter[fc] - cellcenter[ccr] ;
-    X_r[fc] = X[ccr] + grad_limiter[ccr]*dot(Xgrad[ccr],drr) ;
-    if(X_r[fc] < min_value[fc])
-      X_r[fc] = X[ccr] ;
-  }
-
-  void muscl_right_scalarP::compute(const sequence &seq) {
-    do_loop(seq,this) ;
-  }
-
-  register_rule<muscl_left_scalarP> register_muscl_left_scalarP ;
-  register_rule<muscl_right_scalarP> register_muscl_right_scalarP ;
+  
 
   void slope_rescale(real *slopes, int vs) {
 
@@ -267,341 +139,60 @@ namespace Loci {
     }
   }    
   
-  class muscl_left_vectorM : public pointwise_rule {
-    const_Map cl ;
-    const_storeVec<real> X, grad_limiter ;
-    const_storeVec<vect3d> Xgrad ;
-    const_store<vect3d> facecenter, cellcenter ;
-    storeVec<real> X_l ;
-  public:
-    muscl_left_vectorM() ;
-    void calculate(Entity e) ;
-    virtual void compute(const sequence &seq) ;
-  } ;
-
-  muscl_left_vectorM::muscl_left_vectorM() {
-    name_store("cl",cl) ;
-    name_store("X",X) ;
-    name_store("limiterv(X)",grad_limiter) ;
-    name_store("leftvM(X)",X_l) ;
-    name_store("facecenter",facecenter) ;
-    name_store("cellcenter",cellcenter) ;
-    name_store("gradv(X)",Xgrad) ;
-    input("facecenter") ;
-    input("cl->(X,gradv(X),limiterv(X),cellcenter)") ; 
-    output("leftvM(X)") ; 
-    constraint("cl->(X,geom_cells)") ;
-  }
-
-  inline void muscl_left_vectorM::calculate(Entity fc) {
-    const Entity ccl = cl[fc] ;
-    const vect3d drl = facecenter[fc] - cellcenter[ccl] ;
-    const int vs = X.vecSize() ;
-
-    // Extrapolate such that Sum slopes = 0
-    tmp_array<real> slopes(vs) ;
-  
-    for(int i=0;i<vs;++i) {
-      slopes[i] = grad_limiter[ccl][i]*dot(Xgrad[ccl][i],drl) ;
-      // positivity check
-      if(X[ccl][i]+slopes[i] < 0.0)
-        slopes[i] = -X[ccl][i] ;
-      // If close to positivity loosing region for opposite side of the
-      // cell, switch to first order.
-      if(X[ccl][i] - 1.5*slopes[i] < 0.0)
-        slopes[i] = 0.0 ;
-    }
-    
-    slope_rescale(slopes,vs) ;
-
-    for(int i=0;i<vs;++i) {
-      X_l[fc][i] = X[ccl][i] + slopes[i] ;
-    }
-
-  }
-  void muscl_left_vectorM::compute(const sequence &seq) {
-    X_l.setVecSize(X.vecSize()) ;
-    do_loop(seq,this) ;
-  }
-
-
-  class muscl_right_vectorM : public pointwise_rule {
-    const_Map cr ;
-    const_storeVec<real> X, grad_limiter ;
-    const_storeVec<vect3d> Xgrad ;
-    const_store<vect3d> facecenter, cellcenter ;
-    storeVec<real> X_r ;
-  public:
-    muscl_right_vectorM() ;
-    void calculate(Entity e) ;
-    virtual void compute(const sequence &seq) ;
-  } ;
-
-  muscl_right_vectorM::muscl_right_vectorM() {
-    name_store("cr",cr) ;
-    name_store("X",X) ;
-    name_store("limiterv(X)",grad_limiter) ;
-    name_store("rightvM(X)",X_r) ;
-    name_store("facecenter",facecenter) ;
-    name_store("cellcenter",cellcenter) ;
-    name_store("gradv(X)",Xgrad) ;
-    input("facecenter") ;
-    input("cr->(X,gradv(X),limiterv(X),cellcenter)") ; 
-    output("rightvM(X)") ; 
-    constraint("cr->(X,geom_cells)") ;
-  }
-
-  inline void muscl_right_vectorM::calculate(Entity fc) {
-    const int ccr = cr[fc] ;
-    const vect3d drl = facecenter[fc] - cellcenter[ccr] ;
-    const int vs = X.vecSize() ;
-
-    // Extrapolate such that Sum slopes = 0
+  $type X storeVec<real> ;
+  $rule pointwise(leftvM(X)<-facecenter,
+		  cl->(X,gradv(X),limiterv(X),cellcenter)),
+    constraint(cl->(X,geom_cells)),
+    prelude {
+    $leftvM(X).setVecSize($X.vecSize()) ;
+  } compute {
+    const vect3d drl = $facecenter - $cl->$cellcenter ;
+    const int vs = $*X.vecSize() ;
     tmp_array<real> slopes(vs) ;
 
     for(int i=0;i<vs;++i) {
-      slopes[i] = grad_limiter[ccr][i]*dot(Xgrad[ccr][i],drl) ;
-      // positivity check
-      if(X[ccr][i]+slopes[i] < 0.0)
-        slopes[i] = -X[ccr][i] ;
-      // If opposite side could become negative, switch to first order
-      // to maintain stablity
-      if(X[ccr][i] - 1.5*slopes[i] < 0.0)
-        slopes[i] = 0.0 ;
+      const real Xi = $cl->$X[i] ;
+      slopes[i] = $cl->$limiterv(X)[i]*dot($cl->$gradv(X)[i],drl) ;
+      if(Xi+slopes[i] < 0.0)
+	slopes[i] = -Xi ;
+      if(Xi-1.5*slopes[i] < 0.0)
+	slopes[i] = 0 ;
     }
-
     slope_rescale(slopes,vs) ;
+    for(int i=0;i<vs;++i) {
+      ($leftvM(X))[i] = $cl->$X[i] + slopes[i] ;
+    }
+  }
+
+  $rule pointwise(rightvM(X)<-facecenter,
+		  cr->(X,gradv(X),limiterv(X),cellcenter)),
+      constraint(cr->(X,geom_cells)), prelude {
+    $rightvM(X).setVecSize($X.vecSize()) ;
+  } compute {
+    const vect3d drl = $facecenter - $cr->$cellcenter ;
+    const int vs = $*X.vecSize() ;
+    tmp_array<real> slopes(vs) ;
 
     for(int i=0;i<vs;++i) {
-      X_r[fc][i] = X[ccr][i] + slopes[i] ;
+      const real Xi = $cr->$X[i] ;
+      slopes[i] = $cr->$limiterv(X)[i]*dot($cr->$gradv(X)[i],drl) ;
+      if(Xi+slopes[i] < 0.0)
+	slopes[i] = -Xi ;
+      if(Xi-1.5*slopes[i] < 0.0)
+	slopes[i] = 0 ;
     }
-
-  }
-  void muscl_right_vectorM::compute(const sequence &seq) {
-    X_r.setVecSize(X.vecSize()) ;
-    do_loop(seq,this) ;
-  }
-
-
-  register_rule<muscl_left_vectorM> register_muscl_left_vectorM ;
-  register_rule<muscl_right_vectorM> register_muscl_right_vectorM ;
-
-  // The following is to get the face value using gradient approach.
-  class muscl_left_vect3d : public pointwise_rule {
-    const_Map cl ;
-    const_store<vect3d> X ;
-    const_store<tens3d> Xgrad ;
-    const_store<vect3d> facecenter ;
-    const_store<vect3d> cellcenter ;
-    //    const_Map pmap ;
-    const_store<vect3d> grad_limiter ;
-    // extrapolation primitive variables at the left (X_l) and right (X_r)
-    // side of the interface (targets of this method)
-    store<vect3d> X_l ;
-  public:
-    muscl_left_vect3d() ;
-    void calculate(Entity e) ;
-    virtual void compute(const sequence &seq) ;
-  } ;
-
-  muscl_left_vect3d::muscl_left_vect3d() {
-    name_store("cl",cl) ;
-    name_store("X",X) ;
-    name_store("limiterv3d(X)",grad_limiter) ;
-    name_store("leftv3d(X)",X_l) ;
-    name_store("facecenter",facecenter) ;
-    name_store("cellcenter",cellcenter) ;
-    name_store("gradv3d(X)",Xgrad) ;
-    input("facecenter") ;
-    input("cl->(X,gradv3d(X),limiterv3d(X),cellcenter)") ; 
-    output("leftv3d(X)") ; 
-    constraint("cl->(X,geom_cells)") ;
+    slope_rescale(slopes,vs) ;
+    for(int i=0;i<vs;++i) {
+      $rightvM(X)[i] = $cr->$X[i] + slopes[i] ;
+    }
   }
 
-  inline void muscl_left_vect3d::calculate(Entity fc) {
-    const int ccl = cl[fc] ;
-    const vect3d drl = facecenter[fc] - cellcenter[ccl] ;
-    X_l[fc] = X[ccl] + vect3d(grad_limiter[ccl].x*dot(Xgrad[ccl].x,drl),
-                              grad_limiter[ccl].y*dot(Xgrad[ccl].y,drl),
-                              grad_limiter[ccl].z*dot(Xgrad[ccl].z,drl)) ;
+  $rule pointwise(rightvM(X)<-pmap->leftvM(X)),constraint(periodicFaces),
+  prelude {
+    $rightvM(X).setVecSize($leftvM(X).vecSize()) ;
+  } compute {
+    $rightvM(X) = $pmap->$leftvM(X) ;
   }
-
-  void muscl_left_vect3d::compute(const sequence &seq) {
-    do_loop(seq,this) ;
-  }
-
-
-  class muscl_right_vect3d : public pointwise_rule {
-    const_Map cr ;
-    const_store<vect3d> X ;
-    const_store<tens3d> Xgrad ;
-    const_store<vect3d> facecenter ;
-    const_store<vect3d> cellcenter ;
-    const_store<vect3d> grad_limiter ;
-    // extrapolation primitive variables at the left (X_l) and right (X_r)
-    // side of the interface (targets of this method)
-    store<vect3d> X_r ;
-  public:
-    muscl_right_vect3d() ;
-    void calculate(Entity e) ;
-    virtual void compute(const sequence &seq) ;
-  } ;
-
-  muscl_right_vect3d::muscl_right_vect3d() {
-    name_store("cr",cr) ;
-    name_store("X",X) ;
-    name_store("limiterv3d(X)",grad_limiter) ;
-    name_store("rightv3d(X)",X_r) ;
-    name_store("facecenter",facecenter) ;
-    name_store("cellcenter",cellcenter) ;
-    name_store("gradv3d(X)",Xgrad) ;
-    input("facecenter") ;
-    input("cr->(X,gradv3d(X),limiterv3d(X),cellcenter)") ; 
-    output("rightv3d(X)") ; 
-    constraint("cr->(X,geom_cells)") ;
-  }
-
-  inline void muscl_right_vect3d::calculate(Entity fc) {
-    int ccr = cr[fc] ;
-    const vect3d drr = facecenter[fc] - cellcenter[ccr] ;
-    X_r[fc] = X[ccr] + vect3d(grad_limiter[ccr].x*dot(Xgrad[ccr].x,drr),
-                              grad_limiter[ccr].y*dot(Xgrad[ccr].y,drr),
-                              grad_limiter[ccr].z*dot(Xgrad[ccr].z,drr)) ;
-  }
-
-  void muscl_right_vect3d::compute(const sequence &seq) {
-    do_loop(seq,this) ;
-  }
-
-  register_rule<muscl_left_vect3d> register_muscl_left_vect3d ;
-  register_rule<muscl_right_vect3d> register_muscl_right_vect3d ;
-
-  class muscl_right_scalar_periodic : public pointwise_rule {
-    const_Map pmap ;
-    const_store<real> X_l ;
-    store<real> X_r ;
-    
-  public:
-    muscl_right_scalar_periodic() ;
-    void calculate(Entity e) ;
-    virtual void compute(const sequence &seq) ;
-  } ;
-
-  muscl_right_scalar_periodic::muscl_right_scalar_periodic() {
-    name_store("pmap",pmap) ;
-    name_store("lefts(X)",X_l) ;
-    name_store("rights(X)",X_r) ;
-    input("pmap->lefts(X)") ; 
-    output("rights(X)") ; 
-    constraint("periodicFaces") ;
-  }
-
-  inline void muscl_right_scalar_periodic::calculate(Entity fc) {
-    X_r[fc] = X_l[pmap[fc]] ;
-  }
-
-  void muscl_right_scalar_periodic::compute(const sequence &seq) {
-    do_loop(seq,this) ;
-  }
-
-  register_rule<muscl_right_scalar_periodic> register_right_scalar_periodic ;
-  
-  class muscl_right_scalarP_periodic : public pointwise_rule {
-    const_Map pmap ;
-    const_store<real> X_l ;
-    store<real> X_r ;
-    
-  public:
-    muscl_right_scalarP_periodic() ;
-    void calculate(Entity e) ;
-    virtual void compute(const sequence &seq) ;
-  } ;
-
-  muscl_right_scalarP_periodic::muscl_right_scalarP_periodic() {
-    name_store("pmap",pmap) ;
-    name_store("leftsP(X,M)",X_l) ;
-    name_store("rightsP(X,M)",X_r) ;
-    input("pmap->leftsP(X,M)") ; 
-    output("rightsP(X,M)") ; 
-    constraint("periodicFaces") ;
-  }
-
-  inline void muscl_right_scalarP_periodic::calculate(Entity fc) {
-    X_r[fc] = X_l[pmap[fc]] ;
-  }
-
-  void muscl_right_scalarP_periodic::compute(const sequence &seq) {
-    do_loop(seq,this) ;
-  }
-
-  register_rule<muscl_right_scalarP_periodic> register_right_scalarP_periodic ;
-
-
-  class muscl_right_mixture_periodic : public pointwise_rule {
-    const_Map pmap ;
-    const_storeVec<real> X_l ;
-    storeVec<real> X_r ;
-    
-  public:
-    muscl_right_mixture_periodic() ;
-    void calculate(Entity e) ;
-    virtual void compute(const sequence &seq) ;
-  } ;
-
-  muscl_right_mixture_periodic::muscl_right_mixture_periodic() {
-    name_store("pmap",pmap) ;
-    name_store("leftvM(X)",X_l) ;
-    name_store("rightvM(X)",X_r) ;
-    input("pmap->leftvM(X)") ; 
-    output("rightvM(X)") ; 
-    constraint("periodicFaces") ;
-  }
-
-  inline void muscl_right_mixture_periodic::calculate(Entity fc) {
-    X_r[fc] = X_l[pmap[fc]] ;
-  }
-
-  void muscl_right_mixture_periodic::compute(const sequence &seq) {
-    X_r.setVecSize(X_l.vecSize()) ;
-    do_loop(seq,this) ;
-  }
-
-  register_rule<muscl_right_mixture_periodic> register_right_mixture_periodic ;
-  
-  class muscl_right_v3d_periodic : public pointwise_rule {
-    const_Map pmap, ref ;
-    const_store<vect3d> X_l ;
-    store<vect3d> X_r ;
-    const_store<rigid_transform> periodicTransform ;
-    
-  public:
-    muscl_right_v3d_periodic() ;
-    void calculate(Entity e) ;
-    virtual void compute(const sequence &seq) ;
-  } ;
-
-  muscl_right_v3d_periodic::muscl_right_v3d_periodic() {
-    name_store("pmap",pmap) ;
-    name_store("leftv3d(X)",X_l) ;
-    name_store("rightv3d(X)",X_r) ;
-    name_store("ref",ref) ;
-    name_store("periodicTransform",periodicTransform) ;
-    input("pmap->ref->periodicTransform") ;
-    input("pmap->leftv3d(X)") ; 
-    output("rightv3d(X)") ; 
-    constraint("periodicFaces") ;
-  }
-
-  inline void muscl_right_v3d_periodic::calculate(Entity fc) {
-    const rigid_transform &frame = periodicTransform[ref[pmap[fc]]] ;
-    X_r[fc] = frame.rotate_vec(X_l[pmap[fc]]) ;
-  }
-
-  void muscl_right_v3d_periodic::compute(const sequence &seq) {
-    do_loop(seq,this) ;
-  }
-
-  register_rule<muscl_right_v3d_periodic> register_right_v3d_periodic ;
 
 }
 
