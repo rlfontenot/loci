@@ -722,89 +722,136 @@ void getMeshID(double processorID, double* verticesID, double* topoID){
 
 }
 
+void partitionFaces(vector<int32 *> &global_face2nodes,
+                    vector<int32 *> &global_face2cells,
+                    const vector<int64> &global_faceSizes,
+                    const vector<int64> &global_faceCellSizes,
+                    vector<int32> &local_face2nodes,
+                    vector<int32> &local_face2cells,
+                    vector<entitySet> &local_faces) {
+  // get rank and number of processors
+  int R = Loci::MPI_rank;
+  int P = Loci::MPI_processes;
+
+  // determine each processor's share of the faces
+  vector<int> zero(P, 0);
+  vector<vector<int> > sendCount_f2n(global_faceSizes.size(), zero);
+  vector<vector<int> > locations_f2n(global_faceSizes.size(), zero);
+  vector<vector<int> > sendCount_f2c(global_faceSizes.size(), zero);
+  vector<vector<int> > locations_f2c(global_faceSizes.size(), zero);
+  int64 startId = 0;
+  int64 endId = 0;
+  // loop over all boundaries (interal faces grouped as boundary)
+  for (unsigned int ff = 0; ff < global_faceSizes.size(); ++ff) {
+    int64 numFacesOnBnd = global_faceCellSizes[ff] / 2;
+    endId += numFacesOnBnd;
+    vector<int> faceSetPartitions =
+        VOG::simplePartitionVec(startId, endId - 1, P);
+    int64 ind = 0;
+    for (int pp = 0; pp < P; ++pp) {
+      entitySet local_bnd_faces =
+          interval(faceSetPartitions[pp], faceSetPartitions[pp + 1] - 1);
+      local_faces[pp] += local_bnd_faces;
+      // 2x b/c there's a left/right cell for each face
+      sendCount_f2c[ff][pp] = local_bnd_faces.size() * 2;
+      if (R == 0) {
+        unsigned int faceCount = 0;
+        while (faceCount < local_bnd_faces.size()) {
+          // add number of nodes on face (+1 for face size)
+          sendCount_f2n[ff][pp] += global_face2nodes[ff][ind] + 1;
+          ind += global_face2nodes[ff][ind] + 1;
+          faceCount++;
+        }
+      }
+      if (pp > 0) {
+        locations_f2c[ff][pp] =
+            locations_f2c[ff][pp - 1] + sendCount_f2c[ff][pp - 1];
+        locations_f2n[ff][pp] =
+            locations_f2n[ff][pp - 1] + sendCount_f2n[ff][pp - 1];
+      }
+    }
+    MPI_Bcast(&(*(sendCount_f2c[ff]).begin()), P, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&(*(sendCount_f2n[ff]).begin()), P, MPI_INT, 0, MPI_COMM_WORLD);
+    startId += numFacesOnBnd;
+  }
+
+  // scatter face-to-cell data to respective processors
+  if (R == 0) {
+    cout << "  partitioning face2cell data" << endl;
+  }
+  // allocate local data
+  int64 cellMapSize = 0;
+  for (unsigned int ff = 0; ff < sendCount_f2c.size(); ++ff) {
+    cellMapSize += sendCount_f2c[ff][R];
+  }
+  Loci::debugout << "allocating vector for local_face2cells (int32) of length "
+                 << cellMapSize << " and size "
+                 << cellMapSize * sizeof(int32) / pow(2, 20) << " MB" << endl;
+  local_face2cells.resize(cellMapSize);
+
+  int64 f2c_ind = 0;
+  for (unsigned int ff = 0; ff < sendCount_f2c.size(); ++ff) {
+    int32 *sendbuf = NULL;
+    if (R == 0) sendbuf = global_face2cells[ff];
+    MPI_Scatterv(sendbuf, &(*sendCount_f2c[ff].begin()),
+                 &(*locations_f2c[ff].begin()), MPI_INT32_T,
+                 &(local_face2cells[f2c_ind]), sendCount_f2c[ff][R],
+                 MPI_INT32_T, 0, MPI_COMM_WORLD);
+    if (R == 0) {
+      delete[] global_face2cells[ff];  // free memory
+    }
+    f2c_ind += sendCount_f2c[ff][R];
+  }
+
+  // scatter face-to-node data to respective processors
+  if (R == 0) {
+    cout << "  partitioning face2node data" << endl;
+  }
+  // allocate local data
+  int64 nodeMapSize = 0;
+  for (unsigned int ff = 0; ff < sendCount_f2n.size(); ++ff) {
+    nodeMapSize += sendCount_f2n[ff][R];
+  }
+  Loci::debugout << "allocating vector for local_face2nodes (int32) of length "
+                 << nodeMapSize << " and size "
+                 << nodeMapSize * sizeof(int32) / pow(2, 20) << " MB" << endl;
+  local_face2nodes.resize(nodeMapSize);
+
+  int64 f2n_ind = 0;
+  for (unsigned int ff = 0; ff < sendCount_f2n.size(); ++ff) {
+    int32 *sendbuf = NULL;
+    if (R == 0) sendbuf = global_face2nodes[ff];
+    MPI_Scatterv(sendbuf, &(*sendCount_f2n[ff].begin()),
+                 &(*locations_f2n[ff].begin()), MPI_INT32_T,
+                 &(local_face2nodes[f2n_ind]), sendCount_f2n[ff][R],
+                 MPI_INT32_T, 0, MPI_COMM_WORLD);
+
+    if (R == 0) {
+      delete[] global_face2nodes[ff];  // free memory
+    }
+    f2n_ind += sendCount_f2n[ff][R];
+  }
+  Loci::debugout << "done with face partitioning" << endl;
+}
+
 void partitionCCMData(vector<vector3d<double> > &global_pos,
                       vector<int32 *> &global_allFaces,
                       vector<int32 *> &global_allFaceCells,
-                      const vector<int64> &global_faceSizes,
-                      const vector<int64> &global_faceCellSizes,
+                      vector<int64> &global_faceSizes,
+                      vector<int64> &global_faceCellSizes,
                       const int &totalNumFaces, vector<vector3d<double> > &local_pos, vector<int32> &local_face2nodes,
                       vector<int32> &local_face2cells,
                       vector<entitySet> &local_nodes,
                       vector<entitySet> &local_faces) {
-  // convert global data into contiguous memory layout
-  // determine vector sizes
-  vector<int32> global_face2nodes, global_face2cells;
+  // get rank and number of processors
   int R = Loci::MPI_rank;
   int P = Loci::MPI_processes;
-  if (R == 0) {
-    int nodeMapSize = std::accumulate(std::begin(global_faceSizes),
-                                      std::end(global_faceSizes), 0);
-    global_face2nodes.reserve(nodeMapSize);
-    int cellMapSize = std::accumulate(std::begin(global_faceCellSizes),
-                                      std::end(global_faceCellSizes), 0);
-    global_face2cells.reserve(cellMapSize);
-    for (unsigned int ii = 0; ii < global_faceSizes.size(); ++ii) {
-      std::copy(global_allFaces[ii],
-                global_allFaces[ii] + global_faceSizes[ii],
-                std::back_inserter(global_face2nodes));
-      delete[] global_allFaces[ii];
-      std::copy(global_allFaceCells[ii],
-                global_allFaceCells[ii] + global_faceCellSizes[ii],
-                std::back_inserter(global_face2cells));
-      delete[] global_allFaceCells[ii];
-    }
-  }
-  MPI_Barrier(MPI_COMM_WORLD);
 
-  // determine each processor's share of the faces
-  local_faces.resize(P);
-  vector<int> sendCount_f2n(P, 0);
-  vector<int> locations_f2n(P, 0);
-  vector<int> sendCount_f2c(P, 0);
-  vector<int> locations_f2c(P, 0);
-  vector<int> faceSetPartitions =
-      VOG::simplePartitionVec(0, totalNumFaces - 1, P);
-  int pos = 0;
-  for (int ii = 0; ii < P; ++ii) {
-    local_faces[ii] =
-        interval(faceSetPartitions[ii], faceSetPartitions[ii + 1] - 1);
-    // 2x b/c there's a left/right cell for each face
-    sendCount_f2c[ii] = local_faces[ii].size() * 2;
-    if (R == 0) {
-      unsigned int faceCount = 0;
-      while (faceCount < local_faces[ii].size()) {
-        // add number of nodes on face (+1 for face size)
-        sendCount_f2n[ii] += global_face2nodes[pos] + 1;
-        pos += global_face2nodes[pos] + 1;
-        faceCount++;
-      }
-    }
-    if (ii > 0) {
-      locations_f2c[ii] = locations_f2c[ii - 1] + sendCount_f2c[ii - 1];
-      locations_f2n[ii] = locations_f2n[ii - 1] + sendCount_f2n[ii - 1];
-    }
-  }
-  MPI_Bcast(&(*std::begin(sendCount_f2n)), P, MPI_INT, 0, MPI_COMM_WORLD);
-
-  // scatter face-to-cell data to respective processors
-  local_face2cells.resize(2 * local_faces[R].size());
-  MPI_Scatterv(&(*std::begin(global_face2cells)), &(*std::begin(sendCount_f2c)),
-               &(*std::begin(locations_f2c)), MPI_INT32_T,
-               &(*std::begin(local_face2cells)), local_face2cells.size(),
-               MPI_INT32_T, 0, MPI_COMM_WORLD);
-  global_face2cells.clear();
-
-  // scatter face-to-node data to respective processors
-  local_face2nodes.resize(sendCount_f2n[R]);
-  MPI_Scatterv(&(*std::begin(global_face2nodes)), &(*std::begin(sendCount_f2n)),
-               &(*std::begin(locations_f2n)), MPI_INT32_T,
-               &(*std::begin(local_face2nodes)), local_face2nodes.size(),
-               MPI_INT32_T, 0, MPI_COMM_WORLD);
-  global_face2nodes.clear();
-
-  // allocate nodal positions
-  int totalNumNodes = global_pos.size();
-  MPI_Bcast(&totalNumNodes, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  // partition nodal data
+  // first allocate nodal positions
+  if (R == 0) cout << "  partitioning nodal data" << endl;
+  int64 totalNumNodes = global_pos.size();
+  MPI_Bcast(&totalNumNodes, 1, MPI_INT64_T, 0, MPI_COMM_WORLD);
   local_nodes.resize(P);
   vector<int> sendCount_pos(P, 0);
   vector<int> locations_pos(P, 0);
@@ -818,11 +865,29 @@ void partitionCCMData(vector<vector3d<double> > &global_pos,
   }
   local_pos.resize(local_nodes[R].size());
 
-  MPI_Scatterv(&(*std::begin(global_pos)), &(*std::begin(sendCount_pos)),
-               &(*std::begin(locations_pos)), MPI_DOUBLE,
-               &(*std::begin(local_pos)), 3 * local_pos.size(),
+  MPI_Scatterv(&(*global_pos.begin()), &(*sendCount_pos.begin()),
+               &(*locations_pos.begin()), MPI_DOUBLE,
+               &(*local_pos.begin()), 3 * local_pos.size(),
                MPI_DOUBLE, 0, MPI_COMM_WORLD);
-  global_pos.clear();
+  global_pos.clear();  // free memory
+
+  // broadcast vector sizes to all procs
+  int numFaceSizes = global_faceSizes.size();
+  MPI_Bcast(&numFaceSizes, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  global_faceSizes.resize(numFaceSizes);
+  MPI_Bcast(&(*global_faceSizes.begin()), numFaceSizes, MPI_INT64_T, 0,
+            MPI_COMM_WORLD);
+  int numCellSizes = global_faceCellSizes.size();
+  MPI_Bcast(&numCellSizes, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  global_faceCellSizes.resize(numCellSizes);
+  MPI_Bcast(&(*global_faceCellSizes.begin()), numCellSizes, MPI_INT64_T, 0,
+            MPI_COMM_WORLD);
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  local_faces.resize(P);
+  partitionFaces(global_allFaces, global_allFaceCells, global_faceSizes,
+                 global_faceCellSizes, local_face2nodes, local_face2cells,
+                 local_faces);
 }
 
 void readCCM(const double &posScale, const char *argv1,
@@ -895,7 +960,7 @@ void readCCM(const double &posScale, const char *argv1,
   // go through all processors, compute total number of faces
   for(size_t i = 0; i < processorIDs.size(); i++){
     double topoID;
-    getMeshID(processorIDs[i], NULL, &topoID);  
+    getMeshID(processorIDs[i], NULL, &topoID);
     totalNumFace += getNumFaces(topoID);
   } 
   
@@ -908,7 +973,7 @@ void readCCM(const double &posScale, const char *argv1,
   getSurfaceNames(probDescID, surf_ids);
 
   // read in all face info, the vertices and cell indexes will be
-  // mapped to local numbering is they are not local
+  // mapped to local numbering if they are not local
   for (size_t i = 0; i < processorIDs.size(); i++) {
     double topoID;
     getMeshID(processorIDs[i], NULL, &topoID);  
@@ -939,8 +1004,7 @@ void getDataFromCCM(const double &posScale, const char *argv1,
   MPI_Barrier(MPI_COMM_WORLD);
 
   vector<vector3d<double> > local_pos;
-  vector<int32> local_face2nodes;
-  vector<int32> local_face2cells;
+  vector<int32> local_face2nodes, local_face2cells;
   vector<entitySet> local_nodes, local_faces;
   if (Loci::MPI_rank == 0) cout << "partitioning ccm data" << endl;
   partitionCCMData(pos_vec, allFaces, allFaceCells, faceSizes, faceCellSizes,
@@ -950,11 +1014,35 @@ void getDataFromCCM(const double &posScale, const char *argv1,
   // put data into loci containers
   if (Loci::MPI_rank == 0) cout << "putting data into Loci containers" << endl;
   int R = Loci::MPI_rank;
+  int P = Loci::MPI_processes;
   int cnt = 0;
   pos.allocate(local_nodes[R]);
   FORALL(local_nodes[R], ei) {
     pos[ei] = local_pos[cnt++];
   }ENDFORALL;
+  local_pos.clear();  // free memory
+
+  // reorganizing local faces b/c color matrix wants them to
+  // be in order (i.e. face ids on rank 0 are all lower than
+  // face ids on rank 1)
+  Loci::debugout << "local faces before reorganizing: " << local_faces[R]
+                 << endl;
+  vector<int64> numFaces(P, 0);
+  for (int pp = 0; pp < P; ++pp) {
+    numFaces[pp] = local_faces[pp].size();
+  }
+  int64 runningTotal = 0;
+  vector<int64> faceSetPartitions(P + 1, 0);
+  for (int pp = 0; pp < P; ++pp) {
+    runningTotal += local_faces[pp].size();
+    faceSetPartitions[pp + 1] = runningTotal;
+  }
+  for (int pp = 0; pp < P; ++pp) {
+    local_faces[pp] =
+        interval(faceSetPartitions[pp], faceSetPartitions[pp + 1] - 1);
+  }
+  Loci::debugout << "local faces after reorganizing: " << local_faces[R]
+                 << endl;
 
   cnt = 0;
   cl.allocate(local_faces[R]);
@@ -963,6 +1051,7 @@ void getDataFromCCM(const double &posScale, const char *argv1,
     cl[ei] = local_face2cells[cnt++]; 
     cr[ei] = local_face2cells[cnt++];
   }ENDFORALL;
+  local_face2cells.clear();  // free memory
 
   cnt = 0;
   store<int> nodes_per_face;
@@ -980,6 +1069,7 @@ void getDataFromCCM(const double &posScale, const char *argv1,
     }
     cnt += nodes_per_face[ei] + 1;
   }ENDFORALL;
+  local_face2nodes.clear();  // free memory
 }
 
 // facemap is not read, assume no duplicate faces between processors
