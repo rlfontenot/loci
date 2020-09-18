@@ -293,67 +293,128 @@ int main(int ac, char* av[]) {
 
 
   FILE *NFP,*CFP,*BFP ;
-  if((NFP=fopen("nodesin.bin","rb")) == NULL) {
-    cerr << "unable to open 'nodesin.bin'" << endl ;
-    exit(-1) ;
-  }
-
-  // Read in nodes file
-  int version = 0 ;
-  int rsz = fread(&version, sizeof(int), 1, NFP) ;
-  if(rsz != 1) {
-    cerr << "fread failed" << endl ;
-    exit(-1) ;
-  }
   int mnodes = 0 ;
-  rsz = fread(&mnodes, sizeof(int), 1, NFP) ;
-  if(rsz != 1) {
-    cerr << "fread failed" << endl ;
-    exit(-1) ;
-  }
-  if(reverse_byteorder)
-    ug_io_reverse_byte_order(&mnodes,sizeof(int),1) ;
-  cout << "reading " << mnodes << " nodes" << endl ;
-  int nodvar_l = 0 ;
-  rsz = fread(&nodvar_l, sizeof(int), 1, NFP) ;
-  if(rsz != 1) {
-    cerr << "fread failed" << endl ;
-    exit(-1) ;
-  }
-  if(reverse_byteorder)
-    ug_io_reverse_byte_order(&nodvar_l,sizeof(int),1) ;
-  //  cout << "nodvar_l="<<nodvar_l << endl ;
-  store<vector3d<double> > pos ;
-  entitySet dom = interval(0,mnodes-1) ;
-  pos.allocate(dom) ;
-  for(int i=0;i<mnodes;++i) {
-    int nodtype = 0 ;
-    rsz = fread(&nodtype, sizeof(int), 1, NFP) ;
-    if(rsz != 1) {
-      cerr << "fread failed" << endl ;
-      exit(-1) ;
-    }    
-    if(reverse_byteorder)
-      ug_io_reverse_byte_order(&nodtype,sizeof(int),1) ;
-    Array<double,3> postmp ;
-    rsz = fread(&(postmp[0]),sizeof(double),3,NFP) ;
-    if(rsz != 3) {
-      cerr << "fread failed" << endl ;
-      exit(-1) ;
-    }
-    if(nodtype != 0) {
-      cerr << "converter only supports type 0 nodes" << endl ;
+  const int R = MPI_rank ;
+  const int P = MPI_processes ;
+  if(R==0) {
+    if((NFP=fopen("nodesin.bin","rb")) == NULL) {
+      cerr << "unable to open 'nodesin.bin'" << endl ;
       exit(-1) ;
     }
 
-    if(reverse_byteorder) 
-      ug_io_reverse_byte_order(&postmp[0],sizeof(double),3) ;
-    pos[i].x = postmp[0] ;
-    pos[i].y = postmp[1] ;
-    pos[i].z = postmp[2] ;
+    // Read in nodes file
+    int version = 0 ;
+    int rsz = fread(&version, sizeof(int), 1, NFP) ;
+    if(rsz != 1) {
+      cerr << "fread failed reading nodes" << endl ;
+      exit(-1) ;
+    }
+    rsz = fread(&mnodes, sizeof(int), 1, NFP) ;
+    if(rsz != 1) {
+      cerr << "fread failed reading nodes" << endl ;
+      exit(-1) ;
+    }
+    if(reverse_byteorder)
+      ug_io_reverse_byte_order(&mnodes,sizeof(int),1) ;
+    cout << "reading " << mnodes << " nodes" << endl ;
+    int nodvar_l = 0 ;
+    rsz = fread(&nodvar_l, sizeof(int), 1, NFP) ;
+    if(rsz != 1) {
+      cerr << "fread failed reading nodes" << endl ;
+      exit(-1) ;
+    }
+    if(reverse_byteorder)
+      ug_io_reverse_byte_order(&nodvar_l,sizeof(int),1) ;
   }
+    //  cout << "nodvar_l="<<nodvar_l << endl ;
+  store<vector3d<double> > pos ;
+  MPI_Bcast(&mnodes,1,MPI_INT,0,MPI_COMM_WORLD) ;
+  vector<int> node_ptns = VOG::simplePartitionVec(0,mnodes-1,P) ;
+  vector<entitySet> local_nodes(P) ;
+  for(int i=0;i<P;++i)
+    local_nodes[i] = interval(node_ptns[i],node_ptns[i+1]-1) ;
+
+  pos.allocate(local_nodes[R]) ;
+
+  if(R == 0) {
+    FORALL(local_nodes[0],nd) {
+      int nodtype = 0 ;
+      int rsz = fread(&nodtype, sizeof(int), 1, NFP) ;
+      if(rsz != 1) {
+	cerr << "fread failed reading nodes" << endl ;
+	exit(-1) ;
+      }    
+      if(reverse_byteorder)
+	ug_io_reverse_byte_order(&nodtype,sizeof(int),1) ;
+      Array<double,3> postmp ;
+      rsz = fread(&(postmp[0]),sizeof(double),3,NFP) ;
+      if(rsz != 3) {
+	cerr << "fread failed reading nodes" << endl ;
+	exit(-1) ;
+      }
+      if(nodtype != 0) {
+	cerr << "converter only supports type 0 nodes" << endl ;
+	exit(-1) ;
+      }
+
+      if(reverse_byteorder) 
+	ug_io_reverse_byte_order(&postmp[0],sizeof(double),3) ;
+      pos[nd].x = postmp[0] ;
+      pos[nd].y = postmp[1] ;
+      pos[nd].z = postmp[2] ;
+    } ENDFORALL ;
+    int mxsize = max(local_nodes[0].size(),
+                     local_nodes[P-1].size()) ;
+    vector<double> buf(mxsize*3) ;
+    for(int i=1;i<P;++i) {
+      int cnt = 0 ;
+      FORALL(local_nodes[i],nd) {
+	int nodtype = 0 ;
+	int rsz = fread(&nodtype, sizeof(int), 1, NFP) ;
+	if(rsz != 1) {
+	  cerr << "fread failed reading nodes" << endl ;
+	  exit(-1) ;
+	}    
+	if(reverse_byteorder)
+	  ug_io_reverse_byte_order(&nodtype,sizeof(int),1) ;
+	Array<double,3> postmp ;
+	rsz = fread(&(postmp[0]),sizeof(double),3,NFP) ;
+	if(rsz != 3) {
+	  cerr << "fread failed reading nodes" << endl ;
+	  exit(-1) ;
+	}
+	if(nodtype != 0) {
+	  cerr << "converter only supports type 0 nodes" << endl ;
+	  exit(-1) ;
+	}
+	
+	if(reverse_byteorder) 
+	  ug_io_reverse_byte_order(&postmp[0],sizeof(double),3) ;
+	buf[cnt++] = postmp[0] ;
+	buf[cnt++] = postmp[1] ;
+	buf[cnt++] = postmp[2] ;
+      } ENDFORALL ;
+
+      MPI_Send(&buf[0],local_nodes[i].size()*3,MPI_DOUBLE,i,9,MPI_COMM_WORLD) ;
+    }
+    fclose(NFP) ;
     
-  fclose(NFP) ;
+  } else {
+    MPI_Status status ;
+    entitySet nodeSet = local_nodes[R] ;
+    int recv_count = nodeSet.size()*3 ;
+    vector<double> tmp_pos(recv_count) ;
+
+    MPI_Recv(&tmp_pos[0],recv_count,MPI_DOUBLE,0,9,MPI_COMM_WORLD,&status) ;
+
+    int tmp = 0 ;
+    FORALL(nodeSet,nd) {
+      vector3d<double> t(tmp_pos[tmp], tmp_pos[tmp+1], tmp_pos[tmp+2]) ;
+      tmp += 3 ;
+      pos[nd] = t ;
+    } ENDFORALL ;
+
+  }    
   
   if(posScale != 1.0) {
     FORALL(pos.domain(),nd) {
@@ -369,31 +430,36 @@ int main(int ac, char* av[]) {
   // Face Information
   vector<triaFace> tria ;
   vector<quadFace> quad ;
-  
-  // Read in cells file
-  rsz = fread(&version, sizeof(int), 1, CFP) ;
-  if(rsz != 1) {
-    cerr << "fread failed" << endl ;
-    exit(-1) ;
-  }
+
   int mcells = 0 ;
-  rsz = fread(&mcells, sizeof(int), 1, CFP) ;
-  if(rsz != 1) {
-    cerr << "fread failed" << endl ;
-    exit(-1) ;
+  if(R==0) {
+    // Read in cells file
+    int version = 0 ;
+    int rsz = fread(&version, sizeof(int), 1, CFP) ;
+    if(rsz != 1) {
+      cerr << "fread failed reading cells" << endl ;
+      exit(-1) ;
+    }
+    rsz = fread(&mcells, sizeof(int), 1, CFP) ;
+    if(rsz != 1) {
+      cerr << "fread failed reading cells" << endl ;
+      exit(-1) ;
+    }
+    if(reverse_byteorder)
+      ug_io_reverse_byte_order(&mcells,sizeof(int),1) ;
+    cout << "reading " << mcells << " cells" << endl ;
+    int info_length = 0 ;
+    rsz = fread(&info_length, sizeof(int), 1, CFP) ;
+    if(rsz != 1) {
+      cerr << "fread failed reading cells" << endl ;
+      exit(-1) ;
+    }
+    if(reverse_byteorder)
+      ug_io_reverse_byte_order(&info_length,sizeof(int),1) ;
+    //  cout << "info_length = " << info_length << endl ;
   }
-  if(reverse_byteorder)
-    ug_io_reverse_byte_order(&mcells,sizeof(int),1) ;
-  cout << "reading " << mcells << " cells" << endl ;
-  int info_length = 0 ;
-  rsz = fread(&info_length, sizeof(int), 1, CFP) ;
-  if(rsz != 1) {
-    cerr << "fread failed" << endl ;
-    exit(-1) ;
-  }
-  if(reverse_byteorder)
-    ug_io_reverse_byte_order(&info_length,sizeof(int),1) ;
-  //  cout << "info_length = " << info_length << endl ;
+  MPI_Bcast(&mcells,1,MPI_INT,0,MPI_COMM_WORLD) ;
+  
 
   const int hexmap[6][4] = {{0,4,6,2},{1,3,7,5},{0,1,5,4},
                             {2,6,7,3},{0,2,3,1},{4,5,7,6}} ;
@@ -402,202 +468,360 @@ int main(int ac, char* av[]) {
   const int tetmap[4][3] = {{0,2,1},{0,1,3},{1,2,3},{0,3,2}} ;
   const int pyrmap[4][3] = {{0,4,2},{1,3,4},{0,1,4},{2,4,3}} ;
   
-  for(int i=0;i<mcells;++i) {
-    int celtype = 0 ;
-    rsz = fread(&celtype, sizeof(int), 1, CFP) ;
-    if(rsz != 1) {
-      cerr << "fread failed" << endl ;
-      exit(-1) ;
-    }    
-    if(reverse_byteorder)
-      ug_io_reverse_byte_order(&celtype,sizeof(int),1) ;
-    switch(celtype) {
-    case 0: // Hexahedron
-      {
-        Array<int,8> hex ;
-        rsz = fread(&hex[0], sizeof(int), 8, CFP) ;
-	if(rsz != 8) {
-	  cerr << "fread failed" << endl ;
-	  exit(-1) ;
-	}        
-	if(reverse_byteorder)
-          ug_io_reverse_byte_order(&hex[0],sizeof(int),8) ;
-	quadFace qFace ;
-	qFace.cell = i+1 ;
-	qFace.left = true ;
-	
-        for(int f=0;f<6;++f) {
-          qFace.nodes[0] = hex[hexmap[f][0]] ;
-          qFace.nodes[1] = hex[hexmap[f][1]] ;
-          qFace.nodes[2] = hex[hexmap[f][2]] ;
-          qFace.nodes[3] = hex[hexmap[f][3]] ;
-          quad.push_back(qFace) ;
-        }
+  MPI_Bcast(&mcells,1,MPI_INT,0,MPI_COMM_WORLD) ;
+  vector<int> cell_ptns = VOG::simplePartitionVec(0,mcells-1,P) ;
+
+  if(R==0) {
+    for(int i=cell_ptns[0];i<cell_ptns[1];++i) {
+      int celtype = 0 ;
+      int rsz = fread(&celtype, sizeof(int), 1, CFP) ;
+      if(rsz != 1) {
+	cerr << "fread failed reading cells" << endl ;
+	exit(-1) ;
+      }    
+      if(reverse_byteorder)
+	ug_io_reverse_byte_order(&celtype,sizeof(int),1) ;
+      switch(celtype) {
+      case 0: // Hexahedron
+	{
+	  Array<int,8> hex ;
+	  rsz = fread(&hex[0], sizeof(int), 8, CFP) ;
+	  if(rsz != 8) {
+	    cerr << "fread failed reading hex cell" << endl ;
+	    exit(-1) ;
+	  }        
+	  if(reverse_byteorder)
+	    ug_io_reverse_byte_order(&hex[0],sizeof(int),8) ;
+	  quadFace qFace ;
+	  qFace.cell = i+1 ;
+	  qFace.left = true ;
+	  
+	  for(int f=0;f<6;++f) {
+	    qFace.nodes[0] = hex[hexmap[f][0]] ;
+	    qFace.nodes[1] = hex[hexmap[f][1]] ;
+	    qFace.nodes[2] = hex[hexmap[f][2]] ;
+	    qFace.nodes[3] = hex[hexmap[f][3]] ;
+	    quad.push_back(qFace) ;
+	  }
+	}
+	break ;
+      case 1: // Prism
+	{
+	  Array<int,6> prsm ;
+	  rsz = fread(&prsm[0], sizeof(int), 6, CFP) ;
+	  if(rsz != 6) {
+	    cerr << "fread failed reading prsm cell" << endl ;
+	    exit(-1) ;
+	  }
+	  if(reverse_byteorder)
+	    ug_io_reverse_byte_order(&prsm[0],sizeof(int),6) ;
+	  quadFace qFace ;
+	  qFace.cell = i+1 ;
+	  qFace.left = true ;
+	  for(int f=0;f<3;++f) {
+	    qFace.nodes[0] = prsm[prsmmap[f][0]] ;
+	    qFace.nodes[1] = prsm[prsmmap[f][1]] ;
+	    qFace.nodes[2] = prsm[prsmmap[f][2]] ;
+	    qFace.nodes[3] = prsm[prsmmap[f][3]] ;
+	    quad.push_back(qFace) ;
+	  }
+	  triaFace tFace ;
+	  tFace.left = true ;
+	  tFace.cell = i+1 ;
+	  
+	  for(int f=3;f<5;++f) {
+	    tFace.nodes[0] = prsm[prsmmap[f][0]] ;
+	    tFace.nodes[1] = prsm[prsmmap[f][1]] ;
+	    tFace.nodes[2] = prsm[prsmmap[f][2]] ;
+	    tria.push_back(tFace) ;
+	  }
+	}
+	break ;
+      case 2: // Tetrahedron
+	{
+	  Array<int,4> tet ;
+	  rsz = fread(&tet[0], sizeof(int), 4, CFP) ;
+	  if(rsz != 4) {
+	    cerr << "fread failed reading tet cell" << endl ;
+	    exit(-1) ;
+	  }        
+	  if(reverse_byteorder)
+	    ug_io_reverse_byte_order(&tet[0],sizeof(int),4) ;
+	  triaFace tFace ;
+	  tFace.left = true ;
+	  tFace.cell = i+1 ;
+	  for(int f=0;f<4;++f) {
+	    tFace.nodes[0] = tet[tetmap[f][0]] ;
+	    tFace.nodes[1] = tet[tetmap[f][1]] ;
+	    tFace.nodes[2] = tet[tetmap[f][2]] ;
+	    tria.push_back(tFace) ;
+	  }
+	}
+	break ;
+      case 6: // Pyramid
+	{
+	  Array<int,5> pyrm ;
+	  rsz = fread(&pyrm[0], sizeof(int), 5, CFP) ;
+	  if(rsz != 5) {
+	    cerr << "fread failed reading pyrm cell" << endl ;
+	    exit(-1) ;
+	  }        
+	  if(reverse_byteorder)
+	    ug_io_reverse_byte_order(&pyrm[0],sizeof(int),5) ;
+	  triaFace tFace ;
+	  tFace.left = true ;
+	  tFace.cell = i+1 ;
+	  for(int f=0;f<4;++f) {
+	    tFace.nodes[0] = pyrm[pyrmap[f][0]] ;
+	    tFace.nodes[1] = pyrm[pyrmap[f][1]] ;
+	    tFace.nodes[2] = pyrm[pyrmap[f][2]] ;
+	    tria.push_back(tFace) ;
+	  }
+	  quadFace qFace ;
+	  qFace.left = true ;
+	  qFace.cell = i+1 ;
+	  
+	  qFace.nodes[0] = pyrm[0] ;
+	  qFace.nodes[1] = pyrm[2] ;
+	  qFace.nodes[2] = pyrm[3] ;
+	  qFace.nodes[3] = pyrm[1] ;
+	  quad.push_back(qFace) ;
+	}
+	break ;
+      default:
+	cerr << "unknown cell type " << celtype << endl ;
+	break ;
       }
-      break ;
-    case 1: // Prism
-      {
-        Array<int,6> prsm ;
-        rsz = fread(&prsm[0], sizeof(int), 6, CFP) ;
-	if(rsz != 6) {
-	  cerr << "fread failed" << endl ;
+    }
+    int mxbufsz =max(cell_ptns[1]-cell_ptns[0],cell_ptns[P]-cell_ptns[P-1]) ;
+    vector<int> buf(9*mxbufsz,0) ;
+    for(int p=1;p<P;++p) {
+      for(int i=cell_ptns[p];i<cell_ptns[p+1];++i) {
+	int offset = 9*(i-cell_ptns[p]) ;
+	int rsz = fread(&buf[offset], sizeof(int), 1, CFP) ;
+	if(rsz != 1) {
+	  cerr << "fread failed reading cells" << endl ;
 	  exit(-1) ;
 	}
-        if(reverse_byteorder)
-          ug_io_reverse_byte_order(&prsm[0],sizeof(int),6) ;
-	quadFace qFace ;
-	qFace.cell = i+1 ;
-	qFace.left = true ;
-        for(int f=0;f<3;++f) {
-          qFace.nodes[0] = prsm[prsmmap[f][0]] ;
-          qFace.nodes[1] = prsm[prsmmap[f][1]] ;
-          qFace.nodes[2] = prsm[prsmmap[f][2]] ;
-          qFace.nodes[3] = prsm[prsmmap[f][3]] ;
-          quad.push_back(qFace) ;
-        }
-	triaFace tFace ;
-	tFace.left = true ;
-	tFace.cell = i+1 ;
-	
-        for(int f=3;f<5;++f) {
-	  tFace.nodes[0] = prsm[prsmmap[f][0]] ;
-	  tFace.nodes[1] = prsm[prsmmap[f][1]] ;
-	  tFace.nodes[2] = prsm[prsmmap[f][2]] ;
-	  tria.push_back(tFace) ;
-        }
-      }
-      break ;
-    case 2: // Tetrahedron
-      {
-        Array<int,4> tet ;
-        rsz = fread(&tet[0], sizeof(int), 4, CFP) ;
-	if(rsz != 4) {
-	  cerr << "fread failed" << endl ;
+	if(reverse_byteorder)
+	  ug_io_reverse_byte_order(&buf[offset],sizeof(int),1) ;
+
+	int celtype = buf[offset] ;
+	int npnts = 0 ;
+	switch(celtype) {
+	case 0: // Hexahedron
+	  npnts = 8 ;
+	  break ;
+	break ;
+	case 1: // Prism
+	  npnts = 6 ;
+	  break ;
+	break ;
+	case 2: // Tetrahedron
+	  npnts = 4 ;
+	  break ;
+	case 6: // Pyramid
+	  npnts = 5 ;
+	break ;
+	default:
+	  cerr << "unknown cell type " << celtype << endl ;
+	  break ;
+	}
+      
+	rsz = fread(&buf[offset+1], sizeof(int), npnts, CFP) ;
+	if(rsz != npnts) {
+	  cerr << "fread failed reading cell with " << npnts << " nodes" << endl ;
 	  exit(-1) ;
 	}        
-	if(reverse_byteorder)
-          ug_io_reverse_byte_order(&tet[0],sizeof(int),4) ;
-	triaFace tFace ;
-	tFace.left = true ;
-	tFace.cell = i+1 ;
-        for(int f=0;f<4;++f) {
-	  tFace.nodes[0] = tet[tetmap[f][0]] ;
-	  tFace.nodes[1] = tet[tetmap[f][1]] ;
-	  tFace.nodes[2] = tet[tetmap[f][2]] ;
-	  tria.push_back(tFace) ;
-        }
+	if(reverse_byteorder) 
+	  ug_io_reverse_byte_order(&buf[offset+1],sizeof(int),npnts) ;
       }
-      break ;
-    case 6: // Pyramid
-      {
-        Array<int,5> pyrm ;
-        rsz = fread(&pyrm[0], sizeof(int), 5, CFP) ;
-	if(rsz != 5) {
-	  cerr << "fread failed" << endl ;
-	  exit(-1) ;
-	}        
-	if(reverse_byteorder)
-          ug_io_reverse_byte_order(&pyrm[0],sizeof(int),5) ;
-	triaFace tFace ;
-	tFace.left = true ;
-	tFace.cell = i+1 ;
-        for(int f=0;f<4;++f) {
-	  tFace.nodes[0] = pyrm[pyrmap[f][0]] ;
-	  tFace.nodes[1] = pyrm[pyrmap[f][1]] ;
-	  tFace.nodes[2] = pyrm[pyrmap[f][2]] ;
-	  tria.push_back(tFace) ;
-        }
-	quadFace qFace ;
-	qFace.left = true ;
-	qFace.cell = i+1 ;
-	
-        qFace.nodes[0] = pyrm[0] ;
-        qFace.nodes[1] = pyrm[2] ;
-        qFace.nodes[2] = pyrm[3] ;
-        qFace.nodes[3] = pyrm[1] ;
-	quad.push_back(qFace) ;
+      int lsz = cell_ptns[p+1]-cell_ptns[p] ;
+     MPI_Send(&buf[0],lsz*9,MPI_INT,p,10,MPI_COMM_WORLD) ;
+    }
+    fclose(CFP) ;
+  } else {
+    MPI_Status status ;
+    int ncells = cell_ptns[R+1]-cell_ptns[R] ;
+    int recv_count = ncells*9 ;
+    vector<int> tmp_cell(recv_count) ;
+
+    MPI_Recv(&tmp_cell[0],recv_count,MPI_INT,0,10,MPI_COMM_WORLD,&status) ;
+
+    int cnt = 0 ;
+    for(int i=cell_ptns[R];i<cell_ptns[R+1];++i,++cnt) {
+      int offset = cnt*9 ;
+      int celtype = tmp_cell[offset] ;
+      switch(celtype) {
+      case 0: // Hexahedron
+	{
+	  Array<int,8> hex ;
+	  for(int j=0;j<8;++j)
+	    hex[j] = tmp_cell[offset+1+j] ;
+	  quadFace qFace ;
+	  qFace.cell = i+1 ;
+	  qFace.left = true ;
+	  
+	  for(int f=0;f<6;++f) {
+	    qFace.nodes[0] = hex[hexmap[f][0]] ;
+	    qFace.nodes[1] = hex[hexmap[f][1]] ;
+	    qFace.nodes[2] = hex[hexmap[f][2]] ;
+	    qFace.nodes[3] = hex[hexmap[f][3]] ;
+	    quad.push_back(qFace) ;
+	  }
+	}
+	break ;
+      case 1: // Prism
+	{
+	  Array<int,6> prsm ;
+	  for(int j=0;j<6;++j)
+	    prsm[j] = tmp_cell[offset+1+j] ;
+
+	  quadFace qFace ;
+	  qFace.cell = i+1 ;
+	  qFace.left = true ;
+	  for(int f=0;f<3;++f) {
+	    qFace.nodes[0] = prsm[prsmmap[f][0]] ;
+	    qFace.nodes[1] = prsm[prsmmap[f][1]] ;
+	    qFace.nodes[2] = prsm[prsmmap[f][2]] ;
+	    qFace.nodes[3] = prsm[prsmmap[f][3]] ;
+	    quad.push_back(qFace) ;
+	  }
+	  triaFace tFace ;
+	  tFace.left = true ;
+	  tFace.cell = i+1 ;
+	  
+	  for(int f=3;f<5;++f) {
+	    tFace.nodes[0] = prsm[prsmmap[f][0]] ;
+	    tFace.nodes[1] = prsm[prsmmap[f][1]] ;
+	    tFace.nodes[2] = prsm[prsmmap[f][2]] ;
+	    tria.push_back(tFace) ;
+	  }
+	}
+	break ;
+      case 2: // Tetrahedron
+	{
+	  Array<int,4> tet ;
+	  for(int j=0;j<4;++j)
+	    tet[j] = tmp_cell[offset+1+j] ;
+
+	  triaFace tFace ;
+	  tFace.left = true ;
+	  tFace.cell = i+1 ;
+	  for(int f=0;f<4;++f) {
+	    tFace.nodes[0] = tet[tetmap[f][0]] ;
+	    tFace.nodes[1] = tet[tetmap[f][1]] ;
+	    tFace.nodes[2] = tet[tetmap[f][2]] ;
+	    tria.push_back(tFace) ;
+	  }
+	}
+	break ;
+      case 6: // Pyramid
+	{
+	  Array<int,5> pyrm ;
+	  for(int j=0;j<5;++j)
+	    pyrm[j] = tmp_cell[offset+1+j] ;
+	  triaFace tFace ;
+	  tFace.left = true ;
+	  tFace.cell = i+1 ;
+	  for(int f=0;f<4;++f) {
+	    tFace.nodes[0] = pyrm[pyrmap[f][0]] ;
+	    tFace.nodes[1] = pyrm[pyrmap[f][1]] ;
+	    tFace.nodes[2] = pyrm[pyrmap[f][2]] ;
+	    tria.push_back(tFace) ;
+	  }
+	  quadFace qFace ;
+	  qFace.left = true ;
+	  qFace.cell = i+1 ;
+	  
+	  qFace.nodes[0] = pyrm[0] ;
+	  qFace.nodes[1] = pyrm[2] ;
+	  qFace.nodes[2] = pyrm[3] ;
+	  qFace.nodes[3] = pyrm[1] ;
+	  quad.push_back(qFace) ;
+	}
+	break ;
+      default:
+	break ;
       }
-      break ;
-    default:
-      cerr << "unknown cell type " << celtype << endl ;
-      break ;
     }
   }
 
-  fclose(CFP) ;
-  
-  if((BFP=fopen("exbcsin.bin","rb")) == NULL) {
-    cerr << "unable to open 'exbcsin.bin'" << endl ;
-    exit(-1) ;
-  }  
-
-  rsz = fread(&version, sizeof(int), 1, BFP) ;
-  if(rsz != 1) {
-    cerr << "fread failed" << endl ;
-    exit(-1) ;
-  }
-  int mbcs = 0 ;
-  rsz = fread(&mbcs, sizeof(int), 1, BFP) ;
-  if(rsz != 1) {
-    cerr << "fread failed" << endl ;
-    exit(-1) ;
-  }
-  if(reverse_byteorder)
-    ug_io_reverse_byte_order(&mbcs,sizeof(int),1) ;
-  cout << "number of boundary faces = " << mbcs << endl ;
-
-  for(int i=0;i<mbcs;++i) {
-    int bc = 0 ;
-    rsz = fread(&bc, sizeof(int), 1, BFP) ;
-    if(rsz != 1) {
-      cerr << "fread failed" << endl ;
+  if(R==0) {
+    if((BFP=fopen("exbcsin.bin","rb")) == NULL) {
+      cerr << "unable to open 'exbcsin.bin'" << endl ;
       exit(-1) ;
-    }    
-    rsz = fread(&bc, sizeof(int), 1, BFP) ;
+    }  
+    int version = 0 ;
+    int rsz = fread(&version, sizeof(int), 1, BFP) ;
     if(rsz != 1) {
-      cerr << "fread failed" << endl ;
+      cerr << "fread failed reading boundary faces" << endl ;
+      exit(-1) ;
+    }
+    int mbcs = 0 ;
+    rsz = fread(&mbcs, sizeof(int), 1, BFP) ;
+    if(rsz != 1) {
+      cerr << "fread failed reading boundary faces" << endl ;
       exit(-1) ;
     }
     if(reverse_byteorder)
-      ug_io_reverse_byte_order(&bc,sizeof(int),1) ;
-    int sz = 0 ;
-    rsz = fread(&sz, sizeof(int), 1, BFP) ;
-    if(rsz != 1) {
-      cerr << "fread failed" << endl ;
-      exit(-1) ;
-    }
-    if(reverse_byteorder)
-      ug_io_reverse_byte_order(&sz,sizeof(int),1) ;
-    if(sz == 3) {
-      triaFace tFace ;
-      tFace.left = true ;
-      tFace.cell = -bc ;
-
-      rsz = fread(&tFace.nodes[0], sizeof(int), 3, BFP) ;
-      if(rsz != 3) {
-	cerr << "fread failed" << endl ;
-	exit(-1) ;
-      }
-      if(reverse_byteorder)
-        ug_io_reverse_byte_order(&tFace.nodes[0],sizeof(int),3) ;
-      tria.push_back(tFace) ;
-    } else if(sz == 4) {
-      quadFace qFace ;
-      qFace.left = true ;
-      qFace.cell = -bc ;
-      rsz = fread(&qFace.nodes[0], sizeof(int), 4, BFP) ;
-      if(rsz != 4) {
-	cerr << "fread failed" << endl ;
-	exit(-1) ;
-      }      
-      if(reverse_byteorder)
-        ug_io_reverse_byte_order(&qFace.nodes[0],sizeof(int),4) ;
-      quad.push_back(qFace) ;
-    } else {
-      cerr << "face size " << sz << " not supported" << endl ;
-    }
-  }
+      ug_io_reverse_byte_order(&mbcs,sizeof(int),1) ;
+    cout << "number of boundary faces = " << mbcs << endl ;
     
+    for(int i=0;i<mbcs;++i) {
+      int bc = 0 ;
+      rsz = fread(&bc, sizeof(int), 1, BFP) ;
+      if(rsz != 1) {
+	cerr << "fread failed reading boundary faces" << endl ;
+	exit(-1) ;
+      }    
+      rsz = fread(&bc, sizeof(int), 1, BFP) ;
+      if(rsz != 1) {
+	cerr << "fread failed reading boundary faces" << endl ;
+	exit(-1) ;
+      }
+      if(reverse_byteorder)
+	ug_io_reverse_byte_order(&bc,sizeof(int),1) ;
+      int sz = 0 ;
+      rsz = fread(&sz, sizeof(int), 1, BFP) ;
+      if(rsz != 1) {
+	cerr << "fread failed reading boundary faces" << endl ;
+	exit(-1) ;
+      }
+      if(reverse_byteorder)
+	ug_io_reverse_byte_order(&sz,sizeof(int),1) ;
+      if(sz == 3) {
+	triaFace tFace ;
+	tFace.left = true ;
+	tFace.cell = -bc ;
+
+	rsz = fread(&tFace.nodes[0], sizeof(int), 3, BFP) ;
+	if(rsz != 3) {
+	  cerr << "fread failed reading boundary faces" << endl ;
+	  exit(-1) ;
+	}
+	if(reverse_byteorder)
+	  ug_io_reverse_byte_order(&tFace.nodes[0],sizeof(int),3) ;
+	tria.push_back(tFace) ;
+      } else if(sz == 4) {
+	quadFace qFace ;
+	qFace.left = true ;
+	qFace.cell = -bc ;
+	rsz = fread(&qFace.nodes[0], sizeof(int), 4, BFP) ;
+	if(rsz != 4) {
+	  cerr << "fread failed reading boundary faces" << endl ;
+	  exit(-1) ;
+	}      
+	if(reverse_byteorder)
+	  ug_io_reverse_byte_order(&qFace.nodes[0],sizeof(int),4) ;
+	quad.push_back(qFace) ;
+      } else {
+	cerr << "face size " << sz << " not supported" << endl ;
+      }
+    }
+    fclose(BFP) ;
+  }
+  
   vector<BC_descriptor> bcs ;
 
   if(MPI_rank == 0) {
@@ -617,11 +841,6 @@ int main(int ac, char* av[]) {
 
   // prepare triangle faces (sort them)
   for(size_t i=0;i<tria.size();++i) {
-    // pos numbers nodes from zero
-    //    tria[i].nodes[0] -= 1 ;
-    //    tria[i].nodes[1] -= 1 ;
-    //    tria[i].nodes[2] -= 1 ;
-
     if(tria[i].nodes[0] > tria[i].nodes[1]) {
       std::swap(tria[i].nodes[0],tria[i].nodes[1]) ;
       tria[i].left = !tria[i].left ;
@@ -637,14 +856,9 @@ int main(int ac, char* av[]) {
   }
 
 
-  if(MPI_rank==0)cerr<<" preparing quad faces" << endl;
+  if(MPI_rank==0)cout<<" preparing quad faces" << endl;
   // prepare quad faces (sort them, but be careful)
   for(size_t i=0;i<quad.size();++i) {
-    // pos numbers nodes from zero
-    //    quad[i].nodes[0] -=1 ;
-    //    quad[i].nodes[1] -=1 ;
-    //    quad[i].nodes[2] -=1 ;
-    //    quad[i].nodes[3] -=1 ;
     // First make sure first entry is lowest number
     int tmp_face[4] ;
     int vs = quad[i].nodes[0] ;
@@ -667,7 +881,7 @@ int main(int ac, char* av[]) {
     }
   }
 
-  if(MPI_rank==0)cerr<<" sorting quad faces" << endl;
+  if(MPI_rank==0)cout<<" sorting quad faces" << endl;
   //sort quad
   int qsz = quad.size() ;
   int mqsz = 0;
@@ -677,7 +891,7 @@ int main(int ac, char* av[]) {
     Loci::parSampleSort(quad,quadCompare,MPI_COMM_WORLD) ;
   }
 
-  if(MPI_rank==0)cerr<<" sorting tria faces" << endl;
+  if(MPI_rank==0)cout<<" sorting tria faces" << endl;
   //sort tria
   int tsz = tria.size() ;
   int mtsz ;
@@ -700,7 +914,7 @@ int main(int ac, char* av[]) {
   int ntria = tria.size()/2 ;
   int nquad = quad.size()/2 ;
   int nfaces = ntria+nquad ;
-  if(MPI_rank==0)cerr<<" creating face2node, cl, cr" << endl;
+  if(MPI_rank==0)cout<<" creating face2node, cl, cr" << endl;
 
   //  int ncells = 0 ;
   //  for(int i=0;i<MPI_processes;++i)
@@ -715,7 +929,7 @@ int main(int ac, char* av[]) {
   if(Loci::MPI_rank == 0) {
     for(int i=0;i<MPI_processes;++i) 
       if(facesizes[i] == 0) {
-	cerr << "Run ugrid2vog with fewer than " << i << " processors for this mesh!" << endl ;
+	cerr << "Run cfd++2vog with fewer than " << i << " processors for this mesh!" << endl ;
 	Loci::Abort() ;
 	break ;
       }
@@ -840,21 +1054,21 @@ int main(int ac, char* av[]) {
     fc++ ;
   }
   MPI_Barrier(MPI_COMM_WORLD) ;
-  if(MPI_rank==0)cerr<<"done with convert2face" << endl;
+  if(MPI_rank==0)cout<<"done with convert2face" << endl;
   if(MPI_rank == 0)
-    cerr << "coloring matrix" << endl ;
+    cout << "coloring matrix" << endl ;
   VOG::colorMatrix(pos,cl,cr,face2node) ;
   MPI_Barrier(MPI_COMM_WORLD) ;
   if(MPI_rank == 0)
-    cerr << "done  coloring" << endl ;
+    cout << "done  coloring" << endl ;
   if(optimize) {
     if(MPI_rank == 0)
-      cerr << "optimizing mesh layout" << endl ;
+      cout << "optimizing mesh layout" << endl ;
     VOG::optimizeMesh(pos,cl,cr,face2node) ;
   }
 
   if(MPI_rank == 0)
-    cerr << "writing VOG file to " << gridName << endl ;
+    cout << "writing VOG file to " << gridName << endl ;
 
   vector<pair<int,string> > surf_ids ;
   for(size_t i=0;i<bcs.size();++i)
