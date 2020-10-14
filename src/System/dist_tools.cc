@@ -390,7 +390,7 @@ namespace Loci {
       storeRepP tmp_sp = facts.get_variable(*vi) ;
       if(tmp_sp->RepType() == CONSTRAINT) {
         entitySet tmp_dom = tmp_sp->domain() ;
-        if(tmp_dom != ~EMPTY) {
+        if(GLOBAL_OR(tmp_dom != ~EMPTY,MPI_COMM_WORLD)) {
           entitySet global_tmp_dom = all_collect_entitySet(tmp_dom) ;
           constraint tmp ;
           *tmp = global_tmp_dom ;
