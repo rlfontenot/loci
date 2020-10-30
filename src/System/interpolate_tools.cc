@@ -744,7 +744,7 @@ namespace Loci {
     
     std::sort(access.begin(),access.end()) ;
 
-    WARN(access[0] < 0) ;
+    WARN(access.size()>0 && access[0] < 0) ;
 
     const int p = MPI_processes ;
     // Now communicate the accessed info
