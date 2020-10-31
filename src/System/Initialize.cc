@@ -119,7 +119,9 @@ namespace Loci {
   MPI_Op MPI_FADD2_MAX ;
 
   int MPI_processes = 1;
-  int MPI_rank = 0 ;
+  int MPI_rank = 0 ; 
+  int MPI_processes_per_host = 1 ;
+
   bool useDebugDir = true ;
   bool useDomainKeySpaces = false ;
 
@@ -215,6 +217,28 @@ namespace Loci {
   double total_memory_usage = 0 ;
 
   extern int current_rule_id ;
+
+  size_t MPI_process_mem_avail() {
+     size_t mem = 0 ;
+     ifstream memfile("/proc/meminfo") ;
+     if(memfile.fail())
+       return mem ;
+     string key="MemAvailable:" ;
+     while(!memfile.fail() || !memfile.eof()) {
+       string type ;
+       int val ;
+       string unit ;
+       memfile >> type >> val ;
+       std::getline(memfile,unit) ;
+       if(type==key) {
+	 mem = val ;
+	 mem *= 1024 ;
+	 mem /= MPI_processes_per_host ;
+	 return mem ;
+       }
+     }
+     return mem ;
+  }
 
   void disableDebugDir() {useDebugDir = false ;}
 
@@ -401,6 +425,19 @@ namespace Loci {
 
     MPI_Comm_size(MPI_COMM_WORLD, &MPI_processes) ;
     MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank) ;
+
+    // Find number of mpi processes per host
+    {
+      long hid = gethostid() ;
+      vector<long> host_list(MPI_processes) ;
+      MPI_Allgather(&hid,1,MPI_LONG,&host_list[0],1,MPI_LONG,MPI_COMM_WORLD) ;
+      int cnt = 0 ;
+      for(int i=0;i<MPI_processes;++i)
+	if(hid == host_list[i])
+	  cnt++ ;
+      MPI_processes_per_host = cnt ;
+      debugout << "mpi processes per host = " << cnt << endl ;
+    }
 
     int sprng_seed = 985456376 ;
     int sprng_gtype = SPRNG_LFG ; // sprng generator type

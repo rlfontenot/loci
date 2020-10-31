@@ -48,6 +48,7 @@ namespace Loci {
   void Init(int* argc, char*** argv) ;
   void Finalize() ; 
   void Abort() ;
+  size_t MPI_process_mem_avail() ;
   
   dMap send_map(Map &dm, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
 
