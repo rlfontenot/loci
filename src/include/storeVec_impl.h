@@ -91,16 +91,37 @@ namespace Loci {
   template<class T> 
   void storeVecRepI<T>::allocate(const entitySet &ptn) {
   
-    if(alloc_ptr) delete[] alloc_ptr ;
-    
+    if(alloc_ptr) {
+#ifdef PAGE_ALLOCATE
+      FORALL(store_domain,ii) {
+	T * p = alloc_ptr + (ii-base_offset)*size ;
+	for(int i=0;i<size;++i)
+	  p[i].~T() ;
+      } ENDFORALL ;
+      pageRelease((store_domain.Max()-store_domain.Min()+1)*size,
+		  alloc_ptr) ;
+#else
+      delete[] alloc_ptr ;
+#endif
+    }
     alloc_ptr = 0 ;
 
     if(size != 0) {
       fatal(size < 1) ;
       if(ptn != EMPTY) {
         int top = ptn.Min() ; int sza = (ptn.Max()-top+1)*size ;
-        alloc_ptr = new T[sza] ;
 	base_offset = top ;
+#ifdef PAGE_ALLOCATE
+	alloc_ptr = pageAlloc(sza,alloc_ptr) ;
+	FORALL(ptn,ii) {
+	  T * p = alloc_ptr + (ii-base_offset)*size ;
+	  for(int i=0;i<size;++i)
+	    new(&p[i]) T() ;
+	} ENDFORALL ;
+#else
+        alloc_ptr = new T[sza] ;
+#endif
+
       }
     }
     
@@ -121,7 +142,19 @@ namespace Loci {
   template<class T> 
   storeVecRepI<T>::~storeVecRepI() 
   {
-    if(alloc_ptr) delete[] alloc_ptr ;
+    if(alloc_ptr) {
+#ifdef PAGE_ALLOCATE
+      FORALL(store_domain,ii) {
+	T * p = alloc_ptr + (ii-base_offset)*size ;
+	for(int i=0;i<size;++i)
+	  p[i].~T() ;
+      } ENDFORALL ;
+      pageRelease((store_domain.Max()-store_domain.Min()+1)*size,
+		  alloc_ptr) ;
+#else
+      delete[] alloc_ptr ;
+#endif
+    }
   }
 
   //*******************************************************************/

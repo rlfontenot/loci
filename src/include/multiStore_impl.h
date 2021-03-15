@@ -72,25 +72,49 @@ namespace Loci {
     //-------------------------------------------------------------------------
     // Assign new entitySet ...
     entitySet ptn = sizes.domain() ;
+    if(index) {
+#ifdef PAGE_ALLOCATE
+      // Call destructor for all allocated objects in container
+      for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
+	p->~T() ;
+      // release allocated objects
+      pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
+		  alloc_pointer) ;
+      // release index pointer array
+      pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
+#else
+      delete[] index ;
+      delete[] alloc_pointer ;
+#endif
+    }
+
     store_domain  = ptn ;
-
-    if(alloc_pointer) delete[] alloc_pointer ;
     alloc_pointer = 0 ;
-    if(index) delete[] index ;
     index = 0 ;
-
+    base_ptr = 0 ;
+    
     size_t sz = 0 ;
     if(ptn != EMPTY) {
       int top  = ptn.Min() ;
       int len  = ptn.Max() - top + 2 ;
+#ifdef PAGE_ALLOCATE
+      index = pageAlloc(len,index) ;
+#else
       index    = new T *[len] ;
+#endif
       base_ptr = index - top ;
 
       FORALL(ptn,i) {
         sz += sizes[i] ;
       } ENDFORALL ;
 
+#ifdef PAGE_ALLOCATE
+      alloc_pointer = pageAlloc(sz+1,alloc_pointer) ;
+      for(size_t i=0;i<sz+1;++i)
+	new (&alloc_pointer[i]) T() ;
+#else
       alloc_pointer = new T[sz+1] ;
+#endif
       sz = 0 ;
       for(size_t ivl=0;ivl< ptn.num_intervals(); ++ivl) {
         int i       = ptn[ivl].first ;
@@ -114,7 +138,12 @@ namespace Loci {
     entitySet ptn = count.domain() ;
     int top = ptn.Min() ;
     int len = ptn.Max() - top + 2 ;
-    T **new_index = new T *[len] ;
+    T **new_index = 0 ;
+#ifdef PAGE_ALLOCATE
+    new_index = pageAlloc(len,new_index) ;
+#else
+    new_index = new T *[len] ;
+#endif
     T **new_base_ptr = new_index - top ;
     size_t sz = 0 ;
     
@@ -122,7 +151,14 @@ namespace Loci {
       sz += count[i] ;
     } ENDFORALL ;
     
-    T *new_alloc_pointer = new T[sz + 1] ;
+    T *new_alloc_pointer = 0 ;
+#ifdef PAGE_ALLOCATE
+      alloc_pointer = pageAlloc(sz+1,alloc_pointer) ;
+      for(size_t i=0;i<sz+1;++i)
+	new (&alloc_pointer[i]) T() ;
+#else
+    new_alloc_pointer = new T[sz + 1] ;
+#endif
     sz = 0 ;
     
     for(size_t ivl = 0; ivl < ptn.num_intervals(); ++ivl) {
@@ -150,8 +186,19 @@ namespace Loci {
     mutex.lock() ;
 
     if(alloc_pointer != 0 && base_ptr[store_domain.Min()] == base_ptr[store_domain.Max()]) {
-      delete[] index ;
+#ifdef PAGE_ALLOCATE
+      // Call destructor for all allocated objects in container
+      for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
+	p->~T() ;
+      // release allocated objects
+      pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
+		  alloc_pointer) ;
+      // release index pointer array
+      pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
+#else
       delete[] alloc_pointer ;
+      delete[] index ;
+#endif
       index = 0 ;
       alloc_pointer = 0 ;
     }
@@ -197,9 +244,23 @@ namespace Loci {
     if(ptn == store_domain)
       return ;
 
-    if(alloc_pointer) delete[] alloc_pointer ;
+    if(index) {
+#ifdef PAGE_ALLOCATE
+      // Call destructor for all allocated objects in container
+      for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
+	p->~T() ;
+      // release allocated objects
+      pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
+		  alloc_pointer) ;
+      // release index pointer array
+      pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
+#else
+      delete[] alloc_pointer ;
+      delete[] index ;
+#endif
+    }
+
     alloc_pointer = 0 ;
-    if(index) delete[] index ;
     index         = 0 ;
     
     base_ptr      = 0 ;
@@ -236,8 +297,21 @@ namespace Loci {
   template<class T> 
   multiStoreRepI<T>::~multiStoreRepI() 
   {
-    if(alloc_pointer) delete[] alloc_pointer ;
-    if(index) delete[] index ;
+    if(index) {
+#ifdef PAGE_ALLOCATE
+      // Call destructor for all allocated objects in container
+      for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
+	p->~T() ;
+      // release allocated objects
+      pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
+		  alloc_pointer) ;
+      // release index pointer array
+      pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
+#else
+      delete[] index ;    
+      delete[] alloc_pointer ;
+#endif
+    }
   }
 
   //*************************************************************************/
@@ -337,9 +411,22 @@ namespace Loci {
         new_base_ptr[i][j] = s[i][j] ;
     } ENDFORALL ;
     
-    if(alloc_pointer) delete[] alloc_pointer ;
+    if(index) {
+#ifdef PAGE_ALLOCATE
+      // Call destructor for all allocated objects in container
+      for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
+	p->~T() ;
+      // release allocated objects
+      pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
+		  alloc_pointer) ;
+      // release index pointer array
+      pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
+#else
+      delete[] index ;
+      delete[] alloc_pointer ;
+#endif
+    }
     alloc_pointer = new_alloc_pointer;
-    if(index) delete[] index ;
     index = new_index ;
     base_ptr = new_base_ptr ;
 
@@ -380,9 +467,23 @@ namespace Loci {
         new_base_ptr[i][j] = s[m[i]][j] ;
     } ENDFORALL ;
 
-    if(alloc_pointer) delete[] alloc_pointer ;
+    if(index) {
+#ifdef PAGE_ALLOCATE
+      // Call destructor for all allocated objects in container
+      for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
+	p->~T() ;
+      // release allocated objects
+      pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
+		  alloc_pointer) ;
+      // release index pointer array
+      pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
+#else
+      delete[] alloc_pointer ;
+      delete[] index ;
+#endif
+    }
     alloc_pointer = new_alloc_pointer;
-    if(index) delete[] index ;
+
     index = new_index ;
     base_ptr = new_base_ptr ;
 
@@ -429,9 +530,22 @@ namespace Loci {
       }
     } ENDFORALL ;
     
-    if(alloc_pointer) delete[] alloc_pointer;
+    if(index) {
+#ifdef PAGE_ALLOCATE
+      // Call destructor for all allocated objects in container
+      for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
+	p->~T() ;
+      // release allocated objects
+      pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
+		  alloc_pointer) ;
+      // release index pointer array
+      pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
+#else
+      delete[] alloc_pointer;
+      delete[] index ;
+#endif
+    }
     alloc_pointer = new_alloc_pointer;
-    if(index) delete[] index ;
     index = new_index ;
     base_ptr = new_base_ptr ;
     
@@ -755,9 +869,23 @@ namespace Loci {
           new_base_ptr[*ei][j] = base_ptr[*ei][j] ;
       }
       
-      if(alloc_pointer) delete [] alloc_pointer ;
+      if(index) {
+#ifdef PAGE_ALLOCATE
+      // Call destructor for all allocated objects in container
+      for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
+	p->~T() ;
+      // release allocated objects
+      pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
+		  alloc_pointer) ;
+      // release index pointer array
+      pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
+#else
+	delete [] alloc_pointer ;
+	delete[] index ;
+#endif
+      }
+
       alloc_pointer = new_alloc_pointer;
-      if(index) delete[] index ;
       index = new_index ;
       base_ptr = new_base_ptr ;
 

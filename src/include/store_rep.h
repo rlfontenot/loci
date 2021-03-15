@@ -25,8 +25,14 @@
 #include <config.h> // This must be the first file included
 #endif
 #include <Config/conf.h>
+// Enable page based allocation for conainers
+#define PAGE_ALLOCATE
 
-#include <Config/conf.h>
+#ifdef PAGE_ALLOCATE
+#include <sys/mman.h>
+#endif
+
+#include <unistd.h>
 #include <Tools/debug.h>
 #include <Tools/nptr.h>
 #include <entitySet.h>
@@ -37,7 +43,31 @@
 
 #include <mpi.h>
 
+
+
 namespace Loci {
+#ifdef PAGE_ALLOCATE
+  template<class T> inline T *pageAlloc(size_t sz,T *p) {
+    size_t alloc_size = sz*sizeof(T) ;
+    // make alloc size page divisible
+    size_t psz = sysconf(_SC_PAGESIZE) ;
+    alloc_size = ((alloc_size%psz) == 0)?alloc_size:(alloc_size/psz+1)*psz ;
+    p = (T *) mmap(0,alloc_size,
+		PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1, 0) ;
+    if(p == MAP_FAILED)
+      throw std::bad_alloc{} ;
+    return p ;
+  }
+  template<class T> inline void pageRelease(size_t sz,T *p) {
+    size_t alloc_size = sz*sizeof(T) ;
+    // make alloc size page divisible
+    size_t psz = sysconf(_SC_PAGESIZE) ;
+    alloc_size = ((alloc_size%psz) == 0)?alloc_size:(alloc_size/psz+1)*psz ;
+    munmap(p,alloc_size) ;
+  }
+  
+#endif
+
   enum store_type { STORE, PARAMETER, MAP, CONSTRAINT, BLACKBOX } ;
 
   class Map ;

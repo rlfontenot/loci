@@ -29,7 +29,15 @@ namespace Loci {
     // if the pass in is EMPTY, we delete the previous allocated memory
     // this equals to free the memory
     if( eset == EMPTY ) {
+#ifdef PAGE_ALLOCATE
+      // Explicitly call destructor
+      FORALL(store_domain,ii) {
+	base_ptr[ii].~T() ;
+      } ENDFORALL ;
+      pageRelease(store_domain.Max()-store_domain.Min()+1,alloc_pointer) ;
+#else
       delete [] alloc_pointer ;
+#endif
       alloc_pointer = 0 ; base_ptr = 0;
       store_domain = eset ;
       dispatch_notify() ;
@@ -54,15 +62,36 @@ namespace Loci {
     // allocated storage
     entitySet ecommon = store_domain & eset ;
 
+#ifdef PAGE_ALLOCATE
+    // Allocate memory in whole pages
+    T* tmp_alloc_pointer = 0 ;
+    tmp_alloc_pointer = pageAlloc(new_range_max-new_range_min+1,
+				  tmp_alloc_pointer) ;
+    // Now call constructor
+    T* tmp_base_ptr = tmp_alloc_pointer - new_range_min ;
+    // Call placement new
+    FORALL(eset,ii) {
+      new(&tmp_base_ptr[ii]) T() ;
+    } ENDFORALL ;
+#else
     T* tmp_alloc_pointer = new T[new_range_max - new_range_min + 1] ;
     T* tmp_base_ptr = tmp_alloc_pointer - new_range_min ;
-
+#endif
     // if ecommon == EMPTY, then nothing is done in the loop
     FORALL(ecommon,i) {
       tmp_base_ptr[i] = base_ptr[i] ;
     } ENDFORALL ;
 
+
+#ifdef PAGE_ALLOCATE
+    // Explicitly call destructor
+    FORALL(store_domain,ii) {
+      base_ptr[ii].~T() ;
+    } ENDFORALL ;
+    pageRelease(store_domain.Max()-store_domain.Min()+1,alloc_pointer) ;
+#else
     delete [] alloc_pointer ;
+#endif
     alloc_pointer = tmp_alloc_pointer ;
     base_ptr = tmp_base_ptr ;
 
@@ -116,7 +145,18 @@ namespace Loci {
   //*************************************************************************/
 
   template<class T>  storeRepI<T>::~storeRepI() {
-    if(alloc_pointer) delete[] alloc_pointer ;
+    if(alloc_pointer) {
+#ifdef PAGE_ALLOCATE
+    // Explicitly call destructor
+      FORALL(store_domain,ii) {
+	base_ptr[ii].~T() ;
+      } ENDFORALL ;
+      
+      pageRelease(store_domain.Max()-store_domain.Min()+1,alloc_pointer) ;
+#else
+      delete[] alloc_pointer ;
+#endif
+    }
   }
 
   template<class T>  entitySet storeRepI<T>::domain() const {
