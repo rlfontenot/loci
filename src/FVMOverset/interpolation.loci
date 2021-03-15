@@ -329,7 +329,7 @@ namespace Loci {
   $rule unit(interpolateFaceStencil), constraint(UNIVERSE),option(disable_threading),prelude {} ;
   
 
-  $rule apply(interpolateFaceStencil<-interpolatePoints(cellcenter,iblank),stencilSize2,stencilSizer,facecenter,area,ci->cellcenter,ci->iblank)[Loci::NullOp] , option(disable_threading), prelude {
+  $rule apply(interpolateFaceStencil<-interpolatePoints(cellcenter,iblank),stencilSize2,interpolateMinStencilSize,stencilSizer,facecenter,area,ci->cellcenter,ci->iblank)[Loci::NullOp] , option(disable_threading), prelude {
     
     using namespace kdTree ;
     MEMORY_PROFILE(compute_start) ;
@@ -418,6 +418,7 @@ namespace Loci {
       for(int j=boxes[i].start;j<=boxes[i].stop;++j)
         spacing = max(spacing,$stencilSizer->getSpacing(pbox[j].coords)) ;
       spacing *= 6.2 ;
+      spacing += *$interpolateMinStencilSize ;
       Loci::debugout << "boxes[" << i << "], spacing =" << spacing
                      << ", size = " << boxes[i].stop-boxes[i].start+1
                      << ", start = " << boxes[i].start
@@ -1128,7 +1129,7 @@ namespace Loci {
   option(disable_threading),prelude { } ;
 
 
-  $rule apply(interpolateCellStencil<-interpolatePoints(cellcenter,iblank),stencilSize2,cellcenter,iblank,stencilSizer)[Loci::NullOp],option(disable_threading), prelude {
+  $rule apply(interpolateCellStencil<-interpolatePoints(cellcenter,iblank),stencilSize2,cellcenter,iblank,stencilSizer,interpolateMinStencilSize)[Loci::NullOp],option(disable_threading), prelude {
 
     using namespace Loci::kdTree ;
     MEMORY_PROFILE(compute_start) ;
@@ -1203,6 +1204,7 @@ namespace Loci {
       for(int j=boxes[i].start;j<=boxes[i].stop;++j)
         spacing = max(spacing,$stencilSizer->getSpacing(pbox[j].coords)) ;
       spacing *= 5.1 ;
+      spacing += *$interpolateMinStencilSize ;
       Loci::debugout << "spacing for box " << i << " is " << spacing
                      << ", boxes.size="<< boxes[i].stop-boxes[i].start+1
                      << endl ;
