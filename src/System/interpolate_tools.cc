@@ -34,8 +34,8 @@ namespace Loci {
     ccenter[0] = realToFloat(pnt.x) ;
     ccenter[1] = realToFloat(pnt.y) ;
     ccenter[2] = realToFloat(pnt.z) ;
-    double delta = realToDouble(deltai) ;
-    double rmin = 2.*delta*delta ; // Note rmin is radius squared.
+    double delta = 1.4142*realToDouble(deltai) ;
+    double rmin = delta*delta ; // Note rmin is radius squared.
     double rmin_ref = rmin ;
     
     int id = kd.find_closest(ccenter,rmin) ;
@@ -126,8 +126,8 @@ namespace Loci {
     ccenter[1] = realToFloat(pnt.y) ;
     ccenter[2] = realToFloat(pnt.z) ;
 
-    double delta = realToDouble(deltai) ;
-    double rmin = 2.*delta*delta ; // Note rmin is radius squared.
+    double delta = 1.4142*realToDouble(deltai) ;
+    double rmin = delta*delta ; // Note rmin is radius squared.
     double rmin_ref = rmin ;
     
     int id = kd.find_closest(ccenter,rmin) ;
