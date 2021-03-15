@@ -55,7 +55,7 @@ namespace Loci {
     p = (T *) mmap(0,alloc_size,
 		PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1, 0) ;
     if(p == MAP_FAILED)
-      throw std::bad_alloc{} ;
+      throw std::bad_alloc() ;
     return p ;
   }
   template<class T> inline void pageRelease(size_t sz,T *p) {
