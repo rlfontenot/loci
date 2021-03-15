@@ -417,6 +417,7 @@ namespace Loci {
       int bufsz = buf.size() ;
       MPI_Bcast(&bufsz,1,MPI_INT,0,MPI_COMM_WORLD) ;
       char *data = new char[bufsz+1] ;
+      data[bufsz] = 0 ;
       if(MPI_rank == 0)
         strcpy(data,buf.c_str()) ;
       MPI_Bcast(data,bufsz,MPI_CHAR,0,MPI_COMM_WORLD) ;
