@@ -37,19 +37,26 @@ namespace Loci {
   $type positiveFaceStencil Constraint ;
   $type limitedFaceStencil Constraint ;
   $type centeredFaceStencil Constraint ;
-
-  $rule constraint(positiveFaceStencil,limitedFaceStencil,centeredFaceStencil
-                   <-faceGradStencil) {
+  $type nishikawaFaceStencil Constraint ;
+  
+  $rule constraint(positiveFaceStencil,limitedFaceStencil,centeredFaceStencil,
+		   nishikawaFaceStencil <-faceGradStencil) {
     $positiveFaceStencil = EMPTY ;
     $limitedFaceStencil = EMPTY ;
     $centeredFaceStencil = EMPTY ;
+    $nishikawaFaceStencil = EMPTY ;
     if($faceGradStencil == "positive") {
       $positiveFaceStencil = $*faceGradStencil.domain() ;
     } else if($faceGradStencil == "limited") {
       $limitedFaceStencil = $*faceGradStencil.domain() ;
     } else if($faceGradStencil == "centered") {
       $centeredFaceStencil = $*faceGradStencil.domain() ;
-    }
+    } else if($faceGradStencil == "nishikawa") {
+      $nishikawaFaceStencil = $*faceGradStencil.domain() ;
+    } else {
+      cerr << "stencil " << $faceGradStencil << " is unknown, defaulting to limited" << endl ;
+      $limitedFaceStencil = $*faceGradStencil.domain() ;
+    }      
       
   }
     
@@ -640,5 +647,172 @@ namespace Loci {
 
     $gradv3d_f(X).z = gradTan + gradNorm ;
   }
+
   
+  $type X store<real_t> ;
+  $type X_f store<real_t> ;
+
+  $rule pointwise(grads_f(X)<-(cl,cr)->(X,cellcenter,grads(X)),
+                  facecenter,area),
+    constraint(nishikawaFaceStencil,(cl,cr)->cellcenter) {
+
+    // Use gradients to compute upwind extrapolated values for left and right
+    // sides of face
+    const vect3d dvl = $facecenter-$cl->$cellcenter ;
+    const real_t Xl = $cl->$X+dot($cl->$grads(X),dvl) ;
+
+    const vect3d dvr = $facecenter-$cr->$cellcenter ;
+    const real_t Xr = $cr->$X+dot($cr->$grads(X),dvr) ;
+
+    const vect3d an = $area.n ;
+    // fourth order correction to average gradient
+    // based on Hiroaki Nishikawa scheme
+    // H. Nishikawa. Robust and accurate viscous discretization via upwind
+    // scheme - I: Basic principle.Comput. Fluids, 49(1):62{86, October 2011.
+    // estimate of diffusion length
+    const real_t edotn = dot($cr->$cellcenter-$cl->$cellcenter,an) ;
+    const real_t alpha = 4./3. ; // Weighting reducing to fourth order
+    // Extra factor of 2 to balance out 1/2 factor in coef
+    const real_t corr4 = 2.*alpha*(Xr-Xl)/edotn ;
+    $grads_f(X) = 0.5*($cl->$grads(X)+$cr->$grads(X) + corr4*an) ;
+  }
+
+        
+
+  $rule pointwise(grads_f(X)<-area,ci->(X,cellcenter,grads(X)),
+                  X_f,facecenter),
+    constraint(nishikawaFaceStencil,ci->cellcenter) {
+
+    // Use gradients to compute upwind extrapolated values for left and right
+    // sides of face
+    const vect3d dvl = $facecenter-$ci->$cellcenter ;
+    const real_t Xl = $ci->$X+dot($ci->$grads(X),dvl) ;
+
+    const real_t Xr = $X_f ;
+
+    const vect3d an = $area.n ;
+    // fourth order correction to average gradient
+    // based on Hiroaki Nishikawa scheme
+    // H. Nishikawa. Robust and accurate viscous discretization via upwind
+    // scheme - I: Basic principle.Comput. Fluids, 49(1):62{86, October 2011.
+    // estimate of diffusion length
+    const real_t edotn = 2.*dot($facecenter-$ci->$cellcenter,an) ;
+    const real_t alpha = 4./3. ; // Weighting reducing to fourth order
+
+    const real_t corr4 = alpha*(Xr-Xl)/edotn ;
+    $grads_f(X) = ($ci->$grads(X) + corr4*an) ;
+  }
+
+  $type X store<vector3d<real_t> > ;
+  $type X_f store<vector3d<real_t> > ;
+
+  $rule pointwise(gradv3d_f(X)<-(cl,cr)->(X,cellcenter,gradv3d(X)),
+                  facecenter,area),
+    constraint(nishikawaFaceStencil,(cl,cr)->cellcenter) {
+
+    // Use gradients to compute upwind extrapolated values for left and right
+    // sides of face
+    const vect3d dvl = $facecenter-$cl->$cellcenter ;
+    const vect3d Xl = $cl->$X+vect3d(dot($cl->$gradv3d(X).x,dvl),
+				     dot($cl->$gradv3d(X).y,dvl),
+				     dot($cl->$gradv3d(X).z,dvl));
+
+    const vect3d dvr = $facecenter-$cr->$cellcenter ;
+    const vect3d Xr = $cr->$X+vect3d(dot($cr->$gradv3d(X).x,dvr),
+				     dot($cr->$gradv3d(X).y,dvr),
+				     dot($cr->$gradv3d(X).z,dvr));
+
+    const vect3d an = $area.n ;
+    // fourth order correction to average gradient
+    // based on Hiroaki Nishikawa scheme
+    // H. Nishikawa. Robust and accurate viscous discretization via upwind
+    // scheme - I: Basic principle.Comput. Fluids, 49(1):62{86, October 2011.
+    // estimate of diffusion length
+    const real_t edotn = dot($cr->$cellcenter-$cl->$cellcenter,an) ;
+    const real_t alpha = 4./3. ; // Weighting reducing to fourth order
+    // Extra factor of 2 to balance out 1/2 factor in coef
+    const vect3d corr4 = 2.*alpha*(Xr-Xl)/edotn ;
+    $gradv3d_f(X).x = 0.5*($cl->$gradv3d(X).x+$cr->$gradv3d(X).x + corr4.x*an) ;
+    $gradv3d_f(X).y = 0.5*($cl->$gradv3d(X).y+$cr->$gradv3d(X).y + corr4.y*an) ;
+    $gradv3d_f(X).z = 0.5*($cl->$gradv3d(X).z+$cr->$gradv3d(X).z + corr4.z*an) ;
+  }
+
+        
+
+  $rule pointwise(gradv3d_f(X)<-area,ci->(X,cellcenter,gradv3d(X)),
+                  X_f,facecenter),
+    constraint(nishikawaFaceStencil,ci->cellcenter) {
+
+    // Use gradients to compute upwind extrapolated values for left and right
+    // sides of face
+    const vect3d dvl = $facecenter-$ci->$cellcenter ;
+    const vect3d Xl = $ci->$X+vect3d(dot($ci->$gradv3d(X).x,dvl),
+				     dot($ci->$gradv3d(X).y,dvl),
+				     dot($ci->$gradv3d(X).z,dvl));
+
+    const vect3d Xr = $X_f ;
+
+    const vect3d an = $area.n ;
+    // fourth order correction to average gradient
+    // based on Hiroaki Nishikawa scheme
+    // H. Nishikawa. Robust and accurate viscous discretization via upwind
+    // scheme - I: Basic principle.Comput. Fluids, 49(1):62{86, October 2011.
+    // estimate of diffusion length
+    const real_t edotn = 2.*dot($facecenter-$ci->$cellcenter,an) ;
+    const real_t alpha = 4./3. ; // Weighting reducing to fourth order
+
+    const vect3d corr4 = alpha*(Xr-Xl)/edotn ;
+    $gradv3d_f(X).x = ($ci->$gradv3d(X).x + corr4.x*an) ;
+    $gradv3d_f(X).y = ($ci->$gradv3d(X).y + corr4.y*an) ;
+    $gradv3d_f(X).z = ($ci->$gradv3d(X).z + corr4.z*an) ;
+  }
+
+
+  $type X storeVec<real> ;
+  $type X_f storeVec<real> ;
+  
+  $rule pointwise(gradv_f(X)<-(cr,cl)->(X,cellcenter,gradv(X)),facecenter,area),
+    constraint(nishikawaFaceStencil,(cl,cr)->X), prelude {
+    $gradv_f(X).setVecSize($X.vecSize()) ;
+  } compute {
+    const vect3d dvl = $facecenter-$cl->$cellcenter ;
+    const vect3d dvr = $facecenter-$cr->$cellcenter ;
+    const vect3d an = $area.n ;
+    // fourth order correction to average gradient
+    // based on Hiroaki Nishikawa scheme
+    // H. Nishikawa. Robust and accurate viscous discretization via upwind
+    // scheme - I: Basic principle.Comput. Fluids, 49(1):62{86, October 2011.
+    // estimate of diffusion length
+    const real_t edotn = dot($cr->$cellcenter-$cl->$cellcenter,an) ;
+    const real_t alpha = 4./3. ; // Weighting reducing to fourth order
+    const int vs = $*gradv_f(X).vecSize() ;
+    for(int i=0;i<vs;++i) {
+      const real_t Xl = $cl->$X[i]+dot($cl->$gradv(X)[i],dvl) ;
+      const real_t Xr = $cr->$X[i]+dot($cr->$gradv(X)[i],dvr) ;
+      const real_t corr4 = 2.*alpha*(Xr-Xl)/edotn ;
+      $gradv_f(X)[i] = 0.5*($cl->$gradv(X)[i]+$cr->$gradv(X)[i] + corr4*an) ;
+    }
+  }
+  
+  $rule pointwise(gradv_f(X)<-cl->(X,cellcenter,gradv(X)),X_f,facecenter,area),
+      constraint(nishikawaFaceStencil,ci->X),prelude {
+    $gradv_f(X).setVecSize($X.vecSize()) ;
+  } compute {
+    const vect3d dvl = $facecenter-$cl->$cellcenter ;
+    const vect3d an = $area.n ;
+    // fourth order correction to average gradient
+    // based on Hiroaki Nishikawa scheme
+    // H. Nishikawa. Robust and accurate viscous discretization via upwind
+    // scheme - I: Basic principle.Comput. Fluids, 49(1):62{86, October 2011.
+    // estimate of diffusion length
+    const real_t edotn = 2.*dot($facecenter-$cl->$cellcenter,an) ;
+    const real_t alpha = 4./3. ; // Weighting reducing to fourth order
+    const int vs = $*gradv_f(X).vecSize() ;
+    for(int i=0;i<vs;++i) {
+      const real_t Xl = $cl->$X[i]+dot($cl->$gradv(X)[i],dvl) ;
+      const real_t Xr = $X_f[i] ;
+      const real_t corr4 = alpha*(Xr-Xl)/edotn ;
+      $gradv_f(X)[i] = ($cl->$gradv(X)[i] + corr4*an) ;
+    }
+  }
 }
