@@ -179,17 +179,20 @@ namespace Loci {
   bool collect_timings = false;
   double time_duration_to_collect_data = 0 ;
   bool use_duplicate_model = false;
-
-#ifdef LOCI_USE_METIS
   bool use_simple_partition=false;
+
+  // space filling curve partitioner
+#ifdef LOCI_USE_METIS
+  bool use_sfc_partition = false ;
 #else 
   // RSM COMMENT 20181108 setting this to true,
   // automatically disables calls to METIS decomposition
   // when we add support for ZOLTAN this will need to be 
   // REVISITED: METIS_DISABLE_NOTE
-  bool use_simple_partition=true;
+  bool use_sfc_partition=true;
 #endif /* ifndef LOCI_USE_METIS */
   bool use_orb_partition = false ;
+  
   extern int factdb_allocated_base ;
 
 
@@ -546,6 +549,9 @@ namespace Loci {
           i++ ;
         } else if(!strcmp((*argv)[i],"--orb_partition")) {
           use_orb_partition = true ; // partition mesh using ORB method
+          i++ ;
+        } else if(!strcmp((*argv)[i],"--sfc_partition")) {
+          use_sfc_partition = true ; // partition mesh using SFC method
           i++ ;
         } else if(!strcmp((*argv)[i],"--dmm")) {
           use_dynamic_memory = true ; // use dynamic memory management
