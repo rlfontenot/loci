@@ -2193,15 +2193,14 @@ namespace Loci {
 		    MPI_COMM_WORLD) ;
       MPI_Allreduce(&(pminl.x),&(pmin.x),3,MPI_FLOAT,MPI_MIN,
 		    MPI_COMM_WORLD) ;
-      vector3d<float> s(4e9/max(pmax.x-pmin.x,1e-3f),
-			4e9/max(pmax.y-pmin.y,1e-3f),
-			4e9/max(pmax.z-pmin.z,1e-3f)) ;
+      double s = 4e-9/max(max(max(pmax.x-pmin.x,1e-3f),pmax.y-pmin.y),
+			  pmax.z-pmin.y) ;
 
       for(int i=0;i<fsz;++i) {
 	IntCoord3 p ;
-	p[0] = (unsigned int)(s.x*(fcenter[i].x-pmin.x)) ;
-	p[1] = (unsigned int)(s.y*(fcenter[i].y-pmin.y)) ;
-	p[2] = (unsigned int)(s.z*(fcenter[i].z-pmin.z)) ;
+	p[0] = (unsigned int)(s*(fcenter[i].x-pmin.x)) ;
+	p[1] = (unsigned int)(s*(fcenter[i].y-pmin.y)) ;
+	p[2] = (unsigned int)(s*(fcenter[i].z-pmin.z)) ;
 	fhcode[i] = hilbert_encode(p) ;
       }      
     }
@@ -2555,7 +2554,7 @@ namespace Loci {
                          t_pos, tmp_cl, tmp_cr, tmp_face2node,
 			 tmp_boundary_tags,
                          cell_ptn,face_ptn,node_ptn) ;
-    } if(use_sfc_partition) {
+    } else if(use_sfc_partition) {
       store<int> cell_weights ;
       // read in additional vertex weights if any
       if(load_cell_weights) {
@@ -2570,6 +2569,7 @@ namespace Loci {
 	MPI_Bcast(&file_exists,1,MPI_INT,0,MPI_COMM_WORLD) ;
 	
 	if(file_exists == 1) {
+	  debugout << "reading cell weights" << endl ;
 	  if(Loci::MPI_rank == 0) {
 	    std::cout << "Space Filling Curve partition reading additional cell weights from: "
 		      << cell_weight_file << std::endl ;
@@ -2590,6 +2590,7 @@ namespace Loci {
 			   MPI_COMM_WORLD) ;
 	  Loci::hdf5CloseFile(file_id) ;
 	} else if(cell_weight_store != 0){
+	  debugout << "getting cell_weights_store" << endl ;
 	  entitySet dom = local_cells[MPI_rank];
 	  cell_weights.allocate(dom);
 	  redistribute_cell_weight(cell_weight_store, cell_weights.Rep());
@@ -2601,6 +2602,7 @@ namespace Loci {
 
 	  storeRepP sp = cell_weights.Rep();
 	  sp->shift(offset) ;
+
 	  
 	  if(cell_weights.domain() != local_cells[Loci::MPI_rank]) {
 	    cerr << "cell_weights=" << cell_weights.domain() << ", local_cells = " << local_cells[Loci::MPI_rank] << endl ;
@@ -2632,7 +2634,7 @@ namespace Loci {
         cell_ptn = newMetisPartitionOfCells(local_cells,tmp_cl,tmp_cr,tmp_boundary_tags) ;
 #else
 	if(MPI_rank==0) {
-          debugout << "METIS disabled:: Use Simple Partition - Based on Space Filling Curve! "<< endl ;
+          debugout << "METIS disabled:: Using simple partition" << endl ;
           useMetis = false ;
         }
 #endif
@@ -3046,14 +3048,18 @@ namespace Loci {
     // if(MPI_rank==0)std::cout<<" using setupFVMGridWithWeight" << std::endl;
     bool orig_load_cell_weights = load_cell_weights;
     string orig_cell_weight_file = cell_weight_file;
-
+    storeRepP orig_cell_weight_store = cell_weight_store ;
     cell_weight_store = 0;
     load_cell_weights = true;
     cell_weight_file = weightfile;
     
-    if(!readFVMGrid(facts,filename))
+    if(!readFVMGrid(facts,filename)) {
+      load_cell_weights = orig_load_cell_weights;
+      cell_weight_file = orig_cell_weight_file;  
+      cell_weight_store = orig_cell_weight_store ;
       return false ;
-    
+    }
+    cell_weight_store = 0;
     memSpace("before create_face_info") ;
     create_face_info(facts) ;
     
@@ -3062,6 +3068,7 @@ namespace Loci {
     
     load_cell_weights = orig_load_cell_weights;
     cell_weight_file = orig_cell_weight_file;  
+    cell_weight_store = orig_cell_weight_store ;
     return true ;
   }
 
@@ -3071,14 +3078,19 @@ namespace Loci {
     //if(MPI_rank==0)std::cout<<" using setupFVMGridWithWeightInStore" << std::endl;
     bool orig_load_cell_weights = load_cell_weights;
     string orig_cell_weight_file = cell_weight_file;
+    storeRepP orig_cell_weight_store = cell_weight_store ;
+
     cell_weight_file = "";
     cell_weight_store = cellwt;
 
-    load_cell_weights = true;
+    load_cell_weights = false;
     
-    
-    if(!readFVMGrid(facts,filename))
+    if(!readFVMGrid(facts,filename)) {
+      load_cell_weights = orig_load_cell_weights;
+      cell_weight_file = orig_cell_weight_file;  
+      cell_weight_store = orig_cell_weight_store ;
       return false ;
+    }
     
     memSpace("before create_face_info") ;
     create_face_info(facts) ;
@@ -3087,9 +3099,8 @@ namespace Loci {
     create_ghost_cells(facts) ;
 
     load_cell_weights = orig_load_cell_weights;
-    cell_weight_file = orig_cell_weight_file; 
-    cell_weight_store = 0;
-    cellwt = 0;
+    cell_weight_file = orig_cell_weight_file;  
+    cell_weight_store = orig_cell_weight_store ;
     return true ;
   }
 
