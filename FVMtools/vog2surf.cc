@@ -621,8 +621,8 @@ int main(int ac, char *av[]) {
   
   
   
-#define DEBUG
-#ifndef DEBUG
+#define H5DEBUG
+#ifndef H5DEBUG
   /* Save old error handler */
   herr_t (*old_func)(void*) = 0;
   void *old_client_data = 0 ;
