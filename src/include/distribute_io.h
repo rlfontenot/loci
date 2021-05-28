@@ -518,5 +518,144 @@ namespace Loci {
                          const CutPlane& cp,
                          fact_db &facts) ;
    
+  // Updated container communication code
+  class partitionFunctionType: public CPTR_type  {
+  public:
+    virtual int numRanks() const = 0 ;
+    virtual void mapKeyToRank(int keyRank[],
+			      const Entity inputKeys[], size_t sz) const = 0 ;
+  } ;
+
+  class algorithmicPartition : public partitionFunctionType {
+    Entity mn, delta ;
+    int nRanks ;
+  public:
+    algorithmicPartition(Entity mnl, Entity mxl, int nRanksl) {
+      mn = mnl ;
+      nRanks = nRanksl ;
+      int sz = mxl-mnl+1 ;
+      delta = (sz+nRanks-1)/nRanks ;
+    }
+    int numRanks() const { return nRanks; }
+    
+    void mapKeyToRank(int keyRank[], const Entity inputKeys[], size_t sz) const {
+      for(size_t i=0;i<sz;++i) {
+	keyRank[i] = max(min(int((inputKeys[i]-mn)/delta),nRanks-1),0) ;
+      }
+    }
+  } ;
+
+  class generalPartition: public partitionFunctionType {
+    std::vector<std::pair<interval, int> > splits ;
+    int nRanks ;
+  public:
+    generalPartition(const std::vector<Entity> &splits_in) {
+      nRanks = splits_in.size()+1 ;
+      std::vector<std::pair<interval, int> > tsplit(splits_in.size()+1) ;
+      splits.swap(tsplit) ;
+      int cx = std::numeric_limits<Entity>::min() ;
+      for(size_t i=0;i<splits_in.size();++i) {
+	splits[i].first.first = cx ;
+	splits[i].first.second = splits_in[i] ;
+	splits[i].second = i ;
+	cx = splits_in[i]+1 ;
+      }
+      splits[splits_in.size()].first.first = cx ;
+      splits[splits_in.size()].first.second = std::numeric_limits<Entity>::max() ;
+      splits[splits_in.size()].second = splits_in.size() ;
+    }
+    generalPartition(const std::vector<entitySet> &init_ptn) {
+      entitySet totset ;
+      nRanks = init_ptn.size() ;
+      for(size_t i=0;i<init_ptn.size();++i) {
+	totset += init_ptn[i] ;
+	for(size_t j=0;j<init_ptn[i].num_intervals();++j) {
+	  splits.push_back(std::pair<interval,int>(init_ptn[i][j],i)) ;
+	}
+      }
+      entitySet negspace = ~totset ;
+      for(size_t j=0;j<negspace.num_intervals();++j) {
+	splits.push_back(std::pair<interval,int>(negspace[j],-1)) ;
+      }
+      std::sort(splits.begin(),splits.end()) ;
+      for(size_t i=0;i<splits.size()-1;++i)
+	if(splits[i].first.second+1 != splits[i+1].first.first) {
+	  cerr << "set array input does not form partition" << endl ;
+	}
+    }
+
+    int numRanks() const { return nRanks; }
+
+    void mapKeyToRank(int keyRank[], const Entity inputKeys[],
+		      size_t sz) const {
+      int lastr = 0 ;
+      for(size_t i=0;i<sz;++i) {
+	Entity key = inputKeys[i] ;
+	int low = 0, high = splits.size()-1 ;
+	while(key < splits[lastr].first.first ||
+	      key > splits[lastr].first.second) {
+	  if(key<splits[lastr].first.first)  
+	    high = lastr-1 ; // lastr is to high
+	  else  
+	    low = lastr+1 ;  // lastr is to low
+	  lastr = (low+high)/2 ;
+	}
+	keyRank[i] = splits[lastr].second ;
+      }
+
+    }
+  } ;
+  void generalMPIComm(Loci::storeRepP op,
+		      Loci::storeRepP sp,
+		      const std::vector<Loci::entitySet> &sendSets,
+		      const std::vector<Loci::sequence> &recvSeqs,
+		      MPI_Comm comm) ;
+  storeRepP
+  generalCommStore(// input store
+		   Loci::storeRepP sp,
+		   // first: from entity (in container ordering),
+		   // second: to global partitioned entity map
+		   const std::vector<std::pair<Entity,Entity> > &commMap,
+		   // To entity partition
+		   Loci::CPTR<Loci::partitionFunctionType> partition,
+		   // mapping from global number to local numbering
+		   const std::vector<std::pair<Entity,Entity> > &global2local,
+		   // If this is null, create new container, otherwise
+		   // assume it is allocated already
+		   Loci::storeRepP op,
+		   MPI_Comm comm) ;
+
+  entitySet
+    getF2G(Map &f2g, Loci::entitySet fdom, dMap &g2f, MPI_Comm comm) ;
+    void File2LocalOrderGeneral(storeRepP &result, entitySet resultSet,
+				storeRepP input, int offset,
+				fact_db::distribute_infoP dist,
+				MPI_Comm comm) ;
+    void getL2FMap(Map &l2f, entitySet dom, fact_db::distribute_infoP dist) ;
+    void FindSimpleDistribution(entitySet dom, const Map &l2f,
+				std::vector<int> &splits, MPI_Comm comm) ;
+    void memoryBalancedDistribution(std::vector<int> &splits_out,
+				    const store<int> &countl,
+				    entitySet dom,
+				    const Map &toNumbering,
+				    MPI_Comm comm) ;
+    storeRepP gatherStore(// Input Store
+			  storeRepP sp,
+			  // EntitySet of input to reorder
+			  const std::vector<int> &commPattern,
+			  // Splits for partition
+			  const std::vector<int> &splits,
+			  MPI_Comm comm) ;
+    storeRepP gatherMultiStore(// Input Store
+			       storeRepP sp,
+			       // EntitySet of input to reorder
+			       const std::vector<int> &commPattern,
+			       // Splits for partition
+			       const std::vector<int> &splits,
+			       MPI_Comm comm) ;
+
+
+
+
 }
 #endif
