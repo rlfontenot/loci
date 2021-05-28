@@ -377,9 +377,9 @@ namespace Loci {
     virtual ~const_param() ;
 
     const_param & operator=(const_param<T> &p)
-    { setRep(p.Rep) ; return *this ;}
+      { setRep(p.Rep()) ; return *this ;}
     const_param & operator=(param<T> &p)
-    { setRep(p.Rep) ; return *this ;}
+      { setRep(p.Rep()) ; return *this ;}
     const_param & operator=(storeRepP p)
     { setRep(p) ; return *this ;}
 

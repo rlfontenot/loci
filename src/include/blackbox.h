@@ -283,9 +283,9 @@ namespace Loci {
     const_blackbox(const const_blackbox<T> &var) { setRep(var.Rep()); }
     const_blackbox(const blackbox<T> &var) { setRep(var.Rep()); }
     const_blackbox & operator=(const const_blackbox<T> &p)
-    { setRep(p.Rep); return *this;}
+      { setRep(p.Rep()); return *this;}
     const_blackbox & operator=(const blackbox<T> &p)
-    { setRep(p.Rep); return *this;}
+      { setRep(p.Rep()); return *this;}
   public:
     const_blackbox() { setRep(new blackboxType); }
     const_blackbox(storeRepP rp) { setRep(rp); }
