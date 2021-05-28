@@ -232,6 +232,22 @@ namespace Loci {
     hid_t group_id = 0 ;
     if(MPI_rank == 0) {
       if(surface_ids.size() != 0) {
+	vector<pair<int,string> > surface_ids_mod= surface_ids ; 
+	for(size_t i=0;i<surface_ids.size();++i) {
+	  string from = surface_ids_mod[i].second ;
+	  if((from.size()==0) || !((from[0] >='a' && from[0] <='z') ||
+				   (from[0] >='A' && from[0] <='Z'))) {
+	    from = "_"+surface_ids_mod[i].second ;
+	  }
+	  for(size_t j=0;j<from.size();++j) {
+	    if(!((from[j] >='a' && from[j] <= 'z') ||
+		 (from[j] >='A' && from[j] <= 'Z') ||
+		 (from[j] >='0' && from[j] <= '9'))) {
+	      from[j] = '_' ;
+	    }
+	  }
+	  surface_ids_mod[i].second = from ;
+	}
 #ifdef H5_USE_16_API
         group_id = H5Gcreate(file_id,"surface_info",0) ;
 #else
@@ -241,9 +257,9 @@ namespace Loci {
         for(size_t i=0;i<surface_ids.size();++i) {
           hid_t bc_id = 0 ;
 #ifdef H5_USE_16_API
-          bc_id = H5Gcreate(group_id,surface_ids[i].second.c_str(),0) ;
+          bc_id = H5Gcreate(group_id,surface_ids_mod[i].second.c_str(),0) ;
 #else
-          bc_id = H5Gcreate(group_id,surface_ids[i].second.c_str(),H5P_DEFAULT,H5P_DEFAULT, H5P_DEFAULT) ;
+          bc_id = H5Gcreate(group_id,surface_ids_mod[i].second.c_str(),H5P_DEFAULT,H5P_DEFAULT, H5P_DEFAULT) ;
 #endif
           hsize_t dims = 1 ;
           hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
@@ -255,7 +271,7 @@ namespace Loci {
           hid_t att_id = H5Acreate(bc_id,"Ident", H5T_NATIVE_INT,
                                    dataspace_id, H5P_DEFAULT,H5P_DEFAULT) ;
 #endif
-          H5Awrite(att_id,H5T_NATIVE_INT,&surface_ids[i].first) ;
+          H5Awrite(att_id,H5T_NATIVE_INT,&surface_ids_mod[i].first) ;
           H5Aclose(att_id) ;
           H5Gclose(bc_id) ;
         }
