@@ -11,7 +11,8 @@
 \textwidth 5.8in
 
 \usepackage{clrscode}
-\input{epsf}
+\usepackage{graphicx}
+%%\input{epsf}
 
 \pagestyle{myheadings}
 \markright{\bf The Dependency Graph Generation Algorithm}
@@ -580,9 +581,12 @@ facilitate such information communication within the iteration
 hierarchy. 
 
 \begin{figure}[htbp]
-  \centerline{ \epsfxsize=5in \epsfbox{promote.eps}}
- \caption{Promotions in Loci}
- \label{promote}
+  \begin{center}
+    \includegraphics[width=5in]{promote}
+%%  \centerline{ \epsfxsize=5in \epsfbox{promote}}
+    \caption{Promotions in Loci}
+    \label{promote}
+  \end{center}
 \end{figure}
 
 There are two types of promotions in Loci: rule promotion and fact
@@ -706,9 +710,12 @@ iteration as volatile facts. Therefore, we can understand the key
 steps in~\proc{Compute-Volatile-Facts}. 
 
 \begin{figure}[htbp]
-  \centerline{ \epsfxsize=2.75in \epsfbox{volatility.eps}}
- \caption{Partially Volatile Fact}
- \label{pvolatile}
+  \begin{center}
+    \includegraphics[width=2.75in]{volatility}
+    %%  \centerline{ \epsfxsize=2.75in \epsfbox{volatility}}
+    \caption{Partially Volatile Fact}
+    \label{pvolatile}
+  \end{center}
 \end{figure}
 
 As a final note for the promotion, we would like to distinguish
