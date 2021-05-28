@@ -195,6 +195,7 @@ namespace Loci {
   
   extern int factdb_allocated_base ;
 
+  string PFS_Script ; // Parallel File System Striping Script
 
   char * model_file;
   // these flags are used to indicate additional weights
@@ -450,10 +451,15 @@ namespace Loci {
     // CMRG  - 3 - Combined Multiple Recursive Generator
     // MLFG  - 4 - Multiplicative Lagged Fibonacci Generator
 
+    char *p = 0 ;
+    if((p=getenv("LOCI_PFS_SCRIPT")) != 0) {
+      PFS_Script = string(p) ;
+    } else {
+      PFS_Script = string ("") ;
+    }
     try {
 
       ostringstream oss ;
-
       char *p = 0 ;
       if((p = getenv("LOCI_MODULE_PATH")) == 0)
         p = getenv("LD_LIBRARY_PATH") ;
