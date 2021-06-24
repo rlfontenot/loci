@@ -164,7 +164,6 @@ namespace Loci {
 
   typedef vector3d<float> coord3df ;
   
-  using namespace Loci ;
 
   ////////////////////////////////////////////////////////////////////////////
   //
@@ -331,7 +330,7 @@ namespace Loci {
 
   $rule apply(interpolateFaceStencil<-interpolatePoints(cellcenter,iblank),stencilSize2,interpolateMinStencilSize,stencilSizer,facecenter,area,ci->cellcenter,ci->iblank)[Loci::NullOp] , option(disable_threading), prelude {
     
-    using namespace kdTree ;
+//    using namespace kdTree ;
     MEMORY_PROFILE(compute_start) ;
     using Loci::debugout ;
 
@@ -470,9 +469,9 @@ namespace Loci {
     Loci::debugout << "time allGatherVec boxes: " << s.stop() << endl ;
     s.start() ;
 #endif
-    using namespace Loci::kdTree ;
+//    using namespace Loci::kdTree ;
     const interpolate_points *interp_pnts = &(*$interpolatePoints(cellcenter,iblank)) ;
-    vector<vector<KDTree<float>::coord_info>  > recv_targets ;
+    vector<vector<Loci::kdTree::KDTree<float>::coord_info>  > recv_targets ;
     recieveTargetPoints(recv_targets,interp_pnts->kd,
                         boxes_g,box_sp,box_tp,b_sizes,
                         send_block_id,recv_block_id,
@@ -507,7 +506,7 @@ namespace Loci {
 	recv_targets[bk][ii].id = ii ;
       }
 
-      KDTree<float> stree(recv_targets[bk]) ;
+      Loci::kdTree::KDTree<float> stree(recv_targets[bk]) ;
 #ifdef VERBOSE
       Loci::debugout << "bk=" << bk << ",bksz=" << tsz<< endl ;
 #endif
@@ -1131,7 +1130,7 @@ namespace Loci {
 
   $rule apply(interpolateCellStencil<-interpolatePoints(cellcenter,iblank),stencilSize2,cellcenter,iblank,stencilSizer,interpolateMinStencilSize)[Loci::NullOp],option(disable_threading), prelude {
 
-    using namespace Loci::kdTree ;
+//    using namespace Loci::kdTree ;
     MEMORY_PROFILE(compute_start) ;
     using Loci::debugout ;
 
@@ -1254,7 +1253,7 @@ namespace Loci {
 #endif
     const interpolate_points *interp_pnts = &(*$interpolatePoints(cellcenter,iblank)) ;
     
-    vector<vector<KDTree<float>::coord_info>  > recv_targets ;
+    vector<vector<Loci::kdTree::KDTree<float>::coord_info>  > recv_targets ;
     recieveTargetPoints(recv_targets,interp_pnts->kd,
                         boxes_g,box_sp,box_tp,b_sizes,
                         send_block_id,recv_block_id,
@@ -1293,7 +1292,7 @@ namespace Loci {
 	recv_targets[bk][ii].id = ii ;
       }
 
-      KDTree<float> stree(recv_targets[bk]) ;
+      Loci::kdTree::KDTree<float> stree(recv_targets[bk]) ;
 #ifdef VERBOSE
       Loci::debugout << "bk=" << bk <<  ",tsz=" << tsz << endl ;
 #endif
