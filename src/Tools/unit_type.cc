@@ -153,7 +153,8 @@ namespace Loci {
     {"kcal","joule",4.184e3},
     {"kW*h","joule",3.6e6},
     {"quad","joule",1.055056e18},
-
+    {"kiloton","joule",4.184e12},
+     
     {"dyne","N",1.0e-5},//force
     {"dyn","N",1.0e-5},
     {"kgf","N",9.80665},
