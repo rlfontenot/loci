@@ -162,12 +162,12 @@ namespace Loci {
       int ie = dom[i].second ;
       if(ie-is>100) {
 	entitySet tmp = interval(is,ie) ;
-	szkb += (p->pack_size(tmp)>>10) ;
+	szkb += ((p->pack_size(tmp)+512)>>10) ;
       } else {
 	int dlta = (ie-is+1)/10 ;
 	while(is <= ie) {
 	  entitySet tmp= interval(is,min(is+dlta-1,ie)) ;
-	  szkb += (p->pack_size(tmp))>>10 ;
+	  szkb += (p->pack_size(tmp)+512)>>10 ;
 	  is += dlta ;
 	}
       }
