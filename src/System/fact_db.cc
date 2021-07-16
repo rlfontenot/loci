@@ -616,13 +616,25 @@ namespace Loci {
           throw StringError("syntax error in fact_db::read") ;
         }
         parse::kill_white_space(s) ;
+	if(s.peek() == '@') {
+	  vname += '@' ;
+	  s.get() ;
+	  parse::kill_white_space(s) ;
+	  if(parse::is_name(s)) 
+	    vname += parse::get_name(s) ;
+	  else {
+	    ostringstream oss ;
+	    oss << "syntax error in fact_db::read, no variable name after namspace '@' separator for namespace '" << vname << "'" ;
+	    throw StringError(oss.str()) ;
+	  }
+	}
+        variable var(vname) ;
         if(!parse::get_token(s,":")) {
           ostringstream oss ;
-          oss << "syntax error in fact_db::read, no ':' separator for variable '" << vname << "'" ;
+          oss << "syntax error in fact_db::read, no ':' separator for variable '" << var << "'" ;
           throw StringError(oss.str()) ;
         }
 
-        variable var(vname) ;
         if(read_vars.inSet(var)) {
           cerr << "WARNING: Variable '" << var << "' is redefined in fact_db input!!!" << endl ;
         }
@@ -689,7 +701,7 @@ namespace Loci {
 
       variable v = *targets.begin() ;
       // only process rules in current namspace
-      if(v.get_info().namespac != nspace_vec) 
+      if(nspace_vec.size()>0 &&v.get_info().namespac != nspace_vec) 
 	continue ;
       variable dpv = v ;
       while(dpv.get_info().priority.size() != 0)
@@ -752,13 +764,15 @@ namespace Loci {
           ri!=special_rules.end();++ri) {
         // first we need to create the facts in the fact_db
         variableSet targets = ri->targets() ;
+	Loci::debugout << "targets=" << targets << endl ;
         bool UseRule = true ;
         for(variableSet::const_iterator vi=targets.begin();
             vi!=targets.end();++vi) 
-          if(vi->get_info().namespac != nspace_vec) {
+          if(nspace_vec.size()>0 && vi->get_info().namespac != nspace_vec) {
             UseRule = false ;
           }
         if(!UseRule)
+
           continue ;
 
 
@@ -803,6 +817,20 @@ namespace Loci {
         else {
           throw StringError("syntax error in fact_db::read") ;
         }
+        parse::kill_white_space(s) ;
+	if(s.peek() == '@') {
+	  vname += '@' ;
+	  s.get() ;
+	  parse::kill_white_space(s) ;
+	  if(parse::is_name(s)) 
+	    vname += parse::get_name(s) ;
+	  else {
+	    ostringstream oss ;
+	    oss << "syntax error in fact_db::read, no variable name after namspace '@' separator for namespace '" << vname << "'" ;
+	    throw StringError(oss.str()) ;
+	  }
+	}
+        variable var(vname) ;
         try {
           parse::kill_white_space(s) ;
           if(!parse::get_token(s,":")) {
