@@ -182,12 +182,15 @@ namespace Loci {
     
     variable::info vinfo = v.get_info() ;
     const int vidsz = vinfo.v_ids.size() ;
-    
+    variable::info vinfobase = v.get_info() ;
+    vinfobase.priority = vector<string>() ;
+    vinfobase.time_id = time_ident() ;
+    variable vbase(vinfobase) ;
     // For simple (non-parametric variables) check to see if variable exempted,
     // is an iteration variable, or already has a namespace identifier, 
     // then don't process
     if(vidsz == 0) {
-      if(simpleVars.inSet(v) || v.is_time_variable() ||
+      if(simpleVars.inSet(vbase) || simpleVars.inSet(v) || v.is_time_variable() ||
 	 vinfo.namespac.size() > 0 )
 	return v ;
       // if not excepted, add namespace to this variable
@@ -222,6 +225,9 @@ namespace Loci {
     debugout << "Calling load_module with " << from_str
              << "," << to_str << endl ;
 #endif
+    ruleSet allRules = rdb.all_rules() ;
+    allRules += rdb.get_default_rules() ;
+    allRules += rdb.get_optional_rules() ;
     std::vector<std::string> using_ns_vec ;
     str_set.insert(from_str) ;
     mod md(from_str) ;
@@ -264,7 +270,9 @@ namespace Loci {
 					      using_ns_vec) ;
 	  }
 	  rp->rename_vars(new_vars) ;
-	  rdb.add_rule(Loci::rule(rp)) ; 
+	  Loci::rule newrule(rp) ;
+	  if(!allRules.inSet(newrule))
+	    rdb.add_rule(newrule) ; 
 	} else {
 #ifdef VERBOSE
           debugout << "adding rule " << *gi << endl ;
@@ -289,7 +297,10 @@ namespace Loci {
     global_key_space_list.copy_space_list(m.loaded_keyspace_list) ;
   }
   
-  void load_module(const std::string from_str, const std::string to_str, const char* problem_name, fact_db &facts, rule_db& rdb, std::set<std::string> &str_set) {
+  void load_module(const std::string from_str, const std::string to_str, const char* problem_name, fact_db &facts, rule_db& rdb, std::set<std::string> &str_set) { 
+    ruleSet allRules = rdb.all_rules() ;
+    allRules += rdb.get_default_rules() ;
+    allRules += rdb.get_optional_rules() ;
 #ifdef VERBOSE
     debugout << "load_module using " << from_str << "," << to_str
              << "," << problem_name << endl ;
@@ -373,9 +384,12 @@ namespace Loci {
 	  }
 	  debugout << "processing " << Loci::rule(rp) << endl ;
 	  rp->rename_vars(new_vars) ;
-	  debugout << "installing " << Loci::rule(rp) << endl ;
+	  Loci::rule newrule(rp) ;
+	  if(!allRules.inSet(newrule)) {
+	    rdb.add_rule(newrule) ; 
+	    debugout << "installing " << newrule << endl ;
+	  }
 
-	  rdb.add_rule(Loci::rule(rp)) ;
 	}
       }
     } else {
