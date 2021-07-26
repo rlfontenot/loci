@@ -1111,6 +1111,7 @@ namespace Loci {
     virtual std::string using_nspace() const = 0 ;
     virtual std::string input_vars() const = 0 ;
     virtual std::string output_vars() const = 0 ;
+    virtual std::string load_nspace() const ;
   } ;
   
   class rule_db {

@@ -219,7 +219,29 @@ namespace Loci {
     return variable(vinfo) ;
   }
   
-  void load_module(const std::string from_str, const std::string to_str, 
+
+  Loci::register_module *getModuleRule(mod::mod_info &m,
+				       std::string mod_name) {
+
+    int mcnt = 0 ;
+    Loci::register_module *module_rule = 0 ;
+    
+    for(rule_impl_list::iterator gi = m.loaded_rule_list.begin(); gi !=m.loaded_rule_list.end(); ++gi) {
+      if((gi.get_p())->rr->is_module_rule()) {
+	if(Loci::MPI_rank == 0)
+	  cerr << "Module rule found in " << mod_name << endl ;
+	module_rule = (Loci::register_module*)(gi.get_p()->rr) ;
+	mcnt++ ;
+      }
+    }
+
+    if(mcnt > 1 && Loci::MPI_rank == 0) {
+      cerr << "module " << mod_name <<  "should have no more than one module rule!" << endl ;
+    }
+    return module_rule ;
+  }
+
+  void load_module(const std::string from_str, std::string to_str, 
 		   rule_db& rdb, std::set<std::string> &str_set) {
 #ifdef VERBOSE
     debugout << "Calling load_module with " << from_str
@@ -233,6 +255,13 @@ namespace Loci {
     mod md(from_str) ;
     mod::mod_info m = md.get_info(from_str) ;
     variableSet nonamespace_vars  ;
+
+    Loci::register_module *module_rule = getModuleRule(m,from_str) ;
+
+    if(to_str.empty() && module_rule != 0) {
+      to_str = module_rule->load_nspace() ;
+    }
+
     if(!unnamedVarList.empty())
       nonamespace_vars = unnamedVarList.back() ;
 
@@ -279,25 +308,24 @@ namespace Loci {
 #endif
 	  rdb.add_rule(Loci::rule(*gi)) ;
         }
-      } else {
-	if(Loci::MPI_rank == 0)
-	  cerr << "Module rule found in " << from_str << endl ;
-	std::string load  =  ((Loci::register_module*)(gi.get_p()->rr))->using_nspace() ;
-	std::vector<std::string> str_vec ;
-	parse_str(load, str_vec) ;
-	for(size_t i = 0; i < str_vec.size(); ++i) 
-	  if(str_set.find(str_vec[i]) == str_set.end()) {
-	    if(Loci::MPI_rank == 0)
-	      cout << "loading in rules from " << str_vec[i] <<"  for module " << to_str << endl ; 
-	    load_module(str_vec[i], to_str, rdb, str_set) ;
-	  }
       }
     }
-    // finally add the keyspace list to the global one
-    global_key_space_list.copy_space_list(m.loaded_keyspace_list) ;
+    if(module_rule != 0) {
+      std::string load  =  (module_rule)->using_nspace() ;
+      std::vector<std::string> str_vec ;
+      parse_str(load, str_vec) ;
+      for(size_t i = 0; i < str_vec.size(); ++i) 
+	if(str_set.find(str_vec[i]) == str_set.end()) {
+	  if(Loci::MPI_rank == 0)
+	    cout << "loading in rules from " << str_vec[i] <<"  for module " << to_str << endl ; 
+	  load_module(str_vec[i], to_str, rdb, str_set) ;
+	}
+      // finally add the keyspace list to the global one
+      global_key_space_list.copy_space_list(m.loaded_keyspace_list) ;
+    }
   }
   
-  void load_module(const std::string from_str, const std::string to_str, const char* problem_name, fact_db &facts, rule_db& rdb, std::set<std::string> &str_set) { 
+  void load_module(const std::string from_str, std::string to_str, const char* problem_name, fact_db &facts, rule_db& rdb, std::set<std::string> &str_set) { 
     ruleSet allRules = rdb.all_rules() ;
     allRules += rdb.get_default_rules() ;
     allRules += rdb.get_optional_rules() ;
@@ -321,6 +349,12 @@ namespace Loci {
 #endif
     if(!unnamedVarList.empty())
       nonamespace_vars = unnamedVarList.back() ;
+
+    Loci::register_module *module_rule = getModuleRule(m,from_str) ;
+
+    if(to_str.empty() && module_rule != 0) {
+      to_str = module_rule->load_nspace() ;
+    }
 
     if(!to_str.empty()) {
       size_t tmp = 0 ;
