@@ -587,12 +587,13 @@ namespace Loci {
     }
     return s ;
   }
-
+  
   istream &fact_db::read(istream &s) {
     bool syntax_error = false ;
     try {
       string vname ;
       parse::kill_white_space(s) ;
+
       if(s.peek()!='{') {
         throw StringError("format error in fact_db::read, missing '{'") ;
         return s ;
@@ -801,11 +802,36 @@ namespace Loci {
       }
       s.get() ;
       
-      variableSet read_vars ;
+      variableSet read_var_set ;
       for(;;) {
         parse::kill_white_space(s) ;
         if(s.peek() == '}') {
           s.get() ;
+	  parse::kill_white_space(s) ;
+	  if(s.peek() == '@') { // ok now we are reading in vars for a namespace
+	    s.get() ;
+	    parse::kill_white_space(s) ;
+	    vector<std::string> nspace ;
+	    while(parse::is_name(s)) {
+	      string name=parse::get_name(s) ;
+	      debugout << "name=" << name << endl ;
+	      nspace.push_back(name) ;
+	      parse::kill_white_space(s) ;
+	      if(s.peek() =='@') {
+		s.get() ;
+		parse::kill_white_space(s) ;
+	      }
+	    }
+	    // Now expecting an open brace for next var space
+	    if(s.peek() == '{') {
+	      vector<std::string> save = nspace_vec ;
+	      nspace_vec = nspace ;
+	      read_vars(s,rdb) ;
+	      nspace_vec=save ;
+	    } else {
+	      throw StringError("expecting '{' to follow namespace") ;
+	    }
+	  }
           break ;
         }
         if(s.peek() == std::char_traits<char>::eof()) {
@@ -838,10 +864,10 @@ namespace Loci {
           }
           
           variable var(vname) ;
-          if(read_vars.inSet(var)) {
+          if(read_var_set.inSet(var)) {
             cerr << "WARNING: Redefining variable '" << var << "' while reading in fact_db!!!!!" << endl ;
           }
-          read_vars += var ;
+          read_var_set += var ;
           storeRepP vp = get_variable(var) ;
           if(vp == 0) {
             vp = get_variable_type(var) ;
