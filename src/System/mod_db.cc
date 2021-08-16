@@ -267,7 +267,7 @@ namespace Loci {
 
     for(rule_impl_list::iterator gi = m.loaded_rule_list.begin(); gi !=m.loaded_rule_list.end(); ++gi) {
 #ifdef VERBOSE
-      debugout << "iterating over *gi = " << *gi << endl ;
+      debugout << "iterating over *gi = " << gi.get_p()->rr << endl ;
 #endif
       if(!(gi.get_p())->rr->is_module_rule()) {
 	if(!to_str.empty()) {
@@ -294,19 +294,25 @@ namespace Loci {
 	      parametricVars += variable(vi->name) ;
 	    }
 	  }
+	  bool has_namespace = false ;
 	  for(variableSet::variableSetIterator i=vars.begin();i!=vars.end();++i) {
+	    variable v = *i ;
+	    if(v.get_namespace().size() !=0)
+	      has_namespace = true ;
 	    new_vars[*i] = add_namespaceVar(*i, simpleVars,parametricVars,
 					      using_ns_vec) ;
 	  }
-	  rp->rename_vars(new_vars) ;
+	  if(!has_namespace)
+	    rp->rename_vars(new_vars) ;
 	  Loci::rule newrule(rp) ;
 	  if(!allRules.inSet(newrule))
 	    rdb.add_rule(newrule) ; 
 	} else {
+	  Loci::rule orule(*gi) ;
 #ifdef VERBOSE
-          debugout << "adding rule " << *gi << endl ;
+          debugout << "adding rule " << orule << endl ;
 #endif
-	  rdb.add_rule(Loci::rule(*gi)) ;
+	  rdb.add_rule(orule) ;
         }
       }
     }
@@ -366,8 +372,8 @@ namespace Loci {
       }
       for(rule_impl_list::iterator gi = m.loaded_rule_list.begin(); gi !=m.loaded_rule_list.end(); ++gi) {
 	if((gi.get_p())->rr->is_module_rule()) {
-	  if(Loci::MPI_rank == 0)
-	    cerr << "Module rule found in " << from_str << endl ;
+	  //	  if(Loci::MPI_rank == 0)
+	  //	    cerr << "Module rule found in " << from_str << endl ;
 	  std::string load  =  ((Loci::register_module*)(gi.get_p()->rr))->using_nspace() ;
 	  std::vector<std::string> str_vec ;
 	  parse_str(load, str_vec) ;
@@ -412,17 +418,34 @@ namespace Loci {
 	      parametricVars += variable(vi->name) ;
 	    }
 	  }
+	  bool has_namespace = false ;
 	  for(variableSet::variableSetIterator i=vars.begin();i!=vars.end();++i) {
-	    new_vars[*i] = add_namespaceVar(*i, simpleVars,parametricVars,
+	    variable v = *i ;
+	    if(v.get_namespace().size() !=0)
+	      has_namespace = true ;
+	    new_vars[v] = add_namespaceVar(v, simpleVars,parametricVars,
 					      using_ns_vec) ;
 	  }
+#ifdef VERBOSE
 	  debugout << "processing " << Loci::rule(rp) << endl ;
-	  rp->rename_vars(new_vars) ;
+#endif
+
+
+	  if(!has_namespace)
+	    rp->rename_vars(new_vars) ;
 	  Loci::rule newrule(rp) ;
 	  if(!allRules.inSet(newrule)) {
-	    rdb.add_rule(newrule) ; 
+	    rdb.add_rule(newrule) ;
+#ifdef VERBOSE
 	    debugout << "installing " << newrule << endl ;
+#endif
+	  } else {
+	    if(has_namespace) {
+	      cerr << "warning, duplicate rule " <<newrule << endl ;
+	    }
 	  }
+	    
+
 
 	}
       }
