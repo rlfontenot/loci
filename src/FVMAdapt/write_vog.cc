@@ -168,7 +168,7 @@ namespace Loci {
 
     vector<pair<int,int> > cell2weights(sz) ;
     entitySet::const_iterator ii = cwdom.begin() ;
-    cnt = 0 ;
+    cnt = parentoffsets[r] ;
     int mincell = p2c[0].second ;
     for(int i=0;i<psz;) {
       while(i<psz && p2c[i].first == cnt) {
