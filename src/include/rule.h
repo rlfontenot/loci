@@ -79,6 +79,7 @@ namespace Loci {
   private:
     rule_impl_type rule_impl_class ;
     bool rule_threading ;
+    bool gpgpu_kernel ;
     bool use_dynamic_schedule ;
     bool relaxed_recursion ;
     bool specialized_parametric ;
@@ -108,6 +109,7 @@ namespace Loci {
     rule_impl(rule_impl &f) { fatal(true) ; }
     void rule_class(rule_impl_type ft) { rule_impl_class = ft ; }
     void disable_threading() { rule_threading = false ; }
+    void gpgpu() { gpgpu_kernel = true ; }
     void enable_dynamic_scheduling() { use_dynamic_schedule = true ; }
     void load_balance() { use_dynamic_schedule = true ; }
     void set_relaxed_recursion() { relaxed_recursion = true ; }
@@ -134,6 +136,7 @@ namespace Loci {
     rule_impl() ;
     bool check_perm_bits() const ;
     bool thread_rule() const { return rule_threading; }
+    bool is_gpu_kernel() const { return gpgpu_kernel ; }
     bool dynamic_schedule_rule() const { return use_dynamic_schedule; }
     bool is_relaxed() const { return relaxed_recursion ; }
     bool is_specialized() { return specialized_parametric; }

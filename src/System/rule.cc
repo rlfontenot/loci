@@ -193,6 +193,7 @@ namespace Loci {
     name = "UNNAMED" ;
     rule_impl_class = UNKNOWN ;
     rule_threading = true ;
+    gpgpu_kernel = false ;
     use_dynamic_schedule = false ;
     relaxed_recursion = false ;
     specialized_parametric = false ;
