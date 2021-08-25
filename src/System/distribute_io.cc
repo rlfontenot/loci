@@ -826,7 +826,8 @@ namespace Loci {
   // convert domain in local numbering into key space
   int getKeyDomain(entitySet dom, fact_db::distribute_infoP dist, MPI_Comm comm) {
     int kdl = 0 ;
-    FORALL(dom,i) {
+    entitySet searchdom = dom & dist->key_domain.domain() ;
+    FORALL(searchdom,i) {
       int key = dist->key_domain[i] ;
       kdl = std::max<int>(key,kdl) ;
     } ENDFORALL ;
@@ -834,7 +835,7 @@ namespace Loci {
     MPI_Allreduce(&kdl,&kd,1,MPI_INT,MPI_MAX,comm) ;
 
     bool failure = false ;
-    FORALL(dom,i) {
+    FORALL(searchdom,i) {
       int key = dist->key_domain[i] ;
       if(kd != key){
 	failure = true ;
@@ -1507,6 +1508,7 @@ namespace Loci {
       else
 	send_sizes[i] = 0 ;
     }
+
     MPI_Alltoall(&send_sizes[0],1,MPI_INT, &recv_sizes[0],1,MPI_INT, comm) ;
     int maxbuf_send = send_sizes[0] ;
     int maxbuf_recv = recv_sizes[0] ;
@@ -1528,8 +1530,9 @@ namespace Loci {
       int ps = (prank+i)%p ; // sending partner
       int pr = (prank-i+p)%p ; // receiving partner
       MPI_Request request ;
-      if(recv_sizes[pr] > 0)
+      if(recv_sizes[pr] > 0) {
 	MPI_Irecv(&recv_buf[0],recv_sizes[pr],MPI_PACKED,pr,901,comm,&request) ;
+      }
       if(send_sizes[ps] > 0) {
 	int loc_pack = 0 ;
 	sp->pack(&send_buf[0],loc_pack, send_sizes[ps], sendSets[ps]) ;
@@ -1671,8 +1674,9 @@ namespace Loci {
 	    countsA[cnt++] = counts_target[ii] ;
 	  } ENDFORALL ;
 	  op = sp->new_store(dom,&countsA[0]) ;
-	} else
+	} else {
 	  op = sp->new_store(dom,&counts_target[dom.Min()]) ;
+	}
       } else {
 	// this is a store or storeVec
 	op = sp->new_store(dom) ;
