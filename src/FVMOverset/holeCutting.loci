@@ -611,16 +611,6 @@ namespace Loci {
     }
   }
 
-#ifdef HACK
-  $rule apply(face2node->zblank_init)[Loci::Maximum],constraint(interface_BC) {
-    int fsz = $face2node.size() ;
-    Loci::byte_t ymx = 1 ;
-    for(int i=0;i<fsz;++i) {
-      join($face2node[i]->$zblank_init,ymx) ;
-    }
-  }
-#endif
-
   $rule unit(zblank_layer),constraint(pos) {
     $zblank_layer=0 ;
   }
@@ -702,12 +692,14 @@ namespace Loci {
   $rule pointwise(iblank<-cellcenter),constraint(geom_cells) {
     $iblank = 0 ;
   }
+  //#define COLLISION_REMOVE
 
   $rule pointwise(non_trivial::iblank<-(upper,lower,boundary_map)->face2node->(yblank,zblank)),
     constraint((upper,lower,boundary_map)->face2node->yblank,componentGeometry) {
     $iblank = 10 ;
     Loci::byte_t maxblank = 0 ;
     Loci::byte_t maxzblank = 0 ;
+    Loci::byte_t minzblank = 0x0f ;
     int usz = $upper.size() ;
     for(int i=0;i<usz;++i) {
       int fsz = $upper[i]->$face2node.size() ;
@@ -715,6 +707,7 @@ namespace Loci {
         $iblank = min($iblank,$upper[i]->$face2node[f]->$yblank) ;
         maxblank = max(maxblank,$upper[i]->$face2node[f]->$yblank) ;
         maxzblank = max(maxzblank,$upper[i]->$face2node[f]->$zblank) ;
+        minzblank = min(minzblank,$upper[i]->$face2node[f]->$zblank) ;
       }
 
     }
@@ -725,6 +718,7 @@ namespace Loci {
         $iblank = min($iblank,$lower[i]->$face2node[f]->$yblank) ;
         maxblank = max(maxblank,$lower[i]->$face2node[f]->$yblank) ;
         maxzblank = max(maxzblank,$lower[i]->$face2node[f]->$zblank) ;
+        minzblank = min(minzblank,$lower[i]->$face2node[f]->$zblank) ;
       }
     }
     if(maxblank == 3)
@@ -733,10 +727,42 @@ namespace Loci {
     // If blanked outsided of layer then change mode to 3
     if($iblank == 2 && maxzblank == 0)
       $iblank = 3 ;
+#ifdef  COLLISION_REMOVE
+    // Added to remove cells in contact zone
+    if(minzblank == 3)
+      $iblank = 3 ;
+#endif
     //    if($iblank == 0 && maxzblank == 0)
     //      $iblank = 1 ;
   }
 
+#ifdef COLLISION_REMOVE
+  $type cblank store<Loci::byte_t> ; // collision blank
+  
+  $rule pointwise(cblank<-(upper,lower,boundary_map)->face2node->(zblank)),
+    constraint((upper,lower,boundary_map)->face2node->zblank,componentGeometry) {
+    $cblank = 0 ;
+    Loci::byte_t maxzblank = 0 ;
+    int usz = $upper.size() ;
+    for(int i=0;i<usz;++i) {
+      int fsz = $upper[i]->$face2node.size() ;
+      for(int f=0;f<fsz;++f) {
+        maxzblank = max(maxzblank,$upper[i]->$face2node[f]->$zblank) ;
+      }
+
+    }
+    int lsz = $lower.size() ;
+    for(int i=0;i<lsz;++i) {
+      int fsz = $lower[i]->$face2node.size() ;
+      for(int f=0;f<fsz;++f) {
+        maxzblank = max(maxzblank,$lower[i]->$face2node[f]->$zblank) ;
+      }
+    }
+    if(maxzblank == 3)
+      $cblank = 1 ;
+  }
+#endif
+  
   // nodal values of iblank
   $type nblank store<Loci::byte_t> ;
   $rule unit(nblank),constraint(pos) {

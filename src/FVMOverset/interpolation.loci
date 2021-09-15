@@ -151,8 +151,15 @@ namespace Loci {
     // Remove any iblanked cells from the interpolation stencil.
     entitySet dom = EMPTY ;
     FORALL(odom,ii) {
-      if($MASK[ii] == 0) // Only zero iblanks donate to interpolation
+      // Only zero iblanks donate to interpolation
+      if($MASK[ii] == 0)
         dom += ii ;
+#ifdef COLLISION_REMOVE
+      // 3 iblanks included to block interpolation across gaps
+      if($MASK[ii] == 3)
+        dom += ii ;
+#endif
+      
     } ENDFORALL ;
 
     if($interpolatePoints(PNTS,MASK)->kd != 0)
