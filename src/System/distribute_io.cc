@@ -1891,8 +1891,12 @@ namespace Loci {
       //	l2f[ii] -= mn ;
       //      } ENDFORALL ;
       int dx = (mx-mn)/p+1 ;
-      for(int i=0;i<p-1;++i) {
-	splits_l[i] = (i+1)*dx ;
+      int r = (mx-mn)%p ;
+      splits_l[0] = dx ;
+      if(0<r)
+	splits_l[0]++ ;
+      for(int i=1;i<p-1;++i) {
+	splits_l[i] = splits_l[i-1]+dx+(i<r)?1:0 ;
       }
       splits.swap(splits_l) ;
     }
