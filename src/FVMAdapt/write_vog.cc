@@ -110,13 +110,13 @@ namespace Loci {
                           vector<entitySet> &face_ptn,
                           vector<entitySet> &node_ptn) ;
   Loci::storeRepP getCellPartitionWeights(entitySet localcelldom) {
-    Loci::storeRepP ptr = Loci::DataXFER_DB.getItem("cellPartitionWeights") ;
-    if(ptr == 0)
-      return ptr ;
+    Loci::storeRepP wptr = Loci::DataXFER_DB.getItem("cellPartitionWeights") ;
+    if(wptr == 0)
+      return wptr ;
     store<int> cell_weights_parent ;
-    cell_weights_parent = ptr ;
+    cell_weights_parent = wptr ;
     store<pair<int,int> > c2pset ;
-    ptr = Loci::DataXFER_DB.getItem("c2p") ;
+    Loci::storeRepP ptr = Loci::DataXFER_DB.getItem("c2p") ;
     if(ptr == 0)
       return ptr ;
     c2pset = ptr ;
@@ -124,9 +124,8 @@ namespace Loci {
     int r = Loci::MPI_rank ;
     int p = Loci::MPI_processes ;
      
-    int first = domc2p.Min() ;
-    int minParent = c2pset[first].second ;
-    int minTarget = c2pset[first].first ;
+    int minParent = std::numeric_limits<int>::max() ;
+    int minTarget = std::numeric_limits<int>::max() ;
     FORALL(domc2p,ii) {
       minParent = min(minParent,c2pset[ii].second) ;
       minTarget = min(minTarget,c2pset[ii].first) ;
@@ -162,19 +161,22 @@ namespace Loci {
     vector<pair<int,int> > splits(p-1) ;
     for(int i=0;i<p-1;++i)
       splits[i] = pair<int,int>(parentoffsets[i+1],-1) ;
-    
+
     Loci::parSplitSort(p2c,splits,MPI_COMM_WORLD) ;
+
     int psz = p2c.size() ;
 
-    vector<pair<int,int> > cell2weights(sz) ;
+    vector<pair<int,int> > cell2weights(psz) ;
     entitySet::const_iterator ii = cwdom.begin() ;
     cnt = parentoffsets[r] ;
     int mincell = p2c[0].second ;
+    int cnt2 = 0 ;
     for(int i=0;i<psz;) {
       while(i<psz && p2c[i].first == cnt) {
 	mincell = min(mincell,p2c[i].second) ;
-	cell2weights.push_back(pair<int,int>(p2c[i].second,
-					     cell_weights_parent[*ii])) ;
+	cell2weights[cnt2] =pair<int,int>(p2c[i].second,
+					  cell_weights_parent[*ii]) ;
+	cnt2++ ;
 	i++ ;
       }
       cnt++ ;
@@ -193,12 +195,15 @@ namespace Loci {
     
     for(int i=0;i<p-1;++i)
       splits[i] = pair<int,int>(parentoffsets[i+1],-1) ;
-    
+
+
+    sort(cell2weights.begin(),cell2weights.end()) ;
     Loci::parSplitSort(cell2weights,splits,MPI_COMM_WORLD) ;
 
     store<int> cellweightschild ;
     cellweightschild.allocate(localcelldom) ;
     cnt = 0;
+
     FORALL(localcelldom,ii) {
       cellweightschild[ii] = cell2weights[cnt].second ;
       cnt++ ;
@@ -800,7 +805,7 @@ namespace Loci{
 	if(ptr != 0) {
           store<int> cell_weights ;
 	  cell_weights = ptr ;
-          
+
 	  if(cell_weights.domain() != local_cells[Loci::MPI_rank]) {
 	    cerr << "cell_weights=" << cell_weights.domain() << ", local_cells = " << local_cells[Loci::MPI_rank] << endl ;
 	    cerr << "cell weights partition inconsistent!" << endl ;
