@@ -1,0 +1,41 @@
+/*! 
+
+ \mainpage  User's Manual
+\section section_install Compiling and running the program
+ AppGui is distributed as part of Loci framework. The FVMtools module and FVMadapt module in Loci should be installed and available. Without these modules, AppGui still can be compiled and run, but it will lose part of its functionalities.
+ Qt and OpenGL libraries must be available for AppGui to compile and to run.
+ The environment variable \a CHEMDEMOPATH is used to point to the resource files. It should be set up as the directory of AppGui. Here is the example of chemdemo.rc:
+\code
+set ( CHEMDEMOPATH, "/home/my_directory/Work/Loci/AppGUI/" );
+prepend ( PATH, "$CHEMDEMOPATH" );
+\endcode    		         
+ 
+ Another environment variable used is \a CHEMISTRY_DATABASE, which points to the directory of chemistry database. This variable need to be setup by using "swsetup chem".
+ 	 
+To compile, first type \a qmake, the Makefile will be generated. Then type \a make, the program will be compiled and linked.
+
+To run AppGui, type \a chemdemo, the main window will appear.
+  
+\section section_intro General Instruction
+In main window, there are 7 buttons; each button represents a module in AppGui. When the  mouse is focused on one button, the central area will display a brief introduction to the module. When the button is pressed, a new window will pop out.
+
+\image latex main.eps "Main Window" width=12cm
+In the window of each module, there is a help button  at the right end of toolbar. It will provide step-by-step guide to the module.
+
+  \ref page_xml
+  
+  \ref page_import
+  
+  \ref page_fvmadapt
+  
+  \ref page_vogmerge
+  
+  \ref page_pb	  
+
+  \ref page_vogcheck
+
+  \ref page_postprocess
+  
+  	
+
+ */

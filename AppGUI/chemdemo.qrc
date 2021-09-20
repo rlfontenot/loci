@@ -1,0 +1,9 @@
+<!DOCTYPE RCC><RCC version="1.0">
+ <qresource>
+     <file>png/filenew.png</file>
+     <file>png/fileopen.png</file>
+     <file>png/filesave.png</file>
+     <file>png/save.png</file>
+     <file>png/save.png</file>
+ </qresource>
+ </RCC>
