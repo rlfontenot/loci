@@ -692,9 +692,22 @@ namespace Loci {
   $rule pointwise(iblank<-cellcenter),constraint(geom_cells) {
     $iblank = 0 ;
   }
+  $type overset_collision_check param<string> ;
+  $rule default(overset_collision_check),comments("Turn on feature to try to detect surface-surface collisions and prevent interpolation leaks. To enable, set to 'on'") {
+    $overset_collision_check = "off" ;
+  }
+  $type ovc_check param<bool> ;
+  $rule singleton(ovc_check<-overset_collision_check) {
+    $ovc_check = false ;
+    if($overset_collision_check == "on" ||
+       $overset_collision_check == "true" ||
+       $overset_collision_check == "yes")
+      $ovc_check = true ;
+  }
+  
   //#define COLLISION_REMOVE
 
-  $rule pointwise(non_trivial::iblank<-(upper,lower,boundary_map)->face2node->(yblank,zblank)),
+  $rule pointwise(non_trivial::iblank<-(upper,lower,boundary_map)->face2node->(yblank,zblank),ovc_check),
     constraint((upper,lower,boundary_map)->face2node->yblank,componentGeometry) {
     $iblank = 10 ;
     Loci::byte_t maxblank = 0 ;
@@ -727,16 +740,14 @@ namespace Loci {
     // If blanked outsided of layer then change mode to 3
     if($iblank == 2 && maxzblank == 0)
       $iblank = 3 ;
-#ifdef  COLLISION_REMOVE
     // Added to remove cells in contact zone
-    if(minzblank == 3)
+    if($ovc_check && minzblank == 3)
       $iblank = 3 ;
-#endif
+
     //    if($iblank == 0 && maxzblank == 0)
     //      $iblank = 1 ;
   }
 
-#ifdef COLLISION_REMOVE
   $type cblank store<Loci::byte_t> ; // collision blank
   
   $rule pointwise(cblank<-(upper,lower,boundary_map)->face2node->(zblank)),
@@ -761,7 +772,6 @@ namespace Loci {
     if(maxzblank == 3)
       $cblank = 1 ;
   }
-#endif
   
   // nodal values of iblank
   $type nblank store<Loci::byte_t> ;

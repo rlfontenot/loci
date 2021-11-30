@@ -44,13 +44,14 @@ namespace Loci {
       // If no points in stencil radius, return closest point
       vector<int> n ;
       id = kd.find_closest(ccenter) ;
-      if(id >=0)
+      if(id >=0 && id !=std::numeric_limits<int>::max())
         n.push_back(id) ;
       return n ;
     }
     if(rmin <= 1e-30) {
       vector<int> n ;
-      n.push_back(id) ;
+      if(id != std::numeric_limits<int>::max())
+	n.push_back(id) ;
       return n ;
     }
 
@@ -65,24 +66,32 @@ namespace Loci {
 
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[0] = id;
 
     box.maxc[0] = ccenter[0] ;
     box.minc[0] = ccenter[0]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[1] = id;
 
     box.maxc[1] = ccenter[1] ;
     box.minc[1] = ccenter[1]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[2] = id;
 
     box.minc[0] = ccenter[0] ;
     box.maxc[0] = ccenter[0]+delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[3] = id;
 
     // Now gather negative z quadrants
@@ -94,24 +103,32 @@ namespace Loci {
     box.minc[2] = ccenter[2]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[4] = id;
 
     box.maxc[0] = ccenter[0] ;
     box.minc[0] = ccenter[0]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[5] = id ;
 
     box.maxc[1] = ccenter[1] ;
     box.minc[1] = ccenter[1]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[6] = id ;
 
     box.minc[0] = ccenter[0] ;
     box.maxc[0] = ccenter[0]+delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[7] = id ;
 
     return neighbors ;
@@ -132,17 +149,18 @@ namespace Loci {
     
     int id = kd.find_closest(ccenter,rmin) ;
 
-    if(id < 0) {
+    if(id < 0 ) {
       // If no points in stencil radius, return closest point
       vector<int> n ;
       id = kd.find_closest(ccenter) ;
-      if(id >=0)
+      if(id >=0 && id != std::numeric_limits<int>::max())
         n.push_back(id) ;
       return n ;
     }
     if(rmin <= 1e-30) {
       vector<int> n ;
-      n.push_back(id) ;
+      if(id != std::numeric_limits<int>::max())
+	n.push_back(id) ;
       return n ;
     }
 
@@ -157,24 +175,32 @@ namespace Loci {
 
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[0] = id;
 
     box.maxc[0] = ccenter[0] ;
     box.minc[0] = ccenter[0]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[1] = id;
 
     box.maxc[1] = ccenter[1] ;
     box.minc[1] = ccenter[1]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[2] = id;
 
     box.minc[0] = ccenter[0] ;
     box.maxc[0] = ccenter[0]+delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[3] = id;
 
     // Now gather negative z quadrants
@@ -186,24 +212,32 @@ namespace Loci {
     box.minc[2] = ccenter[2]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[4] = id;
 
     box.maxc[0] = ccenter[0] ;
     box.minc[0] = ccenter[0]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[5] = id ;
 
     box.maxc[1] = ccenter[1] ;
     box.minc[1] = ccenter[1]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[6] = id ;
 
     box.minc[0] = ccenter[0] ;
     box.maxc[0] = ccenter[0]+delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[7] = id ;
 
     return neighbors ;
