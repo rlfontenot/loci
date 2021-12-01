@@ -1840,4 +1840,16 @@ namespace Loci {
     MEMORY_PROFILE(compute_end) ;
   } ;
 
+  $type firstOrderCells store<char> ;
+  $type oversetCollisionCheck Constraint ;
+
+  $rule apply((cl,cr)->firstOrderCells<-(cl,cr)->iblank)[Loci::Maximum],
+  constraint((cl,cr)->geom_cells,oversetCollisionCheck) {
+    if(max($cl->$iblank,$cr->$iblank) > 2) {
+      char tmp = 1 ;
+      join($cl->$firstOrderCells,tmp) ;
+      join($cr->$firstOrderCells,tmp) ;
+    }
+  }
+  
 }
