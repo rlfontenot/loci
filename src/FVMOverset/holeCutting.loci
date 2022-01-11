@@ -713,7 +713,6 @@ namespace Loci {
        $overset_collision_check == "yes")
       $oversetCollisionCheck = ~EMPTY ;
   }
-  //#define COLLISION_REMOVE
 
   $rule pointwise(non_trivial::iblank<-(upper,lower,boundary_map)->face2node->(yblank,zblank),ovc_check),
     constraint((upper,lower,boundary_map)->face2node->yblank,componentGeometry) {
