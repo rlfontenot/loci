@@ -132,14 +132,16 @@ namespace Loci {
       fatal(!Rep()->domain().inSet(indx)) ;
 #endif
       return base_ptr[indx]; }
-    const T &elem(int indx) const {
+    const T &elem(Entity indx) const {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL);
       fatal(!Rep()->domain().inSet(indx)) ;
 #endif
       return base_ptr[indx]; }
-    T &operator[](int indx) { return elem(indx);}
-    const T&operator[](int indx) const { return elem(indx);}
+    T &operator[](Entity indx) { return elem(indx);}
+    const T&operator[](Entity indx) const { return elem(indx);}
+    T &operator[](size_t indx) { return elem(indx);}
+    const T&operator[](size_t indx) const { return elem(indx);}
   } ;
 
   template<class T> class const_store : public store_instance {
@@ -166,16 +168,19 @@ namespace Loci {
     entitySet domain() const { return Rep()->domain(); }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
 #ifdef BOUNDS_CHECK
-    const T &elem(int indx) const {
+    const T &elem(Entity indx) const {
       fatal(base_ptr==NULL);
       fatal(!Rep()->domain().inSet(indx)) ;
       return base_ptr[indx]; }
-    const T& operator[](int indx) const { return elem(indx); }
+    const T& operator[](Entity indx) const { return elem(indx); }
 #else
-    const T &restrict elem(int indx) const restrict {
+    const T &restrict elem(Entity indx) const restrict {
       return base_ptr[indx]; }
-    const T& restrict operator[](int indx) const restrict { return elem(indx); }
+    const T& restrict operator[](Entity indx) const restrict { return elem(indx); }
 #endif
+  private:
+    const T& operator[](double indx) const { return elem(indx); }
+
   } ;
 
   

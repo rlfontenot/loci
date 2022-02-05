@@ -130,6 +130,8 @@ namespace Loci {
       return base_ptr[indx]; }
     Entity &operator[](Entity indx) { return elem(indx); }
     const Entity &operator[](Entity indx) const { return const_elem(indx) ; }
+    Entity &operator[](size_t indx) { return elem(indx); }
+    const Entity &operator[](size_t indx) const { return const_elem(indx) ; }
     //        operator int*() { return base_ptr; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ; }
@@ -179,6 +181,7 @@ namespace Loci {
 #endif
       return base_ptr[indx]; }
     const Entity &operator[](Entity indx) const { return const_elem(indx) ; }
+    const Entity &operator[](size_t indx) const { return const_elem(indx) ; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
     int getRangeKeySpace() const { return MapRepP(Rep())->getRangeKeySpace() ; }
   } ;

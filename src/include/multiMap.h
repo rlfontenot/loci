@@ -106,6 +106,9 @@ namespace Loci {
       arrayHelper(int *f, int *l) : first(f), last(l){}
       int size() { return last-first ; }
       int &operator[](int indx) { return first[indx] ; }
+      int &operator[](size_t indx) { return first[indx] ; }
+      int &operator[](unsigned int indx) { return first[indx] ; }
+      int &operator[](unsigned char indx) { return first[indx] ; }
       int *begin() { return first ; }
       int *end() { return last; }
     } ;
@@ -116,6 +119,9 @@ namespace Loci {
       arrayHelper_const(const int *f, const int *l) : first(f), last(l){}
       int size() { return last-first ; }
       const int &operator[](int indx) { return first[indx] ; }
+      const int &operator[](size_t indx) { return first[indx] ; }
+      const int &operator[](unsigned int indx) { return first[indx] ; }
+      const int &operator[](unsigned char indx) { return first[indx] ; }
       const int *begin() { return first ; }
       const int *end() { return last; }
     } ;
@@ -164,14 +170,28 @@ namespace Loci {
       return arrayHelper_const(base_ptr[indx],base_ptr[indx+1]) ;
     }
 
-    arrayHelper operator[](int indx) {
+    arrayHelper operator[](Entity indx) {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif
       return arrayHelper(base_ptr[indx],base_ptr[indx+1]) ;
     }
-    arrayHelper_const operator[](int indx) const {
+    arrayHelper_const operator[](Entity indx) const {
+#ifdef BOUNDS_CHECK
+      fatal(base_ptr==NULL); 
+      fatal(!((Rep()->domain()).inSet(indx))) ;
+#endif
+      return arrayHelper_const(base_ptr[indx],base_ptr[indx+1]) ;
+    }
+    arrayHelper operator[](size_t indx) {
+#ifdef BOUNDS_CHECK
+      fatal(base_ptr==NULL); 
+      fatal(!((Rep()->domain()).inSet(indx))) ;
+#endif
+      return arrayHelper(base_ptr[indx],base_ptr[indx+1]) ;
+    }
+    arrayHelper_const operator[](size_t indx) const {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
@@ -212,8 +232,12 @@ namespace Loci {
       arrayHelper_const(const int *f, const int *l) : first(f), last(l){}
       int size() { return last-first ; }
       const int &operator[](int indx) { return first[indx] ; }
+      const int &operator[](size_t indx) { return first[indx] ; }
+      const int &operator[](unsigned int indx) { return first[indx] ; }
+      const int &operator[](unsigned char indx) { return first[indx] ; }
       const int *begin() { return first ; }
       const int *end() { return last; }
+      
     } ;
 
     const_multiMap() { setRep(new MapType) ; }
@@ -236,13 +260,19 @@ namespace Loci {
       MapRepP p(Rep()) ;
       fatal(p==0) ;
       return p ; }
-    arrayHelper_const const_elem(int indx)  const {
+    arrayHelper_const const_elem(Entity indx)  const {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif
       return arrayHelper_const(base_ptr[indx],base_ptr[indx+1]); }
-    arrayHelper_const operator[](int indx) const { 
+    arrayHelper_const operator[](Entity indx) const { 
+#ifdef BOUNDS_CHECK
+      fatal(base_ptr==NULL); 
+      fatal(!((Rep()->domain()).inSet(indx))) ;
+#endif
+      return arrayHelper_const(base_ptr[indx],base_ptr[indx+1]); }
+    arrayHelper_const operator[](size_t indx) const { 
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;

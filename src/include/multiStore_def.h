@@ -154,7 +154,7 @@ namespace Loci {
       p->setSizes(m) ;
     }
     const entitySet domain() const { return Rep()->domain() ; }
-    Vect<T> elem(int indx) 
+    Vect<T> elem(Entity indx) 
     {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
@@ -162,7 +162,15 @@ namespace Loci {
 #endif 
       return Vect<T>(base_ptr[indx],base_ptr[indx+1]-base_ptr[indx]) ; 
     }
-    Vect<T> operator[](int indx) 
+    Vect<T> operator[](Entity indx) 
+    {
+#ifdef BOUNDS_CHECK
+      fatal(base_ptr==NULL); 
+      fatal(!((Rep()->domain()).inSet(indx))) ;
+#endif 
+      return Vect<T>(base_ptr[indx],base_ptr[indx+1]-base_ptr[indx]) ; 
+    }
+    Vect<T> operator[](size_t indx) 
     {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
@@ -178,6 +186,7 @@ namespace Loci {
 
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ;}
+
   } ;
 
   template<class T> class const_multiStore : public store_instance {
@@ -203,13 +212,19 @@ namespace Loci {
     virtual instance_type access() const ;
     const_multiStore<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
     const entitySet domain() const { return Rep()->domain() ; }
-    containerType elem(int indx) {
+    containerType elem(Entity indx) {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif 
       return containerType(base_ptr[indx],base_ptr[indx+1]-base_ptr[indx]) ; }
-    containerType operator[](int indx) {
+    containerType operator[](Entity indx) {
+#ifdef BOUNDS_CHECK
+      fatal(base_ptr==NULL); 
+      fatal(!((Rep()->domain()).inSet(indx))) ;
+#endif 
+      return containerType(base_ptr[indx],base_ptr[indx+1]-base_ptr[indx]) ; }
+    containerType operator[](size_t indx) {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;

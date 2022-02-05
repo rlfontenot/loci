@@ -111,14 +111,16 @@ namespace Loci {
     }
     //    operator storeRepP() { return Rep() ; }
     operator MapRepP() { MapRepP p(Rep()) ; fatal(p==0) ; return p ; }
-    VEC &elem(int indx) { fatal(base_ptr==NULL); 
+    VEC &elem(Entity indx) { fatal(base_ptr==NULL); 
     fatal(!((Rep()->domain()).inSet(indx))) ;
     return base_ptr[indx]; }
-    const VEC &const_elem(int indx)  const { fatal(base_ptr==NULL); 
+    const VEC &const_elem(Entity indx)  const { fatal(base_ptr==NULL); 
     fatal(!((Rep()->domain()).inSet(indx))) ;
     return base_ptr[indx]; }
-    VEC &operator[](int indx) { return elem(indx); }
-    const VEC &operator[](int indx) const { return const_elem(indx) ; }
+    VEC &operator[](Entity indx) { return elem(indx); }
+    const VEC &operator[](Entity indx) const { return const_elem(indx) ; }
+    VEC &operator[](size_t indx) { return elem(indx); }
+    const VEC &operator[](size_t indx) const { return const_elem(indx) ; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ; }
     int getRangeKeySpace() const { return MapRepP(Rep())->getRangeKeySpace() ; }
@@ -150,15 +152,18 @@ namespace Loci {
       return MapRepP(Rep())->preimage(codomain) ;
     }
     operator MapRepP() { MapRepP p(Rep()) ; fatal(p==0) ; return p ; }
-    const VEC &const_elem(int indx)  const {
+    const VEC &const_elem(Entity indx)  const {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif
       return base_ptr[indx]; }
-    const VEC &operator[](int indx) const { return const_elem(indx) ; }
+    const VEC &operator[](Entity indx) const { return const_elem(indx) ; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
     int getRangeKeySpace() const { return MapRepP(Rep())->getRangeKeySpace() ; }
+  private:
+    const VEC &operator[](double indx) const { return const_elem(indx) ; }
+    
   } ;  
   
 } // end of namespace Loci

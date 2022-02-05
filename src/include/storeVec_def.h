@@ -69,9 +69,45 @@ namespace Loci {
       return ptr[idx] ;
     }
 #endif
+#ifdef BOUNDS_CHECK
+    const T &operator[](size_t idx) const {
+      fatal(idx >= size || idx < 0) ;
+      return ptr[idx] ;
+    }
+#else 
+    const T &restrict operator[](size_t idx) const restrict {
+      return ptr[idx] ;
+    }
+#endif
+#ifdef BOUNDS_CHECK
+    const T &operator[](unsigned int idx) const {
+      fatal(idx >= size || idx < 0) ;
+      return ptr[idx] ;
+    }
+#else 
+    const T &restrict operator[](unsigned int idx) const restrict {
+      return ptr[idx] ;
+    }
+#endif
+#ifdef BOUNDS_CHECK
+    const T &operator[](unsigned char idx) const {
+      fatal(idx >= size || idx < 0) ;
+      return ptr[idx] ;
+    }
+#else 
+    const T &restrict operator[](unsigned char idx) const restrict {
+      return ptr[idx] ;
+    }
+#endif
     operator const T *restrict () const restrict {
       return ptr ;
     }
+  private:
+    const T &operator[](double idx) const {
+      fatal(true) ;
+      return ptr[idx] ;
+    }
+
   } ;
   //******************************************************************/
   template <class T> class Vect {
@@ -201,6 +237,45 @@ namespace Loci {
 #endif
       return ptr[idx] ;
     }
+    T &operator[](size_t idx) {
+#ifdef BOUNDS_CHECK
+      fatal(idx >= size || idx < 0) ;
+#endif
+      return ptr[idx] ;
+    }
+
+    const T &operator[](size_t idx) const {
+#ifdef BOUNDS_CHECK
+      fatal(idx >= size || idx < 0) ;
+#endif
+      return ptr[idx] ;
+    }
+    T &operator[](unsigned int idx) {
+#ifdef BOUNDS_CHECK
+      fatal(idx >= size || idx < 0) ;
+#endif
+      return ptr[idx] ;
+    }
+
+    const T &operator[](unsigned int idx) const {
+#ifdef BOUNDS_CHECK
+      fatal(idx >= size || idx < 0) ;
+#endif
+      return ptr[idx] ;
+    }
+    T &operator[](unsigned char idx) {
+#ifdef BOUNDS_CHECK
+      fatal(idx >= size || idx < 0) ;
+#endif
+      return ptr[idx] ;
+    }
+
+    const T &operator[](unsigned char idx) const {
+#ifdef BOUNDS_CHECK
+      fatal(idx >= size || idx < 0) ;
+#endif
+      return ptr[idx] ;
+    }
 
     operator T*() {
       return ptr ;
@@ -208,6 +283,15 @@ namespace Loci {
 
     operator const T *() const {
       return ptr ;
+    }
+  private:
+    T &operator[](double idx) {
+      fatal(true) ;
+      return ptr[idx] ;
+    }
+    const T &operator[](double idx) const {
+      fatal(true) ;
+      return ptr[idx] ;
     }
   } ;
 
@@ -305,13 +389,19 @@ namespace Loci {
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
     int vecSize() const { return size ; }
     const entitySet domain() const { return Rep()->domain() ; }
-    Vect<T> elem(int indx) {
+    Vect<T> elem(Entity indx) {
 #ifdef BOUNDS_CHECK
       fatal(alloc_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif 
       return Vect<T>(alloc_ptr+((indx-base_offset)*size),size) ; }
-    Vect<T> operator[](int indx) {
+    Vect<T> operator[](Entity indx) {
+#ifdef BOUNDS_CHECK
+      fatal(alloc_ptr==NULL); 
+      fatal(!((Rep()->domain()).inSet(indx))) ;
+#endif 
+      return Vect<T>(alloc_ptr+((indx-base_offset)*size),size) ; }
+    Vect<T> operator[](size_t indx) {
 #ifdef BOUNDS_CHECK
       fatal(alloc_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
@@ -319,6 +409,7 @@ namespace Loci {
       return Vect<T>(alloc_ptr+((indx-base_offset)*size),size) ; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ;}
+    
   } ;
 
   template<class T> class const_storeVec : public store_instance {
@@ -350,23 +441,32 @@ namespace Loci {
     int vecSize() const { return size ; }
     const entitySet domain() const { return Rep()->domain() ; }
 #ifdef BOUNDS_CHECK
-    const_Vect<T> elem(int indx) const {
+    const_Vect<T> elem(Entity indx) const {
       fatal(alloc_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
       return const_Vect<T>(alloc_ptr+((indx-base_offset)*size),size) ; }
-    const_Vect<T> operator[](int indx) const {
+    const_Vect<T> operator[](Entity indx) const {
+      fatal(alloc_ptr==NULL); 
+      fatal(!((Rep()->domain()).inSet(indx))) ;
+      return const_Vect<T>(alloc_ptr+((indx-base_offset)*size),size) ;
+    }
+    const_Vect<T> operator[](size_t indx) const {
       fatal(alloc_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
       return const_Vect<T>(alloc_ptr+((indx-base_offset)*size),size) ;
     }
 #else
-    const_Vect<T> elem(int indx) const restrict {
+    const_Vect<T> elem(Entity indx) const restrict {
       return const_Vect<T>(alloc_ptr+((indx-base_offset)*size),size) ; }
-    const_Vect<T> operator[](int indx) const restrict {
+    const_Vect<T> operator[](Entity indx) const restrict {
+      return const_Vect<T>(alloc_ptr+((indx-base_offset)*size),size) ;
+    }
+    const_Vect<T> operator[](size_t indx) const restrict {
       return const_Vect<T>(alloc_ptr+((indx-base_offset)*size),size) ;
     }
 #endif
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
+
   } ;
 
 

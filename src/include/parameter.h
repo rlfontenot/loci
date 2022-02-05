@@ -311,7 +311,7 @@ namespace Loci {
     T &operator*() { return *data ; }
     const T &operator*() const { return *data ; }
 
-    T &operator[](int indx) {
+    T &operator[](Entity indx) {
 #ifdef BOUNDS_CHECK
       fatal(data == NULL) ;
       fatal(!Rep()->domain().inSet(indx)) ;
@@ -319,7 +319,22 @@ namespace Loci {
       return *data ;
     }
 
-    const T &operator[](int indx) const {
+    const T &operator[](Entity indx) const {
+#ifdef BOUNDS_CHECK
+      fatal(data == NULL) ;
+      fatal(!Rep()->domain().inSet(indx)) ;
+#endif
+      return *data ;
+    }
+    T &operator[](size_t indx) {
+#ifdef BOUNDS_CHECK
+      fatal(data == NULL) ;
+      fatal(!Rep()->domain().inSet(indx)) ;
+#endif
+      return *data ;
+    }
+
+    const T &operator[](size_t indx) const {
 #ifdef BOUNDS_CHECK
       fatal(data == NULL) ;
       fatal(!Rep()->domain().inSet(indx)) ;
@@ -333,6 +348,7 @@ namespace Loci {
 
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ; }
+
   } ;
 
   //**************************************************************************/
@@ -392,7 +408,15 @@ namespace Loci {
 
     const T & restrict operator*() const { return *data ; }
 
-    const T & restrict operator[](int indx) const {
+    const T & restrict operator[](Entity indx) const {
+#ifdef BOUNDS_CHECK
+      fatal(data == NULL) ;
+      fatal(!Rep()->domain().inSet(indx)) ;
+#endif
+      return *data ;
+    }
+
+    const T & restrict operator[](size_t indx) const {
 #ifdef BOUNDS_CHECK
       fatal(data == NULL) ;
       fatal(!Rep()->domain().inSet(indx)) ;
@@ -403,6 +427,7 @@ namespace Loci {
     entitySet domain() const { return Rep()->domain(); }
 
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
+
   } ;
 
   //**************************************************************************/
