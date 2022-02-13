@@ -46,22 +46,22 @@ namespace Loci {
 // --------------------------------------------------------------------
 // REH ADDED BELOW - 20220202 - Missing code from initial 2017 dev mods
 // --------------------------------------------------------------------
- FAD2d(int a0         ,int b0)        : value(a0), grad(b0), grad2(0.0d) { gradcheck();}
- FAD2d(int a0         ,float b0)        : value(a0), grad(b0), grad2(0.0d) { gradcheck();}
- FAD2d(int a0         ,double b0)        : value(a0), grad(b0), grad2(0.0d) { gradcheck();}
- FAD2d(int a0         ,long double b0)        : value(a0), grad(b0), grad2(0.0d) { gradcheck();}
- FAD2d(float a0      ,int b0)       : value(a0), grad(b0), grad2(0.0d) { gradcheck();}
- FAD2d(float a0      ,float b0)       : value(a0), grad(b0), grad2(0.0d) { gradcheck();}
- FAD2d(float a0      ,double b0)       : value(a0), grad(b0), grad2(0.0d) { gradcheck();}
- FAD2d(float a0      ,long double b0)       : value(a0), grad(b0), grad2(0.0d) { gradcheck();}
- FAD2d(double a0      ,int b0)       : value(a0), grad(b0), grad2(0.0d) { gradcheck();}
- FAD2d(double a0      ,float b0)       : value(a0), grad(b0), grad2(0.0d) { gradcheck();}
- FAD2d(double a0      ,double b0)       : value(a0), grad(b0), grad2(0.0d) { gradcheck();}
- FAD2d(double a0      ,long double b0)       : value(a0), grad(b0), grad2(0.0d) { gradcheck();}
- FAD2d(long double a0      ,int b0)       : value(a0), grad(b0), grad2(0.0d) { gradcheck();}
- FAD2d(long double a0      ,float b0)       : value(a0), grad(b0), grad2(0.0d) { gradcheck();}
- FAD2d(long double a0      ,double b0)       : value(a0), grad(b0), grad2(0.0d) { gradcheck();}
- FAD2d(long double a0      ,long double b0)       : value(a0), grad(b0), grad2(0.0d) { gradcheck();}
+ FAD2d(int a0         ,int b0)        : value(a0), grad(b0), grad2(0.0) { gradcheck();}
+ FAD2d(int a0         ,float b0)        : value(a0), grad(b0), grad2(0.0) { gradcheck();}
+ FAD2d(int a0         ,double b0)        : value(a0), grad(b0), grad2(0.0) { gradcheck();}
+ FAD2d(int a0         ,long double b0)        : value(a0), grad(b0), grad2(0.0) { gradcheck();}
+ FAD2d(float a0      ,int b0)       : value(a0), grad(b0), grad2(0.0) { gradcheck();}
+ FAD2d(float a0      ,float b0)       : value(a0), grad(b0), grad2(0.0) { gradcheck();}
+ FAD2d(float a0      ,double b0)       : value(a0), grad(b0), grad2(0.0) { gradcheck();}
+ FAD2d(float a0      ,long double b0)       : value(a0), grad(b0), grad2(0.0) { gradcheck();}
+ FAD2d(double a0      ,int b0)       : value(a0), grad(b0), grad2(0.0) { gradcheck();}
+ FAD2d(double a0      ,float b0)       : value(a0), grad(b0), grad2(0.0) { gradcheck();}
+ FAD2d(double a0      ,double b0)       : value(a0), grad(b0), grad2(0.0) { gradcheck();}
+ FAD2d(double a0      ,long double b0)       : value(a0), grad(b0), grad2(0.0) { gradcheck();}
+ FAD2d(long double a0      ,int b0)       : value(a0), grad(b0), grad2(0.0) { gradcheck();}
+ FAD2d(long double a0      ,float b0)       : value(a0), grad(b0), grad2(0.0) { gradcheck();}
+ FAD2d(long double a0      ,double b0)       : value(a0), grad(b0), grad2(0.0) { gradcheck();}
+ FAD2d(long double a0      ,long double b0)       : value(a0), grad(b0), grad2(0.0) { gradcheck();}
 
  FAD2d(double a0      ,int b0        , int c0)       : value(a0), grad(b0), grad2(c0) { gradcheck();}
  FAD2d(double a0      ,int b0        , float c0)     : value(a0), grad(b0), grad2(c0) { gradcheck();}
@@ -79,12 +79,12 @@ namespace Loci {
  FAD2d(double a0      ,long double b0, float c0)     : value(a0), grad(b0), grad2(c0) { gradcheck();}
  FAD2d(double a0      ,long double b0, double c0)     : value(a0), grad(b0), grad2(c0) { gradcheck();}
  FAD2d(double a0      ,long double b0, long double c0)     : value(a0), grad(b0), grad2(c0) { gradcheck();}
- FAD2d(bool &u)        : value((u)?1.0d:0.0d), grad(0.0d), grad2(0.0d) { gradcheck();}
+ FAD2d(bool &u)        : value((u)?1.0:0.0), grad(0.0), grad2(0.0) { gradcheck();}
  //FAD2d(const FAD2d &u) : value(u.value), grad(u.grad), grad2(u.grad2) { gradcheck();}
- FAD2d(int a0)        : value(a0), grad(0.0d), grad2(0.0d) { gradcheck();}
- FAD2d(float a0)        : value(a0), grad(0.0d), grad2(0.0d) { gradcheck();}
- FAD2d(double a0)        : value(a0), grad(0.0d), grad2(0.0d) { gradcheck();}
- FAD2d(long double a0)        : value(a0), grad(0.0d), grad2(0.0d) { gradcheck();}
+ FAD2d(int a0)        : value(a0), grad(0.0), grad2(0.0) { gradcheck();}
+ FAD2d(float a0)        : value(a0), grad(0.0), grad2(0.0) { gradcheck();}
+ FAD2d(double a0)        : value(a0), grad(0.0), grad2(0.0) { gradcheck();}
+ FAD2d(long double a0)        : value(a0), grad(0.0), grad2(0.0) { gradcheck();}
 // --------------------------------------------------------------------
     FAD2d& operator =(const FAD2d &u) {
       value = u.value;
