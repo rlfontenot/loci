@@ -156,13 +156,6 @@ namespace Loci {
 #endif
       return ptr[j*size + i] ;
     }
-
-  private:
-    const T & restrict operator[](double j) {
-      warn(true) ;
-      return ptr[j*size + i] ;
-    }
-    
   } ;
 
   //**************************************************************************
@@ -277,16 +270,7 @@ namespace Loci {
     void dotprod_accum(const const_Vect<Tin> vin, Vect<Tout> vout) const restrict {
       Loci::dotprod_accum(ptr,&vin[0],&vout[0],size) ;
     }
-
-  private:
-
-    const_Mat_partial<T> operator[](double idx) const {
-      warn(true) ;
-      return const_Mat_partial<T>(ptr,size,idx) ;
-    }
-
   } ;
-
   //************************************************************************
 
   template <class T> class Mat_partial {
@@ -319,12 +303,6 @@ namespace Loci {
 #endif
       return ptr[j*size + i] ;
     }
-  private:
-    T &operator[](double j) {
-      fatal(true) ;
-      return ptr[j*size + i] ;
-    }
-    
   } ;
 
   //**************************************************************************
@@ -655,20 +633,6 @@ namespace Loci {
     void solve_lu_pivot(const T1 *b, Vect<T2> &x,
                         const pivot_type *pivot) const restrict {
       Loci::solve_lu_pivot(ptr,b,&x[0],pivot,size) ;
-    }
-
-    //------------------------------------------------------------------------
-  private:
-
-    Mat_partial<T> operator[](double idx) restrict {
-      fatal(true) ;
-      return Mat_partial<T>(ptr,size,idx) ;
-    }
-
-    //------------------------------------------------------------------------
-    Mat_partial<T> operator[](double idx) const restrict {
-      fatal(true) ;
-      return Mat_partial<T>(ptr,size,idx) ;
     }
   } ;
 

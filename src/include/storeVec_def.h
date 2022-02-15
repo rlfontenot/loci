@@ -102,12 +102,6 @@ namespace Loci {
     operator const T *restrict () const restrict {
       return ptr ;
     }
-  private:
-    const T &operator[](double idx) const {
-      fatal(true) ;
-      return ptr[idx] ;
-    }
-
   } ;
   //******************************************************************/
   template <class T> class Vect {
@@ -283,15 +277,6 @@ namespace Loci {
 
     operator const T *() const {
       return ptr ;
-    }
-  private:
-    T &operator[](double idx) {
-      fatal(true) ;
-      return ptr[idx] ;
-    }
-    const T &operator[](double idx) const {
-      fatal(true) ;
-      return ptr[idx] ;
     }
   } ;
 

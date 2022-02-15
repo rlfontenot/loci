@@ -178,8 +178,6 @@ namespace Loci {
       return base_ptr[indx]; }
     const T& restrict operator[](Entity indx) const restrict { return elem(indx); }
 #endif
-  private:
-    const T& operator[](double indx) const { return elem(indx); }
 
   } ;
 
