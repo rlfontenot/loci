@@ -72,8 +72,7 @@ void read_surf_info(string casename, string iteration,
 
   hid_t file_id;
   
-  string gridtopo = output_dir+ "/" + casename +".topo" ;
-  
+  string gridtopo = getTopoFileName(output_dir, casename, iteration) ;
 
   file_id = H5Fopen(gridtopo.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0) {

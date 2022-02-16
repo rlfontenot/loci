@@ -30,6 +30,7 @@ enum var_type {NODAL_SCALAR,NODAL_VECTOR,NODAL_DERIVED,NODAL_MASSFRACTION, BOUND
 enum view_type {VIEWXY=0,VIEWYZ=1,VIEWXZ=2,VIEWXR=3}  ;
 
 
+extern string getTopoFileName(string output_dir, string casename, string iteration) ;
 
 // convert a string to an integer
 inline int str2int(string s) {

@@ -242,7 +242,7 @@ void process_ascii_bndry(string casename, string iteration,
                          vector<string> variable_filenames,
                          vector<string> boundaries) {
 
-  string gridtopo = "output/" + casename +".topo" ;
+  string gridtopo = getTopoFileName(output_dir, casename, iteration) ;
 
 
   hid_t file_id = H5Fopen(gridtopo.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;

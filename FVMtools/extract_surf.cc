@@ -74,8 +74,7 @@ void get_surf(string casename, string iteration,
   Loci::readContainer(file_id,"pos",pos.Rep(),EMPTY,facts) ;
   Loci::hdf5CloseFile(file_id) ;
 
-  string gridtopo = "output/" + casename +".topo" ;
-
+  string gridtopo = getTopoFileName(output_dir, casename, iteration) ;
 
   file_id = H5Fopen(gridtopo.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   
