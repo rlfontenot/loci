@@ -173,10 +173,12 @@ namespace Loci {
       fatal(!Rep()->domain().inSet(indx)) ;
       return base_ptr[indx]; }
     const T& operator[](Entity indx) const { return elem(indx); }
+    const T& operator[](size_t indx) const { return elem(indx); }
 #else
     const T &restrict elem(Entity indx) const restrict {
       return base_ptr[indx]; }
     const T& restrict operator[](Entity indx) const restrict { return elem(indx); }
+    const T& restrict operator[](size_t indx) const restrict { return elem(indx); }
 #endif
 
   } ;

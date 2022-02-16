@@ -159,11 +159,9 @@ namespace Loci {
 #endif
       return base_ptr[indx]; }
     const VEC &operator[](Entity indx) const { return const_elem(indx) ; }
+    const VEC &operator[](size_t indx) const { return const_elem(indx) ; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
     int getRangeKeySpace() const { return MapRepP(Rep())->getRangeKeySpace() ; }
-  private:
-    const VEC &operator[](double indx) const { return const_elem(indx) ; }
-    
   } ;  
   
 } // end of namespace Loci

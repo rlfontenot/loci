@@ -765,7 +765,7 @@ namespace Loci {
           ri!=special_rules.end();++ri) {
         // first we need to create the facts in the fact_db
         variableSet targets = ri->targets() ;
-	Loci::debugout << "targets=" << targets << endl ;
+	//	Loci::debugout << "targets=" << targets << endl ;
         bool UseRule = true ;
         for(variableSet::const_iterator vi=targets.begin();
             vi!=targets.end();++vi) 
