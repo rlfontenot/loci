@@ -1011,6 +1011,9 @@ namespace Loci {
       }
     if(sec_d_map.size()==0&&fst_d_map.size()==0)
       den_flag=true;
+    if(sec_n_map.size()==0&&fst_n_map.size()==0)
+      num_flag=true ;
+    
     if((num_flag==true)&&(den_flag==true)&&(sec_d_map.size()==fst_d_map.size())&&(sec_n_map.size()==fst_n_map.size()))
       return true;
     return false;
