@@ -24,6 +24,7 @@
 #include <iostream> 
 #include <Tools/tools.h>
 #include <algorithm>
+#include <math.h>
 
 namespace Loci {
   
@@ -636,7 +637,7 @@ namespace Loci {
   }
 
   inline FAD2d erf(const FAD2d u) {
-    double ef = std::erf(u.value) ;
+    double ef = ::erf(u.value) ;
     double efp = (2./sqrt(M_PI))*std::exp(-u.value*u.value) ;
     double efpp = -2.*u.value*efp ;
     return FAD2d(ef,u.grad*efp,u.grad*u.grad*efpp+efp*u.grad2) ;
@@ -1412,7 +1413,7 @@ namespace Loci {
   }
 
   inline FADd erf(const FADd u) {
-    double ef = std::erf(u.value) ;
+    double ef = ::erf(u.value) ;
     double efp = (2./sqrt(M_PI))*std::exp(-u.value*u.value) ;
     return FADd(ef,u.grad*efp) ;
   }
