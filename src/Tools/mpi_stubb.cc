@@ -72,7 +72,7 @@ struct Comm_Buffer
     attached_buff = NULL;
   }
 
-  int copy(void *buf, int n_Size, MPI_Datatype datatype)
+  int copy(const void *buf, int n_Size, MPI_Datatype datatype)
   {
     size = n_Size;
     if(temp_buff != NULL) {
@@ -83,7 +83,7 @@ struct Comm_Buffer
     return 1;
   }
 
-  int copy_buff(void *buf, int n_Size, MPI_Datatype datatype)
+  int copy_buff(const void *buf, int n_Size, MPI_Datatype datatype)
   {
     if (buffered)
       {
@@ -168,7 +168,7 @@ extern "C" {
   //Added by Kenny Moser krm104
   Comm_Buffer Temp_Comm_Buffer;
 
-  int  MPI_Send(void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm)
+  int  MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm)
   {
     Temp_Comm_Buffer.copy(buf, count, datatype);
     return MPI_SUCCESS;
@@ -184,7 +184,7 @@ extern "C" {
     return MPI_SUCCESS;
   }
 
-  int  MPI_Get_count(MPI_Status *status, MPI_Datatype datatype, int *count)
+  int  MPI_Get_count(const MPI_Status *status, MPI_Datatype datatype, int *count)
   {
     if (MPI_GET_TYPE_SIZE(datatype) == 0)
       {
@@ -200,21 +200,21 @@ extern "C" {
 
   /* 3.4 */
 
-  int  MPI_Bsend(void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm)
+  int  MPI_Bsend(const void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm)
   {
     Temp_Comm_Buffer.copy_buff(buf, count, datatype);
     return MPI_SUCCESS;
     //err_report(); return -1;
   }
 
-  int  MPI_Ssend(void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm)
+  int  MPI_Ssend(const void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm)
   {
     Temp_Comm_Buffer.copy(buf, count, datatype);
     return MPI_SUCCESS;
     //err_report(); return -1;
   }
 
-  int  MPI_Rsend(void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm)
+  int  MPI_Rsend(const void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm)
   {
     Temp_Comm_Buffer.copy(buf, count, datatype);
     return MPI_SUCCESS;
@@ -241,28 +241,28 @@ extern "C" {
 
   /* 3.7 */
 
-  int  MPI_Isend(void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm, MPI_Request *request)
+  int  MPI_Isend(const void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm, MPI_Request *request)
   {
     Temp_Comm_Buffer.copy(buf, count, datatype);
     return MPI_SUCCESS;
     //err_report(); return -1;
   }
 
-  int  MPI_Ibsend(void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm, MPI_Request *request)
+  int  MPI_Ibsend(const void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm, MPI_Request *request)
   {
     Temp_Comm_Buffer.copy_buff(buf, count, datatype);
     return MPI_SUCCESS;
     //err_report(); return -1;
   }
 
-  int  MPI_Issend(void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm, MPI_Request *request)
+  int  MPI_Issend(const void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm, MPI_Request *request)
   {
     Temp_Comm_Buffer.copy(buf, count, datatype);
     return MPI_SUCCESS;
     //err_report(); return -1;
   }
 
-  int  MPI_Irsend(void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm, MPI_Request *request)
+  int  MPI_Irsend(const void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm, MPI_Request *request)
   {
     Temp_Comm_Buffer.copy(buf, count, datatype);
     return MPI_SUCCESS;
@@ -356,7 +356,7 @@ extern "C" {
     err_report(); return -1;
   }
 
-  int  MPI_Test_cancelled(MPI_Status *, int *)
+  int  MPI_Test_cancelled(const MPI_Status *, int *)
   {
     cerr << "MPI_Test_cancelled" << endl ;
     err_report(); return -1;
@@ -364,26 +364,26 @@ extern "C" {
 
   /* 3.9 */
 
-  int  MPI_Send_init(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *)
+  int  MPI_Send_init(const void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *)
   {
     cerr << "MPI_Send_init" << endl ;
     err_report(); return -1;
   }
 
-  int  MPI_Bsend_init(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *)
+  int  MPI_Bsend_init(const void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *)
   {
     cerr << "MPI_Bsend_init" << endl ;
   
     err_report(); return -1;
   }
 
-  int  MPI_Ssend_init(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *)
+  int  MPI_Ssend_init(const void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *)
   {
     cerr << "MPI_Ssend_init" << endl ;
     err_report(); return -1;
   }
 
-  int  MPI_Rsend_init(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *)
+  int  MPI_Rsend_init(const void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *)
   {
     cerr << "MPI_Rsend_init" << endl ;
     err_report(); return -1;
@@ -409,7 +409,7 @@ extern "C" {
 
   /* 3.10 */
 
-  int  MPI_Sendrecv(void *sendbuf, int sendcount, MPI_Datatype sendtype, int dest, int sendtag,
+  int  MPI_Sendrecv(const void *sendbuf, int sendcount, MPI_Datatype sendtype, int dest, int sendtag,
 		    void *recvbuf, int recvcount, MPI_Datatype recvtype, int source, int recvtag,
 		    MPI_Comm comm, MPI_Status *status)
   {
@@ -447,7 +447,7 @@ extern "C" {
     err_report(); return -1;
   }
 
-  int  MPI_Type_indexed(int, int *, int *, MPI_Datatype, MPI_Datatype *)
+  int  MPI_Type_indexed(int, const int *,const int *, MPI_Datatype, MPI_Datatype *)
   {
     cerr << "MPI_Type_indexed" << endl ;
     err_report(); return -1;
@@ -515,7 +515,7 @@ extern "C" {
     err_report(); return -1;
   }    
   
-  int  MPI_Get_elements(MPI_Status *, MPI_Datatype, int *)
+  int  MPI_Get_elements(const MPI_Status *, MPI_Datatype, int *)
   {
     cerr << "MPI_Get_elements" << endl ;
     err_report(); return -1;
@@ -523,7 +523,7 @@ extern "C" {
 
   /* 3.13 */
 
-  int  MPI_Pack(void *buf, int count, MPI_Datatype datatype,
+  int  MPI_Pack(const void *buf, int count, MPI_Datatype datatype,
 		void *packbuf, int packsize, int *packpos,
 		MPI_Comm comm)
   {
@@ -571,7 +571,7 @@ extern "C" {
 
   /* 4.5 */
 
-  int  MPI_Gather(void *sendbuf, int sendcnt, MPI_Datatype sendtype,
+  int  MPI_Gather(const void *sendbuf, int sendcnt, MPI_Datatype sendtype,
 		  void *recvbuf, int recvcnt, MPI_Datatype recvtype,
 		  int root , MPI_Comm comm)
   {
@@ -585,8 +585,8 @@ extern "C" {
   }
 
 
-  int  MPI_Gatherv(void *sendbuf, int sendcnt, MPI_Datatype sendtype, void *recvbuf,
-		   int *recvcnt, int *displs, MPI_Datatype recvtype, int root, MPI_Comm comm)
+  int  MPI_Gatherv(const void *sendbuf, int sendcnt, MPI_Datatype sendtype, void *recvbuf,
+		   const int *recvcnt, const int *displs, MPI_Datatype recvtype, int root, MPI_Comm comm)
   {
     if (root == 0)
       {
@@ -601,7 +601,7 @@ extern "C" {
 
   /* 4.6 */
 
-  int  MPI_Scatter(void *sendbuf, int sendcnt, MPI_Datatype sendtype, void *recvbuf,
+  int  MPI_Scatter(const void *sendbuf, int sendcnt, MPI_Datatype sendtype, void *recvbuf,
 		   int recvcnt, MPI_Datatype recvtype, int root, MPI_Comm comm)
   {
     if (root == 0)
@@ -614,7 +614,7 @@ extern "C" {
     //err_report(); return -1;
   }
 
-  int  MPI_Scatterv(void *sendbuf, int *sendcnts, int *displs, MPI_Datatype sendtype,
+  int  MPI_Scatterv(const void *sendbuf, const int *sendcnts, const  int *displs, MPI_Datatype sendtype,
 		    void *recvbuf, int recvcnt, MPI_Datatype recvtype, int root, MPI_Comm comm)
   {
     if (root == 0)
@@ -630,7 +630,7 @@ extern "C" {
 
   /* 4.7 */
 
-  int  MPI_Allgather(void *sendbuf, int sendcnt, MPI_Datatype sendtype,
+  int  MPI_Allgather(const void *sendbuf, int sendcnt, MPI_Datatype sendtype,
 		     void *recvbuf, int recvcnt, MPI_Datatype recvtype,
 		     MPI_Comm comm )
   {
@@ -638,8 +638,8 @@ extern "C" {
     return MPI_SUCCESS ; 
   }
 
-  int  MPI_Allgatherv(void *sendbuf, int sendcnt, MPI_Datatype sendtype,
-		      void *recvbuf, int *recvcounts, int *displs,
+  int  MPI_Allgatherv(const void *sendbuf, int sendcnt, MPI_Datatype sendtype,
+		      void *recvbuf, const int *recvcounts, const int *displs,
 		      MPI_Datatype recvtype, MPI_Comm comm)
   { 
     const int sz = MPI_GET_TYPE_SIZE(recvtype) ;
@@ -649,16 +649,16 @@ extern "C" {
 
   /* 4.8 */
 
-  int  MPI_Alltoall(void *send, int ssz, MPI_Datatype dts, void *recv, int rsz,
+  int  MPI_Alltoall(const void *send, int ssz, MPI_Datatype dts, void *recv, int rsz,
 		    MPI_Datatype dtr, MPI_Comm comm)
   {
     memcpy(recv, send, MPI_GET_TYPE_SIZE(dts)*rsz) ;
     return MPI_SUCCESS;
   }
 
-  int  MPI_Alltoallv(void *sendbuf, int *sendcnts, int *sdispls,
+  int  MPI_Alltoallv(const void *sendbuf, const int *sendcnts, const int *sdispls,
 		     MPI_Datatype sendtype,
-		     void *recvbuf, int *recvcnts, int *rdispls,
+		     void *recvbuf, const int *recvcnts, const int *rdispls,
 		     MPI_Datatype recvtype, MPI_Comm comm)
   { 
     const int sz = MPI_GET_TYPE_SIZE(recvtype) ;
@@ -669,7 +669,7 @@ extern "C" {
 
   /* 4.9 */
 
-  int  MPI_Reduce(void *sendbuf, void *recvbuf, int count,
+  int  MPI_Reduce(const void *sendbuf, void *recvbuf, int count,
 		  MPI_Datatype type, MPI_Op op, int root, MPI_Comm comm)
   {
     if (root == 0)
@@ -691,7 +691,7 @@ extern "C" {
     return MPI_SUCCESS;
   }
 
-  int  MPI_Allreduce(void *sendbuf, void *recvbuf, int count,
+  int  MPI_Allreduce(const void *sendbuf, void *recvbuf, int count,
 		     MPI_Datatype type, MPI_Op op , MPI_Comm comm)
   { 
     memcpy(recvbuf, sendbuf, MPI_GET_TYPE_SIZE(type)*count) ;
@@ -700,7 +700,7 @@ extern "C" {
 
   /* 4.10 */
 
-  int  MPI_Reduce_scatter(void *sendbuf, void *recvbuf, int *recvcnts,
+  int  MPI_Reduce_scatter(const void *sendbuf, void *recvbuf, const int *recvcnts,
 			  MPI_Datatype datatype, MPI_Op op, MPI_Comm comm)
   {
     memcpy(recvbuf, sendbuf, MPI_GET_TYPE_SIZE(datatype)*recvcnts[0]) ;
@@ -709,7 +709,7 @@ extern "C" {
 
   /* 4.11 */
 
-  int  MPI_Scan(void *sendbuf, void *recvbuf, int recvcnts, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm)
+  int  MPI_Scan(const void *sendbuf, void *recvbuf, int recvcnts, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm)
   {
     memcpy(recvbuf, sendbuf, MPI_GET_TYPE_SIZE(datatype)*recvcnts) ;
     return MPI_SUCCESS;
@@ -934,7 +934,7 @@ extern "C" {
 
   /* 6.5 */
 
-  int  MPI_Cart_create(MPI_Comm, int, int *, int *, int, MPI_Comm *)
+  int  MPI_Cart_create(MPI_Comm, int, const int *, const int *, int, MPI_Comm *)
   {
     cerr << "MPI_Cart_create" << endl ;
     err_report();
@@ -1013,13 +1013,13 @@ extern "C" {
     return -1;
   }
 
-  int  MPI_Cart_sub(MPI_Comm, int *, MPI_Comm *)
+  int  MPI_Cart_sub(MPI_Comm, const int *, MPI_Comm *)
   {
     err_report();
     return -1;
   }
 
-  int  MPI_Cart_map(MPI_Comm, int, int *, int *, int *)
+  int  MPI_Cart_map(MPI_Comm, int, const int *, const int *, int *)
   {
     err_report();
     return -1;
@@ -1294,13 +1294,13 @@ extern "C" {
     return 0;
   }
 
-  int  MPI_Type_create_hindexed(int, int *, MPI_Aint *, MPI_Datatype, MPI_Datatype *)
+  int  MPI_Type_create_hindexed(int, const int *, const MPI_Aint *, MPI_Datatype, MPI_Datatype *)
   {
     err_report();
     return 0;
   }
 
-  int  MPI_Type_create_struct(int, int *, MPI_Aint *, MPI_Datatype *, MPI_Datatype *)
+  int  MPI_Type_create_struct(int, const int *, const MPI_Aint *,const MPI_Datatype *, MPI_Datatype *)
   {
     err_report();
     return 0;
@@ -1314,13 +1314,13 @@ extern "C" {
 
   /* 5.3 */
 
-  int MPI_Comm_spawn(char *, char **, int, MPI_Info, int, MPI_Comm, MPI_Comm *, int *)
+  int MPI_Comm_spawn(const char *, char **, int, MPI_Info, int, MPI_Comm, MPI_Comm *, int *)
   {
     err_report();
     return 0;
   }
 
-  int MPI_Comm_spawn_multiple(int , char **, char ***, int *, MPI_Info *,
+  int MPI_Comm_spawn_multiple(int , char **, char ***, const int *, const MPI_Info *,
 			      int , MPI_Comm, MPI_Comm *, int *)
   {
     err_report();
@@ -1384,7 +1384,7 @@ extern "C" {
     return 0;
   }
 
-  int  MPI_Accumulate(void *, int, MPI_Datatype, int, MPI_Aint, int,
+  int  MPI_Accumulate(const void *, int, MPI_Datatype, int, MPI_Aint, int,
 		      MPI_Datatype, MPI_Op, MPI_Win)
   {
     err_report();
