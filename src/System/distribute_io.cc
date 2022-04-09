@@ -1871,37 +1871,35 @@ namespace Loci {
     }
   }
 
-  void FindSimpleDistribution(entitySet dom, const Map &l2f,
-			      vector<int> &splits, MPI_Comm comm) {
+ void FindSimpleDistribution(entitySet dom, const Map &l2f,
+			     vector<int> &splits, MPI_Comm comm) {
     // Get number of processors
-    int p = 0 ;
-    MPI_Comm_size(comm,&p) ;
-    vector<int> splits_l(p-1,0) ;
-    if(p > 1) {
-      int mxl = std::numeric_limits<int>::min() ;
-      int mnl = std::numeric_limits<int>::max() ;
-      FORALL(dom,ii) {
-	mxl = max(mxl,l2f[ii]) ;
-	mnl = min(mnl,l2f[ii]) ;
-      } ENDFORALL ;
-      int mx=mxl,mn=mnl ;
-      MPI_Allreduce(&mxl,&mx,1,MPI_INT,MPI_MAX,comm) ;
-      MPI_Allreduce(&mnl,&mn,1,MPI_INT,MPI_MIN,comm) ;
-      //      FORALL(dom,ii) {
-      //	l2f[ii] -= mn ;
-      //      } ENDFORALL ;
-      int dx = (mx-mn)/p+1 ;
-      int r = (mx-mn)%p ;
-      splits_l[0] = dx ;
-      if(0<r)
-	splits_l[0]++ ;
-      for(int i=1;i<p-1;++i) {
-	splits_l[i] = splits_l[i-1]+dx+(i<r)?1:0 ;
-      }
-      splits.swap(splits_l) ;
-    }
+   int p = 0 ;
+   MPI_Comm_size(comm,&p) ;
+   vector<int> splits_l(p-1,0) ;
+   if(p > 1) {
+     int mxl = std::numeric_limits<int>::min() ;
+     int mnl = std::numeric_limits<int>::max() ;
+     FORALL(dom,ii) {
+       mxl = max(mxl,l2f[ii]) ;
+       mnl = min(mnl,l2f[ii]) ;
+     } ENDFORALL ;
+     int mx=mxl,mn=mnl ;
+     MPI_Allreduce(&mxl,&mx,1,MPI_INT,MPI_MAX,comm) ;
+     MPI_Allreduce(&mnl,&mn,1,MPI_INT,MPI_MIN,comm) ;
+     //      FORALL(dom,ii) {
+     // l2f[ii] -= mn ;
+     //      } ENDFORALL ;
+     //int dx = (mx-mn)/p+1 ;
+     int dx = (mx-mn)/p ; // reh -- remove +1 rec by ed
+     for(int i=0;i<p-1;++i) {
+       splits_l[i] = (i+1)*dx ;
+     }
+     splits.swap(splits_l) ;
+   }
   }
 
+  
   void memoryBalancedDistribution(vector<int> &splits_out,
 				  const store<int> &countl,
 				  entitySet dom,
