@@ -391,6 +391,7 @@ namespace Loci {
       entitySet tot_request ;
       for(li=rli->begin();li!=rli->end();++li)
         tot_request += scheds.get_variable_requests(*li) ;
+
       for(li=rli->begin();li!=rli->end();++li)
         scheds.variable_request(*li,tot_request) ;
     }
@@ -425,6 +426,7 @@ namespace Loci {
           variable::info vinfo = vi->get_info() ;
           vinfo.assign=true ;
           vinfo.offset=0 ;
+	  vinfo.priority = std::vector<std::string>() ;
           adjust_var_requests += variable(vinfo) ;
         }
       }
