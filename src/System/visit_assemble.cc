@@ -1445,7 +1445,7 @@ namespace Loci {
                      const std::map<variable,variableSet>& s,
                      const std::map<variable,variableSet>& t,
                      const map<variable, double>& info)
-    :facts(fd),s2t(s),t2s(t),var_cluster(5) {
+    :s2t(s),t2s(t),var_cluster(5) {
     // initialize random seed
     srand48(s.size()*t.size()) ;
     // check to see if the allocinfo file is present

@@ -1248,7 +1248,7 @@ namespace Loci {
    
     // records the total topological orders for each graph
     // std::map<int,int> num_orders ;
-    fact_db& facts ;
+    //    fact_db& facts ;
     // recurrence variable information
     std::map<variable,variableSet> s2t ;
     std::map<variable,variableSet> t2s ;

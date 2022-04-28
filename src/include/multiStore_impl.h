@@ -25,8 +25,10 @@
 #include <DMultiStore_def.h>
 
 namespace Loci {
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
   template <class T> 
   inline std::ostream & operator<<(std::ostream &s, const multiStore<T> &m)
   { return m.Print(s) ; }
@@ -1146,8 +1148,9 @@ namespace Loci {
     }
 
   //*************************************************************************/
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
-
+#endif
 } // end of namespace Loci
 
 #endif

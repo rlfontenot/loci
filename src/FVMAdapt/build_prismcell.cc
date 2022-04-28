@@ -389,7 +389,7 @@ Prism* build_prism_cell(const Entity* lower, int lower_size,
   
   return aCell;
 }
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 #endif
@@ -567,7 +567,7 @@ Prism* build_resplit_prism_cell(const Entity* lower, int lower_size,
   
   
   //resplit the faces again without tagging the node
-  std::list<QuadFace*>::const_iterator qiter = qface_list.begin();
+  //  std::list<QuadFace*>::const_iterator qiter = qface_list.begin();
   std::list<Face*>::const_iterator giter = gface_list.begin();
   for(int i = 0; i < 2; i++){
     (*giter)->resplit(facePlan1[face_entity[i]], orientCode[i], bnode_list, edge_list);//resplit without orientCode
@@ -705,7 +705,7 @@ Prism* build_resplit_prism_cell_ctag(const Entity* lower, int lower_size,
   cells.clear();
     
   //resplit the faces again without tagging the node
-  std::list<QuadFace*>::const_iterator qiter = qface_list.begin();
+  //  std::list<QuadFace*>::const_iterator qiter = qface_list.begin();
   std::list<Face*>::const_iterator giter = gface_list.begin();
   for(int i = 0; i < 2; i++){
     (*giter)->resplit(facePlan1[face_entity[i]], orientCode[i], bnode_list, edge_list);//resplit without orientCode
@@ -1045,6 +1045,6 @@ Prism* build_prism_cell(const Entity* lower, int lower_size,
   return aCell;
 }
 
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
 #endif

@@ -131,7 +131,7 @@ int NGENS=0;		  /* number of random streams in current process */
 
 
 
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 #endif
@@ -673,7 +673,7 @@ int *igen;
 {
   struct rngen *gen;
   
-  printf("\n%s\n", GENTYPE+2);
+  printf("\n%s\n", &GENTYPE[2]);
   
   gen = (struct rngen *) igen;
   printf("\n \tseed = %d, stream_number = %d\tparameter = %d\n\n", gen->init_seed, gen->stream_number, gen->parameter);
@@ -681,7 +681,7 @@ int *igen;
   return 1;
 }
 
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
 #endif
 
