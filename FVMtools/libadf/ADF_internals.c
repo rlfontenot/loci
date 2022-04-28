@@ -745,7 +745,7 @@ input:	unsigned int index			The input file
 input:	unsigned long start_block		The start of the range
 input:	unsigned long end_block 		The end of the range
 ***********************************************************************/
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 #endif
@@ -769,7 +769,7 @@ void DC_flush_range(
 	DC_flush();
 #endif /* CACHEWRITES */
 }
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
 #endif
 
