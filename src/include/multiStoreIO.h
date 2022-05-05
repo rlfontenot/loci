@@ -480,6 +480,7 @@ namespace Loci {
     }
   }
 
+#ifdef MOVED_TO_DISTRIBUTE_IO
   //original design is process 0 gather all the data and write it out
   //since new hdf5 version collective data transfer will do the gathering
   //so just perform parallel writing directly
@@ -583,7 +584,7 @@ namespace Loci {
     H5Dclose(dataset) ;
   }
 
-
+#endif
 
 
   //Since file_id and group_id is open for prime_comm, even just one process

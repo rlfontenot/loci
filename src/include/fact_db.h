@@ -376,6 +376,12 @@ namespace Loci {
     void read_all_hdf5(const char *filename) ;
     void write_hdf5(const char *filename, variableSet &vars) ;
     void read_hdf5(const char *filename, variableSet &vars) ;
+
+    void write_all_hdf5P(const char *filename) ;
+    void read_all_hdf5P(const char *filename) ;
+    void write_hdf5P(const char *filename, variableSet &vars) ;
+    void read_hdf5P(const char *filename, variableSet &vars) ;
+
     void Print_diagnostics() ;
 
     // experimental code to create keyspace from the

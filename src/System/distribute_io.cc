@@ -20,10 +20,13 @@
 //#############################################################################
 #include <vector>
 using std::vector;
+#include <string>
+using std::string;
 
 #include <iostream>
 using std::cerr;
 using std::endl;
+using std::ostringstream;
 
 #include <algorithm>
 using std::sort;
@@ -36,9 +39,13 @@ using std::pair ;
 #include "dist_tools.h"
 #include <fact_db.h>
 #include <constraint.h>
-#include <multiMap.h>
+
+
+using std::cout;
 
 namespace Loci {
+  
+  extern string PFS_Script ;
 
   entitySet BcastEntitySet(entitySet set, int root, MPI_Comm comm) {
 
@@ -86,6 +93,98 @@ namespace Loci {
     return ptn ;
   }
 
+
+  hid_t hdf5PCreateFile(const char *name, unsigned flags, hid_t create_id, hid_t access_id, size_t file_size_estimate,MPI_Comm comm) {
+#ifndef H5_HAVE_PARALLEL
+    int rank = 0 ;
+    MPI_Comm_rank(comm,&rank) ;
+    if(rank==0)
+      return H5Fcreate(name,flags,create_id,access_id) ;
+    else
+      return 0 ;
+#else
+    if(MPI_rank == 0 && PFS_Script != "") {
+      ostringstream oss ;
+      oss << PFS_Script << " " << name << " " << file_size_estimate ;
+      string script = oss.str() ;
+      int ret =system(script.c_str()) ;
+      if(ret !=0)
+	cerr << "Error, script '" << script << "' failed!"
+	     << endl ;
+    }
+    return H5Fcreate(name,flags,create_id,access_id) ;
+#endif
+  }
+
+  // hid_t writeVOGOpen(string filename) {
+  //    hid_t file_id = 0 ;
+  //    if(MPI_rank==0) 
+  //      file_id = H5Fcreate(filename.c_str(),H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT) ;
+  //    return file_id ;
+  //  }
+
+  hid_t writeVOGOpenP(string filename) {
+#ifndef H5_HAVE_PARALLEL
+    hid_t file_id = 0 ;
+    if(MPI_rank==0) 
+      file_id = H5Fcreate(filename.c_str(),H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT) ;
+    return file_id ;
+#else
+    
+    hid_t file_id = -1;
+   
+    MPI_Info info;
+    hid_t  acc_plist;
+    info  = MPI_INFO_NULL;
+    //create_mpi_info(&info);
+    // open collectively by all processor in MPI_COMM_WORLD,
+    acc_plist = Loci::create_faccess_plist(MPI_COMM_WORLD, info, Loci::hdf5_const::facc_type); 
+    file_id = H5Fcreate(filename.c_str(),H5F_ACC_TRUNC,H5P_DEFAULT,acc_plist) ;
+    H5Pclose(acc_plist);
+    if(info != MPI_INFO_NULL)MPI_Info_free(&info);
+    if(file_id < 0) {
+      if(MPI_rank==0) cerr << "unable to open file " << filename << endl ;
+      Loci::Abort() ;
+    }
+    return file_id ;
+#endif
+  }
+
+  extern bool use_parallel_io ;
+  
+  hid_t readVOGOpen(string filename) {
+    hid_t file_id = 0 ;
+    if(MPI_rank==0) 
+      file_id = H5Fopen(filename.c_str(),H5F_ACC_RDONLY, H5P_DEFAULT) ;
+    return file_id ;
+  }
+
+  hid_t readVOGOpenP(string filename) {
+    if(!use_parallel_io)
+      return readVOGOpen(filename) ;
+#ifndef H5_HAVE_PARALLEL
+    return readVOGOpen(filename) ;
+#else
+    
+    hid_t file_id = -1;
+   
+    MPI_Info info;
+    hid_t  acc_plist;
+    info  = MPI_INFO_NULL;
+    //create_mpi_info(&info);
+    // open collectively by all processor in MPI_COMM_WORLD,
+    acc_plist = Loci::create_faccess_plist(MPI_COMM_WORLD, info, Loci::hdf5_const::facc_type); 
+    file_id = H5Fopen(filename.c_str(),H5F_ACC_RDONLY, acc_plist) ;
+    H5Pclose(acc_plist);
+    if(info != MPI_INFO_NULL)MPI_Info_free(&info);
+    if(file_id < 0) {
+      if(MPI_rank==0) cerr << "unable to open file " << filename << endl ;
+      Loci::Abort() ;
+    }
+    return file_id ;
+#endif
+  }
+   
   void write_frame_info_param(hid_t group_id, frame_info &fi, MPI_Comm comm) {
     int prank = 0 ;
     MPI_Comm_rank(comm,&prank) ;
@@ -130,7 +229,68 @@ namespace Loci {
       }
     }
   }
+  
+  
+  //H5DWrite is independent, only p0 performs it
+  void write_frame_info_paramP(hid_t group_id, frame_info &fi, MPI_Comm comm) {
+#ifndef H5_HAVE_PARALLEL
+    write_frame_info_param(group_id, fi, comm);
+#else
+    int prank = 0 ;
+    MPI_Comm_rank(comm,&prank) ;
+    // Write out is_stat and vector size
+    
+    //each process create dataset
+    
+    hsize_t dimension = 1 ;
+    int rank = 1 ;
+    hid_t dataspace = H5Screate_simple(rank, &dimension, NULL) ;
+    hid_t datatype = H5T_NATIVE_INT ;
+#ifdef H5_USE_16_API
+    hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,H5P_DEFAULT) ;
+#else
+    hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
+      
+    if(prank==0) {
+      H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.is_stat) ;
+    }
+    H5Dclose(dataset) ;
+#ifdef H5_USE_16_API
+    dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,H5P_DEFAULT) ;
+#else
+    dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
+    if(prank==0) {
+      H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.size) ;
+    }
+    H5Dclose(dataset) ;
+    H5Sclose(dataspace) ;
+    if(fi.is_stat != 0) {
+      rank = 1 ;
+      dimension = 1 ;
+      dataspace = H5Screate_simple(rank,&dimension,NULL) ;
+#ifdef H5_USE_16_API
+      hid_t dataset = H5Dcreate(group_id,"second_level",H5T_NATIVE_INT,
+                                dataspace,H5P_DEFAULT) ;
+#else
+      hid_t dataset = H5Dcreate(group_id,"second_level",H5T_NATIVE_INT,
+                                dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
+      if(prank==0) {
+        hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
+        H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, &fi.second_level[0]) ;
+    
+        H5Sclose(memspace) ;
+      }
+      H5Dclose(dataset) ;
+      H5Sclose(dataspace) ;
+    }
+  
+#endif
+  }
 
+  
   void write_frame_info(hid_t group_id, frame_info &fi, MPI_Comm comm) {
     int prank = 0 ;
     MPI_Comm_rank(comm,&prank) ;
@@ -172,12 +332,69 @@ namespace Loci {
     }
   }
 
+  //single int write independntly, only p0 perform writing
+  //vector<int> write collectively/independently
+  void write_frame_infoP(hid_t group_id, frame_info &fi, MPI_Comm comm) {
+#ifndef H5_HAVE_PARALLEL
+    write_frame_info(group_id, fi, comm);
+#else
+    
+    int prank = 0 ;
+    MPI_Comm_rank(comm,&prank) ;
+    // Write out is_stat and vector size
+
+    //all process create/close, only process 0 write is_stat and vec_size
+    hsize_t dimension = 1 ;
+    int rank = 1 ;
+    hid_t dataspace = H5Screate_simple(rank, &dimension, NULL) ;
+    hid_t datatype = H5T_NATIVE_INT ;
+#ifdef H5_USE_16_API
+    hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,H5P_DEFAULT) ;
+#else
+    hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
+    if(prank==0) {
+      H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.is_stat) ;
+    }
+    H5Dclose(dataset) ;
+#ifdef H5_USE_16_API
+    dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,H5P_DEFAULT) ;
+#else
+    dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
+    if(prank==0) {
+      H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.size) ;
+    }
+    H5Dclose(dataset) ;
+    H5Sclose(dataspace) ;
+  
+
+    
+    int is_stat = fi.is_stat ;
+    int size = fi.size ;
+    MPI_Bcast(&is_stat,1,MPI_INT,0,comm) ;
+    MPI_Bcast(&size,1,MPI_INT,0,comm) ;
+    if(size == 0) { // Two level framing
+      write_vector_intP(group_id, "first_level", fi.first_level,comm) ;
+      if(is_stat != 0) {
+        write_vector_intP(group_id, "second_level", fi.second_level,comm) ;
+      }
+    } else {
+      if(is_stat != 0) {
+        write_vector_intP(group_id,"second_level",fi.second_level,comm) ;
+      }
+    }
+#endif
+  }
+
+  
+  //only process 0 read in fi 
   frame_info read_frame_info_param(hid_t group_id,  int dom_size, MPI_Comm comm) {
     int prank = 0 ;
     MPI_Comm_rank(comm,&prank) ;
     int is_stat = 0 ;
     int sz = 0 ;
-    // Write out is_stat and vector size
+    // Read in is_stat and vector size
     frame_info fi ;
     if(prank == 0) {
       hid_t datatype = H5T_NATIVE_INT ;
@@ -218,13 +435,15 @@ namespace Loci {
     }
     return fi ;
   }
+ 
 
+  //process 0 read in is_stat and vec_size, then broad cast it, then read data in fi
   frame_info read_frame_info(hid_t group_id,  int dom_size, MPI_Comm comm) {
     int prank = 0 ;
     MPI_Comm_rank(comm,&prank) ;
     int is_stat = 0 ;
     int sz = 0 ;
-    // Write out is_stat and vector size
+    // read in is_stat and vector size
     if(prank == 0) {
       hid_t datatype = H5T_NATIVE_INT ;
 #ifdef H5_USE_16_API
@@ -255,18 +474,73 @@ namespace Loci {
         int dims = 0 ;
         for(int i = 0; i < total_size; ++i)
           dims += (fi.first_level)[i] ;
-        read_multi_vector_int(group_id, "second_level", dims, fi.second_level,comm) ;
+        // read_multi_vector_int(group_id, "second_level", dims, fi.second_level,comm) ;
+        read_vector_int(group_id, "second_level", fi.second_level, dims, comm) ;
       }
     } else { // level 2 framing only
       if(dim[0] !=0) {
-        std::vector<int> vint ;
-        read_vector_int(group_id, "second_level", vint, dom_size,comm) ;
-        fi.second_level = vint ;
+        read_vector_int(group_id, "second_level", fi.second_level, dom_size,comm) ;
       }
     }
     return fi ;
   }
 
+  //process 0 read in is_stat and vec_size, broadcast it, then all process read in first_level and second_level in parallel 
+  frame_info read_frame_infoP(hid_t group_id,  int dom_size, MPI_Comm comm) {
+#ifndef H5_HAVE_PARALLEL
+    return read_frame_info( group_id,   dom_size, comm);
+#else
+    int prank = 0 ;
+    MPI_Comm_rank(comm,&prank) ;
+    int is_stat = 0 ;
+    int sz = 0 ;
+    
+    //to avoid read storm
+    //read in is_stat and vec_size using MPI_IO
+    if(prank == 0) {
+      hid_t datatype = H5T_NATIVE_INT ;
+#ifdef H5_USE_16_API
+      hid_t dataset = H5Dopen(group_id, "is_stat") ;
+#else
+      hid_t dataset = H5Dopen(group_id, "is_stat",H5P_DEFAULT) ;
+#endif
+      H5Dread(dataset,datatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &is_stat) ;
+      H5Dclose(dataset) ;
+#ifdef H5_USE_16_API
+      dataset = H5Dopen(group_id, "vec_size") ;
+#else
+      dataset = H5Dopen(group_id, "vec_size",H5P_DEFAULT) ;
+#endif
+      H5Dread(dataset,datatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &sz) ;
+      H5Dclose(dataset) ;
+    }
+     
+    int dim[2] ;
+    dim[0] = is_stat ;
+    dim[1] = sz ;
+    MPI_Bcast(&dim, 2, MPI_INT, 0, comm) ;
+    frame_info fi = frame_info(dim[0], dim[1]) ;
+
+    //start parallel here
+    if(dim[1] == 0) { // level 1 framing
+      read_vector_intP(group_id, "first_level", fi.first_level, dom_size,comm) ;
+      int total_size = fi.first_level.size() ;
+      if(dim[0] != 0) {
+        int dims = 0 ;
+        for(int i = 0; i < total_size; ++i)
+          dims += (fi.first_level)[i] ;
+        //read_multi_vector_intP(group_id, "second_level", dims, fi.second_level,comm) ;
+        read_vector_intP(group_id, "second_level",  fi.second_level, dims, comm) ;
+      }
+    } else { // level 2 framing only
+      if(dim[0] !=0) {
+        read_vector_intP(group_id, "second_level", fi.second_level, dom_size,comm) ;
+      }
+    }
+    return fi ;
+#endif
+  }
+  
   void write_parameter(hid_t group_id, storeRepP qrep, MPI_Comm comm) {
     int prank = 0 ;
     MPI_Comm_rank(comm,&prank) ;
@@ -319,7 +593,67 @@ namespace Loci {
     }
   }
 
+  //even though only process 0 perform write, all process must do create* collectively
+  void write_parameterP(hid_t group_id, storeRepP qrep, MPI_Comm comm) {
+#ifndef H5_HAVE_PARALLEL
+    write_parameter( group_id, qrep, comm);
+#else
+    int prank = 0 ;
+    MPI_Comm_rank(comm,&prank) ;
+    frame_info fi = qrep->get_frame_info() ;
+    write_frame_info_paramP(group_id,fi,comm) ;
+
+    int array_size = 0 ;
+    if(fi.size)
+      if(fi.is_stat)
+        for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi)
+          array_size += *vi ;
+      else
+        array_size = fi.size  ;
+    else
+      if(fi.is_stat)
+        for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi)
+          array_size += *vi ;
+      else
+        for(std::vector<int>::const_iterator fvi = fi.first_level.begin(); fvi != fi.first_level.end(); ++fvi)
+          array_size += *fvi ;
+
+    if(array_size == 0)
+      array_size = 1 ;
+    hsize_t dimension = array_size ;
+    int rank = 1 ;
+#ifdef H5_INTERFACE_1_6_4
+    hsize_t start = 0 ;
+#else
+    hssize_t start = 0 ;
+#endif
+    hsize_t stride = 1 ;
+    hsize_t count = array_size ;
+
+    hid_t dataspace =  H5Screate_simple(rank, &dimension, NULL) ;
+    DatatypeP dp = qrep->getType() ;
+    hid_t datatype = dp->get_hdf5_type() ;
+    H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
+    dimension = count ;
+    start += dimension ;
+#ifdef H5_USE_16_API
+    hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT) ;
+#else
+    hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
+    entitySet dom = ~EMPTY ;
+    //only process 0 do the writing, and use non-parallel
+    if(prank==0)  qrep->writehdf5(group_id, dataspace, dataset, dimension, "data", dom) ;
+    H5Dclose(dataset) ;
+    H5Sclose(dataspace) ;
+    
+#endif
+  }
+
   void write_store(hid_t group_id, storeRepP qrep, entitySet dom, int offset, MPI_Comm comm) {
+    //    stopWatch s;
+    //    s.start();
+
     int prank = 0 ;
     int np = 0 ;
     MPI_Comm_rank(comm,&prank) ;
@@ -358,17 +692,17 @@ namespace Loci {
     int array_size = 0 ;
     if(fi.size)
       if(fi.is_stat)
-	for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi)
-	  array_size += *vi ;
+        for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi)
+          array_size += *vi ;
       else
-	array_size = fi.size * dom.size() ;
+        array_size = fi.size * dom.size() ;
     else
       if(fi.is_stat)
-	for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi)
-	  array_size += *vi ;
+        for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi)
+          array_size += *vi ;
       else
-	for(std::vector<int>::const_iterator fvi = fi.first_level.begin(); fvi != fi.first_level.end(); ++fvi)
-	  array_size += *fvi ;
+        for(std::vector<int>::const_iterator fvi = fi.first_level.begin(); fvi != fi.first_level.end(); ++fvi)
+          array_size += *fvi ;
     std::vector<int> arr_sizes = all_collect_sizes(array_size,comm) ;
     size_t tot_arr_size = 0 ;
     for(int i = 0; i < np; ++i)
@@ -388,8 +722,8 @@ namespace Loci {
       MPI_Recv(&flag,1, MPI_INT, 0, 10, comm, &status) ;
       // received token to send, so send message
       if(flag) {
-	MPI_Send(&tot_size, 1, MPI_INT, 0, 11, comm) ;
-	MPI_Send(&tmp_send_buf[0], tot_size, MPI_PACKED, 0, 12, comm) ;
+        MPI_Send(&tot_size, 1, MPI_INT, 0, 11, comm) ;
+        MPI_Send(&tmp_send_buf[0], tot_size, MPI_PACKED, 0, 12, comm) ;
       }
     } else {
       // Begin writing array
@@ -406,7 +740,7 @@ namespace Loci {
       if(dimension != 0) {
         // First write local data
         hid_t dataspace =  H5Screate_simple(rank, &dimension, NULL) ;
-	DatatypeP dp = qrep->getType() ;
+        DatatypeP dp = qrep->getType() ;
         hid_t datatype = dp->get_hdf5_type() ;
         H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
         dimension = count ;
@@ -421,28 +755,28 @@ namespace Loci {
 
         // Now write remaining vectors
 
-	for(int i = 1; i < np; ++i) {
-	  MPI_Status status ;
-	  int recv_total_size ;
+        for(int i = 1; i < np; ++i) {
+          MPI_Status status ;
+          int recv_total_size ;
           // Allocate over 0-size-1, this allows for greater scalability when
           // sets data exceeds 2gig
-	  entitySet tmpset = interval(0,dom_vector[i].size()-1);
+          entitySet tmpset = interval(0,dom_vector[i].size()-1);
 
           storeRepP t_qrep = qrep->new_store(tmpset) ;
 
-	  int loc_unpack = 0 ;
-	  int flag = 1 ;
-	  MPI_Send(&flag, 1, MPI_INT, i, 10, comm) ;
-	  MPI_Recv(&recv_total_size, 1, MPI_INT, i, 11, comm, &status) ;
-	  MPI_Recv(&tmp_send_buf[0], recv_total_size, MPI_PACKED, i, 12, comm, &status) ;
+          int loc_unpack = 0 ;
+          int flag = 1 ;
+          MPI_Send(&flag, 1, MPI_INT, i, 10, comm) ;
+          MPI_Recv(&recv_total_size, 1, MPI_INT, i, 11, comm, &status) ;
+          MPI_Recv(&tmp_send_buf[0], recv_total_size, MPI_PACKED, i, 12, comm, &status) ;
 
-	  sequence tmp_seq = sequence(tmpset) ;
+          sequence tmp_seq = sequence(tmpset) ;
           t_qrep->unpack(&tmp_send_buf[0], loc_unpack, total_size, tmp_seq) ;
-	  dimension = arr_sizes[i] ;
-	  count = dimension ;
+          dimension = arr_sizes[i] ;
+          count = dimension ;
 
           H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
-	  start += count ;
+          start += count ;
 
 #ifdef H5_USE_16_API
           dataset = H5Dopen(group_id, "data") ;
@@ -454,22 +788,124 @@ namespace Loci {
           t_qrep->allocate(EMPTY) ;
 
           H5Dclose(dataset) ;
-	}
+        }
         H5Sclose(dataspace) ;
         H5Tclose(datatype) ;
       }
       //add else part by Qiuhan to avoid MPI communication get stuck
       else{
-	for(int i = 1; i < np; ++i) {
-	  MPI_Status status ;
-	  int recv_total_size ;
+        for(int i = 1; i < np; ++i) {
+          MPI_Status status ;
+          int recv_total_size ;
           int flag = 1 ;
           MPI_Send(&flag, 1, MPI_INT, i, 10, comm) ;
-	  MPI_Recv(&recv_total_size, 1, MPI_INT, i, 11, comm, &status) ;
-	  MPI_Recv(&tmp_send_buf[0], recv_total_size, MPI_PACKED, i, 12, comm, &status) ;
+          MPI_Recv(&recv_total_size, 1, MPI_INT, i, 11, comm, &status) ;
+          MPI_Recv(&tmp_send_buf[0], recv_total_size, MPI_PACKED, i, 12, comm, &status) ;
         }
       }
     }
+    //    double wall_time = s.stop();
+    //    if(prank == 0) std::cout << "serial time to write store: "  << "  " << wall_time << endl; 
+  }
+  
+  void write_storeP(hid_t group_id, storeRepP qrep, entitySet dom, int offset, MPI_Comm comm) {
+    
+#ifndef H5_HAVE_PARALLEL
+    write_store(group_id, qrep, dom, offset, comm) ;
+#else
+    //    stopWatch s;
+    //    s.start();
+    int prank = 0 ;
+    int np = 0 ;
+    MPI_Comm_rank(comm,&prank) ;
+    MPI_Comm_size(comm,&np) ;
+    if(np==1){
+      write_store(group_id, qrep, dom, offset, comm) ;
+      return;
+    }
+    // Shift domain by offset
+    entitySet dom_file = dom >> offset ;
+
+    // Compute overall domain across processors
+    std::vector<entitySet> dom_vector = all_collect_vectors(dom_file,comm);
+    entitySet q_dom;
+    for(int i = 0; i < np; i++)
+      q_dom += dom_vector[i];
+
+    
+    
+    HDF5_WriteDomainP(group_id, q_dom, comm);
+      
+    // If nothing to write, don't proceed
+    if(q_dom == EMPTY)
+      return ;
+
+   
+
+    //write frame info
+    frame_info fi = qrep->get_frame_info() ;
+    write_frame_infoP(group_id,fi,comm) ;
+
+    //get arr_sizes and total_arr_size
+    int array_size = 0 ;
+    if(fi.size)
+      if(fi.is_stat)
+        for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi)
+          array_size += *vi ;
+      else
+        array_size = fi.size * dom.size() ;
+    else
+      if(fi.is_stat)
+        for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi)
+          array_size += *vi ;
+      else
+        for(std::vector<int>::const_iterator fvi = fi.first_level.begin(); fvi != fi.first_level.end(); ++fvi)
+          array_size += *fvi ;
+    std::vector<int> arr_sizes = all_collect_sizes(array_size,comm) ;
+    size_t tot_arr_size = 0 ;
+    for(int i = 0; i < np; ++i)
+      tot_arr_size += size_t(max(0,arr_sizes[i])) ;
+
+
+   
+    int rank = 1 ;
+    hsize_t dimension = 1 ;
+#ifdef H5_INTERFACE_1_6_4
+    hsize_t start = 0 ;
+#else
+    hssize_t start = 0 ;
+#endif
+    hsize_t stride = 1 ;
+    hsize_t count = arr_sizes[prank] ;
+
+    for(int i = 0; i < prank; i++)start += arr_sizes[i];
+      
+    dimension =  tot_arr_size ;
+    if(dimension != 0) {
+      // First write local data
+      hid_t dataspace =  H5Screate_simple(rank, &dimension, NULL) ;
+      DatatypeP dp = qrep->getType() ;
+      hid_t datatype = dp->get_hdf5_type() ;
+#ifdef H5_USE_16_API
+      hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT) ;
+#else
+      hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
+        
+        
+      H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
+      dimension = count ;
+      hid_t xfer_plist = create_xfer_plist(Loci::hdf5_const::dxfer_coll_type);
+      qrep->writehdf5P(group_id, dataspace, dataset, dimension, "data", dom, xfer_plist) ;
+      H5Pclose(xfer_plist);
+      H5Dclose(dataset) ;
+      H5Sclose(dataspace) ;
+      H5Tclose(datatype) ;
+    }
+      
+    //    double wall_time = s.stop();
+    //    if(prank == 0) std::cout << "parallel time to write store "  << "  " << wall_time << endl; 
+#endif
   }
 
   void write_container(hid_t group_id, storeRepP qrep) {
@@ -479,7 +915,20 @@ namespace Loci {
     else
       write_store(group_id,qrep,qrep->domain(),offset,MPI_COMM_WORLD) ;
   }
+  
+  void write_containerP(hid_t group_id, storeRepP qrep) {
+#ifndef H5_HAVE_PARALLEL
+    write_container(group_id, qrep);
+#else
+    int offset = 0 ;
+    if(qrep->RepType() == PARAMETER)
+      write_parameterP(group_id,qrep,MPI_COMM_WORLD) ;
+    else
+      write_storeP(group_id,qrep,qrep->domain(),offset,MPI_COMM_WORLD) ;
+#endif
+  }
 
+  //to avoid read storm, no read_parameterP
   void read_parameter(hid_t group_id, storeRepP qrep, MPI_Comm comm) {
     int pack_size = 0 ;
     int prank = 0 ;
@@ -544,8 +993,12 @@ namespace Loci {
       delete[] pack_buf ;
     }
   }
+  
+     
 
   void read_store(hid_t group_id, storeRepP qrep, int &offset, MPI_Comm comm) {
+    //    Loci::stopWatch s;
+    //    s.start();
     offset = 0 ;
     int prank = 0 ;
     int np = 0 ;
@@ -588,23 +1041,23 @@ namespace Loci {
 
     if(fi.size) {
       if(fi.is_stat) {
-	for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi)
-	  array_size += *vi ;
-	vec_size = fi.second_level.size() ;
+        for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi)
+          array_size += *vi ;
+        vec_size = fi.second_level.size() ;
       } else {
-	if(fi.size > 1)
-	  qrep->set_elem_size(fi.size) ;
-	array_size = fi.size * dom.size() ;
+        if(fi.size > 1)
+          qrep->set_elem_size(fi.size) ;
+        array_size = fi.size * dom.size() ;
       }
     } else {
       if(fi.is_stat) {
-	for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi)
-	  array_size += *vi ;
-	vec_size = fi.second_level.size() + dom.size() ;
+        for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi)
+          array_size += *vi ;
+        vec_size = fi.second_level.size() + dom.size() ;
       } else {
-	for(std::vector<int>::const_iterator fvi = fi.first_level.begin(); fvi != fi.first_level.end(); ++fvi)
-	  array_size += *fvi ;
-	vec_size = dom.size() ;
+        for(std::vector<int>::const_iterator fvi = fi.first_level.begin(); fvi != fi.first_level.end(); ++fvi)
+          array_size += *fvi ;
+        vec_size = dom.size() ;
       }
     }
 
@@ -621,24 +1074,24 @@ namespace Loci {
     if(prank != 0) {
       int t = 0 ;
       if(fi.size) {
-	if(fi.size > 1)
-	  qrep->set_elem_size(fi.size) ;
-	if(fi.is_stat)
-	  for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi)
-	    tmp_int[t++] = *vi ;
+        if(fi.size > 1)
+          qrep->set_elem_size(fi.size) ;
+        if(fi.is_stat)
+          for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi)
+            tmp_int[t++] = *vi ;
       } else {
-	if(fi.is_stat) {
-	  for(std::vector<int>::const_iterator fvi = fi.first_level.begin(); fvi != fi.first_level.end(); ++fvi)
-	    tmp_int[t++] = *fvi ;
+        if(fi.is_stat) {
+          for(std::vector<int>::const_iterator fvi = fi.first_level.begin(); fvi != fi.first_level.end(); ++fvi)
+            tmp_int[t++] = *fvi ;
 
-	  for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi)
-	    tmp_int[t++] = *vi ;
-	} else
-	  for(std::vector<int>::const_iterator fvi = fi.first_level.begin(); fvi != fi.first_level.end(); ++fvi)
-	    tmp_int[t++] = *fvi ;
+          for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi)
+            tmp_int[t++] = *vi ;
+        } else
+          for(std::vector<int>::const_iterator fvi = fi.first_level.begin(); fvi != fi.first_level.end(); ++fvi)
+            tmp_int[t++] = *fvi ;
       }
       if(tmp_sizes[prank])
-	MPI_Send(tmp_int, tmp_sizes[prank], MPI_INT, 0, 10, comm) ;
+        MPI_Send(tmp_int, tmp_sizes[prank], MPI_INT, 0, 10, comm) ;
       int total_size = 0 ;
       MPI_Recv(&total_size, 1, MPI_INT, 0, 11,comm, &status) ;
       tmp_buf = new unsigned char[total_size] ;
@@ -666,7 +1119,7 @@ namespace Loci {
       int tmp_total_size = 0 ;
       entitySet max_set;
       if(max_eset_size > 0)
-	max_set = interval(0, max_eset_size-1) ;
+        max_set = interval(0, max_eset_size-1) ;
       if(np == 1) {
         qrep->allocate(dom) ;
         if(fi.size)
@@ -758,6 +1211,122 @@ namespace Loci {
     }
     delete [] tmp_buf ;
     delete [] tmp_int ;
+    //    double wall_time = s.stop();
+    //    if(prank == 0) std::cout << "serial time to read store "  << "  " << wall_time << endl; 
+  }
+  
+  void read_storeP(hid_t group_id, storeRepP qrep, int &offset, MPI_Comm comm) {
+#ifndef H5_HAVE_PARALLEL
+    read_store(group_id, qrep, offset, comm);
+#else
+    //     Loci::stopWatch s;
+    //    s.start();
+    offset = 0 ;
+    int prank = 0 ;
+    int np = 0 ;
+    MPI_Comm_rank(comm,&prank) ;
+    MPI_Comm_size(comm,&np) ;
+
+    // Here we read in a store container.  First lets read in the domain
+    entitySet q_dom ;
+    HDF5_ReadDomainP(group_id, q_dom) ;
+   
+    //each process do partition and compute dom
+    std::vector<int> interval_sizes ;
+    entitySet dom ;
+    if(q_dom != EMPTY) {
+      vector<entitySet> ptn = simplePartition(q_dom.Min(),q_dom.Max(),comm) ;
+      for(int i=0;i<np;++i) {
+        entitySet qset = ptn[i] &q_dom ;
+        interval_sizes.push_back(qset.size()) ;
+      }
+      dom = ptn[prank] &q_dom ;
+    } else
+      for(int i=0;i<np;++i)
+        interval_sizes.push_back(0) ;
+
+    if(q_dom==EMPTY) {
+      qrep->allocate(q_dom) ;
+      return ;
+    }
+    offset = dom.Min() ;
+    dom <<= offset ;
+    qrep->allocate(dom) ;
+    
+
+    //each process read in frame_info and compute vez_size and array_size
+    frame_info fi = read_frame_infoP(group_id,dom.size(),comm) ;
+    int array_size = 0 ;
+    
+    if(fi.size) {
+      if(fi.is_stat) {
+        for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi)
+          array_size += *vi ;
+      } else {
+        if(fi.size > 1)
+          qrep->set_elem_size(fi.size) ;
+        array_size = fi.size * dom.size() ;
+      }
+    } else {
+      if(fi.is_stat) {
+        for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi)
+          array_size += *vi ;
+      } else {
+        for(std::vector<int>::const_iterator fvi = fi.first_level.begin(); fvi != fi.first_level.end(); ++fvi)
+          array_size += *fvi ;
+      }
+    }
+   
+    //all_collect, now each process also know array_size and vec_size of others
+    
+    std::vector<int> arr_sizes = all_collect_sizes(array_size,comm) ;
+         
+    //  each process open dataset and read in data
+#ifdef H5_USE_16_API
+    hid_t dataset =  H5Dopen(group_id, "data") ;
+#else
+    hid_t dataset =  H5Dopen(group_id, "data",H5P_DEFAULT) ;
+#endif
+    hid_t dataspace = H5Dget_space(dataset) ;
+#ifdef H5_INTERFACE_1_6_4
+    hsize_t start = 0 ;
+#else
+    hssize_t start = 0 ;
+#endif
+    hsize_t stride = 1 ;
+    hsize_t count = 0 ;
+      
+    if(np == 1) {
+      qrep->allocate(dom) ;
+      if(fi.size)
+        if(fi.size > 1)
+          qrep->set_elem_size(fi.size) ;
+      hsize_t dimension = arr_sizes[0] ;
+      count = dimension ;
+      H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
+      qrep->readhdf5(group_id, dataspace, dataset, dimension, "data", fi, dom) ;
+    } else {
+      qrep->allocate(dom) ;
+      if(fi.size)
+        if(fi.size > 1)
+          qrep->set_elem_size(fi.size) ;
+        
+      //first compute  start
+      for(int p = 0; p < prank; ++p){
+        start +=  arr_sizes[p] ;
+      }
+      hsize_t dimension = arr_sizes[prank] ;
+      count = dimension ;
+      H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
+      hid_t xfer_plist = create_xfer_plist(Loci::hdf5_const::dxfer_coll_type);
+      qrep->readhdf5P(group_id, dataspace, dataset, dimension, "data", fi, dom, xfer_plist) ;
+      H5Pclose(xfer_plist);
+    }          
+    H5Dclose(dataset) ;
+    H5Sclose(dataspace) ;
+    //    double wall_time = s.stop();
+    //    if(prank == 0) std::cout << "parallel time to read store " << "  " << wall_time << endl; 
+#endif
   }
 
   entitySet findBoundingSet(entitySet in) {
@@ -805,8 +1374,8 @@ namespace Loci {
 
 
     MPI_Alltoallv(send_store,&send_sz[0], send_displacement , MPI_INT,
-		  recv_store, &recv_sz[0], recv_displacement, MPI_INT,
-		  MPI_COMM_WORLD) ;
+                  recv_store, &recv_sz[0], recv_displacement, MPI_INT,
+                  MPI_COMM_WORLD) ;
 
     vector<sequence> sv_t(MPI_processes) ;
     for(int i = 0; i <  MPI_processes; ++i)
@@ -838,7 +1407,7 @@ namespace Loci {
     FORALL(searchdom,i) {
       int key = dist->key_domain[i] ;
       if(kd != key){
-	failure = true ;
+        failure = true ;
       }
     } ENDFORALL ;
 
@@ -993,8 +1562,8 @@ namespace Loci {
     }
 
     MPI_Alltoallv(&send_store[0], &send_sizes[0], &send_dspl[0], MPI_PACKED,
-		  &recv_store[0], &recv_sizes[0], &recv_dspl[0], MPI_PACKED,
-		  comm) ;
+                  &recv_store[0], &recv_sizes[0], &recv_dspl[0], MPI_PACKED,
+                  comm) ;
 
     for(int i=0;i<p;++i) {
       int loc_pack = 0 ;
@@ -1025,7 +1594,7 @@ namespace Loci {
     int kd =  getKeyDomain(dom, dist, comm) ;
     if(kd < 0) {
       cerr << "unable to finde key domain in File2LocalOrderOutput"
-	   << endl ;
+           << endl ;
       kd = 0 ;
     }
     vector<entitySet> out_ptn = facts.get_init_ptn(kd) ;
@@ -1121,8 +1690,8 @@ namespace Loci {
     }
 
     MPI_Alltoallv(&send_store[0], &send_sizes[0], &send_dspl[0], MPI_PACKED,
-		  &recv_store[0], &recv_sizes[0], &recv_dspl[0], MPI_PACKED,
-		  comm) ;
+                  &recv_store[0], &recv_sizes[0], &recv_dspl[0], MPI_PACKED,
+                  comm) ;
 
 
     if(file_dom == EMPTY) return NULL;
@@ -1151,8 +1720,8 @@ namespace Loci {
       int kd =  getKeyDomain(resultSet, dist, comm) ;
 
       if(kd < 0) {
-	cerr << "File2LocalOrder not in single keyspace!" << endl ;
-	kd = 0 ;
+        cerr << "File2LocalOrder not in single keyspace!" << endl ;
+        kd = 0 ;
       }
 
       dMap g2f ;
@@ -1250,8 +1819,8 @@ namespace Loci {
     }
 
     MPI_Alltoallv(&send_store[0], &send_sizes[0], &send_dspl[0], MPI_PACKED,
-		  &recv_store[0], &recv_sizes[0], &recv_dspl[0], MPI_PACKED,
-		  comm) ;
+                  &recv_store[0], &recv_sizes[0], &recv_dspl[0], MPI_PACKED,
+                  comm) ;
 
     for(int i=0;i<p;++i) {
       int loc_pack = 0 ;
@@ -1282,7 +1851,32 @@ namespace Loci {
     if(prank == 0)
       H5Gclose(group_id) ;
   }
+  
+  void writeContainerRAWP(hid_t file_id, std::string vname,
+                          storeRepP var, MPI_Comm comm) {
+#ifndef H5_HAVE_PARALLEL
+    writeContainerRAW(file_id,  vname, var, comm);
+#else
+  
+    hid_t group_id = 0 ;
+    
+#ifdef H5_USE_16_API
+    group_id = H5Gcreate(file_id, vname.c_str(), 0) ;
+#else
+    group_id = H5Gcreate(file_id, vname.c_str(), H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
+    
+    if(var->RepType() != PARAMETER) {
+      int offset = 0 ;
+      write_storeP(group_id,var,var->domain(),offset,comm) ;
+    } else {
+      write_parameterP(group_id, var,comm) ;
+    }
+    H5Gclose(group_id) ;
+#endif
+  }
 
+  
   void readContainerRAW(hid_t file_id, std::string vname,
                         storeRepP var,
                         MPI_Comm comm ) {
@@ -1311,6 +1905,37 @@ namespace Loci {
     if(prank == 0)
       H5Gclose(group_id) ;
   }
+  void readContainerRAWP(hid_t file_id, std::string vname,
+                         storeRepP var,
+                         MPI_Comm comm ) {
+#ifndef H5_HAVE_PARALLEL
+    readContainerRAW( file_id,  vname,
+                      var,
+                      comm );
+#else
+    
+    hid_t group_id = 0;
+#ifdef H5_USE_16_API
+   
+    group_id = H5Gopen(file_id, vname.c_str()) ;
+#else
+   
+    group_id = H5Gopen(file_id, vname.c_str(),H5P_DEFAULT) ;
+#endif
+    if(var->RepType() == PARAMETER) {
+      read_parameter(group_id, var, comm) ;//to avoid read storm, parameters are read in with MPI-IO
+      H5Gclose(group_id) ;
+      return ;
+    }
+   
+    // Read in store in file numbering
+    int offset = 0 ;
+    read_storeP( group_id, var,offset,comm) ;
+    var->shift(offset) ;
+    H5Gclose(group_id) ;
+#endif
+  }
+
 
   void redistribute_write_container(hid_t file_id, std::string vname,
                                     storeRepP var, fact_db &facts) {
@@ -1350,8 +1975,53 @@ namespace Loci {
       H5Gclose(group_id) ;
   }
 
+
+  void redistribute_write_containerP(hid_t file_id, std::string vname,
+                                     storeRepP var, fact_db &facts) {
+
+#ifndef H5_HAVE_PARALLEL
+    redistribute_write_container( file_id, vname,
+                                  var, facts);
+#else
+    fact_db::distribute_infoP dist = facts.get_distribute_info() ;
+    if(dist == 0) {
+      writeContainerRAWP(file_id,vname,var,MPI_COMM_WORLD) ;
+      return ;
+    }
+    
+    hid_t group_id = 0 ;
+#ifdef H5_USE_16_API
+    group_id = H5Gcreate(file_id, vname.c_str(), 0) ;
+#else
+    group_id = H5Gcreate(file_id, vname.c_str(), H5P_DEFAULT,H5P_DEFAULT, H5P_DEFAULT) ;
+#endif
+    // Redistribute container to map from local to global numbering
+    if(var->RepType() != PARAMETER && MPI_processes != 1) {
+      // parallel store write.. reorder to file numbering then write out
+      // reorder from local to file numbering
+      int offset = 0 ;
+      entitySet dom = var->domain() ;
+      // Create container vardist that is ordered across processors in the
+      // file numbering, the domain of this container shifted by offset
+      // is the actual file numbering.
+      storeRepP vardist = Local2FileOrder(var,dom,offset,dist,MPI_COMM_WORLD) ;
+      // Write out container that has been distributed in the file numbering
+      write_storeP(group_id,vardist,vardist->domain(),offset,MPI_COMM_WORLD) ;
+    } else {
+      // No need to reorder container if parameter or only one
+      // processor, so just write out the container.
+      write_containerP(group_id, var) ;
+    }
+    H5Gclose(group_id) ;
+#endif
+  }
+
+
+
+
+
   int getMinFileNumberFromLocal(entitySet read_set,
-				fact_db::distribute_infoP dist ) {
+                                fact_db::distribute_infoP dist ) {
 
     int minIDfl = std::numeric_limits<int>::max() ;
     int kd =  getKeyDomain(read_set, dist, MPI_COMM_WORLD) ;
@@ -1423,11 +2093,11 @@ namespace Loci {
         read_set = new_store->domain() ;
         var->allocate(read_set) ;
       } else {
-	offset = read_set.Min() - new_store->domain().Min() ;
-	if(offset != 0) {
-	  // shift new store by offset to correct alignment
-	  new_store->shift(offset) ;
-	}
+        offset = read_set.Min() - new_store->domain().Min() ;
+        if(offset != 0) {
+          // shift new store by offset to correct alignment
+          new_store->shift(offset) ;
+        }
       }
       var->copy(new_store,read_set) ;
     }
@@ -1436,6 +2106,78 @@ namespace Loci {
       H5Gclose(group_id) ;
   }
 
+  void read_container_redistributeP(hid_t file_id, std::string vname,
+                                    storeRepP var, entitySet read_set,
+                                    fact_db &facts) {
+    
+#ifndef H5_HAVE_PARALLEL
+    read_container_redistribute(file_id, vname,
+                                var, read_set,
+                                facts);
+#else
+    hid_t group_id = 0;
+    
+#ifdef H5_USE_16_API
+    group_id = H5Gopen(file_id, vname.c_str()) ;
+#else
+    group_id = H5Gopen(file_id, vname.c_str(),H5P_DEFAULT) ;
+#endif
+    
+    if(var->RepType() == PARAMETER) {
+      read_parameter(group_id, var, MPI_COMM_WORLD) ;
+      H5Gclose(group_id) ;
+      return ;
+    }
+       
+    // Read in store in file numbering
+    int offset = 0 ;
+    storeRepP new_store = var->new_store(EMPTY) ;
+    read_storeP( group_id, new_store,offset,MPI_COMM_WORLD) ;
+    H5Gclose(group_id) ;
+        
+    // map from file number to local numbering
+    fact_db::distribute_infoP dist = facts.get_distribute_info() ;
+    if(dist != 0) {
+      // Correct offset if file numbering changes.  Assume read_set is being
+      // read in over the same set
+      int minID = offset ;
+      MPI_Bcast(&minID,1,MPI_INT,0,MPI_COMM_WORLD) ;
+      const int minIDf = getMinFileNumberFromLocal(read_set,dist) ;
+      const int correct = minIDf - minID ;
+      offset += correct  ;
+
+      // Allocate space for reordered container
+      storeRepP result = var->new_store(read_set) ;
+      File2LocalOrder(result,read_set,new_store,offset,dist,MPI_COMM_WORLD) ;
+      // Copy results into container
+      if(read_set == EMPTY) {
+        read_set = result->domain() ;
+        var->allocate(read_set) ;
+      }
+      var->copy(result,read_set) ;
+    } else {
+      if(read_set == EMPTY) {
+        read_set = new_store->domain() ;
+        var->allocate(read_set) ;
+      } else {
+        offset = read_set.Min() - new_store->domain().Min() ;
+        if(offset != 0) {
+          // shift new store by offset to correct alignment
+          new_store->shift(offset) ;
+        }
+      }
+      var->copy(new_store,read_set) ;
+    }
+#endif
+  }
+
+
+
+
+
+
+
+  
   void writeSetIds(hid_t file_id, entitySet local_set, fact_db &facts) {
     vector<int> ids(local_set.size()) ;
 
@@ -1445,8 +2187,8 @@ namespace Loci {
       fact_db::distribute_infoP df = facts.get_distribute_info() ;
       int kd =  getKeyDomain(local_set, df, MPI_COMM_WORLD) ;
       if(kd < 0) {
-	cerr << "unable to find distribute info in writeSetIds" << endl;
-	kd = 0 ;
+        cerr << "unable to find distribute info in writeSetIds" << endl;
+        kd = 0 ;
       }
 
       l2g = df->l2g.Rep() ;
@@ -1462,8 +2204,46 @@ namespace Loci {
         ids[c++] = ii ;
       } ENDFORALL ;
     }
+
     writeUnorderedVector(file_id,"entityIds",ids) ;
+
   }
+  
+  void writeSetIdsP(hid_t file_id, entitySet local_set, fact_db &facts) {
+#ifndef H5_HAVE_PARALLEL
+    writeSetIds(file_id,  local_set, facts);
+#else
+    vector<int> ids(local_set.size()) ;
+
+    int c = 0 ;
+    if(MPI_processes > 1) {
+      Map l2g ;
+      fact_db::distribute_infoP df = facts.get_distribute_info() ;
+      int kd =  getKeyDomain(local_set, df, MPI_COMM_WORLD) ;
+      if(kd < 0) {
+        cerr << "unable to find distribute info in writeSetIds" << endl;
+        kd = 0 ;
+      }
+
+      l2g = df->l2g.Rep() ;
+      dMap g2f ;
+      g2f = df->g2fv[kd].Rep() ;
+      FORALL(local_set,ii) {
+        ids[c++] = g2f[l2g[ii]] ;
+      } ENDFORALL ;
+    } else {
+      // Note, this means that a single processor run will not be compatible
+      // with a parallel processor run
+      FORALL(local_set,ii) {
+        ids[c++] = ii ;
+      } ENDFORALL ;
+    }
+
+    writeUnorderedVectorP(file_id,"entityIds",ids) ;
+#endif
+  }
+
+  
 
   hid_t createUnorderedFile(const char * filename, entitySet set, fact_db &facts) {
     hid_t file_id = 0;
@@ -1482,17 +2262,46 @@ namespace Loci {
     return file_id ;
   }
 
+  hid_t createUnorderedFileP(const char * filename, entitySet set, fact_db &facts) {
+#ifndef H5_HAVE_PARALLEL
+    return  createUnorderedFile( filename, set, facts);
+#else
+    hid_t file_id = 0;
+    hid_t group_id = 0 ;
+    //file access id here
+    
+    file_id = writeVOGOpenP(filename);
+#ifdef H5_USE_16_API
+    group_id = H5Gcreate(file_id,"dataInfo",0) ;
+#else
+    group_id = H5Gcreate(file_id,"dataInfo",H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
+    
+    writeSetIdsP(group_id,set,facts) ;
+    H5Gclose(group_id) ;
+    return file_id ;
+#endif
+  }
+
+ 
   void closeUnorderedFile(hid_t file_id) {
     if(MPI_rank == 0)
       H5Fclose(file_id) ;
   }
-
+  //  void closeUnorderedFileP(hid_t file_id) {
+  //#ifndef H5_HAVE_PARALLEL
+  //     if(MPI_rank == 0)
+  //       H5Fclose(file_id) ;
+  // #else
+  //     H5Fclose(file_id) ;
+  // #endif
+  //  }
 
   void generalMPIComm(storeRepP op,
-		      storeRepP sp,
-		      const vector<entitySet> &sendSets,
-		      const vector<sequence> &recvSeqs,
-		      MPI_Comm comm) {
+                      storeRepP sp,
+                      const vector<entitySet> &sendSets,
+                      const vector<sequence> &recvSeqs,
+                      MPI_Comm comm) {
     // Get number of processors
     int p = 0 ;
     MPI_Comm_size(comm,&p) ;
@@ -1504,9 +2313,9 @@ namespace Loci {
 
     for(int i=0;i<p;++i) {
       if(sendSets[i].num_intervals()>0)
-	send_sizes[i] = sp->pack_size(sendSets[i]) ;
+        send_sizes[i] = sp->pack_size(sendSets[i]) ;
       else
-	send_sizes[i] = 0 ;
+        send_sizes[i] = 0 ;
     }
 
     MPI_Alltoall(&send_sizes[0],1,MPI_INT, &recv_sizes[0],1,MPI_INT, comm) ;
@@ -1531,17 +2340,17 @@ namespace Loci {
       int pr = (prank-i+p)%p ; // receiving partner
       MPI_Request request ;
       if(recv_sizes[pr] > 0) {
-	MPI_Irecv(&recv_buf[0],recv_sizes[pr],MPI_PACKED,pr,901,comm,&request) ;
+        MPI_Irecv(&recv_buf[0],recv_sizes[pr],MPI_PACKED,pr,901,comm,&request) ;
       }
       if(send_sizes[ps] > 0) {
-	int loc_pack = 0 ;
-	sp->pack(&send_buf[0],loc_pack, send_sizes[ps], sendSets[ps]) ;
-	MPI_Send(&send_buf[0],send_sizes[ps],MPI_PACKED,ps,901,comm) ;
+        int loc_pack = 0 ;
+        sp->pack(&send_buf[0],loc_pack, send_sizes[ps], sendSets[ps]) ;
+        MPI_Send(&send_buf[0],send_sizes[ps],MPI_PACKED,ps,901,comm) ;
       }
       if(recv_sizes[pr]> 0) {MPI_Status status ;
-	MPI_Wait(&request,&status) ;
-	int loc_pack = 0 ;
-	op->unpack(&recv_buf[0],loc_pack,recv_sizes[pr],  recvSeqs[pr]) ;
+        MPI_Wait(&request,&status) ;
+        int loc_pack = 0 ;
+        op->unpack(&recv_buf[0],loc_pack,recv_sizes[pr],  recvSeqs[pr]) ;
       }
     }
 
@@ -1549,18 +2358,18 @@ namespace Loci {
 
   storeRepP
   generalCommStore(// input store
-		   storeRepP sp,
-		   // first: from entity (in container ordering),
-		   // second: to global partitioned entity map
-		   const vector<std::pair<Entity,Entity> > &commMap,
-		   // To entity partition
-		   CPTR<partitionFunctionType> partition,
-		   // mapping from global number to local numbering
-		   const vector<std::pair<Entity,Entity> > &global2local,
-		   // If this is null, create new container, otherwise
-		   // assume it is allocated already
-		   storeRepP op,
-		   MPI_Comm comm) {
+                   storeRepP sp,
+                   // first: from entity (in container ordering),
+                   // second: to global partitioned entity map
+                   const vector<std::pair<Entity,Entity> > &commMap,
+                   // To entity partition
+                   CPTR<partitionFunctionType> partition,
+                   // mapping from global number to local numbering
+                   const vector<std::pair<Entity,Entity> > &global2local,
+                   // If this is null, create new container, otherwise
+                   // assume it is allocated already
+                   storeRepP op,
+                   MPI_Comm comm) {
     // Get number of processors
     int p = 0 ;
     MPI_Comm_size(comm,&p) ;
@@ -1606,37 +2415,37 @@ namespace Loci {
       int Vmx = global2local[Imx].first ;
       int delta = max((Imx-Imn+1)/(Vmx-Vmn+1),1) ;
       for(int i=0;i<p;++i) {
-	sequence s = recv_seqs[i] ;
-	sequence cs ;
-	for(sequence::const_iterator ii=s.begin();ii!=s.end();++ii) {
-	  int v = *ii ;
-	  int imn = Imn ;
-	  int imx = Imx ;
-	  int vmn = Vmn ;
-	  int vmx = Vmx ;
-	  int is = imn + (imx-imn)*delta ;
-	  while(true) {
-	    int vs = global2local[is].first ;
-	    if(v == vs || imn == imx) {
-	      break ;
-	    } else if(v>vs) {
-	      imn = is ;
-	      vmn = vs ;
-	    } else {
-	      imx = is ;
-	      vmx = vs ;
-	    }
-	    delta = max((imx-imn+1)/(vmx-vmn+1),1) ;
-	    is = imn + (v-vmn)*delta ;
-	    if(is < imn || is > imx)
-	      is = (imn+imx)/2 ;
-	  }
-	  if(global2local[is].first == v)
-	    cs += global2local[is].second ;
-	  else
-	    cs += v ;
-	}
-	recv_seqs[i] = cs ;
+        sequence s = recv_seqs[i] ;
+        sequence cs ;
+        for(sequence::const_iterator ii=s.begin();ii!=s.end();++ii) {
+          int v = *ii ;
+          int imn = Imn ;
+          int imx = Imx ;
+          int vmn = Vmn ;
+          int vmx = Vmx ;
+          int is = imn + (imx-imn)*delta ;
+          while(true) {
+            int vs = global2local[is].first ;
+            if(v == vs || imn == imx) {
+              break ;
+            } else if(v>vs) {
+              imn = is ;
+              vmn = vs ;
+            } else {
+              imx = is ;
+              vmx = vs ;
+            }
+            delta = max((imx-imn+1)/(vmx-vmn+1),1) ;
+            is = imn + (v-vmn)*delta ;
+            if(is < imn || is > imx)
+              is = (imn+imx)/2 ;
+          }
+          if(global2local[is].first == v)
+            cs += global2local[is].second ;
+          else
+            cs += v ;
+        }
+        recv_seqs[i] = cs ;
       }
     }
 
@@ -1651,36 +2460,36 @@ namespace Loci {
       // now allocate the container
       frame_info spfi = sp->get_frame_info() ;
       if(spfi.size == 0) { // This is a multistore
-	// we need to get the counts
-	// First get counts for multiStore
-	store<int> counts ;
-	entitySet sdom = sp->domain() ;
-	counts.allocate(sdom) ;
-	int loc = 0 ;
-	FORALL(sdom,ii) {
-	  counts[ii] = spfi.first_level[loc] ;
-	  loc++ ;
-	} ENDFORALL ;
-	store<int> counts_target ;
-	counts_target.allocate(dom) ;
-	generalMPIComm(counts_target.Rep(),counts.Rep(),
-		       send_sets,recv_seqs,comm) ;
-	// Allocate multistore using framing information
-	// If not one interval in dom, then we need to serialize counts
-	if(dom.num_intervals() != 1) {
-	  vector<int> countsA(dom.size()) ;
-	  int cnt = 0 ;
-	  FORALL(dom,ii) {
-	    countsA[cnt++] = counts_target[ii] ;
-	  } ENDFORALL ;
-	  op = sp->new_store(dom,&countsA[0]) ;
-	} else {
-	  op = sp->new_store(dom,&counts_target[dom.Min()]) ;
-	}
+        // we need to get the counts
+        // First get counts for multiStore
+        store<int> counts ;
+        entitySet sdom = sp->domain() ;
+        counts.allocate(sdom) ;
+        int loc = 0 ;
+        FORALL(sdom,ii) {
+          counts[ii] = spfi.first_level[loc] ;
+          loc++ ;
+        } ENDFORALL ;
+        store<int> counts_target ;
+        counts_target.allocate(dom) ;
+        generalMPIComm(counts_target.Rep(),counts.Rep(),
+                       send_sets,recv_seqs,comm) ;
+        // Allocate multistore using framing information
+        // If not one interval in dom, then we need to serialize counts
+        if(dom.num_intervals() != 1) {
+          vector<int> countsA(dom.size()) ;
+          int cnt = 0 ;
+          FORALL(dom,ii) {
+            countsA[cnt++] = counts_target[ii] ;
+          } ENDFORALL ;
+          op = sp->new_store(dom,&countsA[0]) ;
+        } else {
+          op = sp->new_store(dom,&counts_target[dom.Min()]) ;
+        }
       } else {
-	// this is a store or storeVec
-	op = sp->new_store(dom) ;
-	op->set_elem_size(spfi.size) ;
+        // this is a store or storeVec
+        op = sp->new_store(dom) ;
+        op->set_elem_size(spfi.size) ;
       }
     }
     // Now do communication
@@ -1710,9 +2519,9 @@ namespace Loci {
       mxv = max(mxv,allmx[i+1]) ;
       splits[i]=allmx[i] ;
       if(allmx[i] < allmn[i])
-	splits[i] = last ;
+        splits[i] = last ;
       else
-	last = splits[i] ;
+        last = splits[i] ;
     }
     splits[p-1] = mxv+1 ;
 
@@ -1734,7 +2543,7 @@ namespace Loci {
     for(size_t i=0;i<datalist.size();++i) {
       int f = datalist[i].first ;
       while(f > splits[cnt] && cnt < p)
-	cnt++ ;
+        cnt++ ;
       sendszs[cnt]++ ;
     }
     vector<int> recvszs(p,0) ;
@@ -1762,8 +2571,8 @@ namespace Loci {
       recv_dspl[i] *= scale ;
     }
     MPI_Alltoallv(&datalist[0], &sendszs[0], &send_dspl[0], MPI_BYTE,
-		  &datarecv[0], &recvszs[0], &recv_dspl[0], MPI_BYTE,
-		  comm) ;
+                  &datarecv[0], &recvszs[0], &recv_dspl[0], MPI_BYTE,
+                  comm) ;
     entitySet rdom ;
     for(int i=0;i<recv_sz;++i)
       rdom += datarecv[i].first ;
@@ -1774,9 +2583,9 @@ namespace Loci {
   }
 
   void File2LocalOrderGeneral(storeRepP &result, entitySet resultSet,
-			      storeRepP input, int offset,
-			      fact_db::distribute_infoP dist,
-			      MPI_Comm comm) {
+                              storeRepP input, int offset,
+                              fact_db::distribute_infoP dist,
+                              MPI_Comm comm) {
     using namespace Loci ;
 
     if(dist ==0 ) {
@@ -1808,7 +2617,7 @@ namespace Loci {
     MPI_Allgather(&gmx, 1,MPI_INT,&splits[0],1,MPI_INT,comm) ;
     for(int i=1;i<p;++i)
       if(splits[i-1]>splits[i])
-	splits[i] = splits[i-1] ;
+        splits[i] = splits[i-1] ;
 
     CPTR<partitionFunctionType> partition =
       new generalPartition(splits) ;
@@ -1831,17 +2640,17 @@ namespace Loci {
     } ENDFORALL ;
     sort(global2local.begin(),global2local.end()) ;
     result = generalCommStore(// input store
-			      input,
-			      // first: from entity (in container ordering),
-			      // second: to global partitioned entity map
-			      commMap,
-			      // To entity partition
-			      partition,
-			      // mapping from global number to local numbering
-			      global2local,
-			      // input container, if zero then allocate
-			      0,
-			      comm) ;
+                              input,
+                              // first: from entity (in container ordering),
+                              // second: to global partitioned entity map
+                              commMap,
+                              // To entity partition
+                              partition,
+                              // mapping from global number to local numbering
+                              global2local,
+                              // input container, if zero then allocate
+                              0,
+                              comm) ;
 
   }
 
@@ -1849,7 +2658,7 @@ namespace Loci {
     l2f.allocate(dom) ;
     if(dist == 0) {
       FORALL(dom,ii) {
-	l2f[ii] = ii-dom.Min() ;
+        l2f[ii] = ii-dom.Min() ;
       } ENDFORALL ;
     } else {
       // first compute distribution of file numbered data
@@ -1860,13 +2669,13 @@ namespace Loci {
       l2g = dist->l2g.Rep() ;
       int mnl = std::numeric_limits<int>::max() ;
       FORALL(dom,ii) {
-	l2f[ii] = g2f[l2g[ii]] ;
-	mnl = min(mnl,l2f[ii]) ;
+        l2f[ii] = g2f[l2g[ii]] ;
+        mnl = min(mnl,l2f[ii]) ;
       } ENDFORALL ;
       int mn=mnl ;
       MPI_Allreduce(&mnl,&mn,1,MPI_INT,MPI_MIN,MPI_COMM_WORLD) ;
       FORALL(dom,ii) {
-	l2f[ii] -= mn ;
+        l2f[ii] -= mn ;
       } ENDFORALL ;
     }
   }
@@ -1901,10 +2710,10 @@ namespace Loci {
 
   
   void memoryBalancedDistribution(vector<int> &splits_out,
-				  const store<int> &countl,
-				  entitySet dom,
-				  const Map &toNumbering,
-				  MPI_Comm comm) {
+                                  const store<int> &countl,
+                                  entitySet dom,
+                                  const Map &toNumbering,
+                                  MPI_Comm comm) {
 
 
     // Get number of processors
@@ -1933,16 +2742,16 @@ namespace Loci {
 
     storeRepP vardist = 0 ;
     vardist = generalCommStore(// input store
-			       countl.Rep(),
-			       // first: from entity (in container ordering),
-			       // second: to global partitioned entity map
-			       commMap,
-			       // To entity partition
-			       partition,
-			       // mapping from global number to local numbering
-			       global2local,
-			       vardist,
-			       comm) ;
+                               countl.Rep(),
+                               // first: from entity (in container ordering),
+                               // second: to global partitioned entity map
+                               commMap,
+                               // To entity partition
+                               partition,
+                               // mapping from global number to local numbering
+                               global2local,
+                               vardist,
+                               comm) ;
 
     //    RdistributeStore(vardist,countl.Rep(),dom,toNumbering,splits,comm) ;
 
@@ -1968,7 +2777,7 @@ namespace Loci {
       csum_r += countf[ii] ;
       int p_next = max(0,min(p-1,int(floor(double(csum_r)/cpp))));
       if(p_next != p_prev)
-	lsplits.push_back(ii) ;
+        lsplits.push_back(ii) ;
       p_prev = p_next ;
     } ENDFORALL ;
     int lsz = lsplits.size() ;
@@ -1982,20 +2791,20 @@ namespace Loci {
     } else {
       vector<int> splits_balanced(p-1) ;
       MPI_Allgatherv(&lsplits[0],lsplits.size(),MPI_INT,
-		     &splits_balanced[0],&splitsz[0],&displs[0],
-		     MPI_INT,comm) ;
+                     &splits_balanced[0],&splitsz[0],&displs[0],
+                     MPI_INT,comm) ;
       splits_out = splits_balanced ;
     }
   }
 
   // gather data in container
   storeRepP gatherStore(// Input Store
-			storeRepP sp,
-			// EntitySet of input to reorder
-			const std::vector<int> &commPattern,
-			// Splits for partition
-			const std::vector<int> &splits,
-			MPI_Comm comm) {
+                        storeRepP sp,
+                        // EntitySet of input to reorder
+                        const std::vector<int> &commPattern,
+                        // Splits for partition
+                        const std::vector<int> &splits,
+                        MPI_Comm comm) {
 
     // Get number of processors
     int p = 0 ;
@@ -2013,7 +2822,7 @@ namespace Loci {
       int mxi = i<p-1?splits[i]:std::numeric_limits<int>::max() ;
       while(cnt < int(commPattern.size()) && commPattern[cnt] <= mxi) {
         recv_seqs[i] += commPattern[cnt] ;
-	recv_sets[i] += cnt ;
+        recv_sets[i] += cnt ;
         cnt++ ;
       }
     }
@@ -2033,9 +2842,9 @@ namespace Loci {
 
     for(int i=0;i<p;++i)
       if(send_seqs[i].num_intervals() > 0)
-	send_sizes[i] = sp->pack_size(entitySet(send_seqs[i])) ;
+        send_sizes[i] = sp->pack_size(entitySet(send_seqs[i])) ;
       else
-	send_sizes[i] = 0 ;
+        send_sizes[i] = 0 ;
 
     MPI_Alltoall(&send_sizes[0],1,MPI_INT,
                  &recv_sizes[0],1,MPI_INT,
@@ -2058,19 +2867,19 @@ namespace Loci {
     for(int i=0;i<p;++i) {
       int loc_pack = 0 ;
       if(send_seqs[i].num_intervals() > 0)
-	sp->pack(&send_store[send_dspl[i]],loc_pack, send_sizes[i],
-		 entitySet(send_seqs[i])) ;
+        sp->pack(&send_store[send_dspl[i]],loc_pack, send_sizes[i],
+                 entitySet(send_seqs[i])) ;
     }
 
     MPI_Alltoallv(&send_store[0], &send_sizes[0], &send_dspl[0], MPI_PACKED,
-		  &recv_store[0], &recv_sizes[0], &recv_dspl[0], MPI_PACKED,
-		  comm) ;
+                  &recv_store[0], &recv_sizes[0], &recv_dspl[0], MPI_PACKED,
+                  comm) ;
 
     for(int i=0;i<p;++i) {
       int loc_pack = 0 ;
       if(recv_sets[i] != EMPTY)
-	op->unpack(&recv_store[recv_dspl[i]],loc_pack,recv_sizes[i],
-		   sequence(recv_sets[i])) ;
+        op->unpack(&recv_store[recv_dspl[i]],loc_pack,recv_sizes[i],
+                   sequence(recv_sets[i])) ;
     }
 
     return op ;
@@ -2079,12 +2888,12 @@ namespace Loci {
 
   // With allocation for multistore
   storeRepP gatherMultiStore(// Input Store
-			     storeRepP sp,
-			     // EntitySet of input to reorder
-			     const std::vector<int> &commPattern,
-			     // Splits for partition
-			     const std::vector<int> &splits,
-			     MPI_Comm comm) {
+                             storeRepP sp,
+                             // EntitySet of input to reorder
+                             const std::vector<int> &commPattern,
+                             // Splits for partition
+                             const std::vector<int> &splits,
+                             MPI_Comm comm) {
 
     // Get number of processors
     int p = 0 ;
@@ -2116,7 +2925,7 @@ namespace Loci {
       int mxi = i<p-1?splits[i]:std::numeric_limits<int>::max() ;
       while(cnt < int(commPattern.size()) && commPattern[cnt] <= mxi) {
         recv_seqs[i] += commPattern[cnt] ;
-	recv_sets[i] += cnt ;
+        recv_sets[i] += cnt ;
         cnt++ ;
       }
     }
@@ -2138,9 +2947,9 @@ namespace Loci {
 
     for(int i=0;i<p;++i)
       if(send_seqs[i].num_intervals()>0)
-	send_sizes[i] = sp->pack_size(entitySet(send_seqs[i])) ;
+        send_sizes[i] = sp->pack_size(entitySet(send_seqs[i])) ;
       else
-	send_sizes[i] = 0 ;
+        send_sizes[i] = 0 ;
 
     MPI_Alltoall(&send_sizes[0],1,MPI_INT,
                  &recv_sizes[0],1,MPI_INT,
@@ -2163,19 +2972,19 @@ namespace Loci {
     for(int i=0;i<p;++i) {
       int loc_pack = 0 ;
       if(send_seqs[i].num_intervals()>0)
-	sp->pack(&send_store[send_dspl[i]],loc_pack, send_sizes[i],
-		 entitySet(send_seqs[i])) ;
+        sp->pack(&send_store[send_dspl[i]],loc_pack, send_sizes[i],
+                 entitySet(send_seqs[i])) ;
     }
 
     MPI_Alltoallv(&send_store[0], &send_sizes[0], &send_dspl[0], MPI_PACKED,
-		  &recv_store[0], &recv_sizes[0], &recv_dspl[0], MPI_PACKED,
-		  comm) ;
+                  &recv_store[0], &recv_sizes[0], &recv_dspl[0], MPI_PACKED,
+                  comm) ;
 
     for(int i=0;i<p;++i) {
       int loc_pack = 0 ;
       if(recv_sets[i] != EMPTY)
-	op->unpack(&recv_store[recv_dspl[i]],loc_pack,recv_sizes[i],
-		   sequence(recv_sets[i])) ;
+        op->unpack(&recv_store[recv_dspl[i]],loc_pack,recv_sizes[i],
+                   sequence(recv_sets[i])) ;
     }
 
     return op ;

@@ -533,7 +533,7 @@ namespace Loci {
     entitySet::const_iterator  ei;
     for(ei = dom.begin(); ei != dom.end(); ++ei)
       if(codomain.inSet( attrib_data[*ei] ) )
-         domain  += *ei ;
+        domain  += *ei ;
     return make_pair(domain,domain);
   }
   
@@ -603,9 +603,9 @@ namespace Loci {
     return s ;
   }
 
-   DatatypeP dMapRepI::getType() {
-     return DatatypeP(new AtomicType(INT)) ;
-   }
+  DatatypeP dMapRepI::getType() {
+    return DatatypeP(new AtomicType(INT)) ;
+  }
   frame_info dMapRepI::get_frame_info() {
     warn(true) ;
     cerr << "get frame info not implemented for dMapRepI" << endl ;
@@ -618,39 +618,45 @@ namespace Loci {
   void dMapRepI::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &usr_eset)  {
     warn(true) ;
     /*
-    hsize_t       dimension;
-    entitySet     eset;	
-    vector<int>   vec;
+      hsize_t       dimension;
+      entitySet     eset;	
+      vector<int>   vec;
 
-    HDF5_ReadDomain( group_id, eset );
-    hid_t vDatatype   = H5T_NATIVE_INT;
-    hid_t vDataset   = H5Dopen(group_id,"Map");
-    hid_t vDataspace = H5Dget_space(vDataset);
-    H5Sget_simple_extent_dims (vDataspace, &dimension, NULL);
+      HDF5_ReadDomain( group_id, eset );
+      hid_t vDatatype   = H5T_NATIVE_INT;
+      hid_t vDataset   = H5Dopen(group_id,"Map");
+      hid_t vDataspace = H5Dget_space(vDataset);
+      H5Sget_simple_extent_dims (vDataspace, &dimension, NULL);
 
-    int *data = new int[dimension];
-    H5Dread(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+      int *data = new int[dimension];
+      H5Dread(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
 
-    entitySet  ecommon = eset & usr_eset;
+      entitySet  ecommon = eset & usr_eset;
 
-    int num_intervals = ecommon.num_intervals();
-    interval *it = new interval[num_intervals];
+      int num_intervals = ecommon.num_intervals();
+      interval *it = new interval[num_intervals];
 
-    for(int i=0;i<num_intervals;i++) it[i] = ecommon[i];
+      for(int i=0;i<num_intervals;i++) it[i] = ecommon[i];
 
-    int indx = 0;
-    for(int i=0;i<num_intervals;i++){
+      int indx = 0;
+      for(int i=0;i<num_intervals;i++){
       for(int j=it[i].first;j<=it[i].second;j++) 
-        attrib_data[j] = data[indx++];
-    }
+      attrib_data[j] = data[indx++];
+      }
 
-    H5Dclose( vDataset   );
-    H5Sclose( vDataspace );
-    delete [] it;
-    delete [] data;
+      H5Dclose( vDataset   );
+      H5Sclose( vDataspace );
+      delete [] it;
+      delete [] data;
     */
-  } 
-
+  }
+  
+#ifdef H5_HAVE_PARALLEL 
+  void dMapRepI::readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &usr_eset, hid_t xfer_plist_id)  {
+    warn(true) ;
+  }
+#endif
+  
   //**************************************************************************/
 
   void dMapRepI::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& usr_eset) const
@@ -658,35 +664,41 @@ namespace Loci {
     warn(true) ;
     
     /*
-    int       rank = 1;
-    hsize_t   dimension;
+      int       rank = 1;
+      hsize_t   dimension;
 
-    entitySet eset = usr_eset & domain();
+      entitySet eset = usr_eset & domain();
 
-    int arraySize = eset.size();
-    if( arraySize < 1) return;
+      int arraySize = eset.size();
+      if( arraySize < 1) return;
 
-    HDF5_WriteDomain( group_id, eset);
+      HDF5_WriteDomain( group_id, eset);
 
-    vector<int> data(arraySize);
-    entitySet :: const_iterator   ei;
+      vector<int> data(arraySize);
+      entitySet :: const_iterator   ei;
 
-    int indx = 0;
-    for( ei = eset.begin(); ei != eset.end(); ++ei) {
+      int indx = 0;
+      for( ei = eset.begin(); ei != eset.end(); ++ei) {
       data[indx++] =  attrib_data[*ei] ;
-    }
+      }
 
-    dimension       = arraySize;
-    hid_t dataspace = H5Screate_simple(rank, &dimension, NULL);
-    hid_t datatype  = H5T_NATIVE_INT;
-    hid_t dataset   = H5Dcreate(group_id, "Map", datatype, dataspace, H5P_DEFAULT);
-    H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &data[0]);
+      dimension       = arraySize;
+      hid_t dataspace = H5Screate_simple(rank, &dimension, NULL);
+      hid_t datatype  = H5T_NATIVE_INT;
+      hid_t dataset   = H5Dcreate(group_id, "Map", datatype, dataspace, H5P_DEFAULT);
+      H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &data[0]);
 
-    H5Sclose( dataspace );
-    H5Dclose( dataset   );
+      H5Sclose( dataspace );
+      H5Dclose( dataset   );
     */
   } 
-
+#ifdef H5_HAVE_PARALLEL 
+  void dMapRepI::writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& usr_eset, hid_t xfer_plist_id) const
+  {
+    warn(true) ;
+  }
+#endif
+  
   //**************************************************************************/
 
   dMap::~dMap() {}
@@ -718,7 +730,7 @@ namespace Loci {
   store_instance::instance_type const_dMap::access() const
   { return READ_ONLY ; }
 
-//****************************************************************************/
+  //****************************************************************************/
   void inverseMap(multiMap &result, const dMap &input_map,
                   const entitySet &input_image,
                   const entitySet &input_preimage) {

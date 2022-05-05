@@ -251,6 +251,10 @@ namespace Loci {
     virtual std::istream &Input(std::istream &s) = 0 ;
     virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en) = 0;
     virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet &en) const = 0;
+#ifdef H5_HAVE_PARALLEL
+    virtual void readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en, hid_t xfer_plist_id) = 0;
+    virtual void writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet &en, hid_t xfer_plist_id) const = 0;
+#endif
     virtual entitySet domain() const = 0 ;
     virtual storeRepP getRep() ;
     virtual storeRepP getRep() const ;
@@ -321,6 +325,14 @@ namespace Loci {
     virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const {
       Rep()->writehdf5(group_id, dataspace, dataset, dimension, name, en);
     };
+#ifdef H5_HAVE_PARALLEL
+    virtual void readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en, hid_t xfer_plist_id) {
+      Rep()->readhdf5P(group_id, dataspace, dataset, dimension, name, fi, en, xfer_plist_id);
+    };
+    virtual void writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en, hid_t xfer_plist_id) const {
+      Rep()->writehdf5P(group_id, dataspace, dataset, dimension, name, en, xfer_plist_id);
+    };
+#endif
     virtual entitySet domain() const ;
     virtual storeRepP getRep() ;
     virtual storeRepP getRep() const ;

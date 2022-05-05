@@ -101,7 +101,7 @@ namespace Loci {
     newSet    = eset - domain();
 
     for( ci = redundant.begin(); ci != redundant.end(); ++ci)
-         attrib_data.erase(*ci);
+      attrib_data.erase(*ci);
 
     std::vector<T>   newVec;
     if( size > 1) newVec.reserve( size );
@@ -115,7 +115,7 @@ namespace Loci {
   }
 
   template<class T>
-    void dstoreVecRepI<T>::shift(int_type offset) {
+  void dstoreVecRepI<T>::shift(int_type offset) {
     store_domain >>= offset ;
     allocate(store_domain) ;
   }
@@ -335,7 +335,7 @@ namespace Loci {
     return get_mpi_size( traits_type, eset );
   }
 
-   template <class T> 
+  template <class T> 
   int dstoreVecRepI<T>::estimated_pack_size( const entitySet &eset) 
   {
 
@@ -367,7 +367,7 @@ namespace Loci {
   template <class T> 
   int dstoreVecRepI<T>::get_estimated_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset) 
   {
-   int mysize;
+    int mysize;
   
     if( isMat) mysize = sizeof(T) * eset.size() * 25 +sizeof(int);
     else  mysize = sizeof(T) * eset.size() * 5 +sizeof(int) ;
@@ -403,7 +403,7 @@ namespace Loci {
            (numContainers+1)*sizeof(int) );
   }
 
- //*************************************************************************/
+  //*************************************************************************/
   template <class T> 
   int dstoreVecRepI<T>::get_estimated_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset) 
   {
@@ -481,18 +481,18 @@ namespace Loci {
       if( iter == attrib_data.end() ) continue;
       newVec = iter->second;
       for( int ivec = 0; ivec < size; ivec++){
-          typename schema_traits::Converter_Type cvtr( newVec[ivec] );
+        typename schema_traits::Converter_Type cvtr( newVec[ivec] );
 
-          stateSize  = cvtr.getSize();
-          if( size_t(stateSize) > inbuf.size() ) inbuf.resize(stateSize);
+        stateSize  = cvtr.getSize();
+        if( size_t(stateSize) > inbuf.size() ) inbuf.resize(stateSize);
 
-          cvtr.getState( &inbuf[0], stateSize);
-          MPI_Pack(&stateSize, 1, MPI_INT, outbuf, outcount,&position,
-                   MPI_COMM_WORLD);
+        cvtr.getState( &inbuf[0], stateSize);
+        MPI_Pack(&stateSize, 1, MPI_INT, outbuf, outcount,&position,
+                 MPI_COMM_WORLD);
 
-          incount =  stateSize*typesize;
-          MPI_Pack(&inbuf[0], incount, MPI_BYTE, outbuf, outcount, &position, 
-                   MPI_COMM_WORLD) ;
+        incount =  stateSize*typesize;
+        MPI_Pack(&inbuf[0], incount, MPI_BYTE, outbuf, outcount, &position, 
+                 MPI_COMM_WORLD) ;
       }
     }
 
@@ -575,35 +575,35 @@ namespace Loci {
     }
 
   }
-   template<class T> 
-     frame_info dstoreVecRepI<T>::get_frame_info() {
-     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
-     return get_frame_info(schema_converter()) ;
-   }
   template<class T> 
-    frame_info dstoreVecRepI<T>::get_frame_info(IDENTITY_CONVERTER g) {
+  frame_info dstoreVecRepI<T>::get_frame_info() {
+    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
+    return get_frame_info(schema_converter()) ;
+  }
+  template<class T> 
+  frame_info dstoreVecRepI<T>::get_frame_info(IDENTITY_CONVERTER g) {
     warn(true) ;
     frame_info fi ;
     return fi ;
   }
   template<class T> 
-    frame_info dstoreVecRepI<T>::get_frame_info(USER_DEFINED_CONVERTER g) {
+  frame_info dstoreVecRepI<T>::get_frame_info(USER_DEFINED_CONVERTER g) {
     warn(true) ;
     frame_info fi ;
     return fi ;
   }
   template<class T> 
-    DatatypeP dstoreVecRepI<T>::getType() {
+  DatatypeP dstoreVecRepI<T>::getType() {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     return getType(schema_converter()) ;
   }
   template<class T> 
-    DatatypeP dstoreVecRepI<T>::getType(IDENTITY_CONVERTER g) {
+  DatatypeP dstoreVecRepI<T>::getType(IDENTITY_CONVERTER g) {
     typedef data_schema_traits<T> traits_type;
     return(traits_type::get_type()) ;
   }
   template<class T> 
-    DatatypeP dstoreVecRepI<T>::getType(USER_DEFINED_CONVERTER g) {
+  DatatypeP dstoreVecRepI<T>::getType(USER_DEFINED_CONVERTER g) {
     typedef data_schema_traits<T> schema_traits ;
     typedef typename schema_traits::Converter_Base_Type dtype;
     typedef data_schema_traits<dtype> traits_type;
@@ -616,61 +616,65 @@ namespace Loci {
   {
     
   }
-
+  template<class T> 
+  void dstoreVecRepI<T>::readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset, hid_t xfer_plist_id)
+  {
+    
+  }
   //************************************************************************/
 
   template <class T> 
-    void dstoreVecRepI<T>::hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, frame_info &fi, entitySet &user_eset)
-    {
-      warn(true) ;
-      /*
-    hsize_t dimension;
-    size_t indx = 0, arraySize;
-    int    rank = 1;
+  void dstoreVecRepI<T>::hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, frame_info &fi, entitySet &user_eset)
+  {
+    warn(true) ;
+    /*
+      hsize_t dimension;
+      size_t indx = 0, arraySize;
+      int    rank = 1;
 
-    entitySet::const_iterator ci;
+      entitySet::const_iterator ci;
 
-    //------------------------------------------------------------------------
-    // Calculate the offset of each entity in file ....
-    //------------------------------------------------------------------------
-    store<unsigned> offset;
-    offset.allocate(eset);
+      //------------------------------------------------------------------------
+      // Calculate the offset of each entity in file ....
+      //------------------------------------------------------------------------
+      store<unsigned> offset;
+      offset.allocate(eset);
 
-    arraySize = 0;
-    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+      arraySize = 0;
+      for( ci = eset.begin(); ci != eset.end(); ++ci) {
       offset[*ci] = arraySize;
       arraySize  += size;
-    }
+      }
 
-    //------------------------------------------------------------------------
-    // Read the data now ....
-    //------------------------------------------------------------------------
-    int num_intervals = user_eset.num_intervals();
-    interval *it = new interval[num_intervals];
+      //------------------------------------------------------------------------
+      // Read the data now ....
+      //------------------------------------------------------------------------
+      int num_intervals = user_eset.num_intervals();
+      interval *it = new interval[num_intervals];
 
-    for(int i=0;i< num_intervals;i++) it[i] = user_eset[i];
+      for(int i=0;i< num_intervals;i++) it[i] = user_eset[i];
 
-    std::vector<T>   data;
-    typedef data_schema_traits<T> traits_type;
+      std::vector<T>   data;
+      typedef data_schema_traits<T> traits_type;
 
-    dimension         = arraySize;
-    hid_t mDataspace = H5Screate_simple(rank, &dimension, NULL); 
-    hid_t vDataspace = H5Screate_simple(rank, &dimension, NULL);
+      dimension         = arraySize;
+      hid_t mDataspace = H5Screate_simple(rank, &dimension, NULL); 
+      hid_t vDataspace = H5Screate_simple(rank, &dimension, NULL);
 
-    DatatypeP dtype  = traits_type::get_type() ;
-    hid_t vDatatype  = dtype->get_hdf5_type();
-    hid_t vDataset   = H5Dopen( group_id, "VariableData");
+      DatatypeP dtype  = traits_type::get_type() ;
+      hid_t vDatatype  = dtype->get_hdf5_type();
+      hid_t vDataset   = H5Dopen( group_id, "VariableData");
 
-    hssize_t  start[]     = {0};  // determines the starting coordinates.
-    hsize_t   stride[]    = {1};  // which elements are to be selected.
-    hsize_t   block[]     = {1};  // size of element block;
-    hssize_t  foffset[]   = {0};  // location (in file) where data is read.
-    hsize_t   count[]     = {0};  // how many positions to select from the dataspace
+      hssize_t  start[]     = {0};  // determines the starting coordinates.
+      hsize_t   stride[]    = {1};  // which elements are to be selected.
+      hsize_t   block[]     = {1};  // size of element block;
+      hssize_t  foffset[]   = {0};  // location (in file) where data is read.
+      hsize_t   count[]     = {0};  // how many positions to select from the dataspace
 
-    for( int k = 0; k < num_intervals; k++) {
+      for( int k = 0; k < num_intervals; k++) {
       count[0] = 0;
       for( int i = it[k].first; i <= it[k].second; i++)
-        count[0] +=  size;
+      count[0] +=  size;
 
       if( count[0] > data.size()) data.resize(count[0]);
 
@@ -682,104 +686,108 @@ namespace Loci {
 
       indx = 0;
       for( int i = it[k].first; i <= it[k].second; i++) {
-        attrib_data[i].resize(size);
-        for( int ivec = 0; ivec < size; ivec++) 
-          attrib_data[i][ivec] = data[indx++];
+      attrib_data[i].resize(size);
+      for( int ivec = 0; ivec < size; ivec++) 
+      attrib_data[i][ivec] = data[indx++];
       }
-    }
-      */
-    }
-  
+      }
+    */
+  }
+  template <class T> 
+  void dstoreVecRepI<T>::hdf5readP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, frame_info &fi, entitySet &user_eset, hid_t xfer_plist_id)
+  {
+    warn(true) ;
+  }
   //************************************************************************/
   
   template <class T> 
-    void dstoreVecRepI<T>::hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER c, frame_info &fi, entitySet &user_eset)
+  void dstoreVecRepI<T>::hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER c, frame_info &fi, entitySet &user_eset)
   {
     warn(true) ;
     /*
-    hsize_t  dimension;
-    hid_t    vDataspace, vDataset, vDatatype, mDataspace;
+      hsize_t  dimension;
+      hid_t    vDataspace, vDataset, vDatatype, mDataspace;
 
-    entitySet::const_iterator ci;
+      entitySet::const_iterator ci;
 
-    int indx, rank=1;
-    int vsize = get_size();
+      int indx, rank=1;
+      int vsize = get_size();
 
-    vDatatype  = H5T_NATIVE_INT;
-    vDataset   = H5Dopen(group_id,"SubContainerSize");
-    vDataspace = H5Dget_space(vDataset);
-    H5Sget_simple_extent_dims(vDataspace, &dimension, NULL);
+      vDatatype  = H5T_NATIVE_INT;
+      vDataset   = H5Dopen(group_id,"SubContainerSize");
+      vDataspace = H5Dget_space(vDataset);
+      H5Sget_simple_extent_dims(vDataspace, &dimension, NULL);
 
-    std::vector<int> ibuf(dimension);
+      std::vector<int> ibuf(dimension);
 
-    H5Dread(vDataset, vDatatype, H5S_ALL,H5S_ALL,H5P_DEFAULT, &ibuf[0]);
-    H5Dclose( vDataset  );
-    H5Sclose( vDataspace);
+      H5Dread(vDataset, vDatatype, H5S_ALL,H5S_ALL,H5P_DEFAULT, &ibuf[0]);
+      H5Dclose( vDataset  );
+      H5Sclose( vDataspace);
 
-    //-----------------------------------------------------------------------
-    // Size of each main container....
-    //------------------------------------------------------------------------
-    store<int> container;
-    container.allocate( eset );
-    indx      = 0;
-    for( ci = eset.begin(); ci != eset.end(); ++ci)
+      //-----------------------------------------------------------------------
+      // Size of each main container....
+      //------------------------------------------------------------------------
+      store<int> container;
+      container.allocate( eset );
+      indx      = 0;
+      for( ci = eset.begin(); ci != eset.end(); ++ci)
       container[*ci] = ibuf[indx++];
 
 
-    //---------------------------------------------------------------------
-    // Calculate the offset of each entity in file ....
-    //---------------------------------------------------------------------
+      //---------------------------------------------------------------------
+      // Calculate the offset of each entity in file ....
+      //---------------------------------------------------------------------
 
-    store< unsigned int >   offset;
-    dmultiStore<int>  subContainer;
-    offset.allocate( eset );
+      store< unsigned int >   offset;
+      dmultiStore<int>  subContainer;
+      offset.allocate( eset );
 
-    int vecsize;
-    int arraySize = 0;
-    indx      = 0;
-    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+      int vecsize;
+      int arraySize = 0;
+      indx      = 0;
+      for( ci = eset.begin(); ci != eset.end(); ++ci) {
       offset[*ci] = arraySize;
       for( int i = 0; i < size; i++)  {
-        vecsize    =  ibuf[indx++];
-        arraySize  += vecsize;
-        subContainer[*ci].push_back( vecsize );
+      vecsize    =  ibuf[indx++];
+      arraySize  += vecsize;
+      subContainer[*ci].push_back( vecsize );
       }
-    }
+      }
 
-    //---------------------------------------------------------------------
-    // Read the data now ....
-    //---------------------------------------------------------------------
-    int num_intervals = user_eset.num_intervals();
+      //---------------------------------------------------------------------
+      // Read the data now ....
+      //---------------------------------------------------------------------
+      int num_intervals = user_eset.num_intervals();
 
-    interval *it = new interval[num_intervals];
+      interval *it = new interval[num_intervals];
 
-    for(int i=0;i< num_intervals;i++) it[i] = user_eset[i];
+      for(int i=0;i< num_intervals;i++) it[i] = user_eset[i];
 
-    typedef data_schema_traits<T> converter_traits;
-    typename converter_traits::Converter_Base_Type  *data, *buf, dtype;
-    DatatypeP base_type =
+      typedef data_schema_traits<T> converter_traits;
+      typename converter_traits::Converter_Base_Type  *data, *buf, dtype;
+      DatatypeP base_type =
       data_schema_traits<typename converter_traits::Converter_Base_Type>::get_type() ;
     
-    vDatatype = base_type->get_hdf5_type();
+      vDatatype = base_type->get_hdf5_type();
 
-    dimension  = arraySize;
-    vDataset   = H5Dopen(group_id,"VariableData");
-    vDataspace = H5Dget_space(vDataset);
-    mDataspace = H5Dget_space(vDataset);
-    H5Sget_simple_extent_dims(vDataspace, &dimension, NULL);
+      dimension  = arraySize;
+      vDataset   = H5Dopen(group_id,"VariableData");
+      vDataspace = H5Dget_space(vDataset);
+      mDataspace = H5Dget_space(vDataset);
+      H5Sget_simple_extent_dims(vDataspace, &dimension, NULL);
 
-    hssize_t  start_mem[] = {0};  // determines the starting coordinates.
-    hsize_t   stride[]    = {1};  // which elements are to be selected.
-    hsize_t   block[]     = {1};  // size of element block;
-    hssize_t  foffset[]   = {0};  // location (in file) where data is read.
-    hsize_t   count[]     = {0};  // how many positions to select from the dataspace
+      hssize_t  start_mem[] = {0};  // determines the starting coordinates.
+      hsize_t   stride[]    = {1};  // which elements are to be selected.
+      hsize_t   block[]     = {1};  // size of element block;
+      hssize_t  foffset[]   = {0};  // location (in file) where data is read.
+      hsize_t   count[]     = {0};  // how many positions to select from the dataspace
 
-    for( int k = 0; k < num_intervals; k++) {
+      for( int k = 0; k < num_intervals; k++) {
       count[0] = 0;
       for( int i = it[k].first; i <= it[k].second; i++){
-        vsize = container[i];
-        for( int j = 0; j < vsize; j++)
-          count[0] +=  subContainer[i][j];
+      vsize = container[i];
+      for( int j = 0; j < vsize; j++)
+      count[0] +=  subContainer[i][j];
       }
       data = new typename data_schema_traits<T>::Converter_Base_Type[count[0]];
 
@@ -791,36 +799,45 @@ namespace Loci {
       indx = 0;
       int bucsize;
       for( int i = it[k].first; i <= it[k].second; i++) {
-        attrib_data[i].resize(size);
-        for( int j = 0; j < size; j++) {
-          typename data_schema_traits<T>::Converter_Type cvtr( attrib_data[i][j] );
-          bucsize = subContainer[i][j];
-          cvtr.setState( data+indx, bucsize );
-          indx += bucsize ;
-        }
+      attrib_data[i].resize(size);
+      for( int j = 0; j < size; j++) {
+      typename data_schema_traits<T>::Converter_Type cvtr( attrib_data[i][j] );
+      bucsize = subContainer[i][j];
+      cvtr.setState( data+indx, bucsize );
+      indx += bucsize ;
+      }
       }
 
       delete[] data;
-    }
+      }
     */
   }
-
+  template <class T> 
+  void dstoreVecRepI<T>::hdf5readP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER c, frame_info &fi, entitySet &user_eset,hid_t xfer_plist_id )
+  {
+    warn(true) ;
+  }
   //*************************************************************************/
   template<class T> 
   void dstoreVecRepI<T>::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& usr_eset) const
   {
     warn(true) ;
     /*
-    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
-    schema_converter traits_output_type;
+      typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
+      schema_converter traits_output_type;
 
-    entitySet eset( usr_eset & domain());
+      entitySet eset( usr_eset & domain());
 
-    Loci::HDF5_WriteDomain(group_id, eset);
-    Loci::HDF5_WriteVecSize( group_id, size);
+      Loci::HDF5_WriteDomain(group_id, eset);
+      Loci::HDF5_WriteVecSize( group_id, size);
    
-    hdf5write(group_id, traits_output_type, eset );
+      hdf5write(group_id, traits_output_type, eset );
     */
+  }
+  template<class T> 
+  void dstoreVecRepI<T>::writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& usr_eset,hid_t xfer_plist_id ) const
+  {
+    warn(true) ;
   }
   //*************************************************************************/
 
@@ -829,47 +846,51 @@ namespace Loci {
   {
     warn(true) ;
     /*
-    hsize_t   dimension;
-    int       rank = 1;
-    //------------------------------------------------------------------------
-    // Collect state data from each object and put into 1D array
-    //------------------------------------------------------------------------
+      hsize_t   dimension;
+      int       rank = 1;
+      //------------------------------------------------------------------------
+      // Collect state data from each object and put into 1D array
+      //------------------------------------------------------------------------
     
-    int arraySize  = size*eset.size();
-    if( arraySize == 0) return;
+      int arraySize  = size*eset.size();
+      if( arraySize == 0) return;
 
-    entitySet::const_iterator ci;
-    typename HASH_MAP(int, std::vector<T>)::const_iterator iter;
-    std::vector<T>   newvec, data(arraySize);
+      entitySet::const_iterator ci;
+      typename HASH_MAP(int, std::vector<T>)::const_iterator iter;
+      std::vector<T>   newvec, data(arraySize);
 
-    size_t indx = 0;
-    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+      size_t indx = 0;
+      for( ci = eset.begin(); ci != eset.end(); ++ci) {
       iter = attrib_data.find(*ci);
       if( iter == attrib_data.end() )  continue;
       newvec = iter->second;
       for( int i = 0; i < size; i++)
-          data[indx++] =  newvec[i];
-    }
+      data[indx++] =  newvec[i];
+      }
 
-    //------------------------------------------------------------------------
-    // Write (variable) Data into HDF5 format
-    //------------------------------------------------------------------------
-    typedef data_schema_traits<T> traits_type;
-    DatatypeP dtype  = traits_type::get_type() ;
-    hid_t vDatatype  = dtype->get_hdf5_type();
+      //------------------------------------------------------------------------
+      // Write (variable) Data into HDF5 format
+      //------------------------------------------------------------------------
+      typedef data_schema_traits<T> traits_type;
+      DatatypeP dtype  = traits_type::get_type() ;
+      hid_t vDatatype  = dtype->get_hdf5_type();
 
-    dimension        = arraySize;
-    hid_t vDataspace = H5Screate_simple(rank, &dimension, NULL);
-    hid_t vDataset   = H5Dcreate( group_id, "VariableData", vDatatype, vDataspace, 
-                                  H5P_DEFAULT);
-    H5Dwrite( vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &data[0]);
+      dimension        = arraySize;
+      hid_t vDataspace = H5Screate_simple(rank, &dimension, NULL);
+      hid_t vDataset   = H5Dcreate( group_id, "VariableData", vDatatype, vDataspace, 
+      H5P_DEFAULT);
+      H5Dwrite( vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &data[0]);
 
-    H5Dclose( vDataset  );
-    H5Sclose( vDataspace);
-    H5Tclose( vDatatype );
+      H5Dclose( vDataset  );
+      H5Sclose( vDataspace);
+      H5Tclose( vDatatype );
     */
   }
-
+  template <class T>  
+  void dstoreVecRepI<T>::hdf5writeP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, const entitySet &eset, hid_t xfer_plist_id ) const
+  {
+    warn(true) ;
+  }
   //*************************************************************************/
 
   template <class T>  
@@ -877,100 +898,105 @@ namespace Loci {
   {
     warn(true) ;
     /*
-    hsize_t   dimension;
-    hid_t     vDataspace, vDataset, vDatatype;
+      hsize_t   dimension;
+      hid_t     vDataspace, vDataset, vDatatype;
 
-    int       rank = 1;
+      int       rank = 1;
 
-    //------------------------------------------------------------------------
-    // Get the sum of each object size and maximum size of object in the 
-    // container for allocation purpose
-    //------------------------------------------------------------------------
+      //------------------------------------------------------------------------
+      // Get the sum of each object size and maximum size of object in the 
+      // container for allocation purpose
+      //------------------------------------------------------------------------
 
-    entitySet :: const_iterator ci;
-    int   bucketID;
+      entitySet :: const_iterator ci;
+      int   bucketID;
 
-    int *vbucket = new int[size*eset.size()];
+      int *vbucket = new int[size*eset.size()];
 
-    size_t  arraySize= 0;
-    int     stateSize, maxStateSize = 0;
+      size_t  arraySize= 0;
+      int     stateSize, maxStateSize = 0;
 
-    typename HASH_MAP(int, std::vector<T>)::const_iterator iter;
-    typedef data_schema_traits<T> schema_traits ;
+      typename HASH_MAP(int, std::vector<T>)::const_iterator iter;
+      typedef data_schema_traits<T> schema_traits ;
 
-    std::vector<T>   newVec;
+      std::vector<T>   newVec;
 
-    bucketID = 0;
-    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+      bucketID = 0;
+      for( ci = eset.begin(); ci != eset.end(); ++ci) {
       iter = attrib_data.find(*ci);
       if( iter != attrib_data.end() ) {
-        newVec = iter->second;
-        for( int ivec = 0; ivec < size; ivec++){
-          typename schema_traits::Converter_Type cvtr( newVec[ivec] );
-          stateSize           = cvtr.getSize();
-          vbucket[bucketID++] = stateSize;
-          arraySize          += stateSize;
-          maxStateSize        = max( stateSize, maxStateSize);
-        }
+      newVec = iter->second;
+      for( int ivec = 0; ivec < size; ivec++){
+      typename schema_traits::Converter_Type cvtr( newVec[ivec] );
+      stateSize           = cvtr.getSize();
+      vbucket[bucketID++] = stateSize;
+      arraySize          += stateSize;
+      maxStateSize        = max( stateSize, maxStateSize);
       }
-    }
+      }
+      }
 
-    //-----------------------------------------------------------------------
-    // Collect state data from each object and put into 1D array
-    //-----------------------------------------------------------------------
-    typedef typename schema_traits::Converter_Base_Type dtype;
-    dtype *data ;
+      //-----------------------------------------------------------------------
+      // Collect state data from each object and put into 1D array
+      //-----------------------------------------------------------------------
+      typedef typename schema_traits::Converter_Base_Type dtype;
+      dtype *data ;
 
-    data =  new dtype[arraySize];
+      data =  new dtype[arraySize];
 
-    size_t indx = 0;
-    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+      size_t indx = 0;
+      for( ci = eset.begin(); ci != eset.end(); ++ci) {
       iter = attrib_data.find(*ci);
       if( iter != attrib_data.end() ) {
-        newVec = iter->second;
-        for( int ivec = 0; ivec < size; ivec++){
-          typename schema_traits::Converter_Type cvtr( newVec[ivec] );
-          cvtr.getState( data+indx, stateSize);
-          indx +=stateSize ;
+      newVec = iter->second;
+      for( int ivec = 0; ivec < size; ivec++){
+      typename schema_traits::Converter_Type cvtr( newVec[ivec] );
+      cvtr.getState( data+indx, stateSize);
+      indx +=stateSize ;
 
-        }
       }
-    }
+      }
+      }
 
-    //-------------------------------------------------------------------------
-    // Write (variable) Data into HDF5 format
-    //-------------------------------------------------------------------------
-    typedef data_schema_traits<dtype> traits_type;
-    DatatypeP atom_type = traits_type::get_type() ;
-    vDatatype = atom_type->get_hdf5_type();
+      //-------------------------------------------------------------------------
+      // Write (variable) Data into HDF5 format
+      //-------------------------------------------------------------------------
+      typedef data_schema_traits<dtype> traits_type;
+      DatatypeP atom_type = traits_type::get_type() ;
+      vDatatype = atom_type->get_hdf5_type();
 
-    dimension =  arraySize;
-    vDataspace = H5Screate_simple(rank, &dimension, NULL);
-    vDataset   = H5Dcreate(group_id, "VariableData", vDatatype, vDataspace,
-                           H5P_DEFAULT);
-    H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+      dimension =  arraySize;
+      vDataspace = H5Screate_simple(rank, &dimension, NULL);
+      vDataset   = H5Dcreate(group_id, "VariableData", vDatatype, vDataspace,
+      H5P_DEFAULT);
+      H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
 
-    //-----------------------------------------------------------------------
-    // Clean up
-    //-----------------------------------------------------------------------
-    H5Dclose( vDataset  );
-    H5Sclose( vDataspace);
-    H5Tclose( vDatatype );
+      //-----------------------------------------------------------------------
+      // Clean up
+      //-----------------------------------------------------------------------
+      H5Dclose( vDataset  );
+      H5Sclose( vDataspace);
+      H5Tclose( vDatatype );
 
-    delete [] data;
+      delete [] data;
 
-    dimension =  size*eset.size();
+      dimension =  size*eset.size();
 
-    vDataspace = H5Screate_simple(rank, &dimension, NULL);
-    vDatatype  = H5Tcopy( H5T_NATIVE_INT);
-    vDataset   = H5Dcreate(group_id, "SubContainerSize", vDatatype, vDataspace, H5P_DEFAULT);
-    H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, vbucket);
+      vDataspace = H5Screate_simple(rank, &dimension, NULL);
+      vDatatype  = H5Tcopy( H5T_NATIVE_INT);
+      vDataset   = H5Dcreate(group_id, "SubContainerSize", vDatatype, vDataspace, H5P_DEFAULT);
+      H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, vbucket);
 
-    H5Dclose( vDataset  );
-    H5Sclose( vDataspace);
-    H5Tclose( vDatatype );
-    delete [] vbucket;
+      H5Dclose( vDataset  );
+      H5Sclose( vDataspace);
+      H5Tclose( vDatatype );
+      delete [] vbucket;
     */
+  }
+  template <class T>  
+  void dstoreVecRepI<T> ::hdf5writeP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER g, const entitySet &eset, hid_t xfer_plist_id) const
+  {
+    warn(true) ;
   }
   //*************************************************************************/
 

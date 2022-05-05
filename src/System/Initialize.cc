@@ -181,6 +181,12 @@ namespace Loci {
   bool use_duplicate_model = false;
   bool use_simple_partition=false;
 
+#ifdef H5_HAVE_PARALLEL
+  bool use_parallel_io = false ; //true ;
+#else
+  bool use_parallel_io = false ;
+#endif
+  
   // space filling curve partitioner
 #ifdef LOCI_USE_METIS
   bool use_sfc_partition = false ;
@@ -550,6 +556,25 @@ namespace Loci {
         } else if(!strcmp((*argv)[i],"--decoration")) {
           show_decoration = true ; // visualize the decorated multilevel graph
           i++ ;
+	} else if(!strcmp((*argv)[i],"--pio")) { // turn on parallel IO
+#ifdef H5_HAVE_PARALLEL
+	  if(MPI_processes > 1) 
+	    use_parallel_io = true ;
+	  else {
+	    use_parallel_io = false ;
+	    cerr << "Parallel I/O not used when running on a single CPU!" << endl ;
+	  }
+#else
+	  cerr << "Cannot enable parallel I/O, Loci linked with serial HDF5 library!" << endl ;
+	  use_parallel_io = false ;
+#endif
+	  i++ ;
+	} else if(!strcmp((*argv)[i],"--nopio")) { // turn off parallel IO
+#ifndef H5_HAVE_PARALLEL
+	  cerr << "Cannot disable parallel I/O, Loci linked with serial HDF5 library!" << endl ;
+#endif
+	  i++ ;
+	  use_parallel_io = false ;
         } else if(!strcmp((*argv)[i],"--simple_partition")) {
           use_simple_partition = true ; //  partition domain using n/p cuts
           i++ ;

@@ -4,90 +4,90 @@ namespace Loci {
   /*
    * Create the appropriate File access property list
    */
-  namespace hdf5_const {
-    extern const int PPN(1);
-    extern const int facc_type(FACC_MPIO);		/*Test file access type */
-    extern const int dxfer_coll_type(DXFER_COLLECTIVE_IO); /*use collective IO*/
-  }
+  //  namespace hdf5_const {
+    //    extern const int PPN(1);
+    //    extern const int facc_type(FACC_MPIO);		/*Test file access type */
+    //    extern const int dxfer_coll_type(DXFER_COLLECTIVE_IO); /*use collective IO*/
+  //  }
 
 
-  hid_t
-  create_faccess_plist(MPI_Comm comm, MPI_Info info, int l_facc_type)
-  {
-#ifdef H5_HAVE_PARALLEL
-    hid_t ret_pl = -1;
-    herr_t ret;                 /* generic return value */
-    int mpi_rank;		/* mpi variables */
+//   hid_t
+//   create_faccess_plist(MPI_Comm comm, MPI_Info info, int l_facc_type)
+//   {
+// #ifdef H5_HAVE_PARALLEL
+//     hid_t ret_pl = -1;
+//     herr_t ret;                 /* generic return value */
+//     int mpi_rank;		/* mpi variables */
                                                            
-    /* need the rank for error checking macros */
-    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+//     /* need the rank for error checking macros */
+//     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
   
-    ret_pl = H5Pcreate (H5P_FILE_ACCESS);
-    WARN(ret_pl<0) ;
+//     ret_pl = H5Pcreate (H5P_FILE_ACCESS);
+//     WARN(ret_pl<0) ;
 
-    if (l_facc_type == FACC_DEFAULT)
-      return (ret_pl);
+//     if (l_facc_type == FACC_DEFAULT)
+//       return (ret_pl);
   
-    if (l_facc_type == FACC_MPIO){
-      /* set Parallel access with communicator */
-      ret = H5Pset_fapl_mpio(ret_pl, comm, info);
-      WARN(ret<0) ;
+//     if (l_facc_type == FACC_MPIO){
+//       /* set Parallel access with communicator */
+//       ret = H5Pset_fapl_mpio(ret_pl, comm, info);
+//       WARN(ret<0) ;
 
-      //unleased collective metadata read/write options
-      //one process read small data and broadcast it to avoid I/O access
+//       //unleased collective metadata read/write options
+//       //one process read small data and broadcast it to avoid I/O access
     
-      /*ret = H5Pset_all_coll_metadata_ops(ret_pl, TRUE);
-	WARN(ret < 0);
-	ret = H5Pset_coll_metadata_write(ret_pl, TRUE);
-	WARN(ret<0);
-      */
-      return(ret_pl);
-    }
-    return(ret_pl);
-#else
-    return H5P_DEFAULT ;
-#endif
-  }
+//       /*ret = H5Pset_all_coll_metadata_ops(ret_pl, TRUE);
+// 	WARN(ret < 0);
+// 	ret = H5Pset_coll_metadata_write(ret_pl, TRUE);
+// 	WARN(ret<0);
+//       */
+//       return(ret_pl);
+//     }
+//     return(ret_pl);
+// #else
+//     return H5P_DEFAULT ;
+// #endif
+//   }
 
-  hid_t
-  create_xfer_plist(int l_xfer_type){
-#ifdef H5_HAVE_PARALLEL
-    hid_t xfer_plist = H5Pcreate (H5P_DATASET_XFER);
-    if(l_xfer_type == DXFER_COLLECTIVE_IO)
-      H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_COLLECTIVE);
-    else
-      H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_INDEPENDENT);
-    return xfer_plist;
-#else
-    return H5P_DEFAULT ;
-#endif
-  }
+//   hid_t
+//   create_xfer_plist(int l_xfer_type){
+// #ifdef H5_HAVE_PARALLEL
+//     hid_t xfer_plist = H5Pcreate (H5P_DATASET_XFER);
+//     if(l_xfer_type == DXFER_COLLECTIVE_IO)
+//       H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_COLLECTIVE);
+//     else
+//       H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_INDEPENDENT);
+//     return xfer_plist;
+// #else
+//     return H5P_DEFAULT ;
+// #endif
+//   }
 
   using std::vector ;
   using std::ostringstream ;
   extern string PFS_Script ;
 
-  hid_t hdf5PCreateFile(const char *name, unsigned flags, hid_t create_id, hid_t access_id, size_t file_size_estimate,MPI_Comm comm) {
-#ifndef H5_HAVE_PARALLEL
-    int rank = 0 ;
-    MPI_Comm_rank(comm,&rank) ;
-    if(rank==0)
-      return H5Fcreate(name,flags,create_id,access_id) ;
-    else
-      return 0 ;
-#else
-    if(MPI_rank == 0 && PFS_Script != "") {
-      ostringstream oss ;
-      oss << PFS_Script << " " << name << " " << file_size_estimate ;
-      string script = oss.str() ;
-      int ret =system(script.c_str()) ;
-      if(ret !=0)
-	cerr << "Error, script '" << script << "' failed!"
-	     << endl ;
-    }
-    return H5Fcreate(name,flags,create_id,access_id) ;
-#endif
-  }
+//   hid_t hdf5PCreateFile(const char *name, unsigned flags, hid_t create_id, hid_t access_id, size_t file_size_estimate,MPI_Comm comm) {
+// #ifndef H5_HAVE_PARALLEL
+//     int rank = 0 ;
+//     MPI_Comm_rank(comm,&rank) ;
+//     if(rank==0)
+//       return H5Fcreate(name,flags,create_id,access_id) ;
+//     else
+//       return 0 ;
+// #else
+//     if(MPI_rank == 0 && PFS_Script != "") {
+//       ostringstream oss ;
+//       oss << PFS_Script << " " << name << " " << file_size_estimate ;
+//       string script = oss.str() ;
+//       int ret =system(script.c_str()) ;
+//       if(ret !=0)
+// 	cerr << "Error, script '" << script << "' failed!"
+// 	     << endl ;
+//     }
+//     return H5Fcreate(name,flags,create_id,access_id) ;
+// #endif
+//   }
 
 
   void findFileDist(int &fmin, int &fstart, int &fsz, int &delta,

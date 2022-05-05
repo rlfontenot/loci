@@ -1048,10 +1048,22 @@ namespace Loci {
     variableSet vars = get_typed_variables() ;
     write_hdf5(filename, vars) ;
   }
+
+  void fact_db::write_all_hdf5P(const char *filename) {
+    variableSet vars = get_typed_variables() ;
+    write_hdf5P(filename, vars) ;
+  }
+
   void fact_db::read_all_hdf5(const char *filename) {
     variableSet vars = get_typed_variables() ;
     read_hdf5(filename, vars) ; 
   }
+
+  void fact_db::read_all_hdf5P(const char *filename) {
+    variableSet vars = get_typed_variables() ;
+    read_hdf5P(filename, vars) ; 
+  }
+
   void fact_db::write_hdf5(const char *filename, variableSet &vars) {
     hid_t  file_id=0 ;
     if(Loci::MPI_rank == 0) 
@@ -1070,6 +1082,25 @@ namespace Loci {
   }
   
   
+  void fact_db::write_hdf5P(const char *filename, variableSet &vars) {
+#ifndef H5_HAVE_PARALLEL
+    write_hdf5(filename, vars);
+#else
+    hid_t  file_id=0 ;
+    
+    file_id =  writeVOGOpenP(filename) ;
+        
+    for(variableSet::const_iterator vi = vars.begin(); vi != vars.end(); ++vi) {
+      storeRepP  p = get_variable(*vi) ;
+       if(p->RepType() == STORE) {
+         writeContainerP(file_id,variable(*vi).get_info().name,p,*this) ;
+      }
+    }
+    
+    H5Fclose(file_id) ;
+#endif
+  }
+
   void fact_db::read_hdf5(const char *filename, variableSet &vars) {
     hid_t  file_id=0 ;
     if(Loci::MPI_rank == 0) 
@@ -1083,6 +1114,23 @@ namespace Loci {
     if(Loci::MPI_rank == 0) 
       H5Fclose(file_id) ;
     
+  }
+
+  void fact_db::read_hdf5P(const char *filename, variableSet &vars) {
+#ifndef H5_HAVE_PARALLEL
+    read_hdf5(filename, vars) ;
+#else
+    hid_t  file_id=0 ;
+   
+    file_id = readVOGOpenP(filename) ;
+    for(variableSet::const_iterator vi = vars.begin(); vi != vars.end(); ++vi) {
+      storeRepP  p = get_variable(*vi) ;
+      if(p->RepType() == STORE) {
+        readContainerP(file_id,variable(*vi).get_info().name,p,EMPTY,*this) ;
+      }
+    }
+    H5Fclose(file_id) ;
+#endif   
   }
 
   // experimental code to create keyspace from the

@@ -41,7 +41,7 @@ namespace Loci {
     MPI_Comm_rank(comm,&prank) ;
     MPI_Comm_size(comm,&pnum) ;
     
-    std::vector<int> vec_size = all_collect_sizes(dom_size,comm) ;
+    //    std::vector<int> vec_size = all_collect_sizes(dom_size,comm) ;
     hsize_t dimension = 0 ;
     hid_t dataset = 0;
     hid_t dataspace = 0;
@@ -99,6 +99,81 @@ namespace Loci {
       H5Dclose(dataset) ;
     }
     delete [] tmp_int ; 
+  }
+
+  void read_vector_intP(hid_t group_id, const char* name, std::vector<int>& vint, int dom_size, MPI_Comm comm) {
+#ifndef H5_HAVE_PARALLEL
+    return read_vector_int( group_id,  name, vint,  dom_size, comm);
+#else
+    int prank=0,pnum = 0 ;
+    MPI_Comm_rank(comm,&prank) ;
+    MPI_Comm_size(comm,&pnum) ;
+    
+    
+    hsize_t dimension = 0 ;
+    hid_t dataset = 0;
+    hid_t dataspace = 0;
+  
+#ifdef H5_USE_16_API
+    dataset = H5Dopen(group_id, name) ;
+#else
+    dataset = H5Dopen(group_id, name,H5P_DEFAULT) ;
+#endif
+    dataspace = H5Dget_space(dataset) ;
+    // H5Sget_simple_extent_dims(dataspace, &dimension, NULL) ;
+  
+    //int dim = dimension ;
+    
+    int rank = 1 ;
+    hid_t datatype = H5T_NATIVE_INT ;
+    
+    std::vector<int> sizes = all_collect_sizes(dom_size,comm) ;
+    //int total_size = dom_size;//don't need to be max size
+    int *tmp_int = new int[dom_size] ;
+
+   
+#ifdef H5_INTERFACE_1_6_4
+    hsize_t start = 0 ;
+#else
+    hssize_t start = 0 ;
+#endif
+    hsize_t stride = 1 ;
+    hsize_t count = 0 ;
+    for(int p = 0; p < prank; ++p) {
+      start += sizes[p] ; 
+    }
+    dimension = sizes[prank] ;
+    count = dimension ;
+    
+    //read data
+    
+    {
+      //create memespace independently, it is OK for dimension to be 0 
+      hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
+      if(dimension != 0)
+	H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
+      else H5Sselect_none(dataspace);
+      
+      hid_t xfer_plist = create_xfer_plist(Loci::hdf5_const::dxfer_coll_type);
+     
+      hid_t err = H5Dread(dataset, datatype, memspace, dataspace,
+			  xfer_plist, tmp_int) ;
+      if(err < 0) {
+        cerr << "H5Dread() failed" << endl ;
+      }
+      H5Pclose(xfer_plist);
+      H5Sclose(memspace) ;
+    }
+	
+	
+    for(int i = 0; i < sizes[prank]; ++i) 
+      vint.push_back(tmp_int[i]) ;
+
+    H5Sclose(dataspace) ;
+    H5Dclose(dataset) ;
+  
+    delete [] tmp_int ;
+#endif
   }
 
   void read_multi_vector_int(hid_t group_id, const char* name, int dim,  std::vector<int>& vint, MPI_Comm comm) {
@@ -242,6 +317,75 @@ namespace Loci {
     delete [] tmp_int ;
   }
 
+  void write_vector_intP(hid_t group_id, const char* name, std::vector<int>& vint,MPI_Comm comm) {
+#ifndef H5_HAVE_PARALLEL
+    write_vector_int(group_id,  name,  vint, comm);
+#else
+    
+    int prank=0,pnum = 0 ;
+    MPI_Comm_rank(comm,&prank) ;
+    MPI_Comm_size(comm,&pnum) ;
+    // std::vector<int> sort_max(pnum) ;
+    //int tot_entities = vint.size() ;
+    //sort_max = all_collect_sizes(tot_entities,comm) ;
+    std::vector<int> sizes = all_collect_sizes(vint.size());
+    //   std::sort(sort_max.begin(), sort_max.end()) ;
+    
+    int tot_entities = 0 ;
+    for(int i = 0; i < pnum; ++i)
+      tot_entities += sizes[i] ;
+    int *tmp_int = new int[sizes[prank]] ;
+    int tmp = 0 ;
+    for(std::vector<int>::iterator vi = vint.begin(); vi != vint.end(); ++vi)
+      tmp_int[tmp++] = *vi ;
+    
+    
+    
+    //every process write
+    hid_t datatype = H5T_NATIVE_INT ;
+    int rank = 1 ;
+#ifdef H5_INTERFACE_1_6_4
+    hsize_t start = 0 ;
+#else
+    hssize_t start = 0 ;
+#endif
+    hsize_t stride = 1 ;
+    hsize_t count = 0 ;
+    hsize_t dimension = tot_entities ;
+    if(dimension != 0) {
+      //create dataset collectively
+      hid_t dataspace = H5Screate_simple(rank, &dimension, NULL) ;
+#ifdef H5_USE_16_API
+      hid_t dataset = H5Dcreate(group_id, name , datatype, dataspace,H5P_DEFAULT) ;
+#else
+      hid_t dataset = H5Dcreate(group_id, name , datatype, dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
+      dimension = sizes[prank] ;
+      count = sizes[prank] ;
+      for(int i = 0; i < prank; i++)start += sizes[prank] ;
+      
+      //create a file dataspace independently
+      hid_t file_dataspace = H5Dget_space (dataset);
+      if(count != 0)H5Sselect_hyperslab(file_dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
+      else H5Sselect_none(file_dataspace);
+      
+      //it is ok for dimension to be 0
+      hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
+
+      hid_t xfer_plist = create_xfer_plist(Loci::hdf5_const::dxfer_coll_type);
+      H5Dwrite(dataset, datatype, memspace, dataspace, xfer_plist, tmp_int) ;
+      
+      H5Pclose(xfer_plist);
+      H5Dclose(file_dataspace);
+      H5Dclose(dataspace);
+      H5Sclose(memspace) ;
+      H5Dclose(dataset) ;
+    }	  
+    delete [] tmp_int ;
+      
+#endif
+  }
+      
   std::vector<int> all_collect_sizes(int size,MPI_Comm comm) {
     int prank=0,pnum = 0 ;
     MPI_Comm_rank(comm,&prank) ;

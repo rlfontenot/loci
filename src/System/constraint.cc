@@ -227,7 +227,17 @@ namespace Loci {
     delete [] data_constraint;
 */
   }
-
+  
+#ifdef H5_HAVE_PARALLEL
+  void constraintRep::readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en, hid_t xfer_plist_id){
+    warn(true) ;
+  }
+  
+  void constraintRep::writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en, hid_t xfer_plist_id) const{
+   warn(true) ;
+  }
+#endif
+  
   istream &constraintRep::Input(istream &s) {
     entitySet e ;
     s >> e ;

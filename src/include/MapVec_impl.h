@@ -689,6 +689,20 @@ namespace Loci {
     */
   }
   //*************************************************************************/
+#ifdef H5_HAVE_PARALLEL
+  template<int M> 
+  void MapVecRepI<M>::readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &eset, hid_t xfer_plist_id)
+  {
+    warn(true) ;
+  }
+  //*************************************************************************/
+
+  template<int M> 
+  void MapVecRepI<M>::writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& usr_eset, hid_t xfer_plist_id) const 
+  {
+    warn(true) ;
+  }
+#endif
 
 } // end of namespace Loci
 

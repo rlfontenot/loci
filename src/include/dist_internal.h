@@ -30,9 +30,12 @@
 #include <vector>
 namespace Loci {
 
-  void read_multi_vector_int(hid_t group_id, const char* name, int dim,  std::vector<int>& vint, MPI_Comm comm) ;
+  //void read_multi_vector_int(hid_t group_id, const char* name, int dim,  std::vector<int>& vint, MPI_Comm comm) ;
   void read_vector_int(hid_t group_id, const char* name, std::vector<int>& vint, int dom_size, MPI_Comm comm) ;
   void write_vector_int(hid_t group_id, const char* name, std::vector<int>& vint, MPI_Comm comm) ;
+  //void read_multi_vector_intP(hid_t group_id, const char* name, int dim,  std::vector<int>& vint, MPI_Comm comm) ;
+  void read_vector_intP(hid_t group_id, const char* name, std::vector<int>& vint, int dom_size, MPI_Comm comm) ;
+  void write_vector_intP(hid_t group_id, const char* name, std::vector<int>& vint, MPI_Comm comm) ;
 
   std::vector<int> all_collect_sizes(int size,MPI_Comm comm) ;
   inline std::vector<int> all_collect_sizes(int size) {

@@ -423,7 +423,7 @@ namespace Loci
   
   void dmultiMapRepI::pack( void *outbuf, int &position, int &outcount, const entitySet &eset) 
   {
-     int vsize;
+    int vsize;
     entitySet :: const_iterator ci;
     std::vector<int,malloc_alloc<int> >   newVec;
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
@@ -446,13 +446,13 @@ namespace Loci
 
     int vsize;
     for( ci = seq.begin(); ci != seq.end(); ++ci){
-         MPI_Unpack( inbuf, insize, &position, &vsize,
-                     1, MPI_INT, MPI_COMM_WORLD) ;
-         std::vector<int,malloc_alloc<int> >(vsize).swap(attrib_data[*ci]) ;
+      MPI_Unpack( inbuf, insize, &position, &vsize,
+                  1, MPI_INT, MPI_COMM_WORLD) ;
+      std::vector<int,malloc_alloc<int> >(vsize).swap(attrib_data[*ci]) ;
 
-         if(vsize != 0)
-           MPI_Unpack( inbuf, insize, &position, &attrib_data[*ci][0],
-                       vsize, MPI_INT, MPI_COMM_WORLD) ;
+      if(vsize != 0)
+        MPI_Unpack( inbuf, insize, &position, &attrib_data[*ci][0],
+                    vsize, MPI_INT, MPI_COMM_WORLD) ;
     }
 
   }   
@@ -604,7 +604,12 @@ namespace Loci
   {
     warn(true) ;
   }
-
+#ifdef H5_HAVE_PARALLEL 
+  void dmultiMapRepI::readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset, hid_t xfer_plist_id)
+  {
+    warn(true) ;
+  }
+#endif
   //**************************************************************************/
 
   void dmultiMapRepI::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& usr_eset) const
@@ -612,6 +617,12 @@ namespace Loci
     warn(true) ;
   } 
 
+#ifdef H5_HAVE_PARALLEL 
+  void dmultiMapRepI::writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& usr_eset, hid_t xfer_plist_id) const
+  {
+    warn(true) ;
+  } 
+#endif
   //**************************************************************************/
   
   dmultiMap::~dmultiMap() {}
@@ -682,75 +693,75 @@ namespace Loci
   }
 
   void inverseMap(dmultiMap &result, const const_dMap &input_map,
-                   const entitySet &input_image,
+                  const entitySet &input_image,
  		  const entitySet &input_preimage) {
     result.Rep()->setDomainKeySpace(MapRepP(input_map.Rep())->getRangeKeySpace()) ;
     MapRepP(result.Rep())->setRangeKeySpace(input_map.Rep()->getDomainKeySpace()) ;
-     entitySet preloop = input_preimage & input_map.domain() ;
-     std::vector<int,malloc_alloc<int> > tmp_vec ;
-     FORALL(input_image,i) {
-       result[i] = tmp_vec ;
-     } ENDFORALL ;
-     FORALL(preloop,i) {
-       int elem = input_map[i] ;
-       if(input_image.inSet(elem)) 
+    entitySet preloop = input_preimage & input_map.domain() ;
+    std::vector<int,malloc_alloc<int> > tmp_vec ;
+    FORALL(input_image,i) {
+      result[i] = tmp_vec ;
+    } ENDFORALL ;
+    FORALL(preloop,i) {
+      int elem = input_map[i] ;
+      if(input_image.inSet(elem)) 
  	result[elem].push_back(i) ;
-     } ENDFORALL ;
-   }
-   void inverseMap(dmultiMap &result, const const_Map &input_map,
-                   const entitySet &input_image,
+    } ENDFORALL ;
+  }
+  void inverseMap(dmultiMap &result, const const_Map &input_map,
+                  const entitySet &input_image,
  		  const entitySet &input_preimage) {
     result.Rep()->setDomainKeySpace(MapRepP(input_map.Rep())->getRangeKeySpace()) ;
     MapRepP(result.Rep())->setRangeKeySpace(input_map.Rep()->getDomainKeySpace()) ;
-     entitySet preloop = input_preimage & input_map.domain() ;
-     std::vector<int,malloc_alloc<int> > tmp_vec ;
-     FORALL(input_image,i) {
-       result[i] = tmp_vec ;
-     } ENDFORALL ;
-     FORALL(preloop,i) {
-       int elem = input_map[i] ;
-       if(input_image.inSet(elem)) 
+    entitySet preloop = input_preimage & input_map.domain() ;
+    std::vector<int,malloc_alloc<int> > tmp_vec ;
+    FORALL(input_image,i) {
+      result[i] = tmp_vec ;
+    } ENDFORALL ;
+    FORALL(preloop,i) {
+      int elem = input_map[i] ;
+      if(input_image.inSet(elem)) 
  	result[elem].push_back(i) ;
-     } ENDFORALL ;
-   }
+    } ENDFORALL ;
+  }
  
-   void inverseMap(dmultiMap &result, const dmultiMap &input_map,
-                   const entitySet &input_image,
-                   const entitySet &input_preimage) {
+  void inverseMap(dmultiMap &result, const dmultiMap &input_map,
+                  const entitySet &input_image,
+                  const entitySet &input_preimage) {
     result.Rep()->setDomainKeySpace(MapRepP(input_map.Rep())->getRangeKeySpace()) ;
     MapRepP(result.Rep())->setRangeKeySpace(input_map.Rep()->getDomainKeySpace()) ;
-     entitySet preloop = input_preimage & input_map.domain() ;
-     std::vector<int,malloc_alloc<int> > tmp_vec ;
-     FORALL(input_image,i) {
-       result[i] = tmp_vec ;
-     } ENDFORALL ;
-     FORALL(preloop,i) {
-       std::vector<int,malloc_alloc<int> >::const_iterator vi ;
-       for(vi=input_map[i].begin();vi!=input_map[i].end();++vi) {
-         int elem = *vi ;
-         if(input_image.inSet(elem)) 
-           result[elem].push_back(i) ;
-       }
-     } ENDFORALL ;
+    entitySet preloop = input_preimage & input_map.domain() ;
+    std::vector<int,malloc_alloc<int> > tmp_vec ;
+    FORALL(input_image,i) {
+      result[i] = tmp_vec ;
+    } ENDFORALL ;
+    FORALL(preloop,i) {
+      std::vector<int,malloc_alloc<int> >::const_iterator vi ;
+      for(vi=input_map[i].begin();vi!=input_map[i].end();++vi) {
+        int elem = *vi ;
+        if(input_image.inSet(elem)) 
+          result[elem].push_back(i) ;
+      }
+    } ENDFORALL ;
      
-   }
+  }
    
-   void inverseMap(dmultiMap &result, const multiMap &input_map,
-                   const entitySet &input_image,
-                   const entitySet &input_preimage) {
-     entitySet preloop = input_preimage & input_map.domain() ;
-     std::vector<int,malloc_alloc<int> > tmp_vec ;
-     FORALL(input_image,i) {
-       result[i] = tmp_vec ;
-     } ENDFORALL ;
-     FORALL(preloop,i) {
-       for(const Entity *ep = input_map.begin(i);ep!=input_map.end(i);++ep) {
-         int elem = *ep ;
-         if(input_image.inSet(elem)) 
-           result[elem].push_back(i) ;
-       }
-     } ENDFORALL ;
+  void inverseMap(dmultiMap &result, const multiMap &input_map,
+                  const entitySet &input_image,
+                  const entitySet &input_preimage) {
+    entitySet preloop = input_preimage & input_map.domain() ;
+    std::vector<int,malloc_alloc<int> > tmp_vec ;
+    FORALL(input_image,i) {
+      result[i] = tmp_vec ;
+    } ENDFORALL ;
+    FORALL(preloop,i) {
+      for(const Entity *ep = input_map.begin(i);ep!=input_map.end(i);++ep) {
+        int elem = *ep ;
+        if(input_image.inSet(elem)) 
+          result[elem].push_back(i) ;
+      }
+    } ENDFORALL ;
      
-   }
+  }
 }
 

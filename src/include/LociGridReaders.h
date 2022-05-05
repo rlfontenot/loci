@@ -154,6 +154,15 @@ namespace Loci {
                        Map &cl, Map &cr, multiMap &face2node,
                        std::vector<std::pair<int,std::string> >& surfaceids,
                        std::vector<std::pair<std::string,entitySet> >& volTags) ;
+  bool readGridVOG(std::vector<entitySet> &local_nodes,
+                   std::vector<entitySet> &local_faces,
+                   std::vector<entitySet> &local_cells,
+                   store<vector3d<double> > &pos, Map &cl, Map &cr,
+                   multiMap &face2node, 
+                   store<std::string> &boundary_names,
+                   store<std::string> &boundary_tags,
+                   std::vector<std::pair<std::string,entitySet> > &volTags,
+                   int max_alloc, std::string filename) ;
 
   void setupOverset(fact_db &facts) ;
   void setupPosAutoDiff(fact_db &facts) ;

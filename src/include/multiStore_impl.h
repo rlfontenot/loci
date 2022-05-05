@@ -1011,6 +1011,13 @@ namespace Loci {
       hdf5read(group_id, dataspace, dataset, dimension, name, traits_output_type, fi, user_eset) ;
     }
 
+#ifdef H5_HAVE_PARALLEL
+  template<class T> 
+  void multiStoreRepI<T>::readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset, hid_t xfer_plist_id) 
+  {
+    warn(true);
+  }
+#endif
   //**************************************************************************/
 
   template <class T> 
@@ -1040,7 +1047,14 @@ namespace Loci {
 	delete [] tmp_array ;
       }
     }
-  
+
+#ifdef H5_HAVE_PARALLEL 
+  template <class T> 
+  void multiStoreRepI<T>::hdf5readP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, frame_info &fi, entitySet &eset, hid_t cfer_plist_id)
+  {
+    warn(true);
+  }
+#endif  
   //**************************************************************************/
   
   template <class T> 
@@ -1080,6 +1094,14 @@ namespace Loci {
 	delete [] tmp_array ;
       }
     }  
+
+#ifdef H5_HAVE_PARALLEL 
+  template <class T> 
+  void multiStoreRepI<T>::hdf5readP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER c, frame_info &fi, entitySet &eset, hid_t xfer_plist_id)
+  {
+    warn(true);
+  }
+#endif
   //**************************************************************************/
 
   template<class T> 
@@ -1089,6 +1111,14 @@ namespace Loci {
     schema_converter traits_output_type;
     hdf5write(group_id, dataspace, dataset, dimension, name, traits_output_type, usr_eset) ;
   }
+  
+#ifdef H5_HAVE_PARALLEL
+  template<class T> 
+    void multiStoreRepI<T>::writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet &usr_eset, hid_t xfer_plist_id) const 
+  {
+    warn(true);
+  }
+#endif
   
   //**************************************************************************/
   template <class T> 
@@ -1115,6 +1145,14 @@ namespace Loci {
 	delete [] tmp_array ;
       }
     }
+
+#ifdef H5_HAVE_PARALLEL 
+  template <class T> 
+  void multiStoreRepI<T>::hdf5writeP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER g, const entitySet &eset, hid_t xfer_plist_id) const
+  {
+    warn(true);
+  }
+#endif
   //*************************************************************************/
 
   template <class T> 
@@ -1146,6 +1184,15 @@ namespace Loci {
 	delete [] tmp_array ;
       }   
     }
+  template <class T> 
+    void multiStoreRepI<T>:: hdf5writeP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER g, const entitySet &eset, hid_t xfer_plist_id)  const
+  {
+#ifndef H5_HAVE_PARALLEL    
+    hdf5write(group_id,  dataspace, dataset,  dimension,  name,  g, eset);
+#else
+    warn(true);
+#endif
+  }
 
   //*************************************************************************/
 #if defined(__GNUC__) && !defined(__clang__)

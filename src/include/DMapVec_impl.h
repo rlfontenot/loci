@@ -130,6 +130,13 @@ namespace Loci {
     H5Sclose( vDataspace );
     */
   }
+
+#ifdef H5_HAVE_PARALLEL 
+   template<unsigned int M> 
+   void dMapVecRepI<M>::readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset, hid_t xfer_plist_id){
+      warn(true) ;
+   }
+#endif
   //------------------------------------------------------------------------
     
   template<unsigned int M> 
@@ -177,7 +184,13 @@ namespace Loci {
     H5Sclose( vDataspace );
     */
   }
-
+#ifdef H5_HAVE_PARALLEL 
+template<unsigned int M> 
+void dMapVecRepI<M>::writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet &usr_eset, hid_t xfer_plist_id) const 
+  {
+    warn(true) ;
+  }
+#endif
   //------------------------------------------------------------------------
 
 

@@ -578,10 +578,20 @@ namespace Loci {
     warn(true) ; 
   } 
 
+#ifdef H5_HAVE_PARALLEL 
+  void MapRepI::readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &usr_eset, hid_t xfer_plist_id){
+    warn(true) ; 
+  } 
+#endif
   void MapRepI::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet &usr_eset) const{
     warn(true) ;
   } 
 
+#ifdef H5_HAVE_PARALLEL 
+  void MapRepI::writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet &usr_eset, hid_t xfer_plist_id) const{
+    warn(true) ;
+  } 
+#endif  
   Map::~Map() {}
 
   void Map::notification() {
@@ -1212,12 +1222,23 @@ namespace Loci {
   
   void multiMapRepI::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &usr_eset) {
     warn(true) ;
-
   }
 
+#ifdef H5_HAVE_PARALLEL 
+  void multiMapRepI::readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &usr_eset, hid_t xfer_plist_id) {
+    warn(true) ;
+  }
+#endif
+  
   void multiMapRepI::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& eset) const{
     warn(true) ;
   } 
+  
+#ifdef H5_HAVE_PARALLEL 
+  void multiMapRepI::writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& eset, hid_t xfer_plist_id) const{
+    warn(true) ;
+  }  
+#endif
   
   multiMap::~multiMap() {}
 

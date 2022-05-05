@@ -71,6 +71,10 @@ namespace Loci {
     virtual std::istream &Input(std::istream &s);
     virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en) ;
     virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const ;
+#ifdef H5_HAVE_PARALLEL
+    virtual void readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en, hid_t xfer_plist_id) ;
+    virtual void writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en, hid_t xfer_plist_id) const ;
+#endif
     virtual DatatypeP getType() ;
     virtual frame_info get_frame_info() ;
     T *get_blackbox() { return attrib_data; }
@@ -171,6 +175,22 @@ namespace Loci {
     cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
   }
     
+ //**************************************************************************/
+#ifdef H5_HAVE_PARALLEL
+  template<class T> 
+  void blackboxRepI<T>::readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en,hid_t xfer_plist_id ) 
+  {
+    cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
+  }
+    
+  //**************************************************************************/
+    
+  template<class T> 
+  void blackboxRepI<T>::writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en, hid_t xfer_plist_id) const
+  {
+    cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
+  }
+#endif  
   //**************************************************************************/
     
   template<class T> 

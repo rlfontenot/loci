@@ -38,12 +38,25 @@
 
 namespace Loci {
 
+  extern bool use_parallel_io ;
+
+  //-----------------------------------------------------------------------
+  // serial I/O
   void redistribute_write_container(hid_t file_id, std::string vname,
                                     Loci::storeRepP var, fact_db &facts) ;
   void read_container_redistribute(hid_t file_id, std::string vname,
                                    Loci::storeRepP var, entitySet read_set,
                                    fact_db &facts) ;
+  //-----------------------------------------------------------------------
+  // parallel I/O
+  void redistribute_write_containerP(hid_t file_id, std::string vname,
+                                     Loci::storeRepP var, fact_db &facts) ;
+  void read_container_redistributeP(hid_t file_id, std::string vname,
+                                    Loci::storeRepP var, entitySet read_set,
+                                    fact_db &facts) ;
 
+  //-----------------------------------------------------------------------
+  // serial I/O
   inline hid_t hdf5CreateFile(const char *name, unsigned flags, hid_t create_id, hid_t access_id) {
     hid_t file_id = 0 ;
     if(Loci::MPI_rank==0) {
@@ -65,6 +78,17 @@ namespace Loci {
       return 0 ;
   }
 
+  //-----------------------------------------------------------------------
+  // parallel I/O
+  hid_t hdf5CreateFileP(const char *name, unsigned flags, hid_t create_id, hid_t access_id, size_t file_size_estimate,MPI_Comm comm) ;
+  
+  inline hid_t hdf5CreateFileP(const char *name, unsigned flags, hid_t create_id, hid_t access_id,size_t file_size_estimate) {
+    return hdf5CreateFileP(name,flags,create_id,access_id,file_size_estimate,
+			   MPI_COMM_WORLD) ;
+  }
+
+  //-----------------------------------------------------------------------
+  // serial I/O
   inline hid_t hdf5OpenFile(const char *name, unsigned flags, hid_t access_id) {
     if(Loci::MPI_rank==0)
       return H5Fopen(name,flags,access_id) ;
@@ -82,6 +106,36 @@ namespace Loci {
       return 0 ;
   }
 
+  //-----------------------------------------------------------------------
+  // parallel I/O
+  inline hid_t hdf5OpenFileP(const char *name, unsigned flags, hid_t access_id) {
+#ifndef H5_HAVE_PARALLEL
+    if(Loci::MPI_rank==0)
+      return H5Fopen(name,flags,access_id) ;
+    else
+      return 0 ;
+#else
+    return H5Fopen(name,flags,access_id) ;
+#endif    
+  }
+  
+  inline hid_t hdf5OpenFileP(const char *name, unsigned flags, hid_t access_id,
+                             MPI_Comm comm) {
+#ifndef H5_HAVE_PARALLEL
+    int rank = 0 ;
+    MPI_Comm_rank(comm,&rank) ;
+    if(rank==0)
+      return H5Fopen(name,flags,access_id) ;
+    else
+      return 0 ;
+#else
+    return H5Fopen(name,flags,access_id) ;
+#endif
+  }
+  
+
+  //-----------------------------------------------------------------------
+  // serial I/O
   inline herr_t hdf5CloseFile(hid_t file_id) {
     if(Loci::MPI_rank==0)
       return H5Fclose(file_id) ;
@@ -97,13 +151,52 @@ namespace Loci {
     else
       return 0 ;
   }
+
+  //-----------------------------------------------------------------------
+  // parallel I/O
+  inline herr_t hdf5CloseFileP(hid_t file_id) {
+#ifndef H5_HAVE_PARALLEL
+    if(Loci::MPI_rank==0)
+      return H5Fclose(file_id) ;
+    else
+      return 0 ;
+#else
+    return H5Fclose(file_id) ;
+#endif
+  }
+
+  inline herr_t hdf5CloseFileP(hid_t file_id, MPI_Comm comm) {
+#ifndef H5_HAVE_PARALLEL
+    int rank = 0 ;
+    MPI_Comm_rank(comm,&rank) ;
+    if(rank==0)
+      return H5Fclose(file_id) ;
+    else
+      return 0 ;
+#else
+    return H5Fclose(file_id) ;
+#endif
+  }
     
+  //general way to open a file for writing
+  hid_t writeVOGOpen(std::string filename) ;
+  hid_t writeVOGOpenP(std::string filename);
+  hid_t readVOGOpen(std::string filename) ;
+  hid_t readVOGOpenP(std::string filename);
+
   inline void writeContainer(hid_t file_id,std::string vname, Loci::storeRepP var, fact_db &facts) {
 
     redistribute_write_container(file_id,vname,var,facts) ;
   }
+  inline void writeContainerP(hid_t file_id,std::string vname, Loci::storeRepP var, fact_db &facts) {
+    
+    redistribute_write_containerP(file_id,vname,var,facts) ;
+  }
   inline void readContainer(hid_t file_id, std::string vname, Loci::storeRepP var, entitySet readSet, fact_db &facts) {
     read_container_redistribute(file_id,vname,var,readSet, facts) ;
+  }
+  inline void readContainerP(hid_t file_id, std::string vname, Loci::storeRepP var, entitySet readSet, fact_db &facts) {
+    read_container_redistributeP(file_id,vname,var,readSet, facts) ;
   }
 
   inline void writeContainer(hid_t file_id,std::string vname, Loci::storeRepP var) {
@@ -115,6 +208,16 @@ namespace Loci {
       redistribute_write_container(file_id,vname,var,
                                    *Loci::exec_current_fact_db) ;
   }
+  inline void writeContainerP(hid_t file_id,std::string vname, Loci::storeRepP var) {
+    if(Loci::exec_current_fact_db == 0) {
+      std::cerr << "Loci::writeContainer()" ;
+      std::cerr << "this routine needs a fact database argument when called outside of a rule!" << endl ;
+      Loci::Abort() ;
+    } else
+      redistribute_write_containerP(file_id,vname,var,
+                                    *Loci::exec_current_fact_db) ;
+  }
+
   inline void readContainer(hid_t file_id, std::string vname, Loci::storeRepP var, entitySet readSet) {
     if(Loci::exec_current_fact_db == 0) {
       std::cerr << "Loci::readContainer()" ;
@@ -124,12 +227,26 @@ namespace Loci {
       read_container_redistribute(file_id,vname,var,readSet,
                                   *Loci::exec_current_fact_db) ;
   }
+  inline void readContainerP(hid_t file_id, std::string vname, Loci::storeRepP var, entitySet readSet) {
+    if(Loci::exec_current_fact_db == 0) {
+      std::cerr << "Loci::readContainer()" ;
+      std::cerr << "this routine needs a fact database argument when called outside of a rule!" << endl ;
+      Loci::Abort() ;
+    } else
+      read_container_redistributeP(file_id,vname,var,readSet,
+                                   *Loci::exec_current_fact_db) ;
+  }
 
   void writeContainerRAW(hid_t file_id, std::string vname,
                          storeRepP var, MPI_Comm comm) ;
 
+  void writeContainerRAWP(hid_t file_id, std::string vname,
+                          storeRepP var, MPI_Comm comm) ;
+
   void readContainerRAW(hid_t file_id, std::string vname,
                         storeRepP var, MPI_Comm comm ) ;
+  void readContainerRAWP(hid_t file_id, std::string vname,
+                         storeRepP var, MPI_Comm comm ) ;
 
   template<class T> void writeUnorderedVector(hid_t group_id,
                                               const char *element_name,
@@ -273,12 +390,133 @@ namespace Loci {
     writeUnorderedVector(group_id,element_name,v,MPI_COMM_WORLD) ;
   }
   
+  //original design is process 0 gather all the data and write it out
+  //since new hdf5 version collective data transfer will do the gathering
+  //so just perform parallel writing directly
+  template<class T> void writeUnorderedVectorP(hid_t group_id,
+                                               const char *element_name,
+                                               std::vector<T> &v,
+                                               MPI_Comm prime_comm) {
+    int mpi_size;
+    int mpi_rank;
+    MPI_Comm_rank(prime_comm, &mpi_rank);
+    MPI_Comm_size(prime_comm, &mpi_size);
+
+    //serial version
+    if(mpi_size==1){
+      hsize_t array_size_combined = v.size() ;
+      if(array_size_combined == 0)
+        return ;
+
+      int rank = 1 ;
+      hsize_t dimension = array_size_combined ;
+      hid_t dataspace = H5Screate_simple(rank,&dimension,NULL) ;
+
+      typedef data_schema_traits<T> traits_type ;
+      DatatypeP dp = traits_type::get_type() ;
+
+#ifdef H5_INTERFACE_1_6_4
+      hsize_t start = 0 ;
+#else
+      hssize_t start = 0 ;
+#endif
+      hsize_t stride = 1 ;
+      hsize_t count = v.size() ;
+      hid_t datatype = dp->get_hdf5_type() ;
+
+      hid_t dataset = H5Dcreate(group_id,element_name,datatype,
+                                dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) ;
+
+      if(count != 0) {
+        H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
+                            &start, &stride, &count, NULL) ;
+        hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
+
+        H5Dwrite(dataset,datatype,memspace,dataspace,H5P_DEFAULT, &v[0]) ;
+        H5Sclose(memspace) ;
+      }
+      H5Dclose(dataset) ;
+      H5Sclose(dataspace) ;
+      H5Tclose(datatype) ;
+      return;
+    }
+
+    //    Loci::stopWatch s;
+    //    s.start();
+    
+    //each process figure out the size and the start position to write
+    int local_size = v.size() ; //my size to write
+    hsize_t rsize = local_size; //individual size for each process in prime_comm
+    std::vector<hsize_t> prime_count(mpi_size);
+    MPI_Allgather(&rsize,sizeof(hsize_t),MPI_BYTE,
+                  &prime_count[0],sizeof(hsize_t),MPI_BYTE,prime_comm) ;
+
+    std::vector<hsize_t> pdispls(mpi_size) ; //the start point of each process in prime_comm
+    pdispls[0] = 0 ;
+    for(int i = 1; i < mpi_size; i++) {
+      pdispls[i] = pdispls[i-1]+prime_count[i-1] ;
+    }
+    hsize_t array_size = pdispls[mpi_size-1]+prime_count[mpi_size-1] ; //size of the whole dataset
+
+    if(array_size == 0)
+      return ;
+
+
+    //create dataset collectively
+    int rank = 1 ;
+    hsize_t dimension = array_size ;
+    hid_t dataspace = H5Screate_simple(rank,&dimension,NULL) ;
+    typedef data_schema_traits<T> traits_type ;
+    DatatypeP dp = traits_type::get_type() ;
+    hsize_t start = pdispls[mpi_rank] ;
+    hsize_t stride = 1 ;
+
+    //write data
+    hid_t datatype = dp->get_hdf5_type() ;
+    hid_t dataset = H5Dcreate2(group_id,element_name,datatype,
+                               dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) ;
+
+    herr_t ret = H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
+                                     &start,&stride,&rsize, NULL) ;
+    WARN(ret < 0) ;
+
+    /* create a memory dataspace independently */
+    hid_t memspace = H5Screate_simple (rank, &rsize, NULL);
+    WARN(memspace < 0) ;
+
+    hid_t xfer_plist = create_xfer_plist(hdf5_const::dxfer_coll_type);
+
+    H5Dwrite(dataset,datatype,memspace,dataspace, xfer_plist,  &v[0]) ;
+
+    H5Pclose(xfer_plist) ;
+    H5Sclose(memspace) ;
+
+    H5Sclose(dataspace) ;
+    H5Tclose(datatype) ;
+    H5Dclose(dataset) ;
+
+    //    double wall_time = s.stop();
+    //    if(mpi_rank == 0) std::cout << "parallel time to write " << element_name << "  " << wall_time << endl; 
+  }
+
+  template<class T> void writeUnorderedVectorP(hid_t group_id,
+                                               const char *element_name,
+                                               std::vector<T> &v
+                                               ) {
+    writeUnorderedVectorP(group_id,
+                          element_name,
+                          v,
+                          MPI_COMM_WORLD );
+  }
  
   
   void writeSetIds(hid_t file_id, entitySet local_set, fact_db &facts) ;
+  void writeSetIdsP(hid_t file_id, entitySet local_set, fact_db &facts) ;
   
   hid_t createUnorderedFile(const char * filename, entitySet set,
                             fact_db &facts) ;
+  hid_t createUnorderedFileP(const char * filename, entitySet set,
+                             fact_db &facts) ;
 
   inline hid_t createUnorderedFile(const char * filename, entitySet set) {
     if(Loci::exec_current_fact_db == 0) {
@@ -288,6 +526,16 @@ namespace Loci {
       return -1 ;
     } else
       return createUnorderedFile(filename, set, *Loci::exec_current_fact_db) ;
+  }
+
+  inline hid_t createUnorderedFileP(const char * filename, entitySet set) {
+    if(Loci::exec_current_fact_db == 0) {
+      std::cerr << "Loci::createUnorderedFile()" ;
+      std::cerr << "this routine needs a fact database argument when called outside of a rule!" << endl ;
+      Loci::Abort() ;
+      return -1 ;
+    } else
+      return createUnorderedFileP(filename, set, *Loci::exec_current_fact_db) ;
   }
 
   void closeUnorderedFile(hid_t file_id) ;
@@ -302,8 +550,28 @@ namespace Loci {
     } ENDFORALL ;
     writeUnorderedVector(file_id,name,v) ;
   }
+  template<class T> void writeUnorderedStoreP(hid_t file_id,
+                                             const_store<T> &s, entitySet set,
+                                              const char *name) {
+    std::vector<T> v(set.size()) ;
+    size_t c = 0 ;
+    FORALL(set,ii) {
+      v[c++] = s[ii] ;
+    } ENDFORALL ;
+    writeUnorderedVectorP(file_id,name,v) ;
+  }
 
   void parallelWriteGridTopology(const char *filename,
+                                 storeRepP upperRep,
+                                 storeRepP lowerRep,
+                                 storeRepP boundary_mapRep,
+                                 storeRepP face2nodeRep,
+                                 storeRepP refRep,
+                                 storeRepP bnamesRep,
+                                 storeRepP posRep,
+                                 entitySet localCells,
+                                 fact_db &facts) ;
+  void parallelWriteGridTopologyP(const char *filename,
                                  storeRepP upperRep,
                                  storeRepP lowerRep,
                                  storeRepP boundary_mapRep,
@@ -334,10 +602,32 @@ namespace Loci {
                                 localCells, *Loci::exec_current_fact_db) ;
   }
   
+ inline
+  void parallelWriteGridTopologyP(const char *filename,
+                                 storeRepP upperRep,
+                                 storeRepP lowerRep,
+                                 storeRepP boundary_mapRep,
+                                 storeRepP face2nodeRep,
+                                 storeRepP refRep,
+                                 storeRepP bnamesRep,
+                                 storeRepP posRep,
+                                 entitySet localCells) {
+    if(Loci::exec_current_fact_db == 0) {
+      std::cerr << "Loci::parallelWriteGridTopology()" ;
+      std::cerr << "this routine needs a fact database argument when called outside of a rule!" << endl ;
+      Loci::Abort() ;
+    } else
+      parallelWriteGridTopologyP(filename, upperRep, lowerRep, boundary_mapRep,
+                                face2nodeRep, refRep, bnamesRep, posRep,
+                                localCells, *Loci::exec_current_fact_db) ;
+  }
   //open /output/$bc_name/$file_name
   hid_t open_boundary_file(std::string bc_name,
                            std::string file_name
                            );
+  hid_t open_boundary_fileP(std::string bc_name,
+                            std::string file_name
+                            ); 
     
   //get boundary faces that belong to a boundary surface current_bc
   entitySet get_boundary_faces(std::string current_bc,//boundary name
@@ -358,7 +648,11 @@ namespace Loci {
                          storeRepP face2nodeRep,
                          entitySet bfaces, //boundary faces belong to this surface 
                          fact_db &facts ); 
-  
+    void writeBoundaryTopoP(hid_t file_id, //file_id of this boudnary surface
+                         storeRepP face2nodeRep,
+                         entitySet bfaces, //boundary faces belong to this surface 
+                         fact_db &facts ); 
+
 
 
  
@@ -496,6 +790,73 @@ namespace Loci {
     writeUnorderedVector(file_id, element_name.c_str(), vpos) ;
   }
   
+  template<class T>   void writeCutPlaneNodalValP(hid_t file_id,
+                                                 std::string element_name,
+                                                 storeRepP face2nodeRep,
+                                                 storeRepP edge2nodeRep,
+                                                 const_store<T> & pos,
+                                                 const Loci::CutPlane &cp,
+                                                 fact_db &facts){
+    
+   
+#ifndef H5_HAVE_PARALLEL
+    writeCutPlaneNodalVal( file_id,
+                           element_name,
+                           face2nodeRep,
+                           edge2nodeRep,
+                           pos,
+                           cp,
+                           facts);
+#else
+    const_multiMap face2node(face2nodeRep) ;
+    const_MapVec<2> edge2node(edge2nodeRep);
+    const_store<double> edgesWeight(cp.edgesWeight); //the weight for interpoplation for each edgesCut, allocated on edgesCut
+    entitySet edgesCut = edgesWeight.domain();
+        
+    
+    //check the domain
+    if((edgesCut-edge2node.domain())!=EMPTY){
+      debugout<< "ERROR: the domain of edge2node is smaller than cp.edgesCut"<<endl;
+    }
+    
+    //compute the cutting positions of edges 
+    store<T> edge_pos;
+    edge_pos.allocate(edgesCut);
+    FORALL(edgesCut, e){
+      double w =edgesWeight[e];
+      T a = pos[edge2node[e][0]];
+      T b = pos[edge2node[e][1]];
+      T p = interpolate_val(w, a, b);
+      edge_pos[e] = p;
+    }ENDFORALL;
+    
+   
+    //transform the store into output order
+    store<T> gedge_pos;
+    storeRepP geposRep =  Local2FileOrder_output(edge_pos.Rep(),  edgesCut, 
+                                                 facts, MPI_COMM_WORLD);
+       
+    if(geposRep == NULL){
+      gedge_pos .allocate(EMPTY);
+    }else{
+      gedge_pos = geposRep;
+    }
+   
+   
+    //get positions std::vector
+    entitySet local_edges_cut = gedge_pos.domain();
+    int num_edge_nodes = local_edges_cut.size();
+    std::vector<T>  vpos(num_edge_nodes);
+    int cnt = 0 ;
+    entitySet::const_iterator ei ;
+    for(ei=local_edges_cut.begin();ei!=local_edges_cut.end();++ei)
+      vpos[cnt++] = gedge_pos[*ei];
+      
+    //write out the vector
+    writeUnorderedVectorP(file_id, element_name.c_str(), vpos) ;
+#endif
+  }
+
   template<class T>   void writeCutPlaneNodalVal(hid_t file_id,
                                                  std::string element_name,
                                                  storeRepP face2nodeRep,
@@ -513,10 +874,30 @@ namespace Loci {
                            *Loci::exec_current_fact_db );
   }
   
+   template<class T>   void writeCutPlaneNodalValP(hid_t file_id,
+                                                 std::string element_name,
+                                                 storeRepP face2nodeRep,
+                                                 storeRepP edge2nodeRep,
+                                                 const_store<T> & pos,
+                                                 const Loci::CutPlane &cp
+                                                 ){
+    
+    writeCutPlaneNodalValP( file_id,
+                           element_name,
+                           face2nodeRep,
+                           edge2nodeRep,
+                           pos,
+                           cp,
+                           *Loci::exec_current_fact_db );
+  }
                           
   void writeCutPlaneTopo(hid_t bc_id,
                          const CutPlane& cp,
                          fact_db &facts) ;
+
+  void writeCutPlaneTopoP(hid_t bc_id,
+                          const CutPlane& cp,
+                          fact_db &facts) ;
    
   // Updated container communication code
   class partitionFunctionType: public CPTR_type  {
