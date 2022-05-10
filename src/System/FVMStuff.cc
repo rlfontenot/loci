@@ -677,7 +677,10 @@ namespace Loci{
 
     // write grid topology file
     hid_t file_id = 0, group_id = 0 ;
-    if(MPI_rank == 0) {
+    if(use_parallel_io) {
+      file_id=writeVOGOpenP(filename) ;
+      group_id = H5Gcreate(file_id,"elements",H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+    } else if(MPI_rank == 0) {
       file_id = H5Fcreate(filename,H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT) ;
 #ifdef H5_USE_16_API
       group_id = H5Gcreate(file_id,"elements",0) ;
@@ -686,24 +689,43 @@ namespace Loci{
 #endif
     }
 
-    writeUnorderedVector(group_id, "tetrahedra",tets) ;
-    writeUnorderedVector(group_id, "tetrahedra_ids",tets_ids) ;
+    if(use_parallel_io) {
+      writeUnorderedVectorP(group_id, "tetrahedra",tets) ;
+      writeUnorderedVectorP(group_id, "tetrahedra_ids",tets_ids) ;
     
-    writeUnorderedVector(group_id, "hexahedra",hexs) ;
-    writeUnorderedVector(group_id, "hexahedra_ids",hexs_ids) ;
+      writeUnorderedVectorP(group_id, "hexahedra",hexs) ;
+      writeUnorderedVectorP(group_id, "hexahedra_ids",hexs_ids) ;
     
-    writeUnorderedVector(group_id, "prism",prsm) ;
-    writeUnorderedVector(group_id, "prism_ids",prsm_ids) ;
+      writeUnorderedVectorP(group_id, "prism",prsm) ;
+      writeUnorderedVectorP(group_id, "prism_ids",prsm_ids) ;
+      
+      writeUnorderedVectorP(group_id, "pyramid",pyrm) ;
+      writeUnorderedVectorP(group_id, "pyramid_ids",pyrm_ids) ;
+      
+      writeUnorderedVectorP(group_id, "GeneralCellNfaces",generalCellNfaces) ;
+      writeUnorderedVectorP(group_id, "GeneralCellNsides",generalCellNsides) ;
+      writeUnorderedVectorP(group_id, "GeneralCellNodes", generalCellNodes) ;
+      writeUnorderedVectorP(group_id, "GeneralCell_ids", generalCell_ids) ;
+    } else {
+      writeUnorderedVector(group_id, "tetrahedra",tets) ;
+      writeUnorderedVector(group_id, "tetrahedra_ids",tets_ids) ;
     
-    writeUnorderedVector(group_id, "pyramid",pyrm) ;
-    writeUnorderedVector(group_id, "pyramid_ids",pyrm_ids) ;
+      writeUnorderedVector(group_id, "hexahedra",hexs) ;
+      writeUnorderedVector(group_id, "hexahedra_ids",hexs_ids) ;
     
-    writeUnorderedVector(group_id, "GeneralCellNfaces",generalCellNfaces) ;
-    writeUnorderedVector(group_id, "GeneralCellNsides",generalCellNsides) ;
-    writeUnorderedVector(group_id, "GeneralCellNodes", generalCellNodes) ;
-    writeUnorderedVector(group_id, "GeneralCell_ids", generalCell_ids) ;
+      writeUnorderedVector(group_id, "prism",prsm) ;
+      writeUnorderedVector(group_id, "prism_ids",prsm_ids) ;
+      
+      writeUnorderedVector(group_id, "pyramid",pyrm) ;
+      writeUnorderedVector(group_id, "pyramid_ids",pyrm_ids) ;
+      
+      writeUnorderedVector(group_id, "GeneralCellNfaces",generalCellNfaces) ;
+      writeUnorderedVector(group_id, "GeneralCellNsides",generalCellNsides) ;
+      writeUnorderedVector(group_id, "GeneralCellNodes", generalCellNodes) ;
+      writeUnorderedVector(group_id, "GeneralCell_ids", generalCell_ids) ;
+    }
     
-    if(MPI_rank == 0) {
+    if(use_parallel_io || MPI_rank == 0) {
       H5Gclose(group_id) ;
 #ifdef H5_USE_16_API
       group_id = H5Gcreate(file_id,"boundaries",0) ;
@@ -779,7 +801,7 @@ namespace Loci{
     for(size_t i=0;i<bnamelist.size();++i) {
       hid_t bc_id = 0 ;
       string current_bc = bnamelist[i] ;
-      if(MPI_rank==0) {
+      if(use_parallel_io || MPI_rank==0) {
 #ifdef H5_USE_16_API
         bc_id = H5Gcreate(group_id,current_bc.c_str(),0) ;
 #else
@@ -846,29 +868,38 @@ namespace Loci{
           ng++ ;
         }
       } ENDFORALL ;
-          
-      writeUnorderedVector(bc_id,"triangles",Trias) ;
-      writeUnorderedVector(bc_id,"triangles_id",tria_ids) ;
 
-      writeUnorderedVector(bc_id,"quads",Quads) ;
-      writeUnorderedVector(bc_id,"quads_id",quad_ids) ;
-
-      writeUnorderedVector(bc_id,"nside_sizes",nsizes) ;
-      writeUnorderedVector(bc_id,"nside_nodes",nsidenodes) ;
-      writeUnorderedVector(bc_id,"nside_id",genc_ids) ;
-      
-      if(MPI_rank == 0) {
+      if(use_parallel_io) {
+	writeUnorderedVectorP(bc_id,"triangles",Trias) ;
+	writeUnorderedVectorP(bc_id,"triangles_id",tria_ids) ;
+	
+	writeUnorderedVectorP(bc_id,"quads",Quads) ;
+	writeUnorderedVectorP(bc_id,"quads_id",quad_ids) ;
+	
+	writeUnorderedVectorP(bc_id,"nside_sizes",nsizes) ;
+	writeUnorderedVectorP(bc_id,"nside_nodes",nsidenodes) ;
+	writeUnorderedVectorP(bc_id,"nside_id",genc_ids) ;
+      } else {
+	writeUnorderedVector(bc_id,"triangles",Trias) ;
+	writeUnorderedVector(bc_id,"triangles_id",tria_ids) ;
+	
+	writeUnorderedVector(bc_id,"quads",Quads) ;
+	writeUnorderedVector(bc_id,"quads_id",quad_ids) ;
+	
+	writeUnorderedVector(bc_id,"nside_sizes",nsizes) ;
+	writeUnorderedVector(bc_id,"nside_nodes",nsidenodes) ;
+	writeUnorderedVector(bc_id,"nside_id",genc_ids) ;
+      }
+      if(use_parallel_io || MPI_rank == 0) {
         H5Gclose(bc_id) ;
       }
       
     }
       
-    if(MPI_rank == 0) {
+    if(use_parallel_io || MPI_rank == 0) {
       H5Gclose(group_id) ;
       H5Fclose(file_id) ;
     } 
-
-
 
   }
   

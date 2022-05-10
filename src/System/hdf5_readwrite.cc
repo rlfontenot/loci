@@ -19,6 +19,7 @@
 //#
 //#############################################################################
 #include <hdf5_readwrite.h>
+#include <distribute_io.h>
 #include <string>
 using std::string;
 namespace Loci {
@@ -302,15 +303,20 @@ namespace Loci {
       H5Sget_simple_extent_dims (dataspace, &dimension, NULL);
 
       int *data = new int[dimension];
+      hid_t xfer_plist = H5P_DEFAULT ;
+      if(use_parallel_io)
+	xfer_plist = create_xfer_plist(Loci::hdf5_const::dxfer_coll_type);
 
       H5Dread( dataset, H5T_NATIVE_INT, H5S_ALL, dataspace,
-               H5P_DEFAULT, data);
+               xfer_plist, data);
 
       eset = EMPTY;
       for(size_t i=0;i< dimension;i+=2){
         eset |= interval(data[i],data[i+1]);
       }
       delete [] data;
+      if(xfer_plist != H5P_DEFAULT)
+	H5Pclose(xfer_plist);
       H5Sclose(dataspace);
       H5Dclose(dataset);
     }

@@ -771,6 +771,11 @@ namespace Loci {
 	typedef data_schema_traits<vector3d<double> > traits_type ;
 	DatatypeP dp = traits_type::get_type() ;
 	hid_t datatype = dp->get_hdf5_type() ;
+	hid_t xfer_plist = H5P_DEFAULT ;
+#ifdef H5_HAVE_PARALLEL
+	if(use_parallel_io)
+	  xfer_plist= create_xfer_plist(Loci::hdf5_const::dxfer_coll_type) ;
+#endif
 	hid_t err = H5Dread(dataset,datatype,memspace,dspace,H5P_DEFAULT,
 			    &pos[lst]) ;
 	if(err < 0) {
@@ -778,6 +783,8 @@ namespace Loci {
 	  FATAL(err < 0) ;
 	  Loci::Abort() ;
 	}
+	if(xfer_plist != H5P_DEFAULT)
+	  H5Pclose(xfer_plist) ;
 	H5Sclose(memspace) ;
       
 	H5Sclose(dspace) ;

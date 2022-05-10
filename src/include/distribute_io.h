@@ -56,29 +56,6 @@ namespace Loci {
                                     fact_db &facts) ;
 
   //-----------------------------------------------------------------------
-  // serial I/O
-  inline hid_t hdf5CreateFile(const char *name, unsigned flags, hid_t create_id, hid_t access_id) {
-    hid_t file_id = 0 ;
-    if(Loci::MPI_rank==0) {
-      file_id = H5Fcreate(name,flags,create_id,access_id) ;
-      if(file_id < 0) {
-	cerr << "H5Fcreate unable to create file '" << name << "'" << endl ;
-	Loci::Abort() ;
-      }
-    }
-    return file_id ;
-  }
-
-  inline hid_t hdf5CreateFile(const char *name, unsigned flags, hid_t create_id, hid_t access_id, MPI_Comm comm) {
-    int rank = 0 ;
-    MPI_Comm_rank(comm,&rank) ;
-    if(rank==0)
-      return H5Fcreate(name,flags,create_id,access_id) ;
-    else
-      return 0 ;
-  }
-
-  //-----------------------------------------------------------------------
   // parallel I/O
   hid_t hdf5CreateFileP(const char *name, unsigned flags, hid_t create_id, hid_t access_id, size_t file_size_estimate,MPI_Comm comm) ;
   
@@ -89,21 +66,29 @@ namespace Loci {
 
   //-----------------------------------------------------------------------
   // serial I/O
-  inline hid_t hdf5OpenFile(const char *name, unsigned flags, hid_t access_id) {
-    if(Loci::MPI_rank==0)
-      return H5Fopen(name,flags,access_id) ;
+  inline hid_t hdf5CreateFile(const char *name, unsigned flags, hid_t create_id, hid_t access_id, MPI_Comm comm, size_t file_size_estimate=0) {
+    int rank = 0 ;
+    MPI_Comm_rank(comm,&rank) ;
+    if(use_parallel_io) {
+      return hdf5CreateFileP(name,flags,create_id,access_id,
+			     file_size_estimate,comm) ;
+    } else if(rank==0)
+      return H5Fcreate(name,flags,create_id,access_id) ;
     else
       return 0 ;
   }
 
-  inline hid_t hdf5OpenFile(const char *name, unsigned flags, hid_t access_id,
-                            MPI_Comm comm) {
-    int rank = 0 ;
-    MPI_Comm_rank(comm,&rank) ;
-    if(rank==0)
-      return H5Fopen(name,flags,access_id) ;
-    else
-      return 0 ;
+  inline hid_t hdf5CreateFile(const char *name, unsigned flags, hid_t create_id, hid_t access_id, size_t file_size_estimate = 0) {
+    return hdf5CreateFile(name,flags,create_id,access_id, MPI_COMM_WORLD,file_size_estimate) ;
+  }    
+
+  //-----------------------------------------------------------------------
+  // serial I/O
+  hid_t hdf5OpenFile(const char *name, unsigned flags, hid_t access_id,
+		     MPI_Comm comm) ;
+
+  inline hid_t hdf5OpenFile(const char *name, unsigned flags, hid_t access_id) {
+    return hdf5OpenFile(name,flags,access_id,MPI_COMM_WORLD) ;
   }
 
   //-----------------------------------------------------------------------
@@ -137,7 +122,7 @@ namespace Loci {
   //-----------------------------------------------------------------------
   // serial I/O
   inline herr_t hdf5CloseFile(hid_t file_id) {
-    if(Loci::MPI_rank==0)
+    if(use_parallel_io || Loci::MPI_rank==0)
       return H5Fclose(file_id) ;
     else
       return 0 ;
@@ -146,7 +131,7 @@ namespace Loci {
   inline herr_t hdf5CloseFile(hid_t file_id, MPI_Comm comm) {
     int rank = 0 ;
     MPI_Comm_rank(comm,&rank) ;
-    if(rank==0)
+    if(use_parallel_io || rank==0)
       return H5Fclose(file_id) ;
     else
       return 0 ;
@@ -185,8 +170,10 @@ namespace Loci {
   hid_t readVOGOpenP(std::string filename);
 
   inline void writeContainer(hid_t file_id,std::string vname, Loci::storeRepP var, fact_db &facts) {
-
-    redistribute_write_container(file_id,vname,var,facts) ;
+    if(use_parallel_io)
+      redistribute_write_containerP(file_id,vname,var,facts) ;
+    else
+      redistribute_write_container(file_id,vname,var,facts) ;
   }
   inline void writeContainerP(hid_t file_id,std::string vname, Loci::storeRepP var, fact_db &facts) {
     
@@ -205,8 +192,12 @@ namespace Loci {
       std::cerr << "this routine needs a fact database argument when called outside of a rule!" << endl ;
       Loci::Abort() ;
     } else
-      redistribute_write_container(file_id,vname,var,
+      if(use_parallel_io)
+	redistribute_write_containerP(file_id,vname,var,
                                    *Loci::exec_current_fact_db) ;
+      else
+	redistribute_write_container(file_id,vname,var,
+				     *Loci::exec_current_fact_db) ;
   }
   inline void writeContainerP(hid_t file_id,std::string vname, Loci::storeRepP var) {
     if(Loci::exec_current_fact_db == 0) {
@@ -224,7 +215,11 @@ namespace Loci {
       std::cerr << "this routine needs a fact database argument when called outside of a rule!" << endl ;
       Loci::Abort() ;
     } else
-      read_container_redistribute(file_id,vname,var,readSet,
+      if(use_parallel_io) 
+	read_container_redistributeP(file_id,vname,var,readSet,
+				    *Loci::exec_current_fact_db) ;
+      else
+	read_container_redistribute(file_id,vname,var,readSet,
                                   *Loci::exec_current_fact_db) ;
   }
   inline void readContainerP(hid_t file_id, std::string vname, Loci::storeRepP var, entitySet readSet) {
@@ -478,6 +473,9 @@ namespace Loci {
 
     herr_t ret = H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
                                      &start,&stride,&rsize, NULL) ;
+    if(ret<0) {
+      cerr << "H5Sselect_hyperslab failed in writeUnorderedVector" << endl ;
+    }
     WARN(ret < 0) ;
 
     /* create a memory dataspace independently */

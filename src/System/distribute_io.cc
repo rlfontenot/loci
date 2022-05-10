@@ -94,7 +94,7 @@ namespace Loci {
   }
 
 
-  hid_t hdf5PCreateFile(const char *name, unsigned flags, hid_t create_id, hid_t access_id, size_t file_size_estimate,MPI_Comm comm) {
+  hid_t hdf5CreateFileP(const char *name, unsigned flags, hid_t create_id, hid_t access_id, size_t file_size_estimate,MPI_Comm comm) {
 #ifndef H5_HAVE_PARALLEL
     int rank = 0 ;
     MPI_Comm_rank(comm,&rank) ;
@@ -103,7 +103,7 @@ namespace Loci {
     else
       return 0 ;
 #else
-    if(MPI_rank == 0 && PFS_Script != "") {
+    if(MPI_rank == 0 && file_size_estimate > 0 && PFS_Script != "") {
       ostringstream oss ;
       oss << PFS_Script << " " << name << " " << file_size_estimate ;
       string script = oss.str() ;
@@ -112,7 +112,22 @@ namespace Loci {
 	cerr << "Error, script '" << script << "' failed!"
 	     << endl ;
     }
-    return H5Fcreate(name,flags,create_id,access_id) ;
+    string filename = name ;
+    hid_t file_id = -1;
+   
+    hid_t  acc_plist;
+    // open collectively by all processor in MPI_COMM_WORLD,
+    acc_plist = Loci::create_faccess_plist(MPI_COMM_WORLD,
+					   Loci::PHDF5_MPI_Info,
+					   Loci::hdf5_const::facc_type); 
+    file_id = H5Fcreate(filename.c_str(),H5F_ACC_TRUNC,H5P_DEFAULT,acc_plist) ;
+    H5Pclose(acc_plist);
+    if(file_id < 0) {
+      if(MPI_rank==0) cerr << "unable to open file " << filename << endl ;
+      Loci::Abort() ;
+    }
+    return file_id ;
+    //    return H5Fcreate(name,flags,create_id,access_id) ;
 #endif
   }
 
@@ -133,15 +148,17 @@ namespace Loci {
     
     hid_t file_id = -1;
    
-    MPI_Info info;
+    //    MPI_Info info;
     hid_t  acc_plist;
-    info  = MPI_INFO_NULL;
+    //    info  = MPI_INFO_NULL;
     //create_mpi_info(&info);
     // open collectively by all processor in MPI_COMM_WORLD,
-    acc_plist = Loci::create_faccess_plist(MPI_COMM_WORLD, info, Loci::hdf5_const::facc_type); 
+    acc_plist = Loci::create_faccess_plist(MPI_COMM_WORLD,
+					   Loci::PHDF5_MPI_Info,
+					   Loci::hdf5_const::facc_type); 
     file_id = H5Fcreate(filename.c_str(),H5F_ACC_TRUNC,H5P_DEFAULT,acc_plist) ;
     H5Pclose(acc_plist);
-    if(info != MPI_INFO_NULL)MPI_Info_free(&info);
+    //    if(info != MPI_INFO_NULL)MPI_Info_free(&info);
     if(file_id < 0) {
       if(MPI_rank==0) cerr << "unable to open file " << filename << endl ;
       Loci::Abort() ;
@@ -159,6 +176,31 @@ namespace Loci {
     return file_id ;
   }
 
+  hid_t hdf5OpenFile(const char *name, unsigned flags, hid_t access_id,
+		     MPI_Comm comm) {
+    int rank = 0 ;
+    MPI_Comm_rank(comm,&rank) ;
+    if(!use_parallel_io) {
+      if(rank == 0)
+	return H5Fopen(name,flags,access_id) ;
+      else
+	return 0 ;
+    }
+
+    hid_t file_id = -1;
+   
+    hid_t  acc_plist;
+    // open collectively by all processor in MPI_COMM_WORLD,
+    acc_plist = Loci::create_faccess_plist(MPI_COMM_WORLD,
+					   Loci::PHDF5_MPI_Info,
+					   Loci::hdf5_const::facc_type); 
+    file_id = H5Fopen(name,H5F_ACC_RDONLY, acc_plist) ;
+    H5Pclose(acc_plist);
+
+    return file_id ;
+    
+  }
+
   hid_t readVOGOpenP(string filename) {
     if(!use_parallel_io)
       return readVOGOpen(filename) ;
@@ -168,15 +210,13 @@ namespace Loci {
     
     hid_t file_id = -1;
    
-    MPI_Info info;
     hid_t  acc_plist;
-    info  = MPI_INFO_NULL;
-    //create_mpi_info(&info);
     // open collectively by all processor in MPI_COMM_WORLD,
-    acc_plist = Loci::create_faccess_plist(MPI_COMM_WORLD, info, Loci::hdf5_const::facc_type); 
+    acc_plist = Loci::create_faccess_plist(MPI_COMM_WORLD,
+					   Loci::PHDF5_MPI_Info,
+					   Loci::hdf5_const::facc_type); 
     file_id = H5Fopen(filename.c_str(),H5F_ACC_RDONLY, acc_plist) ;
     H5Pclose(acc_plist);
-    if(info != MPI_INFO_NULL)MPI_Info_free(&info);
     if(file_id < 0) {
       if(MPI_rank==0) cerr << "unable to open file " << filename << endl ;
       Loci::Abort() ;
@@ -1007,7 +1047,7 @@ namespace Loci {
 
     // Here we read in a store container.  First lets read in the domain
     entitySet q_dom ;
-    if(prank == 0)
+    if(use_parallel_io || prank == 0)
       HDF5_ReadDomain(group_id, q_dom) ;
 
     // Now lets share the domain with all other processors ;
@@ -1836,19 +1876,25 @@ namespace Loci {
     int prank = 0 ;
     MPI_Comm_rank(comm,&prank) ;
 #ifdef H5_USE_16_API
-    if(prank == 0)
+    if(use_parallel_io || prank == 0)
       group_id = H5Gcreate(file_id, vname.c_str(), 0) ;
 #else
-    if(prank == 0)
+    if(use_parallel_io || prank == 0)
       group_id = H5Gcreate(file_id, vname.c_str(), H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
 #endif
     if(var->RepType() != PARAMETER) {
       int offset = 0 ;
-      write_store(group_id,var,var->domain(),offset,comm) ;
+      if(use_parallel_io)
+	write_storeP(group_id,var,var->domain(),offset,comm) ;
+      else
+	write_store(group_id,var,var->domain(),offset,comm) ;
     } else {
-      write_parameter(group_id, var,comm) ;
+      if(use_parallel_io)
+	write_parameterP(group_id, var,comm) ;
+      else 
+	write_parameter(group_id, var,comm) ;
     }
-    if(prank == 0)
+    if(use_parallel_io || prank == 0)
       H5Gclose(group_id) ;
   }
   
@@ -2049,15 +2095,15 @@ namespace Loci {
                                    fact_db &facts) {
     hid_t group_id = 0;
 #ifdef H5_USE_16_API
-    if(MPI_rank == 0)
+    if(use_parallel_io || MPI_rank == 0)
       group_id = H5Gopen(file_id, vname.c_str()) ;
 #else
-    if(MPI_rank == 0)
+    if(use_parallel_io || MPI_rank == 0)
       group_id = H5Gopen(file_id, vname.c_str(),H5P_DEFAULT) ;
 #endif
     if(var->RepType() == PARAMETER) {
       read_parameter(group_id, var, MPI_COMM_WORLD) ;
-      if(MPI_rank == 0)
+      if(use_parallel_io || MPI_rank == 0)
         H5Gclose(group_id) ;
       return ;
     }
@@ -2102,7 +2148,7 @@ namespace Loci {
       var->copy(new_store,read_set) ;
     }
 
-    if(MPI_rank == 0)
+    if(use_parallel_io || MPI_rank == 0)
       H5Gclose(group_id) ;
   }
 

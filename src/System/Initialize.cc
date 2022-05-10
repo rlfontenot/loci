@@ -118,6 +118,8 @@ namespace Loci {
   MPI_Op MPI_FADD2_MIN ;
   MPI_Op MPI_FADD2_MAX ;
 
+  MPI_Info PHDF5_MPI_Info ;
+  
   int MPI_processes = 1;
   int MPI_rank = 0 ; 
   int MPI_processes_per_host = 1 ;
@@ -380,6 +382,7 @@ namespace Loci {
     MPI_Init(argc, argv) ;
 #endif
 
+    create_mpi_info(&PHDF5_MPI_Info) ;
 #ifndef MPI_STUBB
     {
       // Create FADD type

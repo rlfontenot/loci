@@ -39,6 +39,8 @@
 #define FACC_MPIO       0x1     /* MPIO */
 
 namespace Loci {
+   extern MPI_Info PHDF5_MPI_Info ;
+
 namespace hdf5_const {
 extern const int PPN; //processes per node
 extern const int facc_type; //file access type
