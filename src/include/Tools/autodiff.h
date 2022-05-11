@@ -1547,6 +1547,913 @@ namespace Loci {
   inline FADd operator /(const double &u,const FADd &v) 
   { return FADd(u/v.value, -u*v.grad/v.value/v.value); }
 
+#ifndef MFAD_SIZE
+#define MFAD_SIZE 1
+#endif
+
+  class MFADd {
+  public:
+
+    double value;
+    double grad[MFAD_SIZE]={0.0};
+    size_t maxN=MFAD_SIZE;
+
+    void setVecSize(size_t s) {
+      this->maxN = s;
+    }
+    template< class T1>      
+      MFADd(T1 a0) : value(a0), grad(),maxN(MFAD_SIZE) { }
+    MFADd() : value(0.0), grad(),maxN(MFAD_SIZE) { }
+    //explicit MFADd(int u) : value(u), grad(),maxN(MFAD_SIZE) { }
+    //explicit MFADd(float u) : value(u), grad(),maxN(MFAD_SIZE) { }
+    //explicit MFADd(double u) : value(u), grad(),maxN(MFAD_SIZE) { }
+    //explicit MFADd(long double u) : value(u), grad(),maxN(MFAD_SIZE) { }
+    MFADd(double u, size_t n) : value(u), grad(),maxN(MFAD_SIZE) { }
+    //explicit MFADd(bool &u)  : value((u)?1.0:0.0), grad(),maxN(MFAD_SIZE) { }
+    MFADd(const double u, const double * g, const int n): value(u), grad(), maxN(MFAD_SIZE) {
+      for (size_t i=0; i<this->maxN; i++) this->grad[i]=g[i];      
+    }
+    MFADd(const MFADd &u, size_t n): value(u.value), grad(), maxN(MFAD_SIZE) {
+      for (size_t i=0; i<this->maxN; i++) this->grad[i]=u.grad[i];      
+    }
+    MFADd(const MFADd &u): value(u.value), grad(), maxN(u.maxN) {
+      for (size_t i=0; i<this->maxN; i++) this->grad[i]=u.grad[i];      
+    }
+
+    MFADd& operator =(const MFADd &u) {    
+      this->value = u.value;
+      this->maxN = u.maxN;
+      for (size_t i=0; i<this->maxN; i++) this->grad[i]=u.grad[i];
+      return *this;
+    }
+    MFADd& operator =(const int &u) {    
+      this->value = u ;
+      for (size_t i=0; i<this->maxN; i++) this->grad[i] = 0.0 ;
+      return *this;
+    }
+    MFADd& operator =(const float &u) {    
+      this->value = u ;
+      for (size_t i=0; i<this->maxN; i++) this->grad[i] = 0.0 ;
+      return *this;
+    }
+    MFADd& operator =(const double &u) {    
+      this->value = u ;
+      for (size_t i=0; i<this->maxN; i++) this->grad[i] = 0.0 ;
+      return *this;
+    }
+    MFADd& operator =(const long double &u) {    
+      this->value = u ;
+      for (size_t i=0; i<this->maxN; i++) this->grad[i] = 0.0 ;
+      return *this;
+    }
+
+    MFADd operator +(const MFADd &v) const{
+      size_t s = max(v.maxN, this->maxN);
+      MFADd out(this->value+v.value,s);
+      for (size_t i=0; i<s; i++) out.grad[i] = this->grad[i]+v.grad[i];
+      return out;
+    }
+    MFADd operator +() const { 
+      size_t s = this->maxN;
+      MFADd out(this->value,s);
+      for (size_t i=0; i<s; i++) out.grad[i] = this->grad[i];
+      return out; 
+    }
+    MFADd operator +(const int &v) const{
+      size_t s = this->maxN;
+      MFADd out(this->value+(double)v,s);
+      for (size_t i=0; i<s; i++) out.grad[i] = this->grad[i];
+      return out;
+    }
+    MFADd operator +(const float &v) const{
+      size_t s = this->maxN;
+      MFADd out(this->value+(double)v,s);
+      for (size_t i=0; i<s; i++) out.grad[i] = this->grad[i];
+      return out;
+    }
+    MFADd operator +(const double &v) const{
+      size_t s = this->maxN;
+      MFADd out(this->value+(double)v,s);
+      for (size_t i=0; i<s; i++) out.grad[i] = this->grad[i];
+      return out;
+    }
+    MFADd operator +(const long double &v) const{
+      size_t s = this->maxN;
+      MFADd out(this->value+(long double)v,s);
+      for (size_t i=0; i<s; i++) out.grad[i] = this->grad[i];
+      return out;
+    }
+    
+    MFADd& operator +=(const MFADd &u) {
+      this->maxN = max(u.maxN, this->maxN);
+      this->value+=u.value;
+      for (size_t i=0; i<this->maxN; i++) this->grad[i]+=u.grad[i];
+      return *this;
+    }
+    MFADd& operator +=(const int &u) {
+      this->value+=u;
+      return *this;
+    }
+    MFADd& operator +=(const float &u) {
+      this->value+=u;
+      return *this;
+    }
+    MFADd& operator +=(const double &u) {
+      this->value+=u;
+      return *this;
+    }
+    MFADd& operator +=(const long double &u) {
+      this->value+=u;
+      return *this;
+    }
+    
+    MFADd operator -(const MFADd &v) const{ 
+      size_t s = max(v.maxN, this->maxN);
+      MFADd out(this->value-v.value,s);
+      for (size_t i=0; i<s; i++) out.grad[i] = this->grad[i]-v.grad[i];
+      return out;
+    }
+    MFADd operator -() const {
+      size_t s = this->maxN;
+      MFADd out(-this->value,s);
+      for (size_t i=0; i<s; i++) out.grad[i] = -this->grad[i];
+      return out;
+    }
+    MFADd operator -(const int &v) const{ 
+      size_t s = this->maxN;
+      MFADd out(this->value-(double)v,s);
+      for (size_t i=0; i<s; i++) out.grad[i] = this->grad[i];
+      return out;
+    }
+    MFADd operator -(const float &v) const{ 
+      size_t s = this->maxN;
+      MFADd out(this->value-(double)v,s);
+      for (size_t i=0; i<s; i++) out.grad[i] = this->grad[i];
+      return out;
+    }
+    MFADd operator -(const double &v) const{ 
+      size_t s = this->maxN;
+      MFADd out(this->value-(double)v,s);
+      for (size_t i=0; i<s; i++) out.grad[i] = this->grad[i];
+      return out;
+    }
+    MFADd operator -(const long double &v) const{ 
+      size_t s = this->maxN;
+      MFADd out(this->value-(long double)v,s);
+      for (size_t i=0; i<s; i++) out.grad[i] = this->grad[i];
+      return out;
+    }
+    
+    MFADd& operator -=(const MFADd &u) {
+      this->maxN = max(u.maxN, this->maxN);
+      this->value -= u.value;
+      for (size_t i=0; i<this->maxN; i++) this->grad[i]-=u.grad[i];
+      return *this;
+    }
+    MFADd& operator -=(const int &u) {
+      this->value -= u;
+      return *this;
+    }
+    MFADd& operator -=(const float &u) {
+      this->value -= u;
+      return *this;
+    }
+    MFADd& operator -=(const double &u) {
+      this->value -= u;
+      return *this;
+    }
+    MFADd& operator -=(const long double &u) {
+      this->value -= u;
+      return *this;
+    }
+    
+    MFADd operator *(const MFADd &v) const {
+      size_t s = max(v.maxN, this->maxN);
+      MFADd out(this->value*v.value,s);
+      for (size_t i=0; i<s; i++) out.grad[i] = this->grad[i]*v.value + v.grad[i]*this->value;
+      return out;
+    }
+    MFADd operator *(const int &v) const {
+      size_t s = this->maxN;
+      MFADd out(this->value*(double)v,s);
+      for (size_t i=0; i<s; i++) out.grad[i] = this->grad[i] * (double)v;
+      return out;
+    }
+    MFADd operator *(const float &v) const {
+      size_t s = this->maxN;
+      MFADd out(this->value*(double)v,s);
+      for (size_t i=0; i<s; i++) out.grad[i] = this->grad[i] * (double)v;
+      return out;
+    }
+    MFADd operator *(const double &v) const {
+      size_t s = this->maxN;
+      MFADd out(this->value*(double)v,s);
+      for (size_t i=0; i<s; i++) out.grad[i] = this->grad[i] * (double)v;
+      return out;
+    }
+    MFADd operator *(const long double &v) const {
+      size_t s = this->maxN;
+      MFADd out(this->value*(long double)v,s);
+      for (size_t i=0; i<s; i++) out.grad[i] = this->grad[i] * (long double)v;
+      return out;
+    }
+     
+    MFADd& operator *=(const MFADd &u) {
+      this->maxN = max(u.maxN, this->maxN);
+      size_t s = this->maxN;
+      for (size_t i=0; i<s; i++) this->grad[i] = this->grad[i]*u.value + u.grad[i] * this->value;
+      this->value*=u.value;
+      return *this;
+    }
+    MFADd& operator *=(const int &u) {
+      size_t s = this->maxN;
+      for (size_t i=0; i<s; i++) this->grad[i] *= u;
+      this->value *=u ;
+      return *this;
+    }
+    MFADd& operator *=(const float &u) {
+      size_t s = this->maxN;
+      for (size_t i=0; i<s; i++) this->grad[i] *= u;
+      this->value *=u ;
+      return *this;
+    }
+    MFADd& operator *=(const double &u) {
+      size_t s = this->maxN;
+      for (size_t i=0; i<s; i++) this->grad[i] *= u;
+      this->value *=u ;
+      return *this;
+    }
+    MFADd& operator *=(const long double &u) {
+      size_t s = this->maxN;
+      for (size_t i=0; i<s; i++) this->grad[i] *= u;
+      this->value *=u ;
+      return *this;
+    }
+    
+    MFADd operator /(const MFADd &v) const{ 
+      size_t s = max(v.maxN, this->maxN);
+      double div = this->value/v.value;
+      MFADd out(div,s);
+      for (size_t i=0; i<s; i++) out.grad[i] = (this->grad[i] - div*v.grad[i])/v.value;
+      return out;
+    }
+    MFADd operator /(const int &v) const{ 
+      size_t s = this->maxN;
+      double div = this->value/(double)v;
+      MFADd out(div,s);
+      for (size_t i=0; i<s; i++) out.grad[i] = this->grad[i]/(double)v;
+      return out;
+    }
+    MFADd operator /(const float &v) const{ 
+      size_t s = this->maxN;
+      double div = this->value/(double)v;
+      MFADd out(div,s);
+      for (size_t i=0; i<s; i++) out.grad[i] = this->grad[i]/(double)v;
+      return out;
+    }
+    MFADd operator /(const double &v) const{ 
+      size_t s = this->maxN;
+      double div = this->value/(double)v;
+      MFADd out(div,s);
+      for (size_t i=0; i<s; i++) out.grad[i] = this->grad[i]/(double)v;
+      return out;
+    }
+    MFADd operator /(const long double &v) const{ 
+      size_t s = this->maxN;
+      double div = this->value/(long double)v;
+      MFADd out(div,s);
+      for (size_t i=0; i<s; i++) out.grad[i] = this->grad[i]/(long double)v;
+      return out;
+    }
+
+    MFADd& operator /=(const MFADd &u) {
+      this->maxN = max(u.maxN, this->maxN);
+      size_t s = this->maxN;
+      double div = this->value/u.value;
+      for (size_t i=0; i<s; i++) this->grad[i] = (this->grad[i] - div*u.grad[i])/u.value;
+      this->value = div ;
+      return *this;
+    }
+    MFADd& operator /=(const int &u) {
+      size_t s = this->maxN;
+      for (size_t i=0; i<s; i++) this->grad[i] /= u;
+      this->value /= u ;
+      return *this;
+    }
+    MFADd& operator /=(const float &u) {
+      size_t s = this->maxN;
+      for (size_t i=0; i<s; i++) this->grad[i] /= u;
+      this->value /= u ;
+      return *this;
+    }
+    MFADd& operator /=(const double &u) {
+      size_t s = this->maxN;
+      for (size_t i=0; i<s; i++) this->grad[i] /= u;
+      this->value /= u ;
+      return *this;
+    }
+    MFADd& operator /=(const long double &u) {
+      size_t s = this->maxN;
+      for (size_t i=0; i<s; i++) this->grad[i] /= u;
+      this->value /= u ;
+      return *this;
+    }
+    
+    bool operator ==(const MFADd &u)const  {
+      return ((this->value==u.value)?true:false);
+    }
+    bool operator !=(const MFADd &u) const {
+      return ((this->value!=u.value)?true:false);
+    }
+    bool operator >(const MFADd &u) const {
+      return ((this->value>u.value)?true:false);
+    }
+    bool operator <(const MFADd &u) const {
+      return ((this->value<u.value)?true:false);
+    }
+    bool operator >=(const MFADd &u) const {
+      return ((this->value>=u.value)?true:false);
+    }
+    bool operator <=(const MFADd &u) const {
+      return ((this->value<=u.value)?true:false);
+    }
+    bool operator ==(const int &u) const {
+      return ((value==u)?true:false);
+    }
+    bool operator !=(const int &u) const {
+      return ((value!=u)?true:false);
+    }
+    bool operator >(const int &u) const {
+      return ((value>u)?true:false);
+    }
+    bool operator <(const int &u) const {
+      return ((value<u)?true:false);
+    }
+    bool operator >=(const int &u) const {
+      return ((value>=u)?true:false);
+    }
+    bool operator <=(const int &u) const {
+      return ((value<=u)?true:false);
+    }
+    bool operator ==(const float &u) const {
+      return ((value==u)?true:false);
+    }
+    bool operator !=(const float &u) const {
+      return ((value!=u)?true:false);
+    }
+    bool operator >(const float &u) const {
+      return ((value>u)?true:false);
+    }
+    bool operator <(const float &u) const {
+      return ((value<u)?true:false);
+    }
+    bool operator >=(const float &u) const {
+      return ((value>=u)?true:false);
+    }
+    bool operator <=(const float &u) const {
+      return ((value<=u)?true:false);
+    }
+    bool operator ==(const double &u) const {
+      return ((value==u)?true:false);
+    }
+    bool operator !=(const double &u) const {
+      return ((value!=u)?true:false);
+    }
+    bool operator  >(const double &u) const {
+      return ((value>u)?true:false);
+    }
+    bool operator <(const double &u) const {
+      return ((value<u)?true:false);
+    }
+    bool operator >=(const double &u) const {
+      return ((value>=u)?true:false);
+    }
+    bool operator <=(const double &u) const {
+      return ((value<=u)?true:false);
+    }
+    bool operator ==(const long double &u) const {
+      return ((value==u)?true:false);
+    }
+    bool operator !=(const long double &u) const {
+      return ((value!=u)?true:false);
+    }
+    bool operator  >(const long double &u) const {
+      return ((value>u)?true:false);
+    }
+    bool operator <(const long double &u) const {
+      return ((value<u)?true:false);
+    }
+    bool operator >=(const long double &u) const {
+      return ((value>=u)?true:false);
+    }
+    bool operator <=(const long double &u) const {
+      return ((value<=u)?true:false);
+    }
+  } ;
+  
+  inline std::ostream &operator <<(std::ostream& stream, const MFADd &u) {
+    stream << u.value ;
+    for (size_t i=0; i<u.maxN; i++ ) stream << " " << u.grad[i];
+    return stream;
+  }
+  inline std::istream &operator >> (std::istream& stream, MFADd &u) {
+    u.value = 0. ;
+    for (size_t i=0;i<u.maxN;i++) u.grad[i] = 0. ;
+    stream >> u.value;
+    if(stream.peek() == '^') {
+      stream.get() ;
+      stream >> u.grad[0] ;
+      for (size_t i=1;i<u.maxN;i++) {
+        if(stream.peek()=='^') {
+	  while(stream.peek()=='^')
+	    stream.get() ;
+ 	  stream >> u.grad[i] ;
+        }
+      }
+    }
+    return stream;
+  }
+  
+  using std::sqrt;
+  using std::sin;
+  using std::cos;
+  using std::tan;
+  using std::exp;
+  using std::log;
+  using std::fabs;
+  //using std::cbrt;
+  using std::sinh;
+  using std::cosh;
+  using std::tanh;
+  using std::asin;
+  using std::acos;
+  using std::atan;
+  //using std::asinh;
+  //using std::acosh;
+  //using std::atanh;
+  using std::floor;
+  using std::ceil;
+  using std::pow;
+  using std::max;
+  using std::min;
+
+#ifdef NO_CMATH
+  inline double ceil(const MFADd u) {
+    return ::ceil(u.value) ;
+  }
+  inline double floor(const MFADd u) {
+    return ::floor(u.value) ;
+  }
+
+  inline MFADd erf(const FADd u) {
+    double ef = ::erf(u.value) ;
+    size_t s = u.maxN ;
+    MFADd out(::erf(u.value),s)
+    double efp = (2./sqrt(M_PI))*std::exp(-u.value*u.value) ;
+    for(size_t i=0;i<s;++i)
+      out.grad[i] = u.grad[i]*efp ; 
+    return out ;
+  }
+
+  inline MFADd sin(const MFADd &u) {
+    size_t s = u.maxN;
+    MFADd out(::sin(u.value),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]*::cos(u.value);
+    return out;
+  }
+  inline MFADd cos(const MFADd &u) {
+    size_t s = u.maxN;
+    MFADd out(::cos(u.value),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = -u.grad[i]*::sin(u.value);
+    return out;
+  }
+  inline MFADd tan(const MFADd &u) {
+    size_t s = u.maxN;
+    MFADd out(::tan(u.value),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]/pow(::cos(u.value),2) ;
+    return out;
+  }
+  inline MFADd exp(const MFADd &u) {
+    size_t s = u.maxN;
+    MFADd out(::exp(u.value),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]*::exp(u.value);
+    return out;
+  }
+  inline MFADd log(const MFADd &u) {
+    size_t s = u.maxN;
+    MFADd out(::log(u.value),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]/u.value ;
+    return out;
+  }
+  inline MFADd log10(const MFADd u) {
+    size_t s = u.maxN;
+    MFADd out(::log(u.value)/::log(10.0),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]/u.value/::log(10.0);
+    return out;
+  }
+
+  inline MFADd abs(MFADd u) {
+    size_t s = u.maxN;
+    MFADd out(::fabs(u.value),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]*( (u.value<0.0)?-1.0:1.0 ); 
+    return out;
+  }
+  inline MFADd fabs(MFADd u) {
+    size_t s = u.maxN;
+    MFADd out(::fabs(u.value),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]*( (u.value<0.0)?-1.0:1.0 );
+    return out;
+  }
+  
+  inline MFADd pow(const MFADd u, const int k) {
+    size_t s = u.maxN;
+    MFADd out(::pow(u.value, k),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = (double)k * ::pow(u.value, (double)k-1.0)*u.grad[i] ;
+    return out ;
+  }
+  inline MFADd pow(const MFADd u, const float k) {
+    size_t s = u.maxN;
+    MFADd out(::pow(u.value, k),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = (double)k * ::pow(u.value, (double)k-1.0)*u.grad[i] ;
+    return out ;
+  }
+  inline MFADd pow(const MFADd u, const double k) {
+    size_t s = u.maxN;
+    MFADd out(::pow(u.value, k),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = k * ::pow(u.value, k-1.0)*u.grad[i] ;
+    return out ;
+  }
+  inline MFADd pow(const MFADd u, const long double k) {
+    size_t s = u.maxN;
+    MFADd out(::pow(u.value, k),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = (double)k * ::pow(u.value, (double)k-1.0)*u.grad[i] ;
+    return out ;
+  }
+  inline MFADd sqrt(const MFADd &u) { 
+    size_t s = u.maxN;
+    double sq = ::sqrt(u.value);
+    MFADd out(sq,s) ;
+    for (size_t i=0; i<s; i++) out.grad[i] = 0.5*u.grad[i]/::max(sq,1e-30) ;
+    return out;
+  }
+  inline MFADd pow(const MFADd k, const MFADd u) {
+    size_t s = u.maxN;
+    double kpu = ::pow(k.value,u.value) ;
+    MFADd out(kpu,s);
+    for (size_t i=0; i<s; i++) out.grad[i] = ::pow(k.value,u.value-1.)*k.grad[i]*u.value + kpu*::log(k.value)*u.grad[i] ;
+    return out ;
+  }
+  inline MFADd pow(const int k, const MFADd u) {
+    size_t s = u.maxN;
+    double kpu = ::pow(k,u.value) ;
+    MFADd out(kpu,s);
+    for (size_t i=0; i<s; i++) out.grad[i] = kpu*::log(double(k))*u.grad[i] ;
+    return out ;
+  }
+  inline MFADd pow(const float k, const MFADd u) {
+    size_t s = u.maxN;
+    double kpu = ::pow(k,u.value) ;
+    MFADd out(kpu,s);
+    for (size_t i=0; i<s; i++) out.grad[i] = kpu*::log(double(k))*u.grad[i] ;
+    return out ;
+  }
+  inline MFADd pow(const double k, const MFADd u) {
+    size_t s = u.maxN;
+    double kpu = ::pow(k,u.value) ;
+    MFADd out(kpu,s);
+    for (size_t i=0; i<s; i++) out.grad[i] = kpu*::log(k)*u.grad[i] ;
+    return out ;
+  }
+  inline MFADd pow(const long double k, const MFADd u) {
+    size_t s = u.maxN;
+    double kpu = ::pow(k,u.value) ;
+    MFADd out(kpu,s);
+    for (size_t i=0; i<s; i++) out.grad[i] = kpu*::log(k)*u.grad[i] ;
+    return out ;
+  }
+
+  inline MFADd sinh(const MFADd u) {
+    size_t s = u.maxN;
+    MFADd out(::sinh(u.value),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = 0.5*u.grad[i]*(::exp(u.value) + ::exp(-(u.value))) ;
+    return out;
+  }
+  inline MFADd cosh(const MFADd u) {
+    size_t s = u.maxN;
+    MFADd out(::cosh(u.value),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = 0.5*u.grad[i]*(::exp(u.value) - ::exp(-(u.value))) ;
+    return out;
+  }
+  inline MFADd tanh(const MFADd u) {
+    size_t s = u.maxN;
+    MFADd out(::tanh(u.value),s);
+    double ex = ::exp(::min(u.value,350.0)) ;
+    double exm = ::exp(::min(-u.value,350.0)) ;
+    double dex = ex-exm ;
+    double sex = ex+exm ;
+    for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]*(1.-dex*dex/(sex*sex)) ;
+    return out;
+  }
+  inline MFADd asin(const MFADd u) {
+    size_t s = u.maxN;
+    MFADd out(::asin(u.value),s);
+    double val = ::sqrt(1.0-u.value*u.value);
+    for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]/val;
+    return out;
+  }
+  inline MFADd acos(const MFADd u) {
+    size_t s = u.maxN;
+    MFADd out(::acos(u.value),s);
+    double val = ::sqrt(1.0-u.value*u.value);
+    for (size_t i=0; i<s; i++) out.grad[i] = -u.grad[i]/val;
+    return out;
+  }
+  inline MFADd atan(const MFADd u) {
+    size_t s = u.maxN;
+    MFADd out(::atan(u.value),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]/(u.value*u.value + 1.0);
+    return out;
+  }
+  inline MFADd atan2(const MFADd u, const MFADd v) {  
+    return atan(u/v);
+  }
+  inline MFADd asinh(const MFADd u) {
+    size_t s = u.maxN;
+    MFADd out(::asinh(u.value),s);
+    double strm = ::sqrt(u.value*u.value+1.) ;
+    double uvstrm = u.value+strm ;
+    for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]*(u.value/strm+1.)/uvstrm ;
+    return out;
+  }
+  inline MFADd acosh(const MFADd u) {
+    size_t s = u.maxN;
+    MFADd out(::acosh(u.value),s);
+    double strm = ::sqrt(u.value*u.value-1.) ;
+    double uvstrm = u.value+strm ;
+    for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]*(u.value/strm +1.)/uvstrm ;
+    return out;
+  }
+  inline MFADd atanh(const MFADd &u) {
+    size_t s = u.maxN;
+    const double uv = u.value ;
+    MFADd out(::atanh(uv),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = .5*u.grad[i]*(1./(1.+uv)+1./(1.-uv)) ;
+    return out;
+  }
+#else
+  inline double ceil(const MFADd u) {
+    return std::ceil(u.value) ;
+  }
+  inline double floor(const MFADd u) {
+    return std::floor(u.value) ;
+  }
+  inline MFADd sin(const MFADd u) {
+    size_t s = u.maxN;
+    MFADd out(std::sin(u.value),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]*std::cos(u.value);
+    return out;
+  }
+  inline MFADd cos(const MFADd u) {
+    size_t s = u.maxN;
+    MFADd out(std::cos(u.value),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = -u.grad[i]*std::sin(u.value);
+    return out;
+  }
+  inline MFADd tan(const MFADd u) {
+    size_t s = u.maxN;
+    MFADd out(std::tan(u.value),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]/pow(std::cos(u.value),2) ;
+    return out;
+  }
+
+  inline MFADd exp(const MFADd u) {
+    size_t s = u.maxN;
+    MFADd out(std::exp(u.value),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]*std::exp(u.value);
+    return out;
+  }
+  inline MFADd log(const MFADd u) {
+    size_t s = u.maxN;
+    MFADd out(std::log(u.value),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]/u.value ;
+    return out;
+  }
+  inline MFADd log10(const MFADd u) {
+    size_t s = u.maxN;
+    MFADd out(std::log(u.value)/std::log(10.0),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]/u.value/std::log(10.0);
+    return out;
+  }
+  inline MFADd abs(const MFADd u) {
+    size_t s = u.maxN;
+    MFADd out(std::fabs(u.value),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]*( (u.value<0.0)?-1.0:1.0 ); 
+    return out;
+  }
+  inline MFADd fabs(const MFADd u) {
+    size_t s = u.maxN;
+    MFADd out(std::fabs(u.value),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]*( (u.value<0.0)?-1.0:1.0 );
+    return out;
+  }
+  
+  inline MFADd pow(const MFADd u, const int k) {
+    size_t s = u.maxN;
+    MFADd out(std::pow(u.value, k),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = (double)k * std::pow(u.value, (double)k-1.0)*u.grad[i] ;
+    return out ;
+  }
+  inline MFADd pow(const MFADd u, const float k) {
+    size_t s = u.maxN;
+    MFADd out(std::pow(u.value, double(k)),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = (double)k * std::pow(u.value, (double)k-1.0)*u.grad[i] ;
+    return out ;
+  }
+  inline MFADd pow(const MFADd u, const double k) {
+    size_t s = u.maxN;
+    MFADd out(std::pow(u.value, k),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = k * std::pow(u.value, k-1.0)*u.grad[i] ;
+    return out ;
+  }
+  inline MFADd pow(const MFADd u, const long double k) {
+    size_t s = u.maxN;
+    MFADd out(std::pow(u.value, double(k)),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = (double)k * std::pow(u.value, (double)k-1.0)*u.grad[i] ;
+    return out ;
+  }
+  inline MFADd sqrt(const MFADd u) { 
+    size_t s = u.maxN;
+    double sq = std::sqrt(u.value);
+    MFADd out(sq,s) ;
+    for (size_t i=0; i<s; i++) out.grad[i] = 0.5*u.grad[i]/::max(sq,1e-30) ;
+    return out;
+  }
+  inline MFADd pow(const MFADd k, const MFADd u) {
+    size_t s = u.maxN;
+    double kpu = std::pow(k.value,u.value) ;
+    MFADd out(kpu,s);
+    for (size_t i=0; i<s; i++) out.grad[i] = std::pow(k.value,u.value-1.)*k.grad[i]*u.value + kpu*std::log(k.value)*u.grad[i] ;
+    return out ;
+  }
+  inline MFADd pow(const int k, const MFADd u) {
+    size_t s = u.maxN;
+    double kpu = std::pow(k,u.value) ;
+    MFADd out(kpu,s);
+    for (size_t i=0; i<s; i++) out.grad[i] = kpu*std::log(double(k))*u.grad[i] ;
+    return out ;
+  }
+  inline MFADd pow(const float k, const MFADd u) {
+    size_t s = u.maxN;
+    double kpu = std::pow(k,u.value) ;
+    MFADd out(kpu,s);
+    for (size_t i=0; i<s; i++) out.grad[i] = kpu*std::log(double(k))*u.grad[i] ;
+    return out ;
+  }
+  inline MFADd pow(const double k, const MFADd u) {
+    size_t s = u.maxN;
+    double kpu = std::pow(k,u.value) ;
+    MFADd out(kpu,s);
+    for (size_t i=0; i<s; i++) out.grad[i] = kpu*std::log(k)*u.grad[i] ;
+    return out ;
+  }
+  inline MFADd pow(const long double k, const MFADd u) {
+    size_t s = u.maxN;
+    double kpu = std::pow(double(k),u.value) ;
+    MFADd out(kpu,s);
+    for (size_t i=0; i<s; i++) out.grad[i] = kpu*std::log(k)*u.grad[i] ;
+    return out ;
+  }
+  
+  inline MFADd max (const MFADd &a, const MFADd& b) { 
+    size_t s = a.maxN;
+    MFADd out((a.value<b.value)?b.value:a.value);
+    for (size_t i=0; i<s; i++) out.grad[i] = (a.value<b.value)?b.grad[i]:a.grad[i];
+    return out;
+  }
+  inline MFADd max (const MFADd &a, const int& b) {
+    return max(a,MFADd((double)b));
+  }
+  inline MFADd max (const MFADd &a, const float& b) {
+    return max(a,MFADd((double)b));
+  }
+  inline MFADd max (const MFADd &a, const double & b) {
+    return max(a,MFADd((double)b));
+  }
+  inline MFADd max (const MFADd &a, const long double & b) {
+    return max(a,MFADd((double)b));
+  }
+  inline MFADd min (const MFADd &a, const MFADd& b) { 
+    size_t s = a.maxN;
+    MFADd out((a.value<b.value)?a.value:b.value);
+    for (size_t i=0; i<s; i++) out.grad[i] = (a.value<b.value)?a.grad[i]:b.grad[i];
+    return out;
+  }
+  inline MFADd min (const MFADd &a, const int& b) {
+    return min(a, MFADd((double)b));
+  }
+  inline MFADd min (const MFADd &a, const float& b) {
+    return min(a, MFADd((double)b));
+  }
+  inline MFADd min (const MFADd &a, const double& b) {
+    return min(a, MFADd((double)b));
+  }
+  inline MFADd min (const MFADd &a, const long double& b) {
+    return min(a, MFADd((double)b));
+  }
+  
+  inline MFADd sinh(const MFADd u) {
+    size_t s = u.maxN;
+    MFADd out(std::sinh(u.value),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = 0.5*u.grad[i]*(std::exp(u.value) + std::exp(-(u.value))) ;
+    return out;
+  }
+  inline MFADd cosh(const MFADd u) {
+    size_t s = u.maxN;
+    MFADd out(std::cosh(u.value),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = 0.5*u.grad[i]*(std::exp(u.value) - std::exp(-(u.value))) ;
+    return out;
+  }
+  inline MFADd tanh(const MFADd u) {
+    size_t s = u.maxN;
+    MFADd out(std::tanh(u.value),s);
+    double ex = std::exp(::min(u.value,350.0)) ;
+    double exm = std::exp(::min(-u.value,350.0)) ;
+    double dex = ex-exm ;
+    double sex = ex+exm ;
+    for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]*(1.-dex*dex/(sex*sex)) ;
+    return out;
+  }
+
+  inline MFADd asin(const MFADd u) {
+    size_t s = u.maxN;
+    MFADd out(std::asin(u.value),s);
+    double val = std::sqrt(1.0-u.value*u.value);
+    for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]/val;
+    return out;
+  }
+  inline MFADd acos(const MFADd u) {
+    size_t s = u.maxN;
+    MFADd out(std::acos(u.value),s);
+    double val = std::sqrt(1.0-u.value*u.value);
+    for (size_t i=0; i<s; i++) out.grad[i] = -u.grad[i]/val;
+    return out;
+  }
+  inline MFADd atan(const MFADd u) {
+    size_t s = u.maxN;
+    MFADd out(std::atan(u.value),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]/(u.value*u.value + 1.0);
+    return out;
+  }
+  inline MFADd atan2(const MFADd u, const MFADd v) { return atan(u/v); }
+
+  inline MFADd asinh(const MFADd u) {
+    size_t s = u.maxN;
+    MFADd out(::asinh(u.value),s);
+    double strm = std::sqrt(u.value*u.value+1.) ;
+    double uvstrm = u.value+strm ;
+    for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]*(u.value/strm+1.)/uvstrm ;
+    return out;
+  }
+  inline MFADd acosh(const MFADd u) {
+    size_t s = u.maxN;
+    MFADd out(::acosh(u.value),s);
+    double strm = std::sqrt(u.value*u.value-1.) ;
+    double uvstrm = u.value+strm ;
+    for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]*(u.value/strm +1.)/uvstrm ;
+    return out;
+  }
+  inline MFADd atanh(const MFADd u) {
+    size_t s = u.maxN;
+    const double uv = u.value ;
+    MFADd out(::atanh(uv),s);
+    for (size_t i=0; i<s; i++) out.grad[i] = .5*u.grad[i]*(1./(1.+uv)+1./(1.-uv)) ;
+    return out;
+  }
+#endif
+  inline MFADd operator +(const double u,const MFADd v) { 
+    size_t s = v.maxN;
+    MFADd out(u+v.value,s);
+    for (size_t i=0; i<s; i++) out.grad[i] = v.grad[i];
+    return out;
+  }
+  inline MFADd operator -(const double u,const MFADd v) { 
+    size_t s = v.maxN;
+    MFADd out(u-v.value,s);
+    for (size_t i=0; i<s; i++) out.grad[i] = v.grad[i];
+    return out;
+  }
+  inline MFADd operator *(const double u,const MFADd v) { 
+    size_t s = v.maxN;
+    MFADd out(u*v.value,s);
+    for (size_t i=0; i<s; i++) out.grad[i] = u * v.grad[i];
+    return out;
+  }
+  inline MFADd operator /(const double &u,const MFADd &v) { 
+    size_t s = v.maxN;
+    MFADd out(u/v.value,s);
+    for (size_t i=0; i<s; i++) out.grad[i] = -u*v.grad[i]/v.value/v.value;
+    return out;
+  }
   //----------------helpers
   inline float realToFloat(double v) { return float(v) ; }
   inline double realToDouble(double v) { return v ; } 
@@ -1556,6 +2463,9 @@ namespace Loci {
 
   inline float realToFloat(const FAD2d &v) { return float(v.value) ; }
   inline double realToDouble(const FAD2d &v) { return v.value ; }
+
+  inline float realToFloat(const MFADd &v) { return float(v.value) ; }
+  inline double realToDouble(const MFADd &v) { return v.value ; }
 
 }
 

@@ -35,12 +35,16 @@ namespace Loci {
 #ifdef AUTODIFF2ND
   typedef Loci::FAD2d real_t ;
 #else
+#ifdef MULTIFAD
+  typedef Loci::MFADd real_t ;
+#else
   typedef Loci::FADd real_t ;
 #endif
+#endif
 #else
+  // No autodiff
   typedef double real_t ;
 #endif
-
   //---------------------Array----------------------//
   template <class T,size_t n> class Array {
     T x[n] ;
@@ -239,6 +243,9 @@ namespace Loci {
 
   inline vector3d<float> realToFloat(vector3d<double> v) { return vector3d<float>(float(v.x),float(v.y),float(v.z)); }
   inline vector3d<double> realToDouble(vector3d<double> v) { return v ; }
+
+  inline vector3d<float> realToFloat(vector3d<MFADd> v) { return vector3d<float>(realToFloat(v.x),realToFloat(v.y),realToFloat(v.z)); }
+  inline vector3d<double> realToDouble(vector3d<MFADd> v) { return vector3d<double>(realToDouble(v.x),realToDouble(v.y),realToDouble(v.z)); }
 
   inline vector3d<float> realToFloat(vector3d<FADd> v) { return vector3d<float>(realToFloat(v.x),realToFloat(v.y),realToFloat(v.z)); }
   inline vector3d<double> realToDouble(vector3d<FADd> v) { return vector3d<double>(realToDouble(v.x),realToDouble(v.y),realToDouble(v.z)); }

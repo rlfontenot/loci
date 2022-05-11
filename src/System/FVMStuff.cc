@@ -3483,7 +3483,7 @@ namespace Loci{
   } // end of createEdgesPar
 
   void setupPosAutoDiff(fact_db &facts) {
-#ifdef USE_AUTODIFF
+#if defined(USE_AUTODIFF) || defined(MULTIFAD)
     
     store<vector3d<Loci::real_t> > pout ;
     {
@@ -3651,7 +3651,7 @@ namespace Loci{
 
   
   void setupPosAutoDiff(fact_db &facts, std::string filename) {
-#ifdef USE_AUTODIFF
+#if defined(USE_AUTODIFF) || defined(MULTIFAD)
     setupPosAutoDiff(facts) ;
 #endif
   }

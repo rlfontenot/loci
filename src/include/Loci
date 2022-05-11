@@ -82,7 +82,12 @@ namespace Loci {
   extern MPI_Op MPI_FADD2_PROD ;
   extern MPI_Op MPI_FADD2_MIN ;
   extern MPI_Op MPI_FADD2_MAX ;
-
+  
+  extern MPI_Datatype MPI_MFADD ;
+  extern MPI_Op MPI_MFADD_SUM ;
+  extern MPI_Op MPI_MFADD_PROD ;
+  extern MPI_Op MPI_MFADD_MIN ;
+  extern MPI_Op MPI_MFADD_MAX ;
 }
 
 #endif

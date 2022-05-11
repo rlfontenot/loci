@@ -118,6 +118,12 @@ namespace Loci {
   MPI_Op MPI_FADD2_MIN ;
   MPI_Op MPI_FADD2_MAX ;
 
+  MPI_Datatype MPI_MFADD ;
+  MPI_Op MPI_MFADD_SUM ;
+  MPI_Op MPI_MFADD_PROD ;
+  MPI_Op MPI_MFADD_MIN ;
+  MPI_Op MPI_MFADD_MAX ;
+
   MPI_Info PHDF5_MPI_Info ;
   
   int MPI_processes = 1;
@@ -358,6 +364,23 @@ namespace Loci {
       rinout[i] = min(rinout[i],rin[i]) ;
   }
 
+  void sumMFADd(MFADd *rin, MFADd *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] += rin[i] ;
+  }
+  void prodMFADd(MFADd *rin, MFADd *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] *= rin[i] ;
+  }
+  void maxMFADd(MFADd *rin, MFADd *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] = max(rinout[i],rin[i]) ;
+  }
+  void minMFADd(MFADd *rin, MFADd *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] = min(rinout[i],rin[i]) ;
+  }
+
   MPI_Errhandler Loci_MPI_err_handler ;
   
 
@@ -421,6 +444,29 @@ namespace Loci {
       MPI_Op_create((MPI_User_function *)prodFAD2d,1,&MPI_FADD2_PROD) ;
       MPI_Op_create((MPI_User_function *)maxFAD2d,1,&MPI_FADD2_MAX) ;
       MPI_Op_create((MPI_User_function *)minFAD2d,1,&MPI_FADD2_MIN) ;
+
+    }
+
+    {
+      // Create MFADD type
+      int count = MFAD_SIZE + 1 ;
+      //int blocklens[] = {1,1,1,1,1,1,1,1,1,1,1} ;
+      int blocklens[count] ;
+      for (int i=0;i<count;i++) blocklens[i] = 1 ;
+      MPI_Aint indices[count] ;
+      MFADd tmp ;
+      indices[0] = (MPI_Aint)((char *) &(tmp.value) - (char *) &tmp) ;
+      for (int i=1;i<count;i++) indices[i] = (MPI_Aint)((char *) &(tmp.grad[i-1]) - (char *) &tmp) ;
+
+      MPI_Datatype typelist[count] ;
+      for (int i=0;i<count;i++) typelist[i] = MPI_DOUBLE ;
+      MPI_Type_create_struct(count,blocklens,indices,typelist,&MPI_MFADD) ;
+      MPI_Type_commit(&MPI_MFADD) ;
+
+      MPI_Op_create((MPI_User_function *)sumMFADd,1,&MPI_MFADD_SUM) ;
+      MPI_Op_create((MPI_User_function *)prodMFADd,1,&MPI_MFADD_PROD) ;
+      MPI_Op_create((MPI_User_function *)maxMFADd,1,&MPI_MFADD_MAX) ;
+      MPI_Op_create((MPI_User_function *)minMFADd,1,&MPI_MFADD_MIN) ;
 
     }
 #endif
