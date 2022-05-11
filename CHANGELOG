@@ -1,0 +1,115 @@
+//----------------------------------------------------------------------------
+	Version V 4.0 -> V 4.0 p1
+
+	Add overset library to configure script
+
+	Update to grid conversion tools to allow for large grids to be
+	processed more efficiently on a single processor.
+//-----------------------------------------------------------------------------
+	Version V 4.0 p1 -> V4.0 p2
+
+	Update to prevent multistore rule in gradient computation from being
+	included in chomping operations.
+
+	Update to make ccm2vog parallel
+
+	Fix in vogcheck to fix bug in face twist computation.
+
+	Added error check in inplace directive for the loci preprocessor, lpp
+
+	Fixed bug in overset library that was missing interpolateMinStencilSize
+	input.
+
+	Fixed some issues with std namespace to improve portability among
+	compilers
+
+	Fixed issues in processing existential analysis in clone region
+
+	Fixed issue with empty set key space.
+
+	Fixed issue with size computation for multiStore that was only 32 bits
+
+	Fixed issues with type declarations for overset library
+
+	Fixed issues with MPI stub code.
+//-----------------------------------------------------------------------------
+	Version V 4.0 p2-> V 4.0 p3
+
+	Fixed issues in overset library
+
+	Fixed issues with weight files for partitioning
+
+	Fixed issue with scheduler that affected boltzmann solver
+
+//-----------------------------------------------------------------------------
+	Version V 4.0 p3-> V 4.0 p4
+
+	Added cfd++2vog converter to FVMtools
+
+	Fixes to improve scalability of ccm2vog converter
+
+	Fixes to componentMotion directives for overset library
+
+	Added API for computing available system memory.
+
+	Fixed deadlock problem in scheduler.
+
+	Update to fix bug in assert statement in interpolation tools
+//-----------------------------------------------------------------------------
+	Version V 4.0 p4-> V 4.0 p5
+
+	Added high accuracy viscous gradient computation option based on
+	Nishikowa scheme to FVM module
+
+	Fixes to silence false warnings when compling with DEBUG switch turned
+	on
+
+	Added new space filling curve partitioner enabled with --sfc_partition
+
+	Fixed issue with minStencilSize in overset code
+
+	Fixed issue with stencil building code for cloud of points interpolation
+
+	Fixed issue container representation interface
+
+	Added new API for generalized container communication
+
+	Added support for containers to allocate memory in a page aligned
+	fashion to support vector optimizations
+//-----------------------------------------------------------------------------
+	Version V 4.0 p5-> V 4.0 p6
+
+	Fixed issue for extract from programs using runtime adaptation
+
+	Fixed type problem with array accessor
+
+	Fixed issue with mapping partition weights from parent cell to
+	refined cells.
+
+	Included fixes for overset mesh leakage issues
+
+	Fixed issue with simple partitions for very thin mesh partitions
+
+	Added code to facilitate reading in namespaces from vars file
+
+	Added code to improve namespace handing in module load facility
+
+	Added kiloton tnt to units for energy
+
+	Fixed issue with reciprocal units such as 1/s
+
+	Fixes for autodiff facility
+
+	Added feature for multiple forward automatic differentiation variables
+
+	Cleaned up compiler warnings
+
+	Added option for parallel I/O features using parallel HDF5, it is enabled using --pio command line option
+
+	Changed PAGE_ALLOCATE feature so it must be turned on by editing sys.conf and adding -DPAGE_ALLOCATE to MISC variable to enable
+
+	Fixed issue that occurs when priority override is given to advance variables.
+
+	Fixed issues with type signatures in MPI_Stubb code
+
+	
