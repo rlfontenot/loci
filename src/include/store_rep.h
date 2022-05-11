@@ -26,7 +26,8 @@
 #endif
 #include <Config/conf.h>
 // Enable page based allocation for conainers
-#define PAGE_ALLOCATE
+// Now this is done by adding -DPAGE_ALLOCATE to MISC flags in sys.conf
+//#define PAGE_ALLOCATE
 
 #ifdef PAGE_ALLOCATE
 #include <sys/mman.h>
