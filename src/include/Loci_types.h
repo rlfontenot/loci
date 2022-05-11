@@ -128,7 +128,8 @@ namespace Loci {
       size_t offset1 = offsetof(MFADd,value) ;	
 #endif
       H5Tinsert(vDatatype,"value",offset1,H5T_NATIVE_DOUBLE) ;
- 
+
+      // note, not an array, this needs to be fixed
 #ifdef NO_OFFSETOF
       size_t offset2 = reinterpret_cast<char *>(&(tmp.grad[0])) - reinterpret_cast<char *>(&tmp) ;
 #else
@@ -136,12 +137,12 @@ namespace Loci {
 #endif
       H5Tinsert(vDatatype,"grad",offset2,H5T_NATIVE_DOUBLE) ;
 
-#ifdef NO_OFFSETOF
-      size_t offset3 = reinterpret_cast<char *>(&(tmp.maxN)) - reinterpret_cast<char *>(&tmp) ;
-#else
-      size_t offset3 = offsetof(MFADd,maxN) ;
-#endif
-      H5Tinsert(vDatatype,"maxN",offset3,H5T_NATIVE_INT) ;
+      //#ifdef NO_OFFSETOF
+      //      size_t offset3 = reinterpret_cast<char *>(&(tmp.maxN)) - reinterpret_cast<char *>(&tmp) ;
+      //#else
+      //      size_t offset3 = offsetof(MFADd,maxN) ;
+      //#endif
+      //      H5Tinsert(vDatatype,"maxN",offset3,H5T_NATIVE_INT) ;
       return vDatatype ;
     }		
     std::ostream &output(std::ostream &s, const void *p) const

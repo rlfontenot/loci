@@ -52,13 +52,13 @@ namespace Loci {
     double real_value ;
     double real_grad ;
     double real_grad2 ;
-    int grad_size = 10 ;
+    int grad_size ;
     std::vector<double> gradN ;
     bool boolean_value ;
     UNIT_type units_value ;
     friend class options_list ;
   public:
-    option_values() { value_type = NOT_ASSIGNED ; real_value = 0 ; real_grad = 0; boolean_value = false ; gradN.resize(grad_size) ; for(int i=0;i<grad_size;i++) gradN[i] = 0; }
+    option_values() { value_type = NOT_ASSIGNED ; real_value = 0 ; real_grad = 0; boolean_value = false ; grad_size = MFAD_SIZE ; gradN.resize(grad_size) ; for(int i=0;i<grad_size;i++) gradN[i] = 0; }
 
     option_value_type type_of() const { return value_type ; }
 

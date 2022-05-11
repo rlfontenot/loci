@@ -26,6 +26,9 @@
 using namespace std ;
 
 namespace Loci {
+  // define maxN from MFADd somewhere
+  const size_t MFADd::maxN ;
+  
   //three tables of unit type - basic, composite, reference types----//
   UNIT_type::basic_units UNIT_type::basic_unit_table[]={
     {"meter",Length,1},
