@@ -181,7 +181,7 @@ namespace Loci {
     }
 
   }
-
+  
   void options_list::getOptionUnits(const std::string &vname, 
 				    const std::string &units,
 				    vector3d<double> &vec, 
@@ -601,12 +601,13 @@ namespace Loci {
       throw StringError(oss.str()) ;
     }
   }
-
+  
   void options_list::getOptionUnits(const std::string &vname, 
 				    const std::string &units,
 				    vector3d<FAD2d> &vec) const {
     return getOptionUnits(vname,units,vec,FAD2d(1.0,0.0,0.0)) ;
   }
+
   void options_list::getOptionUnits(const std::string &vname, 
 				    const std::string &units,
 				    vector3d<MFADd> &vec) const {
@@ -658,7 +659,7 @@ namespace Loci {
 		    &(*tmp).second.gradN[0], 
 		    (*tmp).second.grad_size) ;
   }
-
+  
   void options_list::getOption(const string &option, UNIT_type &uvalue) const {
     option_map::const_iterator tmp ;
     if((tmp = options_db.find(option)) == options_db.end()) {
@@ -872,32 +873,31 @@ namespace Loci {
     parse::kill_white_space(s) ;
     if(parse::is_real(s)) {
       real_value = parse::get_real(s) ;
-#ifdef USE_AUTODIFF      
       real_grad = 0 ;
       if(s.peek()=='^') {
 	s.get() ;
 	real_grad = parse::get_real(s) ;
+	if(gradN.size() > 0)
+	  gradN[0] = real_grad ;
       }
       real_grad2 = 0 ;
       if(s.peek()=='^') {
 	while(s.peek()=='^')
 	  s.get() ;
 	real_grad2 = parse::get_real(s) ;
+	if(gradN.size()>1)
+	  gradN[1] = real_grad2 ;
       }
-#endif
-#ifdef MULTIFAD
-      if(s.peek()=='^') {
-	s.get() ;
-	gradN[0] = parse::get_real(s) ;
+      size_t cnt = 2 ;
+      while(s.peek()=='^') {
+	while(s.peek()=='^')
+	  s.get() ;
+	if(gradN.size() >cnt) {
+	  gradN[cnt] = parse::get_real(s) ;
+	  cnt++ ;
+	}
       }
-      for (int i=1;i<grad_size;i++) {
-        if(s.peek()=='^') {
-	  while(s.peek()=='^')
-	    s.get() ;
- 	  gradN[i] = parse::get_real(s) ;
-        }
-      }
-#endif      
+
       parse::kill_white_space(s) ;
       if(parse::is_name(s)) {
         string units ;
@@ -923,11 +923,10 @@ namespace Loci {
 	  if(rc == 0) 
 	    throw StringError("having trouble reading units in input") ;
         } while(opens!=0) ;
-#ifdef USE_AUTODIFF
+#ifndef MULTIFAD
         units_value = UNIT_type(UNIT_type::MKS,"general",
 				FAD2d(real_value,real_grad,real_grad2),units) ;
-#endif	
-#ifdef MULTIFAD
+#else
         units_value = UNIT_type(UNIT_type::MKS,"general",
 				MFADd(real_value,&gradN[0],grad_size),units) ;
 #endif
