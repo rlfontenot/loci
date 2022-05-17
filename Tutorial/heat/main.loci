@@ -1,11 +1,14 @@
 #include <Loci.h>
+#include <GLoci.h>//the hearder files related to gfact_db and gcontainers
 #include <iostream>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
 
 using namespace std ;
-
+namespace Loci{
+  void copy_facts(gfact_db& gfacts);//just before making query, call this function to copy facts from gcontainers to traditional  containers
+}
 int main(int argc, char *argv[])
 {
   // Initialize Loci
@@ -59,7 +62,7 @@ int main(int argc, char *argv[])
     //-----------------------------------------------------------------
     // Create Fact Database
     //-----------------------------------------------------------------
-    fact_db facts ;
+    gfact_db gfacts ; //start using gfact_db
     
     if(argc <= 1) {
       cerr << "must provide case name as argument" << endl ;
@@ -67,22 +70,22 @@ int main(int argc, char *argv[])
     }
     string casename = argv[1] ;
     string varsFile = casename + ".vars" ;
-    facts.read_vars(varsFile,rdb) ;
-    param<std::string> modelName ;
+    gfacts.read_vars(varsFile,rdb) ;
+    gParam<std::string> modelName ;
     *modelName = casename ;
-    facts.create_fact("modelName",modelName) ;
+    gfacts.create_gfact("modelName",modelName) ;
     string gridFile = casename + ".vog" ;
-    if(!Loci::setupFVMGrid(facts,gridFile)) {
+    if(!Loci::setupFVMGrid(gfacts,gridFile)) {
       cerr << "unable to read grid file '" << gridFile << "'" << endl ;
       Loci::Abort() ;
     }
     
-    setupBoundaryConditions(facts) ;
+    setupBoundaryConditions(gfacts) ;
     
-    createLowerUpper(facts) ;
-    
+    createLowerUpper(gfacts) ;
+    copy_facts(gfacts);//just before making query, copy facts from gcontainers to traditional  containers
     // Query Loci for fact derived fact 'solution'
-    Loci::makeQuery(rdb,facts,query) ;
+    Loci::makeQuery(rdb,gfacts,query) ;
   }
   catch(Loci::BasicException x) { // If Loci had an exception
     cerr << "an exception was encountered: " << endl ;
