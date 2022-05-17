@@ -41,6 +41,7 @@ namespace Loci {
     //return 0;
       MPI_Info_create(info);
   
+#ifdef H5_HAVE_PARALLEL
     //MPI predefined hints
     MPI_Info_set(*info, "striping_unit", "8388608") ;
     MPI_Info_set(*info,"stripping_factor","4");
@@ -56,10 +57,10 @@ namespace Loci {
     MPI_Info_set(*info,"romio_ds_read","disable"); //dissble datat sieving in read
     MPI_Info_set(*info,"romio_ds_write","disable"); // disable data sieving in write
     MPI_Info_set(*info,"romio_cb_write","enable"); //enable aggregation
-
     //Setting the environment variable
     //MPICH_MPIIO_HINTS_DISPLAY=1 to print out available I/O hints and their values
     //aggreation: processors with fast connection perform io for others
+#endif
     return 0;
   }
   
