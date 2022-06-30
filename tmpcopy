@@ -199,6 +199,9 @@ fi
 if [ ! -h extract ] ; then
   ln -s ../FVMtools/extract extract
 fi
+if [ ! -h msh2vog ] ; then
+  ln -s ../FVMtools/msh2vog msh2vog
+fi
 if [ ! -h ugrid2vog ] ; then
   ln -s ../FVMtools/ugrid2vog ugrid2vog
 fi
