@@ -75,6 +75,23 @@ inline bool triaEqual(const triaFace &f1, const triaFace &f2) {
 
 }
 
+void getnewline(std::istream &s) {
+  while(!s.eof() && s.peek() != '\n')
+    s.get() ;
+  s.get() ;
+}
+
+void swapb(char *p, int size) {
+  char *pe = p+(size-1) ;
+  while(p<pe) {
+    std::swap(*p,*pe) ;
+    p++ ;
+    pe--;
+  }
+}
+
+#define READVAR(VAL)  if(binary_format) { gridfile.read((char *) &VAL,sizeof(VAL)) ; if(swapbytes) swapb((char *) &VAL,sizeof(VAL)); } else { gridfile >> VAL ; }
+
 int main(int ac, char *av[]) {
   using namespace Loci ;
   string Lref = "NOSCALE" ;
@@ -172,6 +189,7 @@ int main(int ac, char *av[]) {
     exit(-1) ;
   }
   bool binary_format = false ;
+  bool swapbytes = false ;
   std::map<int,string> surfIds ;
   std::map<int,string> voltags ;
   std::map<int,int> physicalSurfaceTag ;
@@ -202,10 +220,20 @@ int main(int ac, char *av[]) {
       cout << "GMesh Format: " << gmshver << endl ;
       if(bin != 0) {
 	binary_format = true ;
-	cerr << "binary format not currently implemented" <<endl ;
-	Loci::Abort() ;
+	getnewline(gridfile) ;
+	int val = 0 ;
+	gridfile.read((char *)&val,sizeof(val)) ;
+	if(val != 1)
+	  swapbytes = true ;
+	      
+	cout << "binary file " ;
+	if(swapbytes) {
+	  cout << " using swapbytes to correct endian form" ;
+	}
+	cout << endl ;
+	    
       }
-      
+	
       do {
 	getline(gridfile,text) ;
       } while(!checkToken(text,"$EndMeshFormat")) ;
@@ -219,7 +247,7 @@ int main(int ac, char *av[]) {
 	string tagname ;
 	gridfile >> dim >> tag >> tagname ;
 	string dropquotes ;
-	for(int i=0;i<tagname.size();++i) {
+	for(size_t i=0;i<tagname.size();++i) {
 	  if(tagname[i] != '"')
 	    dropquotes += tagname[i] ;
 	}
@@ -247,86 +275,120 @@ int main(int ac, char *av[]) {
     }
     if(checkToken(text,"$Entities")) {
       size_t npnts=0,ncurves=0,nsurf=0,nvol=0 ;
-      gridfile >> npnts >> ncurves >> nsurf >> nvol ;
+      READVAR(npnts) ;
+      READVAR(ncurves) ;
+      READVAR(nsurf) ;
+      READVAR(nvol) ;
+
       for(size_t i=0;i<npnts;++i) {
 	int ptag ;
 	double x,y,z ;
-	int nphystags=0 ;
-	gridfile >> ptag >> x >> y >> z >> nphystags ;
-	for(int j=0;j<nphystags;++j) {
+	size_t nphystags=0 ;
+	READVAR(ptag) ;
+	READVAR(x) ;
+	READVAR(y) ;
+	READVAR(z) ;
+	READVAR(nphystags) ;
+
+	for(size_t j=0;j<nphystags;++j) {
 	  int val ;
-	  gridfile >> val ;
+	  READVAR(val) ;
 	}
       }
       for(size_t i=0;i<ncurves;++i) {
 	int ctag ;
 	double minX,minY,minZ,maxX,maxY,maxZ ;
 	size_t numPhysicalTags ;
-	gridfile >> ctag >> minX >> minY >> minZ ;
-	gridfile >> maxX >> maxY >> maxZ >> numPhysicalTags ;
-	for(int j=0;j<numPhysicalTags;++j) {
+	READVAR(ctag) ;
+	READVAR(minX) ;
+	READVAR(minY) ;
+	READVAR(minZ) ;
+	READVAR(maxX) ;
+	READVAR(maxY) ;
+	READVAR(maxZ) ;
+	READVAR(numPhysicalTags) 
+
+	for(size_t j=0;j<numPhysicalTags;++j) {
 	  int tags ;
-	  gridfile >> tags ;
+	  READVAR(tags) ;
 	}
-	int nbpts ;
-	gridfile >> nbpts ;
-	for(int i=0;i<nbpts;++i){
+	size_t nbpts ;
+	READVAR(nbpts) ;
+	for(size_t i=0;i<nbpts;++i){
 	  int val ;
-	  gridfile >> val ;
+	  READVAR(val) ;
 	}
       }
       for(size_t i=0;i<nsurf;++i) {
 	int surfTag ;
 	double minX,minY,minZ,maxX,maxY,maxZ ;
 	size_t numPhysicalTags ;
-	gridfile >> surfTag >> minX >> minY>>minZ>> maxX >> maxY >> maxZ
-		 >> numPhysicalTags ;
+	
+	READVAR(surfTag) ;
+	READVAR(minX) ;
+	READVAR(minY) ;
+	READVAR(minZ) ;
+	READVAR(maxX) ;
+	READVAR(maxY) ;
+	READVAR(maxZ) ;
+	READVAR(numPhysicalTags) 
 	physicalSurfaceTag[surfTag] = 0 ;
 	for(size_t j=0;j<numPhysicalTags;++j) {
 	  int val ;
-	  gridfile >> val ;
+	  READVAR(val) ;
 	  physicalSurfaceTag[surfTag] = val ;
 	}
 	size_t numBoundingSurfaces ;
-	gridfile >> numBoundingSurfaces ;
+	READVAR(numBoundingSurfaces) ;
 	for(size_t j=0;j<numBoundingSurfaces;++j) {
 	  int val ;
-	  gridfile >> val ;
+	  READVAR(val) ;
 	}
       }
       for(size_t i=0;i<nvol;++i) {
 	int volTag ;
 	double minX,minY,minZ,maxX,maxY,maxZ ;
 	size_t numPhysicalTags ;
-	gridfile >> volTag >> minX >> minY>>minZ>> maxX >> maxY >> maxZ
-		 >> numPhysicalTags ;
+	READVAR(volTag) ;
+	READVAR(minX) ;
+	READVAR(minY) ;
+	READVAR(minZ) ;
+	READVAR(maxX) ;
+	READVAR(maxY) ;
+	READVAR(maxZ) ;
+	READVAR(numPhysicalTags) 
+
 	physicalVolumeTag[volTag] = 0 ;
 	for(size_t j=0;j<numPhysicalTags;++j) {
 	  int val ;
-	  gridfile >> val ;
+
+	  READVAR(val) ;
+
 	  physicalVolumeTag[volTag] = val ;
 	}
 	size_t numBoundingSurfaces ;
-	gridfile >> numBoundingSurfaces ;
+	READVAR(numBoundingSurfaces) ;
+
 	for(size_t j=0;j<numBoundingSurfaces;++j) {
 	  int val ;
-	  gridfile >> val ;
+	  READVAR(val) ;
 	}
 	
       }
       do {
 	getline(gridfile,text) ;
       } while(!checkToken(text,"$EndEntities")) ;
-      //      cout << "Found Surface Entities:" << endl ;
-      //      for(std::map<int,int>::const_iterator mi=physicalSurfaceTag.begin();
-      //	  mi!=physicalSurfaceTag.end();++mi) {
-      //	if(mi->second >0)
-      //	  cout << mi->first << " " << surfIds[mi->second] << endl ;
-      //      }
+
     }    
     if(checkToken(text,"$Nodes")) {
+      
       size_t numEntityBlocks=0 ;
-      gridfile >> numEntityBlocks >> numNodes >> minNodeTag >> maxNodeTag ;
+
+      READVAR(numEntityBlocks) ;
+      READVAR(numNodes) ;
+      READVAR(minNodeTag) ;
+      READVAR(maxNodeTag) ;
+
       cout << "Nodes: " << numNodes << " [" << minNodeTag << "," << maxNodeTag << "]" << endl ;
       if(maxNodeTag-minNodeTag+1 != numNodes ||
 	 minNodeTag != 1) {
@@ -340,16 +402,22 @@ int main(int ac, char *av[]) {
       posid.swap(itmp) ;
       size_t cnt = 0 ;
       for(size_t i=0;i<numEntityBlocks;++i) {
-	int dim=0,etag=0, parametric=0, blksze=0 ;
-	gridfile >> dim >> etag >> parametric>> blksze ;
-	for(int j=0;j<blksze;++j){
+	int dim=0,etag=0, parametric=0;
+	size_t blksze=0 ;
+	READVAR(dim) ;
+	READVAR(etag) ;
+	READVAR(parametric) ;
+	READVAR(blksze) ;
+	for(size_t j=0;j<blksze;++j){
 	  size_t nid = 0 ;
-	  gridfile >> nid ;
+	  READVAR(nid) ;
 	  posid[cnt+j] = nid ;
 	}
-	for(int j=0;j<blksze;++j){
+	for(size_t j=0;j<blksze;++j){
 	  double x=0,y=0,z=0 ;
-	  gridfile >> x >> y >> z ;
+	  READVAR(x) ;
+	  READVAR(y) ;
+	  READVAR(z) ;
 	  vpos[cnt+j] = vector3d<double>(x,y,z) ;
 	}
 	cnt += blksze ;
@@ -357,21 +425,18 @@ int main(int ac, char *av[]) {
       if(cnt != numNodes) {
 	cerr << "did not read in numNodes cnt=" << cnt << " numNodes=" <<numNodes << endl ;
       }
-      //      bool idsok=true ;
-      //      for(size_t i=0;i<numNodes;++i)
-      //	if(posid[i] != i+1)
-      //	  idsok = false ;
-      //      if(idsok) {
-      //	cout << "node tags consecutive" << endl ;
-      //      }
+
       do {
 	getline(gridfile,text) ;
       } while(!checkToken(text,"$EndNodes")) ;
     }
     if(checkToken(text,"$Elements")) {
-      //      cout << "Elements" << endl ;
       size_t numEntityBlocks=0,numElements=0,minElemTag=0,maxElemTag=0 ;
-      gridfile >> numEntityBlocks >> numElements >> minElemTag >> maxElemTag ;
+
+      READVAR(numEntityBlocks) ;
+      READVAR(numElements) ;
+      READVAR(minElemTag) ;
+      READVAR(maxElemTag) ;
       cout << "Elements: " << numElements << " [" << minElemTag << "," << maxElemTag << "]" << endl ;
       if(maxElemTag-minElemTag+1 != numElements ||
 	 minElemTag != 1) {
@@ -382,20 +447,29 @@ int main(int ac, char *av[]) {
       for(size_t i=0;i<numEntityBlocks;++i) {
 	int dim=0,tag=0,type=0 ;
 	size_t nelem = 0 ;
-	gridfile >> dim >> tag >> type >> nelem ;
+
+	READVAR(dim) ;
+	READVAR(tag) ;
+	READVAR(type) ;
+	READVAR(nelem) ;
 
 	for(size_t j=0;j<nelem;++j) {
 	  switch(type) {
 	  case 1: // 2-node line
 	    {
-	      int id,pt1,pt2 ;
-	      gridfile >> id >> pt1 >> pt2 ;
+	      size_t id,pt1,pt2 ;
+	      READVAR(id) ;
+	      READVAR(pt1) ;
+	      READVAR(pt2) ;
 	    }
 	    break ;
 	  case 2: // 3-node triangle
 	    {
-	      int id, pt1,pt2,pt3 ;
-	      gridfile >> id >> pt1 >> pt2 >> pt3 ;
+	      size_t id, pt1,pt2,pt3 ;
+	      READVAR(id) ;
+	      READVAR(pt1) ;
+	      READVAR(pt2) ;
+	      READVAR(pt3) ;
 	      int psid = physicalSurfaceTag[tag] ;
 	      if(psid > 0) { // boundary surface
 		triaFace tf ;
@@ -413,8 +487,12 @@ int main(int ac, char *av[]) {
 	    break ;
 	  case 3: // 4-node quadrangle
 	    {
-	      int id, pt1,pt2,pt3,pt4 ;
-	      gridfile >> id >> pt1 >> pt2 >> pt3 >>pt4 ;
+	      size_t id, pt1,pt2,pt3,pt4 ;
+	      READVAR(id) ;
+	      READVAR(pt1) ;
+	      READVAR(pt2) ;
+	      READVAR(pt3) ;
+	      READVAR(pt4) ;
 	      int psid = physicalSurfaceTag[tag] ;
 	      if(psid > 0) { // boundary surface
 		quadFace qf ;
@@ -430,8 +508,12 @@ int main(int ac, char *av[]) {
 	    break ;
 	  case 4: // 4 node tetrahedron
 	    {
-	      int id, pt1,pt2,pt3,pt4 ;
-	      gridfile >> id >> pt1 >> pt2 >> pt3 >>pt4 ;
+	      size_t id, pt1,pt2,pt3,pt4 ;
+	      READVAR(id) ;
+	      READVAR(pt1) ;
+	      READVAR(pt2) ;
+	      READVAR(pt3) ;
+	      READVAR(pt4) ;
 
 	      triaFace tf ;
 	      tf.nodes[0] = pt1 ;
@@ -458,10 +540,16 @@ int main(int ac, char *av[]) {
 	    break ;
 	  case 5: // 8 node hexahedron
 	    {
-	      int id, pt1,pt2,pt3,pt4 ;
-	      gridfile >> id >> pt1 >> pt2 >> pt3 >>pt4 ;
-	      int pt5,pt6,pt7,pt8 ;
-	      gridfile >> pt5 >> pt6 >> pt7 >> pt8 ;
+	      size_t id, pt1,pt2,pt3,pt4,pt5,pt6,pt7,pt8 ;
+	      READVAR(id) ;
+	      READVAR(pt1) ;
+	      READVAR(pt2) ;
+	      READVAR(pt3) ;
+	      READVAR(pt4) ;
+	      READVAR(pt5) ;
+	      READVAR(pt6) ;
+	      READVAR(pt7) ;
+	      READVAR(pt8) ;
 
 	      quadFace qf ;
 	      qf.nodes[0] = pt1 ;
@@ -502,8 +590,15 @@ int main(int ac, char *av[]) {
 	    break ;
 	  case 6: // 6 node prism
 	    {
-	      int id, pt1,pt2,pt3,pt4,pt5,pt6 ;
-	      gridfile >> id >> pt1 >> pt2 >> pt3 >>pt4>>pt5 >> pt6 ;
+	      size_t id, pt1,pt2,pt3,pt4,pt5,pt6 ;
+	      
+	      READVAR(id) ;
+	      READVAR(pt1) ;
+	      READVAR(pt2) ;
+	      READVAR(pt3) ;
+	      READVAR(pt4) ;
+	      READVAR(pt5) ;
+	      READVAR(pt6) ;
 
 	      triaFace tf ;
 	      tf.nodes[0] = pt1 ;
@@ -540,8 +635,13 @@ int main(int ac, char *av[]) {
 	    break ;
 	  case 7: // 5 node pyramid
 	    {
-	      int id, pt1,pt2,pt3,pt4,pt5 ;
-	      gridfile >> id >> pt1 >> pt2 >> pt3 >>pt4>>pt5  ;
+	      size_t id, pt1,pt2,pt3,pt4,pt5 ;
+	      READVAR(id) ;
+	      READVAR(pt1) ;
+	      READVAR(pt2) ;
+	      READVAR(pt3) ;
+	      READVAR(pt4) ;
+	      READVAR(pt5) ;
 
 	      triaFace tf ;
 	      tf.nodes[0] = pt1 ;
@@ -576,10 +676,12 @@ int main(int ac, char *av[]) {
 	    break ;
 	  case 15: // 1 point node
 	    {
-	      int id, pt1 ;
-	      gridfile >> id >> pt1 ;
+	      size_t id, pt1 ;
+	      READVAR(id) ;
+	      READVAR(pt1) ;
 	      cerr << "1 point node not supported" << endl ;
 	    }
+	    break ;
 	  default:
 	    cout << "element type= " << type << " unsupported by converter."
 		 << endl ;
@@ -617,7 +719,6 @@ int main(int ac, char *av[]) {
   //sort tria
   sort(tria.begin(),tria.end(),triaCompare) ;
 
-  //  if(MPI_rank==0)cerr<<" preparing quad faces" << endl;
   // prepare quad faces (sort them, but be careful)
   for(size_t i=0;i<quad.size();++i) {
     // pos numbers nodes from zero
@@ -659,7 +760,6 @@ int main(int ac, char *av[]) {
     }
     
   }
-  //  cout << "tria matched" << matchcnt << ", unmatched =" << unmatchcnt << endl ;
   
   matchcnt = 0 ;
   unmatchcnt = 0 ;
@@ -671,17 +771,11 @@ int main(int ac, char *av[]) {
       unmatchcnt++ ;
     }
   }
-  //  cout << "quad matched" << matchcnt << ", unmatched =" << unmatchcnt << endl ;
   
-  //  cout << "pos.size()=" << vpos.size() << endl ;
-  //  cout << "tria.size()=" << tria.size() << endl ;
-  //  cout << "quad.size()=" << quad.size() << endl ;
-
   //due to edge split, trias and quads can turn into general faces
   int ntria = tria.size()/2 ;
   int nquad = quad.size()/2 ;
   int nfaces = ntria+nquad ;
-  //  if(MPI_rank==0)cerr<<" creating face2node, cl, cr" << endl;
 
 
   int facebase = std::numeric_limits<int>::min()+2048 ;
@@ -822,8 +916,11 @@ int main(int ac, char *av[]) {
     }
     fc++ ;
   }
-  if(ccerror > 0) 
+  if(ccerror > 0) {
     cerr << "consistency error #=" << ccerror << endl ;
+    cerr << "something wrong with mesh, have you given physical tags to the surfaces?" << endl ;
+    Loci::Abort() ;
+  }
   if(MPI_rank == 0)
     cerr << "coloring matrix" << endl ;
   store<vector3d<double> > pos ;
