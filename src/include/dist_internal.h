@@ -29,14 +29,22 @@
 #include <hdf5_readwrite.h>
 #include <vector>
 namespace Loci {
+  /*
+    namespace pio is for functions that have separate serial io version and parallel io version.
+    these low-level functions are generally used by Loci-developers instead of application-developers
+  */
+  namespace pio{
+    /*read _multi_vector_intS/P are replaced by read_vector_intS/P,
+      not tested for the new version, kept here for backward campatibility
+    */
 
-  //void read_multi_vector_int(hid_t group_id, const char* name, int dim,  std::vector<int>& vint, MPI_Comm comm) ;
-  void read_vector_int(hid_t group_id, const char* name, std::vector<int>& vint, int dom_size, MPI_Comm comm) ;
-  void write_vector_int(hid_t group_id, const char* name, std::vector<int>& vint, MPI_Comm comm) ;
-  //void read_multi_vector_intP(hid_t group_id, const char* name, int dim,  std::vector<int>& vint, MPI_Comm comm) ;
-  void read_vector_intP(hid_t group_id, const char* name, std::vector<int>& vint, int dom_size, MPI_Comm comm) ;
-  void write_vector_intP(hid_t group_id, const char* name, std::vector<int>& vint, MPI_Comm comm) ;
-
+    //void read_multi_vector_intS(hid_t group_id, const char* name, int dim,  std::vector<int>& vint, MPI_Comm comm) ;
+    void read_vector_intS(hid_t group_id, const char* name, std::vector<int>& vint, int dom_size, MPI_Comm comm) ;
+    void write_vector_intS(hid_t group_id, const char* name, std::vector<int>& vint, MPI_Comm comm) ;
+    //void read_multi_vector_intP(hid_t group_id, const char* name, int dim,  std::vector<int>& vint, MPI_Comm comm) ;
+    void read_vector_intP(hid_t group_id, const char* name, std::vector<int>& vint, int dom_size, MPI_Comm comm) ;
+    void write_vector_intP(hid_t group_id, const char* name, std::vector<int>& vint, MPI_Comm comm) ;
+  }
   std::vector<int> all_collect_sizes(int size,MPI_Comm comm) ;
   inline std::vector<int> all_collect_sizes(int size) {
     return all_collect_sizes(size,MPI_COMM_WORLD) ;

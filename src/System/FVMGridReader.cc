@@ -379,6 +379,8 @@ namespace Loci {
 
   bool readBCfromVOG(string filename,
                      vector<pair<int,string> > &boundary_ids) {
+    /*process 0 read in boundary_ids and broadcast it to all prcesses*/
+    
     hid_t file_id = 0 ;
     int failure = 0 ; // No failure
     /* Save old error handler */
@@ -616,7 +618,7 @@ namespace Loci {
     }
     
     //    file_id = H5Fopen(filename.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
-    file_id = readVOGOpenP(filename) ;
+    file_id = readVOGOpen(filename) ;
     if(MPI_rank == 0 && file_id <= 0) 
       failure = 1 ;
 
@@ -772,11 +774,11 @@ namespace Loci {
 	DatatypeP dp = traits_type::get_type() ;
 	hid_t datatype = dp->get_hdf5_type() ;
 	hid_t xfer_plist = H5P_DEFAULT ;
-#ifdef H5_HAVE_PARALLEL
-	if(use_parallel_io)
-	  xfer_plist= create_xfer_plist(Loci::hdf5_const::dxfer_coll_type) ;
-#endif
-	hid_t err = H5Dread(dataset,datatype,memspace,dspace,H5P_DEFAULT,
+
+
+        xfer_plist= create_xfer_plist(Loci::hdf5_const::dxfer_coll_type) ;
+
+	hid_t err = H5Dread(dataset,datatype,memspace,dspace,xfer_plist,
 			    &pos[lst]) ;
 	if(err < 0) {
 	  cerr << "H5Dread() failed" << endl ;
@@ -791,7 +793,7 @@ namespace Loci {
 	H5Dclose(dataset) ;
 	H5Gclose(node_g) ;
       }
-    } else {
+    } else { //end of parallel io version
       // First read in and disribute node positions (serial case)
       if(MPI_rank == 0) {
 #ifdef H5_USE_16_API

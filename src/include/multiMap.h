@@ -73,7 +73,7 @@ namespace Loci {
 
     virtual entitySet image(const entitySet &domain) const ;
     virtual std::pair<entitySet,entitySet>
-      preimage(const entitySet &codomain) const ;
+    preimage(const entitySet &codomain) const ;
     virtual storeRepP get_map() ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
@@ -216,9 +216,9 @@ namespace Loci {
   } ;
   
   inline std::ostream & operator<<(std::ostream &s, const multiMap &m)
-    { return m.Print(s) ; }
+  { return m.Print(s) ; }
   inline std::istream & operator>>(std::istream &s, multiMap &m)
-    { return m.Input(s) ; }
+  { return m.Input(s) ; }
 
   class const_multiMap : public store_instance {
     typedef multiMapRepI MapType ;
@@ -290,10 +290,10 @@ namespace Loci {
   } ;
 
 
-/*
-  inline std::ostream & operator<<(std::ostream &s, const const_multiMap &m)
+  /*
+    inline std::ostream & operator<<(std::ostream &s, const const_multiMap &m)
     { return m.Print(s) ; }
-*/
+  */
 
   void inverseMap(multiMap &result,
                   const Map &input_map,

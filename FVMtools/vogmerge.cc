@@ -2205,7 +2205,7 @@ int main(int ac, char *av[]) {
     int num = int(i) ;
     H5Awrite(att_id,H5T_NATIVE_INT,&num) ;
     H5Aclose(att_id) ;
-    Loci::HDF5_WriteDomain(vol_id,volTags[i].second) ;
+    Loci::HDF5_WriteDomain(vol_id,volTags[i].second, MPI_COMM_WORLD) ;
     H5Gclose(vol_id) ;
   }
   H5Gclose(cell_info) ;

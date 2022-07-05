@@ -215,8 +215,8 @@ namespace Loci {
 
 #ifdef LOCI_USE_METIS
   vector<entitySet> AdaptMetisPartitionOfCells(const vector<entitySet> &local_cells,
-                                             const Map &cl, const Map &cr,
-					     const store<string> &boundary_tags) {
+                                               const Map &cl, const Map &cr,
+                                               const store<string> &boundary_tags) {
     entitySet dom = cl.domain() & cr.domain() ;
     entitySet refset = boundary_tags.domain() ;
     entitySet bcfaces = cr.preimage(refset).first ;
@@ -641,23 +641,23 @@ namespace Loci{
 
   extern  bool useDomainKeySpaces  ;
   extern void remapGrid(vector<entitySet> &node_ptn,
-                 vector<entitySet> &face_ptn,
-                 vector<entitySet> &cell_ptn,
-                 vector<entitySet> &node_ptn_t,
-                 vector<entitySet> &face_ptn_t,
-                 vector<entitySet> &cell_ptn_t,
-                 store<vector3d<double> > &t_pos, Map &tmp_cl,
-                 Map &tmp_cr, multiMap &tmp_face2node,
-		 vector<entitySet> &bcsurf_ptn,
-		 store<string> &tmp_boundary_names,
-		 store<string> &tmp_boundary_tags,
-                 entitySet nodes, entitySet faces, entitySet cells,
-                 store<vector3d<double> > &pos, Map &cl, Map &cr,
-                 multiMap &face2node,
-		 store<string> &boundary_names, 
-		 store<string> &boundary_tags, 
-		 entitySet bcsurfset,
-		       fact_db &facts) ;
+                        vector<entitySet> &face_ptn,
+                        vector<entitySet> &cell_ptn,
+                        vector<entitySet> &node_ptn_t,
+                        vector<entitySet> &face_ptn_t,
+                        vector<entitySet> &cell_ptn_t,
+                        store<vector3d<double> > &t_pos, Map &tmp_cl,
+                        Map &tmp_cr, multiMap &tmp_face2node,
+                        vector<entitySet> &bcsurf_ptn,
+                        store<string> &tmp_boundary_names,
+                        store<string> &tmp_boundary_tags,
+                        entitySet nodes, entitySet faces, entitySet cells,
+                        store<vector3d<double> > &pos, Map &cl, Map &cr,
+                        multiMap &face2node,
+                        store<string> &boundary_names, 
+                        store<string> &boundary_tags, 
+                        entitySet bcsurfset,
+                        fact_db &facts) ;
 
   bool inputFVMGrid(fact_db &facts,
                     vector<entitySet>& local_nodes,
@@ -1495,31 +1495,52 @@ namespace Loci{
   void writeVOGSurf(hid_t file_id, std::vector<pair<int,string> > surface_ids);
   void writeVOGTag(hid_t output_fid,  vector<pair<string,entitySet> >& volTags);
   void writeVOGClose(hid_t file_id) ;
+  void writeVOGNode(hid_t file_id,
+                    Loci::storeRepP &pos,
+                    const_store<Loci::FineNodes> &inner_nodes);
 
 
 }
 
-void writeVOGNode(hid_t file_id,
-                  Loci::storeRepP &pos,
-                  const_store<Loci::FineNodes> &inner_nodes);
 
 
 void colorMatrix(Map &cl, Map &cr, multiMap &face2node);
 namespace Loci{
+  
+  //copied from ditribute_io.cc
   hid_t writeVOGOpen(string filename) {
-    hid_t file_id = 0 ;
-    if(MPI_rank==0) 
-      file_id = H5Fcreate(filename.c_str(),H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT) ;
-    return file_id ;
-  }
-  void writeVOGClose(hid_t file_id) {
-    if(MPI_rank == 0) H5Fclose(file_id) ;
+    if(use_parallel_io){    
+      hid_t file_id = 0;
+      hid_t  acc_plist;
+      // open collectively by all processor in MPI_COMM_WORLD,
+      acc_plist = Loci::create_faccess_plist(MPI_COMM_WORLD,
+                                             Loci::PHDF5_MPI_Info,
+                                             Loci::hdf5_const::facc_type); 
+      file_id = H5Fcreate(filename.c_str(),H5F_ACC_TRUNC,H5P_DEFAULT,acc_plist) ;
+      H5Pclose(acc_plist);
+      if(file_id == 0) {
+        if(MPI_rank==0) cerr << "unable to open file " << filename << endl ;
+        Loci::Abort() ;
+      }
+      return file_id ;
+    }else{
+      hid_t file_id = 0 ;
+      if(MPI_rank==0) 
+        file_id = H5Fcreate(filename.c_str(),H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT) ;
+      return file_id ;
+    }
   }
   
-       
+  
+  //copied from FVMGridWriter.cc
+  void writeVOGClose(hid_t file_id) {//parallel io included
+    if(MPI_rank == 0 || use_parallel_io) H5Fclose(file_id) ;
+  }
+
+  //similar to the one in FVMGridWriter.cc, but no modofication to surface_ids
   void writeVOGSurf(hid_t file_id, std::vector<pair<int,string> > surface_ids) {
     hid_t group_id = 0 ;
-    if(MPI_rank == 0) {
+    if(MPI_rank == 0 || use_parallel_io) {
       if(surface_ids.size() != 0) {
 #ifdef H5_USE_16_API
         group_id = H5Gcreate(file_id,"surface_info",0) ;
@@ -1553,6 +1574,8 @@ namespace Loci{
       }
     }
   }
+
+  //same as the function in FVMGridReader.cc
   unsigned long readAttributeLong(hid_t group, const char *name) {
     hid_t id_a = H5Aopen_name(group,name) ;
     unsigned long val = 0;
@@ -1560,7 +1583,7 @@ namespace Loci{
     H5Aclose(id_a) ;
     return val ;
   }
-  
+  //same as the function in FVMGridReader.cc
   bool readVolTags(hid_t input_fid,
                    vector<pair<string,Loci::entitySet> > &volDat) {
     using namespace Loci ;
@@ -1646,6 +1669,7 @@ namespace Loci{
   }
 
 }
+//same as the function in FVMGridWriter.cc
 void writeVOGFace(hid_t file_id, Map &cl, Map &cr, multiMap &face2node) {
   // Compute cell set
   entitySet tmp_cells = cl.image(cl.domain())+cr.image(cr.domain()) ;
@@ -1667,15 +1691,15 @@ void writeVOGFace(hid_t file_id, Map &cl, Map &cr, multiMap &face2node) {
                 MPI_SUM,MPI_COMM_WORLD) ;
 
   hid_t group_id = 0 ;
-  if(MPI_rank == 0) {
+  if(MPI_rank == 0 || Loci::use_parallel_io) {
 #ifdef H5_USE_16_API
     group_id = H5Gopen(file_id,"file_info") ;
 #else
     group_id = H5Gopen(file_id,"file_info",H5P_DEFAULT) ;
 #endif
 
-    std::cout<< "num_cells = " << num_cells << endl
-             << "num_faces = " << num_faces << endl ;
+    if(MPI_rank == 0) std::cerr<< "num_cells = " << num_cells << endl
+                               << "num_faces = " << num_faces << endl ;
 
     hsize_t dims = 1 ;
     hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
@@ -1766,7 +1790,7 @@ void writeVOGFace(hid_t file_id, Map &cl, Map &cr, multiMap &face2node) {
   Loci::writeUnorderedVector(group_id,"cluster_info",cluster_info) ;
   
   
-  if(MPI_rank == 0) {
+  if(MPI_rank == 0 || Loci::use_parallel_io) {
     H5Gclose(group_id) ;
   }
 }
@@ -1916,37 +1940,37 @@ vector<pair<string,entitySet> > getVOGTagFromLocal(const vector<pair<string,enti
     }
 
     //broadcast volTags to other processes
-      int nvtags = volTags.size() ;
-      MPI_Bcast(&nvtags,1,MPI_INT,0,MPI_COMM_WORLD) ;
-      if(MPI_rank != 0) volTags.clear();
-      for(int i=0;i<nvtags;++i) {
-        int sz = 0 ;
-        if(MPI_rank == 0) sz = volTags[i].first.size() ;
-        MPI_Bcast(&sz,1,MPI_INT,0,MPI_COMM_WORLD) ;
-        char *buf = new char[sz+1] ;
-        buf[sz] = '\0' ;
-        if(MPI_rank == 0) strcpy(buf,volTags[i].first.c_str()) ;
-        MPI_Bcast(buf,sz,MPI_CHAR,0,MPI_COMM_WORLD) ;
-        string name = string(buf) ;
-        delete[] buf ;
-        int nivals = 0 ;
-        if(MPI_rank == 0) nivals = volTags[i].second.num_intervals() ;
-        MPI_Bcast(&nivals,1,MPI_INT,0,MPI_COMM_WORLD) ;
+    int nvtags = volTags.size() ;
+    MPI_Bcast(&nvtags,1,MPI_INT,0,MPI_COMM_WORLD) ;
+    if(MPI_rank != 0) volTags.clear();
+    for(int i=0;i<nvtags;++i) {
+      int sz = 0 ;
+      if(MPI_rank == 0) sz = volTags[i].first.size() ;
+      MPI_Bcast(&sz,1,MPI_INT,0,MPI_COMM_WORLD) ;
+      char *buf = new char[sz+1] ;
+      buf[sz] = '\0' ;
+      if(MPI_rank == 0) strcpy(buf,volTags[i].first.c_str()) ;
+      MPI_Bcast(buf,sz,MPI_CHAR,0,MPI_COMM_WORLD) ;
+      string name = string(buf) ;
+      delete[] buf ;
+      int nivals = 0 ;
+      if(MPI_rank == 0) nivals = volTags[i].second.num_intervals() ;
+      MPI_Bcast(&nivals,1,MPI_INT,0,MPI_COMM_WORLD) ;
 
-        int *ibuf = new int[nivals*2] ;
-        if(MPI_rank == 0) 
-          for(int j=0;j<nivals;++j) {
-            ibuf[j*2]= volTags[i].second[j].first ;
-            ibuf[j*2+1]= volTags[i].second[j].second ;
-          }
-        MPI_Bcast(ibuf,nivals*2,MPI_INT,0,MPI_COMM_WORLD) ;
-        entitySet set ;
-        for(int j=0;j<nivals;++j) 
-          set += interval(ibuf[j*2],ibuf[j*2+1]) ;
-        if(MPI_rank != 0) 
-          volTags.push_back(pair<string,entitySet>(name,set)) ;
-        delete[] ibuf ;
-      }
+      int *ibuf = new int[nivals*2] ;
+      if(MPI_rank == 0) 
+        for(int j=0;j<nivals;++j) {
+          ibuf[j*2]= volTags[i].second[j].first ;
+          ibuf[j*2+1]= volTags[i].second[j].second ;
+        }
+      MPI_Bcast(ibuf,nivals*2,MPI_INT,0,MPI_COMM_WORLD) ;
+      entitySet set ;
+      for(int j=0;j<nivals;++j) 
+        set += interval(ibuf[j*2],ibuf[j*2+1]) ;
+      if(MPI_rank != 0) 
+        volTags.push_back(pair<string,entitySet>(name,set)) ;
+      delete[] ibuf ;
+    }
      
   }
   return volTags; 

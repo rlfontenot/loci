@@ -73,7 +73,7 @@ namespace Loci {
 #endif
      
       std::vector<dMap> g2lv ; // global numbering to local numbering
-                              // indexed by key domain
+      // indexed by key domain
       entitySet my_entities ;
       entitySet comp_entities;//local numbering of global_comp_entities
       
@@ -118,7 +118,7 @@ namespace Loci {
     } ;
     
     /*! all variables that point to the same storeRepP, the second of the pair at the end of chain
-     is the variable suppose to appear in fmap*/
+      is the variable suppose to appear in fmap*/
     std::map<variable,variable> synonyms ;
     
     // a copy function
@@ -163,15 +163,15 @@ namespace Loci {
 
     void set_variable_type(variable v, storeRepP st) ;
     void set_variable_type(std::string vname, storeRepP st)
-      { set_variable_type(variable(vname),st) ;}
+    { set_variable_type(variable(vname),st) ;}
     void set_variable_type(variable v, store_instance &si)
-      { set_variable_type(v,si.Rep()) ; }
+    { set_variable_type(v,si.Rep()) ; }
     void set_variable_type(std::string vname, store_instance &si)
-      { set_variable_type(variable(vname),si) ; }
+    { set_variable_type(variable(vname),si) ; }
 
     storeRepP get_variable_type(variable v) const ;
     storeRepP get_variable_type(std::string vname) const
-      { return get_variable_type(variable(vname)) ;}
+    { return get_variable_type(variable(vname)) ;}
 
       
     
@@ -201,28 +201,28 @@ namespace Loci {
     
     void update_fact(variable v, storeRepP st) ;
     void update_fact(std::string vname, storeRepP st)
-      { update_fact(variable(vname),st) ;}
+    { update_fact(variable(vname),st) ;}
     void update_fact(variable v, store_instance &si)
-      { update_fact(v,si.Rep()) ; si.setRep(get_variable(v)) ; }
+    { update_fact(v,si.Rep()) ; si.setRep(get_variable(v)) ; }
     void update_fact(std::string vname, store_instance &si)
-      { update_fact(variable(vname),si) ; }
+    { update_fact(variable(vname),si) ; }
 
     void replace_fact(variable v, storeRepP st)
-      { remove_variable(v) ; create_fact(v,st) ; }
+    { remove_variable(v) ; create_fact(v,st) ; }
     void replace_fact(std::string vname, storeRepP st)
-      { replace_fact(variable(vname),st) ;}
+    { replace_fact(variable(vname),st) ;}
     void replace_fact(variable v, store_instance &si)
-      { replace_fact(v,si.Rep()) ; si.setRep(get_variable(v)) ; }
+    { replace_fact(v,si.Rep()) ; si.setRep(get_variable(v)) ; }
     void replace_fact(std::string vname, store_instance &si)
-      { replace_fact(variable(vname),si) ; }
+    { replace_fact(variable(vname),si) ; }
 
     storeRepP get_fact(variable &v) { return get_variable(v); }
     storeRepP get_fact(std::string vname)
-      { return get_variable(variable(vname)) ; }
+    { return get_variable(variable(vname)) ; }
 
     storeRepP get_variable(variable v) ;
     storeRepP get_variable(std::string vname)
-      { return get_variable(variable(vname)) ; }
+    { return get_variable(variable(vname)) ; }
     
     void remove_variable(variable v) ;
     
@@ -372,16 +372,13 @@ namespace Loci {
       make_intensional_fact(variable(vname)) ;
     }
 
+   
     void write_all_hdf5(const char *filename) ;
     void read_all_hdf5(const char *filename) ;
     void write_hdf5(const char *filename, variableSet &vars) ;
     void read_hdf5(const char *filename, variableSet &vars) ;
 
-    void write_all_hdf5P(const char *filename) ;
-    void read_all_hdf5P(const char *filename) ;
-    void write_hdf5P(const char *filename, variableSet &vars) ;
-    void read_hdf5P(const char *filename, variableSet &vars) ;
-
+   
     void Print_diagnostics() ;
 
     // experimental code to create keyspace from the
@@ -403,7 +400,7 @@ namespace Loci {
   extern fact_db *exec_current_fact_db ;
 
   inline entitySet collect_entitySet(entitySet e)
-    { return collect_entitySet(e,*exec_current_fact_db) ; }
+  { return collect_entitySet(e,*exec_current_fact_db) ; }
 
   entitySet all_collect_entitySet(const entitySet &e) ;
 

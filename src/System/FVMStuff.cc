@@ -155,8 +155,8 @@ namespace Loci{
     if(color==0) {
       MPI_Comm_free(&groupcomm) ;
 #ifdef VERBOSE
-    debugout << "time to split comm and return = " << s.stop() << endl ;
-    s.start() ;
+      debugout << "time to split comm and return = " << s.stop() << endl ;
+      s.start() ;
 #endif
       Map newnum ;
       return newnum.Rep() ;
@@ -677,11 +677,8 @@ namespace Loci{
 
     // write grid topology file
     hid_t file_id = 0, group_id = 0 ;
-    if(use_parallel_io) {
-      file_id=writeVOGOpenP(filename) ;
-      group_id = H5Gcreate(file_id,"elements",H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-    } else if(MPI_rank == 0) {
-      file_id = H5Fcreate(filename,H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT) ;
+    file_id=writeVOGOpen(filename) ;
+    if(use_parallel_io ||MPI_rank == 0 ) {
 #ifdef H5_USE_16_API
       group_id = H5Gcreate(file_id,"elements",0) ;
 #else
@@ -689,41 +686,24 @@ namespace Loci{
 #endif
     }
 
-    if(use_parallel_io) {
-      writeUnorderedVectorP(group_id, "tetrahedra",tets) ;
-      writeUnorderedVectorP(group_id, "tetrahedra_ids",tets_ids) ;
+   
+    writeUnorderedVector(group_id, "tetrahedra",tets) ;
+    writeUnorderedVector(group_id, "tetrahedra_ids",tets_ids) ;
     
-      writeUnorderedVectorP(group_id, "hexahedra",hexs) ;
-      writeUnorderedVectorP(group_id, "hexahedra_ids",hexs_ids) ;
+    writeUnorderedVector(group_id, "hexahedra",hexs) ;
+    writeUnorderedVector(group_id, "hexahedra_ids",hexs_ids) ;
     
-      writeUnorderedVectorP(group_id, "prism",prsm) ;
-      writeUnorderedVectorP(group_id, "prism_ids",prsm_ids) ;
+    writeUnorderedVector(group_id, "prism",prsm) ;
+    writeUnorderedVector(group_id, "prism_ids",prsm_ids) ;
       
-      writeUnorderedVectorP(group_id, "pyramid",pyrm) ;
-      writeUnorderedVectorP(group_id, "pyramid_ids",pyrm_ids) ;
+    writeUnorderedVector(group_id, "pyramid",pyrm) ;
+    writeUnorderedVector(group_id, "pyramid_ids",pyrm_ids) ;
       
-      writeUnorderedVectorP(group_id, "GeneralCellNfaces",generalCellNfaces) ;
-      writeUnorderedVectorP(group_id, "GeneralCellNsides",generalCellNsides) ;
-      writeUnorderedVectorP(group_id, "GeneralCellNodes", generalCellNodes) ;
-      writeUnorderedVectorP(group_id, "GeneralCell_ids", generalCell_ids) ;
-    } else {
-      writeUnorderedVector(group_id, "tetrahedra",tets) ;
-      writeUnorderedVector(group_id, "tetrahedra_ids",tets_ids) ;
-    
-      writeUnorderedVector(group_id, "hexahedra",hexs) ;
-      writeUnorderedVector(group_id, "hexahedra_ids",hexs_ids) ;
-    
-      writeUnorderedVector(group_id, "prism",prsm) ;
-      writeUnorderedVector(group_id, "prism_ids",prsm_ids) ;
-      
-      writeUnorderedVector(group_id, "pyramid",pyrm) ;
-      writeUnorderedVector(group_id, "pyramid_ids",pyrm_ids) ;
-      
-      writeUnorderedVector(group_id, "GeneralCellNfaces",generalCellNfaces) ;
-      writeUnorderedVector(group_id, "GeneralCellNsides",generalCellNsides) ;
-      writeUnorderedVector(group_id, "GeneralCellNodes", generalCellNodes) ;
-      writeUnorderedVector(group_id, "GeneralCell_ids", generalCell_ids) ;
-    }
+    writeUnorderedVector(group_id, "GeneralCellNfaces",generalCellNfaces) ;
+    writeUnorderedVector(group_id, "GeneralCellNsides",generalCellNsides) ;
+    writeUnorderedVector(group_id, "GeneralCellNodes", generalCellNodes) ;
+    writeUnorderedVector(group_id, "GeneralCell_ids", generalCell_ids) ;
+     
     
     if(use_parallel_io || MPI_rank == 0) {
       H5Gclose(group_id) ;
@@ -869,27 +849,17 @@ namespace Loci{
         }
       } ENDFORALL ;
 
-      if(use_parallel_io) {
-	writeUnorderedVectorP(bc_id,"triangles",Trias) ;
-	writeUnorderedVectorP(bc_id,"triangles_id",tria_ids) ;
+     
+      writeUnorderedVector(bc_id,"triangles",Trias) ;
+      writeUnorderedVector(bc_id,"triangles_id",tria_ids) ;
 	
-	writeUnorderedVectorP(bc_id,"quads",Quads) ;
-	writeUnorderedVectorP(bc_id,"quads_id",quad_ids) ;
+      writeUnorderedVector(bc_id,"quads",Quads) ;
+      writeUnorderedVector(bc_id,"quads_id",quad_ids) ;
 	
-	writeUnorderedVectorP(bc_id,"nside_sizes",nsizes) ;
-	writeUnorderedVectorP(bc_id,"nside_nodes",nsidenodes) ;
-	writeUnorderedVectorP(bc_id,"nside_id",genc_ids) ;
-      } else {
-	writeUnorderedVector(bc_id,"triangles",Trias) ;
-	writeUnorderedVector(bc_id,"triangles_id",tria_ids) ;
-	
-	writeUnorderedVector(bc_id,"quads",Quads) ;
-	writeUnorderedVector(bc_id,"quads_id",quad_ids) ;
-	
-	writeUnorderedVector(bc_id,"nside_sizes",nsizes) ;
-	writeUnorderedVector(bc_id,"nside_nodes",nsidenodes) ;
-	writeUnorderedVector(bc_id,"nside_id",genc_ids) ;
-      }
+      writeUnorderedVector(bc_id,"nside_sizes",nsizes) ;
+      writeUnorderedVector(bc_id,"nside_nodes",nsidenodes) ;
+      writeUnorderedVector(bc_id,"nside_id",genc_ids) ;
+       
       if(use_parallel_io || MPI_rank == 0) {
         H5Gclose(bc_id) ;
       }
@@ -971,15 +941,10 @@ namespace Loci{
     hid_t file_id = 0;
     if(MPI_rank == 0) {
       get_bc_directory(bc_name);
-      string dirname = "output/"+bc_name+"/";
-      string filename = dirname+file_name;
-      file_id = H5Fcreate(filename.c_str(),H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT) ;
-    
-      if(file_id == 0){
-        cerr << "ERROR: can not file " << filename << endl ;
-        Loci::Abort() ;
-      }
     }
+    string dirname = "output/"+bc_name+"/";
+    string filename = dirname+file_name;
+    file_id=writeVOGOpen(filename.c_str()) ;
     return file_id;
   }
   
@@ -1122,15 +1087,18 @@ namespace Loci{
     debugout << "time to generate topology datasets = " << s.stop() << endl ;
     s.start() ;
 #endif
+
+    
     //write out vectors
     writeUnorderedVector(file_id,"triangles",Trias) ;
     writeUnorderedVector(file_id,"triangles_ord",tria_ids) ;
     writeUnorderedVector(file_id,"quads",Quads) ;
     writeUnorderedVector(file_id,"quads_ord",quad_ids) ;
-    
+      
     writeUnorderedVector(file_id,"nside_sizes",nsizes) ;
     writeUnorderedVector(file_id,"nside_nodes",nsidenodes) ;
     writeUnorderedVector(file_id,"nside_ord",genc_ids) ;
+ 
 #ifdef VERBOSE
     debugout << "time to write unordered vectors = " << s.stop() << endl ;
     debugout << "finished writing boundary topology" << endl ;
@@ -1442,6 +1410,7 @@ namespace Loci{
       nsizes[i] = cp.faceLoops[i].size();
     }
     
+    
     writeUnorderedVector(bc_id,"nside_sizes",nsizes) ;
     
     //write out face nodes
@@ -1454,7 +1423,10 @@ namespace Loci{
         }
       }
     }
+    
+   
     writeUnorderedVector(bc_id,"nside_nodes",nsidenodes) ;
+
 #ifdef VERBOSE
     debugout << "time to write cut plane topology=" << s.stop() << endl ;
 #endif
@@ -2920,69 +2892,69 @@ namespace Loci{
     // this function transposes the passed in vector<entitySet>
     // by an all to all personalized communication
     // UNUSED
-//     vector<entitySet>
-//     transpose_vector_entitySet(const vector<entitySet>& in) {
-//       // first compute the send count and displacement
-//       int* send_counts = new int[MPI_processes] ;
-//       for(int i=0;i<MPI_processes;++i)
-//         send_counts[i] = in[i].size() ;
-//       int* send_displs = new int[MPI_processes] ;
-//       send_displs[0] = 0 ;
-//       for(int i=1;i<MPI_processes;++i)
-//         send_displs[i] = send_displs[i-1] + send_counts[i-1] ;
-//       // then communicate this get the recv info.
-//       int* recv_counts = new int[MPI_processes] ;
-//       MPI_Alltoall(send_counts, 1, MPI_INT,
-//                    recv_counts, 1, MPI_INT, MPI_COMM_WORLD) ;
-//       int* recv_displs = new int[MPI_processes] ;
-//       recv_displs[0] = 0 ;
-//       for(int i=1;i<MPI_processes;++i)
-//         recv_displs[i] = recv_displs[i-1] + recv_counts[i-1] ;
-//       // all info. gathered, ready to do MPI_Alltoallv
-//       // first pack data into a raw buffer.
-//       int buf_size = 0 ;
-//       for(int i=0;i<MPI_processes;++i)
-//         buf_size += send_counts[i] ;
-//       int* send_buf = new int[buf_size] ;
-//       int buf_idx = 0 ;
-//       for(int i=0;i<MPI_processes;++i) {
-//         const entitySet& eset = in[i] ;
-//         for(entitySet::const_iterator ei=eset.begin();
-//             ei!=eset.end();++ei,++buf_idx)
-//           send_buf[buf_idx] = *ei ;
-//       }
-//       // allocate receive buffer
-//       int recv_size = 0 ;
-//       for(int i=0;i<MPI_processes;++i)
-//         recv_size += recv_counts[i] ;
-//       int* recv_buf = new int[recv_size] ;
-//       // communicate
-//       MPI_Alltoallv(send_buf, send_counts,
-//                     send_displs, MPI_INT,
-//                     recv_buf, recv_counts,
-//                     recv_displs, MPI_INT, MPI_COMM_WORLD) ;
-//       delete[] send_counts ;
-//       delete[] send_displs ;
-//       delete[] recv_counts ;
-//       delete[] send_buf ;
-//       // unpack recv buffer into a vector of entitySet
-//       vector<entitySet> out(MPI_processes) ;    
-//       int k = 0 ;
-//       for(int i=0;i<MPI_processes;++i) {
-//         int limit ;
-//         if(i == MPI_processes-1)
-//           limit = recv_size ;
-//         else
-//           limit = recv_displs[i+1] ;
-//         for(;k<limit;++k)
-//           out[i] += recv_buf[k] ;
-//       }
-//       delete[] recv_displs ;
-//       delete[] recv_buf ;
+    //     vector<entitySet>
+    //     transpose_vector_entitySet(const vector<entitySet>& in) {
+    //       // first compute the send count and displacement
+    //       int* send_counts = new int[MPI_processes] ;
+    //       for(int i=0;i<MPI_processes;++i)
+    //         send_counts[i] = in[i].size() ;
+    //       int* send_displs = new int[MPI_processes] ;
+    //       send_displs[0] = 0 ;
+    //       for(int i=1;i<MPI_processes;++i)
+    //         send_displs[i] = send_displs[i-1] + send_counts[i-1] ;
+    //       // then communicate this get the recv info.
+    //       int* recv_counts = new int[MPI_processes] ;
+    //       MPI_Alltoall(send_counts, 1, MPI_INT,
+    //                    recv_counts, 1, MPI_INT, MPI_COMM_WORLD) ;
+    //       int* recv_displs = new int[MPI_processes] ;
+    //       recv_displs[0] = 0 ;
+    //       for(int i=1;i<MPI_processes;++i)
+    //         recv_displs[i] = recv_displs[i-1] + recv_counts[i-1] ;
+    //       // all info. gathered, ready to do MPI_Alltoallv
+    //       // first pack data into a raw buffer.
+    //       int buf_size = 0 ;
+    //       for(int i=0;i<MPI_processes;++i)
+    //         buf_size += send_counts[i] ;
+    //       int* send_buf = new int[buf_size] ;
+    //       int buf_idx = 0 ;
+    //       for(int i=0;i<MPI_processes;++i) {
+    //         const entitySet& eset = in[i] ;
+    //         for(entitySet::const_iterator ei=eset.begin();
+    //             ei!=eset.end();++ei,++buf_idx)
+    //           send_buf[buf_idx] = *ei ;
+    //       }
+    //       // allocate receive buffer
+    //       int recv_size = 0 ;
+    //       for(int i=0;i<MPI_processes;++i)
+    //         recv_size += recv_counts[i] ;
+    //       int* recv_buf = new int[recv_size] ;
+    //       // communicate
+    //       MPI_Alltoallv(send_buf, send_counts,
+    //                     send_displs, MPI_INT,
+    //                     recv_buf, recv_counts,
+    //                     recv_displs, MPI_INT, MPI_COMM_WORLD) ;
+    //       delete[] send_counts ;
+    //       delete[] send_displs ;
+    //       delete[] recv_counts ;
+    //       delete[] send_buf ;
+    //       // unpack recv buffer into a vector of entitySet
+    //       vector<entitySet> out(MPI_processes) ;    
+    //       int k = 0 ;
+    //       for(int i=0;i<MPI_processes;++i) {
+    //         int limit ;
+    //         if(i == MPI_processes-1)
+    //           limit = recv_size ;
+    //         else
+    //           limit = recv_displs[i+1] ;
+    //         for(;k<limit;++k)
+    //           out[i] += recv_buf[k] ;
+    //       }
+    //       delete[] recv_displs ;
+    //       delete[] recv_buf ;
 
-//       return out ;
-//     }
-//     // end of unnamed namespace
+    //       return out ;
+    //     }
+    //     // end of unnamed namespace
   }
   
  
