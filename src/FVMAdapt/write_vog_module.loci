@@ -40,7 +40,10 @@ using std::vector;
 using Loci::MPI_rank;
 using Loci::MPI_processes;
 namespace Loci{
-    void writeVOGTag(hid_t output_fid,  vector<pair<string,entitySet> >& volTags);
+  void writeVOGTag(hid_t output_fid,  vector<pair<string,entitySet> >& volTags);
+  hid_t hdf5OpenFile(const char *name, unsigned flags, hid_t access_id,
+		     MPI_Comm comm) ;
+
 }
 vector<pair<string,entitySet> >  getVOGTagFromLocal(const vector<pair<string,entitySet> >& volTagsInput,
                                                     const_store<int> &cell_offset,
@@ -79,9 +82,8 @@ public:
   virtual void compute(const sequence &seq) {
     hid_t file_id = Loci::writeVOGOpen(*outfile_par) ;
     vector<pair<int,string> > boundary_ids;
-    
+    //process 0 read in boundary_ids and broadcast it to all prcesses
     Loci::readBCfromVOG(*meshfile_par, boundary_ids);
-    
     Loci::writeVOGSurf(file_id,boundary_ids);
     Loci::storeRepP pos = Loci::exec_current_fact_db->get_variable("pos");
     writeVOGNode(file_id, pos, inner_nodes);
@@ -120,14 +122,14 @@ public:
     //first put fine_faces into a maps
     hid_t file_id = 0 ;
 
-    long numNodes = 0;
+    long long numNodes = 0;
 
-    if(MPI_rank==0){
-       
+    
+    if(MPI_rank==0 || Loci::use_parallel_io){   
       //read numNodes
       long long tmp_numNodes;  
-      file_id = H5Fopen((*outfile_par).c_str(),H5F_ACC_RDWR,H5P_DEFAULT) ;
-       
+      file_id = Loci::hdf5OpenFile((*outfile_par).c_str(),H5F_ACC_RDWR,H5P_DEFAULT) ;
+      
 #ifdef H5_USE_16_API
       hid_t    group_id = H5Gopen(file_id,"file_info");
 #else
@@ -142,8 +144,9 @@ public:
       ret = H5Gclose(group_id);
       numNodes = tmp_numNodes;
     }
+    
     //problem here; MPI has no long long 
-    if(MPI_processes > 1) MPI_Bcast(&numNodes, 1, MPI_LONG, 0, MPI_COMM_WORLD);
+    if(MPI_processes > 1 && !Loci::use_parallel_io) MPI_Bcast(&numNodes, 1, MPI_LONG_LONG_INT, 0, MPI_COMM_WORLD);
      
     //compute numFaces
     int local_num_face = 0;

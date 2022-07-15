@@ -325,16 +325,15 @@ namespace Loci {
       int prank=0,pnum = 0 ;
       MPI_Comm_rank(comm,&prank) ;
       MPI_Comm_size(comm,&pnum) ;
-      // std::vector<int> sort_max(pnum) ;
-      //int tot_entities = vint.size() ;
-      //sort_max = all_collect_sizes(tot_entities,comm) ;
+      std::vector<int> sort_max(pnum) ;
+      int tot_entities = vint.size() ;
+      sort_max = all_collect_sizes(tot_entities,comm) ;
       std::vector<int> sizes = all_collect_sizes(vint.size());
-      //   std::sort(sort_max.begin(), sort_max.end()) ;
-    
-      int tot_entities = 0 ;
+      std::sort(sort_max.begin(), sort_max.end()) ;
+      tot_entities = 0 ;
       for(int i = 0; i < pnum; ++i)
-        tot_entities += sizes[i] ;
-      int *tmp_int = new int[sizes[prank]] ;
+        tot_entities += sort_max[i] ;
+      int *tmp_int = new int[sort_max[pnum-1]] ;
       int tmp = 0 ;
       for(std::vector<int>::iterator vi = vint.begin(); vi != vint.end(); ++vi)
         tmp_int[tmp++] = *vi ;
@@ -355,31 +354,27 @@ namespace Loci {
       if(dimension != 0) {
         //create dataset collectively
         hid_t dataspace = H5Screate_simple(rank, &dimension, NULL) ;
+        count = sizes[prank] ;
+        for(int i = 0; i < prank; i++)start += sizes[prank] ;
+        if(count != 0)H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
+        else H5Sselect_none(dataspace);
+      
 #ifdef H5_USE_16_API
         hid_t dataset = H5Dcreate(group_id, name , datatype, dataspace,H5P_DEFAULT) ;
 #else
         hid_t dataset = H5Dcreate(group_id, name , datatype, dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
 #endif
         dimension = sizes[prank] ;
-        count = sizes[prank] ;
-        for(int i = 0; i < prank; i++)start += sizes[prank] ;
-      
-        //create a file dataspace independently
-        hid_t file_dataspace = H5Dget_space (dataset);
-        if(count != 0)H5Sselect_hyperslab(file_dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
-        else H5Sselect_none(file_dataspace);
-      
+           
         //it is ok for dimension to be 0
         hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
-
         hid_t xfer_plist = create_xfer_plist(Loci::hdf5_const::dxfer_coll_type);
         H5Dwrite(dataset, datatype, memspace, dataspace, xfer_plist, tmp_int) ;
-      
-        H5Pclose(xfer_plist);
-        H5Dclose(file_dataspace);
-        H5Dclose(dataspace);
         H5Sclose(memspace) ;
+        H5Pclose(xfer_plist);
+        
         H5Dclose(dataset) ;
+        H5Sclose(dataspace);
       }	  
       delete [] tmp_int ;
       
