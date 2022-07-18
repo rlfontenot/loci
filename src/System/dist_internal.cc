@@ -355,7 +355,7 @@ namespace Loci {
         //create dataset collectively
         hid_t dataspace = H5Screate_simple(rank, &dimension, NULL) ;
         count = sizes[prank] ;
-        for(int i = 0; i < prank; i++)start += sizes[prank] ;
+        for(int i = 0; i < prank; i++)start += sizes[i] ;
         if(count != 0)H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
         else H5Sselect_none(dataspace);
       
