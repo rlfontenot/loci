@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -25,7 +25,6 @@
 #include <sstream>
 
 #include "rule.h"
-
 #include <fact_db.h>
 #include <constraint.h>
 
@@ -194,6 +193,7 @@ namespace Loci {
     name = "UNNAMED" ;
     rule_impl_class = UNKNOWN ;
     rule_threading = true ;
+    gpgpu_kernel = false ;
     use_dynamic_schedule = false ;
     relaxed_recursion = false ;
     specialized_parametric = false ;
@@ -314,13 +314,13 @@ namespace Loci {
           vmsi!=rule_info.targets.end();
           ++vmsi) {
         for(size_t i=0;i<vmsi->assign.size();++i) {
-          if(vmsi->assign[i].first == v) {
-            sip = var_table.equal_range(vmsi->assign[i].second) ;
-            sp = sip.first ;
-            if(sip.first != sip.second) 
-              return sp->second->Rep() ;
+            if(vmsi->assign[i].first == v) {
+              sip = var_table.equal_range(vmsi->assign[i].second) ;
+              sp = sip.first ;
+              if(sip.first != sip.second) 
+                return sp->second->Rep() ;
+            }
           }
-        }
       }
       return storeRepP(0) ;
     }
@@ -551,14 +551,14 @@ namespace Loci {
                mi->second->Rep()->RepType() != PARAMETER &&
                mi->second->Rep()->RepType() != MAP &&
 	       mi->second->Rep()->RepType() != BLACKBOX) {
-              cerr << "-------------------------------------------------"<<endl;
-              cerr << "Singleton rule should have sources of param or" << endl;
-              cerr << "blackbox type.  Perhaps this rule should be a" << endl;
-              cerr << "pointwise_rule, or apply_rule."<< endl ;
-              cerr << "Error occured for rule " << get_name() 
-                   << " and variable " << *sri << endl ;
-              cerr << "-------------------------------------------------"<<endl;
-              retval = false ;
+            cerr << "-------------------------------------------------"<<endl;
+            cerr << "Singleton rule should have sources of param or" << endl;
+	    cerr << "blackbox type.  Perhaps this rule should be a" << endl;
+	    cerr << "pointwise_rule, or apply_rule."<< endl ;
+            cerr << "Error occured for rule " << get_name() 
+                 << " and variable " << *sri << endl ;
+            cerr << "-------------------------------------------------"<<endl;
+            retval = false ;
             }
           }
           if(si->get_info().priority.size() != 0) {
@@ -600,7 +600,6 @@ namespace Loci {
     }
   }
 
-  
   void
   rule_impl::replace_map_constraints(fact_db& facts) {
     // NOTE: because the rule_info utilizes a set<vmap_info> as
@@ -650,6 +649,7 @@ namespace Loci {
         if(crp == 0) {
           Loci::constraint mapc ;
           *mapc = srp->domain() ;
+	  mapc.Rep()->setDomainKeySpace(srp->getDomainKeySpace()) ;
           // install it in fact_db
           facts.create_fact(new_name, mapc) ;
         }
@@ -782,7 +782,7 @@ namespace Loci {
     vset += rule_info.conditionals ;
     
     return vset ;
-  }
+}
   
   void rule_impl::set_variable_times(time_ident tl) {
     set<vmap_info>::const_iterator i ;
@@ -1115,7 +1115,7 @@ namespace Loci {
     variableSet vset = rule_impl->get_var_list() ;
     std::map<variable, variable> rm ;
     for(variableSet::const_iterator vsi = vset.begin(); vsi != vset.end(); ++vsi) {
-      rm[variable(*vsi)] = variable(variable(*vsi), tl) ;
+    rm[variable(*vsi)] = variable(variable(*vsi), tl) ;
     }
     rule_impl->rename_vars(rm) ;
     
@@ -1632,6 +1632,7 @@ namespace Loci {
   register_rule_impl_list register_rule_list ;
   rule_impl_list global_rule_list ;
   
+  std::string register_module::load_nspace() const { return string("") ; }
   
   rule_impl_list::~rule_impl_list() {
     rule_list_ent *p,*v ;
@@ -1686,9 +1687,9 @@ namespace Loci {
     }
     global_list = 0 ;
   }
-  bool register_rule_impl_list::empty() {
-    return (global_list == 0) ;
-  }
+   bool register_rule_impl_list::empty() {
+     return (global_list == 0) ;
+   }
   void register_rule_impl_list::push_rule(register_rule_type *p) {
     rule_list_ent *flp = new rule_list_ent(p,global_list) ;
     global_list = flp ;

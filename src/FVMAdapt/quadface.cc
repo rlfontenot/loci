@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -24,7 +24,6 @@
 using std::cout;
 using std::endl;
 
-#pragma GCC diagnostic ignored "-Wchar-subscripts"
 
 //for get_c1_hex and get_c1_prism,when a cell is empty_split, faceMap is created
 // and face is split to generate leaves, by look-up the faceMap, c1 can be computed
@@ -168,6 +167,11 @@ char orient_edgeID_f2c(char edgeID, char orientCode){
     return char((3-edgeID+orientCode)%4);
   }
 }
+
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wchar-subscripts"
+#endif
 
 //used in building cells, quadface is built as defined in cell, and split with orientCode
 //all new nodes and edges are put into node_list and edge_list
@@ -430,8 +434,7 @@ void QuadFace::split(char splitCode, char orientCode,
       //split edges
       for(char i = 0; i < 4; i++){
         char edgeID = orient_edgeID_f2c(i, orientCode);
-        if(edge[edgeID]->child == 0)
-	  edge[edgeID]->split(node_list);
+        if(edge[edgeID]->child == 0) edge[edgeID]->split(node_list);
       }
       
       //define new Node
@@ -1349,3 +1352,6 @@ void tag_quad_face( const Entity* face2node,
   cleanup_list(tmp_node_list2);
   cleanup_list(tmp_bnode_list);
 }
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif

@@ -6,9 +6,9 @@
 
 #define YES 1
 #define NO  0
-#define NPRIMES 1000
+#define NPRIMES 10000
 
-int primes[NPRIMES];
+extern int primes[NPRIMES];
 
 #ifdef __STDC__
 int init_prime_32(void)

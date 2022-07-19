@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -42,8 +42,7 @@ using Loci::const_MapVec ;
 using Loci::multiMap ;
 using Loci::const_multiMap ;
 using Loci::inverseMap ;
-
-//using Loci::distributed_inverseMap ;
+using Loci::distributed_inverseMap ;
 using Loci::accessMap ;
 
 using Loci::store ;

@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -36,7 +36,6 @@ using std::set ;
 //#define VERBOSE
 
 namespace Loci {
-  extern bool in_internal_query;
   extern bool threading_recursion;
   extern int num_total_recursion;
   extern int num_threaded_recursion;
@@ -536,6 +535,11 @@ namespace Loci {
       fctrl.use_constraints = false ;
       for(si=finfo.constraints.begin();si!=finfo.constraints.end();++si) {
         warn((si->var & tvars) != EMPTY) ;
+#ifdef DEBUG
+	if((si->var & tvars) != EMPTY) {
+	  cerr << "fset=" << fset << endl ;
+	}
+#endif
         constraints &= vmap_source_exist(*si,facts, scheds) ;
         fctrl.use_constraints = true ;
       }
@@ -940,14 +944,14 @@ namespace Loci {
           if(li->size() != 0) {
             executeP exec_rule;
 #ifdef PTHREADS
-            if (!in_internal_query && threading_recursion) {
+            if (threading_recursion) {
               int tnum = thread_control->num_threads();
               int minw = thread_control->min_work_per_thread();
               if (!num_threads_counted) {
                 ++num_threaded_recursion;
                 num_threads_counted = true;
               }
-              if (li->size() >= (size_t)tnum*minw)
+              if (li->size() >= tnum*minw)
                 exec_rule = new Threaded_execute_rule
                   (*ri, sequence(*li), facts, scheds);
               else

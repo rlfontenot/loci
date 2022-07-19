@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2015, Mississippi State University
+//# Copyright 2015-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -18,6 +18,7 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
+#include <Loci>
 #include <interpolate.h>
 
 namespace Loci {
@@ -27,15 +28,15 @@ namespace Loci {
  
   // Compute stencil using nearest point in 8 octants
   vector<int> get_stencil(const kdTree::KDTree<float> &kd,vect3d pnt,
-                          real_t delta) {
+                          real_t deltai) {
     vector<int> neighbors(8) ;
     kdTree::coord3df ccenter ;
-    ccenter[0] = pnt.x ;
-    ccenter[1] = pnt.y ;
-    ccenter[2] = pnt.z ;
-
-    real_t rmin = 2.*delta*delta ; // Note rmin is radius squared.
-    real_t rmin_ref = rmin ;
+    ccenter[0] = realToFloat(pnt.x) ;
+    ccenter[1] = realToFloat(pnt.y) ;
+    ccenter[2] = realToFloat(pnt.z) ;
+    double delta = 1.4142*realToDouble(deltai) ;
+    double rmin = delta*delta ; // Note rmin is radius squared.
+    double rmin_ref = rmin ;
     
     int id = kd.find_closest(ccenter,rmin) ;
 
@@ -43,13 +44,14 @@ namespace Loci {
       // If no points in stencil radius, return closest point
       vector<int> n ;
       id = kd.find_closest(ccenter) ;
-      if(id >=0)
+      if(id >=0 && id !=std::numeric_limits<int>::max())
         n.push_back(id) ;
       return n ;
     }
     if(rmin <= 1e-30) {
       vector<int> n ;
-      n.push_back(id) ;
+      if(id != std::numeric_limits<int>::max())
+	n.push_back(id) ;
       return n ;
     }
 
@@ -64,24 +66,32 @@ namespace Loci {
 
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[0] = id;
 
     box.maxc[0] = ccenter[0] ;
     box.minc[0] = ccenter[0]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[1] = id;
 
     box.maxc[1] = ccenter[1] ;
     box.minc[1] = ccenter[1]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[2] = id;
 
     box.minc[0] = ccenter[0] ;
     box.maxc[0] = ccenter[0]+delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[3] = id;
 
     // Now gather negative z quadrants
@@ -93,60 +103,70 @@ namespace Loci {
     box.minc[2] = ccenter[2]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[4] = id;
 
     box.maxc[0] = ccenter[0] ;
     box.minc[0] = ccenter[0]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[5] = id ;
 
     box.maxc[1] = ccenter[1] ;
     box.minc[1] = ccenter[1]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[6] = id ;
 
     box.minc[0] = ccenter[0] ;
     box.maxc[0] = ccenter[0]+delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[7] = id ;
 
     return neighbors ;
   }
 
   // Compute stencil using nearest point in 8 octants (real_t precision)
-  vector<int> get_stencil(const kdTree::KDTree<real_t> &kd,vect3d pnt,
-                          real_t delta) {
+  vector<int> get_stencil(const kdTree::KDTree<double> &kd,vect3d pnt,
+                          real_t deltai) {
     vector<int> neighbors(8) ;
     kdTree::coord3d ccenter ;
-    ccenter[0] = pnt.x ;
-    ccenter[1] = pnt.y ;
-    ccenter[2] = pnt.z ;
+    ccenter[0] = realToFloat(pnt.x) ;
+    ccenter[1] = realToFloat(pnt.y) ;
+    ccenter[2] = realToFloat(pnt.z) ;
 
-    real_t rmin = 2.*delta*delta ; // Note rmin is radius squared.
-    real_t rmin_ref = rmin ;
+    double delta = 1.4142*realToDouble(deltai) ;
+    double rmin = delta*delta ; // Note rmin is radius squared.
+    double rmin_ref = rmin ;
     
     int id = kd.find_closest(ccenter,rmin) ;
 
-    if(id < 0) {
+    if(id < 0 ) {
       // If no points in stencil radius, return closest point
       vector<int> n ;
       id = kd.find_closest(ccenter) ;
-      if(id >=0)
+      if(id >=0 && id != std::numeric_limits<int>::max())
         n.push_back(id) ;
       return n ;
     }
     if(rmin <= 1e-30) {
       vector<int> n ;
-      n.push_back(id) ;
+      if(id != std::numeric_limits<int>::max())
+	n.push_back(id) ;
       return n ;
     }
 
     
     // First gather postive z quadrants
-    kdTree::KDTree<real_t>::bounds box ;
+    kdTree::KDTree<double>::bounds box ;
 
     for(int i=0;i<3;++i) {
       box.minc[i] = ccenter[i] ;
@@ -155,24 +175,32 @@ namespace Loci {
 
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[0] = id;
 
     box.maxc[0] = ccenter[0] ;
     box.minc[0] = ccenter[0]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[1] = id;
 
     box.maxc[1] = ccenter[1] ;
     box.minc[1] = ccenter[1]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[2] = id;
 
     box.minc[0] = ccenter[0] ;
     box.maxc[0] = ccenter[0]+delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[3] = id;
 
     // Now gather negative z quadrants
@@ -184,24 +212,32 @@ namespace Loci {
     box.minc[2] = ccenter[2]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[4] = id;
 
     box.maxc[0] = ccenter[0] ;
     box.minc[0] = ccenter[0]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[5] = id ;
 
     box.maxc[1] = ccenter[1] ;
     box.minc[1] = ccenter[1]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[6] = id ;
 
     box.minc[0] = ccenter[0] ;
     box.maxc[0] = ccenter[0]+delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
+    if(id == std::numeric_limits<int>::max())
+      id = -1 ;
     neighbors[7] = id ;
 
     return neighbors ;
@@ -486,7 +522,7 @@ namespace Loci {
     N[0] = nt[0] ;
     N[1] = nt[1] ;
     vect3d v1 = loc[nt[1]]-v0 ;
-    W[1] = max(0.0,min(1.0,dot(vc,v1)/(dot(v1,v1)+1e-30))) ;
+    W[1] = max(real_t(0.0),min(real_t(1.0),dot(vc,v1)/(dot(v1,v1)+1e-30))) ;
     W[0] = 1.-W[1] ;
     w.swap(W) ;
     neighbors.swap(N) ;
@@ -520,42 +556,42 @@ namespace Loci {
 
 
   void getStencilBoundingBox2(kdTree::KDTree<float>::bounds &bnd,
-			      real_t &delta,
+			      double &delta,
 			      const kdTree::KDTree<float> &kd,
-			      const vect3d pnts[],int start, int end) {
-    real_t deltain = delta ;
+			      const vector3d<real_t> pnts[],int start, int end) {
+    double deltain = delta ;
     for(int d=0;d<3;++d) {
       bnd.minc[d] = .25*std::numeric_limits<float>::max() ;
       bnd.maxc[d] = -.25*std::numeric_limits<float>::max() ;
     }
 
     for(int i=start;i<end;++i) {
-      bnd.maxc[0] = max(bnd.maxc[0],float(pnts[i].x)) ;
-      bnd.maxc[1] = max(bnd.maxc[1],float(pnts[i].y)) ;
-      bnd.maxc[2] = max(bnd.maxc[2],float(pnts[i].z)) ;
-      bnd.minc[0] = min(bnd.minc[0],float(pnts[i].x)) ;
-      bnd.minc[1] = min(bnd.minc[1],float(pnts[i].y)) ;
-      bnd.minc[2] = min(bnd.minc[2],float(pnts[i].z)) ;
+      bnd.maxc[0] = max(bnd.maxc[0],realToFloat(pnts[i].x)) ;
+      bnd.maxc[1] = max(bnd.maxc[1],realToFloat(pnts[i].y)) ;
+      bnd.maxc[2] = max(bnd.maxc[2],realToFloat(pnts[i].z)) ;
+      bnd.minc[0] = min(bnd.minc[0],realToFloat(pnts[i].x)) ;
+      bnd.minc[1] = min(bnd.minc[1],realToFloat(pnts[i].y)) ;
+      bnd.minc[2] = min(bnd.minc[2],realToFloat(pnts[i].z)) ;
     }
     int npnts = collectPointsSizes(kd,bnd) ;
 
     if(npnts == 0) {
       // just estimate based on what we have on this processor
       for(int i=start;i<end;++i) {
-	real_t rmin = 1e30 ;
+	double rmin = 1e30 ;
 	kdTree::coord3df pt ;
-	pt[0] = pnts[i].x ;
-	pt[1] = pnts[i].y ;
-	pt[2] = pnts[i].z ;
+	pt[0] = realToFloat(pnts[i].x) ;
+	pt[1] = realToFloat(pnts[i].y) ;
+	pt[2] = realToFloat(pnts[i].z) ;
 
 	kd.find_closest(pt,rmin) ;
 	delta = max(delta,sqrt(rmin)) ;
       }
     } else {
       // Compute a delta to expand the bounding box
-      real_t d1 = bnd.maxc[0]-bnd.minc[0] ;
-      real_t d2 = bnd.maxc[1]-bnd.minc[1] ;
-      real_t d3 = bnd.maxc[2]-bnd.minc[2] ;
+      double d1 = bnd.maxc[0]-bnd.minc[0] ;
+      double d2 = bnd.maxc[1]-bnd.minc[1] ;
+      double d3 = bnd.maxc[2]-bnd.minc[2] ;
       if(d1<d2)
 	std::swap(d1,d2) ;
       if(d1<d3)
@@ -564,8 +600,8 @@ namespace Loci {
 	std::swap(d2,d3) ;
       
       // Compute mean distance
-      real_t rnpnts = 1./real_t(npnts) ;
-      real_t dist = max(max(d1*rnpnts,sqrt(d1*d2*rnpnts)),
+      double rnpnts = 1./double(npnts) ;
+      double dist = max(max(d1*rnpnts,sqrt(d1*d2*rnpnts)),
 		      pow(d1*d2*d3*rnpnts,0.333333333)) ;
 
       // Over estimate to try to get the distance required to find stencil pnts
@@ -587,7 +623,7 @@ namespace Loci {
     int npnts2 = collectPointsSizes(kd,bnd) ;
     
     if(npnts2 > 1000000) {
-      real_t f = pow(real_t(npnts)/real_t(npnts2+1),0.33333) ;
+      double f = pow(double(npnts)/double(npnts2+1),0.33333) ;
       
 #ifdef VERBOSE
       debugout << "npnts2="<<npnts2 <<",f=" << f << endl ;
@@ -597,9 +633,9 @@ namespace Loci {
         bnd.minc[d] += (1.-f)*(delta-deltain) ;
       }
     }
-    real_t max_delta = 0 ;
+    double max_delta = 0 ;
     for(int d=0;d<3;++d) {
-      max_delta = max(max_delta,real_t(bnd.maxc[d]-bnd.minc[d])) ;
+      max_delta = max(max_delta,double(bnd.maxc[d]-bnd.minc[d])) ;
     }
     max_delta *= 1e-3 ;
     for(int d=0;d<3;++d) {
@@ -612,21 +648,21 @@ namespace Loci {
   }
 
   void getStencilBoundingBox(kdTree::KDTree<float>::bounds &bnd,
-                             real_t &delta,
-                             const const_store<vect3d> &pnts,
+                             double &delta,
+                             const const_store<vector3d<real_t> > &pnts,
                              entitySet dom) {
     //    MEMORY_PROFILE(getStencilBoundingBoxBegin) ;
     for(int d=0;d<3;++d) {
-      bnd.minc[d] = .25*std::numeric_limits<real_t>::max() ;
-      bnd.maxc[d] = -.25*std::numeric_limits<real_t>::max() ;
+      bnd.minc[d] = .25*std::numeric_limits<float>::max() ;
+      bnd.maxc[d] = -.25*std::numeric_limits<float>::max() ;
     }
     FORALL(dom,cc) {
-      bnd.maxc[0] = max(bnd.maxc[0],float(pnts[cc].x)) ;
-      bnd.maxc[1] = max(bnd.maxc[1],float(pnts[cc].y)) ;
-      bnd.maxc[2] = max(bnd.maxc[2],float(pnts[cc].z)) ;
-      bnd.minc[0] = min(bnd.minc[0],float(pnts[cc].x)) ;
-      bnd.minc[1] = min(bnd.minc[1],float(pnts[cc].y)) ;
-      bnd.minc[2] = min(bnd.minc[2],float(pnts[cc].z)) ;
+      bnd.maxc[0] = max(bnd.maxc[0],realToFloat(pnts[cc].x)) ;
+      bnd.maxc[1] = max(bnd.maxc[1],realToFloat(pnts[cc].y)) ;
+      bnd.maxc[2] = max(bnd.maxc[2],realToFloat(pnts[cc].z)) ;
+      bnd.minc[0] = min(bnd.minc[0],realToFloat(pnts[cc].x)) ;
+      bnd.minc[1] = min(bnd.minc[1],realToFloat(pnts[cc].y)) ;
+      bnd.minc[2] = min(bnd.minc[2],realToFloat(pnts[cc].z)) ;
     } ENDFORALL ;
 
     kdTree::KDTree<float>::bounds bndall ;
@@ -638,9 +674,9 @@ namespace Loci {
     int npnts = 0 ;
     MPI_Allreduce(&domsize,&npnts,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD) ;
     // Compute a delta to expand the bounding box
-    real_t d1 = bndall.maxc[0]-bndall.minc[0] ;
-    real_t d2 = bndall.maxc[1]-bndall.minc[1] ;
-    real_t d3 = bndall.maxc[2]-bndall.minc[2] ;
+    double d1 = bndall.maxc[0]-bndall.minc[0] ;
+    double d2 = bndall.maxc[1]-bndall.minc[1] ;
+    double d3 = bndall.maxc[2]-bndall.minc[2] ;
     if(d1<d2)
       std::swap(d1,d2) ;
     if(d1<d3)
@@ -649,8 +685,8 @@ namespace Loci {
       std::swap(d2,d3) ;
 
     // Compute mean distance
-    real_t rnpnts = 1./real_t(npnts) ;
-    real_t dist = max(max(d1*rnpnts,sqrt(d1*d2*rnpnts)),
+    double rnpnts = 1./double(npnts) ;
+    double dist = max(max(d1*rnpnts,sqrt(d1*d2*rnpnts)),
                     pow(d1*d2*d3*rnpnts,0.333333333)) ;
 
     // Over estimate to try to get the distance required to find stencil pnts
@@ -742,7 +778,7 @@ namespace Loci {
     
     std::sort(access.begin(),access.end()) ;
 
-    WARN(access[0] < 0) ;
+    WARN(access.size()>0 && access[0] < 0) ;
 
     const int p = MPI_processes ;
     // Now communicate the accessed info
@@ -812,7 +848,7 @@ namespace Loci {
     }
     for(size_t i=0;i<stencils.size();++i) {
       for(int j=0;j<4;++j) {
-        WARN(stencils[i][j] < 0 || stencils[i][j] >=locdom.size()) ;
+        WARN(stencils[i][j] < 0 || size_t(stencils[i][j]) >=locdom.size()) ;
 	WARN(acmap[stencils[i][j]] < 0) ;
 	stencils[i][j] = acmap[stencils[i][j]] ;
       }
@@ -832,7 +868,7 @@ namespace Loci {
     entitySet dom = sourceData.domain() ;
 #endif
     int vec_size = sourceData.vecSize() ;
-    vector<real_t> databuf(send_info.size()*vec_size) ;
+    vector<double> databuf(send_info.size()*vec_size) ;
     for(size_t i = 0;i<send_info.size();++i) {
       int id = send_info[i] ;
 #ifdef VERBOSE
@@ -879,11 +915,205 @@ namespace Loci {
     MEMORY_PROFILE(sendStencilDataStartEnd3dv) ;
   }
 
+    // Note, this needs to be made more general.
+  void sendStencilData(storeVec<FADd> &stencilData,
+                       const_storeVec<FADd> &sourceData,
+                       const vector<int> &send_info,
+                       const vector<int> &req_sizes_in,
+                       const vector<int> &snd_sizes_in) {
+    MEMORY_PROFILE(sendStencilDataStartv) ;
+
+#ifdef VERBOSE
+    entitySet dom = sourceData.domain() ;
+#endif
+    int vec_size = sourceData.vecSize() ;
+    vector<FADd> databuf(send_info.size()*vec_size) ;
+    for(size_t i = 0;i<send_info.size();++i) {
+      int id = send_info[i] ;
+#ifdef VERBOSE
+      if(!dom.inSet(id)) {
+        debugout << "id=" <<id << " out of domain " << dom << endl ;
+        id = dom.Min() ;
+      }
+
+#endif
+      for(int j=0;j<vec_size;++j) {
+        databuf[i*vec_size+j] = sourceData[id][j] ;
+      }
+    }
+
+    int p = MPI_processes ;
+    vector<int> req_sizes(p),snd_sizes(p) ;
+    for(int i=0;i<p;++i) {
+      req_sizes[i] = req_sizes_in[i]*vec_size ;
+      snd_sizes[i] = snd_sizes_in[i]*vec_size ;
+    }
+
+    vector<int> sdispls(p) ;
+    sdispls[0] = 0 ;
+    for(int i=1;i<p;++i)
+      sdispls[i] = sdispls[i-1]+req_sizes[i-1] ;
+
+    vector<int> rdispls(p) ;
+    rdispls[0] = 0 ;
+    for(int i=1;i<p;++i) {
+      rdispls[i] = rdispls[i-1]+snd_sizes[i-1] ;
+    }
+
+    int loc_size = 0 ;
+    for(int i=0;i<p;++i)
+      loc_size += req_sizes_in[i] ;
+
+    stencilData.allocate(entitySet(interval(0,loc_size-1))) ;
+    stencilData.setVecSize(vec_size) ;
+
+    MEMORY_PROFILE(sendStencilDataStartall2all) ;
+    for(int i=0;i<p;++i) {
+      snd_sizes[i] *=2 ;
+      rdispls[i] *= 2 ;
+      req_sizes[i] *= 2 ;
+      sdispls[i] *=2 ;
+    }
+    MPI_Alltoallv(&databuf[0],&snd_sizes[0],&rdispls[0],MPI_FADD,
+                  &stencilData[0][0],&req_sizes[0],&sdispls[0],MPI_FADD,
+                  MPI_COMM_WORLD) ;
+    MEMORY_PROFILE(sendStencilDataStartEnd3dv) ;
+  }
+
+  void sendStencilData(storeVec<MFADd> &stencilData,
+                       const_storeVec<MFADd> &sourceData,
+                       const vector<int> &send_info,
+                       const vector<int> &req_sizes_in,
+                       const vector<int> &snd_sizes_in) {
+    MEMORY_PROFILE(sendStencilDataStartv) ;
+
+#ifdef VERBOSE
+    entitySet dom = sourceData.domain() ;
+#endif
+    int vec_size = sourceData.vecSize() ;
+    vector<MFADd> databuf(send_info.size()*vec_size) ;
+    for(size_t i = 0;i<send_info.size();++i) {
+      int id = send_info[i] ;
+#ifdef VERBOSE
+      if(!dom.inSet(id)) {
+        debugout << "id=" <<id << " out of domain " << dom << endl ;
+        id = dom.Min() ;
+      }
+
+#endif
+      for(int j=0;j<vec_size;++j) {
+        databuf[i*vec_size+j] = sourceData[id][j] ;
+      }
+    }
+
+    int p = MPI_processes ;
+    vector<int> req_sizes(p),snd_sizes(p) ;
+    for(int i=0;i<p;++i) {
+      req_sizes[i] = req_sizes_in[i]*vec_size ;
+      snd_sizes[i] = snd_sizes_in[i]*vec_size ;
+    }
+
+    vector<int> sdispls(p) ;
+    sdispls[0] = 0 ;
+    for(int i=1;i<p;++i)
+      sdispls[i] = sdispls[i-1]+req_sizes[i-1] ;
+
+    vector<int> rdispls(p) ;
+    rdispls[0] = 0 ;
+    for(int i=1;i<p;++i) {
+      rdispls[i] = rdispls[i-1]+snd_sizes[i-1] ;
+    }
+
+    int loc_size = 0 ;
+    for(int i=0;i<p;++i)
+      loc_size += req_sizes_in[i] ;
+
+    stencilData.allocate(entitySet(interval(0,loc_size-1))) ;
+    stencilData.setVecSize(vec_size) ;
+
+    MEMORY_PROFILE(sendStencilDataStartall2all) ;
+    for(int i=0;i<p;++i) {
+      snd_sizes[i] *=2 ;
+      rdispls[i] *= 2 ;
+      req_sizes[i] *= 2 ;
+      sdispls[i] *=2 ;
+    }
+    MPI_Alltoallv(&databuf[0],&snd_sizes[0],&rdispls[0],MPI_MFADD,
+                  &stencilData[0][0],&req_sizes[0],&sdispls[0],MPI_MFADD,
+                  MPI_COMM_WORLD) ;
+    MEMORY_PROFILE(sendStencilDataStartEnd3dv) ;
+  }
+
+  // Note, this needs to be made more general.
+  void sendStencilData(storeVec<FAD2d> &stencilData,
+                       const_storeVec<FAD2d> &sourceData,
+                       const vector<int> &send_info,
+                       const vector<int> &req_sizes_in,
+                       const vector<int> &snd_sizes_in) {
+    MEMORY_PROFILE(sendStencilDataStartv) ;
+
+#ifdef VERBOSE
+    entitySet dom = sourceData.domain() ;
+#endif
+    int vec_size = sourceData.vecSize() ;
+    vector<FAD2d> databuf(send_info.size()*vec_size) ;
+    for(size_t i = 0;i<send_info.size();++i) {
+      int id = send_info[i] ;
+#ifdef VERBOSE
+      if(!dom.inSet(id)) {
+        debugout << "id=" <<id << " out of domain " << dom << endl ;
+        id = dom.Min() ;
+      }
+
+#endif
+      for(int j=0;j<vec_size;++j) {
+        databuf[i*vec_size+j] = sourceData[id][j] ;
+      }
+    }
+
+    int p = MPI_processes ;
+    vector<int> req_sizes(p),snd_sizes(p) ;
+    for(int i=0;i<p;++i) {
+      req_sizes[i] = req_sizes_in[i]*vec_size ;
+      snd_sizes[i] = snd_sizes_in[i]*vec_size ;
+    }
+
+    vector<int> sdispls(p) ;
+    sdispls[0] = 0 ;
+    for(int i=1;i<p;++i)
+      sdispls[i] = sdispls[i-1]+req_sizes[i-1] ;
+
+    vector<int> rdispls(p) ;
+    rdispls[0] = 0 ;
+    for(int i=1;i<p;++i) {
+      rdispls[i] = rdispls[i-1]+snd_sizes[i-1] ;
+    }
+
+    int loc_size = 0 ;
+    for(int i=0;i<p;++i)
+      loc_size += req_sizes_in[i] ;
+
+    stencilData.allocate(entitySet(interval(0,loc_size-1))) ;
+    stencilData.setVecSize(vec_size) ;
+
+    MEMORY_PROFILE(sendStencilDataStartall2all) ;
+    for(int i=0;i<p;++i) {
+      snd_sizes[i] *=2 ;
+      rdispls[i] *= 2 ;
+      req_sizes[i] *= 2 ;
+      sdispls[i] *=2 ;
+    }
+    MPI_Alltoallv(&databuf[0],&snd_sizes[0],&rdispls[0],MPI_FADD2,
+                  &stencilData[0][0],&req_sizes[0],&sdispls[0],MPI_FADD2,
+                  MPI_COMM_WORLD) ;
+    MEMORY_PROFILE(sendStencilDataStartEnd3dv) ;
+  }
+
 #define COUNT_SIZE 100
 #define SMALLEST_SPLIT 2048
 #define STOP_SPLIT 10240
   
-  inline real_t split_histogram(const int counts[COUNT_SIZE]) {
+  inline double split_histogram(const int counts[COUNT_SIZE]) {
     int tot = counts[0] ;
     int mxcount = counts[0] ;
     int mxcid = 0 ;
@@ -909,7 +1139,7 @@ namespace Loci {
         }
     }
     if(maxdist > SMALLEST_SPLIT)
-      return (real_t(sp)+.5)/real_t(COUNT_SIZE) ;
+      return (double(sp)+.5)/double(COUNT_SIZE) ;
 
     if(10*mxcount < 12*mean)  // If less than 20% variation in histogram
       return .5 ;             // split down the middle.
@@ -944,7 +1174,7 @@ namespace Loci {
       sum += counts[i] ;
     if(min(sum,tot-sum) < SMALLEST_SPLIT)
       return 0.5 ;
-    return real_t(cx)/real_t(COUNT_SIZE) ;
+    return double(cx)/double(COUNT_SIZE) ;
   }
 
   void histogram_part(vect3d vecs[], int ids[],int start,int end,int depth,vector<int> &sizes,int &splits) {
@@ -972,21 +1202,21 @@ namespace Loci {
       mn.y = min(mn.y,vecs[i].y) ;
       mn.z = min(mn.z,vecs[i].z) ;
     }
-    real_t dx = mx.x-mn.x ;
-    real_t dy = mx.y-mn.y ;
-    real_t dz = mx.z-mn.z ;
+    double dx = realToDouble(mx.x-mn.x) ;
+    double dy = realToDouble(mx.y-mn.y) ;
+    double dz = realToDouble(mx.z-mn.z) ;
     int top = start ;
     int bot = end-1 ;
 
     if(dx > dy && dx > dz) { // x coord split
       for(int i=start;i<end;++i) {
-        real_t t = (vecs[i].x-mn.x)/dx ;
+        double t = realToDouble(vecs[i].x-mn.x)/dx ;
         int ind = max(min(int(floor(t*COUNT_SIZE)),COUNT_SIZE-1),0) ;
         counts[ind]++ ;
       }
-      real_t t = split_histogram(counts) ;
+      double t = split_histogram(counts) ;
 
-      real_t xs = mn.x + t*dx ;
+      double xs = realToDouble(mn.x) + t*dx ;
       while(top <= bot) {
         if(vecs[top].x > xs) {
           std::swap(vecs[top],vecs[bot]) ;
@@ -997,14 +1227,14 @@ namespace Loci {
       }
     } else if(dy > dz) { // y coord split
       for(int i=start;i<end;++i) {
-        real_t t = (vecs[i].y-mn.y)/dy ;
+        double t = realToDouble(vecs[i].y-mn.y)/dy ;
         int ind = max(min(int(floor(t*COUNT_SIZE)),COUNT_SIZE-1),0) ;
         counts[ind]++ ;
       }
 
-      real_t t = split_histogram(counts) ;
+      double t = split_histogram(counts) ;
 
-      real_t ys = mn.y + t*dy ;
+      double ys = realToDouble(mn.y) + t*dy ;
       while(top <= bot) {
         if(vecs[top].y > ys) {
           std::swap(vecs[top],vecs[bot]) ;
@@ -1015,14 +1245,14 @@ namespace Loci {
       }
     } else {      // z coord split
       for(int i=start;i<end;++i) {
-        real_t t = (vecs[i].z-mn.z)/dz ;
+        double t = realToDouble(vecs[i].z-mn.z)/dz ;
         int ind = max(min(int(floor(t*COUNT_SIZE)),COUNT_SIZE-1),0) ;
         counts[ind]++ ;
       }
 
-      real_t t = split_histogram(counts) ;
+      double t = split_histogram(counts) ;
 
-      real_t zs = mn.z + t*dz ;
+      double zs = realToDouble(mn.z) + t*dz ;
       while(top <= bot) {
         if(vecs[top].z > zs) {
           std::swap(vecs[top],vecs[bot]) ;
@@ -1110,12 +1340,12 @@ namespace Loci {
   // start and stop are the indicies into pnts that this call will decompose
   void getBoundingBoxDecomp(vector<kdTree::KDTree<float>::coord_info> &pnts, 
                             vector<bound_info> &boxes, 
-                            real_t split,
+                            double split,
                             int dim,
                             int levels,
                             int start,
                             int stop,
-                            real_t delta_lim,
+                            double delta_lim,
                             int split_lim) {
 #ifdef VERBOSE
     debugout << "bbox decomp, dim = " << dim << ",split = " << split << ", levels = " << levels << endl ;
@@ -1148,16 +1378,16 @@ namespace Loci {
     const int threshold = 16 ;
     // process left branch
     int nleft = i-start;
-    real_t delta = bndl.maxc[0]-bndl.minc[0] ;
+    double delta = bndl.maxc[0]-bndl.minc[0] ;
     int ndim = 0 ;
-    real_t nsplit = bndl.minc[0] + 0.5*delta ;
-    real_t delta1 = bndl.maxc[1]-bndl.minc[1] ;
+    double nsplit = bndl.minc[0] + 0.5*delta ;
+    double delta1 = bndl.maxc[1]-bndl.minc[1] ;
     if(delta1 > delta) {
       delta = delta1 ;
       ndim = 1 ;
       nsplit = bndl.minc[1] + 0.5*delta1 ;
     }
-    real_t delta2 = bndl.maxc[2]-bndl.minc[2] ;
+    double delta2 = bndl.maxc[2]-bndl.minc[2] ;
     if(delta2 > delta) {
       delta = delta2 ;
       ndim=2 ;
@@ -1209,7 +1439,7 @@ namespace Loci {
   }
 
   void getBoundingBoxes(vector<kdTree::KDTree<float>::coord_info> &pnts, 
-                        vector<bound_info> &boxes, int levels, real_t delta_lim,
+                        vector<bound_info> &boxes, int levels, double delta_lim,
                         int split_lim) {
     boxes.clear() ;
     int sz = pnts.size() ;
@@ -1235,10 +1465,10 @@ namespace Loci {
     }
 
     int ndim = 0 ;
-    real_t nsplit = 0.5*(bnd.minc[0]+bnd.maxc[0]) ;
-    real_t delta = bnd.maxc[0]-bnd.minc[0] ;
-    real_t delta1 = bnd.maxc[1]-bnd.minc[1] ;
-    real_t delta2 = bnd.maxc[2]-bnd.minc[2] ;
+    double nsplit = 0.5*(bnd.minc[0]+bnd.maxc[0]) ;
+    double delta = bnd.maxc[0]-bnd.minc[0] ;
+    double delta1 = bnd.maxc[1]-bnd.minc[1] ;
+    double delta2 = bnd.maxc[2]-bnd.minc[2] ;
     if(delta < delta1) {
       delta = delta1 ;
       nsplit = 0.5*(bnd.minc[1]+bnd.maxc[1]) ;

@@ -27,7 +27,7 @@ list<string> include_dirs ;
 
 bool prettyOutput = false ;
 namespace {
-  const char *revision_name = "$Name: $" ;
+  const char *revision_name = "$Name: rel-4-0-patches $" ;
 
   std::string version() {
     const char *p = revision_name;

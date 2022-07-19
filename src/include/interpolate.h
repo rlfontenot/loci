@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2015, Mississippi State University
+//# Copyright 2015-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -36,10 +36,10 @@
 namespace Loci {
   std::vector<int> get_stencil(const Loci::kdTree::KDTree<float> &kd,
                                vector3d<real_t> pnt,
-                               double delta) ;
+                               real_t delta) ;
   std::vector<int> get_stencil(const Loci::kdTree::KDTree<double> &kd,
                                vector3d<real_t> pnt,
-                               double delta) ;
+                               real_t delta) ;
   void stencil_weights(std::vector<real_t> &w,
                        std::vector<int> &neighbors,
                        const store<vector3d<real_t> > &loc,
@@ -49,12 +49,12 @@ namespace Loci {
 			 Loci::kdTree::KDTree<float>::bounds bnd) ;
   
   void getStencilBoundingBox2(Loci::kdTree::KDTree<float>::bounds &bnd,
-			      real_t &delta,
+			      double &delta,
 			      const Loci::kdTree::KDTree<float> &kd,
 			      const vector3d<real_t> pnts[],
                               int start, int end) ;
   void getStencilBoundingBox(Loci::kdTree::KDTree<float>::bounds &bnd,
-                             real_t &delta,
+                             double &delta,
                              const const_store<vector3d<real_t> > &pnts,
                              entitySet dom) ;
   void collectPoints(std::vector<Loci::kdTree::KDTree<float>::coord_info> &pout,
@@ -374,12 +374,12 @@ namespace Loci {
   
   void getBoundingBoxDecomp(std::vector<kdTree::KDTree<float>::coord_info> &pnts, 
                             std::vector<bound_info> &boxes, 
-                            real_t split, int dim, int levels,
-                            int start, int stop, real_t delta_lim,
+                            double split, int dim, int levels,
+                            int start, int stop, double delta_lim,
                             int split_lim) ;
   void getBoundingBoxes(std::vector<kdTree::KDTree<float>::coord_info> &pnts, 
                         std::vector<bound_info> &boxes,
-                        int levels, real_t delta_lim,
+                        int levels, double delta_lim,
                         int split_lim) ;
   
   void boundingBoxDistribution(std::vector<int> &box_sp,

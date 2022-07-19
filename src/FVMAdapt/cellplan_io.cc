@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2015, Mississippi State University
+//# Copyright 2015-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -442,4 +442,76 @@ public:
   }
  
 } ;
+
+
 register_rule<cellplan_writeDB> register_cellplan_writeDB;
+
+
+
+// class cellweight_output_file : public pointwise_rule {
+//   //this rule is not used by chem, cellweight_writeDB is actually used
+//   const_store<int> num_fine_cells;
+//   const_param<string> outfile_par ;
+//   store<bool> cellweight_output ;
+  
+// public:
+//   cellweight_output_file(){
+//     name_store("cellweight_outfile_par", outfile_par);
+//     name_store("cellweight_output", cellweight_output);
+//     name_store("balanced_num_fine_cells", num_fine_cells);
+//     input("(cellweight_outfile_par,balanced_num_fine_cells)");
+//     output("cellweight_output");
+//     constraint("geom_cells");
+//     disable_threading();
+//   }
+//   virtual void compute(const sequence &seq) {
+    
+//     hid_t file_id;
+//     file_id = Loci::hdf5CreateFile((*outfile_par).c_str(),H5F_ACC_TRUNC,
+//                                    H5P_DEFAULT, H5P_DEFAULT) ;
+//     Loci::writeContainer(file_id,"cellweights",num_fine_cells.Rep()) ;
+//     Loci::hdf5CloseFile(file_id) ;
+//   }
+// } ;
+// register_rule<cellweight_output_file> register_cellweight_output_file;
+
+class cellweight_writeDB : public pointwise_rule {
+  const_store<int>  num_fine_cells ;
+  const_param<string> outDB_par ;
+  store<bool> cellweight_output ;
+  
+public:
+  cellweight_writeDB(){
+    name_store("balanced_num_fine_cells", num_fine_cells);
+    name_store("cellweight_outDB_par", outDB_par);
+    name_store("cellweight_output", cellweight_output);
+    input("(balanced_num_fine_cells,cellweight_outDB_par)");
+    output("cellweight_output");
+    constraint("geom_cells");
+    disable_threading();
+  }
+  virtual void compute(const sequence &seq) {
+    entitySet dom = entitySet(seq);
+    
+    fact_db::distribute_infoP dist = Loci::exec_current_fact_db->get_distribute_info() ;
+    if(dist==0) {
+      store<int> pcopy ;
+      pcopy.allocate(dom) ;
+      FORALL(dom,ii) {
+	pcopy[ii] = num_fine_cells[ii] ;
+      } ENDFORALL ;
+
+      Loci::DataXFER_DB.insertItem((*outDB_par).c_str(),pcopy.Rep()) ;
+    } else {
+      int offset = 0 ;
+      Loci::storeRepP vardist = Loci::Local2FileOrder(num_fine_cells.Rep(),dom,offset,
+						      dist,
+						      MPI_COMM_WORLD) ;
+      vardist->shift(offset) ;
+      Loci::DataXFER_DB.insertItem((*outDB_par).c_str(),vardist) ;
+    }
+  }
+ 
+} ;
+register_rule<cellweight_writeDB> register_cellweight_writeDB;
+

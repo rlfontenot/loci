@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -39,11 +39,10 @@ namespace Loci {
   // closest:      An array for each search_pnts giving the closest target_pnts
   //               integer id (as passed in as target_ids)
   void parallelNearestNeighbors(const std::vector<kdTree::coord3d> &target_pnts,
-                                const std::vector<gEntity> &target_ids,
+                                const std::vector<int> &target_ids,
                                 const std::vector<kdTree::coord3d> &search_pnts,
-                                std::vector<gEntity> &closest,
+                                std::vector<int> &closest,
                                 MPI_Comm comm,bool rebalance=false) ;
-
 }
 
 

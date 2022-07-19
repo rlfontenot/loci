@@ -1106,7 +1106,7 @@ namespace Loci {
     This method is not recursive. While loops are used to reduce the amount of
     function calling overhead.
   */
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 #endif
@@ -1423,7 +1423,7 @@ namespace Loci {
       }
   }
 
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
 #endif
 

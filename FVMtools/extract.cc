@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -19,8 +19,7 @@
 //#
 //#############################################################################
 
-#include <Loci.h>
-#include <GLoci.h>
+#include <Loci.h> 
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -49,10 +48,50 @@ using std::ifstream ;
 #include <dirent.h>
 #include "extract.h"
 
+#pragma  GCC diagnostic ignored "-Wunused-variable"
+
 string output_dir ;
-namespace Loci{
-    void copy_facts(fact_db& gfacts); 
+#define MAX_NAME 1024
+string getVarNameFromFile(hid_t file_id, string varName) {
+  string name = varName ;
+  hid_t grp = H5Gopen(file_id,"/", H5P_DEFAULT);
+  hsize_t nobj ;
+  H5Gget_num_objs(grp,&nobj) ;
+  if(nobj == 1) {
+    char memb_name[MAX_NAME] ;
+    ssize_t len = H5Gget_objname_by_idx(grp,(hsize_t)0,
+					memb_name,(size_t)MAX_NAME) ;
+     name = string(memb_name) ;
+  }
+  H5Gclose(grp) ;
+  return name ;
 }
+
+
+void readData(hid_t file_id, std::string vname, Loci::storeRepP var, entitySet readSet, fact_db &facts) {
+  hid_t grp = H5Gopen(file_id,"/", H5P_DEFAULT);
+  hsize_t nobj ;
+  H5Gget_num_objs(grp,&nobj) ;
+  if(nobj == 1) {
+    char memb_name[MAX_NAME] ;
+    ssize_t len = H5Gget_objname_by_idx(grp,(hsize_t)0,
+					memb_name,(size_t)MAX_NAME) ;
+    string name(memb_name) ;
+
+#ifdef VERBOSE
+    if(name != vname) {
+      cerr << "NOTE: reading dataset '" << name << "' instead of '" << vname << "'" << endl ;
+    }
+#endif
+    H5Gclose(grp) ;
+    Loci::readContainer(file_id,name,var,readSet,facts) ;
+  } else {
+    H5Gclose(grp) ;
+    Loci::readContainer(file_id,vname,var,readSet,facts) ;
+  }
+}
+    
+
 void Usage(int ac, char *av[]) {
   cerr << av[0] << ": Incorrect Usage" << endl ;
   cout << "Usage:" << endl;
@@ -63,8 +102,9 @@ void Usage(int ac, char *av[]) {
        << "-fv :  extract for the FieldView post-processing package" << endl
        << "-en :  extract for the Ensight post-processing package" << endl
        << "-en_with_id :  extract for the Ensight post-processing package with node id and element id" << endl
+    //#ifdef HAVE_CGNS
        << "-cgns :  extract for the CGNS post-processing package" << endl
-       << "-cgns_with_id :  extract for the CGNS post-processing package with node id and element id" << endl
+    //#endif
        << "-tec:  extract for the TecPlot post-procesing package" << endl
        << "-vtk:   extract for the Paraview post-procesing package" << endl
        << "-vtk64: extract for the Paraview post-procesing package (for large cases, must use >= Paraview 3.98)" << endl
@@ -155,9 +195,17 @@ void Usage(int ac, char *av[]) {
 }
 
 size_t  sizeElementType(hid_t group_id, const char *element_name) {
+#ifdef H5_USE_16_API
+  hid_t dataset = H5Dopen(group_id,element_name) ;
+#else
   hid_t dataset = H5Dopen(group_id,element_name,H5P_DEFAULT) ;
+#endif
   if(dataset < 0) {
+#ifdef H5_USE_16_API
+    H5Eclear() ;
+#else
     H5Eclear(H5E_DEFAULT) ;
+#endif
     return 0 ;
   }
   hid_t dspace = H5Dget_space(dataset) ;
@@ -194,28 +242,25 @@ string getTopoFileName(string output_dir, string casename, string iteration) {
     if(stat(name.c_str(),&tmpstat)==0)
       gridtopo=name ;
   }
-
-  
   return gridtopo ;
 }
 
 volumePart::volumePart(string out_dir, string iteration, string casename,
 		       vector<string> vars) {
-  
   error = true ;
-  partName = casename + "_Volume" ;
+  partName = "Volume" ;
 
   // Check number of nodes
   //-------------------------------------------------------------------------
   posFile = getPosFile(out_dir,iteration,casename) ;
-   
   hid_t file_id = H5Fopen(posFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
-  if(file_id < 0){
-    cerr<<" can not open posFile" << posFile << endl;
+  if(file_id < 0)
     return ;
-  }
+#ifdef H5_USE_16_API
+  hid_t elg = H5Gopen(file_id,"pos") ;
+#else
   hid_t elg = H5Gopen(file_id,"pos",H5P_DEFAULT) ;
-  
+#endif
   if(elg < 0) {
     H5Fclose(file_id) ;
     return ;
@@ -240,7 +285,7 @@ volumePart::volumePart(string out_dir, string iteration, string casename,
     }
     fact_db facts ;
     store<unsigned char> iblank_tmp ;
-    Loci::readContainer(file_id,"iblank",iblank_tmp.Rep(),EMPTY,facts) ;
+    readData(file_id,"iblank",iblank_tmp.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
     entitySet pdom = interval(1,nnodes) ;
     iblank.allocate(pdom) ;
@@ -256,11 +301,13 @@ volumePart::volumePart(string out_dir, string iteration, string casename,
   //-------------------------------------------------------------------------
   topoFile = getTopoFileName(out_dir, casename, iteration) ;
   file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
-  if(file_id < 0){
-     cerr<<" can not open topoFile " << topoFile << endl;
+  if(file_id < 0) 
     return ;
-  }
+#ifdef H5_USE_16_API
+  elg = H5Gopen(file_id,"elements") ;
+#else
   elg = H5Gopen(file_id,"elements",H5P_DEFAULT) ;
+#endif
   if(elg < 0) 
     return ;
 
@@ -269,8 +316,6 @@ volumePart::volumePart(string out_dir, string iteration, string casename,
   nprsm = sizeElementType(elg,"prism") ;
   npyrm = sizeElementType(elg,"pyramid") ;
   ngenc = sizeElementType(elg,"GeneralCellNfaces") ;
-
-  Loci::debugout<<" ntets " << ntets << " nprsm " << nprsm << endl;
   
   size_t ntets_b = ntets ;
   size_t nhexs_b = nhexs ;
@@ -492,7 +537,11 @@ void volumePart::getPos(vector<vector3d<float> > &pos) const {
   hid_t file_id = H5Fopen(filename.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0)
     return ;
+#ifdef H5_USE_16_API
+  hid_t elg = H5Gopen(file_id,"pos") ;
+#else
   hid_t elg = H5Gopen(file_id,"pos",H5P_DEFAULT) ;
+#endif
   if(elg < 0) {
     H5Fclose(file_id) ;
     return ;
@@ -511,6 +560,42 @@ void volumePart::getPos(vector<vector3d<float> > &pos) const {
   H5Fclose(file_id) ;
 }
 
+
+void volumePart::getPos(vector<vector3d<double> > &pos) const {
+  pos.clear() ;
+  string filename = posFile ;
+  hid_t file_id = H5Fopen(filename.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
+  if(file_id < 0)
+    return ;
+
+#ifdef H5_USE_16_API
+  hid_t elg = H5Gopen(file_id,"pos") ;
+#else
+  hid_t elg = H5Gopen(file_id,"pos",H5P_DEFAULT) ;
+#endif
+  
+  if(elg < 0) {
+    H5Fclose(file_id) ;
+    return ;
+  }
+  size_t nsz = sizeElementType(elg,"data") ;
+  if(nsz != nnodes) {
+    H5Gclose(elg) ;
+    H5Fclose(file_id) ;
+    return ;
+  }
+    
+  vector<vector3d<double> > tmp(nsz) ;
+  pos.swap(tmp) ;
+  readElementType(elg,"data",pos) ;
+  H5Gclose(elg) ;
+  H5Fclose(file_id) ;
+}
+
+
+
+
+
 void volumePart::getTetBlock(vector<Array<int,4> > &tets, size_t start, size_t size) const {
   tets.clear() ;
   if(ntets <=0)
@@ -519,7 +604,11 @@ void volumePart::getTetBlock(vector<Array<int,4> > &tets, size_t start, size_t s
   hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0) 
     return ;
+#ifdef H5_USE_16_API
+  hid_t elg = H5Gopen(file_id,"elements") ;
+#else
   hid_t elg = H5Gopen(file_id,"elements",H5P_DEFAULT) ;
+#endif
   if(elg < 0) 
     return ;
   int lsize = min(size,ntets_orig-start) ;
@@ -552,7 +641,11 @@ void volumePart::getTetIds(vector<int> &tetids, size_t start, size_t size) const
   hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0) 
     return ;
+#ifdef H5_USE_16_API
+  hid_t elg = H5Gopen(file_id,"elements") ;
+#else
   hid_t elg = H5Gopen(file_id,"elements",H5P_DEFAULT) ;
+#endif
   if(elg < 0) 
     return ;
   int lsize = min(size,ntets_orig-start) ;
@@ -585,7 +678,11 @@ void volumePart::getPyrmBlock(vector<Array<int,5> > &pyrms, size_t start, size_t
   hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0) 
     return ;
+#ifdef H5_USE_16_API
+  hid_t elg = H5Gopen(file_id,"elements") ;
+#else
   hid_t elg = H5Gopen(file_id,"elements",H5P_DEFAULT) ;
+#endif
   if(elg < 0) 
     return ;
   int lsize = min(size,npyrm_orig-start) ;
@@ -618,7 +715,11 @@ void volumePart::getPyrmIds(vector<int> &pyrmids, size_t start, size_t size) con
   hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0) 
     return ;
+#ifdef H5_USE_16_API
+  hid_t elg = H5Gopen(file_id,"elements") ;
+#else
   hid_t elg = H5Gopen(file_id,"elements",H5P_DEFAULT) ;
+#endif
   if(elg < 0) 
     return ;
   int lsize = min(size,npyrm_orig-start) ;
@@ -650,7 +751,11 @@ void volumePart::getPrsmBlock(vector<Array<int,6> > &prsms, size_t start, size_t
   hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0) 
     return ;
+#ifdef H5_USE_16_API
+  hid_t elg = H5Gopen(file_id,"elements") ;
+#else
   hid_t elg = H5Gopen(file_id,"elements",H5P_DEFAULT) ;
+#endif
   if(elg < 0) 
     return ;
   int lsize = min(size,nprsm_orig-start) ;
@@ -682,7 +787,11 @@ void volumePart::getPrsmIds(vector<int> &prsmids, size_t start, size_t size) con
   hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0) 
     return ;
+#ifdef H5_USE_16_API
+  hid_t elg = H5Gopen(file_id,"elements") ;
+#else
   hid_t elg = H5Gopen(file_id,"elements",H5P_DEFAULT) ;
+#endif
   if(elg < 0) 
     return ;
   int lsize = min(size,nprsm_orig-start) ;
@@ -715,7 +824,11 @@ void volumePart::getHexBlock(vector<Array<int,8> > &hexs, size_t start, size_t s
   hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0) 
     return ;
+#ifdef H5_USE_16_API
+  hid_t elg = H5Gopen(file_id,"elements") ;
+#else
   hid_t elg = H5Gopen(file_id,"elements",H5P_DEFAULT) ;
+#endif
   if(elg < 0) 
     return ;
   int lsize = min(size,nhexs_orig-start) ;
@@ -747,7 +860,11 @@ void volumePart::getHexIds(vector<int> &hexids, size_t start, size_t size) const
   hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0) 
     return ;
+#ifdef H5_USE_16_API
+  hid_t elg = H5Gopen(file_id,"elements") ;
+#else
   hid_t elg = H5Gopen(file_id,"elements",H5P_DEFAULT) ;
+#endif
   if(elg < 0) 
     return ;
   int lsize = min(size,nhexs_orig-start) ;
@@ -777,7 +894,11 @@ void volumePart::getGenCell(vector<int> &genCellNfaces,
   hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0) 
     return ;
+#ifdef H5_USE_16_API
+  hid_t elg = H5Gopen(file_id,"elements") ;
+#else
   hid_t elg = H5Gopen(file_id,"elements",H5P_DEFAULT) ;
+#endif
   if(elg < 0) 
     return ;
 
@@ -846,7 +967,11 @@ void volumePart::getGenIds(vector<int> &genids) const {
   hid_t file_id = H5Fopen(topoFile.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0) 
     return ;
+#ifdef H5_USE_16_API
+  hid_t elg = H5Gopen(file_id,"elements") ;
+#else
   hid_t elg = H5Gopen(file_id,"elements",H5P_DEFAULT) ;
+#endif
   if(elg < 0) 
     return ;
   int lsize = ngenc_orig ;
@@ -880,7 +1005,18 @@ void volumePart::getNodalScalar(string varname, vector<float> &vals) const {
   hid_t file_id = H5Fopen(filename.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0)
     return ;
-  hid_t elg = H5Gopen(file_id,varname.c_str(),H5P_DEFAULT) ;
+  string vname = getVarNameFromFile(file_id,varname) ;
+#ifdef VERBOSE
+  if(vname != varname) {
+    cerr << "reading var '" << vname << "' from file '" << filename << "'" << endl ;
+  }
+#endif
+#ifdef H5_USE_16_API
+  hid_t elg = H5Gopen(file_id,vname.c_str()) ;
+#else
+  hid_t elg = H5Gopen(file_id,vname.c_str(),H5P_DEFAULT) ;
+
+#endif
   if(elg < 0)
     return ;
   int nsz = sizeElementType(elg,"data") ;
@@ -900,7 +1036,17 @@ void volumePart::getNodalVector(string varname, vector<vector3d<float> > &vals) 
   hid_t file_id = H5Fopen(filename.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   if(file_id < 0)
     return ;
-  hid_t elg = H5Gopen(file_id,varname.c_str(),H5P_DEFAULT) ;
+  string vname = getVarNameFromFile(file_id,varname) ;
+#ifdef VERBOSE
+  if(vname != varname) {
+    cerr << "reading var '" << vname << "' from file '" << filename << "'" << endl ;
+  }
+#endif
+#ifdef H5_USE_16_API
+  hid_t elg = H5Gopen(file_id,vname.c_str()) ;
+#else
+  hid_t elg = H5Gopen(file_id,vname.c_str(),H5P_DEFAULT) ;
+#endif
   if(elg < 0)
     return ;
   int nsz = sizeElementType(elg,"data") ;
@@ -940,7 +1086,7 @@ void volumePartDerivedVars::processDerivedVars(const vector<string> &vars) {
     }
     if(vars[i] == "p" && !shadowPart->hasNodalScalarVar("p")) {
       if(shadowPart->hasNodalScalarVar("pg")) {
-	derivedVars["P"] = VAR_logp ;
+	derivedVars["p"] = VAR_logp ;
       }
     }
     if(vars[i] == "u" && !shadowPart->hasNodalScalarVar("u")) {
@@ -973,7 +1119,7 @@ void volumePartDerivedVars::processDerivedVars(const vector<string> &vars) {
 }
 volumePartDerivedVars::volumePartDerivedVars(volumePartP part,
 					     string output_dir, 
-					     string iteration, string casename,
+					     string casename, string iteration,
 					     vector<string> vars) {
   error = part->fail() ;
   partName = part->getPartName() ;
@@ -992,17 +1138,23 @@ volumePartDerivedVars::volumePartDerivedVars(volumePartP part,
   shadowPart = part ;
 
   string filename = output_dir+"/Pambient_par." + iteration +"_" + casename ;
-  hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
-				     H5F_ACC_RDONLY,
-				     H5P_DEFAULT) ;
-  Pambient = 0 ;
-  if(file_id >= 0) {
-    fact_db facts ;
-    param<float> Pamb ;
-    Loci::readContainer(file_id,"Pambient",Pamb.Rep(),EMPTY,facts) ;
-    Loci::hdf5CloseFile(file_id) ;
-    Pambient = *Pamb ;
+  struct stat tmpstat ;
+  if(stat(filename.c_str(),&tmpstat) == 0) {
+    hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
+				       H5F_ACC_RDONLY,
+				       H5P_DEFAULT) ;
+    Pambient = 0 ;
+    if(file_id >= 0) {
+      fact_db facts ;
+      param<float> Pamb ;
+      readData(file_id,"Pambient",Pamb.Rep(),EMPTY,facts) ;
+      Loci::hdf5CloseFile(file_id) ;
+      Pambient = *Pamb ;
+    } else {
+      cerr << "Unable to open file " << filename << endl ;
+    }
   }
+	  
   processDerivedVars(vars) ;
 }
 
@@ -1032,7 +1184,9 @@ std::vector<string> volumePartDerivedVars::getNodalVectorVars() const {
 void volumePartDerivedVars::getPos(vector<vector3d<float> > &pos) const {
   shadowPart->getPos(pos) ;
 }
-
+void volumePartDerivedVars::getPos(vector<vector3d<double> > &pos) const {
+  shadowPart->getPos(pos) ;
+}
 void volumePartDerivedVars::getTetBlock(vector<Array<int,4> > &tets, size_t start, size_t size) const {
   shadowPart->getTetBlock(tets,start,size) ;
 }
@@ -1404,13 +1558,13 @@ void surfacePart::getQuads(vector<Array<int,4> > &quads) const {
   }
 }
 void surfacePart::getQuadsIds(vector<int> &quads_ids) const {
-  
+  cout << "start getQuadsIds " << endl;
   quads_ids.clear();
   FORALL(quadSet,ii) {
     // quads_ids.push_back(quad_ord[ii]) ;
     quads_ids.push_back(ii);
   } ENDFORALL ;
-  
+  cout << "start getQuadsIds " << endl;
 }
 
  
@@ -1435,13 +1589,13 @@ void surfacePart::getTrias(vector<Array<int,3> > &trias) const {
   }
 }
 void  surfacePart::getTriasIds(vector<int> &trias_ids) const{
-
+  cout << "start getTriasIds " << endl;
   trias_ids.clear();
   FORALL(triSet,ii) {
     //  trias_ids.push_back(tri_ord[ii]) ;
     trias_ids.push_back(ii);
   } ENDFORALL ;
-
+  cout << "end getTriasIds " << endl;
 }
 
 void surfacePart::getGenf(vector<int> &numGenFnodes, vector<int> &genNodes) const {
@@ -1475,16 +1629,29 @@ void surfacePart::getGenf(vector<int> &numGenFnodes, vector<int> &genNodes) cons
 }
 
 void  surfacePart::getGenfIds(vector<int> &genface_ids) const{
-
+  cout << "start getGenIds " << endl;
   genface_ids.clear();
   FORALL(genSet,ii) {
+    //genface_ids.push_back(gen_ord[ii]) ;
     genface_ids.push_back(ii);
   } ENDFORALL ;
-
+  cout << "end getGenIds " << endl;
 }
 
 void surfacePart::getPos(vector<vector3d<float> > &pos) const {
   vector<vector3d<float> > tmp(nnodes) ;
+  pos.swap(tmp) ;
+  hid_t file_id = Loci::hdf5OpenFile(posFile.c_str(),
+				     H5F_ACC_RDONLY,
+				     H5P_DEFAULT) ;
+
+  if(file_id < 0) return ;
+  readElementType(file_id,"data",pos) ;
+  Loci::hdf5CloseFile(file_id) ;
+}
+
+void surfacePart::getPos(vector<vector3d<double> > &pos) const {
+  vector<vector3d<double> > tmp(nnodes) ;
   pos.swap(tmp) ;
   hid_t file_id = Loci::hdf5OpenFile(posFile.c_str(),
 				     H5F_ACC_RDONLY,
@@ -1617,7 +1784,7 @@ void surfacePartDerivedVars::processDerivedVars(const vector<string> &vars) {
     }
     if(vars[i] == "p" && !shadowPart->hasNodalScalarVar("p")) {
       if(shadowPart->hasNodalScalarVar("pg")) {
-	derivedVars["P"] = VAR_logp ;
+	derivedVars["p"] = VAR_logp ;
       }
     }
     if(vars[i] == "u" && !shadowPart->hasNodalScalarVar("u")) {
@@ -1663,18 +1830,23 @@ surfacePartDerivedVars::surfacePartDerivedVars(surfacePartP part,
   shadowPart = part ;
 
   string filename = output_dir+"/Pambient_par." + iteration +"_" + casename ;
-  hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
+  struct stat tmpstat ;
+  if(stat(filename.c_str(),&tmpstat) == 0) {
+    hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
 				     H5F_ACC_RDONLY,
 				     H5P_DEFAULT) ;
-  Pambient = 0 ;
-  if(file_id >= 0) {
-    fact_db facts ;
-    param<float> Pamb ;
-    Loci::readContainer(file_id,"Pambient",Pamb.Rep(),EMPTY,facts) ;
-    Loci::hdf5CloseFile(file_id) ;
-    Pambient = *Pamb ;
+    Pambient = 0 ;
+    if(file_id >= 0) {
+      fact_db facts ;
+      param<float> Pamb ;
+      readData(file_id,"Pambient",Pamb.Rep(),EMPTY,facts) ;
+      Loci::hdf5CloseFile(file_id) ;
+      Pambient = *Pamb ;
+    } else { 
+      cerr << "unable to open " << filename << endl ;
+    }
+    processDerivedVars(vars) ;
   }
-  processDerivedVars(vars) ;
 }
 
 bool surfacePartDerivedVars::hasNodalScalarVar(string var) const {
@@ -1737,7 +1909,9 @@ void surfacePartDerivedVars::getGenfIds(vector<int> &genface_ids) const{
 void surfacePartDerivedVars::getPos(vector<vector3d<float> > &pos) const {
   shadowPart->getPos(pos) ;
 }
-
+void surfacePartDerivedVars::getPos(vector<vector3d<double> > &pos) const {
+  shadowPart->getPos(pos) ;
+}
 void surfacePartDerivedVars::getNodalScalar(string varname,
 					    vector<float> &vals) const {
   map<string,derivedVar_t>::const_iterator mi=derivedVars.find(varname) ;
@@ -1909,8 +2083,8 @@ surfacePartCopy::surfacePartCopy(string name,
   ngenf = nfacenodes.size() ;
 }
 
-void surfacePartCopy::registerPos(const vector<vector3d<float> > &posvol) {
-  vector<vector3d<float> > tmp(nodemap.size()) ;
+void surfacePartCopy::registerPos(const vector<vector3d<double> > &posvol) {
+  vector<vector3d<double> > tmp(nodemap.size()) ;
   pos.swap(tmp) ;
   for(size_t i=0;i<nodemap.size();++i)
     pos[i] = posvol[nodemap[i]-1] ;
@@ -2028,9 +2202,18 @@ void surfacePartCopy::getGenfIds(vector<int> &genface_ids) const{
 }
 
 void surfacePartCopy::getPos(vector<vector3d<float> > &pos_out) const {
-  pos_out = pos ;
+  pos_out.resize(pos.size());
+  for(size_t i = 0; i < pos.size(); i++){
+    pos_out[i].x = pos[i].x;
+    pos_out[i].y = pos[i].y;
+    pos_out[i].z = pos[i].z;
+  }
+  
 }
 
+void surfacePartCopy::getPos(vector<vector3d<double> > &pos_out) const {
+  pos_out = pos;
+}
 
 void surfacePartCopy::getNodalScalar(string varname,
                                      vector<float> &vals) const {
@@ -2091,8 +2274,9 @@ particlePart::particlePart(string output_dir, string iteration, string casename,
   stride_size = 1 ;
   if(maxparticles > 0) {
     stride_size = numParticles/maxparticles ;
+    stride_size = max(stride_size,1) ;
     int num_blocks = numParticles/stride_size ;
-    numParticles = num_blocks*stride_size ;
+    numParticles = num_blocks ; //*stride_size ;
   }  
   for(size_t i=0;i<vars.size();++i) {
     string varname = vars[i] ;
@@ -2220,7 +2404,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
 
     fact_db facts ;
     store<float> soundSpeed ;
-    Loci::readContainer(file_id,"a",soundSpeed.Rep(),EMPTY,facts) ;
+    readData(file_id,"a",soundSpeed.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
 
     filename = output_dir+"/v_vec." + iteration +"_" + casename ;
@@ -2233,7 +2417,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
     }
 
     store<vector3d<float> > u ;
-    Loci::readContainer(file_id,"v",u.Rep(),EMPTY,facts) ;
+    readData(file_id,"v",u.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
 
     entitySet dom = u.domain() ;
@@ -2255,10 +2439,11 @@ void getDerivedVar(vector<float> &dval, string var_name,
 
     fact_db facts ;
     store<float> pg ;
-    Loci::readContainer(file_id,"pg",pg.Rep(),EMPTY,facts) ;
+    readData(file_id,"pg",pg.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
 
     filename = output_dir+"/Pambient_par." + iteration +"_" + casename ;
+
     file_id = Loci::hdf5OpenFile(filename.c_str(),
                                  H5F_ACC_RDONLY,
                                  H5P_DEFAULT) ;
@@ -2268,7 +2453,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
     }
 
     param<float> Pambient ;
-    Loci::readContainer(file_id,"Pambient",Pambient.Rep(),EMPTY,facts) ;
+    readData(file_id,"Pambient",Pambient.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
 
     entitySet dom = pg.domain() ;
@@ -2293,7 +2478,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
     }
 
     store<vector3d<float> > u ;
-    Loci::readContainer(file_id,"v",u.Rep(),EMPTY,facts) ;
+    readData(file_id,"v",u.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
 
     entitySet dom = u.domain() ;
@@ -2317,7 +2502,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
     }
 
     fact_db facts ;
-    Loci::readContainer(file_id,"pos",pos.Rep(),EMPTY,facts) ;
+    readData(file_id,"pos",pos.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
     entitySet dom = pos.domain() ;
     int c = 0 ;
@@ -2348,7 +2533,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
     }
 
     store<vector3d<float> > u ;
-    Loci::readContainer(file_id,"v",u.Rep(),EMPTY,facts) ;
+    readData(file_id,"v",u.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
 
     entitySet dom = u.domain() ;
@@ -2374,81 +2559,17 @@ void getDerivedVar(vector<float> &dval, string var_name,
 }
 
 
-void setup_grid_topology(string casename, string iteration) {
-  fact_db gfacts ;
-  string file = casename + ".vog" ;
-  struct stat tmpstat ;
-  if(stat(file.c_str(),&tmpstat) != 0) {
-    cerr << "unable to find vog file = " << file << endl ;
-    Loci::Abort() ;
-  }
-
-  if(!Loci::setupFVMGrid(gfacts,file)) {
-    cerr << "unable to read grid " << file << endl ;
-  }
-  Loci::createLowerUpper(gfacts) ;
-
-  
-  copy_facts(gfacts);
-  // if output directory doesn't exist, create one
-  struct stat statbuf ;
-
-  if(stat(output_dir.c_str(),&statbuf))
-    mkdir(output_dir.c_str(),0755) ;
-  else
-    if(!S_ISDIR(statbuf.st_mode)) {
-      cerr << "file '"
-           << output_dir << "' should be a directory!, rename and start again."
-           << endl ;
-      Loci::Abort() ;
-    }
-  
-  string filename = output_dir+"/"+casename+".topo" ;
-  if(stat(filename.c_str(),&tmpstat)!= 0) {
-    // Loci::createLowerUpper(facts) ;
-    multiMap upper,lower,boundary_map,face2node ;
-    Map ref ;
-    store<string> boundary_names ;
-    constraint geom_cells ;
-    upper = gfacts.get_variable("upper") ;
-    lower = gfacts.get_variable("lower") ;
-    boundary_map = gfacts.get_variable("boundary_map") ;
-    face2node = gfacts.get_variable("face2node") ;
-    ref = gfacts.get_variable("ref") ;
-    boundary_names = gfacts.get_variable("boundary_names") ;
-    geom_cells = gfacts.get_variable("geom_cells") ;
-    store<vector3d<double> > pos ;
-    pos = gfacts.get_variable("pos") ;
-
-    // If topology file does not exist, create it.
-    Loci::parallelWriteGridTopology(filename.c_str(),
-                                    upper.Rep(),lower.Rep(),boundary_map.Rep(),
-                                    face2node.Rep(),
-                                    ref.Rep(),
-                                    boundary_names.Rep(),
-                                    pos.Rep(),
-                                    *geom_cells,
-                                    gfacts) ;
-  }
-
-  store<vector3d<double> > pos ;
-  pos = gfacts.get_variable("pos") ;
-  filename = getPosFile(output_dir,iteration,casename) ;
-  hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
-                                       H5P_DEFAULT, H5P_DEFAULT) ;
-  
-  Loci::writeContainer(file_id,"pos",pos.Rep(),gfacts) ;
-  
-  Loci::hdf5CloseFile(file_id) ;
-
-}
 
 
 vector<string> volumeSurfaceNames(string output_dir, string iteration,
 				  string casename) {
   string gridtopo = getTopoFileName(output_dir, casename, iteration) ;
   hid_t file_id = H5Fopen(gridtopo.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
+#ifdef H5_USE_16_API
+  hid_t bndg = H5Gopen(file_id,"boundaries") ;
+#else
   hid_t bndg = H5Gopen(file_id,"boundaries",H5P_DEFAULT) ;
+#endif
   hsize_t num_bcs = 0 ;
   H5Gget_num_objs(bndg,&num_bcs) ;
   vector<string>  bc_names ;
@@ -2515,7 +2636,11 @@ void extractVolumeSurfaces(vector<surfacePartP> &volSurface,
       continue ;
     }
           
+#ifdef H5_USE_16_API
+    hid_t di = H5Gopen(file_id,"dataInfo") ;
+#else
     hid_t di = H5Gopen(file_id,"dataInfo",H5P_DEFAULT) ;
+#endif
     size_t nbel = sizeElementType(di,"entityIds") ;
     
     vector<int> elemIds(nbel) ;
@@ -2545,7 +2670,11 @@ void extractVolumeSurfaces(vector<surfacePartP> &volSurface,
       continue ;
     }
           
+#ifdef H5_USE_16_API
+    hid_t di = H5Gopen(file_id,"dataInfo") ;
+#else
     hid_t di = H5Gopen(file_id,"dataInfo",H5P_DEFAULT) ;
+#endif
     size_t nbel = sizeElementType(di,"entityIds") ;
     
     vector<int> elemIds(nbel) ;
@@ -2563,7 +2692,11 @@ void extractVolumeSurfaces(vector<surfacePartP> &volSurface,
     H5Fclose(file_id) ;
   }
 
+#ifdef H5_USE_16_API
+  hid_t bndg = H5Gopen(file_id,"boundaries") ;
+#else
   hid_t bndg = H5Gopen(file_id,"boundaries",H5P_DEFAULT) ;
+#endif
   hsize_t num_bcs = 0 ;
   H5Gget_num_objs(bndg,&num_bcs) ;
   vector<string>  bc_names ;
@@ -2576,7 +2709,11 @@ void extractVolumeSurfaces(vector<surfacePartP> &volSurface,
   }
   vector<surfacePartCopy * > surfaceWork(num_bcs) ;
   for(hsize_t bc=0;bc<num_bcs;++bc) {
+#ifdef H5_USE_16_API
+    hid_t bcg = H5Gopen(bndg,bc_names[bc].c_str()) ;
+#else
     hid_t bcg = H5Gopen(bndg,bc_names[bc].c_str(),H5P_DEFAULT) ;
+#endif
     
     size_t nquads = sizeElementType(bcg,"quads") ;
     size_t ntrias = sizeElementType(bcg,"triangles") ;
@@ -2754,7 +2891,7 @@ void extractVolumeSurfaces(vector<surfacePartP> &volSurface,
   H5Fclose(file_id) ;
   
   {
-    vector<vector3d<float> > posvol ;
+    vector<vector3d<double> > posvol ;
     vp->getPos(posvol) ;
     for(hsize_t bc=0;bc<num_bcs;++bc) {
       surfaceWork[bc]->registerPos(posvol) ;
@@ -2853,22 +2990,19 @@ int main(int ac, char *av[]) {
       else if(!strcmp(av[i],"-cgns"))
         {
           plot_type = CGNS ;
-          id_required = true; //id always required
-        }
-      else if(!strcmp(av[i],"-cgns_with_id"))
-        {
-          plot_type = CGNS ;
           id_required = true;
         }
       else if(!strcmp(av[i],"-fv"))
         plot_type = FIELDVIEW ;
       else if(!strcmp(av[i],"-tec")) {
         plot_type = TECPLOT ;
-	cout << "*****************************************************************************"<< endl ;
-	cout << "NOTICE!! Latest versions of tecplot360 will perform better using using the" << endl
-	     << "         the Ensight importer.  It is recommended that you use extract -en " << endl
-	     << "         instead of extract -tec." << endl ;
-	cout << "*****************************************************************************"<< endl ;
+#ifndef USE_NATIVE_TECPLOT
+	cerr << "Note, This compiled version is using the older ASCII tecplot format." << endl 
+	     << "If you are using a recent version you can configure Loci to use" << endl 
+	     << "the native binary tecplot format that will be more effective for use with" << endl
+	     << "tecplot360. " << endl ;
+	  
+#endif
       } 
       else if(!strcmp(av[i],"-vtk"))
         plot_type = VTK ;
@@ -3084,7 +3218,7 @@ int main(int ac, char *av[]) {
         
         
       }
-        
+      //add derived variables  
       if(dot>0 && und>0 && postfix == tail) {
         if(vtype == "sca" || vtype == "vec" || vtype == "bnd" ||
            vtype == "bndvec" || vtype == "ptsca" || vtype == "ptvec") {
@@ -3160,7 +3294,8 @@ int main(int ac, char *av[]) {
     cout << endl ;
       
   }
-  
+
+  //find out variable types and variable files
   vector<int> variable_type(variables.size()) ;
   vector<string> variable_file(variables.size()) ;
 
@@ -3274,7 +3409,11 @@ int main(int ac, char *av[]) {
       exit(-1) ;
     }
   }
+#ifdef H5_USE_16_API
+  H5Eset_auto(NULL,NULL) ;
+#else
   H5Eset_auto(H5E_DEFAULT,NULL,NULL) ;
+#endif
 
   string filename = getTopoFileName(output_dir, casename, iteration) ;
   struct stat tmpstat ;
@@ -3426,7 +3565,11 @@ int main(int ac, char *av[]) {
   }
 
   if(postprocessor != 0) {
-    H5Eset_auto(H5E_DEFAULT, NULL,NULL) ;
+#ifdef H5_USE_16_API
+    H5Eset_auto(NULL,NULL) ;
+#else
+    H5Eset_auto(H5E_DEFAULT,NULL,NULL) ;
+#endif
     vector<surfacePartP> parts ;
 
 
@@ -3503,7 +3646,6 @@ int main(int ac, char *av[]) {
 	vp = new volumePart(output_dir,iteration,casename,variables) ;
 	if(vp->fail()) {
 	  vp = 0 ;
-         cout << "creating volume part failed" << endl; 
 	} 
       }
     }
@@ -3516,7 +3658,6 @@ int main(int ac, char *av[]) {
 	pp = new particlePart(output_dir,iteration,casename,variables,max_particles) ;
       }
     }
-    
     
     if(parts.size() > 0) {
       vector<surfacePartP> modparts(parts.size()) ;
@@ -3533,10 +3674,8 @@ int main(int ac, char *av[]) {
 						  iteration,variables) ;
       postprocessor->addVolumePart(vpn) ;
     }
-    
     if(pp!=0)
       postprocessor->addParticlePart(pp) ;
-    
     postprocessor->exportPostProcessorFiles(casename,iteration) ;
     Loci::Finalize() ;
     exit(0) ;

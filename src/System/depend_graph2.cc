@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -127,6 +127,11 @@ namespace Loci {
       return (!time_before(t1,t2) && !time_before(t2,t1)) ;
     }
     
+    // UNUSED
+    //    inline bool time_after(time_ident t1, time_ident t2) {
+    //      return (!time_before(t1,t2) && !time_equal(t1,t2)) ;
+    //}
+
     inline variable drop_all_priorities(variable v) {
       while(v.get_info().priority.size() != 0)
         v = v.drop_priority() ;

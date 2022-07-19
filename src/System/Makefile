@@ -27,12 +27,12 @@ LOCI_COMPILE = true
 
 include $(LOCI_BASE)/Loci.conf
 
-TARGET = libLoci.a libLoci.so
+TARGET = libLoci.a #libLoci.so
 INCLUDES = -I$(LOCI_BASE)/sprng/include
 
 OBJS = Loci_version.o  Initialize.o Loci_Datatypes.o variable.o \
        store_rep.o Map.o constraint.o DMap.o DMultiMap.o \
-       rule.o execute.o depend_graph2.o \
+       rule.o fact_db.o execute.o depend_graph2.o \
        scheduler.o sched_tools.o sched_mlg.o sched_types.o \
        sched_decompose.o sched_comp.o comp_impl.o comp_reduce.o \
        comp_recurse.o comp_internal.o comp_dag.o comp_cond.o \
@@ -40,15 +40,14 @@ OBJS = Loci_version.o  Initialize.o Loci_Datatypes.o variable.o \
        comp_dynamic.o comp_constraint.o \
        comp_map.o param_rule.o sched_db.o  hdf5_readwrite.o mod_db.o \
        visit_assemble.o visit_deco.o visit_tools.o visit_viz.o\
-       visit_chomp.o dynamic_exec.o \
+       visit_chomp.o dynamic_exec.o multiStoreIO.o mpi_containerIO.o\
        dist_tools.o distribute_io.o distribute_container.o dist_internal.o \
-       FVMGridReader.o partition.o gconstraint.o fact_db.o gkeyspace.o \
-	gkey_manager.o gmap.o gmultimap.o \
-       FVMGridWriter.o FVMStuff.o kd_tree.o pnn.o orb.o \
+       FVMGridReader.o FVMGridWriter.o FVMStuff.o kd_tree.o pnn.o orb.o \
        keyspace.o interpolate_tools.o thread.o
 
-COPT = $(CC_LIB_FLAGS) $(COPTLESS) -DLOCI_RPATH=\"$(LOCI_RPATH)\"
-#COPT = $(CC_LIB_FLAGS) -g -O0 -DLOCI_RPATH=\"$(LOCI_RPATH)\"
+COPT = $(CC_LIB_FLAGS) $(CC_OPTIMIZE) -DLOCI_RPATH=\"$(LOCI_RPATH)\"
+#COPT = $(CC_LIB_FLAGS) $(COPTLESS) -DLOCI_RPATH=\"$(LOCI_RPATH)\"
+#COPT = $(CC_LIB_FLAGS) -g -O0 -DLOCI_RPATH=\"$(LOCI_RPATH)\" -DDEBUG
 
 default:
 	cd .. ; make -f Makefile System

@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -142,6 +142,9 @@ enum {
 	_MPI_SGI_TYPE_LAST
 };
 
+#define MPI_INT32_T MPI_INTEGER
+#define MPI_INT64_T MPI_LONG_LONG
+  
 int MPI_GET_TYPE_SIZE(int type);
 
 
@@ -278,19 +281,19 @@ MPI_Delete_function		MPI_NULL_DELETE_FN;
 
 void err_report();
 
- int  MPI_Send(void *, int, MPI_Datatype, int, int, MPI_Comm);
+ int  MPI_Send(const void *, int, MPI_Datatype, int, int, MPI_Comm);
 
  int  MPI_Recv(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Status *);
 
- int  MPI_Get_count(MPI_Status *, MPI_Datatype, int *);
+ int  MPI_Get_count(const MPI_Status *, MPI_Datatype, int *);
 
 /* 3.4 */
 
- int  MPI_Bsend(void *, int, MPI_Datatype, int, int, MPI_Comm);
+ int  MPI_Bsend(const void *, int, MPI_Datatype, int, int, MPI_Comm);
 
- int  MPI_Ssend(void *, int, MPI_Datatype, int, int, MPI_Comm);
+ int  MPI_Ssend(const void *, int, MPI_Datatype, int, int, MPI_Comm);
 
- int  MPI_Rsend(void *, int, MPI_Datatype, int, int, MPI_Comm);
+ int  MPI_Rsend(const void *, int, MPI_Datatype, int, int, MPI_Comm);
 
 /* 3.6 */
 
@@ -300,13 +303,13 @@ void err_report();
 
 /* 3.7 */
 
- int  MPI_Isend(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *);
+ int  MPI_Isend(const void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *);
 
- int  MPI_Ibsend(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *);
+ int  MPI_Ibsend(const void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *);
 
- int  MPI_Issend(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *);
+ int  MPI_Issend(const void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *);
 
- int  MPI_Irsend(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *);
+ int  MPI_Irsend(const void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *);
 
  int  MPI_Irecv(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *);
 
@@ -336,17 +339,17 @@ void err_report();
 
  int  MPI_Cancel(MPI_Request *);
 
- int  MPI_Test_cancelled(MPI_Status *, int *);
+ int  MPI_Test_cancelled(const MPI_Status *, int *);
 
 /* 3.9 */
 
- int  MPI_Send_init(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *);
+ int  MPI_Send_init(const void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *);
 
- int  MPI_Bsend_init(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *);
+ int  MPI_Bsend_init(const void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *);
 
- int  MPI_Ssend_init(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *);
+ int  MPI_Ssend_init(const void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *);
 
- int  MPI_Rsend_init(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *);
+ int  MPI_Rsend_init(const void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *);
 
  int  MPI_Recv_init(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *);
 
@@ -356,7 +359,7 @@ void err_report();
 
 /* 3.10 */
 
- int  MPI_Sendrecv(void *, int, MPI_Datatype, int, int, void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Status *);
+ int  MPI_Sendrecv(const void *, int, MPI_Datatype, int, int, void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Status *);
 
  int  MPI_Sendrecv_replace(void *, int, MPI_Datatype, int, int, int, int, MPI_Comm, MPI_Status *);
 
@@ -368,7 +371,7 @@ void err_report();
 
  int  MPI_Type_hvector(int, int, MPI_Aint, MPI_Datatype, MPI_Datatype *);
 
- int  MPI_Type_indexed(int, int *, int *, MPI_Datatype, MPI_Datatype *);
+ int  MPI_Type_indexed(int, const int *, const int *, MPI_Datatype, MPI_Datatype *);
 
  int  MPI_Type_hindexed(int, int *, MPI_Aint *, MPI_Datatype, MPI_Datatype *);
 
@@ -386,13 +389,15 @@ void err_report();
 
  int  MPI_Type_commit(MPI_Datatype *);
 
+ int  MPI_Type_create_resized(MPI_Datatype, MPI_Aint,MPI_Aint,MPI_Datatype *) ;
+
  int  MPI_Type_free(MPI_Datatype *);
 
- int  MPI_Get_elements(MPI_Status *, MPI_Datatype, int *);
+ int  MPI_Get_elements(const MPI_Status *, MPI_Datatype, int *);
 
 /* 3.13 */
 
- int  MPI_Pack(void *buf, int count, MPI_Datatype datatype,
+ int  MPI_Pack(const void *buf, int count, MPI_Datatype datatype,
                      void *packbuf, int packsize, int *packpos,
                      MPI_Comm comm);
 
@@ -412,55 +417,56 @@ void err_report();
 
 /* 4.5 */
 
- int  MPI_Gather(void *sendbuf, int sendcnt, MPI_Datatype sendtype,
+ int  MPI_Gather(const void *sendbuf, int sendcnt, MPI_Datatype sendtype,
                        void *recvbuf, int recvcnt, MPI_Datatype recvtype,
                        int root , MPI_Comm comm);
 
- int  MPI_Gatherv(void *, int, MPI_Datatype, void *, int *, int *, MPI_Datatype, int, MPI_Comm);
+ int  MPI_Gatherv(const void *, int, MPI_Datatype, void *, const int *, const int *, MPI_Datatype, int, MPI_Comm);
 
 /* 4.6 */
 
- int  MPI_Scatter(void *, int, MPI_Datatype, void *, int, MPI_Datatype, int, MPI_Comm);
+ int  MPI_Scatter(const void *, int, MPI_Datatype, void *, int, MPI_Datatype, int, MPI_Comm);
 
- int  MPI_Scatterv(void *, int *, int *, MPI_Datatype, void *, int, MPI_Datatype, int, MPI_Comm);
+ int  MPI_Scatterv(const void *, const int *, const int *, MPI_Datatype, void *, int, MPI_Datatype, int, MPI_Comm);
 
 /* 4.7 */
 
- int  MPI_Allgather(void *sendbuf, int sendcnt, MPI_Datatype sendtype,
-                          void *recvbuf, int recvcnt, MPI_Datatype recvtype,
-                          MPI_Comm comm );
+ int  MPI_Allgather(const void *sendbuf, int sendcnt, MPI_Datatype sendtype,
+		    void *recvbuf, int recvcnt, MPI_Datatype recvtype,
+		    MPI_Comm comm );
 
- int  MPI_Allgatherv(void *sendbuf, int sendcnt, MPI_Datatype sendtype,
-                           void *recvbuf, int *recvcounts, int *displs,
-                           MPI_Datatype recvtype, MPI_Comm comm);
+ int  MPI_Allgatherv(const void *sendbuf, int sendcnt, MPI_Datatype sendtype,
+		     void *recvbuf, const int *recvcounts, const int *displs,
+		     MPI_Datatype recvtype, MPI_Comm comm);
 /* 4.8 */
 
- int  MPI_Alltoall(void *send, int ssz, MPI_Datatype dts, void *recv, int rsz, MPI_Datatype dtr, MPI_Comm comm);
+ int  MPI_Alltoall(const void *send, int ssz, MPI_Datatype dts, void *recv, int rsz, MPI_Datatype dtr, MPI_Comm comm);
 
- int  MPI_Alltoallv(void *sendbuf, int *sendcnts, int *sdispls,
-                          MPI_Datatype sendtype,
-                          void *recvbuf, int *recvcnts, int *rdispls,
-                          MPI_Datatype recvtype, MPI_Comm comm);
+  int  MPI_Alltoallv(const void *sendbuf,
+		     const int *sendcnts, const int *sdispls,
+		     MPI_Datatype sendtype,
+		     void *recvbuf, const int *recvcnts, const int *rdispls,
+		     MPI_Datatype recvtype, MPI_Comm comm);
 
 /* 4.9 */
 
- int  MPI_Reduce(void *sendbuf, void *recvbuf, int count,
-                       MPI_Datatype type, MPI_Op op, int root, MPI_Comm comm);
+ int  MPI_Reduce(const void *sendbuf, void *recvbuf, int count,
+		 MPI_Datatype type, MPI_Op op, int root, MPI_Comm comm);
 
  int  MPI_Op_create(MPI_User_function *, int, MPI_Op *);
 
  int  MPI_Op_free(MPI_Op *);
 
- int  MPI_Allreduce(void *sendbuf, void *recvbuf, int count,
-                          MPI_Datatype type, MPI_Op op , MPI_Comm comm);
+ int  MPI_Allreduce(const void *sendbuf, void *recvbuf, int count,
+		    MPI_Datatype type, MPI_Op op , MPI_Comm comm);
 
 /* 4.10 */
 
- int  MPI_Reduce_scatter(void *, void *, int *, MPI_Datatype, MPI_Op, MPI_Comm);
+ int  MPI_Reduce_scatter(const void *, void *, const int *, MPI_Datatype, MPI_Op, MPI_Comm);
 
 /* 4.11 */
 
- int  MPI_Scan(void *, void *, int, MPI_Datatype, MPI_Op, MPI_Comm);
+ int  MPI_Scan(const void *, void *, int, MPI_Datatype, MPI_Op, MPI_Comm);
 /* 5.3 */
 
  int  MPI_Group_size(MPI_Group, int *);
@@ -531,7 +537,7 @@ void err_report();
 
 /* 6.5 */
 
- int  MPI_Cart_create(MPI_Comm, int, int *, int *, int, MPI_Comm *);
+ int  MPI_Cart_create(MPI_Comm, int, const int *, const int *, int, MPI_Comm *);
 
  int  MPI_Dims_create(int, int, int *);
 
@@ -557,9 +563,9 @@ void err_report();
 
  int  MPI_Cart_shift(MPI_Comm, int, int, int *, int *);
 
- int  MPI_Cart_sub(MPI_Comm, int *, MPI_Comm *);
+ int  MPI_Cart_sub(MPI_Comm, const int *, MPI_Comm *);
 
- int  MPI_Cart_map(MPI_Comm, int, int *, int *, int *);
+ int  MPI_Cart_map(MPI_Comm, int,const int *,const int *, int *);
 
  int  MPI_Graph_map(MPI_Comm, int, int *, int *, int *);
 
@@ -568,6 +574,10 @@ void err_report();
  int  MPI_Get_processor_name(char *, int *);
 
 /* 7.2 */
+
+ int  MPI_Comm_create_errhandler(MPI_Handler_function *, MPI_Errhandler *);
+ 
+ int  MPI_Comm_set_errhandler(MPI_Comm, MPI_Errhandler);
 
  int  MPI_Errhandler_create(MPI_Handler_function *, MPI_Errhandler *);
 
@@ -687,9 +697,9 @@ typedef int MPI_Fint;
 
  int  MPI_Type_create_hvector(int, int, MPI_Aint, MPI_Datatype, MPI_Datatype *);
 
- int  MPI_Type_create_hindexed(int, int *, MPI_Aint *, MPI_Datatype, MPI_Datatype *);
+ int  MPI_Type_create_hindexed(int, const int *, const MPI_Aint *, MPI_Datatype, MPI_Datatype *);
 
- int  MPI_Type_create_struct(int, int *, MPI_Aint *, MPI_Datatype *, MPI_Datatype *);
+ int  MPI_Type_create_struct(int, const int *,const MPI_Aint *, const MPI_Datatype *, MPI_Datatype *);
 
  int MPI_Get_address(void *, MPI_Aint *);
 
@@ -699,9 +709,9 @@ typedef int MPI_Fint;
 #define MPI_ARGVS_NULL              ((char ***)NULL)
 #define MPI_ERRCODES_IGNORE        ((int *)NULL)
 
- int MPI_Comm_spawn(char *, char **, int, MPI_Info, int, MPI_Comm, MPI_Comm *, int *);
+ int MPI_Comm_spawn(const char *, char **, int, MPI_Info, int, MPI_Comm, MPI_Comm *, int *);
 
- int MPI_Comm_spawn_multiple(int , char **, char ***, int *, MPI_Info *,
+ int MPI_Comm_spawn_multiple(int , char **, char ***, const int *, const MPI_Info *,
                             int , MPI_Comm, MPI_Comm *, int *);
 
  int MPI_Comm_get_parent(MPI_Comm *);
@@ -739,7 +749,7 @@ enum {
  int  MPI_Get(void *, int, MPI_Datatype, int, MPI_Aint, int, MPI_Datatype,
 	MPI_Win);
 
- int  MPI_Accumulate(void *, int, MPI_Datatype, int, MPI_Aint, int,
+ int  MPI_Accumulate(const void *, int, MPI_Datatype, int, MPI_Aint, int,
 	MPI_Datatype, MPI_Op, MPI_Win);
 
 /* 6.4 */

@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -22,8 +22,6 @@
 #include <iostream>
 #include <string>
 #include <Loci.h>
-#include <GLoci.h>
-
 #include "./FVMAdapt/defines.h"
 using std::string;
 using std::cout;
@@ -41,7 +39,7 @@ int main(int argc, char ** argv) {
   // Let Loci initialize itself.
   // This also gives Loci first dibs on the command line arguments.
   Loci::Init(&argc, &argv);
- 
+  
 
   // This is the name of the mesh file that you want to read in.
   string meshfile;
@@ -117,32 +115,32 @@ int main(int argc, char ** argv) {
   if(restart)parentPlanFile = pathname + parentPlanFile;
 
 
-  // Setup the gfact database.
-  fact_db gfacts;
+  // Setup the fact database.
+  fact_db facts;
   
 
   
   
-  gParam<std::string> planfile_par ;
+  param<std::string> planfile_par ;
   *planfile_par = planFile;
-  gfacts.create_gfact("balanced_planfile_par",planfile_par) ;
+  facts.create_fact("balanced_planfile_par",planfile_par) ;
 
-  gParam<std::string> meshfile_par ;
+  param<std::string> meshfile_par ;
   *meshfile_par = meshfile;
-  gfacts.create_gfact("meshfile_par",meshfile_par) ;
+  facts.create_fact("meshfile_par",meshfile_par) ;
 
-  gParam<std::string> outfile_par ;
+  param<std::string> outfile_par ;
   *outfile_par = outFile;
-  gfacts.create_gfact("outfile_par",outfile_par) ;
+  facts.create_fact("outfile_par",outfile_par) ;
   
   if(cell2parent){
-    gParam<std::string> c2pfile_par ;
+    param<std::string> c2pfile_par ;
     *c2pfile_par = c2pFile;
-    gfacts.create_gfact("cell2parent_file_par",c2pfile_par) ;
+    facts.create_fact("cell2parent_file_par",c2pfile_par) ;
     if(restart){
-      gParam<std::string> parent_planfile_par ;
+      param<std::string> parent_planfile_par ;
       *parent_planfile_par = parentPlanFile;
-      gfacts.create_gfact("parent_planfile_par",parent_planfile_par) ;
+      facts.create_fact("parent_planfile_par",parent_planfile_par) ;
     }
   }
   
@@ -154,18 +152,17 @@ int main(int argc, char ** argv) {
  
   if(Loci::MPI_rank == 0) std::cout <<"reading in meshfile" << std::endl;
   // Read in the mesh file.  Setup Loci datastructures
-  if(!Loci::setupFVMGrid(gfacts,meshfile)) {
+  if(!Loci::setupFVMGrid(facts,meshfile)) {
     std::cerr << "unable to read grid file '" << meshfile << "'" << std::endl ;
     Loci::Abort() ;
   }
   
-  Loci::createLowerUpper(gfacts) ;
-  Loci::createEdgesPar(gfacts) ;
+  Loci::createLowerUpper(facts) ;
+  Loci::createEdgesPar(facts) ;
  
-  Loci:: parallelClassifyCell(gfacts);
+  Loci:: parallelClassifyCell(facts);
   
-  
-  Loci::load_module("fvmadapt", rules);
+ Loci::load_module("fvmadapt", rules);
  // if(Loci::MPI_rank==0){
 //     Loci::ruleSet all_rules = rules.all_rules();
 //     for(Loci::ruleSet::const_iterator ri = all_rules.begin();
@@ -174,37 +171,8 @@ int main(int argc, char ** argv) {
 //     }
 //     cout<< endl;
 //   }
-
-  
-  // Dump out parameters from fact database
-  if(Loci::MPI_rank == 0 ) {
-    char buf[512] ;
-    bzero(buf,512) ;
-    snprintf(buf,511,"output/run_info_refmesh") ;
-    ofstream db_file(buf) ;
-    if(!db_file.fail()) {
-      using namespace Loci ;
-       
-        db_file << "facts = {" << endl ;
-        variableSet ext_facts = gfacts.get_extensional_facts() ;
-        for(variableSet::const_iterator vi=ext_facts.begin();
-            vi!=ext_facts.end();++vi) {
-          storeRepP sp = gfacts.get_variable(*vi) ;
-          if(sp != 0) {
-            // if(sp->RepType() == PARAMETER) {
-              db_file << *vi << ": " ;
-              sp->Print(db_file) ;
-              // }
-          }
-        }
-        db_file << "}" << endl ;
-      }
-  }
-
-
-  
   if(cell2parent){
-    if(!Loci::makeQuery(rules, gfacts, "cell2parent_output")) {
+    if(!Loci::makeQuery(rules, facts, "cell2parent_output")) {
       std::cerr << "query failed!" << std::endl;
       Loci::Abort();
     }
@@ -212,16 +180,16 @@ int main(int argc, char ** argv) {
   }
  
     
-  if(!Loci::makeQuery(rules, gfacts, "node_output")) {
+  if(!Loci::makeQuery(rules, facts, "node_output")) {
     std::cerr << "query failed!" << std::endl;
     Loci::Abort();
   }
    
-  if(!Loci::makeQuery(rules, gfacts, "face_output")) {
+  if(!Loci::makeQuery(rules, facts, "face_output")) {
     std::cerr << "query failed!" << std::endl;
     Loci::Abort();
   }
-  if(!Loci::makeQuery(rules, gfacts, "volTag_output")) {
+  if(!Loci::makeQuery(rules, facts, "volTag_output")) {
     std::cerr << "query failed!" << std::endl;
     Loci::Abort();
   }

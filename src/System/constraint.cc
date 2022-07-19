@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -70,7 +70,11 @@ namespace Loci {
   }
 
   storeRepP constraintRep::remap(const dMap &m) const {
-    entitySet newconstraint = m.image(m.domain()&constraint_set) ;
+    
+    entitySet newconstraint = ~EMPTY ;
+    if(constraint_set != ~EMPTY)
+      newconstraint = m.image(m.domain()&constraint_set) ;
+
     constraint r ;
     r = newconstraint ;
     return r.Rep() ;
@@ -223,7 +227,17 @@ namespace Loci {
     delete [] data_constraint;
 */
   }
-
+  
+#ifdef H5_HAVE_PARALLEL
+  void constraintRep::readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en, hid_t xfer_plist_id){
+    warn(true) ;
+  }
+  
+  void constraintRep::writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en, hid_t xfer_plist_id) const{
+   warn(true) ;
+  }
+#endif
+  
   istream &constraintRep::Input(istream &s) {
     entitySet e ;
     s >> e ;

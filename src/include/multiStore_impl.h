@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -25,9 +25,10 @@
 #include <DMultiStore_def.h>
 
 namespace Loci {
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-  
+#endif
   template <class T> 
   inline std::ostream & operator<<(std::ostream &s, const multiStore<T> &m)
   { return m.Print(s) ; }
@@ -73,25 +74,49 @@ namespace Loci {
     //-------------------------------------------------------------------------
     // Assign new entitySet ...
     entitySet ptn = sizes.domain() ;
+    if(index) {
+#ifdef PAGE_ALLOCATE
+      // Call destructor for all allocated objects in container
+      for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
+	p->~T() ;
+      // release allocated objects
+      pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
+		  alloc_pointer) ;
+      // release index pointer array
+      pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
+#else
+      delete[] index ;
+      delete[] alloc_pointer ;
+#endif
+    }
+
     store_domain  = ptn ;
-
-    if(alloc_pointer) delete[] alloc_pointer ;
     alloc_pointer = 0 ;
-    if(index) delete[] index ;
     index = 0 ;
-
+    base_ptr = 0 ;
+    
     size_t sz = 0 ;
     if(ptn != EMPTY) {
       int top  = ptn.Min() ;
       int len  = ptn.Max() - top + 2 ;
+#ifdef PAGE_ALLOCATE
+      index = pageAlloc(len,index) ;
+#else
       index    = new T *[len] ;
+#endif
       base_ptr = index - top ;
 
       FORALL(ptn,i) {
         sz += sizes[i] ;
       } ENDFORALL ;
 
+#ifdef PAGE_ALLOCATE
+      alloc_pointer = pageAlloc(sz+1,alloc_pointer) ;
+      for(size_t i=0;i<sz+1;++i)
+	new (&alloc_pointer[i]) T() ;
+#else
       alloc_pointer = new T[sz+1] ;
+#endif
       sz = 0 ;
       for(size_t ivl=0;ivl< ptn.num_intervals(); ++ivl) {
         int i       = ptn[ivl].first ;
@@ -115,7 +140,12 @@ namespace Loci {
     entitySet ptn = count.domain() ;
     int top = ptn.Min() ;
     int len = ptn.Max() - top + 2 ;
-    T **new_index = new T *[len] ;
+    T **new_index = 0 ;
+#ifdef PAGE_ALLOCATE
+    new_index = pageAlloc(len,new_index) ;
+#else
+    new_index = new T *[len] ;
+#endif
     T **new_base_ptr = new_index - top ;
     size_t sz = 0 ;
     
@@ -123,7 +153,14 @@ namespace Loci {
       sz += count[i] ;
     } ENDFORALL ;
     
-    T *new_alloc_pointer = new T[sz + 1] ;
+    T *new_alloc_pointer = 0 ;
+#ifdef PAGE_ALLOCATE
+    alloc_pointer = pageAlloc(sz+1,alloc_pointer) ;
+    for(size_t i=0;i<sz+1;++i)
+      new (&alloc_pointer[i]) T() ;
+#else
+    new_alloc_pointer = new T[sz + 1] ;
+#endif
     sz = 0 ;
     
     for(size_t ivl = 0; ivl < ptn.num_intervals(); ++ivl) {
@@ -135,6 +172,7 @@ namespace Loci {
 	new_base_ptr[i] = new_alloc_pointer + sz ;
       }
     }
+    
     *base_ptr = new_base_ptr ;
   }
 
@@ -150,8 +188,19 @@ namespace Loci {
     mutex.lock() ;
 
     if(alloc_pointer != 0 && base_ptr[store_domain.Min()] == base_ptr[store_domain.Max()]) {
-      delete[] index ;
+#ifdef PAGE_ALLOCATE
+      // Call destructor for all allocated objects in container
+      for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
+	p->~T() ;
+      // release allocated objects
+      pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
+		  alloc_pointer) ;
+      // release index pointer array
+      pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
+#else
       delete[] alloc_pointer ;
+      delete[] index ;
+#endif
       index = 0 ;
       alloc_pointer = 0 ;
     }
@@ -197,9 +246,23 @@ namespace Loci {
     if(ptn == store_domain)
       return ;
 
-    if(alloc_pointer) delete[] alloc_pointer ;
+    if(index) {
+#ifdef PAGE_ALLOCATE
+      // Call destructor for all allocated objects in container
+      for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
+	p->~T() ;
+      // release allocated objects
+      pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
+		  alloc_pointer) ;
+      // release index pointer array
+      pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
+#else
+      delete[] alloc_pointer ;
+      delete[] index ;
+#endif
+    }
+
     alloc_pointer = 0 ;
-    if(index) delete[] index ;
     index         = 0 ;
     
     base_ptr      = 0 ;
@@ -227,7 +290,7 @@ namespace Loci {
   }
 
   template<class T>
-    void multiStoreRepI<T>::shift(int_type offset) {
+  void multiStoreRepI<T>::shift(int_type offset) {
     store_domain >>= offset ;
     allocate(store_domain) ;
   }
@@ -236,8 +299,21 @@ namespace Loci {
   template<class T> 
   multiStoreRepI<T>::~multiStoreRepI() 
   {
-    if(alloc_pointer) delete[] alloc_pointer ;
-    if(index) delete[] index ;
+    if(index) {
+#ifdef PAGE_ALLOCATE
+      // Call destructor for all allocated objects in container
+      for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
+	p->~T() ;
+      // release allocated objects
+      pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
+		  alloc_pointer) ;
+      // release index pointer array
+      pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
+#else
+      delete[] index ;    
+      delete[] alloc_pointer ;
+#endif
+    }
   }
 
   //*************************************************************************/
@@ -258,7 +334,7 @@ namespace Loci {
     return new multiStoreRepI<T>(count) ;
   }
   template<class T> 
-    storeRep *multiStoreRepI<T>::new_store(const entitySet &p, const int* cnt) const {
+  storeRep *multiStoreRepI<T>::new_store(const entitySet &p, const int* cnt) const {
     store<int> count ;
     count.allocate(p) ;
     int t= 0 ;
@@ -337,9 +413,22 @@ namespace Loci {
         new_base_ptr[i][j] = s[i][j] ;
     } ENDFORALL ;
     
-    if(alloc_pointer) delete[] alloc_pointer ;
+    if(index) {
+#ifdef PAGE_ALLOCATE
+      // Call destructor for all allocated objects in container
+      for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
+	p->~T() ;
+      // release allocated objects
+      pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
+		  alloc_pointer) ;
+      // release index pointer array
+      pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
+#else
+      delete[] index ;
+      delete[] alloc_pointer ;
+#endif
+    }
     alloc_pointer = new_alloc_pointer;
-    if(index) delete[] index ;
     index = new_index ;
     base_ptr = new_base_ptr ;
 
@@ -380,9 +469,23 @@ namespace Loci {
         new_base_ptr[i][j] = s[m[i]][j] ;
     } ENDFORALL ;
 
-    if(alloc_pointer) delete[] alloc_pointer ;
+    if(index) {
+#ifdef PAGE_ALLOCATE
+      // Call destructor for all allocated objects in container
+      for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
+	p->~T() ;
+      // release allocated objects
+      pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
+		  alloc_pointer) ;
+      // release index pointer array
+      pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
+#else
+      delete[] alloc_pointer ;
+      delete[] index ;
+#endif
+    }
     alloc_pointer = new_alloc_pointer;
-    if(index) delete[] index ;
+
     index = new_index ;
     base_ptr = new_base_ptr ;
 
@@ -429,9 +532,22 @@ namespace Loci {
       }
     } ENDFORALL ;
     
-    if(alloc_pointer) delete[] alloc_pointer;
+    if(index) {
+#ifdef PAGE_ALLOCATE
+      // Call destructor for all allocated objects in container
+      for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
+	p->~T() ;
+      // release allocated objects
+      pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
+		  alloc_pointer) ;
+      // release index pointer array
+      pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
+#else
+      delete[] alloc_pointer;
+      delete[] index ;
+#endif
+    }
     alloc_pointer = new_alloc_pointer;
-    if(index) delete[] index ;
     index = new_index ;
     base_ptr = new_base_ptr ;
     
@@ -565,7 +681,7 @@ namespace Loci {
     sze += eset.size()*sizeof(int) ;
     return sze ;
   }
- //**************************************************************************/
+  //**************************************************************************/
 
   template <class T> 
   inline int multiStoreRepI<T>::get_estimated_mpi_size(IDENTITY_CONVERTER c, const entitySet &eset ) 
@@ -601,7 +717,7 @@ namespace Loci {
             numContainers*sizeof(int) );
   }
   
- //**************************************************************************/
+  //**************************************************************************/
   template <class T> 
   int multiStoreRepI<T>::get_estimated_mpi_size(USER_DEFINED_CONVERTER c, const entitySet &eset ) 
   {
@@ -623,7 +739,7 @@ namespace Loci {
     return get_mpi_size( traits_type, eset );
   }
   
- //**************************************************************************/
+  //**************************************************************************/
   template <class T> 
   int multiStoreRepI<T>::estimated_pack_size(const entitySet &eset ) 
   {
@@ -672,7 +788,7 @@ namespace Loci {
     //-------------------------------------------------------------------------
     // Get the maximum size of container
     //-------------------------------------------------------------------------
-    int vecsize=0, stateSize=0, maxStateSize=0;
+    int vecsize, stateSize, maxStateSize=0;
 
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
       vecsize = end(*ci)-begin(*ci);
@@ -755,9 +871,23 @@ namespace Loci {
           new_base_ptr[*ei][j] = base_ptr[*ei][j] ;
       }
       
-      if(alloc_pointer) delete [] alloc_pointer ;
+      if(index) {
+#ifdef PAGE_ALLOCATE
+        // Call destructor for all allocated objects in container
+        for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
+          p->~T() ;
+        // release allocated objects
+        pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
+                    alloc_pointer) ;
+        // release index pointer array
+        pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
+#else
+	delete [] alloc_pointer ;
+	delete[] index ;
+#endif
+      }
+
       alloc_pointer = new_alloc_pointer;
-      if(index) delete[] index ;
       index = new_index ;
       base_ptr = new_base_ptr ;
 
@@ -803,7 +933,7 @@ namespace Loci {
       for( int ivec = 0; ivec < vsize; ivec++) {
         MPI_Unpack( inbuf, insize, &position, &stateSize, 1,
                     MPI_INT, MPI_COMM_WORLD) ;
-        if( size_t(stateSize) > outbuf.size() ) outbuf.resize(stateSize);
+        if( stateSize > outbuf.size() ) outbuf.resize(stateSize);
 
         outcount = stateSize*typesize;
         MPI_Unpack( inbuf, insize, &position, &outbuf[0], outcount,
@@ -816,12 +946,12 @@ namespace Loci {
   }
   
   template<class T> 
-    frame_info multiStoreRepI<T>::get_frame_info() {
+  frame_info multiStoreRepI<T>::get_frame_info() {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     return get_frame_info(schema_converter()) ;
   }
   template<class T> 
-    frame_info multiStoreRepI<T>::get_frame_info(IDENTITY_CONVERTER g) {
+  frame_info multiStoreRepI<T>::get_frame_info(IDENTITY_CONVERTER g) {
     frame_info fi ;
     fi.is_stat = 0 ;
     fi.size = 0 ;
@@ -834,7 +964,7 @@ namespace Loci {
     return fi ;
   }
   template<class T> 
-    frame_info multiStoreRepI<T>::get_frame_info(USER_DEFINED_CONVERTER g) {
+  frame_info multiStoreRepI<T>::get_frame_info(USER_DEFINED_CONVERTER g) {
     int vsize ;
     entitySet dom = domain() ;
     frame_info fi ;
@@ -855,17 +985,17 @@ namespace Loci {
     return fi ;
   }
   template<class T> 
-    DatatypeP multiStoreRepI<T>::getType() {
+  DatatypeP multiStoreRepI<T>::getType() {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     return getType(schema_converter()) ;
   }
   template<class T> 
-    DatatypeP multiStoreRepI<T>::getType(IDENTITY_CONVERTER g) {
+  DatatypeP multiStoreRepI<T>::getType(IDENTITY_CONVERTER g) {
     typedef data_schema_traits<T> traits_type;
     return(traits_type::get_type()) ;
   }
   template<class T> 
-    DatatypeP multiStoreRepI<T>::getType(USER_DEFINED_CONVERTER g) {
+  DatatypeP multiStoreRepI<T>::getType(USER_DEFINED_CONVERTER g) {
     typedef data_schema_traits<T> schema_traits ;
     typedef typename schema_traits::Converter_Base_Type dtype;
     typedef data_schema_traits<dtype> traits_type;
@@ -874,82 +1004,104 @@ namespace Loci {
   //**************************************************************************/
   
   template<class T> 
-    void multiStoreRepI<T>::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset) 
-    {
-      typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
-      schema_converter traits_output_type;
-      hdf5read(group_id, dataspace, dataset, dimension, name, traits_output_type, fi, user_eset) ;
-    }
+  void multiStoreRepI<T>::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset) 
+  {
+    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
+    schema_converter traits_output_type;
+    hdf5read(group_id, dataspace, dataset, dimension, name, traits_output_type, fi, user_eset) ;
+  }
 
+#ifdef H5_HAVE_PARALLEL
+  template<class T> 
+  void multiStoreRepI<T>::readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset, hid_t xfer_plist_id) 
+  {
+    warn(true);
+  }
+#endif
   //**************************************************************************/
 
   template <class T> 
-    void multiStoreRepI<T>::hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, frame_info &fi, entitySet &eset)
-    {
-      if(dimension != 0) {
-	storeRepP qrep = getRep() ;
-	int rank = 1 ;
-	DatatypeP dp = qrep->getType() ;
-	hid_t datatype = dp->get_hdf5_type() ;
-	hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
-	T* tmp_array = new T[dimension] ;
-	size_t tmp = 0 ;
-	hid_t err = H5Dread(dataset,  datatype, memspace, dataspace,
-			    H5P_DEFAULT, tmp_array) ;
-	if(err < 0) {
-	  cerr << "H5Dread() failed" << endl ;
-	}
-	int loc = 0 ;
-	for(entitySet::const_iterator si = eset.begin(); si != eset.end();++si) 
-	  for(int ivec = 0; ivec < (fi.first_level)[loc]; ivec++) {
-	    base_ptr[*si][ivec] = tmp_array[tmp++] ;
-	    loc++ ;
-	  }
-	H5Sclose(memspace) ;
-        H5Tclose(datatype) ;
-	delete [] tmp_array ;
+  void multiStoreRepI<T>::hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, frame_info &fi, entitySet &eset)
+  {
+    if(dimension != 0) {
+      storeRepP qrep = getRep() ;
+      int rank = 1 ;
+      DatatypeP dp = qrep->getType() ;
+      hid_t datatype = dp->get_hdf5_type() ;
+      hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
+      T* tmp_array = new T[dimension] ;
+      size_t tmp = 0 ;
+      hid_t err = H5Dread(dataset,  datatype, memspace, dataspace,
+                          H5P_DEFAULT, tmp_array) ;
+      if(err < 0) {
+        cerr << "H5Dread() failed" << endl ;
       }
+      int loc = 0 ;
+      for(entitySet::const_iterator si = eset.begin(); si != eset.end();++si) 
+        for(int ivec = 0; ivec < (fi.first_level)[loc]; ivec++) {
+          base_ptr[*si][ivec] = tmp_array[tmp++] ;
+          loc++ ;
+        }
+      H5Sclose(memspace) ;
+      H5Tclose(datatype) ;
+      delete [] tmp_array ;
     }
-  
+  }
+
+#ifdef H5_HAVE_PARALLEL 
+  template <class T> 
+  void multiStoreRepI<T>::hdf5readP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, frame_info &fi, entitySet &eset, hid_t cfer_plist_id)
+  {
+    warn(true);
+  }
+#endif  
   //**************************************************************************/
   
   template <class T> 
-    void multiStoreRepI<T>::hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER, frame_info &fi, entitySet &eset)
-    {
-      typedef data_schema_traits<T> schema_traits ;
-      if(dimension != 0) {
-	storeRepP qrep = getRep() ;
-	int rank = 1 ;
-	DatatypeP dp = qrep->getType() ;
-	hid_t datatype = dp->get_hdf5_type() ;
-	hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
-	std::vector<int> vint = fi.second_level ;
-	typedef typename schema_traits::Converter_Base_Type dtype;
-	dtype* tmp_array = new dtype[dimension] ;    
-	hid_t err = H5Dread(dataset,  datatype, memspace, dataspace,
-			    H5P_DEFAULT, tmp_array) ;
-	if(err < 0) {
-	  cerr << "H5Dread() failed" << endl ;
-	}
-	size_t tmp = 0 ;
-	int bucsize ;
-	size_t indx = 0 ;
-	int loc = 0 ;
-	for(entitySet::const_iterator si = eset.begin(); si != eset.end(); ++si) {
-	  for(int ivec = 0; ivec < (fi.first_level)[loc]; ivec++) {
-	    typename data_schema_traits<T>::Converter_Type cvtr(base_ptr[*si][ivec]);
-	    bucsize = vint[indx++] ;
-	    cvtr.setState(tmp_array+tmp, bucsize) ;
-	    tmp += bucsize ;
-	  }
-	  loc++ ;
-	}
+  void multiStoreRepI<T>::hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER, frame_info &fi, entitySet &eset)
+  {
+    typedef data_schema_traits<T> schema_traits ;
+    if(dimension != 0) {
+      storeRepP qrep = getRep() ;
+      int rank = 1 ;
+      DatatypeP dp = qrep->getType() ;
+      hid_t datatype = dp->get_hdf5_type() ;
+      hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
+      std::vector<int> vint = fi.second_level ;
+      typedef typename schema_traits::Converter_Base_Type dtype;
+      dtype* tmp_array = new dtype[dimension] ;    
+      hid_t err = H5Dread(dataset,  datatype, memspace, dataspace,
+                          H5P_DEFAULT, tmp_array) ;
+      if(err < 0) {
+        cerr << "H5Dread() failed" << endl ;
+      }
+      size_t tmp = 0 ;
+      int bucsize ;
+      size_t indx = 0 ;
+      int loc = 0 ;
+      for(entitySet::const_iterator si = eset.begin(); si != eset.end(); ++si) {
+        for(int ivec = 0; ivec < (fi.first_level)[loc]; ivec++) {
+          typename data_schema_traits<T>::Converter_Type cvtr(base_ptr[*si][ivec]);
+          bucsize = vint[indx++] ;
+          cvtr.setState(tmp_array+tmp, bucsize) ;
+          tmp += bucsize ;
+        }
+        loc++ ;
+      }
       
-	H5Sclose(memspace) ;
-        H5Tclose(datatype) ;
-	delete [] tmp_array ;
-      }
-    }  
+      H5Sclose(memspace) ;
+      H5Tclose(datatype) ;
+      delete [] tmp_array ;
+    }
+  }  
+
+#ifdef H5_HAVE_PARALLEL 
+  template <class T> 
+  void multiStoreRepI<T>::hdf5readP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER c, frame_info &fi, entitySet &eset, hid_t xfer_plist_id)
+  {
+    warn(true);
+  }
+#endif
   //**************************************************************************/
 
   template<class T> 
@@ -960,66 +1112,92 @@ namespace Loci {
     hdf5write(group_id, dataspace, dataset, dimension, name, traits_output_type, usr_eset) ;
   }
   
+#ifdef H5_HAVE_PARALLEL
+  template<class T> 
+  void multiStoreRepI<T>::writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet &usr_eset, hid_t xfer_plist_id) const 
+  {
+    warn(true);
+  }
+#endif
+  
   //**************************************************************************/
   template <class T> 
   void multiStoreRepI<T>::hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER g, const entitySet &eset) const
-    {
-      if(dimension != 0) {
-	storeRepP qrep = getRep() ;
-	int rank = 1 ;
-	DatatypeP dp = qrep->getType() ;
-	hid_t datatype = dp->get_hdf5_type() ;
-	hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
-	T* tmp_array = new T[dimension] ;
-	size_t tmp = 0 ;
-	int newsize = 0 ;
-	for(entitySet::const_iterator si = eset.begin(); si != eset.end();++si) {
-	  newsize = end(*si) - begin(*si);
-	  for(int ivec = 0; ivec < newsize; ivec++){
-	    tmp_array[tmp++] = base_ptr[*si][ivec] ;
-	  }
-	}
-	H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, tmp_array) ;
-	H5Sclose(memspace) ;
-        H5Tclose(datatype) ;
-	delete [] tmp_array ;
+  {
+    if(dimension != 0) {
+      storeRepP qrep = getRep() ;
+      int rank = 1 ;
+      DatatypeP dp = qrep->getType() ;
+      hid_t datatype = dp->get_hdf5_type() ;
+      hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
+      T* tmp_array = new T[dimension] ;
+      size_t tmp = 0 ;
+      int newsize = 0 ;
+      for(entitySet::const_iterator si = eset.begin(); si != eset.end();++si) {
+        newsize = end(*si) - begin(*si);
+        for(int ivec = 0; ivec < newsize; ivec++){
+          tmp_array[tmp++] = base_ptr[*si][ivec] ;
+        }
       }
+      H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, tmp_array) ;
+      H5Sclose(memspace) ;
+      H5Tclose(datatype) ;
+      delete [] tmp_array ;
     }
+  }
+
+#ifdef H5_HAVE_PARALLEL 
+  template <class T> 
+  void multiStoreRepI<T>::hdf5writeP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER g, const entitySet &eset, hid_t xfer_plist_id) const
+  {
+    warn(true);
+  }
+#endif
   //*************************************************************************/
 
   template <class T> 
-    void multiStoreRepI<T>:: hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER g, const entitySet &eset)  const
-    {   
-      typedef data_schema_traits<T> schema_traits ;
-      if(dimension != 0) {
-	storeRepP qrep = getRep() ;
-	int rank = 1 ;
-	DatatypeP dp = qrep->getType() ;
-	hid_t datatype = dp->get_hdf5_type() ;
-	hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
-	typedef typename schema_traits::Converter_Base_Type dtype;
-	dtype* tmp_array = new dtype[dimension] ;
-	size_t tmp = 0 ;
-	int stateSize = 0 ;
-	int newsize = 0 ;
-	for(entitySet::const_iterator si = eset.begin(); si != eset.end();++si) {
-	  newsize = end(*si) - begin(*si);
-	  for(int ivec = 0; ivec < newsize; ivec++){
-	    typename schema_traits::Converter_Type cvtr(base_ptr[*si][ivec]);
-	    cvtr.getState(tmp_array+tmp, stateSize) ;
-	    tmp +=stateSize ;
-	  }
-	}
-	H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, tmp_array) ;
-	H5Sclose(memspace) ;
-        H5Tclose(datatype) ;
-	delete [] tmp_array ;
-      }   
-    }
+  void multiStoreRepI<T>:: hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER g, const entitySet &eset)  const
+  {   
+    typedef data_schema_traits<T> schema_traits ;
+    if(dimension != 0) {
+      storeRepP qrep = getRep() ;
+      int rank = 1 ;
+      DatatypeP dp = qrep->getType() ;
+      hid_t datatype = dp->get_hdf5_type() ;
+      hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
+      typedef typename schema_traits::Converter_Base_Type dtype;
+      dtype* tmp_array = new dtype[dimension] ;
+      size_t tmp = 0 ;
+      int stateSize = 0 ;
+      int newsize = 0 ;
+      for(entitySet::const_iterator si = eset.begin(); si != eset.end();++si) {
+        newsize = end(*si) - begin(*si);
+        for(int ivec = 0; ivec < newsize; ivec++){
+          typename schema_traits::Converter_Type cvtr(base_ptr[*si][ivec]);
+          cvtr.getState(tmp_array+tmp, stateSize) ;
+          tmp +=stateSize ;
+        }
+      }
+      H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, tmp_array) ;
+      H5Sclose(memspace) ;
+      H5Tclose(datatype) ;
+      delete [] tmp_array ;
+    }   
+  }
+  template <class T> 
+  void multiStoreRepI<T>:: hdf5writeP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER g, const entitySet &eset, hid_t xfer_plist_id)  const
+  {
+#ifndef H5_HAVE_PARALLEL    
+    hdf5write(group_id,  dataspace, dataset,  dimension,  name,  g, eset);
+#else
+    warn(true);
+#endif
+  }
 
   //*************************************************************************/
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
-
+#endif
 } // end of namespace Loci
 
 #endif

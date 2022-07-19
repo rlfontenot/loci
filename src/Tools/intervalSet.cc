@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -48,11 +48,11 @@ namespace Loci {
   // It seems that these initializations were occuring before the 
   // genIntervalSet template static members were initialized.
   // This change fixes it, though it is ugly.
-  const genIntervalSet<int_type> EMPTY = genIntervalSet<int_type>() ; 
+  const genIntervalSet<int_type> EMPTY = genIntervalSet<int_type>() ;
+  //  const int_type UNIVERSE_MIN = genIntervalSet<int_type>::UNIVERSE_MIN;
+  //  const int_type UNIVERSE_MAX = genIntervalSet<int_type>::UNIVERSE_MAX;
   const int_type UNIVERSE_MAX = std::numeric_limits<int_type>::max() - 1 ;
   const int_type UNIVERSE_MIN = std::numeric_limits<int_type>::min() + 1 ;
 
-  const genIntervalSet<gEntity> GEMPTY = genIntervalSet<gEntity>() ;
-  const gEntity GUNIVERSE_MAX = std::numeric_limits<gEntity>::max() - 1 ;
-  const gEntity GUNIVERSE_MIN = std::numeric_limits<gEntity>::min() + 1 ;
+
 }

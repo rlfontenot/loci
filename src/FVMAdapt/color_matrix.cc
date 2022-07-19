@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2015, Mississippi State University
+//# Copyright 2015-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -55,493 +55,832 @@ namespace Loci{
                             fact_db::distribute_infoP dist, MPI_Comm comm);
   std::vector<int> simplePartitionVec(int mn, int mx, int p);
 
-}
-void writeVOGNode(hid_t file_id,
-                  Loci::storeRepP &pos,
-                  const_store<Loci::FineNodes> &inner_nodes){
 
-  hid_t group_id = 0 ;
+  //writeVOGNode is different from the one from FVMGridWriter.cc
+  namespace pio{ 
+    void writeVOGNodeS(hid_t file_id,
+                       Loci::storeRepP &pos,
+                       const_store<Loci::FineNodes> &inner_nodes){ //serial io
+
+      hid_t group_id = 0 ;
   
-  if(MPI_processes == 1){
-    //firsr write out numNodes
-    long long num_original_nodes  = pos->domain().size();
-    long long num_inner_nodes  = 0;
-    FORALL(inner_nodes.domain(), cc){
-      num_inner_nodes += inner_nodes[cc].size();
-    }ENDFORALL;
+      if(MPI_processes == 1){
+        //firsr write out numNodes
+        long long num_original_nodes  = pos->domain().size();
+        long long num_inner_nodes  = 0;
+        FORALL(inner_nodes.domain(), cc){
+          num_inner_nodes += inner_nodes[cc].size();
+        }ENDFORALL;
       
-    long long array_size = num_original_nodes + num_inner_nodes;
+        long long array_size = num_original_nodes + num_inner_nodes;
       
-    group_id = H5Gcreate(file_id,"file_info",
-			 H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#ifdef H5_USE_16_API
+        group_id = H5Gcreate(file_id,"file_info",0) ;
+#else
+        group_id = H5Gcreate(file_id,"file_info",
+                             H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
 
-    cout << "num_nodes = " << array_size << endl ;
+        cout << "num_nodes = " << array_size << endl ;
       
-    hsize_t dims = 1 ;
-    hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
+        hsize_t dims = 1 ;
+        hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
+
+#ifdef H5_USE_16_API      
+        hid_t att_id = H5Acreate(group_id,"numNodes", H5T_STD_I64BE,
+                                 dataspace_id, H5P_DEFAULT) ;
+#else
+        hid_t att_id = H5Acreate(group_id,"numNodes", H5T_STD_I64BE,
+                                 dataspace_id, H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
+        H5Awrite(att_id,H5T_NATIVE_LLONG,&array_size) ;
+        H5Aclose(att_id) ;
+        H5Gclose(group_id) ;
+
+        if(array_size == 0)
+          return ;
+
+
+        //prepare to write positions
+#ifdef H5_USE_16_API
+        group_id = H5Gcreate(file_id,"node_info",0) ;
+#else
+        group_id = H5Gcreate(file_id,"node_info",
+                             H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
       
-    hid_t att_id = H5Acreate(group_id,"numNodes", H5T_STD_I64BE,
-                             dataspace_id, H5P_DEFAULT,H5P_DEFAULT) ;
-    H5Awrite(att_id,H5T_NATIVE_LLONG,&array_size) ;
-    H5Aclose(att_id) ;
-    H5Gclose(group_id) ;
-
-    if(array_size == 0)
-      return ;
-
-
-    //prepare to write positions
-    group_id = H5Gcreate(file_id,"node_info",
-			 H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-      
-    //create dataspace and dataset
-    int rank = 1 ;
-    hsize_t dimension = array_size ;
-    hid_t dataspace = H5Screate_simple(rank,&dimension,NULL) ;
-    typedef data_schema_traits<vect3d> traits_type ;
-    Loci::DatatypeP dp = traits_type::get_type() ;
+        //create dataspace and dataset
+        int rank = 1 ;
+        hsize_t dimension = array_size ;
+        hid_t dataspace = H5Screate_simple(rank,&dimension,NULL) ;
+        typedef data_schema_traits<vect3d> traits_type ;
+        Loci::DatatypeP dp = traits_type::get_type() ;
 
 #ifdef H5_INTERFACE_1_6_4
-    hsize_t start = 0 ;
+        hsize_t start = 0 ;
 #else
-    hssize_t start = 0 ;
+        hssize_t start = 0 ;
 #endif
-    hsize_t stride = 1 ;
+        hsize_t stride = 1 ;
       
-    hid_t dataset = H5Dcreate(group_id,"positions",dp->get_hdf5_type(),
-                              dataspace, H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-
+#ifdef H5_USE_16_API
+        hid_t dataset = H5Dcreate(group_id,"positions",dp->get_hdf5_type(),
+                                  dataspace, H5P_DEFAULT) ;
+#else
+        hid_t dataset = H5Dcreate(group_id,"positions",dp->get_hdf5_type(),
+                                  dataspace, H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
       
-    //first write out pos
-    hsize_t count = num_original_nodes ;
-    if(count != 0) {
-      std::vector<vect3d> v_pos(count);
-      //put pos_io in a vector
-      store<vect3d>pos_io;
-      pos_io = pos;
-      int index = 0;
-      FORALL(pos_io.domain(),cc){
-        v_pos[index++] = pos_io[cc];
-      }ENDFORALL;
+        //first write out pos
+        hsize_t count = num_original_nodes ;
+        if(count != 0) {
+          std::vector<vect3d> v_pos(count);
+          //put pos_io in a vector
+          store<vect3d>pos_io;
+          pos_io = pos;
+          int index = 0;
+          FORALL(pos_io.domain(),cc){
+            v_pos[index++] = pos_io[cc];
+          }ENDFORALL;
         
-      H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
-                          &start, &stride, &count, NULL) ;
-      hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
-      H5Dwrite(dataset,dp->get_hdf5_type(),memspace,dataspace,
-               H5P_DEFAULT, &v_pos[0]) ;
-      H5Sclose(memspace) ;
-    }
+          H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
+                              &start, &stride, &count, NULL) ;
+          hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
+          H5Dwrite(dataset,dp->get_hdf5_type(),memspace,dataspace,
+                   H5P_DEFAULT, &v_pos[0]) ;
+          H5Sclose(memspace) ;
+        }
       
-    //put inner_nodes in a vector
-    Loci::constraint faces, geom_cells;
-    faces = Loci::exec_current_fact_db->get_variable("faces");
-    geom_cells = Loci::exec_current_fact_db->get_variable("geom_cells");
-    entitySet local_edges = Loci::exec_current_fact_db->get_variable("edge2node")->domain();
+        //put inner_nodes in a vector
+        Loci::constraint faces, geom_cells;
+        faces = Loci::exec_current_fact_db->get_variable("faces");
+        geom_cells = Loci::exec_current_fact_db->get_variable("geom_cells");
+        entitySet local_edges = Loci::exec_current_fact_db->get_variable("edge2node")->domain();
     
    
       
-    //next, write out inner_nodes
-    start += num_original_nodes  ;
+        //next, write out inner_nodes
+        start += num_original_nodes  ;
       
-    count = num_inner_nodes;
-    if(num_inner_nodes != 0) {
-      std::vector<vect3d> v_nodes(num_inner_nodes);
-      //put inner_nodes in a vector
+        count = num_inner_nodes;
+        if(num_inner_nodes != 0) {
+          std::vector<vect3d> v_nodes(num_inner_nodes);
+          //put inner_nodes in a vector
 
-      long index = 0;
-      FORALL(local_edges, cc){
-        for(unsigned int i = 0; i < inner_nodes[cc].size(); i++){
-          v_nodes[index++] = inner_nodes[cc][i];
-        }
-      }ENDFORALL;
-      FORALL(*geom_cells, cc){
-        for(unsigned int i = 0; i < inner_nodes[cc].size(); i++){
-          v_nodes[index++] = inner_nodes[cc][i];
-        }
-      }ENDFORALL; 
-      FORALL(*faces, cc){
-        for(unsigned int i = 0; i < inner_nodes[cc].size(); i++){
-          v_nodes[index++] = inner_nodes[cc][i];
-        }
-      }ENDFORALL;
+          long index = 0;
+          FORALL(local_edges, cc){
+            for(unsigned int i = 0; i < inner_nodes[cc].size(); i++){
+              v_nodes[index++] = inner_nodes[cc][i];
+            }
+          }ENDFORALL;
+          FORALL(*geom_cells, cc){
+            for(unsigned int i = 0; i < inner_nodes[cc].size(); i++){
+              v_nodes[index++] = inner_nodes[cc][i];
+            }
+          }ENDFORALL; 
+          FORALL(*faces, cc){
+            for(unsigned int i = 0; i < inner_nodes[cc].size(); i++){
+              v_nodes[index++] = inner_nodes[cc][i];
+            }
+          }ENDFORALL;
                 
         
-      H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
-                          &start, &stride, &count, NULL) ;
-      hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
-      H5Dwrite(dataset,dp->get_hdf5_type(),memspace,dataspace,
-               H5P_DEFAULT, &v_nodes[0]) ;
-      H5Sclose(memspace) ;
-    }
+          H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
+                              &start, &stride, &count, NULL) ;
+          hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
+          H5Dwrite(dataset,dp->get_hdf5_type(),memspace,dataspace,
+                   H5P_DEFAULT, &v_nodes[0]) ;
+          H5Sclose(memspace) ;
+        }
 
-    H5Dclose(dataset) ;
-    H5Sclose(dataspace) ;
-    H5Gclose(group_id) ;
-    return;
-  }
+        H5Dclose(dataset) ;
+        H5Sclose(dataspace) ;
+        H5Gclose(group_id) ;
+        return;
+      }//end of if(Loci::MPI_Processes==1)
   
-  //reorder store first, from local to io entities
-  fact_db::distribute_infoP dist =  Loci::exec_current_fact_db->get_distribute_info() ;
-  constraint  my_faces, my_geom_cells; 
-  entitySet my_entities = dist->my_entities ;
-  my_faces = Loci::exec_current_fact_db->get_variable("faces");
-  my_geom_cells = Loci::exec_current_fact_db->get_variable("geom_cells");
+      //reorder store first, from local to io entities
+      fact_db::distribute_infoP dist =  Loci::exec_current_fact_db->get_distribute_info() ;
+      constraint  my_faces, my_geom_cells; 
+      entitySet my_entities = dist->my_entities ;
+      my_faces = Loci::exec_current_fact_db->get_variable("faces");
+      my_geom_cells = Loci::exec_current_fact_db->get_variable("geom_cells");
   
   
   
-  entitySet local_edges =my_entities &
-    (Loci::exec_current_fact_db->get_variable("edge2node"))->domain(); 
-  entitySet local_faces = my_entities & *my_faces;
-  entitySet local_cells =  my_entities & *my_geom_cells;
-  entitySet local_nodes = my_entities & pos->domain();
+      entitySet local_edges =my_entities &
+        (Loci::exec_current_fact_db->get_variable("edge2node"))->domain(); 
+      entitySet local_faces = my_entities & *my_faces;
+      entitySet local_cells =  my_entities & *my_geom_cells;
+      entitySet local_nodes = my_entities & pos->domain();
   
   
 
-  //before write out,create stores for pos, inner_nodes of cells and faces which
-  //are ordered across processors in the file numbering, the domain of this container
-  //shifted by offset is the actual file numbering. offset will be modified after function call  
+      //before write out,create stores for pos, inner_nodes of cells and faces which
+      //are ordered across processors in the file numbering, the domain of this container
+      //shifted by offset is the actual file numbering. offset will be modified after function call  
  
-  int offset = 0;
-  store<vect3d> pos_io;
-  pos_io = Loci::Local2FileOrder(pos, local_nodes, offset, dist, MPI_COMM_WORLD) ;
-  entitySet file_nodes = pos_io.domain();
+      int offset = 0;
+      store<vect3d> pos_io;
+      pos_io = Loci::Local2FileOrder(pos, local_nodes, offset, dist, MPI_COMM_WORLD) ;
+      entitySet file_nodes = pos_io.domain();
   
-  offset = 0;
-  store<Loci::FineNodes> edge_inner_nodes;
-  edge_inner_nodes = Loci::Local2FileOrder(inner_nodes.Rep(),local_edges,offset,dist,MPI_COMM_WORLD) ;
-  entitySet file_edges = edge_inner_nodes.domain();
+      offset = 0;
+      store<Loci::FineNodes> edge_inner_nodes;
+      edge_inner_nodes = Loci::Local2FileOrder(inner_nodes.Rep(),local_edges,offset,dist,MPI_COMM_WORLD) ;
+      entitySet file_edges = edge_inner_nodes.domain();
   
-  offset= 0;
-  // Create container vardist that
-  store<Loci::FineNodes> cell_inner_nodes;
-  cell_inner_nodes = Loci::Local2FileOrder(inner_nodes.Rep(),local_cells,offset,dist,MPI_COMM_WORLD) ;
-  entitySet file_cells = cell_inner_nodes.domain();
+      offset= 0;
+      // Create container vardist that
+      store<Loci::FineNodes> cell_inner_nodes;
+      cell_inner_nodes = Loci::Local2FileOrder(inner_nodes.Rep(),local_cells,offset,dist,MPI_COMM_WORLD) ;
+      entitySet file_cells = cell_inner_nodes.domain();
   
-  offset= 0;
-  // Create container vardist that
-  store<Loci::FineNodes> face_inner_nodes;
-  face_inner_nodes = Loci::Local2FileOrder(inner_nodes.Rep(),local_faces,offset,dist,MPI_COMM_WORLD) ;
-  entitySet file_faces = face_inner_nodes.domain();
+      offset= 0;
+      // Create container vardist that
+      store<Loci::FineNodes> face_inner_nodes;
+      face_inner_nodes = Loci::Local2FileOrder(inner_nodes.Rep(),local_faces,offset,dist,MPI_COMM_WORLD) ;
+      entitySet file_faces = face_inner_nodes.domain();
   
   
-  //compute the size of pos
-  int local_pos_size = file_nodes.size();
-  std::vector<int> pos_sizes(Loci::MPI_processes) ;
-  MPI_Gather(&local_pos_size,1,MPI_INT,
-             &pos_sizes[0],1,MPI_INT,0,MPI_COMM_WORLD) ;
+      //compute the size of pos
+      int local_pos_size = file_nodes.size();
+      std::vector<int> pos_sizes(Loci::MPI_processes) ;
+      MPI_Gather(&local_pos_size,1,MPI_INT,
+                 &pos_sizes[0],1,MPI_INT,0,MPI_COMM_WORLD) ;
 
   
   
-  //compute the size of inner_nodes
-  int num_local_edge_nodes = 0;
-  FORALL(file_edges, cc){
-    num_local_edge_nodes += edge_inner_nodes[cc].size();
-  }ENDFORALL;
+      //compute the size of inner_nodes
+      int num_local_edge_nodes = 0;
+      FORALL(file_edges, cc){
+        num_local_edge_nodes += edge_inner_nodes[cc].size();
+      }ENDFORALL;
   
-  int num_local_cell_nodes = 0;
-  FORALL(file_cells, cc){
-    num_local_cell_nodes += cell_inner_nodes[cc].size();
-  }ENDFORALL;
+      int num_local_cell_nodes = 0;
+      FORALL(file_cells, cc){
+        num_local_cell_nodes += cell_inner_nodes[cc].size();
+      }ENDFORALL;
   
-  int num_local_face_nodes = 0;
-  FORALL(file_faces, cc){
-    num_local_face_nodes += face_inner_nodes[cc].size();
-  }ENDFORALL;
-  
-  
-  std::vector<int> inner_edge_nodes_sizes(Loci::MPI_processes);
-  MPI_Gather(&num_local_edge_nodes,1,MPI_INT,
-             &inner_edge_nodes_sizes[0],1,MPI_INT,0,MPI_COMM_WORLD) ;
+      int num_local_face_nodes = 0;
+      FORALL(file_faces, cc){
+        num_local_face_nodes += face_inner_nodes[cc].size();
+      }ENDFORALL;
   
   
-  std::vector<int> inner_cell_nodes_sizes(Loci::MPI_processes);
-  MPI_Gather(&num_local_cell_nodes,1,MPI_INT,
-             &inner_cell_nodes_sizes[0],1,MPI_INT,0,MPI_COMM_WORLD) ;
+      std::vector<int> inner_edge_nodes_sizes(Loci::MPI_processes);
+      MPI_Gather(&num_local_edge_nodes,1,MPI_INT,
+                 &inner_edge_nodes_sizes[0],1,MPI_INT,0,MPI_COMM_WORLD) ;
   
-  std::vector<int> inner_face_nodes_sizes(Loci::MPI_processes);
-  MPI_Gather(&num_local_face_nodes,1,MPI_INT,
-             &inner_face_nodes_sizes[0],1,MPI_INT,0,MPI_COMM_WORLD) ;
+  
+      std::vector<int> inner_cell_nodes_sizes(Loci::MPI_processes);
+      MPI_Gather(&num_local_cell_nodes,1,MPI_INT,
+                 &inner_cell_nodes_sizes[0],1,MPI_INT,0,MPI_COMM_WORLD) ;
+  
+      std::vector<int> inner_face_nodes_sizes(Loci::MPI_processes);
+      MPI_Gather(&num_local_face_nodes,1,MPI_INT,
+                 &inner_face_nodes_sizes[0],1,MPI_INT,0,MPI_COMM_WORLD) ;
   
 
 
 
 
   
-  if(Loci::MPI_rank == 0) {
-    //compute array_size
-    hsize_t array_size = 0 ;
-    for(int i=0;i<MPI_processes;++i)
-      array_size += (pos_sizes[i]+ inner_edge_nodes_sizes[i]+
-                     inner_cell_nodes_sizes[i] + inner_face_nodes_sizes[i] );
-    //first write out numNodes
+      if(Loci::MPI_rank == 0) {
+        //compute array_size
+        hsize_t array_size = 0 ;
+        for(int i=0;i<MPI_processes;++i)
+          array_size += (pos_sizes[i]+ inner_edge_nodes_sizes[i]+
+                         inner_cell_nodes_sizes[i] + inner_face_nodes_sizes[i] );
+        //first write out numNodes
     
-    group_id = H5Gcreate(file_id,"file_info",
-			 H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#ifdef H5_USE_16_API
+        group_id = H5Gcreate(file_id,"file_info",0) ;
+#else
+        group_id = H5Gcreate(file_id,"file_info",
+                             H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
     
-    cout << "num_nodes = " << array_size << endl ;
+        cout << "num_nodes = " << array_size << endl ;
     
-    hsize_t dims = 1 ;
-    hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
+        hsize_t dims = 1 ;
+        hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
     
-    hid_t att_id = H5Acreate(group_id,"numNodes", H5T_STD_I64BE,
-                             dataspace_id, H5P_DEFAULT,H5P_DEFAULT) ;
-    H5Awrite(att_id,H5T_NATIVE_LLONG,&array_size) ;
-    H5Aclose(att_id) ;
-    H5Gclose(group_id) ;
+#ifdef H5_USE_16_API
+        hid_t att_id = H5Acreate(group_id,"numNodes", H5T_STD_I64BE,
+                                 dataspace_id, H5P_DEFAULT) ;
+#else
+        hid_t att_id = H5Acreate(group_id,"numNodes", H5T_STD_I64BE,
+                                 dataspace_id, H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
+        H5Awrite(att_id,H5T_NATIVE_LLONG,&array_size) ;
+        H5Aclose(att_id) ;
+        H5Gclose(group_id) ;
     
-    if(array_size == 0)
-      return ;
-    
+        if(array_size == 0)
+          return ;
 
-    
-    group_id = H5Gcreate(file_id,"node_info",
-			 H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-    
-    //create dataspace and dataset
-    int rank = 1 ;
-    hsize_t dimension = array_size ;
-    hid_t dataspace = H5Screate_simple(rank,&dimension,NULL) ;
-    typedef data_schema_traits<vect3d> traits_type ;
-    Loci::DatatypeP dp = traits_type::get_type() ;
+#ifdef H5_USE_16_API
+        group_id = H5Gcreate(file_id,"node_info",0) ;
+#else
+        group_id = H5Gcreate(file_id,"node_info",
+                             H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
+        //create dataspace and dataset
+        int rank = 1 ;
+        hsize_t dimension = array_size ;
+        hid_t dataspace = H5Screate_simple(rank,&dimension,NULL) ;
+        typedef data_schema_traits<vect3d> traits_type ;
+        Loci::DatatypeP dp = traits_type::get_type() ;
 
 #ifdef H5_INTERFACE_1_6_4
-    hsize_t start = 0 ;
+        hsize_t start = 0 ;
 #else
-    hssize_t start = 0 ;
+        hssize_t start = 0 ;
 #endif
-    hsize_t stride = 1 ;
+        hsize_t stride = 1 ;
     
-    hid_t dataset = H5Dcreate(group_id,"positions",dp->get_hdf5_type(),
-                              dataspace, H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#ifdef H5_USE_16_API
+        hid_t dataset = H5Dcreate(group_id,"positions",dp->get_hdf5_type(),
+                                  dataspace, H5P_DEFAULT) ;
+#else
+        hid_t dataset = H5Dcreate(group_id,"positions",dp->get_hdf5_type(),
+                                  dataspace, H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
     
     
-    //first write out pos
-    hsize_t count = pos_sizes[0] ;
-    if(count != 0) {
-      std::vector<vect3d> v_pos(count);
-      //put pos_io in a vector
-      int index = 0;
-      FORALL(file_nodes,cc){
-        v_pos[index++] = pos_io[cc];
-      }ENDFORALL;
+        //first write out pos
+        hsize_t count = pos_sizes[0] ;
+        if(count != 0) {
+          std::vector<vect3d> v_pos(count);
+          //put pos_io in a vector
+          int index = 0;
+          FORALL(file_nodes,cc){
+            v_pos[index++] = pos_io[cc];
+          }ENDFORALL;
       
-      H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
-                          &start, &stride, &count, NULL) ;
-      hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
-      H5Dwrite(dataset,dp->get_hdf5_type(),memspace,dataspace,
-               H5P_DEFAULT, &v_pos[0]) ;
-      H5Sclose(memspace) ;
-    }
-    for(int i=1;i<MPI_processes;++i) {
-      start += pos_sizes[i-1] ;
-      if(pos_sizes[i] == 0)
-        continue ;
-      int flag = 0 ;
-      MPI_Send(&flag,1,MPI_INT,i,0,MPI_COMM_WORLD) ;
-      std::vector<vect3d> rv(pos_sizes[i]) ;
-      MPI_Status mstat ;
-      MPI_Recv(&rv[0],sizeof(vect3d)*pos_sizes[i],MPI_BYTE,i,1,MPI_COMM_WORLD,
-               &mstat) ;
-      count = pos_sizes[i] ;
-      H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
-      hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
-      H5Dwrite(dataset,dp->get_hdf5_type(),memspace,dataspace,
-               H5P_DEFAULT, &rv[0]) ;
-      H5Sclose(memspace) ;
-    }
-    //next, write out inner_nodes
-    //local edge nodes
-    start += pos_sizes[MPI_processes-1] ;
-    count = num_local_edge_nodes;
-    if(num_local_edge_nodes != 0) {
-      std::vector<vect3d> v_nodes(num_local_edge_nodes);
-      //put inner_nodes in a vector
-      
-      long index = 0;
-      FORALL(file_edges, cc){
-        for(unsigned int i = 0; i < edge_inner_nodes[cc].size(); i++){
-          v_nodes[index++] = edge_inner_nodes[cc][i];
+          H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
+                              &start, &stride, &count, NULL) ;
+          hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
+          H5Dwrite(dataset,dp->get_hdf5_type(),memspace,dataspace,
+                   H5P_DEFAULT, &v_pos[0]) ;
+          H5Sclose(memspace) ;
         }
-      }ENDFORALL;
+        for(int i=1;i<MPI_processes;++i) {
+          start += pos_sizes[i-1] ;
+          if(pos_sizes[i] == 0)
+            continue ;
+          int flag = 0 ;
+          MPI_Send(&flag,1,MPI_INT,i,0,MPI_COMM_WORLD) ;
+          std::vector<vect3d> rv(pos_sizes[i]) ;
+          MPI_Status mstat ;
+          MPI_Recv(&rv[0],sizeof(vect3d)*pos_sizes[i],MPI_BYTE,i,1,MPI_COMM_WORLD,
+                   &mstat) ;
+          count = pos_sizes[i] ;
+          H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
+          hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
+          H5Dwrite(dataset,dp->get_hdf5_type(),memspace,dataspace,
+                   H5P_DEFAULT, &rv[0]) ;
+          H5Sclose(memspace) ;
+        }
+        //next, write out inner_nodes
+        //local edge nodes
+        start += pos_sizes[MPI_processes-1] ;
+        count = num_local_edge_nodes;
+        if(num_local_edge_nodes != 0) {
+          std::vector<vect3d> v_nodes(num_local_edge_nodes);
+          //put inner_nodes in a vector
+      
+          long index = 0;
+          FORALL(file_edges, cc){
+            for(unsigned int i = 0; i < edge_inner_nodes[cc].size(); i++){
+              v_nodes[index++] = edge_inner_nodes[cc][i];
+            }
+          }ENDFORALL;
         
-      H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
-                          &start, &stride, &count, NULL) ;
-      hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
-      H5Dwrite(dataset,dp->get_hdf5_type(),memspace,dataspace,
-               H5P_DEFAULT, &v_nodes[0]) ;
-      H5Sclose(memspace) ;
-    }
-    //edge nodes from the other processor
-    
-    for(int i=1;i<MPI_processes;++i) {
-      start += inner_edge_nodes_sizes[i-1] ;
-      if(inner_edge_nodes_sizes[i] == 0)
-        continue ;
-      int flag = 0 ;
-      MPI_Send(&flag,1,MPI_INT,i,2,MPI_COMM_WORLD) ;
-      std::vector<vector3d<double> > rv(inner_edge_nodes_sizes[i]) ;
-      MPI_Status mstat ;
-      MPI_Recv(&rv[0],sizeof(vector3d<double> )*inner_edge_nodes_sizes[i],MPI_BYTE,i,3,MPI_COMM_WORLD,
-               &mstat) ;
-      count = inner_edge_nodes_sizes[i] ;
-      H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
-      hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
-      H5Dwrite(dataset,dp->get_hdf5_type(),memspace,dataspace,
-               H5P_DEFAULT, &rv[0]) ;
-      H5Sclose(memspace) ;
-    }
-    
-    //local cell nodes
-    start += inner_edge_nodes_sizes[MPI_processes-1] ;
-    count = num_local_cell_nodes;
-    if(num_local_cell_nodes != 0) {
-      std::vector<vector3d<double> > v_nodes(num_local_cell_nodes);
-      //put inner_nodes in a vector
-      
-      long index = 0;
-      FORALL(file_cells, cc){
-        for(unsigned int i = 0; i < cell_inner_nodes[cc].size(); i++){
-          v_nodes[index++] = cell_inner_nodes[cc][i];
+          H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
+                              &start, &stride, &count, NULL) ;
+          hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
+          H5Dwrite(dataset,dp->get_hdf5_type(),memspace,dataspace,
+                   H5P_DEFAULT, &v_nodes[0]) ;
+          H5Sclose(memspace) ;
         }
-      }ENDFORALL;
-      
-      H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
-                          &start, &stride, &count, NULL) ;
-      hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
-      H5Dwrite(dataset,dp->get_hdf5_type(),memspace,dataspace,
-               H5P_DEFAULT, &v_nodes[0]) ;
-      H5Sclose(memspace) ;
-    }
-    //cell nodes from the other processor
+        //edge nodes from the other processor
     
-    for(int i=1;i<MPI_processes;++i) {
-      start += inner_cell_nodes_sizes[i-1] ;
-      if(inner_cell_nodes_sizes[i] == 0)
-        continue ;
-      int flag = 0 ;
-      MPI_Send(&flag,1,MPI_INT,i,4,MPI_COMM_WORLD) ;
-      std::vector<vector3d<double> > rv(inner_cell_nodes_sizes[i]) ;
-      MPI_Status mstat ;
-      MPI_Recv(&rv[0],sizeof(vector3d<double> )*inner_cell_nodes_sizes[i],MPI_BYTE,i,5,MPI_COMM_WORLD,
-               &mstat) ;
-      count = inner_cell_nodes_sizes[i] ;
-      H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
-      hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
-      H5Dwrite(dataset,dp->get_hdf5_type(),memspace,dataspace,
-               H5P_DEFAULT, &rv[0]) ;
-      H5Sclose(memspace) ;
+        for(int i=1;i<MPI_processes;++i) {
+          start += inner_edge_nodes_sizes[i-1] ;
+          if(inner_edge_nodes_sizes[i] == 0)
+            continue ;
+          int flag = 0 ;
+          MPI_Send(&flag,1,MPI_INT,i,2,MPI_COMM_WORLD) ;
+          std::vector<vector3d<double> > rv(inner_edge_nodes_sizes[i]) ;
+          MPI_Status mstat ;
+          MPI_Recv(&rv[0],sizeof(vector3d<double> )*inner_edge_nodes_sizes[i],MPI_BYTE,i,3,MPI_COMM_WORLD,
+                   &mstat) ;
+          count = inner_edge_nodes_sizes[i] ;
+          H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
+          hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
+          H5Dwrite(dataset,dp->get_hdf5_type(),memspace,dataspace,
+                   H5P_DEFAULT, &rv[0]) ;
+          H5Sclose(memspace) ;
+        }
+    
+        //local cell nodes
+        start += inner_edge_nodes_sizes[MPI_processes-1] ;
+        count = num_local_cell_nodes;
+        if(num_local_cell_nodes != 0) {
+          std::vector<vector3d<double> > v_nodes(num_local_cell_nodes);
+          //put inner_nodes in a vector
+      
+          long index = 0;
+          FORALL(file_cells, cc){
+            for(unsigned int i = 0; i < cell_inner_nodes[cc].size(); i++){
+              v_nodes[index++] = cell_inner_nodes[cc][i];
+            }
+          }ENDFORALL;
+      
+          H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
+                              &start, &stride, &count, NULL) ;
+          hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
+          H5Dwrite(dataset,dp->get_hdf5_type(),memspace,dataspace,
+                   H5P_DEFAULT, &v_nodes[0]) ;
+          H5Sclose(memspace) ;
+        }
+        //cell nodes from the other processor
+    
+        for(int i=1;i<MPI_processes;++i) {
+          start += inner_cell_nodes_sizes[i-1] ;
+          if(inner_cell_nodes_sizes[i] == 0)
+            continue ;
+          int flag = 0 ;
+          MPI_Send(&flag,1,MPI_INT,i,4,MPI_COMM_WORLD) ;
+          std::vector<vector3d<double> > rv(inner_cell_nodes_sizes[i]) ;
+          MPI_Status mstat ;
+          MPI_Recv(&rv[0],sizeof(vector3d<double> )*inner_cell_nodes_sizes[i],MPI_BYTE,i,5,MPI_COMM_WORLD,
+                   &mstat) ;
+          count = inner_cell_nodes_sizes[i] ;
+          H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
+          hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
+          H5Dwrite(dataset,dp->get_hdf5_type(),memspace,dataspace,
+                   H5P_DEFAULT, &rv[0]) ;
+          H5Sclose(memspace) ;
+        }
+
+        //local face nodes
+        start += inner_cell_nodes_sizes[MPI_processes-1] ;
+        count = num_local_face_nodes;
+        if(num_local_face_nodes != 0) {
+          std::vector<vector3d<double> > v_nodes(num_local_face_nodes);
+          //put inner_nodes in a vector
+      
+          long index = 0;
+          FORALL(file_faces, cc){
+            for(unsigned int i = 0; i < face_inner_nodes[cc].size(); i++){
+              v_nodes[index++] = face_inner_nodes[cc][i];
+            }
+          }ENDFORALL;
+      
+          H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
+                              &start, &stride, &count, NULL) ;
+          hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
+          H5Dwrite(dataset,dp->get_hdf5_type(),memspace,dataspace,
+                   H5P_DEFAULT, &v_nodes[0]) ;
+          H5Sclose(memspace) ;
+        }
+        //face nodes from the other processor
+    
+        for(int i=1;i<MPI_processes;++i) {
+          start += inner_face_nodes_sizes[i-1] ;
+          if(inner_face_nodes_sizes[i] == 0)
+            continue ;
+          int flag = 0 ;
+          MPI_Send(&flag,1,MPI_INT,i,6,MPI_COMM_WORLD) ;
+          std::vector<vector3d<double> > rv(inner_face_nodes_sizes[i]) ;
+          MPI_Status mstat ;
+          MPI_Recv(&rv[0],sizeof(vector3d<double> )*inner_face_nodes_sizes[i],MPI_BYTE,i,7,MPI_COMM_WORLD,
+                   &mstat) ;
+          count = inner_face_nodes_sizes[i] ;
+          H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
+          hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
+          H5Dwrite(dataset,dp->get_hdf5_type(),memspace,dataspace,
+                   H5P_DEFAULT, &rv[0]) ;
+          H5Sclose(memspace) ;
+        }
+        start += inner_face_nodes_sizes[MPI_processes-1] ;
+        cout << "nodes written " << start << endl;
+    
+        H5Dclose(dataset) ;
+        H5Sclose(dataspace) ;
+        //all the other processors
+      } else {
+        if(local_pos_size != 0){
+          std::vector<vector3d<double> > v_pos(local_pos_size);
+          //put pos_io in a vector
+          int index = 0;
+          FORALL(file_nodes,cc){
+            v_pos[index++] = pos_io[cc];
+          }ENDFORALL;
+        
+          int flag = 0;
+          MPI_Status mstat ;
+          MPI_Recv(&flag,1,MPI_INT,0,0,MPI_COMM_WORLD,&mstat) ;
+          MPI_Send(&v_pos[0],sizeof(vector3d<double> )*local_pos_size,MPI_BYTE,0,1,MPI_COMM_WORLD) ;
+        }
+        if(num_local_edge_nodes != 0){
+          std::vector<vector3d<double> > v_nodes(num_local_edge_nodes);
+          //put inner_nodes in a vector
+          int index = 0;
+          FORALL(file_edges, cc){
+            for(unsigned int i = 0; i < edge_inner_nodes[cc].size(); i++){
+              v_nodes[index++] = edge_inner_nodes[cc][i];
+            }
+          }ENDFORALL;
+          int flag = 0;
+          MPI_Status mstat ;
+          MPI_Recv(&flag,1,MPI_INT,0,2,MPI_COMM_WORLD,&mstat) ;
+          MPI_Send(&v_nodes[0],sizeof(vector3d<double> )*num_local_edge_nodes,MPI_BYTE,0,3,MPI_COMM_WORLD) ;
+        }
+    
+        if(num_local_cell_nodes != 0){
+          std::vector<vector3d<double> > v_nodes(num_local_cell_nodes);
+          //put inner_nodes in a vector
+          int index = 0;
+          FORALL(file_cells, cc){
+            for(unsigned int i = 0; i < cell_inner_nodes[cc].size(); i++){
+              v_nodes[index++] = cell_inner_nodes[cc][i];
+            }
+          }ENDFORALL;
+          int flag = 0;
+          MPI_Status mstat ;
+          MPI_Recv(&flag,1,MPI_INT,0,4,MPI_COMM_WORLD,&mstat) ;
+          MPI_Send(&v_nodes[0],sizeof(vector3d<double> )*num_local_cell_nodes,MPI_BYTE,0,5,MPI_COMM_WORLD) ;
+        }
+    
+        if(num_local_face_nodes != 0){
+          std::vector<vector3d<double> > v_nodes(num_local_face_nodes);
+          //put inner_nodes in a vector
+          int index = 0;
+          FORALL(file_faces, cc){
+            for(unsigned int i = 0; i < face_inner_nodes[cc].size(); i++){
+              v_nodes[index++] = face_inner_nodes[cc][i];
+            }
+          }ENDFORALL;
+          int flag = 0;
+          MPI_Status mstat ;
+          MPI_Recv(&flag,1,MPI_INT,0,6,MPI_COMM_WORLD,&mstat) ;
+          MPI_Send(&v_nodes[0],sizeof(vector3d<double> )*num_local_face_nodes,MPI_BYTE,0,7,MPI_COMM_WORLD) ;
+        }
+      }
+  
+      if(Loci::MPI_rank == 0) H5Gclose(group_id) ;
+  
     }
 
-    //local face nodes
-    start += inner_cell_nodes_sizes[MPI_processes-1] ;
-    count = num_local_face_nodes;
-    if(num_local_face_nodes != 0) {
-      std::vector<vector3d<double> > v_nodes(num_local_face_nodes);
-      //put inner_nodes in a vector
-      
-      long index = 0;
-      FORALL(file_faces, cc){
-        for(unsigned int i = 0; i < face_inner_nodes[cc].size(); i++){
-          v_nodes[index++] = face_inner_nodes[cc][i];
-        }
-      }ENDFORALL;
-      
-      H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
-                          &start, &stride, &count, NULL) ;
-      hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
-      H5Dwrite(dataset,dp->get_hdf5_type(),memspace,dataspace,
-               H5P_DEFAULT, &v_nodes[0]) ;
-      H5Sclose(memspace) ;
-    }
-    //face nodes from the other processor
-    
-    for(int i=1;i<MPI_processes;++i) {
-      start += inner_face_nodes_sizes[i-1] ;
-      if(inner_face_nodes_sizes[i] == 0)
-        continue ;
-      int flag = 0 ;
-      MPI_Send(&flag,1,MPI_INT,i,6,MPI_COMM_WORLD) ;
-      std::vector<vector3d<double> > rv(inner_face_nodes_sizes[i]) ;
-      MPI_Status mstat ;
-      MPI_Recv(&rv[0],sizeof(vector3d<double> )*inner_face_nodes_sizes[i],MPI_BYTE,i,7,MPI_COMM_WORLD,
-               &mstat) ;
-      count = inner_face_nodes_sizes[i] ;
-      H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
-      hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
-      H5Dwrite(dataset,dp->get_hdf5_type(),memspace,dataspace,
-               H5P_DEFAULT, &rv[0]) ;
-      H5Sclose(memspace) ;
-    }
-    start += inner_face_nodes_sizes[MPI_processes-1] ;
-    cout << "nodes written " << start << endl;
-    
-    H5Dclose(dataset) ;
-    H5Sclose(dataspace) ;
-    //all the other processors
-  } else {
-    if(local_pos_size != 0){
-      std::vector<vector3d<double> > v_pos(local_pos_size);
-      //put pos_io in a vector
-      int index = 0;
-      FORALL(file_nodes,cc){
-        v_pos[index++] = pos_io[cc];
-      }ENDFORALL;
-        
-      int flag = 0;
-      MPI_Status mstat ;
-      MPI_Recv(&flag,1,MPI_INT,0,0,MPI_COMM_WORLD,&mstat) ;
-      MPI_Send(&v_pos[0],sizeof(vector3d<double> )*local_pos_size,MPI_BYTE,0,1,MPI_COMM_WORLD) ;
-    }
-    if(num_local_edge_nodes != 0){
-      std::vector<vector3d<double> > v_nodes(num_local_edge_nodes);
-      //put inner_nodes in a vector
-      int index = 0;
+
+    void writeVOGNodeP(hid_t file_id,
+                       Loci::storeRepP &pos,
+                       const_store<Loci::FineNodes> &inner_nodes){ //parallel io
+  
+#ifndef H5_HAVE_PARALLEL
+  
+      writeVOGNodeS( file_id,
+                     pos,
+                     inner_nodes);
+#else
+   
+      hid_t group_id = 0 ;  
+      //reorder store first, from local to io entities
+      fact_db::distribute_infoP dist =  Loci::exec_current_fact_db->get_distribute_info() ;
+      constraint  my_faces, my_geom_cells; 
+      entitySet my_entities = dist->my_entities ;
+      my_faces = Loci::exec_current_fact_db->get_variable("faces");
+      my_geom_cells = Loci::exec_current_fact_db->get_variable("geom_cells");
+  
+  
+  
+      entitySet local_edges =my_entities &
+        (Loci::exec_current_fact_db->get_variable("edge2node"))->domain(); 
+      entitySet local_faces = my_entities & *my_faces;
+      entitySet local_cells =  my_entities & *my_geom_cells;
+      entitySet local_nodes = my_entities & pos->domain();
+  
+  
+
+      //before write out,create stores for pos, inner_nodes of cells and faces which
+      //are ordered across processors in the file numbering, the domain of this container
+      //shifted by offset is the actual file numbering. offset will be modified after function call  
+ 
+      int offset = 0;
+      store<vect3d> pos_io;
+      pos_io = Loci::Local2FileOrder(pos, local_nodes, offset, dist, MPI_COMM_WORLD) ;
+      entitySet file_nodes = pos_io.domain();
+  
+      offset = 0;
+      store<Loci::FineNodes> edge_inner_nodes;
+      edge_inner_nodes = Loci::Local2FileOrder(inner_nodes.Rep(),local_edges,offset,dist,MPI_COMM_WORLD) ;
+      entitySet file_edges = edge_inner_nodes.domain();
+  
+      offset= 0;
+      // Create container vardist that
+      store<Loci::FineNodes> cell_inner_nodes;
+      cell_inner_nodes = Loci::Local2FileOrder(inner_nodes.Rep(),local_cells,offset,dist,MPI_COMM_WORLD) ;
+      entitySet file_cells = cell_inner_nodes.domain();
+  
+      offset= 0;
+      // Create container vardist that
+      store<Loci::FineNodes> face_inner_nodes;
+      face_inner_nodes = Loci::Local2FileOrder(inner_nodes.Rep(),local_faces,offset,dist,MPI_COMM_WORLD) ;
+      entitySet file_faces = face_inner_nodes.domain();
+  
+  
+      //compute the size of pos
+      int local_pos_size = file_nodes.size();
+      std::vector<int> pos_sizes(Loci::MPI_processes) ;
+      MPI_Allgather(&local_pos_size,1,MPI_INT,
+                    &pos_sizes[0],1,MPI_INT,MPI_COMM_WORLD) ;
+  
+  
+  
+      //compute the size of inner_nodes
+      int num_local_edge_nodes = 0;
       FORALL(file_edges, cc){
-        for(unsigned int i = 0; i < edge_inner_nodes[cc].size(); i++){
-          v_nodes[index++] = edge_inner_nodes[cc][i];
-        }
+        num_local_edge_nodes += edge_inner_nodes[cc].size();
       }ENDFORALL;
-      int flag = 0;
-      MPI_Status mstat ;
-      MPI_Recv(&flag,1,MPI_INT,0,2,MPI_COMM_WORLD,&mstat) ;
-      MPI_Send(&v_nodes[0],sizeof(vector3d<double> )*num_local_edge_nodes,MPI_BYTE,0,3,MPI_COMM_WORLD) ;
-    }
-    
-    if(num_local_cell_nodes != 0){
-      std::vector<vector3d<double> > v_nodes(num_local_cell_nodes);
-      //put inner_nodes in a vector
-      int index = 0;
+  
+      int num_local_cell_nodes = 0;
       FORALL(file_cells, cc){
-        for(unsigned int i = 0; i < cell_inner_nodes[cc].size(); i++){
-          v_nodes[index++] = cell_inner_nodes[cc][i];
-        }
+        num_local_cell_nodes += cell_inner_nodes[cc].size();
       }ENDFORALL;
-      int flag = 0;
-      MPI_Status mstat ;
-      MPI_Recv(&flag,1,MPI_INT,0,4,MPI_COMM_WORLD,&mstat) ;
-      MPI_Send(&v_nodes[0],sizeof(vector3d<double> )*num_local_cell_nodes,MPI_BYTE,0,5,MPI_COMM_WORLD) ;
-    }
-    
-    if(num_local_face_nodes != 0){
-      std::vector<vector3d<double> > v_nodes(num_local_face_nodes);
-      //put inner_nodes in a vector
-      int index = 0;
+  
+      int num_local_face_nodes = 0;
       FORALL(file_faces, cc){
-        for(unsigned int i = 0; i < face_inner_nodes[cc].size(); i++){
-          v_nodes[index++] = face_inner_nodes[cc][i];
-        }
+        num_local_face_nodes += face_inner_nodes[cc].size();
       }ENDFORALL;
-      int flag = 0;
-      MPI_Status mstat ;
-      MPI_Recv(&flag,1,MPI_INT,0,6,MPI_COMM_WORLD,&mstat) ;
-      MPI_Send(&v_nodes[0],sizeof(vector3d<double> )*num_local_face_nodes,MPI_BYTE,0,7,MPI_COMM_WORLD) ;
+  
+  
+      std::vector<int> inner_edge_nodes_sizes(Loci::MPI_processes);
+      MPI_Allgather(&num_local_edge_nodes,1,MPI_INT,
+                    &inner_edge_nodes_sizes[0],1,MPI_INT,MPI_COMM_WORLD) ;
+  
+  
+      std::vector<int> inner_cell_nodes_sizes(Loci::MPI_processes);
+      MPI_Allgather(&num_local_cell_nodes,1,MPI_INT,
+                    &inner_cell_nodes_sizes[0],1,MPI_INT,MPI_COMM_WORLD) ;
+  
+      std::vector<int> inner_face_nodes_sizes(Loci::MPI_processes);
+      MPI_Allgather(&num_local_face_nodes,1,MPI_INT,
+                    &inner_face_nodes_sizes[0],1,MPI_INT,MPI_COMM_WORLD) ;
+  
+
+
+
+
+  
+
+      //compute array_size
+      long long array_size = 0 ;
+      for(int i=0;i<MPI_processes;++i)
+        array_size += (pos_sizes[i]+ inner_edge_nodes_sizes[i]+
+                       inner_cell_nodes_sizes[i] + inner_face_nodes_sizes[i] );
+  
+ 
+  
+
+  
+      //first write out numNodes
+     
+#ifdef H5_USE_16_API
+      group_id = H5Gcreate(file_id,"file_info",0) ;
+#else
+      group_id = H5Gcreate(file_id,"file_info",
+                           H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
+    
+      if(MPI_rank == 0) cout << "num_nodes = " << array_size << endl ;
+    
+      hsize_t dims = 1 ;
+      hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
+    
+#ifdef H5_USE_16_API
+      hid_t att_id = H5Acreate(group_id,"numNodes", H5T_STD_I64BE,
+                               dataspace_id, H5P_DEFAULT) ;
+#else
+      hid_t att_id = H5Acreate(group_id,"numNodes", H5T_STD_I64BE,
+                               dataspace_id, H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
+      H5Awrite(att_id,H5T_NATIVE_LLONG,&array_size) ;
+      H5Aclose(att_id) ;
+      H5Gclose(group_id) ;
+    
+      if(array_size == 0)
+        return ;
+
+#ifdef H5_USE_16_API
+      group_id = H5Gcreate(file_id,"node_info",0) ;
+#else
+      group_id = H5Gcreate(file_id,"node_info",
+                           H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
+      //create dataspace and dataset
+      int rank = 1 ;
+      hsize_t stride = 1 ;
+      hsize_t dimension = array_size ;
+      hid_t dataspace = H5Screate_simple(rank,&dimension,NULL) ;
+      typedef data_schema_traits<vect3d> traits_type ;
+      Loci::DatatypeP dp = traits_type::get_type() ;
+
+
+   
+    
+#ifdef H5_USE_16_API
+      hid_t dataset = H5Dcreate(group_id,"positions",dp->get_hdf5_type(),
+                                dataspace, H5P_DEFAULT) ;
+#else
+      hid_t dataset = H5Dcreate(group_id,"positions",dp->get_hdf5_type(),
+                                dataspace, H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
+  
+ 
+ 
+      hid_t xfer_plist = create_xfer_plist(Loci::hdf5_const::dxfer_coll_type);
+      std::vector<hsize_t> pdispls(Loci::MPI_processes) ; //the start point of each process in prime_comm
+      pdispls[0] = 0 ;
+      for(int i = 1; i < Loci::MPI_processes; i++) {
+        pdispls[i] = pdispls[i-1]+pos_sizes[i-1] ;
+      }
+
+    
+      //first write out pos
+      hsize_t count = pos_sizes[Loci::MPI_rank] ;
+  
+      if(count != 0) {
+        std::vector<vect3d> v_pos(count);
+        //put pos_io in a vector
+        int index = 0;
+        FORALL(file_nodes,cc){
+          v_pos[index++] = pos_io[cc];
+        }ENDFORALL;
+      
+        hsize_t start = pdispls[Loci::MPI_rank] ;
+    
+        H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
+                            &start, &stride, &count, NULL) ;
+        hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
+
+       
+        H5Dwrite(dataset,dp->get_hdf5_type(),memspace,dataspace,
+                 xfer_plist, &v_pos[0]) ;
+     
+        H5Sclose(memspace) ;
+      }
+  
+      //next, write out inner_nodes
+      //local edge nodes
+  
+      pdispls[0] =  pdispls[MPI_processes-1] + pos_sizes[MPI_processes-1] ;
+      for(int i = 1; i < Loci::MPI_processes; i++) {
+        pdispls[i] = pdispls[i-1]+inner_edge_nodes_sizes[i-1];
+      }
+      count = num_local_edge_nodes;
+
+    
+      if(num_local_edge_nodes != 0) {
+        std::vector<vect3d> v_nodes(num_local_edge_nodes);
+        //put inner_nodes in a vector
+      
+        long index = 0;
+        FORALL(file_edges, cc){
+          for(unsigned int i = 0; i < edge_inner_nodes[cc].size(); i++){
+            v_nodes[index++] = edge_inner_nodes[cc][i];
+          }
+        }ENDFORALL;
+    
+        hsize_t start = pdispls[Loci::MPI_rank] ;
+        H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
+                            &start, &stride, &count, NULL) ;
+        hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
+  
+        H5Dwrite(dataset,dp->get_hdf5_type(),memspace,dataspace,
+                 xfer_plist, &v_nodes[0]) ;
+     
+        H5Sclose(memspace) ;
+      }
+   
+      //local cell nodes
+      pdispls[0] =  pdispls[MPI_processes-1] + inner_edge_nodes_sizes[MPI_processes-1] ;
+      for(int i = 1; i < Loci::MPI_processes; i++) {
+        pdispls[i] = pdispls[i-1]+inner_cell_nodes_sizes[i-1];
+      }
+      count = num_local_cell_nodes;
+
+  
+    
+   
+      if(num_local_cell_nodes != 0) {
+        std::vector<vector3d<double> > v_nodes(num_local_cell_nodes);
+        //put inner_nodes in a vector
+      
+        long index = 0;
+        FORALL(file_cells, cc){
+          for(unsigned int i = 0; i < cell_inner_nodes[cc].size(); i++){
+            v_nodes[index++] = cell_inner_nodes[cc][i];
+          }
+        }ENDFORALL;
+
+        hsize_t start = pdispls[Loci::MPI_rank] ;
+        H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
+                            &start, &stride, &count, NULL) ;
+        hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
+        H5Dwrite(dataset,dp->get_hdf5_type(),memspace,dataspace,
+                 xfer_plist, &v_nodes[0]) ;
+        H5Sclose(memspace) ;
+      }
+    
+   
+
+      //local face nodes
+
+      pdispls[0] =  pdispls[MPI_processes-1] + inner_cell_nodes_sizes[MPI_processes-1] ;
+      for(int i = 1; i < Loci::MPI_processes; i++) {
+        pdispls[i] = pdispls[i-1]+inner_face_nodes_sizes[i-1];
+      }
+      count = num_local_face_nodes;
+      if(num_local_face_nodes != 0) {
+        std::vector<vector3d<double> > v_nodes(num_local_face_nodes);
+        //put inner_nodes in a vector
+      
+        long index = 0;
+        FORALL(file_faces, cc){
+          for(unsigned int i = 0; i < face_inner_nodes[cc].size(); i++){
+            v_nodes[index++] = face_inner_nodes[cc][i];
+          }
+        }ENDFORALL;
+        hsize_t start = pdispls[Loci::MPI_rank] ;
+        H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
+                            &start, &stride, &count, NULL) ;
+        hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
+        H5Dwrite(dataset,dp->get_hdf5_type(),memspace,dataspace,
+                 xfer_plist, &v_nodes[0]) ;
+        H5Sclose(memspace) ;
+      }
+      H5Dclose(dataset) ;
+      H5Sclose(dataspace) ;
+      H5Pclose(xfer_plist) ;
+      H5Gclose(group_id) ;
+#endif
     }
   }
+
   
-  if(Loci::MPI_rank == 0) H5Gclose(group_id) ;
+  void writeVOGNode(hid_t file_id,
+                    Loci::storeRepP &pos,
+                    const_store<Loci::FineNodes> &inner_nodes){
+    if(use_parallel_io)pio::writeVOGNodeP( file_id,pos,inner_nodes);
+    else pio::writeVOGNodeS( file_id,pos,inner_nodes);
+  }
+
   
 }
-
 
 std::vector<entitySet> getDist( Loci::entitySet &faces,
                                 Loci::entitySet &cells,
@@ -581,8 +920,8 @@ void colorMatrix(Map &cl, Map &cr, multiMap &face2node) {
   entitySet  faces,cells ;
   std::vector<entitySet> ptn = getDist(faces,cells,
                                        cl,cr,face2node);
-  entitySet loc_faces = faces & ptn[MPI_rank] ;
-  entitySet geom_cells = cells & ptn[MPI_rank] ;
+  entitySet loc_faces = faces & ptn[Loci::MPI_rank] ;
+  entitySet geom_cells = cells & ptn[Loci::MPI_rank] ;
   entitySet negs = interval(UNIVERSE_MIN,-1) ;
   entitySet boundary_faces = cr.preimage(negs).first ;
   entitySet interior_faces = loc_faces - boundary_faces ;

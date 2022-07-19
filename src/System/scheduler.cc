@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -26,7 +26,6 @@
 #include <Tools/except.h>
 #include <constraint.h>
 #include <new>
-#include <fact_db.h>
 using std::bad_alloc ;
 using std::map ;
 using std::vector ;
@@ -139,7 +138,6 @@ namespace Loci {
   extern bool threading_chomping;
   extern bool threading_recursion;
   extern int num_threads;  
-  extern int num_thread_blocks;
   // 
   int num_threaded_pointwise = 0;
   int num_total_pointwise = 0;
@@ -659,6 +657,66 @@ namespace Loci {
 	     << cmd << "')" << endl ;
     }
   }
+#ifdef EXPERIMENTAL
+  // UNUSED
+  /////////////////////////////////////////////////////////////////////
+  //experimental functions
+  namespace {
+    void compare_dependency_graph(const digraph& gr1,
+                                  const digraph& gr2) {
+      ruleSet rules1 = extract_rules(gr1.get_all_vertices()) ;
+      ruleSet rules2 = extract_rules(gr2.get_all_vertices()) ;
+      ruleSet common = ruleSet(rules1 & rules2) ;
+      ruleSet only1 = ruleSet(rules1 - common) ;
+      ruleSet only2 = ruleSet(rules2 - common) ;
+      ruleSet only1d, only2d ;
+      map<rule,rule> set1, set2 ;
+      ruleSet::const_iterator ri ;
+      for(ri=only1.begin();ri!=only1.end();++ri) {
+        rule dp(*ri,time_ident()) ;
+        only1d += dp ;
+        set1[dp] = *ri ;
+      }
+      for(ri=only2.begin();ri!=only2.end();++ri) {
+        rule dp(*ri,time_ident()) ;
+        only2d += dp ;
+        set2[dp] = *ri ;
+      }
+
+      ruleSet common2 = ruleSet(only1d & only2d) ;
+      ruleSet only1_ad = ruleSet(only1d - common2) ;
+      ruleSet only2_ad = ruleSet(only2d - common2) ;
+
+      cerr << endl ;
+      cerr << "These rules are only in graph 1: {{{{{" << endl ;
+      for(ri=only1_ad.begin();ri!=only1_ad.end();++ri)
+        cerr << pretty_sig(set1[*ri]) << endl ;
+      cerr << "}}}}}" << endl << endl ;
+
+      cerr << "These rules are only in graph 2: {{{{{" << endl ;
+      for(ri=only2_ad.begin();ri!=only2_ad.end();++ri) {
+        cerr << pretty_sig(set2[*ri]) << endl ;
+      }
+      cerr << "}}}}}" << endl ;
+
+      variableSet vars1 = extract_vars(gr1.get_all_vertices()) ;
+      variableSet vars2 = extract_vars(gr2.get_all_vertices()) ;
+      variableSet vars_common = variableSet(vars1 & vars2) ;
+      variableSet vars1only = variableSet(vars1 - vars_common) ;
+      variableSet vars2only = variableSet(vars2 - vars_common) ;
+
+      cerr << "These variables are only in graph 1: {{{{{" << endl ;
+      cerr << vars1only << endl ;
+      cerr << "}}}}}" << endl << endl ;
+
+      cerr << "These variables are only in graph 2: {{{{{" << endl ;
+      cerr << vars2only << endl ;
+      cerr << "}}}}}" << endl << endl ;
+    }
+
+  }
+#endif
+
 
   void prune_graph(digraph& gr, variableSet& given,
                    const variableSet& target, fact_db& facts) {
@@ -685,11 +743,6 @@ namespace Loci {
     clean_graph(gr,given,target) ;
   }
 
-
-
-
-
-  
   template<class MULTIMAP>
   void write_out_mmap(const MULTIMAP& m, char* s) {
     ofstream o(s,std::ios::out) ;
@@ -755,6 +808,7 @@ namespace Loci {
     digraph gr ;
 
     given -= variable("EMPTY") ;
+
     gr = dependency_graph2(par_rdb,given,target).get_graph() ;
 
     // If graph is empty, return a null schedule
@@ -864,36 +918,36 @@ namespace Loci {
 	}
 	
 	if(use_duplicate_model) {
-          double comm_ts, comm_tw;
-          double comm_ts1, comm_ts2;
-          fin >> comm_ts1 >> comm_ts2 >> comm_tw;
-          comm_ts = comm_ts2;
+	      double comm_ts, comm_tw;
+	      double comm_ts1, comm_ts2;
+	      fin >> comm_ts1 >> comm_ts2 >> comm_tw;
+	      comm_ts = comm_ts2;
 	      
-          if(comm_tw < 0)
-            comm_tw = 0;
+	      if(comm_tw < 0)
+		    comm_tw = 0;
 
-          unsigned int count;
-          fin >> count;
+	      unsigned int count;
+	      fin >> count;
 
-          map<rule, pair<double, double> > comp_info;
-          string  rule_name;
-          double ts, tw;
-          double ts1, ts2;
-          for(unsigned int i = 0; i < count; i++) {
-            fin >> rule_name >> ts1 >> ts2 >> tw;
-            ts = ts2;
-            if(tw < 0)
-              tw = 0;
+	      map<rule, pair<double, double> > comp_info;
+	      string  rule_name;
+	      double ts, tw;
+	      double ts1, ts2;
+	      for(unsigned int i = 0; i < count; i++) {
+		    fin >> rule_name >> ts1 >> ts2 >> tw;
+		    ts = ts2;
+		    if(tw < 0)
+			  tw = 0;
 		    
-            pair<double, double> tmpModel(ts, tw);
-            rule myRule = rule::get_rule_by_name(rule_name);
-            if(myRule.get_info().name() == "NO_RULE") {
-              cerr << "Warning (Rule Ignored): " << rule_name << " read from model file is not in rule database" << endl;
-            }
-            else
-              comp_info[myRule] = tmpModel;
-          }
-          scheds.add_model_info(comm_ts, comm_tw, comp_info);	
+		    pair<double, double> tmpModel(ts, tw);
+		    rule myRule = rule::get_rule_by_name(rule_name);
+		    if(myRule.get_info().name() == "NO_RULE") {
+			  cerr << "Warning (Rule Ignored): " << rule_name << " read from model file is not in rule database" << endl;
+		    }
+		    else
+			  comp_info[myRule] = tmpModel;
+	      }
+	      scheds.add_model_info(comm_ts, comm_tw, comp_info);	
 	}
       }
     }
@@ -927,8 +981,7 @@ namespace Loci {
          || threading_local_reduction || threading_chomping 
          || threading_recursion) {
         cout << "creating multithreaded execution schedule ("
-             << num_threads << " threads per MPI process, "
-             << num_thread_blocks << " blocks each)" << endl;
+             << num_threads << " threads per MPI process)" << endl;
         cout << "--threading suitable ";
         if(threading_pointwise)
           cout << "[pointwise] ";
@@ -982,7 +1035,6 @@ namespace Loci {
 
 
   // get profiling information from schedule
-  // get profiling information from schedule
   class collectTiming : public collectData {
     struct timingData {
       executeEventType eventType ;
@@ -997,9 +1049,10 @@ bool operator <(const timingData &d) const {
         return (max(accumTime.getTime(),maxTime) < 
 		max(d.accumTime.getTime(),d.maxTime)) ;
       }
-      timingData() : totalTime(0),maxTime(0),meanTime(0),totalEvents(0),maxEvents(0) {}
+      timingData() : eventType(EXEC_CONTROL),totalTime(0),maxTime(0),meanTime(0),totalEvents(0),maxEvents(0) {}
     } ;
     std::list<timingData>  timing_data ;
+
     struct schedData {
       std::string eventName;
       double bytes;
@@ -1034,7 +1087,7 @@ bool operator <(const timingData &d) const {
       
     double getComputeTime() ;
     double getTotalTime() ;
-
+    
     void balanceAnalysis(MPI_Comm comm) ;
 
     ostream &PrintSummary(ostream &s) ;
@@ -1081,7 +1134,7 @@ bool operator <(const timingData &d) const {
     cd.l2_dcm = l2_dcm;
     cache_data.push_back(cd);
   }
-  
+
   void collectTiming::balanceAnalysis(MPI_Comm comm)  {
     int np = 1 ;
     int r =  0; 
@@ -1537,15 +1590,15 @@ bool operator <(const timingData &d) const {
       return executeP(0) ;
 
     
-    //         std::string dottycmd = "dotty " ;
-    //         if(Loci::MPI_rank==0) {
-    //           if(show_graphs) {
-    //             cout << "creating visualization file for dependency graph..." << endl ;
-    //             create_digraph_dot_file(gr,"dependgr.dot") ;
-    //             std::string cmd = dottycmd + "dependgr.dot" ;
-    //             system(cmd.c_str()) ;
-    //           }
-    //         }
+//         std::string dottycmd = "dotty " ;
+//         if(Loci::MPI_rank==0) {
+//           if(show_graphs) {
+//             cout << "creating visualization file for dependency graph..." << endl ;
+//             create_digraph_dot_file(gr,"dependgr.dot") ;
+//             std::string cmd = dottycmd + "dependgr.dot" ;
+//             system(cmd.c_str()) ;
+//           }
+//         }
     
 
     scheds.init(facts) ;
@@ -1690,26 +1743,22 @@ bool operator <(const timingData &d) const {
     return true ;
   }
 
-  void copy_facts(fact_db &facts) ;
-  
   bool makeQuery(const rule_db &rdb, fact_db &facts,
                  const std::string& query) {
-    copy_facts(facts) ;
-    /*	
-        #ifdef USE_PAPI
-        int perr,ev_set=PAPI_NULL;
-        int i,ncnt,k;
-        if(PAPI_VER_CURRENT!=(perr=PAPI_library_init(PAPI_VER_CURRENT)))
-        cerr<<"\nerror during initialization\n";
-        unsigned char v[N];
-        long_long counts[NCOUNTS];
-        int evlist[NCOUNTS];
-        char evname[NCOUNTS][PAPI_MAX_STR_LEN];
-        int retval;
-        #endif
-    */
+	/*	
+	  #ifdef USE_PAPI
+	  int perr,ev_set=PAPI_NULL;
+	  int i,ncnt,k;
+	  if(PAPI_VER_CURRENT!=(perr=PAPI_library_init(PAPI_VER_CURRENT)))
+	  cerr<<"\nerror during initialization\n";
+	  unsigned char v[N];
+	  long_long counts[NCOUNTS];
+	  int evlist[NCOUNTS];
+	  char evname[NCOUNTS][PAPI_MAX_STR_LEN];
+	  int retval;
+	  #endif
+	*/
     facts.setupDefaults(rdb) ;
-
     stopWatch sw ;
     sw.start() ;
     //    timer_token execute_query_timer = new timer_token;
@@ -1752,53 +1801,53 @@ bool operator <(const timingData &d) const {
       sched_db local_scheds ;
 
       /*
-        #ifdef USE_PAPI
+#ifdef USE_PAPI
 
-        if((perr=PAPI_create_eventset(&ev_set)))
+      if((perr=PAPI_create_eventset(&ev_set)))
         cout<<"\nPAPAI_create_evebtset failed."<<PAPI_strerror(perr)<<"\n";
 
 
-        if((retval= PAPI_multiplex_init())<PAPI_OK)
+      if((retval= PAPI_multiplex_init())<PAPI_OK)
         cout<<"\nEvent set multiplexing initialization error\n";
 
-        retval=PAPI_set_multiplex(ev_set);
-        if((retval==PAPI_EINVAL) &&(PAPI_get_multiplex(ev_set)>0))
+      retval=PAPI_set_multiplex(ev_set);
+      if((retval==PAPI_EINVAL) &&(PAPI_get_multiplex(ev_set)>0))
         cout<<"This event set already hs multiplexing enabled";
-        else if(retval !=PAPI_OK)  cout<<"\nSet multiplexing error\n";
-        else cout<<"\nsuccess\n";
+      else if(retval !=PAPI_OK)  cout<<"\nSet multiplexing error\n";
+      else cout<<"\nsuccess\n";
 
-        retval=PAPI_get_multiplex(ev_set);
-        if(retval>0) cout<<"This event set is ready for multiplexing";
-        if(retval==0)cout<<"This venet set is not enabled for multip0lexig";
-        if(retval<0) cout<<"\nerror\n";
+      retval=PAPI_get_multiplex(ev_set);
+      if(retval>0) cout<<"This event set is ready for multiplexing";
+      if(retval==0)cout<<"This venet set is not enabled for multip0lexig";
+      if(retval<0) cout<<"\nerror\n";
 
-        if((perr=PAPI_add_event(ev_set,PAPI_L1_DCH)))
+      if((perr=PAPI_add_event(ev_set,PAPI_L1_DCH)))
         cout<<__LINE__<<"PAPI_add_event failed."<<PAPI_strerror(perr)<<"\n";
 
 
-        if((perr=PAPI_add_event(ev_set,PAPI_L1_ICH)))
+      if((perr=PAPI_add_event(ev_set,PAPI_L1_ICH)))
         cout<<__LINE__<<"PAPI_add_event failed."<<PAPI_strerror(perr)<<"\n";
 
-        if((perr=PAPI_add_event(ev_set,PAPI_L2_DCM)))
+      if((perr=PAPI_add_event(ev_set,PAPI_L2_DCM)))
         cout<<__LINE__<<"PAPI_add_event failed."<<PAPI_strerror(perr)<<"\n";
 
-        if((perr=PAPI_add_event(ev_set,PAPI_L2_ICM)))
+      if((perr=PAPI_add_event(ev_set,PAPI_L2_ICM)))
         cout<<__LINE__<<"PAPI_add_event failed."<<PAPI_strerror(perr)<<"\n";
 
 
-        if((perr=PAPI_list_events(ev_set,evlist,&ncnt)))
+      if((perr=PAPI_list_events(ev_set,evlist,&ncnt)))
         cout<<__LINE__<<"PAPI_list_events failed."<<PAPI_strerror(perr)<<"\n";
 
 
-        cout<<"\n number of events"<<ncnt<<"\n";
-        for(i=0;i<ncnt;i++)
+      cout<<"\n number of events"<<ncnt<<"\n";
+      for(i=0;i<ncnt;i++)
         if((perr=PAPI_event_code_to_name(evlist[i],evname[i])) == PAPI_ENOTPRESET)
-        {}
+          {}
         else if(perr!=PAPI_OK)
-        cout<<__LINE__<<" Naming event failed."<<PAPI_strerror(perr)<<"[i="<<i<<" event="<<evlist[i]<<"\n";
-        if((perr=PAPI_start(ev_set)))
+          cout<<__LINE__<<" Naming event failed."<<PAPI_strerror(perr)<<"[i="<<i<<" event="<<evlist[i]<<"\n";
+      if((perr=PAPI_start(ev_set)))
         cout<<"\nPAPI_start_event failed."<<PAPI_strerror(perr)<<"\n";
-        #endif
+#endif
       
       */
 
@@ -1818,28 +1867,26 @@ bool operator <(const timingData &d) const {
       if(MPI_rank == 0)
         cout << "begin execution" << endl ;
 
-      if(MPI_rank == 0) {
-        if (threading_pointwise)
-          cout << "--threading " << num_threaded_pointwise
-            << "/" << num_total_pointwise << " pointwise rules" << endl;
-        if (threading_global_reduction)
-          cout << "--threading " << num_threaded_global_reduction
-            << "/" << num_total_global_reduction 
-            << " global reduction rules" << endl;
-        if (threading_local_reduction)
-          cout << "--threading " << num_threaded_local_reduction
-            << "/" << num_total_local_reduction 
-            << " local reduction rules" << endl;
-        if (threading_chomping)
-          cout << "--threading " << num_threaded_chomping
-            << "/" << num_total_chomping << " chomping rules" << endl;
-        if (threading_recursion)
-          cout << "--threading " << num_threaded_recursion
-            << "/" << num_total_recursion << " recursive rules" << endl;
-      }
+      if (threading_pointwise)
+        cout << "--threading " << num_threaded_pointwise
+          << "/" << num_total_pointwise << " pointwise rules" << endl;
+      if (threading_global_reduction)
+        cout << "--threading " << num_threaded_global_reduction
+          << "/" << num_total_global_reduction 
+          << " global reduction rules" << endl;
+      if (threading_local_reduction)
+        cout << "--threading " << num_threaded_local_reduction
+          << "/" << num_total_local_reduction 
+          << " local reduction rules" << endl;
+      if (threading_chomping)
+        cout << "--threading " << num_threaded_chomping
+          << "/" << num_total_chomping << " chomping rules" << endl;
+      if (threading_recursion)
+        cout << "--threading " << num_threaded_recursion
+          << "/" << num_total_recursion << " recursive rules" << endl;
 
       if(schedule_output) {
-        // Save the schedule in the file .schedule for reference
+        // Save the schedule in the file schedule for reference
         ostringstream oss ;
         oss << "debug/schedule" ;
 
@@ -1889,14 +1936,14 @@ bool operator <(const timingData &d) const {
       //        perfAnalysis->stop_timer(execute_schedule_timer);
 
       /*
-        #ifdef USE_PAPI
-        if((perr=PAPI_read(ev_set,counts)))
+#ifdef USE_PAPI
+      if((perr=PAPI_read(ev_set,counts)))
         cout<<"PAPI_read failed."<<PAPI_strerror(perr)<<"\n";
 
-        cout<<"Counts registered\n";
-        for(i=0;i<ncnt;i++)
+      cout<<"Counts registered\n";
+      for(i=0;i<ncnt;i++)
         cout<<evname[i]<<"="<<counts[i]<<"\n";
-        #endif
+#endif
       */
 
       Loci::debugout << "Time taken for execution of the schedule = " << exec_time << " seconds " << endl ;

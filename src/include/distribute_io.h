@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -38,230 +38,75 @@
 
 namespace Loci {
 
+  namespace pio {
+    /*
+      namespace pio is for functions that have separate serial io version and parallel io version.
+      these low-level functions are generally used by Loci-developers instead of application-developers
+    */
+    void write_storeP(hid_t group_id, storeRepP qrep, entitySet dom, int offset, MPI_Comm comm);
+    void write_storeS(hid_t group_id, storeRepP qrep, entitySet dom, int offset, MPI_Comm comm);
+    void read_storeS(hid_t group_id, storeRepP qrep, int &offset, MPI_Comm comm) ;
+    void read_storeP(hid_t group_id, storeRepP qrep, int &offset, MPI_Comm comm);
+  }
+  
+  extern bool use_parallel_io ;
+
+  //-----------------------------------------------------------------------
+ 
   void redistribute_write_container(hid_t file_id, std::string vname,
                                     Loci::storeRepP var, fact_db &facts) ;
+ 
   void read_container_redistribute(hid_t file_id, std::string vname,
                                    Loci::storeRepP var, entitySet read_set,
                                    fact_db &facts) ;
+  
+  //-----------------------------------------------------------------------
+ 
+  hid_t hdf5CreateFile(const char *name, unsigned flags, hid_t create_id, hid_t access_id, MPI_Comm comm, size_t file_size_estimate=0);
+ 
 
-  inline hid_t hdf5CreateFile(const char *name, unsigned flags, hid_t create_id, hid_t access_id) {
-    hid_t file_id = 0 ;
-    if(Loci::MPI_rank==0) {
-      file_id = H5Fcreate(name,flags,create_id,access_id) ;
-      if(file_id < 0) {
-	cerr << "H5Fcreate unable to create file '" << name << "'" << endl ;
-	Loci::Abort() ;
-      }
-    }
-    return file_id ;
-  }
+  inline hid_t hdf5CreateFile(const char *name, unsigned flags, hid_t create_id, hid_t access_id, size_t file_size_estimate = 0) {
+    return hdf5CreateFile(name,flags,create_id,access_id, MPI_COMM_WORLD,file_size_estimate) ;
+  }    
 
-  inline hid_t hdf5CreateFile(const char *name, unsigned flags, hid_t create_id, hid_t access_id, MPI_Comm comm) {
-    int rank = 0 ;
-    MPI_Comm_rank(comm,&rank) ;
-    if(rank==0)
-      return H5Fcreate(name,flags,create_id,access_id) ;
-    else
-      return 0 ;
-  }
+  //-----------------------------------------------------------------------
+  hid_t hdf5OpenFile(const char *name, unsigned flags, hid_t access_id,
+		     MPI_Comm comm) ;
 
+
+  //-----------------------------------------------------------------------
   inline hid_t hdf5OpenFile(const char *name, unsigned flags, hid_t access_id) {
-    if(Loci::MPI_rank==0)
-      return H5Fopen(name,flags,access_id) ;
-    else
-      return 0 ;
+    return hdf5OpenFile(name,flags,access_id,MPI_COMM_WORLD) ;
   }
 
-  inline hid_t hdf5OpenFile(const char *name, unsigned flags, hid_t access_id,
-                            MPI_Comm comm) {
-    int rank = 0 ;
-    MPI_Comm_rank(comm,&rank) ;
-    if(rank==0)
-      return H5Fopen(name,flags,access_id) ;
-    else
-      return 0 ;
-  }
-
+  //-----------------------------------------------------------------------
   inline herr_t hdf5CloseFile(hid_t file_id) {
-    if(Loci::MPI_rank==0)
+    if(use_parallel_io || Loci::MPI_rank==0)
       return H5Fclose(file_id) ;
     else
       return 0 ;
   }
 
+  //-----------------------------------------------------------------------
   inline herr_t hdf5CloseFile(hid_t file_id, MPI_Comm comm) {
     int rank = 0 ;
     MPI_Comm_rank(comm,&rank) ;
-    if(rank==0)
+    if(use_parallel_io || rank==0)
       return H5Fclose(file_id) ;
     else
       return 0 ;
   }
-    
-  inline void writeContainer(hid_t file_id,std::string vname, Loci::storeRepP var, fact_db &facts) {
 
-    redistribute_write_container(file_id,vname,var,facts) ;
-  }
-  inline void readContainer(hid_t file_id, std::string vname, Loci::storeRepP var, entitySet readSet, fact_db &facts) {
-    read_container_redistribute(file_id,vname,var,readSet, facts) ;
-  }
-
-  inline void writeContainer(hid_t file_id,std::string vname, Loci::storeRepP var) {
-    if(Loci::exec_current_fact_db == 0) {
-      std::cerr << "Loci::writeContainer()" ;
-      std::cerr << "this routine needs a fact database argument when called outside of a rule!" << endl ;
-      Loci::Abort() ;
-    } else
-      redistribute_write_container(file_id,vname,var,
-                                   *Loci::exec_current_fact_db) ;
-  }
-  inline void readContainer(hid_t file_id, std::string vname, Loci::storeRepP var, entitySet readSet) {
-    if(Loci::exec_current_fact_db == 0) {
-      std::cerr << "Loci::readContainer()" ;
-      std::cerr << "this routine needs a fact database argument when called outside of a rule!" << endl ;
-      Loci::Abort() ;
-    } else
-      read_container_redistribute(file_id,vname,var,readSet,
-                                  *Loci::exec_current_fact_db) ;
-  }
-
-  void writeContainerRAW(hid_t file_id, std::string vname,
-                         storeRepP var, MPI_Comm comm) ;
-
-  void readContainerRAW(hid_t file_id, std::string vname,
-                        storeRepP var, MPI_Comm comm ) ;
-
-  template<class T> void writeUnorderedVector(hid_t group_id,
-                                              const char *element_name,
-                                              std::vector<T> &v,
-                                              MPI_Comm comm) {
-    int my_rank = 0 ;
-    MPI_Comm_rank(comm,&my_rank) ;
-    int procs = 1 ;
-    MPI_Comm_size(comm,&procs) ;
-
-    //serial version
-    if(procs==1){
-      
-      hsize_t array_size_combined = v.size() ;
-      if(array_size_combined == 0)
-        return ;
-     
-      int rank = 1 ;
-      hsize_t dimension = array_size_combined ;
-      hid_t dataspace = H5Screate_simple(rank,&dimension,NULL) ;
-     
-      typedef data_schema_traits<T> traits_type ;
-      DatatypeP dp = traits_type::get_type() ;
-      
-      hsize_t start = 0 ;
-      hsize_t stride = 1 ;
-      hsize_t count = v.size() ;
-      hid_t datatype = dp->get_hdf5_type() ;
-     
-      hid_t dataset = H5Dcreate(group_id,element_name,datatype,dataspace,
-				H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-     
-      if(count != 0) {
-     
-        H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
-                            &start, &stride, &count, NULL) ;
-     
-        hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
-     
-        H5Dwrite(dataset,datatype,memspace,dataspace,
-                 H5P_DEFAULT, &v[0]) ;
-     
-        H5Sclose(memspace) ;
-     
-      }
-     
-      
-      H5Dclose(dataset) ;
-      H5Sclose(dataspace) ;
-      H5Tclose(datatype) ;
-      return;
-    }
-
-    size_t local_size = v.size() ;
-    std::vector<size_t> recv_sizes(procs) ;
-    MPI_Gather(&local_size,sizeof(size_t),MPI_BYTE,
-               &recv_sizes[0],sizeof(size_t),MPI_BYTE,0,comm) ;
-
-    if(my_rank == 0) {
-      hsize_t array_size = 0 ;
-      for(int i=0;i<procs;++i)
-        array_size += recv_sizes[i] ;
-      if(array_size == 0)
-        return ;
-      int rank = 1 ;
-      hsize_t dimension = array_size ;
-
-      hid_t dataspace = H5Screate_simple(rank,&dimension,NULL) ;
-
-      typedef data_schema_traits<T> traits_type ;
-      DatatypeP dp = traits_type::get_type() ;
-
-      hsize_t start = 0 ;
-      hsize_t stride = 1 ;
-      hsize_t count = recv_sizes[0] ;
-      hid_t datatype = dp->get_hdf5_type() ;
-      hid_t dataset = H5Dcreate(group_id,element_name,datatype,dataspace,
-				H5P_DEFAULT,H5P_DEFAULT, H5P_DEFAULT) ;
-      if(count != 0) {
-        H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
-                            &start, &stride, &count, NULL) ;
-        hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
-        H5Dwrite(dataset,datatype,memspace,dataspace,
-                 H5P_DEFAULT, &v[0]) ;
-        H5Sclose(memspace) ;
-      }
-      for(int i=1;i<procs;++i) {
-        start += recv_sizes[i-1] ;
-        if(recv_sizes[i] == 0)
-          continue ;
-        int flag = 0 ;
-        MPI_Send(&flag,1,MPI_INT,i,0,comm) ;
-        std::vector<T> rv(recv_sizes[i]) ;
-        MPI_Status mstat ;
-        MPI_Recv(&rv[0],sizeof(T)*recv_sizes[i],MPI_BYTE,i,0,comm,
-                 &mstat) ;
-        count = recv_sizes[i] ;
-        H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
-        hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
-        H5Dwrite(dataset,datatype,memspace,dataspace,
-                 H5P_DEFAULT, &rv[0]) ;
-        H5Sclose(memspace) ;
-      }
-
-      H5Dclose(dataset) ;
-      H5Sclose(dataspace) ;
-      H5Tclose(datatype) ;
-    } else {
-      if(local_size == 0)
-        return ;
-
-      int flag = 0;
-      MPI_Status mstat ;
-      MPI_Recv(&flag,1,MPI_INT,0,0,comm,&mstat) ;
-      MPI_Send(&v[0],sizeof(T)*local_size,MPI_BYTE,0,0,comm) ;
-    }
-  }
- 
-   
-  template<class T> void writeUnorderedVector(hid_t group_id,
-                                              const char *element_name,
-                                              std::vector<T> &v) {
-    writeUnorderedVector(group_id,element_name,v,MPI_COMM_WORLD) ;
-  }
-  
- 
-  
-  void writeSetIds(hid_t file_id, entitySet local_set, fact_db &facts) ;
-  
+  //-----------------------------------------------------------------------
+  //general way to open a file for writing
+  hid_t writeVOGOpen(std::string filename) ;
+  hid_t readVOGOpen(std::string filename) ;
+  void writeVOGClose(hid_t file_id) ;
+  //-----------------------------------------------------------------------  
   hid_t createUnorderedFile(const char * filename, entitySet set,
                             fact_db &facts) ;
-
+  
+  //-----------------------------------------------------------------------  
   inline hid_t createUnorderedFile(const char * filename, entitySet set) {
     if(Loci::exec_current_fact_db == 0) {
       std::cerr << "Loci::createUnorderedFile()" ;
@@ -271,9 +116,683 @@ namespace Loci {
     } else
       return createUnorderedFile(filename, set, *Loci::exec_current_fact_db) ;
   }
-
+  
+  //-----------------------------------------------------------------------  
   void closeUnorderedFile(hid_t file_id) ;
+  
 
+
+
+
+  
+   
+  //-----------------------------------------------------------------------
+  inline  void read_store(hid_t group_id, storeRepP qrep, int &offset, MPI_Comm comm){
+    if(use_parallel_io)  pio::read_storeP(group_id, qrep, offset,  comm);
+    else pio::read_storeS(group_id, qrep, offset,  comm);
+  }
+
+  //-----------------------------------------------------------------------
+  inline void write_store(hid_t group_id, storeRepP qrep, entitySet dom, int offset, MPI_Comm comm){
+    if(use_parallel_io)
+      pio::write_storeP(group_id,qrep,dom,offset,comm) ;
+    else
+      pio::write_storeS(group_id,qrep,dom,offset,comm) ;
+  }
+
+  
+  //-----------------------------------------------------------------------
+  inline void writeContainer(hid_t file_id,std::string vname, Loci::storeRepP var, fact_db &facts) {
+    redistribute_write_container(file_id,vname,var,facts) ;
+  }
+ 
+  //-----------------------------------------------------------------------
+  inline void readContainer(hid_t file_id, std::string vname, Loci::storeRepP var, entitySet readSet, fact_db &facts) {
+    read_container_redistribute(file_id,vname,var,readSet, facts) ;
+  }
+
+  //-----------------------------------------------------------------------
+  inline void writeContainer(hid_t file_id,std::string vname, Loci::storeRepP var) {
+    if(Loci::exec_current_fact_db == 0) {
+      std::cerr << "Loci::writeContainer()" ;
+      std::cerr << "this routine needs a fact database argument when called outside of a rule!" << endl ;
+      Loci::Abort() ;
+    } else
+      redistribute_write_container(file_id,vname,var,
+                                   *Loci::exec_current_fact_db) ;
+  }
+ 
+  //-----------------------------------------------------------------------
+  inline void readContainer(hid_t file_id, std::string vname, Loci::storeRepP var, entitySet readSet) {
+    if(Loci::exec_current_fact_db == 0) {
+      std::cerr << "Loci::readContainer()" ;
+      std::cerr << "this routine needs a fact database argument when called outside of a rule!" << endl ;
+      Loci::Abort() ;
+    } else
+     
+      read_container_redistribute(file_id,vname,var,readSet,
+                                  *Loci::exec_current_fact_db) ;
+  }
+ 
+  //-----------------------------------------------------------------------
+  void writeContainerRAW(hid_t file_id, std::string vname,
+                         storeRepP var, MPI_Comm comm) ;
+
+  //----------------------------------------------------------------------- 
+  void readContainerRAW(hid_t file_id, std::string vname,
+                        storeRepP var, MPI_Comm comm ) ;
+
+
+  /*
+    
+    this function is when MPI_processes == 1 or when MPI_rank == 0
+    if MPI_rank == 0, the caller will broadcast the data
+    since no structure modification to the file, parallel version is not needed
+  */
+  template<class T> void readVectorSerial(hid_t group_id,
+                                          const char *element_name,
+                                          std::vector<T> &v ) {
+    hsize_t    dimension;
+    hid_t      dataset, dataspace;
+
+    H5Eset_auto (H5E_DEFAULT,NULL, NULL);
+    dataset  = H5Dopen(group_id, element_name,H5P_DEFAULT);
+    if( dataset > 0 ) {
+      dataspace  = H5Dget_space(dataset);
+      H5Sget_simple_extent_dims (dataspace, &dimension, NULL);
+      typedef data_schema_traits<T> traits_type ;
+      DatatypeP dp = traits_type::get_type() ;
+      
+      hid_t datatype = dp->get_hdf5_type() ;
+      
+      {
+        std::vector<T> tmp(dimension) ;
+        v.swap(tmp) ;
+      }
+      
+      H5Dread(dataset, datatype, H5S_ALL, dataspace, H5P_DEFAULT, &v[0]);
+      
+      H5Sclose(dataspace);
+      H5Dclose(dataset);
+      H5Tclose(datatype) ;
+    } else {
+      std::vector<T> tmp ;
+      v.swap(tmp) ;
+    }
+  }
+
+  
+  namespace pio {
+    /*
+      namespace pio is for functions that have separate serial io version and parallel io version.
+      these low-level functions are generally used by Loci-developers instead of application-developers
+    */
+
+
+    //serial io version, called only if MPI_processes == 1 or MPI_rank==0
+    template<class T> void writeVectorSerialS(hid_t group_id,
+                                              const char *element_name,
+                                              std::vector<T> &v ) {
+      hsize_t array_size_combined = v.size() ;
+      if(array_size_combined == 0)
+        return ;
+
+      int rank = 1 ;
+      hsize_t dimension = array_size_combined ;
+      hid_t dataspace = H5Screate_simple(rank,&dimension,NULL) ;
+
+      typedef data_schema_traits<T> traits_type ;
+      DatatypeP dp = traits_type::get_type() ;
+
+      hsize_t start = 0 ;
+      hsize_t stride = 1 ;
+      hsize_t count = v.size() ;
+      hid_t datatype = dp->get_hdf5_type() ;
+
+      hid_t dataset = H5Dcreate(group_id,element_name,datatype,
+                                dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) ;
+
+      if(count != 0) {
+
+        H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
+                            &start, &stride, &count, NULL) ;
+
+        hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
+
+        H5Dwrite(dataset,datatype,memspace,dataspace,
+                 H5P_DEFAULT, &v[0]) ;
+
+        H5Sclose(memspace) ;
+
+      }
+      H5Dclose(dataset) ;
+      H5Sclose(dataspace) ;
+      H5Tclose(datatype) ;
+      return;
+    }
+
+    //Since file_id and group_id is open for prime_comm, even just one process
+    //write out data in serial, the dataset should be created by all processes in
+    //prim_comm, otherwise the file won't be able to close properly
+    template<class T> void writeVectorSerialP(hid_t group_id,
+                                              const char *element_name,
+                                              std::vector<T> &v ,
+                                              MPI_Comm prime_comm) {
+#ifndef H5_HAVE_PARALLEL
+      writeVectorSerialS(group_id,element_name,v,prime_comm) ;
+#else
+
+      hsize_t array_size_combined = v.size() ;
+
+      if(array_size_combined == 0)
+        return ;
+
+      if(MPI_COMM_NULL != prime_comm){
+        int rank = 1 ;
+        hsize_t dimension = array_size_combined ;
+        hid_t dataspace = H5Screate_simple(rank,&dimension,NULL) ;
+
+        typedef data_schema_traits<T> traits_type ;
+        DatatypeP dp = traits_type::get_type() ;
+
+        hsize_t start = 0 ;
+        hsize_t stride = 1 ;
+        hsize_t count = v.size() ;
+        hid_t datatype = dp->get_hdf5_type() ;
+
+        hid_t dataset = H5Dcreate(group_id,element_name,datatype,
+                                  dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) ;
+
+        int prime_rank = -1;
+
+        MPI_Comm_rank(prime_comm, &prime_rank);
+        if(prime_rank==0){
+          if(count != 0) {
+            H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
+                                &start, &stride, &count, NULL) ;
+            hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
+            H5Dwrite(dataset,datatype,memspace,dataspace,
+                     H5P_DEFAULT, &v[0]) ;
+            H5Sclose(memspace) ;
+          }
+        }
+        H5Dclose(dataset) ;
+        H5Sclose(dataspace) ;
+        H5Tclose(datatype) ;
+      }
+      return;
+#endif
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+    //-----------------------------------------------------------------------  
+    template<class T> void writeUnorderedVectorS(hid_t group_id,
+                                                 const char *element_name,
+                                                 std::vector<T> &v,
+                                                 MPI_Comm comm) {
+      int my_rank = 0 ;
+      MPI_Comm_rank(comm,&my_rank) ;
+      int procs = 1 ;
+      MPI_Comm_size(comm,&procs) ;
+
+      //serial version
+      if(procs==1){
+      
+        hsize_t array_size_combined = v.size() ;
+        if(array_size_combined == 0)
+          return ;
+     
+        int rank = 1 ;
+        hsize_t dimension = array_size_combined ;
+        hid_t dataspace = H5Screate_simple(rank,&dimension,NULL) ;
+     
+        typedef data_schema_traits<T> traits_type ;
+        DatatypeP dp = traits_type::get_type() ;
+      
+#ifdef H5_INTERFACE_1_6_4
+        hsize_t start = 0 ;
+#else
+        hssize_t start = 0 ;
+#endif
+        hsize_t stride = 1 ;
+        hsize_t count = v.size() ;
+        hid_t datatype = dp->get_hdf5_type() ;
+     
+#ifdef H5_USE_16_API
+        hid_t dataset = H5Dcreate(group_id,element_name,datatype,
+                                  dataspace, H5P_DEFAULT) ;
+#else
+        hid_t dataset = H5Dcreate(group_id,element_name,datatype,
+                                  dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) ;
+#endif
+     
+        if(count != 0) {
+     
+          H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
+                              &start, &stride, &count, NULL) ;
+     
+          hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
+     
+          H5Dwrite(dataset,datatype,memspace,dataspace,
+                   H5P_DEFAULT, &v[0]) ;
+     
+          H5Sclose(memspace) ;
+     
+        }
+     
+      
+        H5Dclose(dataset) ;
+        H5Sclose(dataspace) ;
+        H5Tclose(datatype) ;
+        return;
+      }
+
+      size_t local_size = v.size() ;
+      std::vector<size_t> recv_sizes(procs) ;
+      MPI_Gather(&local_size,sizeof(size_t),MPI_BYTE,
+                 &recv_sizes[0],sizeof(size_t),MPI_BYTE,0,comm) ;
+
+      if(my_rank == 0) {
+        hsize_t array_size = 0 ;
+        for(int i=0;i<procs;++i)
+          array_size += recv_sizes[i] ;
+        if(array_size == 0)
+          return ;
+        int rank = 1 ;
+        hsize_t dimension = array_size ;
+
+        hid_t dataspace = H5Screate_simple(rank,&dimension,NULL) ;
+
+        typedef data_schema_traits<T> traits_type ;
+        DatatypeP dp = traits_type::get_type() ;
+
+#ifdef H5_INTERFACE_1_6_4
+        hsize_t start = 0 ;
+#else
+        hssize_t start = 0 ;
+#endif
+        hsize_t stride = 1 ;
+        hsize_t count = recv_sizes[0] ;
+        hid_t datatype = dp->get_hdf5_type() ;
+#ifdef H5_USE_16_API
+        hid_t dataset = H5Dcreate(group_id,element_name,datatype,
+                                  dataspace, H5P_DEFAULT) ;
+#else
+        hid_t dataset = H5Dcreate(group_id,element_name,datatype,
+                                  dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) ;
+#endif
+        if(count != 0) {
+          H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
+                              &start, &stride, &count, NULL) ;
+          hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
+          H5Dwrite(dataset,datatype,memspace,dataspace,
+                   H5P_DEFAULT, &v[0]) ;
+          H5Sclose(memspace) ;
+        }
+        for(int i=1;i<procs;++i) {
+          start += recv_sizes[i-1] ;
+          if(recv_sizes[i] == 0)
+            continue ;
+          int flag = 0 ;
+          MPI_Send(&flag,1,MPI_INT,i,0,comm) ;
+          std::vector<T> rv(recv_sizes[i]) ;
+          MPI_Status mstat ;
+          MPI_Recv(&rv[0],sizeof(T)*recv_sizes[i],MPI_BYTE,i,0,comm,
+                   &mstat) ;
+          count = recv_sizes[i] ;
+          H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
+          hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
+          H5Dwrite(dataset,datatype,memspace,dataspace,
+                   H5P_DEFAULT, &rv[0]) ;
+          H5Sclose(memspace) ;
+        }
+
+        H5Dclose(dataset) ;
+        H5Sclose(dataspace) ;
+        H5Tclose(datatype) ;
+      } else {
+        if(local_size == 0)
+          return ;
+
+        int flag = 0;
+        MPI_Status mstat ;
+        MPI_Recv(&flag,1,MPI_INT,0,0,comm,&mstat) ;
+        MPI_Send(&v[0],sizeof(T)*local_size,MPI_BYTE,0,0,comm) ;
+      }
+    }
+ 
+    //-----------------------------------------------------------------------  
+    template<class T> void writeUnorderedVectorS(hid_t group_id,
+                                                 const char *element_name,
+                                                 std::vector<T> &v) {
+      writeUnorderedVectorS(group_id,element_name,v,MPI_COMM_WORLD) ;
+    }
+  
+    //-----------------------------------------------------------------------  
+    template<class T> void writeUnorderedVectorP(hid_t group_id,
+                                                 const char *element_name,
+                                                 std::vector<T> &v,
+                                                 MPI_Comm prime_comm) {
+      /*
+        in serial version,  process 0 gathers all the data and write it out
+        here in parallel version, each process performs parallel writing directly
+        this function is called when use_parallel_io is true
+      */
+      int mpi_size;
+      int mpi_rank;
+      MPI_Comm_rank(prime_comm, &mpi_rank);
+      MPI_Comm_size(prime_comm, &mpi_size);
+
+      //serial version
+      if(mpi_size==1){//this code probably never used
+        hsize_t array_size_combined = v.size() ;
+        if(array_size_combined == 0)
+          return ;
+
+        int rank = 1 ;
+        hsize_t dimension = array_size_combined ;
+        hid_t dataspace = H5Screate_simple(rank,&dimension,NULL) ;
+
+        typedef data_schema_traits<T> traits_type ;
+        DatatypeP dp = traits_type::get_type() ;
+
+#ifdef H5_INTERFACE_1_6_4
+        hsize_t start = 0 ;
+#else
+        hssize_t start = 0 ;
+#endif
+        hsize_t stride = 1 ;
+        hsize_t count = v.size() ;
+        hid_t datatype = dp->get_hdf5_type() ;
+
+        hid_t dataset = H5Dcreate(group_id,element_name,datatype,
+                                  dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) ;
+
+        if(count != 0) {
+          H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
+                              &start, &stride, &count, NULL) ;
+          hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
+
+          H5Dwrite(dataset,datatype,memspace,dataspace,H5P_DEFAULT, &v[0]) ;
+          H5Sclose(memspace) ;
+        }
+        H5Dclose(dataset) ;
+        H5Sclose(dataspace) ;
+        H5Tclose(datatype) ;
+        return;
+      }
+
+      //    Loci::stopWatch s;
+      //    s.start();
+    
+      //each process figure out the size and the start position to write
+      int local_size = v.size() ; //my size to write
+      hsize_t rsize = local_size; //individual size for each process 
+      std::vector<hsize_t> prime_count(mpi_size);
+      MPI_Allgather(&rsize,sizeof(hsize_t),MPI_BYTE,
+                    &prime_count[0],sizeof(hsize_t),MPI_BYTE,prime_comm) ;
+
+      std::vector<hsize_t> pdispls(mpi_size) ; //the start point of each process 
+      pdispls[0] = 0 ;
+      for(int i = 1; i < mpi_size; i++) {
+        pdispls[i] = pdispls[i-1]+prime_count[i-1] ;
+      }
+      hsize_t array_size = pdispls[mpi_size-1]+prime_count[mpi_size-1] ; //size of the whole dataset
+
+      if(array_size == 0)
+        return ;
+
+
+      //create dataset collectively
+      int rank = 1 ;
+      hsize_t dimension = array_size ;
+      hid_t dataspace = H5Screate_simple(rank,&dimension,NULL) ;
+      typedef data_schema_traits<T> traits_type ;
+      DatatypeP dp = traits_type::get_type() ;
+      hsize_t start = pdispls[mpi_rank] ;
+      hsize_t stride = 1 ;
+     
+      hid_t datatype = dp->get_hdf5_type() ;
+      hid_t dataset = H5Dcreate2(group_id,element_name,datatype,
+                                 dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) ;
+      //choose a hyperslab
+      herr_t ret = H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
+                                       &start,&stride,&rsize, NULL) ;
+      if(ret<0) {
+        cerr << "H5Sselect_hyperslab failed in writeUnorderedVector" << endl ;
+      }
+      WARN(ret < 0) ;
+
+      // create a memory dataspace  
+      hid_t memspace = H5Screate_simple (rank, &rsize, NULL);
+      WARN(memspace < 0) ;
+
+      //write data
+      hid_t xfer_plist = create_xfer_plist(hdf5_const::dxfer_coll_type);
+      H5Dwrite(dataset,datatype,memspace,dataspace, xfer_plist,  &v[0]) ;
+
+      //close everything
+      H5Pclose(xfer_plist) ;
+      H5Sclose(memspace) ;
+      H5Sclose(dataspace) ;
+      H5Tclose(datatype) ;
+      H5Dclose(dataset) ;
+
+      //    double wall_time = s.stop();
+      //    if(mpi_rank == 0) std::cout << "parallel time to write " << element_name << "  " << wall_time << endl; 
+    }
+
+    //-----------------------------------------------------------------------  
+    template<class T> void writeUnorderedVectorP(hid_t group_id,
+                                                 const char *element_name,
+                                                 std::vector<T> &v
+                                                 ) {
+      writeUnorderedVectorP(group_id,
+                            element_name,
+                            v,
+                            MPI_COMM_WORLD );
+    }
+
+
+
+    template<class T> void readUnorderedVectorS(hid_t group_id,
+                                                const char *element_name,
+                                                std::vector<T> &v,
+                                                MPI_Comm comm) {
+      int my_rank = 0 ;
+      MPI_Comm_rank(comm,&my_rank) ;
+      int procs = 1 ;
+      MPI_Comm_size(comm,&procs) ;
+
+      if(procs == 1)
+        return readVectorSerial(group_id,element_name,v) ;
+
+
+      hsize_t    dimension=0;
+      hid_t      dataset=0, dataspace=0 ;
+
+      if(my_rank == 0) {
+        H5Eset_auto (H5E_DEFAULT,NULL, NULL);
+        dataset  = H5Dopen(group_id, element_name,H5P_DEFAULT);
+      }
+      int check = 0 ;
+      if(my_rank == 0 && dataset > 0)
+        check = 1 ;
+      MPI_Bcast(&check,1,MPI_INT,0,comm) ;
+
+      if( check ) {
+        if(my_rank == 0) {
+          dataspace  = H5Dget_space(dataset);
+          H5Sget_simple_extent_dims (dataspace, &dimension, NULL);
+        }
+      }
+      int array_size = dimension ;
+      MPI_Bcast(&array_size,1,MPI_INT,0,comm) ;
+      int delta = array_size/procs ;
+      int rem = array_size%procs ;
+      int loc_array_size = delta + ((my_rank<rem)?1:0);
+      {
+        std::vector<T> tmp(loc_array_size) ;
+        v.swap(tmp) ;
+      }
+
+      if( check ) {
+        if(my_rank == 0) {
+          typedef data_schema_traits<T> traits_type ;
+          DatatypeP dp = traits_type::get_type() ;
+
+          hid_t datatype = dp->get_hdf5_type() ;
+          int rank = 1 ;
+          hsize_t start = 0 ;
+          hsize_t stride = 1 ;
+          hsize_t count = loc_array_size ;
+          H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
+                              &start,&stride,&count, NULL) ;
+          hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
+
+          H5Dread(dataset, datatype, memspace, dataspace, H5P_DEFAULT, &v[0]);
+          H5Sclose(memspace) ;
+          start += count ;
+          for(int i=1;i<procs;++i) {
+            count = delta + ((i<rem)?1:0) ;
+            std::vector<T> tmp(count) ;
+            H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
+                                &start,&stride,&count, NULL) ;
+            memspace = H5Screate_simple(rank, &count, NULL) ;
+            H5Dread(dataset,datatype,memspace,dataspace,H5P_DEFAULT,&tmp[0]) ;
+            MPI_Send(&tmp[0],count*sizeof(T),MPI_BYTE,i,0,comm) ;
+            H5Sclose(memspace) ;
+            start += count ;
+          }
+          H5Tclose(datatype) ;
+        } else {
+          MPI_Status mstat ;
+          MPI_Recv(&v[0],loc_array_size*sizeof(T),MPI_BYTE,0,0,comm,&mstat) ;
+        }
+      } else {
+        std::vector<T> tmp ;
+        v.swap(tmp) ;
+      }
+      if(my_rank == 0) {
+        H5Sclose(dataspace);
+        H5Dclose(dataset);
+      }
+    }
+
+    template<class T> void readUnorderedVectorP(hid_t group_id,
+                                                const char *element_name,
+                                                std::vector<T> &v,
+                                                MPI_Comm prime_comm
+                                                ) {
+
+
+#ifndef H5_HAVE_PARALLEL
+      readUnorderedVectorS(group_id,element_name,v,prime_comm) ;
+#else
+      int procs = 1 ;
+      MPI_Comm_size(MPI_COMM_WORLD,&procs) ;
+
+      if(procs == 1)
+        return readVectorSerial(group_id,element_name,v) ;
+
+
+      int mpi_rank = -1;
+      int mpi_size = -1;
+      hsize_t    dimension=0;
+      hid_t      dataset=0, dataspace=0 ;
+      if (MPI_COMM_NULL != prime_comm){
+        MPI_Comm_rank(prime_comm, &mpi_rank);
+        MPI_Comm_size(prime_comm, &mpi_size);
+        H5Eset_auto (H5E_DEFAULT,NULL, NULL);
+        dataset  = H5Dopen(group_id, element_name,H5P_DEFAULT);
+        WARN(dataset<0) ;
+
+        dataspace  = H5Dget_space(dataset);
+        H5Sget_simple_extent_dims (dataspace, &dimension, NULL);
+
+        int array_size = dimension ;
+        int delta = array_size/mpi_size ;
+        int rem = array_size%mpi_size ;
+        int loc_array_size = delta + ((mpi_rank<rem)?1:0);
+
+        {
+          std::vector<T> tmp(loc_array_size) ;
+          v.swap(tmp) ;
+        }
+
+        //parallel read here
+        typedef data_schema_traits<T> traits_type ;
+        DatatypeP dp = traits_type::get_type() ;
+        hid_t datatype = dp->get_hdf5_type() ;
+        int rank = 1 ;
+        hsize_t start = (mpi_rank< rem)?mpi_rank*(delta+1):(delta+1)*rem+delta*(mpi_rank-rem) ;
+        hsize_t stride = 1 ;
+        hsize_t count = loc_array_size ;
+
+        herr_t ret = H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
+                                         &start,&stride,&count, NULL) ;
+        WARN(ret<0) ;
+        hid_t memspace = H5Screate_simple(rank, &count, NULL);
+        WARN(memspace<0) ;
+
+        H5Dread(dataset, datatype, memspace, dataspace, H5P_DEFAULT, &v[0]);
+
+        H5Sclose(memspace) ;
+        H5Sclose(dataspace) ;
+        H5Tclose(datatype) ;
+        H5Dclose(dataset) ;
+      }
+#endif
+    }
+
+    
+  }
+
+
+  //-----------------------------------------------------------------------  
+  /*this is the general version for application developers*/ 
+  template<class T> void writeUnorderedVector(hid_t group_id,
+                                              const char *element_name,
+                                              std::vector<T> &v,
+                                              MPI_Comm prime_comm) {
+   
+    if(use_parallel_io) pio::writeUnorderedVectorP( group_id,
+                                                    element_name,
+                                                    v,
+                                                    prime_comm);
+    else pio::writeUnorderedVectorS( group_id,
+                                     element_name,
+                                     v,
+                                     prime_comm);
+  }
+
+
+  //-----------------------------------------------------------------------  
+  template<class T> void writeUnorderedVector(hid_t group_id,
+                                              const char *element_name,
+                                              std::vector<T> &v
+                                              ) {
+    writeUnorderedVector(group_id,
+                         element_name,
+                         v,
+                         MPI_COMM_WORLD );
+  }
+  
+  //-----------------------------------------------------------------------  
   template<class T> void writeUnorderedStore(hid_t file_id,
                                              const_store<T> &s, entitySet set,
                                              const char *name) {
@@ -284,7 +803,12 @@ namespace Loci {
     } ENDFORALL ;
     writeUnorderedVector(file_id,name,v) ;
   }
-
+  
+  //-----------------------------------------------------------------------  
+  void writeSetIds(hid_t file_id, entitySet local_set, fact_db &facts) ;
+  
+ 
+  //-----------------------------------------------------------------------  
   void parallelWriteGridTopology(const char *filename,
                                  storeRepP upperRep,
                                  storeRepP lowerRep,
@@ -296,6 +820,7 @@ namespace Loci {
                                  entitySet localCells,
                                  fact_db &facts) ;
 
+  //-----------------------------------------------------------------------  
   inline
   void parallelWriteGridTopology(const char *filename,
                                  storeRepP upperRep,
@@ -316,11 +841,12 @@ namespace Loci {
                                 localCells, *Loci::exec_current_fact_db) ;
   }
   
+  
   //open /output/$bc_name/$file_name
   hid_t open_boundary_file(std::string bc_name,
                            std::string file_name
                            );
-    
+ 
   //get boundary faces that belong to a boundary surface current_bc
   entitySet get_boundary_faces(std::string current_bc,//boundary name
                                storeRepP refRep, // ref map
@@ -419,7 +945,8 @@ namespace Loci {
   // MPI Communicator
   storeRepP Local2FileOrder_output(storeRepP sp, entitySet dom,
                                    fact_db& facts, MPI_Comm comm);
- 
+
+  //serial/parallel io
   template<class T>   void writeCutPlaneNodalVal(hid_t file_id,
                                                  std::string element_name,
                                                  storeRepP face2nodeRep,
@@ -478,6 +1005,8 @@ namespace Loci {
     writeUnorderedVector(file_id, element_name.c_str(), vpos) ;
   }
   
+ 
+
   template<class T>   void writeCutPlaneNodalVal(hid_t file_id,
                                                  std::string element_name,
                                                  storeRepP face2nodeRep,
@@ -495,10 +1024,152 @@ namespace Loci {
                            *Loci::exec_current_fact_db );
   }
   
+  
                           
   void writeCutPlaneTopo(hid_t bc_id,
                          const CutPlane& cp,
                          fact_db &facts) ;
+
+ 
    
+  // Updated container communication code
+  class partitionFunctionType: public CPTR_type  {
+  public:
+    virtual int numRanks() const = 0 ;
+    virtual void mapKeyToRank(int keyRank[],
+			      const Entity inputKeys[], size_t sz) const = 0 ;
+  } ;
+
+  class algorithmicPartition : public partitionFunctionType {
+    Entity mn, delta ;
+    int nRanks ;
+  public:
+    algorithmicPartition(Entity mnl, Entity mxl, int nRanksl) {
+      mn = mnl ;
+      nRanks = nRanksl ;
+      int sz = mxl-mnl+1 ;
+      delta = (sz+nRanks-1)/nRanks ;
+    }
+    int numRanks() const { return nRanks; }
+    
+    void mapKeyToRank(int keyRank[], const Entity inputKeys[], size_t sz) const {
+      for(size_t i=0;i<sz;++i) {
+	keyRank[i] = max(min(int((inputKeys[i]-mn)/delta),nRanks-1),0) ;
+      }
+    }
+  } ;
+
+  class generalPartition: public partitionFunctionType {
+    std::vector<std::pair<interval, int> > splits ;
+    int nRanks ;
+  public:
+    generalPartition(const std::vector<Entity> &splits_in) {
+      nRanks = splits_in.size()+1 ;
+      std::vector<std::pair<interval, int> > tsplit(splits_in.size()+1) ;
+      splits.swap(tsplit) ;
+      int cx = std::numeric_limits<Entity>::min() ;
+      for(size_t i=0;i<splits_in.size();++i) {
+	splits[i].first.first = cx ;
+	splits[i].first.second = splits_in[i] ;
+	splits[i].second = i ;
+	cx = splits_in[i]+1 ;
+      }
+      splits[splits_in.size()].first.first = cx ;
+      splits[splits_in.size()].first.second = std::numeric_limits<Entity>::max() ;
+      splits[splits_in.size()].second = splits_in.size() ;
+    }
+    generalPartition(const std::vector<entitySet> &init_ptn) {
+      entitySet totset ;
+      nRanks = init_ptn.size() ;
+      for(size_t i=0;i<init_ptn.size();++i) {
+	totset += init_ptn[i] ;
+	for(size_t j=0;j<init_ptn[i].num_intervals();++j) {
+	  splits.push_back(std::pair<interval,int>(init_ptn[i][j],i)) ;
+	}
+      }
+      entitySet negspace = ~totset ;
+      for(size_t j=0;j<negspace.num_intervals();++j) {
+	splits.push_back(std::pair<interval,int>(negspace[j],-1)) ;
+      }
+      std::sort(splits.begin(),splits.end()) ;
+      for(size_t i=0;i<splits.size()-1;++i)
+	if(splits[i].first.second+1 != splits[i+1].first.first) {
+	  cerr << "set array input does not form partition" << endl ;
+	}
+    }
+
+    int numRanks() const { return nRanks; }
+
+    void mapKeyToRank(int keyRank[], const Entity inputKeys[],
+		      size_t sz) const {
+      int lastr = 0 ;
+      for(size_t i=0;i<sz;++i) {
+	Entity key = inputKeys[i] ;
+	int low = 0, high = splits.size()-1 ;
+	while(key < splits[lastr].first.first ||
+	      key > splits[lastr].first.second) {
+	  if(key<splits[lastr].first.first)  
+	    high = lastr-1 ; // lastr is to high
+	  else  
+	    low = lastr+1 ;  // lastr is to low
+	  lastr = (low+high)/2 ;
+	}
+	keyRank[i] = splits[lastr].second ;
+      }
+
+    }
+  } ;
+  void generalMPIComm(Loci::storeRepP op,
+		      Loci::storeRepP sp,
+		      const std::vector<Loci::entitySet> &sendSets,
+		      const std::vector<Loci::sequence> &recvSeqs,
+		      MPI_Comm comm) ;
+  storeRepP
+  generalCommStore(// input store
+		   Loci::storeRepP sp,
+		   // first: from entity (in container ordering),
+		   // second: to global partitioned entity map
+		   const std::vector<std::pair<Entity,Entity> > &commMap,
+		   // To entity partition
+		   Loci::CPTR<Loci::partitionFunctionType> partition,
+		   // mapping from global number to local numbering
+		   const std::vector<std::pair<Entity,Entity> > &global2local,
+		   // If this is null, create new container, otherwise
+		   // assume it is allocated already
+		   Loci::storeRepP op,
+		   MPI_Comm comm) ;
+
+  entitySet
+  getF2G(Map &f2g, Loci::entitySet fdom, dMap &g2f, MPI_Comm comm) ;
+  void File2LocalOrderGeneral(storeRepP &result, entitySet resultSet,
+                              storeRepP input, int offset,
+                              fact_db::distribute_infoP dist,
+                              MPI_Comm comm) ;
+  void getL2FMap(Map &l2f, entitySet dom, fact_db::distribute_infoP dist) ;
+  void FindSimpleDistribution(entitySet dom, const Map &l2f,
+                              std::vector<int> &splits, MPI_Comm comm) ;
+  void memoryBalancedDistribution(std::vector<int> &splits_out,
+                                  const store<int> &countl,
+                                  entitySet dom,
+                                  const Map &toNumbering,
+                                  MPI_Comm comm) ;
+  storeRepP gatherStore(// Input Store
+                        storeRepP sp,
+                        // EntitySet of input to reorder
+                        const std::vector<int> &commPattern,
+                        // Splits for partition
+                        const std::vector<int> &splits,
+                        MPI_Comm comm) ;
+  storeRepP gatherMultiStore(// Input Store
+                             storeRepP sp,
+                             // EntitySet of input to reorder
+                             const std::vector<int> &commPattern,
+                             // Splits for partition
+                             const std::vector<int> &splits,
+                             MPI_Comm comm) ;
+
+
+
+
 }
 #endif

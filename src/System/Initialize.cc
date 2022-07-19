@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -33,6 +33,8 @@
 #define PETSC_37_API
 #endif
 
+
+
 // Force key petsc functions to load. (Helps when using static libraries)
 void dummyFunctionDependencies(int i) {
   int localSize=0,globalSize=0 ;
@@ -46,7 +48,8 @@ void dummyFunctionDependencies(int i) {
   ierr = MatCreateMPIAIJ(MPI_COMM_WORLD,0,0,0,0,0,0,0,0,&m) ;
 #endif
   ierr = KSPSetFromOptions(ksp) ;
-  dummyFunctionDependencies(ierr) ;
+  if(i==0) 
+    dummyFunctionDependencies(ierr) ;
 }
 #endif
 
@@ -115,9 +118,20 @@ namespace Loci {
   MPI_Op MPI_FADD2_MIN ;
   MPI_Op MPI_FADD2_MAX ;
 
+  MPI_Datatype MPI_MFADD ;
+  MPI_Op MPI_MFADD_SUM ;
+  MPI_Op MPI_MFADD_PROD ;
+  MPI_Op MPI_MFADD_MIN ;
+  MPI_Op MPI_MFADD_MAX ;
+
+  MPI_Info PHDF5_MPI_Info ;
+  
   int MPI_processes = 1;
-  int MPI_rank = 0 ;
+  int MPI_rank = 0 ; 
+  int MPI_processes_per_host = 1 ;
+
   bool useDebugDir = true ;
+  bool useDomainKeySpaces = false ;
 
   int method = 1 ; // Iterative Weighted Static
   bool verbose = false ;
@@ -173,10 +187,29 @@ namespace Loci {
   bool collect_timings = false;
   double time_duration_to_collect_data = 0 ;
   bool use_duplicate_model = false;
-  bool use_simple_partition = false ;
+  bool use_simple_partition=false;
+
+#ifdef H5_HAVE_PARALLEL
+  bool use_parallel_io = false ; //true ;
+#else
+  bool use_parallel_io = false ;
+#endif
+  
+  // space filling curve partitioner
+#ifdef LOCI_USE_METIS
+  bool use_sfc_partition = false ;
+#else 
+  // RSM COMMENT 20181108 setting this to true,
+  // automatically disables calls to METIS decomposition
+  // when we add support for ZOLTAN this will need to be 
+  // REVISITED: METIS_DISABLE_NOTE
+  bool use_sfc_partition=true;
+#endif /* ifndef LOCI_USE_METIS */
   bool use_orb_partition = false ;
+  
   extern int factdb_allocated_base ;
 
+  string PFS_Script ; // Parallel File System Striping Script
 
   char * model_file;
   // these flags are used to indicate additional weights
@@ -185,7 +218,8 @@ namespace Loci {
   // partitioning routine
   bool load_cell_weights = false ;
   string cell_weight_file ;
-
+  storeRepP cell_weight_store = 0;
+  
   // flag to indicate whether multithreading is used for each type of rules
   bool threading_pointwise = false;
   bool threading_global_reduction = false;
@@ -193,7 +227,6 @@ namespace Loci {
   bool threading_chomping = false;
   bool threading_recursion = false;
   int num_threads = 0;
-  int num_thread_blocks = 10; // default 10 blocks per threads
 
 
   ofstream debugout ;
@@ -202,6 +235,28 @@ namespace Loci {
   double total_memory_usage = 0 ;
 
   extern int current_rule_id ;
+
+  size_t MPI_process_mem_avail() {
+     size_t mem = 0 ;
+     ifstream memfile("/proc/meminfo") ;
+     if(memfile.fail())
+       return mem ;
+     string key="MemAvailable:" ;
+     while(!memfile.fail() || !memfile.eof()) {
+       string type ;
+       int val ;
+       string unit ;
+       memfile >> type >> val ;
+       std::getline(memfile,unit) ;
+       if(type==key) {
+	 mem = val ;
+	 mem *= 1024 ;
+	 mem /= MPI_processes_per_host ;
+	 return mem ;
+       }
+     }
+     return mem ;
+  }
 
   void disableDebugDir() {useDebugDir = false ;}
 
@@ -309,6 +364,25 @@ namespace Loci {
       rinout[i] = min(rinout[i],rin[i]) ;
   }
 
+  void sumMFADd(MFADd *rin, MFADd *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] += rin[i] ;
+  }
+  void prodMFADd(MFADd *rin, MFADd *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] *= rin[i] ;
+  }
+  void maxMFADd(MFADd *rin, MFADd *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] = max(rinout[i],rin[i]) ;
+  }
+  void minMFADd(MFADd *rin, MFADd *rinout, int *len, MPI_Datatype *dtype) {
+    for(int i=0;i<*len;++i)
+      rinout[i] = min(rinout[i],rin[i]) ;
+  }
+
+  MPI_Errhandler Loci_MPI_err_handler ;
+  
 
   //This is the first call to be made for any Loci program be it
   //sequential or parallel.
@@ -331,6 +405,7 @@ namespace Loci {
     MPI_Init(argc, argv) ;
 #endif
 
+    create_mpi_info(&PHDF5_MPI_Info) ;
 #ifndef MPI_STUBB
     {
       // Create FADD type
@@ -341,13 +416,14 @@ namespace Loci {
       indices[0] = (MPI_Aint)((char *) &(tmp.value) - (char *) &tmp) ;
       indices[1] = (MPI_Aint)((char *) &(tmp.grad) - (char *) &tmp) ;
       MPI_Datatype typelist[] = {MPI_DOUBLE,MPI_DOUBLE} ;
+
       MPI_Type_create_struct(count,blocklens,indices,typelist,&MPI_FADD) ;
       MPI_Type_commit(&MPI_FADD) ;
+
       MPI_Op_create((MPI_User_function *)sumFADd,1,&MPI_FADD_SUM) ;
       MPI_Op_create((MPI_User_function *)prodFADd,1,&MPI_FADD_PROD) ;
       MPI_Op_create((MPI_User_function *)maxFADd,1,&MPI_FADD_MAX) ;
       MPI_Op_create((MPI_User_function *)minFADd,1,&MPI_FADD_MIN) ;
-
     }
 
     {
@@ -359,29 +435,68 @@ namespace Loci {
       indices[0] = (MPI_Aint)((char *) &(tmp.value) - (char *) &tmp) ;
       indices[1] = (MPI_Aint)((char *) &(tmp.grad) - (char *) &tmp) ;
       indices[2] = (MPI_Aint)((char *) &(tmp.grad2) - (char *) &tmp) ;
+
       MPI_Datatype typelist[] = {MPI_DOUBLE,MPI_DOUBLE,MPI_DOUBLE} ;
       MPI_Type_create_struct(count,blocklens,indices,typelist,&MPI_FADD2) ;
       MPI_Type_commit(&MPI_FADD2) ;
+
       MPI_Op_create((MPI_User_function *)sumFAD2d,1,&MPI_FADD2_SUM) ;
       MPI_Op_create((MPI_User_function *)prodFAD2d,1,&MPI_FADD2_PROD) ;
       MPI_Op_create((MPI_User_function *)maxFAD2d,1,&MPI_FADD2_MAX) ;
       MPI_Op_create((MPI_User_function *)minFAD2d,1,&MPI_FADD2_MIN) ;
 
     }
-#endif
 
+    {
+      // Create MFADD type
+      int count = MFAD_SIZE + 1 ;
+      //int blocklens[] = {1,1,1,1,1,1,1,1,1,1,1} ;
+      int blocklens[count] ;
+      for (int i=0;i<count;i++) blocklens[i] = 1 ;
+      MPI_Aint indices[count] ;
+      MFADd tmp ;
+      indices[0] = (MPI_Aint)((char *) &(tmp.value) - (char *) &tmp) ;
+      for (int i=1;i<count;i++) indices[i] = (MPI_Aint)((char *) &(tmp.grad[i-1]) - (char *) &tmp) ;
+
+      MPI_Datatype typelist[count] ;
+      for (int i=0;i<count;i++) typelist[i] = MPI_DOUBLE ;
+      MPI_Type_create_struct(count,blocklens,indices,typelist,&MPI_MFADD) ;
+      MPI_Type_commit(&MPI_MFADD) ;
+
+      MPI_Op_create((MPI_User_function *)sumMFADd,1,&MPI_MFADD_SUM) ;
+      MPI_Op_create((MPI_User_function *)prodMFADd,1,&MPI_MFADD_PROD) ;
+      MPI_Op_create((MPI_User_function *)maxMFADd,1,&MPI_MFADD_MAX) ;
+      MPI_Op_create((MPI_User_function *)minMFADd,1,&MPI_MFADD_MIN) ;
+
+    }
+#endif
+    
     time_duration_to_collect_data = MPI_Wtick()*20;
     signal(SIGTERM,TerminateSignal) ;
 
     //    MPI_Errhandler_set(MPI_COMM_WORLD,MPI_ERRORS_RETURN) ;
     //    MPI_Errhandler_set(MPI_COMM_WORLD,MPI_ERRORS_ARE_FATAL) ;
 
-    MPI_Errhandler err_handler ;
-    MPI_Comm_create_errhandler(&MPI_errors_reporter,&err_handler) ;
-    MPI_Comm_set_errhandler(MPI_COMM_WORLD,err_handler) ;
+    MPI_Comm_create_errhandler(MPI_errors_reporter,&Loci_MPI_err_handler) ;
+    MPI_Comm_set_errhandler(MPI_COMM_WORLD,Loci_MPI_err_handler) ;
+    //    MPI_Errhandler_create(&MPI_errors_reporter,&err_handler) ;
+    //    MPI_Errhandler_set(MPI_COMM_WORLD,err_handler) ;
 
     MPI_Comm_size(MPI_COMM_WORLD, &MPI_processes) ;
     MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank) ;
+
+    // Find number of mpi processes per host
+    {
+      long hid = gethostid() ;
+      vector<long> host_list(MPI_processes) ;
+      MPI_Allgather(&hid,1,MPI_LONG,&host_list[0],1,MPI_LONG,MPI_COMM_WORLD) ;
+      int cnt = 0 ;
+      for(int i=0;i<MPI_processes;++i)
+	if(hid == host_list[i])
+	  cnt++ ;
+      MPI_processes_per_host = cnt ;
+      debugout << "mpi processes per host = " << cnt << endl ;
+    }
 
     int sprng_seed = 985456376 ;
     int sprng_gtype = SPRNG_LFG ; // sprng generator type
@@ -391,6 +506,12 @@ namespace Loci {
     // CMRG  - 3 - Combined Multiple Recursive Generator
     // MLFG  - 4 - Multiplicative Lagged Fibonacci Generator
 
+    char *p = 0 ;
+    if((p=getenv("LOCI_PFS_SCRIPT")) != 0) {
+      PFS_Script = string(p) ;
+    } else {
+      PFS_Script = string ("") ;
+    }
     try {
 
       ostringstream oss ;
@@ -440,6 +561,8 @@ namespace Loci {
       }
       bool debug_setup = false ;
       int i = 1 ;
+      vector<string> arglist ;
+      arglist.push_back(string(*argv[0])) ;
       while(i<*argc) {
         if(!strcmp((*argv)[i],"--display")) {
           debug_setup = true ;
@@ -482,11 +605,33 @@ namespace Loci {
         } else if(!strcmp((*argv)[i],"--decoration")) {
           show_decoration = true ; // visualize the decorated multilevel graph
           i++ ;
+	} else if(!strcmp((*argv)[i],"--pio")) { // turn on parallel IO
+#ifdef H5_HAVE_PARALLEL
+	  if(MPI_processes > 1) 
+	    use_parallel_io = true ;
+	  else {
+	    use_parallel_io = false ;
+	    cerr << "Parallel I/O not used when running on a single CPU!" << endl ;
+	  }
+#else
+	  cerr << "Cannot enable parallel I/O, Loci linked with serial HDF5 library!" << endl ;
+	  use_parallel_io = false ;
+#endif
+	  i++ ;
+	} else if(!strcmp((*argv)[i],"--nopio")) { // turn off parallel IO
+#ifndef H5_HAVE_PARALLEL
+	  cerr << "Cannot disable parallel I/O, Loci linked with serial HDF5 library!" << endl ;
+#endif
+	  i++ ;
+	  use_parallel_io = false ;
         } else if(!strcmp((*argv)[i],"--simple_partition")) {
           use_simple_partition = true ; //  partition domain using n/p cuts
           i++ ;
         } else if(!strcmp((*argv)[i],"--orb_partition")) {
           use_orb_partition = true ; // partition mesh using ORB method
+          i++ ;
+        } else if(!strcmp((*argv)[i],"--sfc_partition")) {
+          use_sfc_partition = true ; // partition mesh using SFC method
           i++ ;
         } else if(!strcmp((*argv)[i],"--dmm")) {
           use_dynamic_memory = true ; // use dynamic memory management
@@ -598,8 +743,13 @@ namespace Loci {
           load_cell_weights = true ;
           cell_weight_file = (*argv)[i+1] ;
           i+=2 ;
-	} else if(!(strcmp((*argv)[i],"--set_4gig_entity_space"))) {
+	} else if(!(strcmp((*argv)[i],"--test"))) {
+	  useDomainKeySpaces = true ;
+	  i++ ;
+	} else if(!(strcmp((*argv)[i],"--set_4gig_entity_space")) ||
+		  !(strcmp((*argv)[i],"--big"))) {
 	  factdb_allocated_base = std::numeric_limits<int>::min() + 2048 ;
+	  useDomainKeySpaces = true ;
 	  i++ ;
         } else if(!strcmp((*argv)[i],"--threads")) {
           // determine the number of threads to use.
@@ -610,23 +760,16 @@ namespace Loci {
           // but right now, we will accept the user inputs
           // and check if it is reasonable
           int nt = atoi( (*argv)[i+1]);
-          if(nt < 0 || nt > 24)
+          if(nt < 0 || nt > 20)
             nt = 2;
           num_threads = nt;
-          if(num_threads > 0) {
+          if(num_threads > 1) {
             threading_pointwise = true;
             threading_global_reduction = true;
             threading_local_reduction = true;
-            threading_chomping = true;
+            threading_chomping = false;//true;
             threading_recursion = true;
           }
-          i+=2;
-        } else if(!strcmp((*argv)[i],"--thread_blocks")) {
-          // determine the number of thread blocks to use
-          int nb = atoi( (*argv)[i+1]);
-          if(nb <= 0 || nb > 100)
-            nb = 10; // prevent unreasonable values
-          num_thread_blocks = nb;
           i+=2;
         } else if(!strcmp((*argv)[i],"--no_threading_pointwise")) {
           threading_pointwise = false;
@@ -644,15 +787,18 @@ namespace Loci {
           threading_recursion = false;
           i++;
         }
-        else
-          break ;
+        else {
+	  //          break ;
+	  arglist.push_back(string((*argv)[i])) ;
+	  i++ ;
+	}
       }
 
-      if(i!=1) {
-        *argc -= (i-1) ;
-        for(int k=1;k<*argc;++k)
-          (*argv)[k] = (*argv)[k+i-1] ;
+      for(size_t k = 0;k<arglist.size();++k) {
+	(*argv)[k] = (char *)malloc(arglist[k].size()+1) ;
+	strcpy((*argv)[k],arglist[k].c_str()) ;
       }
+      *argc = arglist.size() ;
 
       if(useDebugDir) {
         //Create a debug file for each process

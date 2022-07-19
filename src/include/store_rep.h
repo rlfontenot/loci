@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -25,8 +25,15 @@
 #include <config.h> // This must be the first file included
 #endif
 #include <Config/conf.h>
+// Enable page based allocation for conainers
+// Now this is done by adding -DPAGE_ALLOCATE to MISC flags in sys.conf
+//#define PAGE_ALLOCATE
 
-#include <Config/conf.h>
+#ifdef PAGE_ALLOCATE
+#include <sys/mman.h>
+#endif
+
+#include <unistd.h>
 #include <Tools/debug.h>
 #include <Tools/nptr.h>
 #include <entitySet.h>
@@ -34,23 +41,88 @@
 #include <ostream>
 
 #include <data_traits.h>
-#include <frame_info.h>
+
 #include <mpi.h>
-#include <gstore_rep.h>
+
+
+
 namespace Loci {
+#ifdef PAGE_ALLOCATE
+  template<class T> inline T *pageAlloc(size_t sz,T *p) {
+    size_t alloc_size = sz*sizeof(T) ;
+    // make alloc size page divisible
+    size_t psz = sysconf(_SC_PAGESIZE) ;
+    alloc_size = ((alloc_size%psz) == 0)?alloc_size:(alloc_size/psz+1)*psz ;
+    p = (T *) mmap(0,alloc_size,
+		PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1, 0) ;
+    if(p == MAP_FAILED)
+      throw std::bad_alloc() ;
+    return p ;
+  }
+  template<class T> inline void pageRelease(size_t sz,T *p) {
+    size_t alloc_size = sz*sizeof(T) ;
+    // make alloc size page divisible
+    size_t psz = sysconf(_SC_PAGESIZE) ;
+    alloc_size = ((alloc_size%psz) == 0)?alloc_size:(alloc_size/psz+1)*psz ;
+    munmap(p,alloc_size) ;
+  }
+  
+#endif
+
   enum store_type { STORE, PARAMETER, MAP, CONSTRAINT, BLACKBOX } ;
 
   class Map ;
   class dMap ;
   class storeRep ;
-  class gStoreRep;
-  typedef CPTR<gStoreRep> gStoreRepP ;
+
   typedef NPTR<storeRep> storeRepP ;
   typedef const_NPTR<storeRep> const_storeRepP ;
   
-  
+  struct frame_info {
+    int is_stat ; 
+    int size ;
+    std::vector<int> first_level ;
+    std::vector<int> second_level ;
+    frame_info() {
+      is_stat = 0 ;
+      size = 0 ;
+    }
+    frame_info(int a , int b) {
+      is_stat = a ;
+      size = b ;
+      
+    }
+    frame_info(int a , int b, std::vector<int> c, std::vector<int> d) {
+      is_stat = a ;
+      size = b ;
+      
+      first_level = c ;
+      second_level = d ;
+    } 
+    frame_info(const frame_info &fi) { 
+      is_stat = fi.is_stat ;
+      size = fi.size ;
+      if(!size)
+	first_level = fi.first_level ;
+      if(is_stat) 
+	second_level = fi.second_level ;
+    }
+    
+    frame_info &operator = (const frame_info &fi) { 
+      is_stat = fi.is_stat ;
+      size = fi.size ;
+      if(!size) 
+	first_level = fi.first_level ;
+      if(is_stat)
+	second_level = fi.second_level ;
+      
+      return *this ;
+    }
+  } ;
   class storeRep : public NPTR_type {
+    int domainKeySpace ;
   public:
+    storeRep() { domainKeySpace = 0 ; }
     virtual ~storeRep() ;
     virtual void allocate(const entitySet &p) = 0 ;
     // erase part of the domain, useful for dynamic containers,
@@ -85,9 +157,6 @@ namespace Loci {
     // the remap method merely renumbers the container
     // according to the passed in map
     virtual storeRepP remap(const dMap &m) const = 0 ;
-    //this method is added only for parameter on universal keyspace
-    virtual gStoreRepP copy2gstore()const;
-    
     // virtual storeRepP remap(const Map& m) const = 0 ;
     // the redistribute takes a vector of entitySets as domain
     // distribution over a group of processes and
@@ -183,11 +252,17 @@ namespace Loci {
     virtual std::istream &Input(std::istream &s) = 0 ;
     virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en) = 0;
     virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet &en) const = 0;
+#ifdef H5_HAVE_PARALLEL
+    virtual void readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en, hid_t xfer_plist_id) = 0;
+    virtual void writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet &en, hid_t xfer_plist_id) const = 0;
+#endif
     virtual entitySet domain() const = 0 ;
     virtual storeRepP getRep() ;
     virtual storeRepP getRep() const ;
     virtual  DatatypeP getType() = 0 ;
     virtual frame_info get_frame_info() = 0 ;
+    virtual int getDomainKeySpace() const { return domainKeySpace ; }
+    virtual void setDomainKeySpace(int v) { domainKeySpace = v ; }
   } ;
 
 
@@ -195,6 +270,8 @@ namespace Loci {
     friend class store_ref ;
     storeRepP rep ;
   public:
+    int getDomainKeySpace() const { return rep->getDomainKeySpace() ; }
+    void setDomainKeySpace(int v) { rep->setDomainKeySpace(v) ; }
     enum instance_type { READ_WRITE, READ_ONLY } ;
     void setRep(const storeRepP &p)
       { rep = p ; rep.set_notify(this); notification() ; }
@@ -249,8 +326,15 @@ namespace Loci {
     virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const {
       Rep()->writehdf5(group_id, dataspace, dataset, dimension, name, en);
     };
+#ifdef H5_HAVE_PARALLEL
+    virtual void readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en, hid_t xfer_plist_id) {
+      Rep()->readhdf5P(group_id, dataspace, dataset, dimension, name, fi, en, xfer_plist_id);
+    };
+    virtual void writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en, hid_t xfer_plist_id) const {
+      Rep()->writehdf5P(group_id, dataspace, dataset, dimension, name, en, xfer_plist_id);
+    };
+#endif
     virtual entitySet domain() const ;
-    virtual gStoreRepP copy2gstore()const;
     virtual storeRepP getRep() ;
     virtual storeRepP getRep() const ;
     virtual void notification() ;
@@ -278,6 +362,8 @@ namespace Loci {
                       int& size, const entitySet& e, const Map& remap) ;
     virtual void unpack(void* ptr, int& loc,
                         int& size, const sequence& seq, const dMap& remap) ;
+    virtual int getDomainKeySpace() const { return Rep()->getDomainKeySpace() ; }
+    virtual void setDomainKeySpace(int v) { Rep()->setDomainKeySpace(v) ; }
     
   } ;
   typedef NPTR<store_ref> store_refP ;

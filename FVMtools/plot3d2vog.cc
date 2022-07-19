@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -191,6 +191,11 @@ void usage() {
     
 }
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
+#endif
+
 int fscanread(double *entries, int nentries, FILE *fp) {
   static double rval = 0.0;
   static int nvals = 0 ;
@@ -218,15 +223,21 @@ int fscanread(double *entries, int nentries, FILE *fp) {
     if(cnt == 1)
       nr++ ;
     else {
+      
       char buf[512] ;
       fscanf(fp,"%s",buf) ;
       cerr << "failure reading grid near " << buf << endl ;
       return nr ;
+
+      
     }
   }
   return nr ;
 }
 
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 
 bool readP3DGrid(string filename,vector<block_topo> &blockInfo, vector<vect3d> &positions, vector<int>&pos_sizes, int read_type, MPI_Comm Comm) {
 

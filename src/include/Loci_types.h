@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -112,6 +112,51 @@ namespace Loci {
     typedef IDENTITY_CONVERTER Schema_Converter ;
     static DatatypeP get_type() {
       return new FAD2dType() ;
+    }
+  };
+
+  // Make special type manager for MFADdType
+  class MFADdType : public AbstractDatatype {
+  public:
+    MFADdType() {}
+    hid_t get_hdf5_type() const {
+      MFADd tmp ;
+      hid_t vDatatype = H5Tcreate( H5T_COMPOUND, sizeof(tmp) ) ;
+#ifdef NO_OFFSETOF
+      size_t offset1 = reinterpret_cast<char *>(&(tmp.value)) - reinterpret_cast<char *>(&tmp) ;
+#else
+      size_t offset1 = offsetof(MFADd,value) ;	
+#endif
+      H5Tinsert(vDatatype,"value",offset1,H5T_NATIVE_DOUBLE) ;
+
+      // note, not an array, this needs to be fixed
+#ifdef NO_OFFSETOF
+      size_t offset2 = reinterpret_cast<char *>(&(tmp.grad[0])) - reinterpret_cast<char *>(&tmp) ;
+#else
+      size_t offset2 = offsetof(MFADd,grad) ;
+#endif
+      H5Tinsert(vDatatype,"grad",offset2,H5T_NATIVE_DOUBLE) ;
+
+      //#ifdef NO_OFFSETOF
+      //      size_t offset3 = reinterpret_cast<char *>(&(tmp.maxN)) - reinterpret_cast<char *>(&tmp) ;
+      //#else
+      //      size_t offset3 = offsetof(MFADd,maxN) ;
+      //#endif
+      //      H5Tinsert(vDatatype,"maxN",offset3,H5T_NATIVE_INT) ;
+      return vDatatype ;
+    }		
+    std::ostream &output(std::ostream &s, const void *p) const
+      { s << *(reinterpret_cast<const MFADd *>(p)) ; return s ;}
+    std::istream &input(std::istream &s, void *p) const
+      { s >> *(reinterpret_cast<MFADd *>(p)) ; return s ; }
+    int bytesize() const
+    { return sizeof(MFADd) ; }
+  } ;
+  
+  template<> struct data_schema_traits<MFADd> {
+    typedef IDENTITY_CONVERTER Schema_Converter ;
+    static DatatypeP get_type() {
+      return new MFADdType() ;
     }
   };
 

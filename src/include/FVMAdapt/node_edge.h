@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -33,15 +33,15 @@ using std::queue;
 //head--------> tail, edge point from head to tail
 //edge2node[0]-------->edge2node[1]
 
-//delaration of class Node, Edge and Face
+//declaration of class Node, Edge and Face
 class Node{
 public:
   //constructors
   Node():index(0),tag(0){}
   Node(vect3d& p0):p(p0), index(0), tag(0){}
-  Node(const Loci::vector3d<Loci::real_t>& p0):p(p0),index(0),tag(0){}
+  Node(const Loci::vector3d<double>& p0):p(p0),index(0),tag(0){}
   Node(vect3d& p0, int32 n):p(p0), index(n), tag(0){}
-  Node(const Loci::vector3d<Loci::real_t>& p0, int32 n):p(p0), index(n), tag(0){}
+  Node(const Loci::vector3d<double>& p0, int32 n):p(p0), index(n), tag(0){}
 public:
   vect3d p; //coordiantes
   int32 index;//the index of node in input or output grid file, start with 1

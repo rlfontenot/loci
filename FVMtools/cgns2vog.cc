@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -25,15 +25,18 @@
   static_cast is used in case the size of gEntity and cgsize_t are different
 */
 
-/*
-  Only read in Grid specification part, i.e., grid coordinates and element connectivity.   
-  1. All data located in one file. The file name is provided by user 
-  2. Only read in the first zone of first base
-  4. Only unstructured grid. Vertex dimension is 3D, and physical dimension is 3D.
-  5. The data read only contains core vertex coordinates and core elements, and boundary conditions
-  6. Allowed element type: TRI_3, QUAD_4,
-  TETRA_4,  PYRA_5, PYRA_14,
-  PENTA_6,  HEXA_8,
+/*Read cgns:
+  Only read in Grid specification part, i.e., grid coordinates, element connectivity, and boundary conditions    
+  1. All data located in one file. The path is provided by user  as
+  as "<filename>/<basename>/<zonename>".  If <zonename> is not given, read in the first zone of the base,
+  If <basename is not given, read in the first base of the file.
+  2. Only unstructured grid. Cell dimension is 3D, and physical dimension is 3D.
+  3. The data read only contains core vertex coordinates and core elements, and boundary conditions
+  4. Allowed element type: TRI_3, QUAD_4,
+  TETRA_4,  PYRA_5, 
+  PENTA_6,  HEXA_8
+  5.assume that boundary names are specified in ZoneBC node, if there is spaces in boundary names, replace them with '_',
+  and assume the boundary conditions are defined on faces
 */
 
 /*write vog
@@ -42,16 +45,10 @@
   3. post scale unit
   
 */
-/*questions:
-  1. Does vog file deal with structured grid?
-  2. Is boundary condition info need to written into another function?
-  3. Does cgns know anything about transparent faces?
-*/
 
 
 #include <strings.h>
 #include <Loci.h>
-#include <GLoci.h>
 #include <Tools/simple_partition_long.h>
 #include "vogtools.h"
 #include <sys/stat.h>
@@ -82,7 +79,7 @@
 # define CGNS_ENUMV(V) V
 # define CGNS_ENUMT(T) T
 #endif
-using Loci::gEntity;
+
 using std::cout ;
 using std::endl ;
 using std::cerr ;
@@ -158,142 +155,142 @@ struct sect{ //part of a section
        cgsize_t end):id(i),start_index(start),end_index(end){}
 };
   
-static vector<vector<sect> > redistribute_sections(const vector<section>& sections,//sections in file numbering
-                                                   const vector<cgsize_t>& elemdist,//simple partition of etype
-                                                   CGNS_ENUMT(ElementType_t) my_type)
-{
+// static vector<vector<sect> > redistribute_sections(const vector<section>& sections,//sections in file numbering
+//                                                    const vector<cgsize_t>& elemdist,//simple partition of etype
+//                                                    CGNS_ENUMT(ElementType_t) my_type)
+// {
 
-  if(Loci::MPI_processes ==1){
-    vector<vector<sect> > dist_section(1);
-    int num_sections = sections.size();
-    for(int i = 0; i < num_sections; i++){
-      if(sections[i].etype == my_type ||sections[i].etype == CGNS_ENUMV(MIXED)){
-        dist_section[0].push_back(sect(sections[i].id, sections[i].start_index,sections[i].end_index));
-      }
-    }
-    return dist_section;
-  }
+//   if(Loci::MPI_processes ==1){
+//     vector<vector<sect> > dist_section(1);
+//     int num_sections = sections.size();
+//     for(int i = 0; i < num_sections; i++){
+//       if(sections[i].etype == my_type ||sections[i].etype == CGNS_ENUMV(MIXED)){
+//         dist_section[0].push_back(sect(sections[i].id, sections[i].start_index,sections[i].end_index));
+//       }
+//     }
+//     return dist_section;
+//   }
   
     
   
-  //trasfer file_ids to gloabl_ids
-  cgsize_t global_id = 0;
-  int num_sections = sections.size();
-  vector<section> tmp_sections(sections); //copy of sections
-  for(int i = 0; i < num_sections; i++){
-    if(tmp_sections[i].etype == my_type){
-      cgsize_t start = global_id;
-      cgsize_t end = global_id + tmp_sections[i].end_index - tmp_sections[i].start_index;
-      global_id = end +1;
-      tmp_sections[i].start_index = start;
-      tmp_sections[i].end_index = end;
-    }
-  }
-  //for each section, assign it or part of it to a process
-  int current_p = 0;
-  int P = elemdist.size()-1;
-  vector<vector<sect> > dist_section(P);
-  for(int i = 0; i < num_sections; i++){
-    for(int p = current_p; p < P; p++){
-      if(tmp_sections[i].etype == my_type){
-        cgsize_t global_start = max(tmp_sections[i].start_index,elemdist[p]);
-        cgsize_t global_end = min(tmp_sections[i].end_index,elemdist[p+1]-1);
-        if(global_end >=global_start){
-          cgsize_t file_start = sections[i].start_index + global_start - tmp_sections[i].start_index;
-          cgsize_t file_end = sections[i].start_index + global_end - tmp_sections[i].start_index;
-          dist_section[p].push_back(sect(sections[i].id, file_start, file_end));
+//   //trasfer file_ids to gloabl_ids
+//   cgsize_t global_id = 0;
+//   int num_sections = sections.size();
+//   vector<section> tmp_sections(sections); //copy of sections
+//   for(int i = 0; i < num_sections; i++){
+//     if(tmp_sections[i].etype == my_type){
+//       cgsize_t start = global_id;
+//       cgsize_t end = global_id + tmp_sections[i].end_index - tmp_sections[i].start_index;
+//       global_id = end +1;
+//       tmp_sections[i].start_index = start;
+//       tmp_sections[i].end_index = end;
+//     }
+//   }
+//   //for each section, assign it or part of it to a process
+//   int current_p = 0;
+//   int P = elemdist.size()-1;
+//   vector<vector<sect> > dist_section(P);
+//   for(int i = 0; i < num_sections; i++){
+//     for(int p = current_p; p < P; p++){
+//       if(tmp_sections[i].etype == my_type){
+//         cgsize_t global_start = max(tmp_sections[i].start_index,elemdist[p]);
+//         cgsize_t global_end = min(tmp_sections[i].end_index,elemdist[p+1]-1);
+//         if(global_end >=global_start){
+//           cgsize_t file_start = sections[i].start_index + global_start - tmp_sections[i].start_index;
+//           cgsize_t file_end = sections[i].start_index + global_end - tmp_sections[i].start_index;
+//           dist_section[p].push_back(sect(sections[i].id, file_start, file_end));
           
-        }else{
-          current_p = p+1;
-          break;
-        }
-      }
+//         }else{
+//           current_p = p+1;
+//           break;
+//         }
+//       }
       
-    }
+//     }
     
-  }
-  return dist_section;
-}
-/*for debug purpose
- */
+//   }
+//   return dist_section;
+// }
+// /*for debug purpose
+//  */
 
-static void writeASCII(string filename, const store<vector3d<double> > &pos,
-                       const vector<Array<int,5> > &qfaces, const vector<Array<int,4> > &tfaces,
-                       const  vector<Array<int,4> > &tets, const vector<Array<int,5> > &pyramids,
-                       const  vector<Array<int,6> > &prisms,const vector<Array<int,8> > &hexs,
-                       const  vector<pair<int, string> >& bc_ids) {
+// static void writeASCII(string filename, const store<vector3d<double> > &pos,
+//                        const vector<Array<int,5> > &qfaces, const vector<Array<int,4> > &tfaces,
+//                        const  vector<Array<int,4> > &tets, const vector<Array<int,5> > &pyramids,
+//                        const  vector<Array<int,6> > &prisms,const vector<Array<int,8> > &hexs,
+//                        const  vector<pair<int, string> >& bc_ids) {
   
-  std::ofstream ofile(filename.c_str(),std::ios::out) ;
-  entitySet dom = pos.domain();
+//   std::ofstream ofile(filename.c_str(),std::ios::out) ;
+//   entitySet dom = pos.domain();
   
-  ofile << "num_nodes " << dom.size() << endl;
-  ofile.precision(15) ;
-  FORALL(dom, e){
+//   ofile << "num_nodes " << dom.size() << endl;
+//   ofile.precision(15) ;
+//   FORALL(dom, e){
   
-    ofile << pos[e].x << ' ' << pos[e].y << ' ' << pos[e].z
-          << endl ;
-  }ENDFORALL;
-  int num_elem = tfaces.size();
-  ofile << " num trias " << num_elem << endl;
+//     ofile << pos[e].x << ' ' << pos[e].y << ' ' << pos[e].z
+//           << endl ;
+//   }ENDFORALL;
+//   int num_elem = tfaces.size();
+//   ofile << " num trias " << num_elem << endl;
  
-  for(int j=0;j<num_elem;++j){
-    for(int i = 0; i < 4; i++){
-      ofile << tfaces[j][i] << ' ';
-    }
-    ofile << endl ; 
-  }
+//   for(int j=0;j<num_elem;++j){
+//     for(int i = 0; i < 4; i++){
+//       ofile << tfaces[j][i] << ' ';
+//     }
+//     ofile << endl ; 
+//   }
  
-  num_elem = qfaces.size();
-  ofile << " num quads " << num_elem << endl;
+//   num_elem = qfaces.size();
+//   ofile << " num quads " << num_elem << endl;
  
-  for(int j=0;j<num_elem;++j){
-    for(int i = 0; i < 5; i++){
-      ofile << qfaces[j][i] << ' ';
-    }
-    ofile << endl ; 
-  }
+//   for(int j=0;j<num_elem;++j){
+//     for(int i = 0; i < 5; i++){
+//       ofile << qfaces[j][i] << ' ';
+//     }
+//     ofile << endl ; 
+//   }
  
-  num_elem = tets.size();
-  ofile << " num tets " << num_elem << endl;
+//   num_elem = tets.size();
+//   ofile << " num tets " << num_elem << endl;
  
-  for(int j=0;j<num_elem;++j){
-    for(int i = 0; i < 4; i++){
-      ofile << tets[j][i] << ' ';
-    }
-    ofile << endl ; 
-  }
+//   for(int j=0;j<num_elem;++j){
+//     for(int i = 0; i < 4; i++){
+//       ofile << tets[j][i] << ' ';
+//     }
+//     ofile << endl ; 
+//   }
  
-  num_elem = pyramids.size();
-  ofile << " num pyramids " << num_elem << endl;
+//   num_elem = pyramids.size();
+//   ofile << " num pyramids " << num_elem << endl;
  
-  for(int j=0;j<num_elem;++j){
-    for(int i = 0; i < 5; i++){
-      ofile << pyramids[j][i] << ' ';
-    }
-    ofile << endl ; 
-  }
+//   for(int j=0;j<num_elem;++j){
+//     for(int i = 0; i < 5; i++){
+//       ofile << pyramids[j][i] << ' ';
+//     }
+//     ofile << endl ; 
+//   }
  
-  num_elem = prisms.size();
-  ofile << " num prisms " << num_elem << endl;
+//   num_elem = prisms.size();
+//   ofile << " num prisms " << num_elem << endl;
  
-  for(int j=0;j<num_elem;++j){
-    for(int i = 0; i < 6; i++){
-      ofile << prisms[j][i] << ' ';
-    }
-    ofile << endl ; 
-  }
+//   for(int j=0;j<num_elem;++j){
+//     for(int i = 0; i < 6; i++){
+//       ofile << prisms[j][i] << ' ';
+//     }
+//     ofile << endl ; 
+//   }
  
-  num_elem = hexs.size();
-  ofile << " num hexs " << num_elem << endl;
+//   num_elem = hexs.size();
+//   ofile << " num hexs " << num_elem << endl;
  
-  for(int j=0;j<num_elem;++j){
-    for(int i = 0; i < 8; i++){
-      ofile << hexs[j][i] << ' ';
-    }
-    ofile << endl ; 
-  }
-  ofile.close();
-}
+//   for(int j=0;j<num_elem;++j){
+//     for(int i = 0; i < 8; i++){
+//       ofile << hexs[j][i] << ' ';
+//     }
+//     ofile << endl ; 
+//   }
+//   ofile.close();
+// }
 
 static void error_exit(const char *func)
 {
@@ -452,28 +449,25 @@ static void unstructured_elements (HASH facehash, cgsize_t *conn, cgsize_t ne, C
     // cout<< " n " << n << endl;
     switch (et) {
     case CGNS_ENUMV(TETRA_4):
-    case CGNS_ENUMV(TETRA_10):
+   
       ip = 0;
-    nf = 4;
-    break;
+      nf = 4;
+      break;
     case CGNS_ENUMV(PYRA_5):
-    case CGNS_ENUMV(PYRA_13):
-    case CGNS_ENUMV(PYRA_14):
+   
       ip = 4;
-    nf = 5;
-    break;
+      nf = 5;
+      break;
     case CGNS_ENUMV(PENTA_6):
-    case CGNS_ENUMV(PENTA_15):
-    case CGNS_ENUMV(PENTA_18):
+   
       ip = 9;
-    nf = 5;
-    break;
+      nf = 5;
+      break;
     case CGNS_ENUMV(HEXA_8):
-    case CGNS_ENUMV(HEXA_20):
-    case CGNS_ENUMV(HEXA_27):
+   
       ip = 14;
-    nf = 6;
-    break;
+      nf = 6;
+      break;
     default:
       nf = 0;
       break;
@@ -616,6 +610,11 @@ static void boundary_conditions (cgsize_t nFaces,  FACE** Faces, cgsize_t cgFile
       //Bocos[nb-1].type = bctype;
       //strcpy(Bocos[nb-1].name, name);
       string bc_name = string(name);
+      for (unsigned int i=0; i<bc_name.length(); ++i)
+        {
+          if(bc_name[i] == ' ') bc_name[i] = '_';
+        }
+      cout << "bc_name : " << bc_name << endl;
       bc_ids.push_back(pair<int, string>(nb, bc_name));
       if (cg_boco_gridlocation_read(cgFile, cgBase, cgZone,
                                     nb, &location))
@@ -750,700 +749,700 @@ static void unstructured_faces (HASH& facehash, cgsize_t cgFile, cgsize_t cgBase
 }
 
 
-/*Not tested yet, 
-  The coordinates are read in as double precision, the format in file can be in single or double precision 
-*/
-void readCGNS_parallel(string filename, store<vector3d<double> > &pos,
-                       vector<Array<cgsize_t,5> > &qfaces, vector<Array<cgsize_t,4> > &tfaces,
-                       vector<Array<cgsize_t,4> > &tets, vector<Array<cgsize_t,5> > &pyramids,
-                       vector<Array<cgsize_t,6> > &prisms, vector<Array<cgsize_t,8> > &hexs,
-                       vector<pair<int,string> > &surf_ids ) {
+// /*Not tested yet, 
+//   The coordinates are read in as double precision, the format in file can be in single or double precision 
+// */
+// void readCGNS_parallel(string filename, store<vector3d<double> > &pos,
+//                        vector<Array<cgsize_t,5> > &qfaces, vector<Array<cgsize_t,4> > &tfaces,
+//                        vector<Array<cgsize_t,4> > &tets, vector<Array<cgsize_t,5> > &pyramids,
+//                        vector<Array<cgsize_t,6> > &prisms, vector<Array<cgsize_t,8> > &hexs,
+//                        vector<pair<int,string> > &surf_ids ) {
 
-  char  errmsg[128];
+//   char  errmsg[128];
 
 
-  pos.allocate(EMPTY) ;
-  qfaces.clear() ;
-  tfaces.clear() ;
-  tets.clear() ;
-  pyramids.clear() ;
-  prisms.clear() ;
-  hexs.clear() ;
+//   pos.allocate(EMPTY) ;
+//   qfaces.clear() ;
+//   tfaces.clear() ;
+//   tets.clear() ;
+//   pyramids.clear() ;
+//   prisms.clear() ;
+//   hexs.clear() ;
   
-  int celldim = 3, phydim = 3;
+//   int celldim = 3, phydim = 3;
  
-  //sizes: Number of vertices, cells, and boundary vertices in each (index)-dimension.
-  //
-  // Note that for unstructured grids, the number of cells is the number of highest order elements.
-  //Thus, in three dimensions it's the number of 3-D cells, and in two dimensions it's the number of 2-D cells.
+//   //sizes: Number of vertices, cells, and boundary vertices in each (index)-dimension.
+//   //
+//   // Note that for unstructured grids, the number of cells is the number of highest order elements.
+//   //Thus, in three dimensions it's the number of 3-D cells, and in two dimensions it's the number of 2-D cells.
 
-  //Also for unstructured grids, if the nodes are sorted between internal nodes and boundary nodes,
-  //the optional parameter NBoundVertex must be set equal to the number of boundary nodes.
-  //By default, NBoundVertex equals zero, meaning that the nodes are unsorted.
+//   //Also for unstructured grids, if the nodes are sorted between internal nodes and boundary nodes,
+//   //the optional parameter NBoundVertex must be set equal to the number of boundary nodes.
+//   //By default, NBoundVertex equals zero, meaning that the nodes are unsorted.
 
-  //Note that a non-zero value for NBoundVertex only applies to unstructured grids.
-  //For structured grids, the NBoundVertex parameter always equals 0 in all directions.
+//   //Note that a non-zero value for NBoundVertex only applies to unstructured grids.
+//   //For structured grids, the NBoundVertex parameter always equals 0 in all directions.
   
-  cgsize_t sizes[3]; 
-  cgsize_t start_index, end_index;
-  int nbndry, parent_flag;
-  int num_bases=0, num_zones = 0, num_sections = 0;
-  int index_file = 0, index_base=0, index_zone=0, index_sect = 0;
-  cgsize_t num_nodes=0, num_sf_trias=0, num_sf_quads=0 ;
-  cgsize_t num_vol_tets=0, num_vol_pents5=0, num_vol_pents6=0, num_vol_hexs=0 ;
-  cgsize_t errs = 0;
-  char bname[33], zname[33], cname[33];
+//   cgsize_t sizes[3]; 
+//   cgsize_t start_index, end_index;
+//   int nbndry, parent_flag;
+//   int num_bases=0, num_zones = 0, num_sections = 0;
+//   int index_file = 0, index_base=0, index_zone=0, index_sect = 0;
+//   cgsize_t num_nodes=0, num_sf_trias=0, num_sf_quads=0 ;
+//   cgsize_t num_vol_tets=0, num_vol_pents5=0, num_vol_pents6=0, num_vol_hexs=0 ;
+//   cgsize_t errs = 0;
+//   char bname[33], zname[33], cname[33];
  
   
-  CGNS_ENUMT(ZoneType_t) ztype;
-  CGNS_ENUMT(ElementType_t) etype;
-  CGNS_ENUMT(ElementType_t) et;
-  vector<section> sections;
+//   CGNS_ENUMT(ZoneType_t) ztype;
+//   CGNS_ENUMT(ElementType_t) etype;
+//   CGNS_ENUMT(ElementType_t) et;
+//   vector<section> sections;
 
   
 
-  const int P = MPI_processes ;
-  const int R = MPI_rank ;
-  if(R == 0)cout <<"start reading cgns file" << endl;
-  if(R == 0) {
-    if(cg_open (filename.c_str(), CG_MODE_READ, &index_file)) error_exit(" unable to open CGNS grid file ");
-    if(cg_nbases (index_file, &num_bases))error_exit("error reading number of bases");
-    if(num_bases != 1){
-      cout<<" there are " << num_bases << " bases"<< endl;
-      cout<< "only read the first one" << endl;
-    }
-    index_base =1; //assume only one base and its index is 1
-    if(cg_base_read (index_file, index_base, bname, &celldim, &phydim))error_exit("error reading base information");
-    if(celldim != 3 || phydim != 3){
-      cg_close(index_file);
-      cerr << "only 3D cell and physical dimensions are allowed in CGNS file" << endl;
-      exit(-1);
-    }
-    if(cg_nzones (index_file, index_base, &num_zones)) error_exit("error reading number of zones");
-    if(num_zones != 1){
-      cout<<" there are " << num_zones << " zones"<< endl;
-      cout<< "only read the first one" << endl;
-    }
-    index_zone = 1;//assume only one zone and its index is 1
-    if(cg_zone_type (index_file, index_base, index_zone, &ztype))error_exit("error reading zone type");
-    if (ztype != Unstructured) error_exit("can only handle unstructured grid in CGNS file");
-    if(cg_zone_read (index_file, index_base, index_zone, zname, sizes))error_exit("error reading zone information");
+//   const int P = MPI_processes ;
+//   const int R = MPI_rank ;
+//   if(R == 0)cout <<"start reading cgns file" << endl;
+//   if(R == 0) {
+//     if(cg_open (filename.c_str(), CG_MODE_READ, &index_file)) error_exit(" unable to open CGNS grid file ");
+//     if(cg_nbases (index_file, &num_bases))error_exit("error reading number of bases");
+//     if(num_bases != 1){
+//       cout<<" there are " << num_bases << " bases"<< endl;
+//       cout<< "only read the first one" << endl;
+//     }
+//     index_base =1; //assume only one base and its index is 1
+//     if(cg_base_read (index_file, index_base, bname, &celldim, &phydim))error_exit("error reading base information");
+//     if(celldim != 3 || phydim != 3){
+//       cg_close(index_file);
+//       cerr << "only 3D cell and physical dimensions are allowed in CGNS file" << endl;
+//       exit(-1);
+//     }
+//     if(cg_nzones (index_file, index_base, &num_zones)) error_exit("error reading number of zones");
+//     if(num_zones != 1){
+//       cout<<" there are " << num_zones << " zones"<< endl;
+//       cout<< "only read the first one" << endl;
+//     }
+//     index_zone = 1;//assume only one zone and its index is 1
+//     if(cg_zone_type (index_file, index_base, index_zone, &ztype))error_exit("error reading zone type");
+//     if (ztype != Unstructured) error_exit("can only handle unstructured grid in CGNS file");
+//     if(cg_zone_read (index_file, index_base, index_zone, zname, sizes))error_exit("error reading zone information");
     
-    //3D unstructured sizes:		NVertex, NCell3D, NBoundVertex
-    num_nodes = sizes[0];
-    if(num_nodes < 1){
-      cg_close(index_file);
-      cerr << "number of nodes < 1 " << endl;
-      exit(-1);
-    }
-    if(cg_nsections (index_file, index_base, index_zone,
-                     &num_sections))error_exit("error reading number of sections");
+//     //3D unstructured sizes:		NVertex, NCell3D, NBoundVertex
+//     num_nodes = sizes[0];
+//     if(num_nodes < 1){
+//       cg_close(index_file);
+//       cerr << "number of nodes < 1 " << endl;
+//       exit(-1);
+//     }
+//     if(cg_nsections (index_file, index_base, index_zone,
+//                      &num_sections))error_exit("error reading number of sections");
    
-    if(num_sections <1){
-      cg_close(index_file);
-      cerr << "number of section < 1 " << endl;
-      exit(-1);
-    }
-    sections.resize(num_sections);
-    for (index_sect = 1; index_sect <= num_sections; ++index_sect)
-      {
+//     if(num_sections <1){
+//       cg_close(index_file);
+//       cerr << "number of section < 1 " << endl;
+//       exit(-1);
+//     }
+//     sections.resize(num_sections);
+//     for (index_sect = 1; index_sect <= num_sections; ++index_sect)
+//       {
          
-        if(cg_section_read (index_file, index_base, index_zone,
-                            index_sect, cname, &etype,
-                            &start_index, &end_index,
-                            &nbndry, &parent_flag))error_exit("error reading section ");
+//         if(cg_section_read (index_file, index_base, index_zone,
+//                             index_sect, cname, &etype,
+//                             &start_index, &end_index,
+//                             &nbndry, &parent_flag))error_exit("error reading section ");
          
         
-        if (parent_flag != 0)
-          {
-            // cg_close(index_file);
-            // cerr<< "parent data not allowed in CGNS grid file"<<endl;
-            //exit(-1);
-          }
+//         if (parent_flag != 0)
+//           {
+//             // cg_close(index_file);
+//             // cerr<< "parent data not allowed in CGNS grid file"<<endl;
+//             //exit(-1);
+//           }
        
-        sections[index_sect-1] = section(index_sect,  etype, string(cname),
-                                         start_index, end_index,
-                                         nbndry,  parent_flag);
-        cgsize_t num_elem = end_index -  start_index + 1;
-        if(etype ==CGNS_ENUMV(MIXED)) {
-          cout<< " Mixed type exists, can only run in serial" << endl;
-          cgsize_t size = 0;
-          if (cg_ElementDataSize (index_file, index_base, index_zone, index_sect, &size))error_exit ("cg_ElementDataSize");
-          cgsize_t * conn = (cgsize_t *) malloc ((size_t)size * sizeof(cgsize_t));
-          if (conn == NULL)error_exit ("memory allocation failed for element connectivity");
-          if (cg_elements_read (index_file, index_base, index_zone,index_sect, conn, NULL))error_exit ("cg_elements_read");
-          int i = 0;
-          for (  int n = 0; n < num_elem; n++) {
-            et = (CGNS_ENUMT(ElementType_t))conn[i++];
+//         sections[index_sect-1] = section(index_sect,  etype, string(cname),
+//                                          start_index, end_index,
+//                                          nbndry,  parent_flag);
+//         cgsize_t num_elem = end_index -  start_index + 1;
+//         if(etype ==CGNS_ENUMV(MIXED)) {
+//           cout<< " Mixed type exists, can only run in serial" << endl;
+//           cgsize_t size = 0;
+//           if (cg_ElementDataSize (index_file, index_base, index_zone, index_sect, &size))error_exit ("cg_ElementDataSize");
+//           cgsize_t * conn = (cgsize_t *) malloc ((size_t)size * sizeof(cgsize_t));
+//           if (conn == NULL)error_exit ("memory allocation failed for element connectivity");
+//           if (cg_elements_read (index_file, index_base, index_zone,index_sect, conn, NULL))error_exit ("cg_elements_read");
+//           int i = 0;
+//           for (  int n = 0; n < num_elem; n++) {
+//             et = (CGNS_ENUMT(ElementType_t))conn[i++];
             
-            switch (et) {
-            case CGNS_ENUMV(TRI_3):
-            case CGNS_ENUMV(TRI_6):
-              num_sf_trias++;
-            break;
-            case CGNS_ENUMV(QUAD_4):
-            case CGNS_ENUMV(QUAD_8):
-            case CGNS_ENUMV(QUAD_9):
-              num_sf_quads++; 
-            break;
-            case CGNS_ENUMV(TETRA_4):
-            case CGNS_ENUMV(TETRA_10):
-              num_vol_tets++; 
-            break;
-            case CGNS_ENUMV(PYRA_5):
-            case CGNS_ENUMV(PYRA_13):
-            case CGNS_ENUMV(PYRA_14):
-              num_vol_pents5++; 
-            break;
-            case CGNS_ENUMV(PENTA_6):
-            case CGNS_ENUMV(PENTA_15):
-            case CGNS_ENUMV(PENTA_18):
-              num_vol_pents6++; 
-            break;
-            case CGNS_ENUMV(HEXA_8):
-            case CGNS_ENUMV(HEXA_20):
-            case CGNS_ENUMV(HEXA_27):
-              num_vol_hexs++; 
-            break;
-            /* ignore these */
-            case CGNS_ENUMV(NODE):
-            case CGNS_ENUMV(BAR_2):
-            case CGNS_ENUMV(BAR_3):
-              break;
-            /* invalid */
-            default:
-              sprintf(errmsg,
-                      "element type %s not allowed ",
-                      cg_ElementTypeName(et));
-              error_exit( errmsg);
-              break;
-            }
-            int nn = 0;
-            if (cg_npe(et, &nn) || nn <= 0)error_exit("cg_npe");
-            i += nn;
-          }
+//             switch (et) {
+//             case CGNS_ENUMV(TRI_3):
+//             case CGNS_ENUMV(TRI_6):
+//               num_sf_trias++;
+//             break;
+//             case CGNS_ENUMV(QUAD_4):
+//             case CGNS_ENUMV(QUAD_8):
+//             case CGNS_ENUMV(QUAD_9):
+//               num_sf_quads++; 
+//             break;
+//             case CGNS_ENUMV(TETRA_4):
+//             case CGNS_ENUMV(TETRA_10):
+//               num_vol_tets++; 
+//             break;
+//             case CGNS_ENUMV(PYRA_5):
+//             case CGNS_ENUMV(PYRA_13):
+//             case CGNS_ENUMV(PYRA_14):
+//               num_vol_pents5++; 
+//             break;
+//             case CGNS_ENUMV(PENTA_6):
+//             case CGNS_ENUMV(PENTA_15):
+//             case CGNS_ENUMV(PENTA_18):
+//               num_vol_pents6++; 
+//             break;
+//             case CGNS_ENUMV(HEXA_8):
+//             case CGNS_ENUMV(HEXA_20):
+//             case CGNS_ENUMV(HEXA_27):
+//               num_vol_hexs++; 
+//             break;
+//             /* ignore these */
+//             case CGNS_ENUMV(NODE):
+//             case CGNS_ENUMV(BAR_2):
+//             case CGNS_ENUMV(BAR_3):
+//               break;
+//             /* invalid */
+//             default:
+//               sprintf(errmsg,
+//                       "element type %s not allowed ",
+//                       cg_ElementTypeName(et));
+//               error_exit( errmsg);
+//               break;
+//             }
+//             int nn = 0;
+//             if (cg_npe(et, &nn) || nn <= 0)error_exit("cg_npe");
+//             i += nn;
+//           }
        
-          free (conn);
-        }else{
+//           free (conn);
+//         }else{
             
-          switch(etype){
-          case CGNS_ENUMV(TRI_3):
-          case CGNS_ENUMV(TRI_6):
-            num_sf_trias += num_elem;
-          break;
-          case CGNS_ENUMV(QUAD_4):
-          case CGNS_ENUMV(QUAD_8):
-          case CGNS_ENUMV(QUAD_9):
-            num_sf_quads += num_elem;
-          break;
-          case CGNS_ENUMV(TETRA_4):
-          case CGNS_ENUMV(TETRA_10):
-            num_vol_tets += num_elem;
-          break;
-          case CGNS_ENUMV(PYRA_5):
-          case CGNS_ENUMV(PYRA_13):
-          case CGNS_ENUMV(PYRA_14):
-            num_vol_pents5 += num_elem;
-          break;
-          case CGNS_ENUMV(PENTA_6):
-          case CGNS_ENUMV(PENTA_15):
-          case CGNS_ENUMV(PENTA_18):
-            num_vol_pents6 += num_elem;
-          break;
-          case CGNS_ENUMV(HEXA_8):
-          case CGNS_ENUMV(HEXA_20):
-          case CGNS_ENUMV(HEXA_27):
-            num_vol_hexs += num_elem;
-          break;
-          /* ignore these */
-          case CGNS_ENUMV(NODE):
-          case CGNS_ENUMV(BAR_2):
-          case CGNS_ENUMV(BAR_3):
-            break;
-          /* invalid */
-          default:
-            sprintf(errmsg,
-                    "element type %s not allowed",
-                    cg_ElementTypeName(etype));
-            error_exit(errmsg);
-            break;
-          }
-        }
-      }
+//           switch(etype){
+//           case CGNS_ENUMV(TRI_3):
+//           case CGNS_ENUMV(TRI_6):
+//             num_sf_trias += num_elem;
+//           break;
+//           case CGNS_ENUMV(QUAD_4):
+//           case CGNS_ENUMV(QUAD_8):
+//           case CGNS_ENUMV(QUAD_9):
+//             num_sf_quads += num_elem;
+//           break;
+//           case CGNS_ENUMV(TETRA_4):
+//           case CGNS_ENUMV(TETRA_10):
+//             num_vol_tets += num_elem;
+//           break;
+//           case CGNS_ENUMV(PYRA_5):
+//           case CGNS_ENUMV(PYRA_13):
+//           case CGNS_ENUMV(PYRA_14):
+//             num_vol_pents5 += num_elem;
+//           break;
+//           case CGNS_ENUMV(PENTA_6):
+//           case CGNS_ENUMV(PENTA_15):
+//           case CGNS_ENUMV(PENTA_18):
+//             num_vol_pents6 += num_elem;
+//           break;
+//           case CGNS_ENUMV(HEXA_8):
+//           case CGNS_ENUMV(HEXA_20):
+//           case CGNS_ENUMV(HEXA_27):
+//             num_vol_hexs += num_elem;
+//           break;
+//           /* ignore these */
+//           case CGNS_ENUMV(NODE):
+//           case CGNS_ENUMV(BAR_2):
+//           case CGNS_ENUMV(BAR_3):
+//             break;
+//           /* invalid */
+//           default:
+//             sprintf(errmsg,
+//                     "element type %s not allowed",
+//                     cg_ElementTypeName(etype));
+//             error_exit(errmsg);
+//             break;
+//           }
+//         }
+//       }
   
   
                 
       
 
     
-    if( num_vol_tets+num_vol_pents5+num_vol_pents6+num_vol_hexs+num_sf_trias+ num_sf_quads != sizes[1]){
-      cerr<<" total elements: " <<num_vol_tets+num_vol_pents5+num_vol_pents6+num_vol_hexs << " sizes[1] " <<  sizes[1] << endl;
-      error_exit("number of elements and faces does not match in CGNS grid file ");
-    }
+//     if( num_vol_tets+num_vol_pents5+num_vol_pents6+num_vol_hexs+num_sf_trias+ num_sf_quads != sizes[1]){
+//       cerr<<" total elements: " <<num_vol_tets+num_vol_pents5+num_vol_pents6+num_vol_hexs << " sizes[1] " <<  sizes[1] << endl;
+//       error_exit("number of elements and faces does not match in CGNS grid file ");
+//     }
     
-    cout << "nnodes=" << num_nodes <<",ntria="<<num_sf_trias
-         << ",nquad="<<num_sf_quads<<",ntets="<<num_vol_tets
-         << ",npyrm="<<num_vol_pents5<<",nprsm="<<num_vol_pents6
-         << ",nhex="<<num_vol_hexs << endl ;
+//     cout << "nnodes=" << num_nodes <<",ntria="<<num_sf_trias
+//          << ",nquad="<<num_sf_quads<<",ntets="<<num_vol_tets
+//          << ",npyrm="<<num_vol_pents5<<",nprsm="<<num_vol_pents6
+//          << ",nhex="<<num_vol_hexs << endl ;
 
-    cout << "sections: " << endl;
-    for(unsigned int i = 0; i < sections.size(); i++){
-      cout << "section " << sections[i].id <<" : "<<sections[i].cname<< "  etype " << sections[i].etype
-           << "  start " << sections[i].start_index << " end " <<  sections[i].end_index<<endl;
-    }
-  }
+//     cout << "sections: " << endl;
+//     for(unsigned int i = 0; i < sections.size(); i++){
+//       cout << "section " << sections[i].id <<" : "<<sections[i].cname<< "  etype " << sections[i].etype
+//            << "  start " << sections[i].start_index << " end " <<  sections[i].end_index<<endl;
+//     }
+//   }
 
-  Array<cgsize_t,7> data ;
-  data[0] = num_nodes ;
-  data[1] = num_sf_trias ;
-  data[2] = num_sf_quads ;
-  data[3] = num_vol_tets ;
-  data[4] = num_vol_pents5 ;
-  data[5] = num_vol_pents6 ;
-  data[6] = num_vol_hexs ;
-  MPI_Bcast(&data[0],7*sizeof(cgsize_t),MPI_BYTE,0,MPI_COMM_WORLD) ;
-  num_nodes      = data[0] ;
-  num_sf_trias   = data[1] ;
-  num_sf_quads   = data[2] ;
-  num_vol_tets   = data[3] ;
-  num_vol_pents5 = data[4] ;
-  num_vol_pents6 = data[5] ;
-  num_vol_hexs   = data[6] ;
+//   Array<cgsize_t,7> data ;
+//   data[0] = num_nodes ;
+//   data[1] = num_sf_trias ;
+//   data[2] = num_sf_quads ;
+//   data[3] = num_vol_tets ;
+//   data[4] = num_vol_pents5 ;
+//   data[5] = num_vol_pents6 ;
+//   data[6] = num_vol_hexs ;
+//   MPI_Bcast(&data[0],7*sizeof(cgsize_t),MPI_BYTE,0,MPI_COMM_WORLD) ;
+//   num_nodes      = data[0] ;
+//   num_sf_trias   = data[1] ;
+//   num_sf_quads   = data[2] ;
+//   num_vol_tets   = data[3] ;
+//   num_vol_pents5 = data[4] ;
+//   num_vol_pents6 = data[5] ;
+//   num_vol_hexs   = data[6] ;
 
-  vector<cgsize_t> node_ptns = Loci::g_simple_partition_vec<cgsize_t>(0,num_nodes-1,P) ;
-  vector<gEntitySet> local_nodes(P) ;
-  for(cgsize_t i=0;i<P;++i)
-    local_nodes[i] = gEntitySet(std::pair<gEntity, gEntity>(static_cast<gEntity>(node_ptns[i]),static_cast<gEntity>(node_ptns[i+1]-1))) ;
+//   vector<cgsize_t> node_ptns = Loci::g_simple_partition_vec<cgsize_t>(0,num_nodes-1,P) ;
+//   vector<gEntitySet> local_nodes(P) ;
+//   for(cgsize_t i=0;i<P;++i)
+//     local_nodes[i] = gEntitySet(std::pair<gEntity, gEntity>(static_cast<gEntity>(node_ptns[i]),static_cast<gEntity>(node_ptns[i+1]-1))) ;
   
-  size_t mxsize = max(local_nodes[0].size(),
-                      local_nodes[P-1].size()) ;
+//   size_t mxsize = max(local_nodes[0].size(),
+//                       local_nodes[P-1].size()) ;
   
-  pos.allocate(local_nodes[R]) ;
-  vector<double> buf(mxsize*3) ;
-  if(num_nodes > 0){ // Read in positions
-    if(R == 0) { 
+//   pos.allocate(local_nodes[R]) ;
+//   vector<double> buf(mxsize*3) ;
+//   if(num_nodes > 0){ // Read in positions
+//     if(R == 0) { 
    
    
     
-      start_index = local_nodes[0].Min()+1;
-      end_index = local_nodes[0].Max()+1;
+//       start_index = local_nodes[0].Min()+1;
+//       end_index = local_nodes[0].Max()+1;
     
     
-      errs = cg_coord_read (index_file, index_base, index_zone,
-                            "CoordinateX", RealDouble,
-                            &start_index, &end_index, &buf[0]);
-      errs = cg_coord_read (index_file, index_base, index_zone,
-                            "CoordinateY", RealDouble,
-                            &start_index, &end_index, &buf[mxsize]);
+//       errs = cg_coord_read (index_file, index_base, index_zone,
+//                             "CoordinateX", RealDouble,
+//                             &start_index, &end_index, &buf[0]);
+//       errs = cg_coord_read (index_file, index_base, index_zone,
+//                             "CoordinateY", RealDouble,
+//                             &start_index, &end_index, &buf[mxsize]);
     
-      errs = cg_coord_read (index_file, index_base, index_zone,
-                            "CoordinateZ", RealDouble,
-                            &start_index, &end_index, &buf[2*mxsize]); 
-      cgsize_t index = 0;
-      FORALL(local_nodes[0],nd) {
-        pos[nd].x = buf[index++];
-      } ENDFORALL ;
-      index = 0;
-      FORALL(local_nodes[0],nd) {
-        pos[nd].y = buf[mxsize+index];
-        index++;
-      } ENDFORALL ;
+//       errs = cg_coord_read (index_file, index_base, index_zone,
+//                             "CoordinateZ", RealDouble,
+//                             &start_index, &end_index, &buf[2*mxsize]); 
+//       cgsize_t index = 0;
+//       FORALL(local_nodes[0],nd) {
+//         pos[nd].x = buf[index++];
+//       } ENDFORALL ;
+//       index = 0;
+//       FORALL(local_nodes[0],nd) {
+//         pos[nd].y = buf[mxsize+index];
+//         index++;
+//       } ENDFORALL ;
      
-      index = 0;
-      FORALL(local_nodes[0],nd) {
-        pos[nd].z = buf[2*mxsize+index];
-        index++;
-      } ENDFORALL ;
+//       index = 0;
+//       FORALL(local_nodes[0],nd) {
+//         pos[nd].z = buf[2*mxsize+index];
+//         index++;
+//       } ENDFORALL ;
 
-      //ElementRange contains the index of the first and last elements defined
-      //in ElementConnectivity. The elements are indexed with a global numbering
-      //system, starting at 1, for all element sections under a given Zone_t data
-      //structure. The global numbering insures that each element, whether it's a
-      //cell, a face, or an edge, is uniquely identified by its number. They are
-      //also listed as a continuous list of element numbers within any single
-      //element section. Therefore the number of elements in a section is:
+//       //ElementRange contains the index of the first and last elements defined
+//       //in ElementConnectivity. The elements are indexed with a global numbering
+//       //system, starting at 1, for all element sections under a given Zone_t data
+//       //structure. The global numbering insures that each element, whether it's a
+//       //cell, a face, or an edge, is uniquely identified by its number. They are
+//       //also listed as a continuous list of element numbers within any single
+//       //element section. Therefore the number of elements in a section is:
 
-      //ElementSize = ElementRange.end - ElementRange.start + 1
+//       //ElementSize = ElementRange.end - ElementRange.start + 1
 
      
     
     
 
-      for(cgsize_t i=1;i<P;++i) {
-        start_index = local_nodes[i].Min()+1;
-        end_index = local_nodes[i].Max()+1;
-        errs = cg_coord_read (index_file, index_base, index_zone,
-                              "CoordinateX", RealDouble,
-                              &start_index, &end_index, &buf[0]);
-        errs = cg_coord_read (index_file, index_base, index_zone,
-                              "CoordinateY", RealDouble,
-                              &start_index, &end_index, &buf[mxsize]);
+//       for(cgsize_t i=1;i<P;++i) {
+//         start_index = local_nodes[i].Min()+1;
+//         end_index = local_nodes[i].Max()+1;
+//         errs = cg_coord_read (index_file, index_base, index_zone,
+//                               "CoordinateX", RealDouble,
+//                               &start_index, &end_index, &buf[0]);
+//         errs = cg_coord_read (index_file, index_base, index_zone,
+//                               "CoordinateY", RealDouble,
+//                               &start_index, &end_index, &buf[mxsize]);
       
-        errs = cg_coord_read (index_file, index_base, index_zone,
-                              "CoordinateY", RealDouble,
-                              &start_index, &end_index, &buf[2*mxsize]); 
+//         errs = cg_coord_read (index_file, index_base, index_zone,
+//                               "CoordinateY", RealDouble,
+//                               &start_index, &end_index, &buf[2*mxsize]); 
       
-        MPI_Send(&buf[0],mxsize*3,MPI_DOUBLE,i,10,MPI_COMM_WORLD) ;
-      }
-    } else {
-      MPI_Status status ;
+//         MPI_Send(&buf[0],mxsize*3,MPI_DOUBLE,i,10,MPI_COMM_WORLD) ;
+//       }
+//     } else {
+//       MPI_Status status ;
         
-      MPI_Recv(&buf[0],3*mxsize,MPI_DOUBLE,0,10,MPI_COMM_WORLD,&status) ;
+//       MPI_Recv(&buf[0],3*mxsize,MPI_DOUBLE,0,10,MPI_COMM_WORLD,&status) ;
     
-      cgsize_t index = 0;
-      FORALL(local_nodes[R],nd) {
-        pos[nd].x = buf[index++];
-      } ENDFORALL ;
+//       cgsize_t index = 0;
+//       FORALL(local_nodes[R],nd) {
+//         pos[nd].x = buf[index++];
+//       } ENDFORALL ;
     
-      index = 0;
-      FORALL(local_nodes[R],nd) {
-        pos[nd].y = buf[mxsize+index];
-        index++;
-      } ENDFORALL ;
+//       index = 0;
+//       FORALL(local_nodes[R],nd) {
+//         pos[nd].y = buf[mxsize+index];
+//         index++;
+//       } ENDFORALL ;
      
-      index = 0;
-      FORALL(local_nodes[R],nd) {
-        pos[nd].z = buf[2*mxsize+index];
-        index++;
-      } ENDFORALL ;
-    }
-  }
+//       index = 0;
+//       FORALL(local_nodes[R],nd) {
+//         pos[nd].z = buf[2*mxsize+index];
+//         index++;
+//       } ENDFORALL ;
+//     }
+//   }
   
  
-  cgsize_t *Parent_Data = NULL;
+//   cgsize_t *Parent_Data = NULL;
  
   
-  if(R == 0){
+//   if(R == 0){
 
-    //create a a hash  
-    cgsize_t tot_vol_elem = num_vol_tets+num_vol_pents5+num_vol_pents6+num_vol_hexs;
-    HASH facehash;
-    facehash = HashCreate(tot_vol_elem > 1024 ? (size_t)tot_vol_elem / 3 : 127,
-                          compare_faces, hash_face);
-    if (NULL == facehash)
-      error_exit("hash table creation failed");
+//     //create a a hash  
+//     cgsize_t tot_vol_elem = num_vol_tets+num_vol_pents5+num_vol_pents6+num_vol_hexs;
+//     HASH facehash;
+//     facehash = HashCreate(tot_vol_elem > 1024 ? (size_t)tot_vol_elem / 3 : 127,
+//                           compare_faces, hash_face);
+//     if (NULL == facehash)
+//       error_exit("hash table creation failed");
 
     
-    cout <<"start reading volume" << endl;
+//     cout <<"start reading volume" << endl;
     
-    // Read in volume elements
+//     // Read in volume elements
 
-    // Read in tetrahedra
-    vector<cgsize_t> tetsdist = Loci::g_simple_partition_vec<cgsize_t>(0,num_vol_tets-1,P) ;
-    tets = vector<Array<cgsize_t,4> >(tetsdist[R+1]-tetsdist[R]) ;
+//     // Read in tetrahedra
+//     vector<cgsize_t> tetsdist = Loci::g_simple_partition_vec<cgsize_t>(0,num_vol_tets-1,P) ;
+//     tets = vector<Array<cgsize_t,4> >(tetsdist[R+1]-tetsdist[R]) ;
 
-    if(R == 0) {
+//     if(R == 0) {
 
-      //first read in my own
-      cgsize_t tsz = max(tetsdist[1]-tetsdist[0],tetsdist[P]-tetsdist[P-1]) ;
-      vector<Array<cgsize_t,4> > send_buf(tsz) ;
+//       //first read in my own
+//       cgsize_t tsz = max(tetsdist[1]-tetsdist[0],tetsdist[P]-tetsdist[P-1]) ;
+//       vector<Array<cgsize_t,4> > send_buf(tsz) ;
 
-      cgsize_t local_id = 0;
-      vector<vector<sect> > sect_dist = redistribute_sections(sections,//sections in file numbering
-                                                              tetsdist,//simple partition of etype
-                                                              CGNS_ENUMV(TETRA_4));
+//       cgsize_t local_id = 0;
+//       vector<vector<sect> > sect_dist = redistribute_sections(sections,//sections in file numbering
+//                                                               tetsdist,//simple partition of etype
+//                                                               CGNS_ENUMV(TETRA_4));
          
          
-      for(unsigned int secti = 0; secti < sect_dist[0].size(); secti++){
+//       for(unsigned int secti = 0; secti < sect_dist[0].size(); secti++){
         
-        if(cg_elements_partial_read (index_file, index_base, index_zone,
-                                     sect_dist[0][secti].id, sect_dist[0][secti].start_index ,
-                                     sect_dist[0][secti].end_index,
-                                     &tets[local_id][0], Parent_Data))error_exit("error reading element information");
+//         if(cg_elements_partial_read (index_file, index_base, index_zone,
+//                                      sect_dist[0][secti].id, sect_dist[0][secti].start_index ,
+//                                      sect_dist[0][secti].end_index,
+//                                      &tets[local_id][0], Parent_Data))error_exit("error reading element information");
            
-        //hash all the faces of tets that just been read in 
+//         //hash all the faces of tets that just been read in 
      
-        unstructured_elements(facehash, &tets[local_id][0], sect_dist[0][secti].end_index -sect_dist[0][secti].start_index+1 , CGNS_ENUMV(TETRA_4));
+//         unstructured_elements(facehash, &tets[local_id][0], sect_dist[0][secti].end_index -sect_dist[0][secti].start_index+1 , CGNS_ENUMV(TETRA_4));
      
 
       
-        local_id += sect_dist[0][secti].end_index - sect_dist[0][secti].start_index + 1 ;
-      }
+//         local_id += sect_dist[0][secti].end_index - sect_dist[0][secti].start_index + 1 ;
+//       }
           
-      //read for other processes
-      for(cgsize_t p=1;p<P;++p) {
-        local_id = 0;
-        for(unsigned int secti = 0; secti < sect_dist[p].size(); secti++){
-          if(cg_elements_partial_read (index_file, index_base, index_zone,
-                                       sect_dist[p][secti].id, sect_dist[p][secti].start_index ,
-                                       sect_dist[p][secti].end_index,
-                                       &send_buf[local_id][0], Parent_Data))error_exit("error reading element information");
+//       //read for other processes
+//       for(cgsize_t p=1;p<P;++p) {
+//         local_id = 0;
+//         for(unsigned int secti = 0; secti < sect_dist[p].size(); secti++){
+//           if(cg_elements_partial_read (index_file, index_base, index_zone,
+//                                        sect_dist[p][secti].id, sect_dist[p][secti].start_index ,
+//                                        sect_dist[p][secti].end_index,
+//                                        &send_buf[local_id][0], Parent_Data))error_exit("error reading element information");
          
-          //hash all the faces of tets that just been read in 
+//           //hash all the faces of tets that just been read in 
         
            
-          unstructured_elements(facehash, &send_buf[local_id][0], sect_dist[p][secti].end_index -sect_dist[p][secti].start_index+1 , CGNS_ENUMV(TETRA_4));
+//           unstructured_elements(facehash, &send_buf[local_id][0], sect_dist[p][secti].end_index -sect_dist[p][secti].start_index+1 , CGNS_ENUMV(TETRA_4));
            
         
  
        
-          local_id += sect_dist[0][secti].end_index - sect_dist[0][secti].start_index + 1 ;
-        }
+//           local_id += sect_dist[0][secti].end_index - sect_dist[0][secti].start_index + 1 ;
+//         }
            
-        cgsize_t ltsz = tetsdist[p+1]-tetsdist[p] ;
-        if(ltsz != 0)
-          MPI_Send(&send_buf[0][0],ltsz*4*sizeof(cgsize_t),MPI_BYTE,p,7,MPI_COMM_WORLD) ;
-      }
-    } else {
-      MPI_Status status ;
-      cgsize_t tsz = tets.size() ;
-      if(tsz != 0)
-        MPI_Recv(&tets[0][0],tsz*4*sizeof(cgsize_t),MPI_BYTE,0,7,MPI_COMM_WORLD,&status) ;
-    }
-    cout<< " end tets" << endl;
+//         cgsize_t ltsz = tetsdist[p+1]-tetsdist[p] ;
+//         if(ltsz != 0)
+//           MPI_Send(&send_buf[0][0],ltsz*4*sizeof(cgsize_t),MPI_BYTE,p,7,MPI_COMM_WORLD) ;
+//       }
+//     } else {
+//       MPI_Status status ;
+//       cgsize_t tsz = tets.size() ;
+//       if(tsz != 0)
+//         MPI_Recv(&tets[0][0],tsz*4*sizeof(cgsize_t),MPI_BYTE,0,7,MPI_COMM_WORLD,&status) ;
+//     }
+//     cout<< " end tets" << endl;
   
-    // Read in pyramids
-    vector<cgsize_t> pyrmdist = Loci::g_simple_partition_vec<cgsize_t>(0,num_vol_pents5-1,P) ;
-    pyramids = vector<Array<cgsize_t,5> >(pyrmdist[R+1]-pyrmdist[R]) ;
+//     // Read in pyramids
+//     vector<cgsize_t> pyrmdist = Loci::g_simple_partition_vec<cgsize_t>(0,num_vol_pents5-1,P) ;
+//     pyramids = vector<Array<cgsize_t,5> >(pyrmdist[R+1]-pyrmdist[R]) ;
   
-    if(R == 0) {
-      cgsize_t tsz = max(pyrmdist[1]-pyrmdist[0],pyrmdist[P]-pyrmdist[P-1]) ;
-      vector<Array<cgsize_t,5> > send_buf(tsz) ;
+//     if(R == 0) {
+//       cgsize_t tsz = max(pyrmdist[1]-pyrmdist[0],pyrmdist[P]-pyrmdist[P-1]) ;
+//       vector<Array<cgsize_t,5> > send_buf(tsz) ;
     
-      cgsize_t local_id = 0;
-      vector<vector<sect> > sect_dist = redistribute_sections(sections,//sections in file numbering
-                                                              pyrmdist,//simple partition of etype
-                                                              CGNS_ENUMV(PYRA_5));
+//       cgsize_t local_id = 0;
+//       vector<vector<sect> > sect_dist = redistribute_sections(sections,//sections in file numbering
+//                                                               pyrmdist,//simple partition of etype
+//                                                               CGNS_ENUMV(PYRA_5));
          
          
-      for(unsigned int secti = 0; secti < sect_dist[0].size(); secti++){
-        if(cg_elements_partial_read (index_file, index_base, index_zone,
-                                     sect_dist[0][secti].id, sect_dist[0][secti].start_index ,
-                                     sect_dist[0][secti].end_index,
-                                     &pyramids[local_id][0], Parent_Data))error_exit("error reading element information");
+//       for(unsigned int secti = 0; secti < sect_dist[0].size(); secti++){
+//         if(cg_elements_partial_read (index_file, index_base, index_zone,
+//                                      sect_dist[0][secti].id, sect_dist[0][secti].start_index ,
+//                                      sect_dist[0][secti].end_index,
+//                                      &pyramids[local_id][0], Parent_Data))error_exit("error reading element information");
            
            
-        //hash all the faces of pyramid that just been read in 
+//         //hash all the faces of pyramid that just been read in 
       
-        unstructured_elements(facehash, &pyramids[local_id][0], sect_dist[0][secti].end_index -sect_dist[0][secti].start_index+1 , CGNS_ENUMV(PYRA_5));
+//         unstructured_elements(facehash, &pyramids[local_id][0], sect_dist[0][secti].end_index -sect_dist[0][secti].start_index+1 , CGNS_ENUMV(PYRA_5));
       
       
-        local_id += sect_dist[0][secti].end_index - sect_dist[0][secti].start_index + 1 ;
-      }
+//         local_id += sect_dist[0][secti].end_index - sect_dist[0][secti].start_index + 1 ;
+//       }
           
-      //read for other processes
-      for(int p=1;p<P;++p) {
-        local_id = 0;
-        for(unsigned int secti = 0; secti < sect_dist[p].size(); secti++){
-          if(cg_elements_partial_read (index_file, index_base, index_zone,
-                                       sect_dist[p][secti].id, sect_dist[p][secti].start_index ,
-                                       sect_dist[p][secti].end_index,
-                                       &send_buf[local_id][0], Parent_Data))error_exit("error reading element information");
+//       //read for other processes
+//       for(int p=1;p<P;++p) {
+//         local_id = 0;
+//         for(unsigned int secti = 0; secti < sect_dist[p].size(); secti++){
+//           if(cg_elements_partial_read (index_file, index_base, index_zone,
+//                                        sect_dist[p][secti].id, sect_dist[p][secti].start_index ,
+//                                        sect_dist[p][secti].end_index,
+//                                        &send_buf[local_id][0], Parent_Data))error_exit("error reading element information");
          
           
         
-          //hash all the faces of tets that just been read in 
+//           //hash all the faces of tets that just been read in 
          
-          unstructured_elements(facehash, &send_buf[local_id][0], sect_dist[p][secti].end_index -sect_dist[p][secti].start_index+1 , CGNS_ENUMV(PYRA_5));
+//           unstructured_elements(facehash, &send_buf[local_id][0], sect_dist[p][secti].end_index -sect_dist[p][secti].start_index+1 , CGNS_ENUMV(PYRA_5));
          
         
-          local_id += sect_dist[0][secti].end_index - sect_dist[0][secti].start_index + 1 ;
-        }
+//           local_id += sect_dist[0][secti].end_index - sect_dist[0][secti].start_index + 1 ;
+//         }
     
-        cgsize_t ltsz = pyrmdist[p+1]-pyrmdist[p] ;
-        if(ltsz != 0)
-          MPI_Send(&send_buf[0][0],ltsz*5*sizeof(cgsize_t),MPI_BYTE,p,6,MPI_COMM_WORLD) ;
-      }
-    } else {
-      MPI_Status status ;
-      cgsize_t tsz = pyramids.size() ;
-      if(tsz != 0)
-        MPI_Recv(&pyramids[0][0],tsz*5*sizeof(cgsize_t),MPI_BYTE,0,6,MPI_COMM_WORLD,&status) ;
-    }
+//         cgsize_t ltsz = pyrmdist[p+1]-pyrmdist[p] ;
+//         if(ltsz != 0)
+//           MPI_Send(&send_buf[0][0],ltsz*5*sizeof(cgsize_t),MPI_BYTE,p,6,MPI_COMM_WORLD) ;
+//       }
+//     } else {
+//       MPI_Status status ;
+//       cgsize_t tsz = pyramids.size() ;
+//       if(tsz != 0)
+//         MPI_Recv(&pyramids[0][0],tsz*5*sizeof(cgsize_t),MPI_BYTE,0,6,MPI_COMM_WORLD,&status) ;
+//     }
 
    
   
-    // Read in prisms
-    vector<cgsize_t> prsmdist = Loci::g_simple_partition_vec<cgsize_t>(0,num_vol_pents6-1,P) ;
-    prisms = vector<Array<cgsize_t,6> >(prsmdist[R+1]-prsmdist[R]) ;
+//     // Read in prisms
+//     vector<cgsize_t> prsmdist = Loci::g_simple_partition_vec<cgsize_t>(0,num_vol_pents6-1,P) ;
+//     prisms = vector<Array<cgsize_t,6> >(prsmdist[R+1]-prsmdist[R]) ;
 
-    if(R == 0) {
+//     if(R == 0) {
 
-      cgsize_t tsz = max(prsmdist[1]-prsmdist[0],prsmdist[P]-prsmdist[P-1]) ;
-      vector<Array<cgsize_t,6> > send_buf(tsz) ;
+//       cgsize_t tsz = max(prsmdist[1]-prsmdist[0],prsmdist[P]-prsmdist[P-1]) ;
+//       vector<Array<cgsize_t,6> > send_buf(tsz) ;
     
-      cgsize_t local_id = 0;
-      vector<vector<sect> > sect_dist = redistribute_sections(sections,//sections in file numbering
-                                                              prsmdist,//simple partition of etype
-                                                              CGNS_ENUMV(PENTA_6));
+//       cgsize_t local_id = 0;
+//       vector<vector<sect> > sect_dist = redistribute_sections(sections,//sections in file numbering
+//                                                               prsmdist,//simple partition of etype
+//                                                               CGNS_ENUMV(PENTA_6));
          
          
-      for(unsigned int secti = 0; secti < sect_dist[0].size(); secti++){
-        if(cg_elements_partial_read (index_file, index_base, index_zone,
-                                     sect_dist[0][secti].id, sect_dist[0][secti].start_index ,
-                                     sect_dist[0][secti].end_index,
-                                     &prisms[local_id][0], Parent_Data))error_exit("error reading element information" );
+//       for(unsigned int secti = 0; secti < sect_dist[0].size(); secti++){
+//         if(cg_elements_partial_read (index_file, index_base, index_zone,
+//                                      sect_dist[0][secti].id, sect_dist[0][secti].start_index ,
+//                                      sect_dist[0][secti].end_index,
+//                                      &prisms[local_id][0], Parent_Data))error_exit("error reading element information" );
            
-        //hash all the faces of pyramid that just been read in 
+//         //hash all the faces of pyramid that just been read in 
        
-        unstructured_elements(facehash, &prisms[local_id][0], sect_dist[0][secti].end_index -sect_dist[0][secti].start_index+1 , CGNS_ENUMV(PENTA_6));
+//         unstructured_elements(facehash, &prisms[local_id][0], sect_dist[0][secti].end_index -sect_dist[0][secti].start_index+1 , CGNS_ENUMV(PENTA_6));
        
      
-        local_id += sect_dist[0][secti].end_index - sect_dist[0][secti].start_index + 1 ;
-      }
+//         local_id += sect_dist[0][secti].end_index - sect_dist[0][secti].start_index + 1 ;
+//       }
           
-      //read for other processes
-      for(int p=1;p<P;++p) {
-        local_id = 0;
-        for(unsigned int secti = 0; secti < sect_dist[p].size(); secti++){
-          if(cg_elements_partial_read (index_file, index_base, index_zone,
-                                       sect_dist[p][secti].id, sect_dist[p][secti].start_index ,
-                                       sect_dist[p][secti].end_index,
-                                       &send_buf[local_id][0], Parent_Data))error_exit("error reading element information");
+//       //read for other processes
+//       for(int p=1;p<P;++p) {
+//         local_id = 0;
+//         for(unsigned int secti = 0; secti < sect_dist[p].size(); secti++){
+//           if(cg_elements_partial_read (index_file, index_base, index_zone,
+//                                        sect_dist[p][secti].id, sect_dist[p][secti].start_index ,
+//                                        sect_dist[p][secti].end_index,
+//                                        &send_buf[local_id][0], Parent_Data))error_exit("error reading element information");
          
           
-          //hash all the faces of tets that just been read in 
+//           //hash all the faces of tets that just been read in 
        
-          unstructured_elements(facehash, &send_buf[local_id][0], sect_dist[p][secti].end_index -sect_dist[p][secti].start_index+1 , CGNS_ENUMV(PENTA_6));
+//           unstructured_elements(facehash, &send_buf[local_id][0], sect_dist[p][secti].end_index -sect_dist[p][secti].start_index+1 , CGNS_ENUMV(PENTA_6));
        
         
         
-          local_id += sect_dist[0][secti].end_index - sect_dist[0][secti].start_index + 1 ;
-        }
+//           local_id += sect_dist[0][secti].end_index - sect_dist[0][secti].start_index + 1 ;
+//         }
       
-        cgsize_t ltsz = prsmdist[p+1]-prsmdist[p] ;
-        if(ltsz != 0)
-          MPI_Send(&send_buf[0][0],ltsz*6*sizeof(cgsize_t),MPI_BYTE,p,5,MPI_COMM_WORLD) ;
-      }
-    } else {
-      MPI_Status status ;
-      cgsize_t tsz = prisms.size() ;
-      if(tsz != 0)
-        MPI_Recv(&prisms[0][0],tsz*6*sizeof(cgsize_t),MPI_BYTE,0,5,MPI_COMM_WORLD,&status) ;
-    }
+//         cgsize_t ltsz = prsmdist[p+1]-prsmdist[p] ;
+//         if(ltsz != 0)
+//           MPI_Send(&send_buf[0][0],ltsz*6*sizeof(cgsize_t),MPI_BYTE,p,5,MPI_COMM_WORLD) ;
+//       }
+//     } else {
+//       MPI_Status status ;
+//       cgsize_t tsz = prisms.size() ;
+//       if(tsz != 0)
+//         MPI_Recv(&prisms[0][0],tsz*6*sizeof(cgsize_t),MPI_BYTE,0,5,MPI_COMM_WORLD,&status) ;
+//     }
 
-    // Read in hexahdra
-    vector<cgsize_t> hexsdist = Loci::g_simple_partition_vec<cgsize_t>(0,num_vol_hexs-1,P) ;
-    hexs = vector<Array<cgsize_t,8> >(hexsdist[R+1]-hexsdist[R]) ;
+//     // Read in hexahdra
+//     vector<cgsize_t> hexsdist = Loci::g_simple_partition_vec<cgsize_t>(0,num_vol_hexs-1,P) ;
+//     hexs = vector<Array<cgsize_t,8> >(hexsdist[R+1]-hexsdist[R]) ;
 
-    if(R == 0) {
-      cgsize_t tsz = max(hexsdist[1]-hexsdist[0],hexsdist[P]-hexsdist[P-1]) ;
-      vector<Array<cgsize_t,8> > send_buf(tsz) ;
+//     if(R == 0) {
+//       cgsize_t tsz = max(hexsdist[1]-hexsdist[0],hexsdist[P]-hexsdist[P-1]) ;
+//       vector<Array<cgsize_t,8> > send_buf(tsz) ;
     
-      cgsize_t local_id = 0;
-      vector<vector<sect> > sect_dist = redistribute_sections(sections,//sections in file numbering
-                                                              hexsdist,//simple partition of etype
-                                                              CGNS_ENUMV(HEXA_8));
+//       cgsize_t local_id = 0;
+//       vector<vector<sect> > sect_dist = redistribute_sections(sections,//sections in file numbering
+//                                                               hexsdist,//simple partition of etype
+//                                                               CGNS_ENUMV(HEXA_8));
          
          
-      for(unsigned int secti = 0; secti < sect_dist[0].size(); secti++){
-        if(cg_elements_partial_read (index_file, index_base, index_zone,
-                                     sect_dist[0][secti].id, sect_dist[0][secti].start_index ,
-                                     sect_dist[0][secti].end_index,
-                                     &hexs[local_id][0], Parent_Data))error_exit("error reading element information");
+//       for(unsigned int secti = 0; secti < sect_dist[0].size(); secti++){
+//         if(cg_elements_partial_read (index_file, index_base, index_zone,
+//                                      sect_dist[0][secti].id, sect_dist[0][secti].start_index ,
+//                                      sect_dist[0][secti].end_index,
+//                                      &hexs[local_id][0], Parent_Data))error_exit("error reading element information");
            
-        //hash all the faces of pyramid that just been read in 
+//         //hash all the faces of pyramid that just been read in 
        
-        unstructured_elements(facehash, &hexs[local_id][0], sect_dist[0][secti].end_index -sect_dist[0][secti].start_index+1 , CGNS_ENUMV(HEXA_8));
+//         unstructured_elements(facehash, &hexs[local_id][0], sect_dist[0][secti].end_index -sect_dist[0][secti].start_index+1 , CGNS_ENUMV(HEXA_8));
        
      
       
-        local_id += sect_dist[0][secti].end_index - sect_dist[0][secti].start_index + 1 ;
-      }
+//         local_id += sect_dist[0][secti].end_index - sect_dist[0][secti].start_index + 1 ;
+//       }
           
-      //read for other processes
-      for(int p=1;p<P;++p) {
-        local_id = 0;
-        for(unsigned int secti = 0; secti < sect_dist[p].size(); secti++){
-          if(cg_elements_partial_read (index_file, index_base, index_zone,
-                                       sect_dist[p][secti].id, sect_dist[p][secti].start_index ,
-                                       sect_dist[p][secti].end_index,
-                                       &send_buf[local_id][0], Parent_Data))error_exit("error reading element information");
+//       //read for other processes
+//       for(int p=1;p<P;++p) {
+//         local_id = 0;
+//         for(unsigned int secti = 0; secti < sect_dist[p].size(); secti++){
+//           if(cg_elements_partial_read (index_file, index_base, index_zone,
+//                                        sect_dist[p][secti].id, sect_dist[p][secti].start_index ,
+//                                        sect_dist[p][secti].end_index,
+//                                        &send_buf[local_id][0], Parent_Data))error_exit("error reading element information");
          
-          //hash all the faces of tets that just been read in 
+//           //hash all the faces of tets that just been read in 
        
-          unstructured_elements(facehash, &send_buf[local_id][0], sect_dist[p][secti].end_index -sect_dist[p][secti].start_index+1 , CGNS_ENUMV(HEXA_8));
+//           unstructured_elements(facehash, &send_buf[local_id][0], sect_dist[p][secti].end_index -sect_dist[p][secti].start_index+1 , CGNS_ENUMV(HEXA_8));
        
          
        
-          local_id += sect_dist[0][secti].end_index - sect_dist[0][secti].start_index + 1 ;
-        }
-        cgsize_t ltsz = hexsdist[p+1]-hexsdist[p] ;
-        if(ltsz != 0)
-          MPI_Send(&send_buf[0][0],ltsz*8*sizeof(cgsize_t),MPI_BYTE,p,4,MPI_COMM_WORLD) ;
-      }
-    } else {
-      MPI_Status status ;
-      cgsize_t tsz = hexs.size() ;
-      if(tsz != 0)
-        MPI_Recv(&hexs[0][0],tsz*8*sizeof(cgsize_t),MPI_BYTE,0,4,MPI_COMM_WORLD,&status) ;
-    }
+//           local_id += sect_dist[0][secti].end_index - sect_dist[0][secti].start_index + 1 ;
+//         }
+//         cgsize_t ltsz = hexsdist[p+1]-hexsdist[p] ;
+//         if(ltsz != 0)
+//           MPI_Send(&send_buf[0][0],ltsz*8*sizeof(cgsize_t),MPI_BYTE,p,4,MPI_COMM_WORLD) ;
+//       }
+//     } else {
+//       MPI_Status status ;
+//       cgsize_t tsz = hexs.size() ;
+//       if(tsz != 0)
+//         MPI_Recv(&hexs[0][0],tsz*8*sizeof(cgsize_t),MPI_BYTE,0,4,MPI_COMM_WORLD,&status) ;
+//     }
 
 
     
   
-    //read in trias and quads, then hash and sort faces, get boundary information
-    if(R==0){
-      cout << "start  unstructured_faces " << endl;
-      unstructured_faces (facehash, index_file, index_base, index_zone,
-                          qfaces, tfaces,
-                          surf_ids);
+//     //read in trias and quads, then hash and sort faces, get boundary information
+//     if(R==0){
+//       cout << "start  unstructured_faces " << endl;
+//       unstructured_faces (facehash, index_file, index_base, index_zone,
+//                           qfaces, tfaces,
+//                           surf_ids);
 
-      cout << "end  unstructured_faces " << endl; 
-    }
-    num_sf_trias  = tfaces.size();
-    num_sf_quads = qfaces.size();
-    {  
-      Array<cgsize_t,2> data ;
-      data[0] = num_sf_trias ;
-      data[1] = num_sf_quads ;
-      MPI_Bcast(&data[0],2*sizeof(cgsize_t),MPI_BYTE,0,MPI_COMM_WORLD) ;
-      num_sf_trias   = data[0] ;
-      num_sf_quads   = data[1] ;
-    }
+//       cout << "end  unstructured_faces " << endl; 
+//     }
+//     num_sf_trias  = tfaces.size();
+//     num_sf_quads = qfaces.size();
+//     {  
+//       Array<cgsize_t,2> data ;
+//       data[0] = num_sf_trias ;
+//       data[1] = num_sf_quads ;
+//       MPI_Bcast(&data[0],2*sizeof(cgsize_t),MPI_BYTE,0,MPI_COMM_WORLD) ;
+//       num_sf_trias   = data[0] ;
+//       num_sf_quads   = data[1] ;
+//     }
 
-    // triangles
-    vector<cgsize_t> triadist = Loci::g_simple_partition_vec<cgsize_t>(0,num_sf_trias-1,P) ;
-    vector<cgsize_t> quaddist = Loci::g_simple_partition_vec<cgsize_t>(0,num_sf_quads-1,P) ;
-    if(R != 0){
-      qfaces = vector<Array<cgsize_t,5> >(quaddist[R+1]-quaddist[R]) ;
-      tfaces = vector<Array<cgsize_t,4> >(triadist[R+1]-triadist[R]) ;
-    }
-    if(R==0){
-      if(num_sf_trias > 0) {
+//     // triangles
+//     vector<cgsize_t> triadist = Loci::g_simple_partition_vec<cgsize_t>(0,num_sf_trias-1,P) ;
+//     vector<cgsize_t> quaddist = Loci::g_simple_partition_vec<cgsize_t>(0,num_sf_quads-1,P) ;
+//     if(R != 0){
+//       qfaces = vector<Array<cgsize_t,5> >(quaddist[R+1]-quaddist[R]) ;
+//       tfaces = vector<Array<cgsize_t,4> >(triadist[R+1]-triadist[R]) ;
+//     }
+//     if(R==0){
+//       if(num_sf_trias > 0) {
       
-        for(int p=1;p<P;++p) {
-          cgsize_t ltsz = triadist[p+1]-triadist[p] ;
-          if(ltsz != 0)
-            MPI_Send(&tfaces[triadist[p]][0],ltsz*4*sizeof(cgsize_t),MPI_BYTE,p,9,MPI_COMM_WORLD) ;
-        }
-      }
+//         for(int p=1;p<P;++p) {
+//           cgsize_t ltsz = triadist[p+1]-triadist[p] ;
+//           if(ltsz != 0)
+//             MPI_Send(&tfaces[triadist[p]][0],ltsz*4*sizeof(cgsize_t),MPI_BYTE,p,9,MPI_COMM_WORLD) ;
+//         }
+//       }
       
-      if(num_sf_quads > 0){//quads
+//       if(num_sf_quads > 0){//quads
       
        
-        for(int p=1;p<P;++p) {
+//         for(int p=1;p<P;++p) {
          
            
-          cgsize_t ltsz = quaddist[p+1]-quaddist[p] ;
-          if(ltsz != 0)
-            MPI_Send(&qfaces[quaddist[p]][0],ltsz*5*sizeof(cgsize_t),MPI_BYTE,p,8,MPI_COMM_WORLD) ;
-        }
-      }
+//           cgsize_t ltsz = quaddist[p+1]-quaddist[p] ;
+//           if(ltsz != 0)
+//             MPI_Send(&qfaces[quaddist[p]][0],ltsz*5*sizeof(cgsize_t),MPI_BYTE,p,8,MPI_COMM_WORLD) ;
+//         }
+//       }
           
-    } else {
-      MPI_Status status ;
-      cgsize_t tsz = tfaces.size() ;
-      if(tsz != 0)
-        MPI_Recv(&tfaces[0][0],tsz*4*sizeof(cgsize_t),MPI_BYTE,0,9,MPI_COMM_WORLD,&status) ;
+//     } else {
+//       MPI_Status status ;
+//       cgsize_t tsz = tfaces.size() ;
+//       if(tsz != 0)
+//         MPI_Recv(&tfaces[0][0],tsz*4*sizeof(cgsize_t),MPI_BYTE,0,9,MPI_COMM_WORLD,&status) ;
 
-      cgsize_t qsz = qfaces.size();
-      if(qsz != 0)
-        MPI_Recv(&qfaces[0][0],qsz*5*sizeof(cgsize_t),MPI_BYTE,0,8,MPI_COMM_WORLD,&status) ;
-    }
+//       cgsize_t qsz = qfaces.size();
+//       if(qsz != 0)
+//         MPI_Recv(&qfaces[0][0],qsz*5*sizeof(cgsize_t),MPI_BYTE,0,8,MPI_COMM_WORLD,&status) ;
+//     }
  
-    if(R==0){
-      tfaces.resize(triadist[1]-triadist[0]);
-      qfaces.resize(quaddist[1]-quaddist[0]);
-    }
+//     if(R==0){
+//       tfaces.resize(triadist[1]-triadist[0]);
+//       qfaces.resize(quaddist[1]-quaddist[0]);
+//     }
    
-    if(R == 0)cout <<"finish reading cgns file" << endl;
-  }
-}
+//     if(R == 0)cout <<"finish reading cgns file" << endl;
+//   }
+// }
 /*read from cgns file,
   The coordinates are read in as double precision, the format in file can be in single or double precision 
 */
-void readCGNS_serial(string filename, int cgbase, int cgzone, store<vector3d<double> > &pos,
+void readCGNS_serial(string zonepath,  store<vector3d<double> > &pos,
                      vector<Array<cgsize_t,5> > &qfaces, vector<Array<cgsize_t,4> > &tfaces,
                      vector<Array<cgsize_t,4> > &tets, vector<Array<cgsize_t,5> > &pyramids,
                      vector<Array<cgsize_t,6> > &prisms, vector<Array<cgsize_t,8> > &hexs,
@@ -1490,36 +1489,58 @@ void readCGNS_serial(string filename, int cgbase, int cgzone, store<vector3d<dou
   
  
 
-  
+  std::size_t p1 = zonepath.find('/');
+  std::size_t p2 = zonepath.find('/', p1+1);
 
-
-  
+  if(p1 == string::npos){
+    index_base = 1;
+    index_zone = 1;
+  }else if(p2 == string::npos){
+    index_zone = 1;
+  }
+  string filename = zonepath.substr(0, p1);
+  cout << " zonepath " << zonepath << endl; 
+  cout << " filename " << filename << endl;
   cout <<"start reading cgns file" << endl;
-  
   if(cg_open (filename.c_str(), CG_MODE_READ, &index_file)) error_exit(" unable to open CGNS grid file ");
-  if(cg_nbases (index_file, &num_bases))error_exit("error reading number of bases");
-  if(num_bases != 1 && cgbase <= num_bases){
-    index_base = cgbase;
-  }else{
-    index_base =1; //assume only one base and its index is 1
+  if(!index_base){
+    string basename = zonepath.substr(p1+1, p2-p1-1);
+    cout << " basename " << basename << endl;
+    if(cg_nbases (index_file, &num_bases))error_exit("error reading number of bases");
+    for(index_base = 1; index_base<= num_bases; index_base++){
+      if(cg_base_read (index_file, index_base, bname, &celldim, &phydim))error_exit("error reading base information");
+      if(basename == string(bname)) break;
+    }
+    if(index_base > num_bases){
+      cg_close(index_file);
+      cerr<<"base "<< basename <<" not found"<< endl;
+      exit(-1);
+    }
+    if(celldim != 3 || phydim != 3){
+      cg_close(index_file);
+      cerr << "only 3D cell and physical dimensions are allowed in CGNS file" << endl;
+      exit(-1);
+    }
   }
-  if(cg_base_read (index_file, index_base, bname, &celldim, &phydim))error_exit("error reading base information");
-  if(celldim != 3 || phydim != 3){
-    cg_close(index_file);
-    cerr << "only 3D cell and physical dimensions are allowed in CGNS file" << endl;
-    exit(-1);
+  if(!index_zone){
+    string zonename = zonepath.substr(p2+1);
+    cout << " zonename " << zonename << endl;
+    if(cg_nzones (index_file, index_base, &num_zones)) error_exit("error reading number of zones");
+    for(index_zone = 1; index_zone <= num_zones; index_zone++){
+      if(cg_zone_read(index_file, index_base, index_zone, zname, sizes))error_exit("error reading zone information");
+      if(zonename == string(zname)) break;
+    }
+    if(index_zone > num_zones){
+      cg_close(index_file);
+      cerr<<"zone "<< zonename <<" not found"<< endl;
+      exit(-1);
+    }
   }
-  if(cg_nzones (index_file, index_base, &num_zones)) error_exit("error reading number of zones");
-  if(num_zones != 1 && cgzone <= num_zones){
-    index_zone = cgzone;
-    cout << " index_zone " << index_zone << endl;
-  }else{
-    index_zone = 1;//assume only one zone and its index is 1
-  }
+ 
   if(cg_zone_type (index_file, index_base, index_zone, &ztype))error_exit("error reading zone type");
   if (ztype != Unstructured) error_exit("can only handle unstructured grid in CGNS file");
   if(cg_zone_read (index_file, index_base, index_zone, zname, sizes))error_exit("error reading zone information");
-    
+  
   //3D unstructured sizes:		NVertex, NCell3D, NBoundVertex
   num_nodes = sizes[0];
   if(num_nodes < 1){
@@ -1659,10 +1680,10 @@ void readCGNS_serial(string filename, int cgbase, int cgzone, store<vector3d<dou
       
 
     
-  if( num_vol_tets+num_vol_pents5+num_vol_pents6+num_vol_hexs + num_sf_trias + num_sf_quads != sizes[1]){
-    cerr<<" total elements: " <<num_vol_tets+num_vol_pents5+num_vol_pents6+num_vol_hexs << " sizes[1] " <<  sizes[1] << endl;
-    error_exit("number of elements and faces does not match in CGNS grid file ");
-  }
+  // if( num_vol_tets+num_vol_pents5+num_vol_pents6+num_vol_hexs + num_sf_trias + num_sf_quads != sizes[1]){
+  cout<<" total elements: " <<num_vol_tets+num_vol_pents5+num_vol_pents6+num_vol_hexs << " sizes[1] " <<  sizes[1] << endl;
+  //error_exit("number of elements and faces does not match in CGNS grid file ");
+  //}
     
   cout << "nnodes=" << num_nodes <<",ntria="<<num_sf_trias
        << ",nquad="<<num_sf_quads<<",ntets="<<num_vol_tets
@@ -3316,11 +3337,8 @@ int main(int ac, char* av[]) {
 
   bool optimize = true ;
   bool cellVertexTransform = false ;
+  string zonepath;
   Loci::Init(&ac,&av) ;
-  const char *filename ;
-  std::string tmp_str ;
-  int cgbase = 1;
-  int cgzone = 1;
   string Lref = "NOSCALE" ;
   while(ac>=2 && av[1][0] == '-') {
     // If user specifies an alternate query, extract it from the
@@ -3329,14 +3347,7 @@ int main(int ac, char* av[]) {
       Lref = av[2] ;
       ac -= 2 ;
       av += 2 ;
-    }else if(ac >= 3 && !strcmp(av[1],"-B")){
-      cgbase = atoi(av[2]);
-      ac -= 2 ;
-      av += 2 ;
-    }else if(ac >= 3 && !strcmp(av[1],"-Z")){
-      cgzone = atoi(av[2]);
-      ac -= 2 ;
-      av += 2 ;
+    
     }else if(ac >= 2 && !strcmp(av[1],"-v")) {
       cout << "Loci version: " << Loci::version() << endl ;
       if(ac == 2) {
@@ -3376,17 +3387,15 @@ int main(int ac, char* av[]) {
     }
   }
 
-  if(Lref == "NOSCALE") {
-    cerr << "Must set grid units!" << endl
-         << "Use options -in, -ft, -cm, -m, or -Lref to set grid units." << endl ;
-    exit(-1) ;
-  }
+ 
 
   if(ac == 2) {
-    tmp_str.append(av[1]) ;
+    zonepath = av[1];
   } else {
-    cerr << "Usage: cgns2vog <options> <file>" << endl
-         << "Where options are listed below and <file> is the filename sans postfix" << endl
+    cerr << "Usage: cgns2vog <options> <filename>/<basename>/<zonename>" << endl
+         <<"If <zonename> is not specified, the first zone of the base is read" << endl
+         <<"If <basename> is not specified, the first base in the file is read" << endl 
+         << "Where options are listed below and " << endl
          << "flags:" << endl
         
          << "  -o  : disable optimization that reorders nodes and faces" << endl
@@ -3396,12 +3405,15 @@ int main(int ac, char* av[]) {
          << "  -cm : input grid is in centimeters" << endl
          << "  -m  : input grid is in meters" << endl
          << "  -Lref <units> : 1 unit in input grid is <units> long" << endl
-         << "  -B <int> : base number in cgns file" << endl
-         << "  -Z <int> : zone number in cgns file" << endl
          << endl ;
     exit(-1) ;
   }
 
+  if(Lref == "NOSCALE") {
+    cerr << "Must set grid units!" << endl
+         << "Use options -in, -ft, -cm, -m, or -Lref to set grid units." << endl ;
+    exit(-1) ;
+  }
   if(Lref == "")
     Lref = "1 meter" ;
   
@@ -3421,17 +3433,12 @@ int main(int ac, char* av[]) {
     cout << endl ;
   }
   
-  cout << " cgbase " << cgbase << " cgzone " << cgzone << endl;  
+ 
 
   int loc = 0;
-  loc = tmp_str.find('.') ;
-  std::string new_str = tmp_str.substr(0, loc) ;
-  filename = new_str.c_str() ;
-  char buf[512] ;
-  bzero(buf,512) ;
-  snprintf(buf,511,"%s.cgns",filename) ;
-  string infile = buf ;
-  string outfile = string(filename) + string(".vog") ;
+  loc = zonepath.find('.') ;
+  std::string casename = zonepath.substr(0, loc) ;
+  string outfile = casename + string(".vog") ;
 
   store<vector3d<double> > pos ;
   vector<Array<cgsize_t,5> > qfaces_long ;
@@ -3441,8 +3448,9 @@ int main(int ac, char* av[]) {
   vector<Array<cgsize_t,6> > prisms_long ;
   vector<Array<cgsize_t,8> > hexs_long ;
   vector<pair<int,string> > surf_ids ;
-  if(Loci::MPI_processes > 1)readCGNS_parallel(infile, pos,qfaces_long,tfaces_long,tets_long,pyramids_long,prisms_long,hexs_long, surf_ids) ;
-  else readCGNS_serial(infile, cgbase, cgzone, pos,qfaces_long,tfaces_long,tets_long,pyramids_long,prisms_long,hexs_long, surf_ids) ;
+  // if(Loci::MPI_processes > 1)readCGNS_parallel(infile, pos,qfaces_long,tfaces_long,tets_long,pyramids_long,prisms_long,hexs_long, surf_ids) ;
+  //else
+  readCGNS_serial(zonepath, pos,qfaces_long,tfaces_long,tets_long,pyramids_long,prisms_long,hexs_long, surf_ids) ;
   
 
   
@@ -3507,8 +3515,9 @@ int main(int ac, char* av[]) {
   vector<Array<cgsize_t,5> >().swap(pyramids_long);
   vector<Array<cgsize_t,6> >().swap(prisms_long);
   vector<Array<cgsize_t,8> >().swap(hexs_long);
-    
-  writeASCII("cgns2ascii.txt", pos,qfaces,tfaces,tets,pyramids,prisms,hexs,surf_ids ) ;
+
+  //for debug purpose
+  // writeASCII("cgns2ascii.txt", pos,qfaces,tfaces,tets,pyramids,prisms,hexs,surf_ids ) ;
 
   if(posScale != 1.0) {
     FORALL(pos.domain(),nd) {
@@ -3531,15 +3540,7 @@ int main(int ac, char* av[]) {
                  face2node,cl,cr) ;
   }
 
-  // This code is no longer needed, the face orientation is established
-  // in convert2face
   
-  // establish face left-right orientation
-  //  if(cellVertexTransform) {
-  //    if(MPI_rank == 0)
-  //      cerr << "orienting faces" << endl ;
-  //    VOG::orientFaces(pos,cl,cr,face2node) ;
-  //  }
   if(MPI_rank == 0)
     cerr << "coloring matrix" << endl ;
   VOG::colorMatrix(pos,cl,cr,face2node) ;

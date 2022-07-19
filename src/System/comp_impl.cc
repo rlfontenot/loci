@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -108,7 +108,6 @@ namespace Loci {
   int             ta_dctrl_executes = 0 ;
 #endif
 
-  extern bool in_internal_query;
   extern bool threading_pointwise;
   extern int num_threaded_pointwise;
   extern int num_total_pointwise;
@@ -267,7 +266,7 @@ namespace Loci {
         *output_cross_space = true ;
         if(cross_space_name == "main") {
           *other_space_name = "main" ;
-          *output_ptn = &(facts.get_init_ptn()) ;
+          *output_ptn = &(facts.get_init_ptn(0)) ;
           *target_process_rank = Loci::MPI_rank ;
           *target_comm = MPI_COMM_WORLD ;
         } else {
@@ -315,14 +314,14 @@ namespace Loci {
           if(facts.is_distributed_start()) {
             fact_db::distribute_infoP df = facts.get_distribute_info() ;
             src_pack = &(df->l2g) ;
-            src_unpack = &(df->g2l) ;
+            src_unpack = &(df->g2lv[0]) ;
           } else {
             src_pack = 0 ;
             src_unpack = 0 ;
           }
           expand_block.src_pack = src_pack ;
           expand_block.src_unpack = src_unpack ;
-          expand_block.src_ptn = &(facts.get_init_ptn()) ;
+          expand_block.src_ptn = &(facts.get_init_ptn(0)) ;
           expand_block.src_comm = MPI_COMM_WORLD ;
         } else {
           // get the corresponding keyspace impl from fact_db
@@ -389,7 +388,7 @@ namespace Loci {
             *output_cross_space = true ;
             if(cross_space_name == "main") {
               *other_space_name = "main" ;
-              *output_ptn = &(facts.get_init_ptn()) ;
+              *output_ptn = &(facts.get_init_ptn(0)) ;
               *target_process_rank = Loci::MPI_rank ;
               *target_comm = MPI_COMM_WORLD ;
             } else {
@@ -429,14 +428,14 @@ namespace Loci {
         if(facts.is_distributed_start()) {
           fact_db::distribute_infoP df = facts.get_distribute_info() ;
           src_pack = &(df->l2g) ;
-          src_unpack = &(df->g2l) ;
+          src_unpack = &(df->g2lv[0]) ;
         } else {
           src_pack = 0 ;
           src_unpack = 0 ;
         }
         expand_end.src_pack = src_pack ;
         expand_end.src_unpack = src_unpack ;
-        expand_end.src_ptn = &(facts.get_init_ptn()) ;
+        expand_end.src_ptn = &(facts.get_init_ptn(0)) ;
         expand_end.src_comm = MPI_COMM_WORLD ;
       } else {
         // get the corresponding keyspace impl from fact_db
@@ -859,7 +858,7 @@ namespace Loci {
     rp = r.get_rule_implP() ;
     space = kp ;
 
-    large_context_size = 2 * facts.get_init_ptn()[0].size() ;
+    large_context_size = 2 * facts.get_init_ptn(0)[0].size() ;
 
     dflag = true ;
     // register itself to the keyspace
@@ -1211,9 +1210,9 @@ namespace Loci {
     bool threadable = 
       impl.get_info().rule_impl->thread_rule() &&
       (impl.get_info().rule_impl->get_rule_class() 
-       == rule_impl::POINTWISE ||
+                       == rule_impl::POINTWISE ||
        impl.get_info().rule_impl->get_rule_class()
-       == rule_impl::UNIT);
+                       == rule_impl::UNIT);
     rule_implP ti = impl.get_rule_implP() ;
     for (variableSet::const_iterator vi=targets.begin();
         vi!=targets.end();++vi) {
@@ -1223,12 +1222,12 @@ namespace Loci {
         break;
       }
     }
-    if(!in_internal_query && threading_pointwise && threadable) {
+    if(threading_pointwise && threadable) {
       int tnum = thread_control->num_threads();
       int minw = thread_control->min_work_per_thread();
       // if a rule is not for threading, then generate a normal module,
       // also no multithreading if the execution sequence is too small
-      if(exec_seq.size() < (size_t)tnum*minw)
+      if(exec_seq.size() < tnum*minw)
         // normal case
         return new execute_rule(impl,sequence(exec_seq),facts, scheds);
       else {
@@ -1290,7 +1289,7 @@ namespace Loci {
     rp = apply_tag.get_rule_implP() ;
     space = kp ;
 
-    large_context_size = 2 * facts.get_init_ptn()[0].size() ;
+    large_context_size = 2 * facts.get_init_ptn(0)[0].size() ;
 
     dflag = true ;
     // register itself to the keyspace
@@ -1350,7 +1349,7 @@ namespace Loci {
         if(facts.is_distributed_start()) {
           fact_db::distribute_infoP df = facts.get_distribute_info() ;
           target_pack = &(df->l2g) ;
-          target_unpack = &(df->g2l) ;
+          target_unpack = &(df->g2lv[0]) ;
         } else {
           target_pack = 0 ;
           target_unpack = 0 ;
@@ -1583,7 +1582,7 @@ namespace Loci {
     rp = apply_tag.get_rule_implP() ;
     space = kp ;
 
-    large_context_size = 2 * facts.get_init_ptn()[0].size() ;
+    large_context_size = 2 * facts.get_init_ptn(0)[0].size() ;
 
     dflag = true ;
     // register itself to the keyspace
@@ -2304,7 +2303,7 @@ namespace Loci {
     // then initialize the key manager in the rule
     rp->set_key_manager(key_manager) ;
 
-    large_context_size = 2 * facts.get_init_ptn()[0].size() ;
+    large_context_size = 2 * facts.get_init_ptn(0)[0].size() ;
 
     // then build input chains, if any
 
@@ -2468,7 +2467,7 @@ namespace Loci {
            << " erase rule associated!" << endl ;
       Loci::Abort() ;
     }
-    large_context_size = 2 * facts.get_init_ptn()[0].size() ;
+    large_context_size = 2 * facts.get_init_ptn(0)[0].size() ;
 
     set<vmap_info>::const_iterator vmsi ;
     // figure out the expand chain

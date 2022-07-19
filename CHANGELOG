@@ -100,4 +100,16 @@
 
 	Fixes for autodiff facility
 
+	Added feature for multiple forward automatic differentiation variables
 
+	Cleaned up compiler warnings
+
+	Added option for parallel I/O features using parallel HDF5, it is enabled using --pio command line option
+
+	Changed PAGE_ALLOCATE feature so it must be turned on by editing sys.conf and adding -DPAGE_ALLOCATE to MISC variable to enable
+
+	Fixed issue that occurs when priority override is given to advance variables.
+
+	Fixed issues with type signatures in MPI_Stubb code
+
+	

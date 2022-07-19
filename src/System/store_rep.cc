@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -35,22 +35,12 @@ namespace Loci {
     return READ_WRITE ;
   }
 
-  gStoreRepP  storeRep::copy2gstore()const{
-    std::cerr << "storeRep.copy2gstore() is not implemented yet, its type is "<< RepType() << std::endl;
-    std::cerr << " its domain is " << domain() <<  std::endl ;
-    return gStoreRepP(0) ;
-  }
-
-  gStoreRepP  store_ref::copy2gstore()const{
-    return Rep()->copy2gstore();
-  }  
   store_ref::~store_ref() {}
 
   void store_ref::allocate(const entitySet &ptn) {
     Rep()->allocate(ptn) ;
   }
 
- 
   void store_ref::shift(int_type offset) {
     Rep()->shift(offset) ;
   }

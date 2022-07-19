@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -208,16 +208,18 @@ namespace Loci {
 
   //*************************************************************************/
 
-  template<int M> storeRepP MapVecRepI<M>::remap(const dMap &m) const {
-    entitySet newdomain = m.domain() & domain() ;
-    std::pair<entitySet,entitySet> mappimage = preimage(m.domain()) ;
+  template<int M> storeRepP MapVecRepI<M>::MapRemap(const dMap &dm, const dMap &rm) const {
+    entitySet newdomain = dm.domain() & domain() ;
+    std::pair<entitySet,entitySet> mappimage = preimage(rm.domain()) ;
     newdomain &= mappimage.first ;
-    entitySet mapimage = m.image(newdomain) ;
+    entitySet mapimage = dm.image(newdomain) ;
     MapVec<M> s ;
+    s.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(s.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
     s.allocate(mapimage) ;
     storeRepP my_store = getRep() ;
-    s.Rep()->scatter(m,my_store,newdomain) ;
-    MapRepP(s.Rep())->compose(m,mapimage) ;
+    s.Rep()->scatter(dm,my_store,newdomain) ;
+    MapRepP(s.Rep())->compose(rm,mapimage) ;
     
     return s.Rep() ;
   }
@@ -236,6 +238,12 @@ namespace Loci {
       }
     } ENDFORALL ;
   }
+  //*************************************************************************/
+  template<int M> storeRepP MapVecRepI<M>::remap(const dMap &m) const {
+    cerr << "Map remap not implemented" << endl ;
+    return MapRemap(m,m) ;
+  }
+
   //*************************************************************************/
   template<int M> void MapVecRepI<M>::copy(storeRepP &st,
                                            const entitySet &context)  {
@@ -437,6 +445,8 @@ namespace Loci {
 
     entitySet new_domain = store_domain + out_of_dom ;
     MapVec<M> new_map ;
+    new_map.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(new_map.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
     new_map.allocate(new_domain) ;
     
     for(ei = store_domain.begin(); ei != store_domain.end(); ++ei)
@@ -471,6 +481,8 @@ namespace Loci {
   
   template<int M > storeRepP MapVecRepI<M>::thaw() {
     dMapVec<M> dm ;
+    dm.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(dm.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
     FORALL(store_domain, i) {
       for(int j=0;j<M;++j)
         dm[i][j] = base_ptr[i][j] ;
@@ -483,6 +495,8 @@ namespace Loci {
                                    const MapVec<M> &input_map,
                                    const entitySet &input_image,
                                    const entitySet &input_preimage) {
+    result.Rep()->setDomainKeySpace(MapRepP(input_map.Rep())->getRangeKeySpace()) ;
+    MapRepP(result.Rep())->setRangeKeySpace(input_map.Rep()->getDomainKeySpace()) ;
     store<int> sizes ;
     sizes.allocate(input_image) ;
     FORALL(input_image,i) {
@@ -515,6 +529,8 @@ namespace Loci {
                                    const MapVec<M> &input_map,
                                    const entitySet &input_image,
                                    const entitySet &input_preimage) {
+    result.Rep()->setDomainKeySpace(MapRepP(input_map.Rep())->getRangeKeySpace()) ;
+    MapRepP(result.Rep())->setRangeKeySpace(input_map.Rep()->getDomainKeySpace()) ;
     store<int> sizes ;
     sizes.allocate(input_image) ;
     FORALL(input_image,i) {
@@ -673,6 +689,20 @@ namespace Loci {
     */
   }
   //*************************************************************************/
+#ifdef H5_HAVE_PARALLEL
+  template<int M> 
+  void MapVecRepI<M>::readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &eset, hid_t xfer_plist_id)
+  {
+    warn(true) ;
+  }
+  //*************************************************************************/
+
+  template<int M> 
+  void MapVecRepI<M>::writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& usr_eset, hid_t xfer_plist_id) const 
+  {
+    warn(true) ;
+  }
+#endif
 
 } // end of namespace Loci
 

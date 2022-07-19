@@ -18,7 +18,7 @@ libmetis.a: $(OBJS)
 
 LIB_OBJS=$(OBJS:.o=_lo.o)
 libmetis.so: $(LIB_OBJS)
-	$(DYNAMIC_LD) $(DYNAMIC_LD_FLAGS) libmetis.$(LIB_SUFFIX) $(LIB_FLAGS) $(LIB_OBJS) -L$(METIS_BASE)/GKLib -lgk
+	$(DYNAMIC_LD) $(DYNAMIC_LD_FLAGS) libmetis.$(LIB_SUFFIX) $(LIB_FLAGS) $(LIB_OBJS) -L../GKLib -lgk
 
 JUNK =  *~ core ii_files ti_files KCC_files so_locations rii_files
 

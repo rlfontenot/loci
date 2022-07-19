@@ -138,6 +138,24 @@ namespace Loci {
 #endif
       return ptr[j*size + i] ;
     }
+    const T & restrict operator[](size_t j) {
+#ifdef BOUNDS_CHECK
+      warn(j>=size || j < 0) ;
+#endif
+      return ptr[j*size + i] ;
+    }
+    const T & restrict operator[](unsigned int j) {
+#ifdef BOUNDS_CHECK
+      warn(j>=size || j < 0) ;
+#endif
+      return ptr[j*size + i] ;
+    }
+    const T & restrict operator[](unsigned char j) {
+#ifdef BOUNDS_CHECK
+      warn(j>=size || j < 0) ;
+#endif
+      return ptr[j*size + i] ;
+    }
   } ;
 
   //**************************************************************************
@@ -152,6 +170,24 @@ namespace Loci {
     const_Mat(const T *p ,int sz) : ptr(p),size(sz){}
 
     const_Mat_partial<T> operator[](int idx) const {
+#ifdef BOUNDS_CHECK
+      warn(idx >= size || idx < 0) ;
+#endif
+      return const_Mat_partial<T>(ptr,size,idx) ;
+    }
+    const_Mat_partial<T> operator[](size_t idx) const {
+#ifdef BOUNDS_CHECK
+      warn(idx >= size || idx < 0) ;
+#endif
+      return const_Mat_partial<T>(ptr,size,idx) ;
+    }
+    const_Mat_partial<T> operator[](unsigned int idx) const {
+#ifdef BOUNDS_CHECK
+      warn(idx >= size || idx < 0) ;
+#endif
+      return const_Mat_partial<T>(ptr,size,idx) ;
+    }
+    const_Mat_partial<T> operator[](unsigned char idx) const {
 #ifdef BOUNDS_CHECK
       warn(idx >= size || idx < 0) ;
 #endif
@@ -234,9 +270,7 @@ namespace Loci {
     void dotprod_accum(const const_Vect<Tin> vin, Vect<Tout> vout) const restrict {
       Loci::dotprod_accum(ptr,&vin[0],&vout[0],size) ;
     }
-
   } ;
-
   //************************************************************************
 
   template <class T> class Mat_partial {
@@ -246,6 +280,24 @@ namespace Loci {
   public:
     Mat_partial(T *p,int sz, int ii) : ptr(p),size(sz),i(ii) {}
     T &operator[](int j) {
+#ifdef BOUNDS_CHECK
+      warn(j>=size || j < 0) ;
+#endif
+      return ptr[j*size + i] ;
+    }
+    T &operator[](size_t j) {
+#ifdef BOUNDS_CHECK
+      warn(j>=size || j < 0) ;
+#endif
+      return ptr[j*size + i] ;
+    }
+    T &operator[](unsigned int j) {
+#ifdef BOUNDS_CHECK
+      warn(j>=size || j < 0) ;
+#endif
+      return ptr[j*size + i] ;
+    }
+    T &operator[](unsigned char j) {
 #ifdef BOUNDS_CHECK
       warn(j>=size || j < 0) ;
 #endif
@@ -402,7 +454,6 @@ namespace Loci {
       return Mat_partial<T>(ptr,size,idx) ;
     }
 
-    //------------------------------------------------------------------------
     Mat_partial<T> operator[](int idx) const restrict {
 #ifdef BOUNDS_CHECK
       warn(idx >= size || idx < 0) ;
@@ -410,6 +461,47 @@ namespace Loci {
       return Mat_partial<T>(ptr,size,idx) ;
     }
 
+    Mat_partial<T> operator[](size_t idx) restrict {
+#ifdef BOUNDS_CHECK
+      warn(idx >= size || idx < 0) ;
+#endif
+      return Mat_partial<T>(ptr,size,idx) ;
+    }
+
+    Mat_partial<T> operator[](size_t idx) const restrict {
+#ifdef BOUNDS_CHECK
+      warn(idx >= size || idx < 0) ;
+#endif
+      return Mat_partial<T>(ptr,size,idx) ;
+    }
+
+    Mat_partial<T> operator[](unsigned int idx) restrict {
+#ifdef BOUNDS_CHECK
+      warn(idx >= size || idx < 0) ;
+#endif
+      return Mat_partial<T>(ptr,size,idx) ;
+    }
+
+    Mat_partial<T> operator[](unsigned int idx) const restrict {
+#ifdef BOUNDS_CHECK
+      warn(idx >= size || idx < 0) ;
+#endif
+      return Mat_partial<T>(ptr,size,idx) ;
+    }
+
+    Mat_partial<T> operator[](unsigned char idx) restrict {
+#ifdef BOUNDS_CHECK
+      warn(idx >= size || idx < 0) ;
+#endif
+      return Mat_partial<T>(ptr,size,idx) ;
+    }
+
+    Mat_partial<T> operator[](unsigned char idx) const restrict {
+#ifdef BOUNDS_CHECK
+      warn(idx >= size || idx < 0) ;
+#endif
+      return Mat_partial<T>(ptr,size,idx) ;
+    }
     //------------------------------------------------------------------------
 
     void decompose_lu() restrict {
@@ -542,9 +634,6 @@ namespace Loci {
                         const pivot_type *pivot) const restrict {
       Loci::solve_lu_pivot(ptr,b,&x[0],pivot,size) ;
     }
-
-    //------------------------------------------------------------------------
-
   } ;
 
 }

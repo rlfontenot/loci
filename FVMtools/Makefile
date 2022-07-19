@@ -20,20 +20,18 @@
 ###############################################################################
 include $(LOCI_BASE)/Loci.conf
 
-
 COPT = $(COPTLESS)
 #COPT = -g -O0 #-DDEBUG -DBOUNDS_CHECK
 
 # List the name of your compiled program here
 TARGET = extract
 
-OTHER_APPS = plot3d2vog make_periodic ugrid2vog fluent2vog cobalt2vog vogmerge vogcut vogcheck extruder vog2surf ccm2vog refmesh marker refine cgns2vog ugrid2cgns  cgns2ugrid cgns2ensight cgns2surf 
+OTHER_APPS = plot3d2vog make_periodic ugrid2vog msh2vog cfd++2vog fluent2vog cobalt2vog vogmerge vogcut vogcheck extruder vog2surf ccm2vog refmesh marker refine cgns2vog ugrid2cgns  cgns2ugrid cgns2ensight cgns2surf 
 
 # List your object files here
-OBJS =  extract.o extract_ensight.o extract_cgns.o extract_2dgv.o extract_ascii.o extract_tecplot.o extract_vtk.o extract_fv.o extract_cut.o extract_surf.o extract_mean.o 
+OBJS =  extract.o extract_ensight.o extract_2dgv.o extract_ascii.o extract_tecplot.o extract_vtk.o extract_fv.o extract_cut.o extract_surf.o extract_mean.o extract_cgns.o
 
 LOCAL_LIBS =
-
 
 # Junk files that are created while editing and running cases
 JUNK = $(wildcard *~)  core 
@@ -44,7 +42,9 @@ default:
 all: $(TARGET) $(OTHER_APPS)
 
 
-
+$(TARGET): $(OBJS) 
+	$(LD) -o $(TARGET) $(OBJS) $(TEC360LIB) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+FRC : 
 
 libadf/libadf.a:
 	(cd libadf; $(MAKE) libadf.a)
@@ -52,14 +52,23 @@ libadf/libadf.a:
 ccm2vog.o: ccm2vog.cc
 	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) -Ilibadf -c ccm2vog.cc
 
-hash.o: hash.cc
-	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES)  -c hash.cc
+#hash.o: hash.cc
+#	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES)  -c hash.cc
+
+hash.o:
+	$(CC) $(COPTLESS) -c $(DEFINES)  hash.c
+
+getargs.o:
+	$(CC) $(COPTLESS) -c $(DEFINES)  getargs.c
 
 cgns2vog.o: cgns2vog.cc
-	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES)  -c cgns2vog.cc
+	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) -c cgns2vog.cc
 
-cgns2ugrid.o: cgns2ugrid.cc
-	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES)  -c cgns2ugrid.cc
+#cgns2ugrid.o: cgns2ugrid.cc
+#	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(INCLUDES) -c cgns2ugrid.c
+
+cgns2ugrid.o:
+	$(CC) $(COPTLESS) -c $(DEFINES) cgns2ugrid.c
 
 cgns2ensight.o: cgns2ensight.cc
 	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES)  $(INCLUDES) -c cgns2ensight.cc
@@ -68,15 +77,16 @@ cgns2surf.o: cgns2surf.cc
 	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES)  $(INCLUDES) -c cgns2surf.cc
 
 ugrid2cgns.o: ugrid2cgns.cc
-	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES)   -c ugrid2cgns.cc
+	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) -c ugrid2cgns.cc
+
+#ugrid2cgns.o:
+#	$(CC) $(COPTLESS) -c $(DEFINES) ugrid2cgns.c
 
 extract_cgns.o: extract_cgns.cc
-	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES)   -c extract_cgns.cc
+	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) -c extract_cgns.cc
 
-FRC : 
-
-$(TARGET): $(OBJS) 
-	$(LD) -o $(TARGET) $(OBJS) $(TEC_LIBS)  $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+extract_tecplot.o: extract_tecplot.cc
+	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) $(TEC360INCLUDE) -c extract_tecplot.cc
 
 extruder: extruder.o
 	$(LD) -o extruder extruder.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
@@ -88,11 +98,17 @@ vogcheck: vogCheck.o
 vog2surf: vog2surf.o vogtools.o
 	$(LD) -o vog2surf vog2surf.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
+extract_chem: extract_chem.o 
+	$(LD) -o extract_chem extract_chem.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
 ugrid2vog: ugrid2vog.o vogtools.o
 	$(LD) -o ugrid2vog ugrid2vog.o vogtools.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
+msh2vog: msh2vog.o vogtools.o
+	$(LD) -o msh2vog msh2vog.o vogtools.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
+cfd++2vog: cfd++2vog.o vogtools.o
+	$(LD) -o cfd++2vog cfd++2vog.o vogtools.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
 ugridmirror: ugridmirror.o vogtools.o
 	$(LD) -o ugridmirror ugridmirror.o vogtools.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
@@ -106,22 +122,6 @@ fluent2vog: fluent2vog.o vogtools.o
 ccm2vog: ccm2vog.o vogtools.o libadf/libadf.a
 	 $(LD) -o ccm2vog ccm2vog.o vogtools.o libadf/libadf.a $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
-cgns2vog: cgns2vog.o hash.o vogtools.o 
-	 $(LD) -o cgns2vog cgns2vog.o hash.o vogtools.o  $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
-
-cgns2ugrid: cgns2ugrid.o hash.o binaryio.o getargs.o 
-	 $(LD) -o cgns2ugrid cgns2ugrid.o hash.o binaryio.o getargs.o  $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
-
-cgns2ensight: cgns2ensight.o 
-	 $(LD) -o cgns2ensight cgns2ensight.o  $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
-
-cgns2surf: cgns2surf.o hash.o 
-	 $(LD) -o cgns2surf cgns2surf.o hash.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
-
-
-ugrid2cgns: ugrid2cgns.o hash.o binaryio.o getargs.o 
-	 $(LD) -o ugrid2cgns ugrid2cgns.o hash.o binaryio.o getargs.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
-
 vogmerge: vogmerge.o
 	$(LD) -o vogmerge vogmerge.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
@@ -134,9 +134,27 @@ plot3d2vog: plot3d2vog.o vogtools.o
 
 make_periodic: make_periodic.o predicates.o vogtools.o
 	$(LD) -o make_periodic make_periodic.o predicates.o vogtools.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+cgns2vog: cgns2vog.o hash.o vogtools.o 
+	 $(LD) -o cgns2vog cgns2vog.o hash.o vogtools.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
-predicates.o:
+cgns2ugrid: cgns2ugrid.o hash.o binaryio.o getargs.o 
+	 $(LD) -o cgns2ugrid cgns2ugrid.o hash.o binaryio.o getargs.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+
+cgns2ensight: cgns2ensight.o
+	 $(LD) -o cgns2ensight cgns2ensight.o  $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+
+cgns2surf: cgns2surf.o hash.o
+	 $(LD) -o cgns2surf cgns2surf.o hash.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+
+
+ugrid2cgns: ugrid2cgns.o hash.o binaryio.o getargs.o
+	 $(LD) -o ugrid2cgns ugrid2cgns.o hash.o binaryio.o getargs.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+
+predicates.o: predicates.c
 	$(CC) $(COPTLESS) -c $(DEFINES) predicates.c
+
+make_periodic.o: make_periodic.cc
+	$(CPP) $(COPTLESS) -c $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) -c make_periodic.cc
 
 refmesh: refmesh.o
 	$(LD) -o  refmesh  refmesh.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS) -lfvmadaptfunc
@@ -148,9 +166,11 @@ refine: refine.o
 
 clean:
 	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(OTHER_APPS) $(JUNK) *.o
+	(cd libadf; $(MAKE) clean)
 
 distclean:
 	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(JUNK) $(DEPEND_FILES) $(OTHER_APPS) *.o
+	(cd libadf; $(MAKE) distclean)
 
 DEPEND_FILES=$(subst .o,.d,$(OBJS))
 

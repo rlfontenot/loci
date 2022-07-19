@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -82,7 +82,6 @@ namespace Loci {
   extern bool threading_local_reduction;
   extern bool threading_chomping;
   extern int num_threads;
-  bool in_internal_query = false ;
   namespace {
     // used to pre-process preallocation memory profiling
     variableSet LociRecurrenceVarsRealloc ;
@@ -92,6 +91,7 @@ namespace Loci {
     // all chomped variables
     //variableSet all_chomped_vars = variableSet(EMPTY) ;
     variableSet all_chomped_vars ;
+    bool in_internal_query = false ;
   }
   
   class error_compiler : public rule_compiler {
@@ -998,17 +998,13 @@ namespace Loci {
     executeP top_level_schedule = 0;
 
 #ifdef PTHREADS
-    // no threading schedule generated for internal query
-    if(!in_internal_query) {
-      if(threading_pointwise || threading_global_reduction
-          || threading_local_reduction || threading_chomping) {
-        thread_control =
-          new ThreadControl_pthread(num_threads,facts,scheds);
-        schedule->append_list(new StartThreads());
-      }
+    if(threading_pointwise || threading_global_reduction
+       || threading_local_reduction || threading_chomping) {
+      thread_control = new ThreadControl_pthread(num_threads);
+      schedule->append_list(new StartThreads());
     }
 #endif
-
+    
     top_level_schedule = (rule_process[baserule])->
       create_execution_schedule(facts, scheds) ;
 
@@ -1018,11 +1014,9 @@ namespace Loci {
     schedule->append_list(top_level_schedule) ;
 
 #ifdef PTHREADS
-    if(!in_internal_query) {
-      if(threading_pointwise || threading_global_reduction
-          || threading_local_reduction || threading_chomping) {
-        schedule->append_list(new ShutDownThreads());
-      }
+    if(threading_pointwise || threading_global_reduction
+       || threading_local_reduction || threading_chomping) {
+      schedule->append_list(new ShutDownThreads());
     }
 #endif
     

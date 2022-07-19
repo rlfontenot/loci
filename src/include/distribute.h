@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -37,13 +37,10 @@
 
 #include <Map.h>
 #include <DMap.h>
-//#include <fact_db.h>
 #include <store_rep.h>
 
 namespace Loci {
-
   class joiner ;
-  class fact_db; //to detangle header files, change fact_db& to fact_db* in the following function interfaces
   extern std::ofstream debugout ;
   extern int MPI_processes;
   extern int MPI_rank ;
@@ -51,30 +48,21 @@ namespace Loci {
   void Init(int* argc, char*** argv) ;
   void Finalize() ; 
   void Abort() ;
+  size_t MPI_process_mem_avail() ;
   
   dMap send_map(Map &dm, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
+
   std::vector<dMap> send_global_map(Map &attrib_data, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
   void fill_clone(storeRepP& sp, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
   
   storeRepP send_clone_non(storeRepP& sp, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
   std::vector<storeRepP> send_global_clone_non(storeRepP &sp , entitySet &out_of_dom,  std::vector<entitySet> &init_ptn) ;
   
-  entitySet collect_entitySet(entitySet e, fact_db *facts) ;
-
   std::vector<entitySet>
   transpose_entitySet(const std::vector<entitySet>& in, MPI_Comm comm) ;
   std::vector<sequence>
   transpose_sequence(const std::vector<sequence>& in, MPI_Comm comm) ;
 
-  extern fact_db *exec_current_fact_db ;
-
-  inline entitySet collect_entitySet(entitySet e)
-  { return collect_entitySet(e, exec_current_fact_db) ; }
-
-  entitySet all_collect_entitySet(const entitySet &e) ;
-
-  entitySet all_collect_entitySet(entitySet localset,fact_db *facts);
-  
   std::vector<entitySet> all_collect_vectors(entitySet &e,MPI_Comm comm) ;
   std::vector<entitySet> all_collect_vectors(entitySet &e) ;
   int GLOBAL_OR(int b, MPI_Comm comm=MPI_COMM_WORLD) ;
@@ -274,7 +262,13 @@ namespace Loci {
   // this function generates a unique name on each process/thread
   std::string gen_local_name(const std::string& prefix,
                              const std::string& suffix="");
+
+
 }
+
+
+
+
 
 #endif
  

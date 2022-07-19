@@ -26,6 +26,9 @@
 using namespace std ;
 
 namespace Loci {
+  // define maxN from MFADd somewhere
+  const size_t MFADd::maxN ;
+  
   //three tables of unit type - basic, composite, reference types----//
   UNIT_type::basic_units UNIT_type::basic_unit_table[]={
     {"meter",Length,1},
@@ -153,7 +156,8 @@ namespace Loci {
     {"kcal","joule",4.184e3},
     {"kW*h","joule",3.6e6},
     {"quad","joule",1.055056e18},
-
+    {"kiloton","joule",4.184e12},
+     
     {"dyne","N",1.0e-5},//force
     {"dyn","N",1.0e-5},
     {"kgf","N",9.80665},
@@ -849,9 +853,47 @@ namespace Loci {
     }else
       cout<<"Not a unit"<<endl;
   }
+  void UNIT_type::calculate_temperature(exprP &input_expr,MFADd &val){
+    seperate_unit(unit_num_map,unit_den_map,input_expr); 
+    get_conversion(unit_num_map,unit_den_map,conversion_factor);
+    if(conversion_factor>0){
+      conversion_factor=1;
+      switch(is_single_temperature(input_expr)){
+      case 1:
+	val=(val+459.67)/1.8;
+	break;
+      case 2:
+	val=val+273.15;
+	break;
+      case 3:
+	val=val/1.8;
+	break;
+      }
+    }else
+      cout<<"Not a unit"<<endl;
+  }
 
 //change basic type -kelvin- to other temperature by special calculation
   void UNIT_type::reverse_calculate_temperature(exprP &input_expr,FAD2d &val){
+    seperate_unit(unit_num_map,unit_den_map,input_expr); 
+    get_conversion(unit_num_map,unit_den_map,conversion_factor);
+    if(conversion_factor>0){
+      conversion_factor=1;
+      switch(is_single_temperature(input_expr)){
+      case 1:
+	val=val*1.8-459.67;
+	break;
+      case 2:
+	val=val-273.15;
+	break;
+      case 3:
+	val=val*1.8;
+	break;
+      }
+    }else
+      cout<<"Not a unit"<<endl;
+  }
+  void UNIT_type::reverse_calculate_temperature(exprP &input_expr,MFADd &val){
     seperate_unit(unit_num_map,unit_den_map,input_expr); 
     get_conversion(unit_num_map,unit_den_map,conversion_factor);
     if(conversion_factor>0){
@@ -973,6 +1015,46 @@ namespace Loci {
     else
       return false;
   }
+  bool UNIT_type::check_unit(std::istream &in, MFADd &val){
+
+    parse::kill_white_space(in);
+  
+    if(in.eof()||in.peek()==EOF){
+      cout<<"Nothing input"<<endl;
+      return false;
+    }
+
+    else if(isdigit(in.peek())){
+      if(parse::is_real(in))  {
+	double real = parse::get_real(in) ;
+	vector<double> grad ;
+	if(in.peek() == '^') {
+	  in.get() ;
+	  grad.push_back( parse::get_real(in) ) ;
+	}
+        for (int i=1;i<MFAD_SIZE;i++) {
+          if(in.peek()=='^') {
+	    while(in.peek()=='^')
+	      in.get() ;
+ 	    grad.push_back( parse::get_real(in) ) ;
+          }
+        }
+	val=MFADd(real,&grad[0],(int) grad.size() ) ;
+      }
+    }
+    else if(!isdigit(in.peek())){
+      val=1;
+      cout<<"No input value, set default to 1"<<endl;
+    }
+    while(!in.eof()&&isspace(in.peek()))//kill white spaces between the value and unit
+      in.get();
+    value_mfad = val ;
+    input_value_mfad = val;
+    if(isalpha(in.peek())||parse::is_token(in,"("))
+      return true;
+    else
+      return false;
+  }
 
   //compare the two units, check if they are comparable
   bool UNIT_type::is_compatible(const std::string unit_str){
@@ -1010,6 +1092,9 @@ namespace Loci {
       }
     if(sec_d_map.size()==0&&fst_d_map.size()==0)
       den_flag=true;
+    if(sec_n_map.size()==0&&fst_n_map.size()==0)
+      num_flag=true ;
+    
     if((num_flag==true)&&(den_flag==true)&&(sec_d_map.size()==fst_d_map.size())&&(sec_n_map.size()==fst_n_map.size()))
       return true;
     return false;
@@ -1048,7 +1133,11 @@ namespace Loci {
       sec_unit.output(sec_exp);
     //cout<<sec_unit;
 
+#ifdef MULTIFAD
+    return (value_mfad.value)*(*this).conversion_factor/sec_unit.conversion_factor;
+#else
     return (value.value)*(*this).conversion_factor/sec_unit.conversion_factor;
+#endif 
   }
 
   FAD2d UNIT_type::get_value_inD(const std::string unit_str){
@@ -1070,6 +1159,26 @@ namespace Loci {
     //cout<<sec_unit;
 
     return value*(*this).conversion_factor/sec_unit.conversion_factor;
+  }
+  MFADd UNIT_type::get_value_inM(const std::string unit_str){
+    UNIT_type sec_unit;
+    exprP sec_exp = 0 ;
+
+    sec_unit.mode=(*this).mode;
+    sec_unit.unit_kind=(*this).unit_kind;
+    sec_unit.value=1;
+
+    sec_exp=expression::create(unit_str);
+    if(is_single_temperature(sec_exp)!=0){
+      MFADd val = value_mfad ;
+      reverse_calculate_temperature(sec_exp,val);
+      return val;
+    }
+    else
+      sec_unit.output(sec_exp);
+    //cout<<sec_unit;
+
+    return value_mfad*(*this).conversion_factor/sec_unit.conversion_factor;
   }
 
 

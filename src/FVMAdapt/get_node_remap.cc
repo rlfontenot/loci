@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -64,11 +64,14 @@ public:
    fact_db::distribute_infoP df = Loci::exec_current_fact_db->get_distribute_info() ;
     Map l2g ;
     l2g = df->l2g.Rep() ;
-    dMap g2f ;
-    g2f = df->g2f.Rep() ;
+    store<unsigned char> key_domain ;
+    key_domain = df->key_domain.Rep() ;
+    //    dMap g2f ;
+    //    g2f = df->g2f.Rep() ;
 
     for(sequence::const_iterator si=seq.begin();si!= seq.end();++si){
-      fileNumX[*si] = g2f[l2g[*si]] ;
+      int kd = key_domain[*si] ;
+      fileNumX[*si] = df->g2fv[kd][l2g[*si]] ;
       //if(fileNumX[*si] < 0) cout << "negative file Number " << fileNumX[*si] << endl; 
     }
   }

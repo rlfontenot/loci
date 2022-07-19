@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -131,9 +131,15 @@ vector<char> read_tags_hdf5(string filename, string varname, MPI_Comm &comm) {
     hid_t file_id = 0;
     file_id = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
     hid_t group_id = 0;
+#ifdef H5_USE_16_API
+    group_id = H5Gopen(file_id, varname.c_str()) ;
+    //process 0 read in its local tag
+    hid_t dataset =  H5Dopen(group_id, "data") ;
+#else
     group_id = H5Gopen(file_id, varname.c_str(),H5P_DEFAULT) ;
     //process 0 read in its local tag
     hid_t dataset =  H5Dopen(group_id, "data",H5P_DEFAULT) ;
+#endif
     hid_t dataspace = H5Dget_space(dataset) ;
     // Get size of tag file
     hsize_t size = 0 ;
@@ -219,7 +225,7 @@ void add_to_datamap(entitySet dom, vector<pair<int,int> > &datamap, int offset,
     } ENDFORALL ;
   } else {
     dMap g2f ;
-    g2f = dist->g2f.Rep() ;
+    g2f = dist->g2fv[0].Rep() ; // FIX THIS
     Map l2g ;
     l2g = dist->l2g.Rep() ;
     FORALL(dom,nd) {
@@ -409,6 +415,8 @@ int getFileNumberOffset(const entitySet& locdom,MPI_Comm &comm){
     dom = locdom&(dist->my_entities) ;
     Map l2g ;
     l2g = dist->l2g.Rep() ;
+    store<unsigned char> key_domain ;
+    key_domain = dist->key_domain.Rep() ;
     // // Compute domain in global numbering
     //     entitySet dom_global = l2g.image(dom) ;
      
@@ -416,13 +424,14 @@ int getFileNumberOffset(const entitySet& locdom,MPI_Comm &comm){
     //     FATAL(dom.size() != dom_global.size()) ;
 
     // Now get global to file numbering
-    dMap g2f ;
-    g2f = dist->g2f.Rep() ;
+    //    dMap g2f ;
+    //    g2f = dist->g2f.Rep() ;
 
     // Compute map from local numbering to file numbering
     entitySet filedom = EMPTY;
     FORALL(dom,i) {
-      filedom += g2f[l2g[i]] ;
+      int kd = key_domain[i] ;
+      filedom += dist->g2fv[kd][l2g[i]] ;
     } ENDFORALL ;
 
     // int imx = std::numeric_limits<int>::min() ;

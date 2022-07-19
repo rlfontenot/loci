@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -130,6 +130,13 @@ namespace Loci {
     H5Sclose( vDataspace );
     */
   }
+
+#ifdef H5_HAVE_PARALLEL 
+   template<unsigned int M> 
+   void dMapVecRepI<M>::readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset, hid_t xfer_plist_id){
+      warn(true) ;
+   }
+#endif
   //------------------------------------------------------------------------
     
   template<unsigned int M> 
@@ -177,7 +184,13 @@ namespace Loci {
     H5Sclose( vDataspace );
     */
   }
-
+#ifdef H5_HAVE_PARALLEL 
+template<unsigned int M> 
+void dMapVecRepI<M>::writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet &usr_eset, hid_t xfer_plist_id) const 
+  {
+    warn(true) ;
+  }
+#endif
   //------------------------------------------------------------------------
 
 
@@ -575,21 +588,27 @@ namespace Loci {
   //------------------------------------------------------------------------
 
   template<unsigned int M> 
-  storeRepP dMapVecRepI<M>::remap(const dMap &m) const
+    storeRepP dMapVecRepI<M>::MapRemap(const dMap &dm, const dMap &rm) const
   {
-    entitySet newdomain = m.domain() & domain() ;
-    std::pair<entitySet,entitySet> mappimage = preimage(m.domain()) ;
+    entitySet newdomain = dm.domain() & domain() ;
+    std::pair<entitySet,entitySet> mappimage = preimage(rm.domain()) ;
     newdomain &= mappimage.first ;
-    entitySet mapimage = m.image(newdomain) ;
+    entitySet mapimage = dm.image(newdomain) ;
 
     dMapVec<M> s ;
     s.allocate(mapimage) ;
 
     storeRepP my_store = getRep() ;
       
-    s.Rep()->scatter(m,my_store,newdomain) ;
-    MapRepP(s.Rep())->compose(m,mapimage) ;
+    s.Rep()->scatter(dm,my_store,newdomain) ;
+    MapRepP(s.Rep())->compose(rm,mapimage) ;
     return s.Rep() ;
+  }
+//------------------------------------------------------------------------
+  template<unsigned int M> 
+    storeRepP dMapVecRepI<M>::remap(const dMap &m) const {
+    cerr << "incorrect remap use for DMapVec" << endl ;
+    return MapRemap(m,m) ;
   }
 
   // this method has the same dependency problem

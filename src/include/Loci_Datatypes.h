@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -59,9 +59,8 @@ namespace Loci {
   
   enum AtomType {
     BOOL=1, CHAR, UNSIGNED_CHAR, BYTE,
-    SHORT, UNSIGNED_SHORT, INT, UNSIGNED, LONG, 
-    UNSIGNED_LONG, LONGLONG, UNSIGNED_LONGLONG,
-    FLOAT, DOUBLE, LONG_DOUBLE
+    SHORT, UNSIGNED_SHORT, INT, UNSIGNED, LONG,
+    UNSIGNED_LONG, FLOAT, DOUBLE, LONG_DOUBLE
   };
 
   class  AbstractDatatype: public CPTR_type {

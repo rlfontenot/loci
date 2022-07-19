@@ -138,7 +138,16 @@ namespace Loci {
     if($componentMotion.optionExists(tag)) {
       string name ;
       Loci::options_list::arg_list value_list ;
-      $componentMotion.getOption(tag,name,value_list) ;
+      if($componentMotion.getOptionValueType(tag) == Loci::NAME) {
+	$componentMotion.getOption(tag,name) ;
+      } else if($componentMotion.getOptionValueType(tag) == Loci::FUNCTION) {
+	$componentMotion.getOption(tag,name,value_list) ;
+      } else {
+	cerr << "unable to interpret '" << tag << "' in componentMotion" << endl ;
+      }
+
+
+      
       if($componentMotionTypes.find(name) == $componentMotionTypes.end()) {
         cerr << "unknown component motion directive '" << name << "' for component '"
              << tag << "'" << endl ;
@@ -532,7 +541,10 @@ namespace Loci {
     string tag = $componentName_X ;
     string name ;
     Loci::options_list::arg_list value_list ;
-    $componentMotion.getOption(tag,name,value_list) ;
+    if($componentMotion.getOptionValueType(tag) == Loci::FUNCTION)
+      $componentMotion.getOption(tag,name,value_list) ;
+    else
+      $componentMotion.getOption(tag,name) ;
     options_list ol ; 
     ol.Input(value_list) ; // Convert to an options list
     Loci::CPTR<motionType> ptr = new stationaryMotion(tag,ol) ;
@@ -543,7 +555,10 @@ namespace Loci {
     string tag = $componentName_X ;
     string name ;
     Loci::options_list::arg_list value_list ;
-    $componentMotion.getOption(tag,name,value_list) ;
+    if($componentMotion.getOptionValueType(tag) == Loci::FUNCTION)
+      $componentMotion.getOption(tag,name,value_list) ;
+    else
+      $componentMotion.getOption(tag,name) ;
     options_list ol ; 
     ol.Input(value_list) ; // Convert to an options list
     Loci::CPTR<motionType> ptr = new rotationMotion(tag,ol) ;
@@ -554,7 +569,10 @@ namespace Loci {
     string tag = $componentName_X ;
     string name ;
     Loci::options_list::arg_list value_list ;
-    $componentMotion.getOption(tag,name,value_list) ;
+    if($componentMotion.getOptionValueType(tag) == Loci::FUNCTION)
+      $componentMotion.getOption(tag,name,value_list) ;
+    else
+      $componentMotion.getOption(tag,name) ;
     options_list ol ; 
     ol.Input(value_list) ; // Convert to an options list
     Loci::CPTR<motionType> ptr = new prescribedMotion(tag,ol) ;
@@ -565,7 +583,10 @@ namespace Loci {
     string tag = $componentName_X ;
     string name ;
     Loci::options_list::arg_list value_list ;
-    $componentMotion.getOption(tag,name,value_list) ;
+    if($componentMotion.getOptionValueType(tag) == Loci::FUNCTION)
+      $componentMotion.getOption(tag,name,value_list) ;
+    else
+      $componentMotion.getOption(tag,name) ;
     options_list ol ; 
     ol.Input(value_list) ; // Convert to an options list
     Loci::CPTR<motionType> ptr = new servoMotion(tag,ol) ;

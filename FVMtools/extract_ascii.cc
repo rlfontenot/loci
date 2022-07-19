@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -40,6 +40,38 @@ using std::list ;
 
 #include "extract.h"
 
+namespace Loci {
+  //Define struct Area which data members of normal vector and area of the area
+  struct Aread {
+    vector3d<double> n ;  //normal vector of the face
+    double sada ; //area of the face
+  } ;
+
+  //Overload ostream and istream (Input/Output) operators for struct Area
+  inline std::ostream & operator<<(std::ostream &s, const Aread &v)
+  {
+    s << v.n << ' ' << v.sada << ' ' ;
+    return s ;
+  }
+
+  inline std::istream &operator>>(std::istream &s, Aread &v)
+  {
+    s >> v.n >> v.sada  ;
+    return s ;
+  }
+
+  template<> struct data_schema_traits<Loci::Aread> {
+    typedef IDENTITY_CONVERTER Schema_Converter ;
+    static DatatypeP get_type() {
+      CompoundDatatypeP ct = CompoundFactory(Loci::Aread()) ;
+      LOCI_INSERT_TYPE(ct,Loci::Aread,n) ;
+      LOCI_INSERT_TYPE(ct,Loci::Aread,sada) ;
+      return DatatypeP(ct) ;
+    }
+  } ;
+}
+  
+
 
 void process_ascii_nodal(string casename, string iteration,
                          vector<string> variables,
@@ -59,7 +91,7 @@ void process_ascii_nodal(string casename, string iteration,
   }
 
   fact_db facts ;
-  Loci::readContainer(file_id,"pos",pos.Rep(),EMPTY,facts) ;
+  readData(file_id,"pos",pos.Rep(),EMPTY,facts) ;
   Loci::hdf5CloseFile(file_id) ;
   int npnts = pos.domain().size() ;
 
@@ -83,7 +115,7 @@ void process_ascii_nodal(string casename, string iteration,
 
         fact_db facts ;
         store<float> scalar ;
-        Loci::readContainer(file_id,var_name,scalar.Rep(),EMPTY,facts) ;
+        readData(file_id,var_name,scalar.Rep(),EMPTY,facts) ;
         entitySet dom = scalar.domain() ;
         Loci::hdf5CloseFile(file_id) ;
 
@@ -118,7 +150,7 @@ void process_ascii_nodal(string casename, string iteration,
       
         fact_db facts ;
         store<vector3d<float> > vec ;
-        Loci::readContainer(file_id,var_name,vec.Rep(),EMPTY,facts) ;
+        readData(file_id,var_name,vec.Rep(),EMPTY,facts) ;
         entitySet dom = vec.domain() ;
         Loci::hdf5CloseFile(file_id) ;
         values.push_back(vector<float>(npnts)) ;
@@ -153,9 +185,9 @@ void process_ascii_nodal(string casename, string iteration,
 
         fact_db facts ;
         storeVec<float> mix ;
-        Loci::readContainer(file_id,"mixture",mix.Rep(),EMPTY,facts) ;
+        readData(file_id,"mixture",mix.Rep(),EMPTY,facts) ;
         param<string> species_names ;
-        Loci::readContainer(file_id,"species_names",species_names.Rep(),EMPTY,facts) ;
+        readData(file_id,"species_names",species_names.Rep(),EMPTY,facts) ;
         Loci::hdf5CloseFile(file_id) ;
       
         map<string,int> smap ;
@@ -210,12 +242,16 @@ void process_ascii_bndry(string casename, string iteration,
                          vector<string> variable_filenames,
                          vector<string> boundaries) {
 
-  string gridtopo = "output/" + casename +".topo" ;
+  string gridtopo = getTopoFileName(output_dir, casename, iteration) ;
 
 
   hid_t file_id = H5Fopen(gridtopo.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
 
+#ifdef H5_USE_16_API
+  hid_t bndg = H5Gopen(file_id,"boundaries") ;
+#else
   hid_t bndg = H5Gopen(file_id,"boundaries",H5P_DEFAULT) ;
+#endif
   hsize_t num_bcs = 0 ;
   H5Gget_num_objs(bndg,&num_bcs) ;
   vector<string> processed_bcs ;
@@ -233,7 +269,11 @@ void process_ascii_bndry(string casename, string iteration,
         bc_to_extract = true ;
     if(!bc_to_extract)
       continue ;
+#ifdef H5_USE_16_API
+    hid_t bcg = H5Gopen(bndg,buf) ;
+#else
     hid_t bcg = H5Gopen(bndg,buf,H5P_DEFAULT) ;
+#endif
     int nquads = sizeElementType(bcg,"quads") ;
     int ntrias = sizeElementType(bcg,"triangles") ;
     int ngeneral = sizeElementType(bcg,"nside_sizes") ;
@@ -282,7 +322,11 @@ void process_ascii_bndry(string casename, string iteration,
       exit(-1) ;
     }
         
+#ifdef H5_USE_16_API
+    hid_t di = H5Gopen(file_id,"dataInfo") ;
+#else
     hid_t di = H5Gopen(file_id,"dataInfo",H5P_DEFAULT) ;
+#endif
 
     if(di < 0) {
       cerr << "unable to open group dataInfo in file " << filename << endl ;
@@ -307,7 +351,7 @@ void process_ascii_bndry(string casename, string iteration,
       }
     }
     if(needa) {
-      vector<Loci::Area> a(nbel) ;
+      vector<Loci::Aread> a(nbel) ;
       readElementType(file_id,"area",a) ;
 
       map<int,int>:: const_iterator mi ;
@@ -337,7 +381,11 @@ void process_ascii_bndry(string casename, string iteration,
           continue ;
         }
         
+#ifdef H5_USE_16_API
+        hid_t di = H5Gopen(file_id,"dataInfo") ;
+#else
         hid_t di = H5Gopen(file_id,"dataInfo",H5P_DEFAULT) ;
+#endif
         int nbel = sizeElementType(di,"entityIds") ;
         
         vector<int> elemIds(nbel) ;
@@ -375,7 +423,11 @@ void process_ascii_bndry(string casename, string iteration,
           continue ;
         }
         
+#ifdef H5_USE_16_API
+        hid_t di = H5Gopen(file_id,"dataInfo") ;
+#else
         hid_t di = H5Gopen(file_id,"dataInfo",H5P_DEFAULT) ;
+#endif
         int nbel = sizeElementType(di,"entityIds") ;
         
         vector<int> elemIds(nbel) ;

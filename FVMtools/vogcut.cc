@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -58,14 +58,23 @@ bool readVolTags(hid_t input_fid,
                  vector<pair<string,Loci::entitySet> > &volDat) {
   using namespace Loci ;
   /* Save old error handler */
-  H5E_auto_t old_func = 0 ;
+  H5E_auto_t old_func = 0;
   void *old_client_data = 0 ;
-  H5Eget_auto(H5E_DEFAULT, &old_func, &old_client_data);
+#ifdef H5_USE_16_API
+  H5Eget_auto(&old_func, &old_client_data);
+  /* Turn off error handling */
+  H5Eset_auto(NULL, NULL);
+#else
+  H5Eget_auto(H5E_DEFAULT,&old_func, &old_client_data);
   /* Turn off error handling */
   H5Eset_auto(H5E_DEFAULT,NULL, NULL);
-
+#endif
   vector<pair<string,entitySet> > volTags ;
+#ifdef H5_USE_16_API
+  hid_t cell_info = H5Gopen(input_fid,"cell_info") ;
+#else
   hid_t cell_info = H5Gopen(input_fid,"cell_info",H5P_DEFAULT) ;
+#endif
   if(cell_info > 0) {
     vector<string> vol_tag ;
     vector<entitySet> vol_set ;
@@ -80,7 +89,11 @@ bool readVolTags(hid_t input_fid,
       buf[1023]='\0' ;
       
       string name = string(buf) ;
+#ifdef H5_USE_16_API
+      hid_t vt_g = H5Gopen(cell_info,buf) ;
+#else
       hid_t vt_g = H5Gopen(cell_info,buf,H5P_DEFAULT) ;
+#endif
       hid_t id_a = H5Aopen_name(vt_g,"Ident") ;
       int ident ;
       H5Aread(id_a,H5T_NATIVE_INT,&ident) ;
@@ -102,7 +115,11 @@ bool readVolTags(hid_t input_fid,
       volTags[vol_id[i]].second = vol_set[i] ;
     }
   } else {
+#ifdef H5_USE_16_API
+    hid_t file_info = H5Gopen(input_fid,"file_info") ;
+#else
     hid_t file_info = H5Gopen(input_fid,"file_info",H5P_DEFAULT) ;
+#endif
     long numCells = readAttributeLong(file_info,"numCells") ;
     volTags.push_back(pair<string,entitySet>
                       (string("Main"),
@@ -111,7 +128,11 @@ bool readVolTags(hid_t input_fid,
   }
   
   /* Restore previous error handler */
-  H5Eset_auto(H5E_DEFAULT, old_func, old_client_data);
+#ifdef H5_USE_16_API
+  H5Eset_auto(old_func, old_client_data);
+#else
+  H5Eset_auto(H5E_DEFAULT,old_func, old_client_data);
+#endif
   volDat.swap(volTags) ;
   return true ;
 }
@@ -157,19 +178,33 @@ bool readNodes(hid_t input_fid,
                ) {
       
   // read in positions
+#ifdef H5_USE_16_API
+  hid_t fid = H5Gopen(input_fid,"file_info") ;
+#else
   hid_t fid = H5Gopen(input_fid,"file_info",H5P_DEFAULT) ;
+#endif
   unsigned long numNodes = readAttributeLong(fid,"numNodes") ;
   H5Gclose(fid) ;
   
   hsize_t  count = numNodes ;
 
+#ifdef H5_INTERFACE_1_6_4
   hsize_t lstart = 0 ;
+#else
+  hssize_t lstart = 0 ;
+#endif 
 
   // Read in pos data from file i
   pos_dat.resize(numNodes) ;
 
+
+#ifdef H5_USE_16_API
+  hid_t node_g = H5Gopen(input_fid,"node_info") ;
+  hid_t dataset = H5Dopen(node_g,"positions") ;
+#else
   hid_t node_g = H5Gopen(input_fid,"node_info",H5P_DEFAULT) ;
   hid_t dataset = H5Dopen(node_g,"positions",H5P_DEFAULT) ;
+#endif
   hid_t dspace = H5Dget_space(dataset) ;
   
   hsize_t stride = 1 ;
@@ -235,7 +270,11 @@ bool createMaps(hid_t input_fid,
                 Loci::entitySet& bc_ids //the boundary ids of the new grid
                 ){
   
+#ifdef H5_USE_16_API
+  hid_t fid = H5Gopen(input_fid,"file_info") ;
+#else
   hid_t fid = H5Gopen(input_fid,"file_info",H5P_DEFAULT) ;
+#endif
   unsigned long numNodes = readAttributeLong(fid,"numNodes");
   unsigned long numCells = readAttributeLong(fid,"numCells");
   H5Gclose(fid) ;
@@ -248,31 +287,44 @@ bool createMaps(hid_t input_fid,
 
     //first time read through face_info to select cells to keep
    
-  hid_t face_g  = H5Gopen(input_fid,"face_info",H5P_DEFAULT) ;
-  hid_t  dataset = H5Dopen(face_g,"cluster_sizes",H5P_DEFAULT) ;
-  hid_t dspace = H5Dget_space(dataset) ;
-  hsize_t stride = 1 ;
-  hsize_t size = 0 ;
-  H5Sget_simple_extent_dims(dspace,&size,NULL) ;
-  vector<unsigned short> csizes(size) ;
-  hsize_t  dimension = size ;
+#ifdef H5_USE_16_API
+    hid_t face_g  = H5Gopen(input_fid,"face_info") ;
+    hid_t  dataset = H5Dopen(face_g,"cluster_sizes") ;
+#else
+    hid_t face_g  = H5Gopen(input_fid,"face_info",H5P_DEFAULT) ;
+    hid_t  dataset = H5Dopen(face_g,"cluster_sizes",H5P_DEFAULT) ;
+#endif
+    hid_t dspace = H5Dget_space(dataset) ;
+    hsize_t stride = 1 ;
+    hsize_t size = 0 ;
+    H5Sget_simple_extent_dims(dspace,&size,NULL) ;
+    vector<unsigned short> csizes(size) ;
+    hsize_t  dimension = size ;
  
-  hsize_t start = 0 ;
-  hsize_t  count = size ;
-  H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&start,&stride,&count,NULL) ;
-  int rank = 1 ;
-  hid_t memspace = H5Screate_simple(rank,&dimension,NULL) ;
-  hid_t err = H5Dread(dataset,H5T_NATIVE_USHORT,memspace,dspace,H5P_DEFAULT,&csizes[0]) ;
-  if(err < 0) {
-    cerr << "unable to read cluster sizes from file" << endl ;
-    exit(-1) ;
-  }
-  H5Dclose(dataset) ;
-  H5Sclose(memspace) ;
+#ifdef H5_INTERFACE_1_6_4
+    hsize_t start = 0 ;
+#else
+    hssize_t start = 0 ;
+#endif
+    hsize_t  count = size ;
+    H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&start,&stride,&count,NULL) ;
+    int rank = 1 ;
+    hid_t memspace = H5Screate_simple(rank,&dimension,NULL) ;
+    hid_t err = H5Dread(dataset,H5T_NATIVE_USHORT,memspace,dspace,H5P_DEFAULT,&csizes[0]) ;
+    if(err < 0) {
+      cerr << "unable to read cluster sizes from file" << endl ;
+      exit(-1) ;
+    }
+    H5Dclose(dataset) ;
+    H5Sclose(memspace) ;
   
   {
     // Read in clusters 
+#ifdef H5_USE_16_API
+    dataset = H5Dopen(face_g,"cluster_info") ;
+#else
     dataset = H5Dopen(face_g,"cluster_info",H5P_DEFAULT) ;
+#endif
     dspace = H5Dget_space(dataset) ;
     start = 0 ;
 
@@ -321,7 +373,11 @@ bool createMaps(hid_t input_fid,
 
   {
     // Read in clusters 
+#ifdef H5_USE_16_API
+    dataset = H5Dopen(face_g,"cluster_info") ;
+#else
     dataset = H5Dopen(face_g,"cluster_info",H5P_DEFAULT) ;
+#endif
     dspace = H5Dget_space(dataset) ;
     start = 0 ;
     for(size_t c=0;c<size;++c) { // Loop over clusters
@@ -823,12 +879,18 @@ int main(int ac, char *av[]) {
 #define DEBUG
 #ifndef DEBUG
   /* Save old error handler */
-  H5E_auto_t old_func = 0 ;
+  H5E_auto_t old_func = 0;
   void *old_client_data = 0 ;
-  H5Eget_auto(H5E_DEFAULT, &old_func, &old_client_data);
-  
+#ifdef H5_USE_16_API
+  H5Eget_auto(&old_func, &old_client_data);
   /* Turn off error handling */
-  H5Eset_auto(H5E_DEFAULT, NULL, NULL);
+  H5Eset_auto(NULL, NULL);
+#else
+  H5Eget_auto(H5E_DEFAULT,&old_func, &old_client_data);
+  /* Turn off error handling */
+  H5Eset_auto(H5E_DEFAULT,NULL, NULL);
+#endif
+  
 #endif
 
   {
@@ -952,8 +1014,7 @@ int main(int ac, char *av[]) {
       for(entitySet::const_iterator ei = domain.begin(); ei != domain.end(); ei++){
         if(cellMap[*ei] >=0)image += cellMap[*ei];
       }
-      if(image != EMPTY)
-	volTags.push_back(std::pair<string, entitySet>(volDat[j].first, image));
+      if(image != EMPTY) volTags.push_back(make_pair(volDat[j].first, image));
     }
         
 

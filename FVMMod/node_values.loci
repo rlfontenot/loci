@@ -345,7 +345,11 @@ namespace Loci {
 #ifdef AUTODIFF2ND
   typedef Loci::FAD2d FADTYPE ;
 #else
+#ifdef MULTIFAD
+  typedef Loci::MFADd FADTYPE ;
+#else  
   typedef Loci::FADd FADTYPE ;
+#endif
 #endif
 
   $type X store<FADTYPE> ;
@@ -381,7 +385,13 @@ namespace Loci {
     for(vector<int>::iterator vi = ns;vi!=ne;++vi) {
       int nd = *vi ;
       const double weight = realToDouble(1./norm($*pos[nd]-$cellcenter)) ;
+#ifdef MULTIFAD
+      int nv = $X.maxN ;
+      for (int i=0;i<nv;i++) 
+        join($*c2n_scalar_sump(X)[nd],($X*weight).grad[i]) ;
+#else
       join($*c2n_scalar_sump(X)[nd],($X*weight).grad) ;
+#endif    
     }
   } 
 
@@ -404,7 +414,13 @@ namespace Loci {
     int fsz = $face2node.size() ;
     for(int i=0;i<fsz;++i) {
       const double weight = realToDouble(1./norm($face2node[i]->$pos-$facecenter)) ;
+#ifdef MULTIFAD
+      int nv = $X_f.maxN ;
+      for (int j=0;j<nv;j++) 
+        $face2node[i]->$boundary_scalar_sump(X) += ($X_f*weight).grad[j] ;
+#else
       $face2node[i]->$boundary_scalar_sump(X) += ($X_f*weight).grad ;
+#endif    
     }
   }
 
@@ -452,10 +468,20 @@ namespace Loci {
     for(vector<int>::iterator vi = ns;vi!=ne;++vi) {
       int nd = *vi ;
       const double weight = realToDouble(1./norm($*pos[nd]-$cellcenter)) ;
+#ifdef MULTIFAD
+      int nv = $X.x.maxN ;
+      for (int j=0;j<nv;j++) {
+        vector3d<float> v(($X.x*weight).grad[j],
+			  ($X.y*weight).grad[j],
+			  ($X.z*weight).grad[j]) ;
+        join($*c2n_v3d_sump(X)[nd],v) ;
+      }
+#else
       vector3d<float> v(($X.x*weight).grad,
 			($X.y*weight).grad,
 			($X.z*weight).grad) ;
       join($*c2n_v3d_sump(X)[nd],v) ;
+#endif
     }
   }
 
@@ -476,10 +502,20 @@ namespace Loci {
     int fsz = $face2node.size();
     for(int i=0;i<fsz;++i) {
       const double weight = realToDouble(1./norm($face2node[i]->$pos-$facecenter)) ;
+#ifdef MULTIFAD
+      int nv = $X_f.x.maxN ;
+      for (int j=0;j<nv;j++) {
+        vector3d<float> v(($X_f.x*weight).grad[j],
+			  ($X_f.y*weight).grad[j],
+			  ($X_f.z*weight).grad[j]) ;
+        $face2node[i]->$boundary_v3d_sump(X) += v ;
+      }
+#else
       vector3d<float> v(($X_f.x*weight).grad,
 			($X_f.y*weight).grad,
 			($X_f.z*weight).grad) ;
       $face2node[i]->$boundary_v3d_sump(X) += v ;
+#endif    
     }
   }
 

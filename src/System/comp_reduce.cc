@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -45,7 +45,6 @@ namespace Loci {
   extern bool threading_global_reduction;
   extern bool threading_local_reduction;
 
-  extern bool in_internal_query;
   extern int num_threaded_global_reduction;
   extern int num_total_global_reduction;
   extern int num_threaded_local_reduction;
@@ -84,11 +83,11 @@ namespace Loci {
 #ifdef PTHREADS
     if(apply.get_info().output_is_parameter) { // global reduction
       ++num_total_global_reduction;
-      if(!in_internal_query && threading_global_reduction) {
+      if(threading_global_reduction) {
         int tnum = thread_control->num_threads();
         int minw = thread_control->min_work_per_thread();
         if(!apply.get_info().rule_impl->thread_rule() ||
-           exec_seq.size() < (size_t)tnum*minw)
+           exec_seq.size() < tnum*minw)
           return new execute_rule(apply,sequence(exec_seq),facts,scheds);
         else {
           variableSet targets = apply.targets() ;
@@ -102,16 +101,15 @@ namespace Loci {
           return new Threaded_execute_param_reduction
             (apply, exec_seq, t, facts, scheds);
         }
-      } else {
+      } else
         return new execute_rule(apply,sequence(exec_seq),facts,scheds);
-      }
     } else { // local reduction
       ++num_total_local_reduction;
-      if(!in_internal_query && threading_local_reduction) {
+      if(threading_local_reduction) {
         int tnum = thread_control->num_threads();
         int minw = thread_control->min_work_per_thread();
         bool threadable = apply.get_info().rule_impl->thread_rule()
-          && exec_seq.size() >= (size_t)tnum*minw;
+          && exec_seq.size() >= tnum*minw;
         {
           rule_implP ti = apply.get_rule_implP() ;
           variableSet targets = apply.targets();
@@ -128,9 +126,10 @@ namespace Loci {
               << " threading schedule fails!!!" << endl;
             Loci::Abort();
           }
+          variable t = *(targets.begin());
           ++num_threaded_local_reduction;
           return new Threaded_execute_local_reduction
-            (apply,unit_tag,sequence(exec_seq),facts,scheds);
+            (apply,unit_tag,sequence(exec_seq),t,facts,scheds);
         }        
       } else
         return new execute_rule(apply,sequence(exec_seq),facts,scheds);

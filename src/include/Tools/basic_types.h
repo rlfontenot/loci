@@ -35,12 +35,16 @@ namespace Loci {
 #ifdef AUTODIFF2ND
   typedef Loci::FAD2d real_t ;
 #else
+#ifdef MULTIFAD
+  typedef Loci::MFADd real_t ;
+#else
   typedef Loci::FADd real_t ;
 #endif
+#endif
 #else
+  // No autodiff
   typedef double real_t ;
 #endif
-
   //---------------------Array----------------------//
   template <class T,size_t n> class Array {
     T x[n] ;
@@ -65,6 +69,12 @@ namespace Loci {
 
     T &operator[](size_t indx) { return x[indx]; }
     const T &operator[](size_t indx) const { return x[indx] ; }
+    T &operator[](int indx) { return x[indx]; }
+    const T &operator[](int indx) const { return x[indx] ; }
+    T &operator[](unsigned char indx) { return x[indx]; }
+    const T &operator[](unsigned char indx) const { return x[indx] ; }
+    T &operator[](unsigned int indx) { return x[indx]; }
+    const T &operator[](unsigned int indx) const { return x[indx] ; }
 
     iterator begin() { return &x[0] ; }
     iterator end() { return begin()+n ; }
@@ -72,6 +82,7 @@ namespace Loci {
     const_iterator end() const { return begin()+n ; }
 
     size_t size() const  { return n ; }
+    
   } ;
 
   //---------------------vector3d------------------//
@@ -233,6 +244,9 @@ namespace Loci {
   inline vector3d<float> realToFloat(vector3d<double> v) { return vector3d<float>(float(v.x),float(v.y),float(v.z)); }
   inline vector3d<double> realToDouble(vector3d<double> v) { return v ; }
 
+  inline vector3d<float> realToFloat(vector3d<MFADd> v) { return vector3d<float>(realToFloat(v.x),realToFloat(v.y),realToFloat(v.z)); }
+  inline vector3d<double> realToDouble(vector3d<MFADd> v) { return vector3d<double>(realToDouble(v.x),realToDouble(v.y),realToDouble(v.z)); }
+
   inline vector3d<float> realToFloat(vector3d<FADd> v) { return vector3d<float>(realToFloat(v.x),realToFloat(v.y),realToFloat(v.z)); }
   inline vector3d<double> realToDouble(vector3d<FADd> v) { return vector3d<double>(realToDouble(v.x),realToDouble(v.y),realToDouble(v.z)); }
 
@@ -381,6 +395,14 @@ namespace Loci {
     ~tmp_array() { free(); }
     T & operator[](int i) { return p[i] ; }
     T & operator[](int i) const { return p[i] ; }
+    T & operator[](size_t i) { return p[i] ; }
+    T & operator[](size_t i) const { return p[i] ; }
+    T & operator[](unsigned int i) { return p[i] ; }
+    T & operator[](unsigned int i) const { return p[i] ; }
+    T & operator[](unsigned char i) { return p[i] ; }
+    T & operator[](unsigned char i) const { return p[i] ; }
+    T & operator[](unsigned short i) { return p[i] ; }
+    T & operator[](unsigned short i) const { return p[i] ; }
     operator T *() { return p ; }
     operator const T *() const { return p ; }
   } ;

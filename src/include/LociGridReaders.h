@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -21,12 +21,10 @@
 #ifndef LOCI_GRID_READERS_H
 #define LOCI_GRID_READERS_H
 #include <fact_db.h>
-
+#include <Tools/basic_types.h>
 #include <string>
 
 namespace Loci {
-
-  typedef double real_t ;
 
   //Define struct Area which data members of normal vector and area of the area
   struct Area {
@@ -122,28 +120,7 @@ namespace Loci {
       bc_num = 0 ;
     }
   } ;
-  struct gperiodic_info {
-    std::string name ;
-    bool master,processed ;
-    vector3d<real_t> center, v, translate ;
-    real_t angle ;
-    gEntitySet bset ;
-    gEntity bc_num ;
-    gperiodic_info() {
-      name = "PERIODIC" ;
-      master = false ;
-      processed = false ;
-      center = vector3d<real_t>(0.,0.,0.) ;
-      v = vector3d<real_t>(1.,0.,0.) ;
-      translate = center ;
-      angle = 0 ;
-      bset = GEMPTY ;
-      bc_num = 0 ;
-    }
-  } ;
 
-  
-  
   template<> struct data_schema_traits<Loci::rigid_transform> {
     typedef IDENTITY_CONVERTER Schema_Converter ;
     static DatatypeP get_type() {
@@ -151,28 +128,24 @@ namespace Loci {
       LOCI_INSERT_TYPE(ct,Loci::rigid_transform,t1) ;
       LOCI_INSERT_TYPE(ct,Loci::rigid_transform,t2) ;
       LOCI_INSERT_TYPE(ct,Loci::rigid_transform,R) ;
+      LOCI_INSERT_TYPE(ct,Loci::rigid_transform,Rinv) ;
       return DatatypeP(ct) ;
       
     }
   } ;
 
-  // bool readFVMGrid(fact_db &facts, std::string filename) ;
+  bool readFVMGrid(fact_db &facts, std::string filename) ;
   
   bool setupFVMGrid(fact_db &facts, std::string filename) ;
-  
+  bool setupFVMGridWithWeightInStore(fact_db &facts, std::string filename, storeRepP cellwt );
+  bool setupFVMGridWithWeightInFile(fact_db &facts, std::string filename, std::string weightfile);
+
   bool readBCfromVOG(std::string filename,
                      std::vector<std::pair<int,std::string> > &boundary_ids) ;
-  
   void setupBoundaryConditions(fact_db &facts) ;
-  
-  void createLowerUpper(fact_db &facts) ; 
-
-  
+  void createLowerUpper(fact_db &facts) ;
   void createEdgesPar(fact_db& facts) ;
 
- 
-  void create_ci_map(fact_db &facts);
-  void setupOverset(fact_db &facts) ;
 
   extern void writeVOG(std::string filename,store<vector3d<double> > &pos,
                        Map &cl, Map &cr, multiMap &face2node,
@@ -181,6 +154,20 @@ namespace Loci {
                        Map &cl, Map &cr, multiMap &face2node,
                        std::vector<std::pair<int,std::string> >& surfaceids,
                        std::vector<std::pair<std::string,entitySet> >& volTags) ;
+  bool readGridVOG(std::vector<entitySet> &local_nodes,
+                   std::vector<entitySet> &local_faces,
+                   std::vector<entitySet> &local_cells,
+                   store<vector3d<double> > &pos, Map &cl, Map &cr,
+                   multiMap &face2node, 
+                   store<std::string> &boundary_names,
+                   store<std::string> &boundary_tags,
+                   std::vector<std::pair<std::string,entitySet> > &volTags,
+                   int max_alloc, std::string filename) ;
+
+  void setupOverset(fact_db &facts) ;
+  void setupPosAutoDiff(fact_db &facts) ;
+  void setupPosAutoDiff(fact_db &facts,std::string filename) ;
+
 } 
 
 

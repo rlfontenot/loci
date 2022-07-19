@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -92,7 +92,7 @@ void process_mean(string casename, string iteration,
 
           fact_db facts ;
           store<float> scalar ;
-          Loci::readContainer(file_id,var_name,scalar.Rep(),EMPTY,facts) ;
+          readData(file_id,var_name,scalar.Rep(),EMPTY,facts) ;
           entitySet dom = scalar.domain() ;
           Loci::hdf5CloseFile(file_id) ;
           if(it == start_iter) {
@@ -157,7 +157,7 @@ void process_mean(string casename, string iteration,
         }
 
         fact_db facts ;
-        Loci::readContainer(file_id,"pos",pos.Rep(),EMPTY,facts) ;
+        readData(file_id,"pos",pos.Rep(),EMPTY,facts) ;
         Loci::hdf5CloseFile(file_id) ;
         int npnts = pos.domain().size() ;
         entitySet dom = pos.domain() ;
@@ -256,7 +256,7 @@ void process_mean(string casename, string iteration,
 
           fact_db facts ;
           store<vector3d<float> > vect ;
-          Loci::readContainer(file_id,var_name,vect.Rep(),EMPTY,facts) ;
+          readData(file_id,var_name,vect.Rep(),EMPTY,facts) ;
           entitySet dom = vect.domain() ;
           Loci::hdf5CloseFile(file_id) ;
           if(it == start_iter) {
@@ -399,9 +399,9 @@ void process_mean(string casename, string iteration,
         
           fact_db facts ;
           storeVec<float> mix ;
-          Loci::readContainer(file_id,"mixture",mix.Rep(),EMPTY,facts) ;
+          readData(file_id,"mixture",mix.Rep(),EMPTY,facts) ;
           param<string> species_names ;
-          Loci::readContainer(file_id,"species_names",species_names.Rep(),EMPTY,facts) ;
+          readData(file_id,"species_names",species_names.Rep(),EMPTY,facts) ;
           Loci::hdf5CloseFile(file_id) ;
       
           map<string,int> smap ;
@@ -499,7 +499,11 @@ void process_mean(string casename, string iteration,
             continue ;
           }
           
+#ifdef H5_USE_16_API
+          hid_t di = H5Gopen(file_id,"dataInfo") ;
+#else
           hid_t di = H5Gopen(file_id,"dataInfo",H5P_DEFAULT) ;
+#endif
           int nbel = sizeElementType(di,"entityIds") ;
           
           if(it == start_iter) {
@@ -517,7 +521,11 @@ void process_mean(string casename, string iteration,
           H5Gclose(di) ;
           vector<float> bvar(nbel) ;
           readElementType(file_id,variables[i].c_str(),bvar) ;
+#ifdef H5_USE_16_API
+          di = H5Gopen(file_id,"dataInfo") ;
+#else
           di = H5Gopen(file_id,"dataInfo",H5P_DEFAULT) ;
+#endif
           vector<int> eid(nbel,-1) ;
           readElementType(di,"entityIds",eid) ;
           H5Fclose(file_id) ;
@@ -547,8 +555,12 @@ void process_mean(string casename, string iteration,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
         string sname = var+"Mean" ;
 	cout << "Writing Variables: " << sname ;
+#ifdef H5_USE_16_API
+        hid_t group_id = H5Gcreate(file_id,"dataInfo",0) ;
+#else
         hid_t group_id = H5Gcreate(file_id,"dataInfo",
 				   H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
         writeElementType(group_id,"entityIds",ids) ;
         H5Gclose(group_id) ;
         writeElementType(file_id,sname.c_str(),m) ;
@@ -560,8 +572,12 @@ void process_mean(string casename, string iteration,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
         sname = var+"Var" ;
 	cout << ", " << sname ;
+#ifdef H5_USE_16_API
+        group_id = H5Gcreate(file_id,"dataInfo",0) ;
+#else
         group_id = H5Gcreate(file_id,"dataInfo",
 			     H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
         writeElementType(group_id,"entityIds",ids) ;
         H5Gclose(group_id) ;
         writeElementType(file_id,sname.c_str(),v) ;
@@ -594,7 +610,11 @@ void process_mean(string casename, string iteration,
             continue ;
           }
           
+#ifdef H5_USE_16_API
+          hid_t di = H5Gopen(file_id,"dataInfo") ;
+#else
           hid_t di = H5Gopen(file_id,"dataInfo",H5P_DEFAULT) ;
+#endif
           int nbel = sizeElementType(di,"entityIds") ;
 
           if(it == start_iter) {
@@ -612,7 +632,11 @@ void process_mean(string casename, string iteration,
           H5Gclose(di) ;
           vector<vector3d<float> > bvar(nbel) ;
           readElementType(file_id,variables[i].c_str(),bvar) ;
+#ifdef H5_USE_16_API
+          di = H5Gopen(file_id,"dataInfo") ;
+#else
           di = H5Gopen(file_id,"dataInfo",H5P_DEFAULT) ;
+#endif
           vector<int> eid(nbel,-1) ;
           readElementType(di,"entityIds",eid) ;
           H5Fclose(file_id) ;
@@ -646,8 +670,12 @@ void process_mean(string casename, string iteration,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
         string sname = var+"Mean" ;
 	cout << "Writing Variables: " << sname ;
+#ifdef H5_USE_16_API
+        hid_t group_id = H5Gcreate(file_id,"dataInfo",0) ;
+#else
         hid_t group_id = H5Gcreate(file_id,"dataInfo",
 				   H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
         writeElementType(group_id,"entityIds",ids) ;
         H5Gclose(group_id) ;
         writeElementType(file_id,sname.c_str(),m) ;
@@ -660,8 +688,12 @@ void process_mean(string casename, string iteration,
         sname = var+"Var" ;
 	cout << ", " << sname ;
 
+#ifdef H5_USE_16_API
+        group_id = H5Gcreate(file_id,"dataInfo",0) ;
+#else
         group_id = H5Gcreate(file_id,"dataInfo",
 			     H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
         writeElementType(group_id,"entityIds",ids) ;
         H5Gclose(group_id) ;
         writeElementType(file_id,sname.c_str(),v) ;
@@ -742,7 +774,7 @@ void combine_mean(string casename, string iteration,
 	    hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
 						H5F_ACC_RDONLY,
 						H5P_DEFAULT) ;
-	    Loci::readContainer(file_id,vname,scalar_mean.Rep(),EMPTY,facts) ;
+	    readData(file_id,vname,scalar_mean.Rep(),EMPTY,facts) ;
 	    Loci::hdf5CloseFile(file_id) ;
 	  }
 	  entitySet dom = scalar_mean.domain() ;
@@ -755,7 +787,7 @@ void combine_mean(string casename, string iteration,
 	    hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
 						H5F_ACC_RDONLY,
 						H5P_DEFAULT) ;
-	    Loci::readContainer(file_id,vname,scalar_var.Rep(),EMPTY,facts) ;
+	    readData(file_id,vname,scalar_var.Rep(),EMPTY,facts) ;
 	    Loci::hdf5CloseFile(file_id) ;
 	  }
 
@@ -767,7 +799,7 @@ void combine_mean(string casename, string iteration,
 	    hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
 						H5F_ACC_RDONLY,
 						H5P_DEFAULT) ;
-	    Loci::readContainer(file_id,vname,rentry.Rep(),EMPTY,facts) ;
+	    readData(file_id,vname,rentry.Rep(),EMPTY,facts) ;
 	    Loci::hdf5CloseFile(file_id) ;
 	  } else {
 	    rentry.allocate(dom) ;
@@ -865,7 +897,7 @@ void combine_mean(string casename, string iteration,
 	    hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
 						H5F_ACC_RDONLY,
 						H5P_DEFAULT) ;
-	    Loci::readContainer(file_id,vname,vect_mean.Rep(),EMPTY,facts) ;
+	    readData(file_id,vname,vect_mean.Rep(),EMPTY,facts) ;
 	    Loci::hdf5CloseFile(file_id) ;
 	  }
 	  entitySet dom = vect_mean.domain() ;
@@ -878,7 +910,7 @@ void combine_mean(string casename, string iteration,
 	    hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
 						H5F_ACC_RDONLY,
 						H5P_DEFAULT) ;
-	    Loci::readContainer(file_id,vname,vect_var.Rep(),EMPTY,facts) ;
+	    readData(file_id,vname,vect_var.Rep(),EMPTY,facts) ;
 	    Loci::hdf5CloseFile(file_id) ;
 	  }
 
@@ -890,7 +922,7 @@ void combine_mean(string casename, string iteration,
 	    hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
 						H5F_ACC_RDONLY,
 						H5P_DEFAULT) ;
-	    Loci::readContainer(file_id,vname,rentry.Rep(),EMPTY,facts) ;
+	    readData(file_id,vname,rentry.Rep(),EMPTY,facts) ;
 	    Loci::hdf5CloseFile(file_id) ;
 	  } else {
 	    rentry.allocate(dom) ;

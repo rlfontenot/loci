@@ -52,6 +52,11 @@ namespace Loci {
     void  hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, const entitySet &en) const;
     void  hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER c, const entitySet &en) const;
 
+    void  hdf5readP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, frame_info&fi, entitySet &en, hid_t xfer_plist_id);
+    void  hdf5readP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER c, frame_info &fi, entitySet &en,hid_t xfer_plist_id) ;
+    void  hdf5writeP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, const entitySet &en,hid_t xfer_plist_id) const;
+    void  hdf5writeP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER c, const entitySet &en,hid_t xfer_plist_id) const;
+
     int get_mpi_size(IDENTITY_CONVERTER c, const entitySet &eset);
     int get_estimated_mpi_size(IDENTITY_CONVERTER c, const entitySet &eset);
     int get_mpi_size(USER_DEFINED_CONVERTER c, const entitySet &eset);
@@ -109,7 +114,10 @@ namespace Loci {
     virtual std::istream &Input(std::istream &s) ;
     virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en) ;
     virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const ;
-
+#ifdef H5_HAVE_PARALLEL
+    virtual void readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en, hid_t xfer_plsit_id) ;
+    virtual void writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en,hid_t xfer_plsit_id) const ;
+#endif
     T ** get_base_ptr() const { return base_ptr ; }
     T *begin(int indx) { return base_ptr[indx] ; }
     T *end(int indx) { return base_ptr[indx+1] ; }
@@ -154,7 +162,7 @@ namespace Loci {
       p->setSizes(m) ;
     }
     const entitySet domain() const { return Rep()->domain() ; }
-    Vect<T> elem(int indx) 
+    Vect<T> elem(Entity indx) 
     {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
@@ -162,7 +170,15 @@ namespace Loci {
 #endif 
       return Vect<T>(base_ptr[indx],base_ptr[indx+1]-base_ptr[indx]) ; 
     }
-    Vect<T> operator[](int indx) 
+    Vect<T> operator[](Entity indx) 
+    {
+#ifdef BOUNDS_CHECK
+      fatal(base_ptr==NULL); 
+      fatal(!((Rep()->domain()).inSet(indx))) ;
+#endif 
+      return Vect<T>(base_ptr[indx],base_ptr[indx+1]-base_ptr[indx]) ; 
+    }
+    Vect<T> operator[](size_t indx) 
     {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
@@ -178,6 +194,7 @@ namespace Loci {
 
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ;}
+
   } ;
 
   template<class T> class const_multiStore : public store_instance {
@@ -203,13 +220,19 @@ namespace Loci {
     virtual instance_type access() const ;
     const_multiStore<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
     const entitySet domain() const { return Rep()->domain() ; }
-    containerType elem(int indx) {
+    containerType elem(Entity indx) {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif 
       return containerType(base_ptr[indx],base_ptr[indx+1]-base_ptr[indx]) ; }
-    containerType operator[](int indx) {
+    containerType operator[](Entity indx) {
+#ifdef BOUNDS_CHECK
+      fatal(base_ptr==NULL); 
+      fatal(!((Rep()->domain()).inSet(indx))) ;
+#endif 
+      return containerType(base_ptr[indx],base_ptr[indx+1]-base_ptr[indx]) ; }
+    containerType operator[](size_t indx) {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;

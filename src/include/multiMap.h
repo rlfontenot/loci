@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -51,6 +51,7 @@ namespace Loci {
     virtual storeRep *new_store(const entitySet &p) const ;
     virtual storeRep *new_store(const entitySet &p, const int* cnt) const ;
     virtual storeRepP remap(const dMap &m) const ;
+    virtual storeRepP MapRemap(const dMap &dm, const dMap &rm) const ;
     virtual void compose(const dMap &m, const entitySet &context) ;
     virtual void copy(storeRepP &st, const entitySet &context)  ;
     virtual void gather(const dMap &m, storeRepP &st,
@@ -72,12 +73,16 @@ namespace Loci {
 
     virtual entitySet image(const entitySet &domain) const ;
     virtual std::pair<entitySet,entitySet>
-      preimage(const entitySet &codomain) const ;
+    preimage(const entitySet &codomain) const ;
     virtual storeRepP get_map() ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
     virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en) ;
     virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const ;
+#ifdef H5_HAVE_PARALLEL 
+    virtual void readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en, hid_t xfer_plist_id) ;
+    virtual void writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en, hid_t xfer_plist_id) const ;
+#endif
     int ** get_base_ptr() const { return base_ptr ; }
     int *begin(int indx) { return base_ptr[indx] ; }
     int *end(int indx) { return base_ptr[indx+1] ; }
@@ -105,6 +110,9 @@ namespace Loci {
       arrayHelper(int *f, int *l) : first(f), last(l){}
       int size() { return last-first ; }
       int &operator[](int indx) { return first[indx] ; }
+      int &operator[](size_t indx) { return first[indx] ; }
+      int &operator[](unsigned int indx) { return first[indx] ; }
+      int &operator[](unsigned char indx) { return first[indx] ; }
       int *begin() { return first ; }
       int *end() { return last; }
     } ;
@@ -115,6 +123,9 @@ namespace Loci {
       arrayHelper_const(const int *f, const int *l) : first(f), last(l){}
       int size() { return last-first ; }
       const int &operator[](int indx) { return first[indx] ; }
+      const int &operator[](size_t indx) { return first[indx] ; }
+      const int &operator[](unsigned int indx) { return first[indx] ; }
+      const int &operator[](unsigned char indx) { return first[indx] ; }
       const int *begin() { return first ; }
       const int *end() { return last; }
     } ;
@@ -163,14 +174,28 @@ namespace Loci {
       return arrayHelper_const(base_ptr[indx],base_ptr[indx+1]) ;
     }
 
-    arrayHelper operator[](int indx) {
+    arrayHelper operator[](Entity indx) {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif
       return arrayHelper(base_ptr[indx],base_ptr[indx+1]) ;
     }
-    arrayHelper_const operator[](int indx) const {
+    arrayHelper_const operator[](Entity indx) const {
+#ifdef BOUNDS_CHECK
+      fatal(base_ptr==NULL); 
+      fatal(!((Rep()->domain()).inSet(indx))) ;
+#endif
+      return arrayHelper_const(base_ptr[indx],base_ptr[indx+1]) ;
+    }
+    arrayHelper operator[](size_t indx) {
+#ifdef BOUNDS_CHECK
+      fatal(base_ptr==NULL); 
+      fatal(!((Rep()->domain()).inSet(indx))) ;
+#endif
+      return arrayHelper(base_ptr[indx],base_ptr[indx+1]) ;
+    }
+    arrayHelper_const operator[](size_t indx) const {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
@@ -186,12 +211,14 @@ namespace Loci {
     int vec_size(int indx) const { return end(indx)-begin(indx) ; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ; }
+    int getRangeKeySpace() const { return MapRepP(Rep())->getRangeKeySpace() ; }
+    void setRangeKeySpace(int v) { MapRepP(Rep())->setRangeKeySpace(v) ; }
   } ;
   
   inline std::ostream & operator<<(std::ostream &s, const multiMap &m)
-    { return m.Print(s) ; }
+  { return m.Print(s) ; }
   inline std::istream & operator>>(std::istream &s, multiMap &m)
-    { return m.Input(s) ; }
+  { return m.Input(s) ; }
 
   class const_multiMap : public store_instance {
     typedef multiMapRepI MapType ;
@@ -209,8 +236,12 @@ namespace Loci {
       arrayHelper_const(const int *f, const int *l) : first(f), last(l){}
       int size() { return last-first ; }
       const int &operator[](int indx) { return first[indx] ; }
+      const int &operator[](size_t indx) { return first[indx] ; }
+      const int &operator[](unsigned int indx) { return first[indx] ; }
+      const int &operator[](unsigned char indx) { return first[indx] ; }
       const int *begin() { return first ; }
       const int *end() { return last; }
+      
     } ;
 
     const_multiMap() { setRep(new MapType) ; }
@@ -233,13 +264,19 @@ namespace Loci {
       MapRepP p(Rep()) ;
       fatal(p==0) ;
       return p ; }
-    arrayHelper_const const_elem(int indx)  const {
+    arrayHelper_const const_elem(Entity indx)  const {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif
       return arrayHelper_const(base_ptr[indx],base_ptr[indx+1]); }
-    arrayHelper_const operator[](int indx) const { 
+    arrayHelper_const operator[](Entity indx) const { 
+#ifdef BOUNDS_CHECK
+      fatal(base_ptr==NULL); 
+      fatal(!((Rep()->domain()).inSet(indx))) ;
+#endif
+      return arrayHelper_const(base_ptr[indx],base_ptr[indx+1]); }
+    arrayHelper_const operator[](size_t indx) const { 
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
@@ -249,13 +286,14 @@ namespace Loci {
     const int *begin(int indx) const { return base_ptr[indx] ; }
     const int *end(int indx) const { return base_ptr[indx+1] ; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
+    int getRangeKeySpace() const { return MapRepP(Rep())->getRangeKeySpace() ; }
   } ;
 
 
-/*
-  inline std::ostream & operator<<(std::ostream &s, const const_multiMap &m)
+  /*
+    inline std::ostream & operator<<(std::ostream &s, const const_multiMap &m)
     { return m.Print(s) ; }
-*/
+  */
 
   void inverseMap(multiMap &result,
                   const Map &input_map,

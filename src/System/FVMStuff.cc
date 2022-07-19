@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -18,8 +18,8 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
+//#define VERBOSE
 #include <Loci>
-#include <sstream>
 #include <LociGridReaders.h>
 #include <Tools/tools.h>
 #include <map>
@@ -37,20 +37,16 @@ using std::pair ;
 #include <algorithm>
 using std::sort ;
 using std::unique ;
+#include <Tools/stream.h>
 
 #include "dist_tools.h"
 using std::cout ;
 
-#include <gconstraint.h>
-#include <gstore.h>
-#include <gmap.h>
-#include <gmultimap.h>
-#include <gmapvec.h>
-#include <distribute_long.h>
+#define vect3d vector3d<double>
 
 namespace Loci{
-  typedef vector3d<double> vect3d ;
-
+  extern int getKeyDomain(entitySet dom, fact_db::distribute_infoP dist, MPI_Comm comm) ;
+  extern  bool useDomainKeySpaces  ;
   // Convert container from local numbering to file numbering
   // pass in store rep pointer: sp
   // entitySet to write: dom
@@ -69,159 +65,6 @@ namespace Loci{
                                    fact_db& facts, MPI_Comm comm);
   
   
-  void setupOverset(fact_db &facts) {
-    using namespace Loci ;
-    using std::map ;
-    gStoreRepP sp = facts.get_gvariable("componentGeometry") ;
-    if(sp == 0)
-      return ;
-    sp = facts.get_gvariable("ci") ;
-    if(sp == 0)
-      return ;
-    gEntitySet bfaces = sp->domain() ;
-    sp = facts.get_gvariable("interface_BC") ;
-    if(sp != 0) {
-      gConstraint tmp ;
-      tmp = sp ;
-      bfaces -= *tmp ;
-    }
-    sp = facts.get_gvariable("symmetry_BC") ;
-    if(sp != 0) {
-      gConstraint tmp ;
-      tmp = sp ;
-      bfaces -= *tmp ;
-    }
-    sp = facts.get_gvariable("face2node") ;
-    
-    gMapRepP mp = gMapRepP(sp->getRep()) ;
-    gEntitySet nodeSet = mp->image(bfaces) ;
-
-    gStore<vect3d> pos ;
-
-    pos = facts.get_gvariable("pos") ;
-    gEntitySet dom = pos.domain() ;
-    vector<gEntitySet> posptn = g_all_collect_vectors<gEntity>(dom,MPI_COMM_WORLD) ;
-    gEntitySet surfNodes = g_dist_collect_entitySet<gEntity>(nodeSet,posptn,MPI_COMM_WORLD) ;
-    
-    // Now get volume tags
-    variableSet vars = facts.get_extensional_facts() ;
-    map<string,gEntitySet> volMap ;
-    for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
-      if(variable(*vi).get_arg_list().size() > 0 &&
-         variable(*vi).get_info().name == "volumeTag") {
-        gParam<string> vname(facts.get_gvariable(*vi)) ;
-	std::ostringstream vn ;
-        vn << *vi ;
-        string name = vn.str() ;
-        volMap[name] = vname.domain() ;
-      }
-    }
-
-    // If no volume tags (Weird), then make default tag.
-    if(volMap.begin() == volMap.end()) {
-      volMap[string("Main")] = ~GEMPTY ;
-    }
-    vector<gEntitySet> volSets ;
-    map<string,gEntitySet>::const_iterator mi ;
-    for(mi=volMap.begin();mi!=volMap.end();++mi) {
-      // This could be a scalability problem!!!!
-      volSets.push_back(g_all_collect_entitySet<gEntity>(mi->second)) ;
-    }
-
-    // Now get face associations with volumes
-    vector<gEntitySet> facesets ;
-    int sz = volSets.size() ;
-    gMap cl,cr ;
-    cl = facts.get_gvariable("cl") ;
-    cr = facts.get_gvariable("cr") ;
-    gEntitySet domf = cl.domain()+cr.domain() ;
-    for(int i=0;i<sz;++i) {
-      gEntitySet faces = (cr.preimage(volSets[i]).first +
-                          cl.preimage(volSets[i]).first) ;
-      
-      facesets.push_back(g_all_collect_entitySet(faces)) ;
-    }
-
-    // Now get node associations with volumes
-
-    vector<gEntitySet> nodesets ;
-    for(int i=0;i<sz;++i) {
-      gEntitySet nodes = mp->image(facesets[i]) ;
-      nodesets.push_back(g_all_collect_entitySet<gEntity>(nodes)) ;
-    }
-    
-
-    gMap min_node2surf_loc ;
-    gEntitySet excludeSet ;
-    
-    for(int i=0;i<sz;++i) {
-      gEntitySet nodeSet = nodesets[i] & pos.domain() ;
-      gEntitySet nodeSetsurf = nodesets[i] & surfNodes ;
-      if(!GLOBAL_OR(nodeSetsurf.size()!=0)) {
-        excludeSet += nodeSet ;
-        continue ;
-      }
-      vector<Loci::kdTree::coord3d> bcnodes_pts(nodeSetsurf.size()) ;
-      vector<gEntity> bcnodes_ids(nodeSetsurf.size()) ;
-
-      int cnt = 0 ;
-      gStore<vect3d>::const_iterator p_itr = pos.begin();
-      for(gEntitySet::const_iterator itr = nodeSetsurf.begin(); itr != nodeSetsurf.end(); itr++){
-        gEntity node = *itr;
-        while(p_itr != pos.end() && p_itr->first < node) p_itr++;
-        if(p_itr->first == node){
-          bcnodes_pts[cnt][0] = (p_itr->second).x ;
-          bcnodes_pts[cnt][1] = (p_itr->second).y ;
-          bcnodes_pts[cnt][2] = (p_itr->second).z ;
-          bcnodes_ids[cnt] = node ;
-          cnt++ ;
-        }
-      }
-
-
-      
-      
-      vector<Loci::kdTree::coord3d> node_pts(nodeSet.size()) ;
-      vector<gEntity> closest(nodeSet.size(),-1) ;
-      cnt = 0 ;
-      p_itr = pos.begin();
-      for(gEntitySet::const_iterator itr = nodeSet.begin(); itr != nodeSet.end(); itr++){
-        gEntity node = *itr;
-        while(p_itr != pos.end() && p_itr->first < node) p_itr++; 
-        if(p_itr->first == node){
-          node_pts[cnt][0] = (p_itr->second).x ;
-          node_pts[cnt][1] = (p_itr->second).y ;
-          node_pts[cnt][2] =  (p_itr->second).z ;
-          cnt++ ;
-        }
-      }
-      
-      Loci::parallelNearestNeighbors(bcnodes_pts,bcnodes_ids,node_pts,closest,
-                                     MPI_COMM_WORLD) ;
-
-      cnt = 0 ;
-      GFORALL(nodeSet,nd) {
-        min_node2surf_loc.insert(nd, closest[cnt]) ;
-        cnt++ ;
-      } ENDGFORALL ;
-    }
-
-    gMap min_node2surf ;
-
-    if(excludeSet == GEMPTY) {
-      min_node2surf.setRep(min_node2surf_loc.Rep()) ;
-    } else {
-      for(gMap::const_iterator itr =  min_node2surf_loc.begin();
-          itr != min_node2surf_loc.end(); itr++){
-        if(!excludeSet.inSet(itr->first)){
-          min_node2surf.insert(itr->first, itr->second);
-        }
-      }
-    }
-    gKeySpaceP node_space = gKeySpace::get_space("NodeSpace", "");
-    facts.create_gfact("node2surf",min_node2surf, node_space, node_space) ;
-  }
-
   //map from local numbering to input file numbering
   //assume the union of nodes on all processors will be either all the nodes,
   //all the faces, or all the cells. i.e., one interval in file numbering
@@ -238,12 +81,12 @@ namespace Loci{
       return nm.Rep() ;
     }
     
-    vector<entitySet> init_ptn = facts.get_init_ptn() ;
+    vector<entitySet> init_ptn = facts.get_init_ptn(0) ;// FIX THIS
     fact_db::distribute_infoP df = facts.get_distribute_info() ;
     Map l2g ;
     l2g = df->l2g.Rep() ;
     dMap g2f ;
-    g2f = df->g2f.Rep() ;
+    g2f = df->g2fv[0].Rep() ;// FIX THIS
 
     entitySet gnodes = l2g.image(nodes&l2g.domain()) ;
     entitySet gset = findBoundingSet(gnodes) ;
@@ -263,14 +106,14 @@ namespace Loci{
     return newnum.Rep() ;
   }
 
-
   //return a map from local numbering to output file numbering
   //the file number starts with 1
   //input: nodes : the local store domain need to be output,
-  //assume nodes will be written out in the global ordering.   
+  //assume nodes will be written out in the global ordering.  
+
   storeRepP get_output_node_remap(fact_db &facts,entitySet nodes) {
-   
-    if(MPI_processes == 1) {
+    int p = MPI_processes ;
+    if(p == 1) {
       int index = 1;
       
       Map nm ;
@@ -280,36 +123,153 @@ namespace Loci{
       } ENDFORALL ;
       return nm.Rep() ;
     }
-    
-    vector<entitySet> init_ptn = facts.get_init_ptn() ;
+#ifdef VERBOSE
+    stopWatch s ;
+    s.start() ;
+#endif
+    // when working in parallel we will have data scattered over
+    // processors, so we will have to sort this data in a distributed
+    // fashion in order to find the file numbering of the condensed
+    // global numbered set
     fact_db::distribute_infoP df = facts.get_distribute_info() ;
     Map l2g ;
     l2g = df->l2g.Rep() ;
     
+    // gnodes is the global numbering for entities that this processor
+    // references (because it is the result of an image, there will
+    // be duplicates).  We map to the global numbering since this will
+    // match the ordering of the vector write routines
     entitySet gnodes = l2g.image(nodes&l2g.domain()) ;
     if(nodes.size() != gnodes.size()){
       debugout<<"ERROR: l2g.domain is smaller than  dom in get_output_node_remap " << endl;
     }
+    // extract a sorted list of global entities accessed by this processor
+#ifdef VERBOSE
+    debugout << "time to get gnodes = " << s.stop() << endl ;
+    s.start() ;
+#endif
+    int gsz = gnodes.size() ;
+    int color = (gsz>0)?1:0 ;
+    MPI_Comm groupcomm ;
+    MPI_Comm_split(MPI_COMM_WORLD,color,p,&groupcomm) ;
+    if(color==0) {
+      MPI_Comm_free(&groupcomm) ;
+#ifdef VERBOSE
+      debugout << "time to split comm and return = " << s.stop() << endl ;
+      s.start() ;
+#endif
+      Map newnum ;
+      return newnum.Rep() ;
+    }
+#ifdef VERBOSE
+    debugout << "time to split comm = " << s.stop() << endl ;
+    s.start() ;
+#endif
+    MPI_Comm_size(groupcomm,&p) ;
+    vector<int> gnodelistg(gsz) ;
+    int cnt = 0 ;
+
+    FORALL(gnodes,ii) {
+      gnodelistg[cnt] = ii ;
+      cnt++ ;
+    } ENDFORALL ;
+    if(cnt != gsz) {
+      cerr << "cnt=" << cnt << "gsz=" << gsz << endl ;
+    }
+    // form a partition of the global numbered entities across processors
+    int lmaxnode = gnodes.Max() ;
+    int lminnode = gnodes.Min() ;
+    int maxnode,minnode ;
+    MPI_Allreduce(&lmaxnode,&maxnode,1,MPI_INT,MPI_MAX,groupcomm) ;
+    MPI_Allreduce(&lminnode,&minnode,1,MPI_INT,MPI_MIN,groupcomm) ;
+    int delta = max((1+maxnode-minnode)/p,1024) ;
+    // find out what processor owns each entity
+    vector<int> sendsz(p,0) ;
+    for(int i=0;i<gsz;++i) {
+      int proc = min((gnodelistg[i]-minnode)/delta,p-1) ;
+      sendsz[proc]++ ;
+    }
+#ifdef VERBOSE
+    debugout << "time to form partition = " << s.stop() << endl ;
+    s.start() ;
+#endif
+    // transpose sendsz to find out how much each processor partition recvs
+    vector<int> recvsz(p,0) ;
+    MPI_Alltoall(&sendsz[0],1,MPI_INT,&recvsz[0],1,MPI_INT,groupcomm) ;
+    // setup recv buffers to communicate data
+    int recvbufsz = 0; 
+    for(int i=0;i<p;++i)
+      recvbufsz+= recvsz[i] ;
+    vector<int> rdispls(p),sdispls(p) ;
+    rdispls[0] = 0 ;
+    sdispls[0] = 0 ;
+    for(int i=1;i<p;++i) {
+      rdispls[i] = rdispls[i-1]+recvsz[i-1] ;
+      sdispls[i] = sdispls[i-1]+sendsz[i-1] ;
+    }
+    vector<int> recvdata(recvbufsz) ;
+    MPI_Alltoallv(&gnodelistg[0],&sendsz[0],&sdispls[0],MPI_INT,
+		  &recvdata[0],&recvsz[0],&rdispls[0],MPI_INT,
+		  groupcomm) ;
+#ifdef VERBOSE
+    debugout << "distributed data local size = " << recvdata.size() << endl;
+    debugout << "time to distribute set data = " << s.stop() << endl ;
+    s.stop() ;
+#endif
+    // Now sort a copy of the recieved data so the local data is in order
+    // and duplicates are removed
+    vector<int> recvdatac = recvdata ;
+    sort(recvdatac.begin(),recvdatac.end()) ;
+    vector<int>::iterator last = std::unique(recvdatac.begin(),
+					     recvdatac.end()) ;
+    recvdatac.erase(last,recvdatac.end()) ;
+    // now calculate the starting index for each processor
+    int ssz = recvdatac.size() ;
+    vector<int> sortsz(p) ;
+    int roff = 0 ;
+    MPI_Scan(&ssz,&roff,1,MPI_INT,MPI_SUM,groupcomm) ;
+    // adjust roff so that it is the count at the beginning of this
+    // processors segment
+    roff -= ssz ;
+    // we are numbering the first entry with 1
+    roff += 1 ;
+    // Now compute a map from our global numbering to the file numbering
+    // which is contiguously numbered from 1
+    std::map<int,int> filemap ;
+    for(int i=0;i<ssz;++i)
+      filemap[recvdatac[i]] = i+roff ;
+    // Now send back the file numbering
+    vector<int> filenosend(recvbufsz,-1) ;
+    for(int i=0;i<recvbufsz;++i) 
+      filenosend[i] = filemap[recvdata[i]] ;
+    vector<int> gnodefnum(gnodelistg.size(),-1) ;
+    // note now recvsz is sending and sendsz is recving
+    MPI_Alltoallv(&filenosend[0],&recvsz[0],&rdispls[0],MPI_INT,
+		  &gnodefnum[0],&sendsz[0],&sdispls[0],MPI_INT,
+		  groupcomm) ;
+#ifdef VERBOSE
+    debugout << "time to return index = " << s.stop() << endl ;
+    s.start() ;
+#endif
+    MPI_Comm_free(&groupcomm) ;
+
+    // now create global 2 file map by extracting data from gnodefnum
+    std::map<int,int> g2f;
+    for(size_t i=0;i<gnodelistg.size();++i)  {
+      g2f[gnodelistg[i]] = gnodefnum[i] ;
+    }
     
-    entitySet gset = all_collect_entitySet(gnodes) ;
-    Map g2f;
-    g2f.allocate(gset);
-    
-    
-    int index = 1; //node index starts with 1
-    FORALL(gset, n){
-      g2f[n] = index++;
-    }ENDFORALL;
-    
+    // join the two maps to get local 2 file mapping
     Map newnum ;
     newnum.allocate(nodes) ;
 
     FORALL(nodes,i) {
       newnum[i] = g2f[l2g[i]];
     } ENDFORALL ;
-   
+#ifdef VERBOSE
+    debugout << "time to form map = " << s.stop() << endl ;
+#endif
     return newnum.Rep() ;
-    
   }
   
   int classify_cell(Entity *faces,int nfaces,const_multiMap &face2node) {
@@ -492,24 +452,29 @@ namespace Loci{
     int sz = input.size()+1 ;
     int p = 1 ;
     MPI_Comm_size(comm,&p) ;
-    vector<int> sizes(p) ;
-    MPI_Allgather(&sz,1,MPI_INT,&sizes[0],1,MPI_INT,comm) ;
+    int *sizes = new int[p] ;
+    MPI_Allgather(&sz,1,MPI_INT,sizes,1,MPI_INT,comm) ;
     int tot = 0 ;
     for(int i=0;i<p;++i)
       tot += sizes[i] ;
-    vector<char> buf(tot) ;
-    vector<int> displ(p) ;
+    char *buf = new char[tot] ;
+    int *displ = new int[p] ;
     displ[0] = 0 ;
     for(int i=1;i<p;++i)
       displ[i] = displ[i-1]+sizes[i-1] ;
-    vector<char> ibuf(sz) ;
-    strcpy(&ibuf[0],input.c_str()) ;
-    MPI_Allgatherv(&ibuf[0],sz,MPI_CHAR,
-                   &buf[0], &sizes[0], &displ[0],MPI_CHAR,comm) ;
+    char *ibuf = new char[sz] ;
+    strcpy(ibuf,input.c_str()) ;
+    MPI_Allgatherv(ibuf,sz,MPI_CHAR,
+                   buf, sizes, displ,MPI_CHAR,comm) ;
     string retval ;
     for(int i=0;i<p;++i)
       retval += string(&(buf[displ[i]])) ;
 
+    delete[] sizes ;
+    delete[] buf ;
+    delete[] ibuf ;
+    delete[] displ ;
+    
     return retval ;
   }
   //node_id range is 1~numNodes
@@ -712,12 +677,16 @@ namespace Loci{
 
     // write grid topology file
     hid_t file_id = 0, group_id = 0 ;
-    if(MPI_rank == 0) {
-      file_id = H5Fcreate(filename,H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT) ;
-      group_id = H5Gcreate(file_id,"elements",
-			   H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+    file_id=writeVOGOpen(filename) ;
+    if(use_parallel_io ||MPI_rank == 0 ) {
+#ifdef H5_USE_16_API
+      group_id = H5Gcreate(file_id,"elements",0) ;
+#else
+      group_id = H5Gcreate(file_id,"elements",H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
     }
 
+   
     writeUnorderedVector(group_id, "tetrahedra",tets) ;
     writeUnorderedVector(group_id, "tetrahedra_ids",tets_ids) ;
     
@@ -726,19 +695,23 @@ namespace Loci{
     
     writeUnorderedVector(group_id, "prism",prsm) ;
     writeUnorderedVector(group_id, "prism_ids",prsm_ids) ;
-    
+      
     writeUnorderedVector(group_id, "pyramid",pyrm) ;
     writeUnorderedVector(group_id, "pyramid_ids",pyrm_ids) ;
-    
+      
     writeUnorderedVector(group_id, "GeneralCellNfaces",generalCellNfaces) ;
     writeUnorderedVector(group_id, "GeneralCellNsides",generalCellNsides) ;
     writeUnorderedVector(group_id, "GeneralCellNodes", generalCellNodes) ;
     writeUnorderedVector(group_id, "GeneralCell_ids", generalCell_ids) ;
+     
     
-    if(MPI_rank == 0) {
+    if(use_parallel_io || MPI_rank == 0) {
       H5Gclose(group_id) ;
-      group_id = H5Gcreate(file_id,"boundaries",
-			   H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#ifdef H5_USE_16_API
+      group_id = H5Gcreate(file_id,"boundaries",0) ;
+#else
+      group_id = H5Gcreate(file_id,"boundaries",H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
     }
 
     const_store<string> boundary_names(bnamesRep) ;
@@ -746,7 +719,7 @@ namespace Loci{
     entitySet boundaries = boundary_names.domain() ;
     if(MPI_processes > 1) {
       entitySet local_boundaries ;
-      std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
+      std::vector<entitySet> init_ptn = facts.get_init_ptn(0) ; // FIX THIS
       Map l2g ;
       fact_db::distribute_infoP df = facts.get_distribute_info() ;
       l2g = df->l2g.Rep() ;
@@ -782,12 +755,38 @@ namespace Loci{
     entitySet  fset = (MapRepP(boundary_mapRep)->image(localCells)+
                        MapRepP(upperRep)->image(localCells)) & ref.domain() ;
 
+    Map l2g ;
+    dMap g2f ;
+    if(MPI_processes > 1) {
+      fact_db::distribute_infoP df = facts.get_distribute_info() ;
+      int kd =  getKeyDomain(fset, df, MPI_COMM_WORLD) ;
+      
+      if(kd < 0) {
+	cerr << "gridTopology, boundary faces not in single keyspace!"
+	     << endl ;
+	kd = 0 ;
+      }
+      //      debugout << "in write gridTopology, face key domain is " << kd
+      //	       << endl ;
+      l2g = df->l2g.Rep() ;
+      g2f = df->g2fv[kd].Rep() ;
+    } else {
+      l2g.allocate(fset) ;
+      FORALL(fset,fc) {
+	l2g[fc] = fc ;
+	g2f[fc] = fc ;
+      } ENDFORALL ;
+    }
+
     for(size_t i=0;i<bnamelist.size();++i) {
       hid_t bc_id = 0 ;
       string current_bc = bnamelist[i] ;
-      if(MPI_rank==0) {
-        bc_id = H5Gcreate(group_id,current_bc.c_str(),
-			  H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+      if(use_parallel_io || MPI_rank==0) {
+#ifdef H5_USE_16_API
+        bc_id = H5Gcreate(group_id,current_bc.c_str(),0) ;
+#else
+        bc_id = H5Gcreate(group_id,current_bc.c_str(),H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
       }
 
       bool found_ref = false ;
@@ -804,19 +803,6 @@ namespace Loci{
           if(ref[fc] == id)
             bfaces+= fc ;
         }ENDFORALL ;
-      }
-      Map l2g ;
-      dMap g2f ;
-      if(MPI_processes > 1) {
-        fact_db::distribute_infoP df = facts.get_distribute_info() ;
-        l2g = df->l2g.Rep() ;
-        g2f = df->g2f.Rep() ;//why no map expanding? 
-      } else {
-        l2g.allocate(bfaces) ;
-        FORALL(bfaces,fc) {
-          l2g[fc] = fc ;
-          g2f[fc] = fc ;
-        } ENDFORALL ;
       }
       
       int ntria=0, nquad=0, nsided =0;
@@ -862,29 +848,28 @@ namespace Loci{
           ng++ ;
         }
       } ENDFORALL ;
-          
+
+     
       writeUnorderedVector(bc_id,"triangles",Trias) ;
       writeUnorderedVector(bc_id,"triangles_id",tria_ids) ;
-
+	
       writeUnorderedVector(bc_id,"quads",Quads) ;
       writeUnorderedVector(bc_id,"quads_id",quad_ids) ;
-
+	
       writeUnorderedVector(bc_id,"nside_sizes",nsizes) ;
       writeUnorderedVector(bc_id,"nside_nodes",nsidenodes) ;
       writeUnorderedVector(bc_id,"nside_id",genc_ids) ;
-      
-      if(MPI_rank == 0) {
+       
+      if(use_parallel_io || MPI_rank == 0) {
         H5Gclose(bc_id) ;
       }
       
     }
       
-    if(MPI_rank == 0) {
+    if(use_parallel_io || MPI_rank == 0) {
       H5Gclose(group_id) ;
       H5Fclose(file_id) ;
     } 
-
-
 
   }
   
@@ -896,7 +881,7 @@ namespace Loci{
     entitySet boundaries = boundary_names.domain() ;
     if(MPI_processes > 1) {
       entitySet local_boundaries ;
-      std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
+      std::vector<entitySet> init_ptn = facts.get_init_ptn(0) ; // FIX THIS
       Map l2g ;
       fact_db::distribute_infoP df = facts.get_distribute_info() ;
       l2g = df->l2g.Rep() ;
@@ -956,15 +941,10 @@ namespace Loci{
     hid_t file_id = 0;
     if(MPI_rank == 0) {
       get_bc_directory(bc_name);
-      string dirname = "output/"+bc_name+"/";
-      string filename = dirname+file_name;
-      file_id = H5Fcreate(filename.c_str(),H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT) ;
-    
-      if(file_id == 0){
-        cerr << "ERROR: can not file " << filename << endl ;
-        Loci::Abort() ;
-      }
     }
+    string dirname = "output/"+bc_name+"/";
+    string filename = dirname+file_name;
+    file_id=writeVOGOpen(filename.c_str()) ;
     return file_id;
   }
   
@@ -1025,6 +1005,12 @@ namespace Loci{
                          storeRepP face2nodeRep,
                          entitySet bfaces,//boundary faces define this surface 
                          fact_db &facts ){ 
+#ifdef VERBOSE
+    debugout << "writing out boundary surface topology" << endl ;
+    stopWatch s ;
+    s.start() ;
+#endif
+
     const_multiMap face2node(face2nodeRep) ;
 
     //collect the local boundary nodes belong to this boundary
@@ -1034,6 +1020,10 @@ namespace Loci{
     Map node_remap ;
     node_remap = get_output_node_remap(facts, nodes_local) ;
 
+#ifdef VERBOSE
+    debugout << "time to get_output_node_remap = " << s.stop() << endl ;
+    s.start() ;
+#endif
     // Compute face reordering for topo sorting
     store<int> faceorder ;
     faceorder.allocate(bfaces) ;
@@ -1093,16 +1083,26 @@ namespace Loci{
       }
     } ENDFORALL ;
     
-      
+#ifdef VERBOSE
+    debugout << "time to generate topology datasets = " << s.stop() << endl ;
+    s.start() ;
+#endif
+
+    
     //write out vectors
     writeUnorderedVector(file_id,"triangles",Trias) ;
     writeUnorderedVector(file_id,"triangles_ord",tria_ids) ;
     writeUnorderedVector(file_id,"quads",Quads) ;
     writeUnorderedVector(file_id,"quads_ord",quad_ids) ;
-    
+      
     writeUnorderedVector(file_id,"nside_sizes",nsizes) ;
     writeUnorderedVector(file_id,"nside_nodes",nsidenodes) ;
     writeUnorderedVector(file_id,"nside_ord",genc_ids) ;
+ 
+#ifdef VERBOSE
+    debugout << "time to write unordered vectors = " << s.stop() << endl ;
+    debugout << "finished writing boundary topology" << endl ;
+#endif
   }
       
   //this function find the index of an inner edge.
@@ -1130,7 +1130,7 @@ namespace Loci{
                         const_multiMap& face2node,
                         const_multiMap& face2edge,
                         const_MapVec<2>& edge2node,
-                        const_store<real_t>& val,
+                        const_store<double>& val,
                         entitySet& edgesCut, //the edges(node 2 node) cut
                         std::map<pair<int, int>, int >& edgeIndex,//map of inner edges(face 2 node) to its index in inner_edges, the index starts with 1 
                         vector<pair<int, int> >& intersects, //pair of edges, if the second number is negative, it is index to inner_edges
@@ -1140,7 +1140,7 @@ namespace Loci{
     int nNodes = face2node.num_elems(f);
     
     //get the value of face center
-    real_t  newNode = 0.0 ;
+    double  newNode = 0.0 ;
     for (int i = 0; i < nNodes; ++i) {
       newNode += val[face2node[f][i]];
     }
@@ -1187,7 +1187,7 @@ namespace Loci{
                     const_multiMap& face2node,
                     const_multiMap& face2edge,
                     const_MapVec<2>& edge2node,
-                    const_store<real_t>& val,
+                    const_store<double>& val,
                     entitySet& edgesCut,//the edges(node 2 node) cut
                     std::map<pair<int, int>, int >& edgeIndex,//map of inner edges(face center 2 node) to its index in inner_edges, the index starts with 1
                     vector<pair<int, int> >& intersects, //pair of edges, if the value is negative, it is index to inner_edges
@@ -1303,10 +1303,10 @@ namespace Loci{
   //return the cutting position of an edge 
   double get_edge_weight(Entity e,
                          const_MapVec<2>& edge2node,
-                         const_store<real_t>& val){
+                         const_store<double>& val){
     
-    real_t a = val[edge2node[e][0]];
-    real_t b = val[edge2node[e][1]];
+    double a = val[edge2node[e][0]];
+    double b = val[edge2node[e][1]];
     return ((b)/(b - a));
   }
  
@@ -1326,7 +1326,7 @@ namespace Loci{
       boundary_map(boundary_mapRep),face2node(face2nodeRep), face2edge(face2edgeRep) ;
     
     const_MapVec<2> edge2node(edge2nodeRep);
-    const_store<real_t> val(valRep);
+    const_store<double> val(valRep);
 
     // data structure:
     entitySet edgesCut;
@@ -1390,10 +1390,18 @@ namespace Loci{
   void writeCutPlaneTopo(hid_t bc_id,
                          const CutPlane& cp,
                          fact_db &facts){ 
+#ifdef VERBOSE
+    debugout << "write cutPlaneTopology" << endl ;
+    stopWatch s ;
+    s.start() ;
+#endif
     Map node_remap;//map from local numbering to output file numbering for edge entities
     entitySet edgesCut = (cp.edgesWeight)->domain();
     node_remap = get_output_node_remap(facts, edgesCut);
-    
+#ifdef VERBOSE
+    debugout << "time to get remap = " << s.stop() << endl ;
+    s.start() ;
+#endif
    
     //write out the sizes of faceLoops  
     int num_faces = cp.faceLoops.size();
@@ -1401,6 +1409,7 @@ namespace Loci{
     for(int i = 0; i < num_faces; i++){
       nsizes[i] = cp.faceLoops[i].size();
     }
+    
     
     writeUnorderedVector(bc_id,"nside_sizes",nsizes) ;
     
@@ -1414,1311 +1423,163 @@ namespace Loci{
         }
       }
     }
+    
+   
     writeUnorderedVector(bc_id,"nside_nodes",nsidenodes) ;
-  }
-  
-  // namespace {
-  void get_vect3dOption(const options_list &ol,std::string vname,
-                        std::string units, vector3d<real_t> &vec, real_t Lref) {
-    option_value_type ovt= ol.getOptionValueType(vname) ;
-    if(ovt == REAL) {
-      double v ;
-      ol.getOption(vname,v) ;
-      vec = vector3d<real_t>(v*Lref,0,0) ;
-    } else if(ol.getOptionValueType(vname) == UNIT_VALUE) {
-      UNIT_type vu ;
-      ol.getOption(vname,vu) ;
-      if(!vu.is_compatible(units)) {
-        std::cerr << "wrong type of units for vector " << vname
-                  << ": " << vu << std::endl ;
-        Abort() ;
-      } else {
-        double v ;
-        v = vu.get_value_in(units) ;
-        vec = vector3d<real_t>(v,0,0) ;
-      }
-    } else if(ovt == LIST) {
-      options_list::arg_list value_list ;
-      ol.getOption(vname,value_list) ;
-      if(value_list.size() != 3) {
-        std::cerr << "error on reading '" << vname
-                  <<"': vector input must contain 3 terms"
-                  << std::endl ;
-        Abort() ;
-      }
-      for(int i=0;i<3;++i)
-        if(value_list[i].type_of() != REAL &&
-           value_list[i].type_of() != UNIT_VALUE) {
-          std::cerr << "improper vector specification for '"
-                    << vname << std::endl ;
-          Abort() ;
-        }
-      double vecval[3] ;
-      for(int i=0;i<3;++i) {
-        if(value_list[i].type_of() == UNIT_VALUE) {
-          UNIT_type vu ;
-          value_list[i].get_value(vu) ;
-          if(!vu.is_compatible(units)) {
-            std::cerr << "wrong type of units for vector " << vname
-                      << ": " << vu << std::endl ;
-            Abort() ;
-          }
-          vecval[i] = vu.get_value_in(units) ;
-        } else {
-          value_list[i].get_value(vecval[i]) ;
-          vecval[i] *= Lref ;
-        }
-      }
-      vec.x = vecval[0] ;
-      vec.y = vecval[1] ;
-      vec.z = vecval[2] ;
-    } else if(ovt == FUNCTION) {
-      string name ;
-      options_list::arg_list value_list ;
-      ol.getOption(vname,name,value_list) ;
-      if(name != "polar") {
-        std::cerr << "don't know coordinate function '" << name
-                  <<"', defaulting to polar" << std::endl ;
-        Abort() ;
-      }
-      if(value_list.size() != 3) {
-        std::cerr << "error on reading '"
-                  << vname << "': vector input must contain 3 terms"
-                  << std::endl ;
-        Abort() ;
-      }
-      for(int i=0;i<3;++i)
-        if(value_list[i].type_of() != REAL &&
-           value_list[i].type_of() != UNIT_VALUE) {
-          std::cerr << "improper vector specification for '"
-                    << vname << std::endl ;
-          Abort() ;
-        }
-      real_t r=1 ,theta=0 ,eta=0 ;
-      real_t conv = M_PI/180.0 ;
-      if(value_list[0].type_of() == UNIT_VALUE) {
-        UNIT_type vu ;
-        value_list[0].get_value(vu) ;
-        if(!vu.is_compatible(units)) {
-          std::cerr << "wrong type of units for vector " << vname
-                    << ": " << vu << std::endl ;
-          Abort() ;
-        }
-        r = vu.get_value_in(units) ;
-      } else {
-        value_list[0].get_value(r) ;
-        r *= Lref ;
-      }
-      if(value_list[1].type_of() == UNIT_VALUE) {
-        UNIT_type vu ;
-        value_list[1].get_value(vu) ;
-        if(!vu.is_compatible("radians")) {
-          std::cerr << "wrong type of units for vector " << vname
-                    << ": " << vu << std::endl ;
-          Abort() ;
-        }
-        theta = vu.get_value_in("radians") ;
-      } else {
-        value_list[1].get_value(theta) ;
-        theta *= conv  ;
-      }
-      if(value_list[2].type_of() == UNIT_VALUE) {
-        UNIT_type vu ;
-        value_list[2].get_value(vu) ;
-        if(!vu.is_compatible("radians")) {
-          std::cerr << "wrong type of units for vector " << vname
-                    << ": " << vu << std::endl ;
-          Abort() ;
-        }
-        eta = vu.get_value_in("radians") ;
-      } else {
-        value_list[2].get_value(eta) ;
-        eta *= conv  ;
-      }
-      
-      vec.x = r*cos(theta)*cos(eta) ;
-      vec.y = r*sin(theta)*cos(eta) ;
-      vec.z = r*sin(eta) ;
-    } else {
-      std::cerr << "unable to get vector type!" << std::endl ;
-      Abort() ;
-    }
-  }    
 
-  void get_vect3d(const options_list &ol,std::string vname,
-                  vector3d<real_t> &vec) {
-    option_value_type ovt= ol.getOptionValueType(vname) ;
-    if(ovt == LIST) {
-      options_list::arg_list value_list ;
-      ol.getOption(vname,value_list) ;
-      if(value_list.size() != 3) {
-        std::cerr << "error on reading '" << vname
-                  <<"': vector input must contain 3 terms"
-                  << std::endl ;
-        Abort() ;
-      }
-      for(int i=0;i<3;++i)
-        if(value_list[i].type_of() != REAL) {
-          std::cerr << "improper vector specification for '"
-                    << vname << std::endl ;
-          Abort() ;
-        }
-      double vecval[3] ;
-      for(int i=0;i<3;++i) {
-        value_list[i].get_value(vecval[i]) ;
-      }
-      vec.x = vecval[0] ;
-      vec.y = vecval[1] ;
-      vec.z = vecval[2] ;
-    } else if(ovt == FUNCTION) {
-      string name ;
-      options_list::arg_list value_list ;
-      ol.getOption(vname,name,value_list) ;
-      if(name != "polar") {
-        std::cerr << "don't know coordinate function '" << name
-                  <<"', defaulting to polar" << std::endl ;
-        Abort() ;
-      }
-      if(value_list.size() != 3) {
-        std::cerr << "error on reading '"
-                  << vname << "': vector input must contain 3 terms"
-                  << std::endl ;
-        Abort() ;
-      }
-      if(value_list[0].type_of() != REAL) {
-        std::cerr << "improper vector specification for '"
-                  << vname << std::endl ;
-        Abort() ;
-      }
-      for(int i=1;i<3;++i)
-        if(value_list[i].type_of() != REAL &&
-           value_list[i].type_of() != UNIT_VALUE) {
-          std::cerr << "improper vector specification for '"
-                    << vname << std::endl ;
-          Abort() ;
-        }
-      real_t r=1 ,theta=0 ,eta=0 ;
-      real_t conv = M_PI/180.0 ;
-      value_list[0].get_value(r) ;
-      if(value_list[1].type_of() == UNIT_VALUE) {
-        UNIT_type vu ;
-        value_list[1].get_value(vu) ;
-        if(!vu.is_compatible("radians")) {
-          std::cerr << "wrong type of units for vector " << vname
-                    << ": " << vu << std::endl ;
-          Abort() ;
-        }
-        theta = vu.get_value_in("radians") ;
-      } else {
-        value_list[1].get_value(theta) ;
-        theta *= conv  ;
-      }
-      if(value_list[2].type_of() == UNIT_VALUE) {
-        UNIT_type vu ;
-        value_list[2].get_value(vu) ;
-        if(!vu.is_compatible("radians")) {
-          std::cerr << "wrong type of units for vector " << vname
-                    << ": " << vu << std::endl ;
-          Abort() ;
-        }
-        eta = vu.get_value_in("radians") ;
-      } else {
-        value_list[2].get_value(eta) ;
-        eta *= conv  ;
-      }
-
-      vec.x = r*cos(theta)*cos(eta) ;
-      vec.y = r*sin(theta)*cos(eta) ;
-      vec.z = r*sin(eta) ;
-    } else {
-      std::cerr << "unable to get vector type!" << std::endl ;
-      Abort() ;
-    }
-  }  
-
-
-  void createLowerUpper(fact_db &facts) {
-    gConstraint faces, geom_cells,interior_faces,boundary_faces ;
-    faces = facts.get_gvariable("faces") ;
-    geom_cells = facts.get_gvariable("geom_cells") ;
-    interior_faces = facts.get_gvariable("interior_faces") ;
-    boundary_faces = facts.get_gvariable("boundary_faces") ;
-    gEntitySet bfaces = *boundary_faces ;
-    gEntitySet ifaces = *interior_faces ;
-    gStoreRepP pfacesP = facts.get_gvariable("periodicFaces") ;
-    if(pfacesP != 0) {
-      gConstraint periodicFaces ;
-      periodicFaces = pfacesP ;
-      bfaces -= *periodicFaces ;
-      ifaces += *periodicFaces ;
-    }
-    gEntitySet global_interior_faces = g_all_collect_entitySet<gEntity>(ifaces) ;
-    gEntitySet global_boundary_faces = g_all_collect_entitySet<gEntity>(bfaces) ;
-  
-    gMap cl,cr ;
-    cl = facts.get_gvariable("cl") ;
-    cr = facts.get_gvariable("cr") ;
-    gEntitySet global_geom_cells ; 
-    //init_ptn can not use key_ptn of gKeySpace, because key_ptn is in file numbering
-    std::vector<gEntitySet> init_ptn = g_all_collect_vectors<gEntity>(*geom_cells) ;
-    global_geom_cells = g_all_collect_entitySet<gEntity>(*geom_cells) ;
-    
-    gMultiMap lower,upper,boundary_map ;
-    upper = cl.distributed_inverse(global_geom_cells, global_interior_faces, init_ptn);
-    lower = cr.distributed_inverse(global_geom_cells, global_interior_faces, init_ptn);
-    boundary_map = cl.distributed_inverse(global_geom_cells, global_boundary_faces, init_ptn);
-    
-    facts.create_gfact("lower",lower, lower.get_domain_space(), lower.get_image_space()) ;
-    facts.create_gfact("upper",upper, upper.get_domain_space(), upper.get_image_space()) ;
-    facts.create_gfact("boundary_map",boundary_map,boundary_map.get_domain_space(), boundary_map.get_image_space()) ;
-  }
-
-  namespace{
-    // this is a general routine that balances the pair vector
-    // on each process, it redistributes the pair vector
-    // among the processes such that each process holds
-    // roughly the same number of elements, it maintains the
-    // original global elements ordering in the redistribution
-    void
-      parallel_balance_pair_vector(vector<pair<gEntity,gEntity> >& vp,
-                                   MPI_Comm comm) {
-      int num_procs = 0 ;
-      MPI_Comm_size(comm,&num_procs) ;
-
-      // we still use an all-to-all personalized communication
-      // algorithm to balance the element numbers on processes.
-      // we pick (p-1) equally spaced element as the splitters
-      // and then re-split the global vector sequence to balance
-      // the number of elements on processes.
-
-      gEntity vp_size = vp.size() ;
-      gEntity global_vp_size = 0 ;
-      MPI_Datatype MPI_T_type = MPI_traits<gEntity>::get_MPI_type() ;
-
-      MPI_Allreduce(&vp_size, &global_vp_size,
-                    1, MPI_T_type, MPI_SUM, comm) ;
-
-      gEntity space = global_vp_size / num_procs ;
-      // compute a global range for the elements on each process
-      gEntity global_end = 0 ;
-      MPI_Scan(&vp_size, &global_end, 1, MPI_T_type, MPI_SUM, comm) ;
-      gEntity global_start = global_end - vp_size ;
-
-      vector<gEntity> splitters(num_procs) ;
-      // splitters are just global index number
-      splitters[0] = space ;
-      for(int i=1;i<num_procs-1;++i)
-        splitters[i] = splitters[i-1] + space ;
-      splitters[num_procs-1] = global_vp_size ;
-
-      // split and communicate the vector of particles
-      vector<int> send_counts(num_procs, 0) ;
-      gEntity part_start = global_start ;
-      for(int idx=0;idx<num_procs;++idx) {
-        if(part_start == global_end)
-          break ;
-        if(splitters[idx] > part_start) {
-          gEntity part_end ;
-          if(splitters[idx] < global_end)
-            part_end = splitters[idx] ;
-          else
-            part_end = global_end ;
-          send_counts[idx] = part_end - part_start ;
-          part_start = part_end ;
-        }
-      }
-      
-      for(size_t i=0;i<send_counts.size();++i)
-        send_counts[i] *= 2 ;
-
-      vector<int> send_displs(num_procs) ;
-      send_displs[0] = 0 ;
-      for(gEntity i=1;i<num_procs;++i)
-        send_displs[i] = send_displs[i-1] + send_counts[i-1] ;
-
-      vector<int> recv_counts(num_procs) ;
-      MPI_Alltoall(&send_counts[0], 1, MPI_T_type,
-                   &recv_counts[0], 1, MPI_T_type, comm) ;
-
-      vector<int> recv_displs(num_procs) ;
-      recv_displs[0] = 0 ;
-      for(gEntity i=1;i<num_procs;++i)
-        recv_displs[i] = recv_displs[i-1] + recv_counts[i-1] ;
-
-      gEntity total_recv_size = recv_displs[num_procs-1] +
-        recv_counts[num_procs-1] ;
-
-      // prepare send and recv buffer
-      vector<gEntity> send_buf(vp_size*2) ;
-      gEntity count = 0 ;
-      for(gEntity i=0;i<vp_size;++i) {
-        send_buf[count++] = vp[i].first ;
-        send_buf[count++] = vp[i].second ;
-      }
-      // release vp buffer to save some memory because we no longer need it
-      vector<pair<gEntity,gEntity> >().swap(vp) ;
-      // prepare recv buffer
-      vector<gEntity> recv_buf(total_recv_size) ;
-
-      MPI_Alltoallv(&send_buf[0], &send_counts[0],
-                    &send_displs[0], MPI_T_type,
-                    &recv_buf[0], &recv_counts[0],
-                    &recv_displs[0], MPI_T_type, comm) ;
-      // finally extract the data to fill the pair vector
-      // release send_buf first to save some memory
-      vector<gEntity>().swap(send_buf) ;
-      vp.resize(total_recv_size/2) ;
-      count = 0 ;
-      for(int i=0;i<total_recv_size;i+=2,count++)
-        vp[count] = pair<gEntity,gEntity>(recv_buf[i], recv_buf[i+1]) ;
-    }
-  
-    // a parallel sample sort for vector<pair<gEntity, gEntity> >
-    // the passed in vector is the local SORTED data. NOTE:
-    // the precondition to this routine is that the passed
-    // in vector is sorted!!!
-    // after sorting, this function puts the new sorted pairs
-    // that are local to a processor in the data argument.
-    void
-      par_sort(vector<pair<gEntity,gEntity> >& data, MPI_Comm comm) {
-      // first get the processor id and total number of processors
-      int my_id, num_procs ;
-      MPI_Comm_size(comm, &num_procs) ;
-      MPI_Comm_rank(comm, &my_id) ;
-      if(num_procs <= 1)
-        return ;                  // single process, no need to proceed
-      // get the number of local elements
-      int local_size = data.size() ;
-      // then select num_procs-1 equally spaced elements as splitters
-      vector<gEntity> splitters(num_procs) ;
-      int even_space = local_size / (num_procs-1) ;
-      int start_idx = even_space / 2 ;
-      int space_idx = start_idx ;
-      for(int i=0;i<num_procs-1;++i,space_idx+=even_space)
-        splitters[i] = data[space_idx].first ;
-      // gather the splitters to all processors as samples
-      int sample_size = num_procs * (num_procs-1) ;
-      vector<gEntity> samples(sample_size) ;
-      MPI_Datatype MPI_T_type = MPI_traits<gEntity>::get_MPI_type() ;
-      MPI_Allgather(&splitters[0], num_procs-1, MPI_T_type,
-                    &samples[0], num_procs-1, MPI_T_type, comm) ;
-      // now we've obtained all the samples, first we sort them
-      sort(&samples[0], (&samples[0])+sample_size) ;
-      // select new splitters in the sorted samples
-      even_space = sample_size / (num_procs-1) ;
-      start_idx = even_space / 2 ;
-      space_idx = start_idx ;
-      for(int i=0;i<num_procs-1;++i,space_idx+=even_space)
-        splitters[i] = samples[space_idx] ;
-      // the last one set as maximum possible gEntityeger
-      splitters[num_procs-1] = std::numeric_limits<gEntity>::max() ;
-
-      // now we can assign local elements to buckets (processors)
-      // according to the new splitters. first we will compute
-      // the size of each bucket and communicate them first
-      vector<int> scounts(num_procs) ;
-      for(int i=0;i<num_procs;++i)
-        scounts[i] = 0 ;
-      { // using a block just to make the definition of "i" and "j" local
-        int i, j ;
-        for(j=i=0;i<local_size;++i) {
-          if(data[i].first < splitters[j])
-            scounts[j]++ ;
-          else {
-            ++j ;
-            while(data[i].first >= splitters[j]) {
-              scounts[j] = 0 ;
-              ++j ;
-            }
-            scounts[j]++ ;
-          }
-        }
-      }
-      // but since one local element contains two gEntityegers (a pair of gEntity),
-      // we will need to double the size
-      for(int i=0;i<num_procs;++i)
-        scounts[i] *= 2 ;
-      // now we compute the sending displacement for each bucket
-      vector<int> sdispls(num_procs) ;
-      sdispls[0] = 0 ;
-      for(int i=1;i<num_procs;++i)
-        sdispls[i] = sdispls[i-1] + scounts[i-1] ;
-      // communicate this information to all processors so that each will
-      // know how many elements are expected from every other processor
-      vector<int> rcounts(num_procs) ;
-      MPI_Alltoall(&scounts[0], 1, MPI_INT, &rcounts[0], 1, MPI_INT, comm) ;
-      // then based on the received info. we will need to compute the
-      // receive displacement
-      vector<int> rdispls(num_procs) ;
-      rdispls[0] = 0 ;
-      for(int i=1;i<num_procs;++i)
-        rdispls[i] = rdispls[i-1] + rcounts[i-1] ;
-      // then we will need to pack the elements in local gEntityo
-      // a buffer and communicate them
-      vector<gEntity> local_pairs(local_size*2) ;
-      int count = 0 ;
-      for(int i=0;i<local_size;++i) {
-        local_pairs[count++] = data[i].first ;
-        local_pairs[count++] = data[i].second ;
-      }
-      // then we allocate buffer for new local elements
-      int new_local_size = rdispls[num_procs-1] + rcounts[num_procs-1] ;
-      vector<gEntity> sorted_pairs(new_local_size) ;
-      // finally we communicate local_pairs to each processor
-      MPI_Alltoallv(&local_pairs[0], &scounts[0], &sdispls[0], MPI_T_type,
-                    &sorted_pairs[0], &rcounts[0], &rdispls[0], MPI_T_type,
-		    comm) ;
-      // release buffers
-      // finally we unpack the buffer gEntityo a vector of pairs
-      data.resize(new_local_size/2) ;
-      int data_idx = 0 ;
-      for(int i=0;i<new_local_size;i+=2,data_idx++)
-        data[data_idx] = pair<gEntity,gEntity>(sorted_pairs[i],sorted_pairs[i+1]) ;
-      // release the final buffer
-      // finally we sort the new local vector
-      sort(data.begin(), data.end()) ;
-    }
-    void
-      par_sort2(vector<pair<pair<gEntity,gEntity>, gEntity> >& data, MPI_Comm comm){
-      // first get the processor id and total number of processors
-      int my_id, num_procs ;
-      MPI_Comm_size(comm, &num_procs) ;
-      MPI_Comm_rank(comm, &my_id) ;
-      if(num_procs <= 1)
-        return ;                  // single process, no need to proceed
-      // get the number of local elements
-      int local_size = data.size() ;
-      // then select num_procs-1 equally spaced elements as splitters
-      vector<pair<gEntity, gEntity> > splitters(num_procs) ;
-      int even_space = local_size / (num_procs-1) ;
-      int start_idx = even_space / 2 ;
-      int space_idx = start_idx ;
-      for(int i=0;i<num_procs-1;++i,space_idx+=even_space)
-        splitters[i] = data[space_idx].first ;
-      // gather the splitters to all processors as samples
-      gEntity sample_size = num_procs * (num_procs-1) ;
-      vector<pair<gEntity, gEntity> > samples(sample_size) ;
-      MPI_Datatype MPI_T_type = MPI_traits<gEntity>::get_MPI_type() ;
-      MPI_Allgather(&splitters[0], (num_procs-1)*2, MPI_T_type,
-                    &samples[0], (num_procs-1)*2, MPI_T_type, comm) ;
-      // now we've obtained all the samples, first we sort them
-      sort(&samples[0], (&samples[0])+sample_size) ;
-      // select new splitters in the sorted samples
-      even_space = sample_size / (num_procs-1) ;
-      start_idx = even_space / 2 ;
-      space_idx = start_idx ;
-      for(int i=0;i<num_procs-1;++i,space_idx+=even_space)
-        splitters[i] = samples[space_idx] ;
-      // the last one set as maximum possible gEntityeger
-      gEntity maxnumber = std::numeric_limits<gEntity>::max();
-      splitters[num_procs-1] =pair<gEntity, gEntity>(maxnumber, maxnumber);
-                               
-  
-      // now we can assign local elements to buckets (processors)
-      // according to the new splitters. first we will compute
-      // the size of each bucket and communicate them first
-      vector<int> scounts(num_procs) ;
-      for(gEntity i=0;i<num_procs;++i)
-        scounts[i] = 0;
-      { // using a block just to make the definition of "i" and "j" local
-        gEntity i, j ;
-        for(j=i=0;i<local_size;++i) {
-          if(data[i].first < splitters[j])
-            scounts[j]++ ;
-          else {
-            ++j ;
-            while(data[i].first >= splitters[j]) {
-              scounts[j] = 0 ;
-              ++j ;
-            }
-            scounts[j]++ ;
-          }
-        }
-      }
-      // but since one local element contains two gEntityegers (a pair of gEntity),
-      // we will need to double the size
-      for(int i=0;i<num_procs;++i)
-        scounts[i] *= 3 ;
-      // now we compute the sending displacement for each bucket
-      vector<int> sdispls(num_procs) ;
-      sdispls[0] = 0 ;
-      for(int i=1;i<num_procs;++i)
-        sdispls[i] = sdispls[i-1] + scounts[i-1] ;
-      // communicate this information to all processors so that each will
-      // know how many elements are expected from every other processor
-      vector<int> rcounts(num_procs) ;
-      MPI_Alltoall(&scounts[0], 1, MPI_INT, &rcounts[0], 1, MPI_INT, comm) ;
-      // then based on the received info. we will need to compute the
-      // receive displacement
-      vector<int> rdispls(num_procs) ;
-      rdispls[0] = 0 ;
-      for(int i=1;i<num_procs;++i)
-        rdispls[i] = rdispls[i-1] + rcounts[i-1] ;
-      // then we will need to pack the elements in local gEntityo
-      // a buffer and communicate them
-      vector<gEntity> local_pairs(local_size*3) ;
-      int count = 0 ;
-      for(int i=0;i<local_size;++i) {
-        local_pairs[count++] = data[i].first.first ;
-        local_pairs[count++] = data[i].first.second;
-        local_pairs[count++] = data[i].second;
-      }
-      // then we allocate buffer for new local elements
-      int new_local_size = rdispls[num_procs-1] + rcounts[num_procs-1] ;
-      vector<gEntity> sorted_pairs(new_local_size) ;
-      // finally we communicate local_pairs to each processor
-      MPI_Alltoallv(&local_pairs[0], &scounts[0], &sdispls[0], MPI_T_type,
-                    &sorted_pairs[0], &rcounts[0], &rdispls[0], MPI_T_type,
-		    comm) ;
-      // finally we unpack the buffer gEntityo a vector of pairs
-      data.resize(new_local_size/3) ;
-      int data_idx = 0 ;
-      for(int i=0;i<new_local_size;i+=3,data_idx++)
-        data[data_idx] = pair<pair<gEntity,gEntity>, gEntity>(pair<gEntity, gEntity>(sorted_pairs[i],sorted_pairs[i+1]), sorted_pairs[i+2]) ;
-      // release the final buffer
-      // finally we sort the new local vector
-      sort(data.begin(), data.end()) ;
-    }
-
-
-    void
-      parallel_balance_pair2_vector(vector<pair<pair<gEntity,gEntity>, gEntity> >& vp,
-                                    MPI_Comm comm) {
-      int num_procs = 0 ;
-      MPI_Comm_size(comm,&num_procs) ;
-  
-      // we still use an all-to-all personalized communication
-      // algorithm to balance the element numbers on processes.
-      // we pick (p-1) equally spaced element as the splitters
-      // and then re-split the global vector sequence to balance
-      // the number of elements on processes.
-  
-      gEntity vp_size = vp.size() ;
-      gEntity global_vp_size = 0 ;
-      MPI_Datatype MPI_T_type = MPI_traits<gEntity>::get_MPI_type() ;
-      MPI_Allreduce(&vp_size, &global_vp_size,
-                    1, MPI_T_type, MPI_SUM, comm) ;
-  
-      gEntity space = global_vp_size / num_procs ;
-      // compute a global range for the elements on each process
-      gEntity global_end = 0 ;
-      MPI_Scan(&vp_size, &global_end, 1, MPI_T_type, MPI_SUM, comm) ;
-      gEntity global_start = global_end - vp_size ;
-  
-      vector<gEntity> splitters(num_procs) ;
-      // splitters are just global index number
-      splitters[0] = space ;
-      for(int i=1;i<num_procs-1;++i)
-        splitters[i] = splitters[i-1] + space ;
-      splitters[num_procs-1] = global_vp_size ;
-  
-      // split and communicate the vector of particles
-      vector<int> send_counts(num_procs, 0) ;
-      gEntity part_start = global_start ;
-      for(int idx=0;idx<num_procs;++idx) {
-        if(part_start == global_end)
-          break ;
-        if(splitters[idx] > part_start) {
-          gEntity part_end ;
-          if(splitters[idx] < global_end)
-            part_end = splitters[idx] ;
-          else
-            part_end = global_end ;
-          send_counts[idx] = part_end - part_start ;
-          part_start = part_end ;
-        }
-      }
-  
-      for(size_t i=0;i<send_counts.size();++i)
-        send_counts[i] *= 3 ;
-  
-      vector<int> send_displs(num_procs) ;
-      send_displs[0] = 0 ;
-      for(int i=1;i<num_procs;++i)
-        send_displs[i] = send_displs[i-1] + send_counts[i-1] ;
-  
-      vector<int> recv_counts(num_procs) ;
-      MPI_Alltoall(&send_counts[0], 1, MPI_T_type,
-                   &recv_counts[0], 1, MPI_T_type, comm) ;
-  
-      vector<int> recv_displs(num_procs) ;
-      recv_displs[0] = 0 ;
-      for(int i=1;i<num_procs;++i)
-        recv_displs[i] = recv_displs[i-1] + recv_counts[i-1] ;
-  
-      gEntity total_recv_size = recv_displs[num_procs-1] +
-        recv_counts[num_procs-1] ;
-  
-      // prepare send and recv buffer
-      vector<gEntity> send_buf(vp_size*3) ;
-      gEntity count = 0 ;
-      for(gEntity i=0;i<vp_size;++i) {
-        send_buf[count++] = vp[i].first.first ;
-        send_buf[count++] = vp[i].first.second ;
-        send_buf[count++] = vp[i].second;
-      }
-      // release vp buffer to save some memory because we no longer need it
-      vector<pair<pair<gEntity,gEntity>, gEntity>  >().swap(vp) ;
-      // prepare recv buffer
-      vector<gEntity> recv_buf(total_recv_size) ;
-  
-      MPI_Alltoallv(&send_buf[0], &send_counts[0],
-                    &send_displs[0], MPI_T_type,
-                    &recv_buf[0], &recv_counts[0],
-                    &recv_displs[0], MPI_T_type, comm) ;
-      // finally extract the data to fill the pair vector
-      // release send_buf first to save some memory
-      vector<gEntity>().swap(send_buf) ;
-      vp.resize(total_recv_size/3) ;
-      count = 0 ;
-      for(gEntity i=0;i<total_recv_size;i+=3,count++)
-        vp[count] = pair<pair<gEntity,gEntity>, gEntity>(pair<gEntity, gEntity>(recv_buf[i], recv_buf[i+1]), recv_buf[i+2]) ;
-    }
-    // end of unnamed namespace
-  }
-
-  
-  void
-  createEdgesPar(fact_db &facts) {
-    gMultiMap face2node ;
-    face2node = facts.get_gvariable("face2node") ;
-   
-    // Loop over faces and create list of edges (with duplicates)
-    vector<pair<gEntity,gEntity> > emap ;
-    fatal(!face2node.sorted());
-    {
-      gMultiMap::const_iterator previous = face2node.begin();
-      gMultiMap::const_iterator itr = face2node.begin();
-      gMultiMap::const_iterator start = face2node.begin();
-      itr++;
-      for(; itr != face2node.end(); itr++){ //start with the second element
-        previous = itr;
-        previous--; //previous is always the one in front of itr 
-        if(itr->first == previous->first){ //if itr and previous belong to the same face, create an edge 
-          gEntity e1 = previous->second ;
-          gEntity e2 = itr->second ;
-          emap.push_back(pair<gEntity,gEntity>(min(e1,e2),max(e1,e2))) ;
-        }else{ //else connect the last node(previous) to the first node(start), and update start
-          gEntity e1 = previous->second ;
-          gEntity e2 = start->second ;
-          emap.push_back(pair<gEntity,gEntity>(min(e1,e2),max(e1,e2))) ;
-          start = itr;
-        }
-      }
-      //the last edge
-      previous = itr;
-      previous--; 
-      gEntity e1 = previous->second ;
-      gEntity e2 = start->second ;
-      emap.push_back(pair<gEntity,gEntity>(min(e1,e2),max(e1,e2))) ;
-    }
-    
-    // before we do the parallel sorting, we perform a check
-    // to see if every process at least has one data element in
-    // the "emap", if not, then the parallel sample sort would fail
-    // and we pre-balance the "emap" on every process before the
-    // sorting
-    if(GLOBAL_OR(emap.empty())) {
-      parallel_balance_pair_vector(emap, MPI_COMM_WORLD) ;
-    }
-    // Sort edges and remove duplicates
-    sort(emap.begin(),emap.end()) ;
-    vector<pair<gEntity,gEntity> >::iterator uend ;
-    uend = unique(emap.begin(), emap.end()) ;
-    emap.erase(uend, emap.end()) ;
-    // then sort emap in parallel
-    // but we check again to see if every process has at least one
-    // element, if not, that means that the total element number is
-    // less than the total number of processes, we split the communicator
-    // so that only those do have elements would participate in the
-    // parallel sample sorting
-    if(GLOBAL_OR(emap.empty())) {
-      MPI_Comm sub_comm ;
-      int color = emap.empty() ;
-      MPI_Comm_split(MPI_COMM_WORLD, color, MPI_rank, &sub_comm) ;
-      if(!emap.empty())
-        par_sort(emap, sub_comm) ;
-      MPI_Comm_free(&sub_comm) ;
-    } else {
-      par_sort(emap, MPI_COMM_WORLD) ;
-    }
-    // remove duplicates again in the new sorted vector
-    uend = unique(emap.begin(), emap.end()) ;
-    emap.erase(uend, emap.end()) ;
-#ifdef BOUNDARY_DUPLICATE_DETECT
-    if(MPI_processes > 1) {
-      // then we will need to remove duplicates along the boundaries
-      // we send the first element in the vector to the left neighbor
-      // processor (my_id - 1) and each processor compares its last
-      // element with the received element. if they are the same,
-      // then the processor will remove its last element
-      
-      // HOWEVER if the parallel sort was done using the sample sort
-      // algorithm, then this step is not necessary. Because in the
-      // sample sort, elements are partitioned to processors according
-      // to sample splitters, it is therefore guaranteed that no
-      // duplicates will be crossing the processor boundaries.
-      gEntity sendbuf[2] ;
-      gEntity recvbuf[2] ;
-      if(!emap.empty()) {
-        sendbuf[0] = emap[0].first ;
-        sendbuf[1] = emap[0].second ;
-      } else {
-        // if there is no local data, we set the send buffer
-        // to be the maximum integer so that we don't have problems
-        // in the later comparing stage
-        sendbuf[0] = std::numeric_limits<gEntity>::max() ;
-        sendbuf[1] = std::numeric_limits<gEntity>::max() ;
-      }
-      MPI_Status status ;
-      MPI_Datatype MPI_T_type = MPI_traits<gEntity>::get_MPI_type() ;
-      if(MPI_rank == 0) {
-        // rank 0 only receives from 1, no sending needed
-        MPI_Recv(recvbuf, 2, MPI_T_type,
-                 1/*source*/, 0/*msg tag*/,
-                 MPI_COMM_WORLD, &status) ;
-      } else if(MPI_rank == MPI_processes-1) {
-        // the last processes only sends to the second last processes,
-        // no receiving is needed
-        MPI_Send(sendbuf, 2, MPI_T_type,
-                 MPI_rank-1/*dest*/, 0/*msg tag*/, MPI_COMM_WORLD) ;
-      } else {
-        // others will send to MPI_rank-1 and receive from MPI_rank+1
-        MPI_Sendrecv(sendbuf, 2, MPI_T_type, MPI_rank-1/*dest*/,0/*msg tag*/,
-                     recvbuf, 2, MPI_T_type, MPI_rank+1/*source*/,0/*tag*/,
-                     MPI_COMM_WORLD, &status) ;
-      }
-      // then compare the results with last element in local emap
-      if( (MPI_rank != MPI_processes-1) && (!emap.empty())){
-        const pair<gEntity,gEntity>& last = emap.back() ;
-        if( (recvbuf[0] == last.first) &&
-            (recvbuf[1] == last.second)) {
-          emap.pop_back() ;
-        }
-      }
-    } // end if(MPI_Processes > 1)
+#ifdef VERBOSE
+    debugout << "time to write cut plane topology=" << s.stop() << endl ;
 #endif
-     
-    //create EdgeSpace and register it
-    string casename; //cheat here, should find it somewhere in facts
-    gKeySpaceP edge_space = new gKeySpace();
-    edge_space->register_space("EdgeSpace", casename); 
-    //get key manager and generate the global keys for edges
-    gKeyManagerP key_manager = facts.get_gkey_manager();
-    int num_edges = emap.size() ;
-    gEntitySet edges = edge_space->generate_key(key_manager,num_edges);
-    
-    //create constraint edges
-    gConstraint edges_tag;
-    *edges_tag = edges;
-    facts.create_gfact("edges", edges_tag, edge_space);
-   
-    // Copy edge nodes into a MapVec
-    gMapVec<2> edge ;
-    vector<pair<gEntity,gEntity> >::iterator pi = emap.begin() ; 
-    for(gEntitySet::const_iterator ei=edges.begin();
-        ei!=edges.end();++ei,++pi) {
-      edge.insert(*ei, pi->first);
-      edge.insert(*ei, pi->second);
-    }
-    {// add block here to make local variables dissepear at the end  
-      // Now create face2edge data-structure
-      // We need to create a lower node to edge mapping to facilitate the
-      // searches.  First get map from edge to lower node
-      gMap el ; // Lower edge map
-      for(gMapVec<2>::const_iterator itr = edge.begin(); itr!= edge.end(); itr++){ 
-        el.insert(itr->first, itr->second);
-        itr++;
-      }
-    
-    
-      // Now invert this map to get nodes-> edges that have this as a first entry
-      gMultiMap n2e ;
-      // Get nodes
-      // Get mapping from nodes to edges from lower numbered node
-    
-      // note inorder to use the distributed_inverseMap, we need
-      // to provide a vector of gEntitySet partitions. for this 
-      // case, it is NOT the node (pos.domain()) distribution,
-      // instead it is the el Map image distribution
-      gEntitySet el_image = el.image() ;
-      vector<gEntitySet> el_image_partitions = g_all_collect_vectors<gEntity>(el_image);
-      n2e = el.distributed_inverse(el_image, edges, el_image_partitions) ;
-      el.clear();
-      
-      // Now create face2edge map with same size as face2node
-
-      // before computing the face2edge map, we will need to gather
-      // necessary info among all processors since the edge map is
-      // distributed across all the processors. we need to retrieve
-      // those that are needed from other processors.
-
-      // we will first need to figure out the set of edges we need
-      // but are not on the local processor
-
-      // but we need to access the n2e map in the counting and it
-      // is possible that the local n2e map does not have enough
-      // data we are looking for, therefore we need to expand it
-      // first to include possible clone regions
-      gEntitySet nodes_accessed ;
-      {
-        gMultiMap::const_iterator previous = face2node.begin();
-        gMultiMap::const_iterator itr = face2node.begin();
-        gMultiMap::const_iterator start = face2node.begin();
-        itr++;
-        for(; itr != face2node.end(); itr++){
-          previous = itr;
-          previous--;
-          if(itr->first == previous->first){
-            gEntity e1 = previous->second ;
-            gEntity e2 = itr->second ;
-            gEntity n1 = min(e1,e2) ;
-            nodes_accessed += n1;
-          }else{
-            gEntity e1 = previous->second ;
-            gEntity e2 = start->second ;
-            gEntity n1 = min(e1,e2) ;
-            nodes_accessed += n1;
-            start = itr;
-          }
-        }
-        //the last edge
-        previous = itr;
-        previous--; 
-        gEntity e1 = previous->second ;
-        gEntity e2 = start->second ;
-        gEntity n1 = min(e1,e2) ;
-        nodes_accessed += n1;
-      }
-
-
-    
-      // we then expand the n2e map
-      n2e = n2e.expand(nodes_accessed, el_image_partitions) ;
-      // okay, then we are going to expand the edge map
-      // first count all the edges we need
-      gEntitySet edges_accessed = n2e.image() ;
-      n2e.clear();
-      
-      vector<gEntitySet> edge_partitions =  g_all_collect_vectors<gEntity>(edges) ;
-      gMapVec<2> expanded_edge;
-      expanded_edge = edge.expand(edges_accessed, edge_partitions) ;
-      // we are now ready for the face2edge map
-
-      // Now loop over faces, for each face search for matching edge and
-      // store in the new face2edge structure
-      vector<f2e_comp> f2e_vec;
-      {
-        short ind = 0;
-        gMultiMap::const_iterator previous = face2node.begin();
-        gMultiMap::const_iterator itr = face2node.begin();
-        gMultiMap::const_iterator start = face2node.begin();
-        itr++;
-        for(; itr != face2node.end(); itr++){
-          previous = itr;
-          previous--;
-          if(itr->first == previous->first){
-            gEntity e1 = previous->second ;
-            gEntity e2 = itr->second ;
-            gEntity n1 = min(e1,e2) ;
-            gEntity n2 = max(e1,e2) ;
-            f2e_vec.push_back(f2e_comp(itr->first, n1, n2, ind++));
-          }else{
-            gEntity e1 = previous->second ;
-            gEntity e2 = start->second ;
-            gEntity n1 = min(e1,e2) ;
-            gEntity n2 = max(e1,e2) ;
-            f2e_vec.push_back(f2e_comp(previous->first, n1, n2, ind));
-            ind = 0;
-            start = itr;
-          }
-        }
-        //the last edge
-        previous = itr;
-        previous--; 
-        gEntity e1 = previous->second ;
-        gEntity e2 = start->second ;
-        gEntity n1 = min(e1,e2) ;
-        gEntity n2 = max(e1,e2) ;
-        f2e_vec.push_back(f2e_comp(previous->first, n1, n2, ind)); 
-      }
-      sort(f2e_vec.begin(), f2e_vec.end(), f2e_field_sort_e);
-
-      vector<e2n_comp> e2n_vec;
-      for(gMapVec<2>::const_iterator itr = expanded_edge.begin(); itr != expanded_edge.end(); itr++){ 
-        gEntity i1 = itr->first;
-        gEntity i2 = itr->second;
-        itr++;
-        gEntity i3 = itr->second;
-        e2n_vec.push_back(e2n_comp(i1, i2, i3));
-      }
-      sort(e2n_vec.begin(), e2n_vec.end(), e2n_field_sort_n);
-
-      vector<ms_comp<gEntity> > new_vec;
-      //equiJoin
-      vector<f2e_comp>::const_iterator itr2 = f2e_vec.begin();
-      for(vector<e2n_comp>::const_iterator itr1 = e2n_vec.begin(); itr1!= e2n_vec.end(); itr1++){
-        while(itr2!= f2e_vec.end() && (itr2->n1 < itr1->n1 || (itr2->n1 == itr1->n1 &&  itr2->n2 < itr1->n2))) itr2++; 
-        while(itr2!= f2e_vec.end() && (itr2->n1 == itr1->n1 &&  itr2->n2 == itr1->n2)) {
-          new_vec.push_back(ms_comp<gEntity>(itr2->f, itr1->e, itr2->ind));
-          itr2++;
-        }
-      }
-      vector<f2e_comp>().swap(f2e_vec);//free up memory
-      vector<e2n_comp>().swap(e2n_vec);//free up memory
-      sort(new_vec.begin(), new_vec.end(),field_sort_dom<gEntity>);
-
-      gMultiMap face2edge;
-      for(vector<ms_comp<gEntity> >::const_iterator itr = new_vec.begin(); itr != new_vec.end(); itr++){
-        face2edge.insert(itr->dom, itr->img);
-      }
-      // Add face2edge to the fact database
-      facts.create_gfact("face2edge",face2edge) ;
-    }
-
-   
-    //sort edge2node according to fileNumbering
-    if(MPI_processes > 1){    
-      gKeySpaceP node_space = gKeySpace::get_space("NodeSpace", casename);
-      gMapVec<2> edge_file;
-      gMap node_g2f;
-      node_g2f = node_space->get_g2f_map();
-      
-      edge_file = edge.recompose(node_space->get_g2f_map());
-      
- 
-      //make inside edge and edge_file, edge direction is from node with lower file numbe to node with higher file number
-      gMapVec<2>::iterator itr2 = edge.begin();            
-      for(gMapVec<2>::iterator itr = edge_file.begin(); itr != edge_file.end(); itr++, itr2++){
-        gMapVec<2>::iterator next = itr;
-        next++;
-        gMapVec<2>::iterator next2 = itr2;
-        next2++;
-        if(itr->second > next->second){
-          std::swap(itr->second, next->second);
-          std::swap(itr2->second, next2->second);
-        }
-        itr++, itr2++;
-      }
-    
-      //then update keyspace so that the file number of edges is consistent with the file number of nodes
-
-      //give each edge a file number
-      vector<pair<pair<gEntity, gEntity> , gEntity> > edge_file_vec(num_edges);
-      int eindex = 0;
-      for(gMapVec<2>::iterator itr = edge_file.begin(); itr != edge_file.end(); itr++){
-        gMapVec<2>::iterator next = itr;
-        next++;
-        edge_file_vec[eindex++] = pair<pair<gEntity, gEntity>, gEntity>(pair<gEntity, gEntity>(itr->second,next->second), itr->first);
-        itr++;
-      }
-     
-      if(GLOBAL_OR(edge_file_vec.empty())) {
-        parallel_balance_pair2_vector(edge_file_vec, MPI_COMM_WORLD) ;
-      }
-      // Sort edges and remove duplicates
-      //unless parallel_balance_pair2_vector create duplicates, there should be no duplicates
-      sort(edge_file_vec.begin(),edge_file_vec.end()) ;
-
-      vector<pair<pair<gEntity,gEntity>, gEntity> >::iterator uend2 ;
-      uend2 = unique(edge_file_vec.begin(), edge_file_vec.end()) ;
-      edge_file_vec.erase(uend2, edge_file_vec.end()) ;
-           
-      // then sort emap in parallel
-      // but we check again to see if every process has at least one
-      // element, if not, that means that the total element number is
-      // less than the total number of processes, we split the communicator
-      // so that only those do have elements would participate in the
-      // parallel sample sorting
-      if(GLOBAL_OR(edge_file_vec.empty())) {
-        MPI_Comm sub_comm ;
-        int color = edge_file_vec.empty() ;
-        MPI_Comm_split(MPI_COMM_WORLD, color, MPI_rank, &sub_comm) ;
-        if(!edge_file_vec.empty())
-          par_sort2(edge_file_vec, sub_comm) ;
-        MPI_Comm_free(&sub_comm) ;
-      } else {
-        par_sort2(edge_file_vec, MPI_COMM_WORLD) ;
-      }
-      // remove duplicates again in the new sorted vector
-      uend2 = unique(edge_file_vec.begin(), edge_file_vec.end()) ;
-      edge_file_vec.erase(uend2, edge_file_vec.end()) ;
-     
-      
-#ifdef BOUNDARY_DUPLICATE_DETECT
-      if(MPI_processes > 1) {
-        // then we will need to remove duplicates along the boundaries
-        // we send the first element in the vector to the left neighbor
-        // processor (my_id - 1) and each processor compares its last
-        // element with the received element. if they are the same,
-        // then the processor will remove its last element
-
-        // HOWEVER if the parallel sort was done using the sample sort
-        // algorithm, then this step is not necessary. Because in the
-        // sample sort, elements are partitioned to processors according
-        // to sample splitters, it is therefore guaranteed that no
-        // duplicates will be crossing the processor boundaries.
-        gEntity sendbuf[3] ;
-        gEntity recvbuf[3] ;
-        if(!edge_file_vec.empty()) {
-          sendbuf[0] = edge_file_vec[0].first.first ;
-          sendbuf[1] = edge_file_vec[0].first.second ;
-          sendbuf[2] = edge_file_vec[0].second;
-        } else {
-          // if there is no local data, we set the send buffer
-          // to be the maximum integer so that we don't have problems
-          // in the later comparing stage
-          sendbuf[0] = std::numeric_limits<int>::max() ;
-          sendbuf[1] = std::numeric_limits<int>::max() ;
-          sendbuf[2] = std::numeric_limits<int>::max() ;
-        }
-        MPI_Status status ;
-	MPI_Datatype MPI_T_type = MPI_traits<gEntity>::get_MPI_type() ;
-        if(MPI_rank == 0) {
-          // rank 0 only receives from 1, no sending needed
-          MPI_Recv(recvbuf, 3, MPI_T_type,
-                   1/*source*/, 0/*msg tag*/,
-                   MPI_COMM_WORLD, &status) ;
-        } else if(MPI_rank == MPI_processes-1) {
-          // the last processes only sends to the second last processes,
-          // no receiving is needed
-          MPI_Send(sendbuf, 3, MPI_T_type,
-                   MPI_rank-1/*dest*/, 0/*msg tag*/, MPI_COMM_WORLD) ;
-        } else {
-          // others will send to MPI_rank-1 and receive from MPI_rank+1
-          MPI_Sendrecv(sendbuf, 3, MPI_T_type, MPI_rank-1/*dest*/,0/*msg tag*/,
-                       recvbuf, 3, MPI_T_type, MPI_rank+1/*source*/,0/*tag*/,
-                       MPI_COMM_WORLD, &status) ;
-        }
-        // then compare the results with last element in local emap
-        if( (MPI_rank != MPI_processes-1) && (!edge_file_vec.empty())){
-          const pair<pair<gEntity,gEntity>, gEntity>& last = edge_file_vec.back() ;
-          if( (recvbuf[0] == last.first.first) &&
-              (recvbuf[1] == last.first.second)&&
-              (recvbuf[2] == last.secon)) {
-            edge_file_vec.pop_back() ;
-          }
-        }
-      } // end if(MPI_Processes > 1)
-#endif
-      
-    
-      int local_num_edge = edge_file_vec.size();
-      vector<int> edge_sizes(MPI_processes);
-      MPI_Allgather(&local_num_edge,1,MPI_INT,&edge_sizes[0],1,MPI_INT,MPI_COMM_WORLD) ;
-    
-      gEntity file_num_offset = 0;
-      for(int i = 0; i < MPI_rank; i++){
-        file_num_offset += edge_sizes[i];
-      }
-    
-      gMap edge_global2file;
-      edge_global2file.reserve(edge_file_vec.size());
-      gEntity index = file_num_offset;
-      for(int i = 0; i < local_num_edge; i++){
-        edge_global2file.insert(edge_file_vec[i].second, index);
-        index++;
-      }
-      edge_global2file.local_sort();
-      //expand the map and update keyspace
-      {
-        gEntitySet domain_global = edge_global2file.domain();
-        vector<gEntitySet> ptn = g_all_collect_vectors<gEntity>(domain_global);
-        edge_space->set_g2f_map(edge_global2file.expand(edges, ptn));
-      } 
-    }//end of if(MPI_processes > 1)
-
-    // Add edge2node to fact databse
-    facts.create_gfact("edge2node",edge) ;
-   
-  } // end of createEdgesPar
-  
-  int classify_cell(const gEntitySet& faces, const_gMultiMap &face2node) {
-   
-    int num_triangles = 0 ;
-    int num_quads = 0 ;
-    int num_others = 0 ;
-    gEntity triangle_nodes[3][2] ;
-    GFORALL(faces, fc){
-      std::pair<const_gMultiMap::const_iterator, const_gMultiMap::const_iterator> r = face2node.range(fc);
-      int count = distance(r.first, r.second);
-      if(count == 3) {
-        if(num_triangles < 2) {
-          const_gMultiMap::const_iterator itr = r.first;
-          triangle_nodes[0][num_triangles] = itr->second ; itr++;
-          triangle_nodes[1][num_triangles] = itr->second ; itr++; 
-          triangle_nodes[2][num_triangles] = itr->second ; itr++;
-        }
-        num_triangles++ ;
-      } else if(count == 4)
-        num_quads++ ;
-      else
-        num_others++ ;
-    }ENDGFORALL;
-
-   
-    bool prism_test = false ;
-
-    if((num_triangles == 2) && (num_quads == 3) && (num_others == 0)) {
-      prism_test = true ;
-      for(int i=0;i<3;++i)
-        for(int j=0;j<3;++j)
-          if(triangle_nodes[i][0] == triangle_nodes[j][1])
-            prism_test = false ;
-    }
-
-    
-    bool hex_test = false ;
-    if( (num_triangles == 0) && (num_quads == 6) && (num_others == 0)) {
-      gEntitySet::const_iterator fi = faces.begin();
-      const gEntity ef = *fi ;// the first face
-      std::pair<const_gMultiMap::const_iterator, const_gMultiMap::const_iterator> r1 = face2node.range(ef);
-      int count = 0 ;
-      fi++;
-      for(;fi!=faces.end(); fi++) {//check the other 5 faces
-        gEntity ej = *fi ;
-        bool find = false;
-        std::pair<const_gMultiMap::const_iterator, const_gMultiMap::const_iterator> r2 = face2node.range(ej);
-        for(const_gMultiMap::const_iterator ef_itr = r1.first; ef_itr != r1.second; ef_itr++){
-          for(const_gMultiMap::const_iterator ej_itr = r2.first; ej_itr != r2.second; ej_itr++){   
-            if(ef_itr->second == ej_itr->second){
-              find = true ;
-              break;
-            }
-          }
-          if(find) break;
-        }
-        if(find)
-          count++ ;
-      }
-      
-      if(count == 4)
-        hex_test = true ;
-    }
-    // new classification code
-    if( (num_triangles == 4) && (num_quads == 0) && (num_others == 0)) {
-      return 0 ;
-    } else if( hex_test ) {
-      return 1 ;
-    } else if( prism_test ) {
-      return 2 ;
-    } else if( (num_triangles == 4) && (num_quads == 1) && (num_others == 0)) {
-      return 3 ;
-    }
-    return 4 ;
-    
   }
 
-  void setup_periodic_bc(list<pair<gperiodic_info,gperiodic_info> >
+  namespace {
+    
+    struct BCinfo {
+      std::string name ;
+      int key ;
+      entitySet apply_set ;
+      options_list bc_options ;
+      BCinfo() {}
+      BCinfo(const std::string &n, int k,
+             const entitySet &a, const options_list &o) :
+        name(n),key(k),apply_set(a),bc_options(o) {}
+      
+    } ; 
+  }
+
+
+  void setup_periodic_bc(list<pair<periodic_info,periodic_info> >
                          &periodic_list,fact_db &facts) {
 
-    gMap pmap ;
-    gStore<rigid_transform> periodic_transform ;
-    
+    dMap pmap ;
+    dstore<rigid_transform> periodic_transform ;
+
 
     // Compute fluid face centers
-    gStore<vector3d<real_t> > pos ;
-    pos = facts.get_gvariable("pos") ;
-    MPI_Comm comm= pos.get_domain_space()->get_mpi_comm();
-   
-    // First fill in fpos so that it is valid for any reference to
+    store<vector3d<double> > pos ;
+    pos = facts.get_variable("pos") ;
+
+    // First fill in tmp_pos so that it is valid for any reference to
     // it from face2node on this processor.
-    gStoreRepP face2node  = facts.get_gvariable("face2node") ;
-    gKeySpaceP face_space = face2node->get_domain_space();
-    gMultiStore<vector3d<real_t> > fpos;
-    fpos = pos.recompose(face2node, comm);
-    list<pair<gperiodic_info,gperiodic_info> >::const_iterator ii ;
+    multiMap face2node ;
+    face2node = facts.get_variable("face2node") ;
+    int fk = face2node.Rep()->getDomainKeySpace() ;
+    entitySet f2n_image = MapRepP(face2node.Rep())->image(face2node.domain()) ;
+    entitySet out_of_dom = f2n_image - pos.domain() ;
+    dstore<vector3d<double> > tmp_pos ;
+    FORALL(pos.domain(), pi) {
+      tmp_pos[pi] = pos[pi] ;
+    } ENDFORALL ;
+    storeRepP sp = tmp_pos.Rep() ;
+    int tmp_out = out_of_dom.size() ;
+    std::vector<entitySet> init_ptn ;
+    if(facts.is_distributed_start()) {
+      int pk = pos.Rep()->getDomainKeySpace() ;
+      init_ptn = facts.get_init_ptn(pk) ;
+      if(GLOBAL_OR(tmp_out)) 
+        fill_clone(sp, out_of_dom, init_ptn) ;
+    }
+
+    list<pair<periodic_info,periodic_info> >::const_iterator ii ;
 
     for(ii=periodic_list.begin();ii!=periodic_list.end();++ii) {
+      int bc1 = ii->first.bc_num ;
+      int bc2 = ii->second.bc_num ;
+      double angle = realToDouble(ii->first.angle) ;
+      vector3d<double> center(realToDouble(ii->first.center.x),
+			      realToDouble(ii->first.center.y),
+			      realToDouble(ii->first.center.z)) ;
+      vector3d<double> v(realToDouble(ii->first.v.x),
+			 realToDouble(ii->first.v.y),
+			 realToDouble(ii->first.v.z)) ;
+
+      vector3d<double> trans(realToDouble(ii->first.translate.x),
+			     realToDouble(ii->first.translate.y),
+			     realToDouble(ii->first.translate.z)) ;
+
       
-      gEntity bc1 = ii->first.bc_num ;
-      gEntity bc2 = ii->second.bc_num ;
-      real_t angle = ii->first.angle ;
-      vector3d<real_t> center = ii->first.center ;
-      vector3d<real_t> v = ii->first.v ;
-      vector3d<real_t> trans = ii->first.translate ;
-      rigid_transform bc1_transform = rigid_transform(center,v,angle,trans);
-      rigid_transform bc2_transform = rigid_transform(center,v,-angle,-1.*trans);     
-      periodic_transform.insert(bc1, bc1_transform) ;
-      periodic_transform.insert(bc2, bc2_transform) ;
-     
+      periodic_transform[bc1] = rigid_transform(center,v,angle,trans) ;
+      periodic_transform[bc2] = rigid_transform(center,v,-angle,-1.*trans) ;
+
       // Compute face centers for point matching
-      gStore<vector3d<real_t> > p1center ;
-      gEntitySet p1Set = (ii->first).bset ;
-      rigid_transform tran = bc1_transform;
-      
-      p1center = fpos.get_simple_center(p1Set);
-      for(gStore<vector3d<real_t> >::iterator pi = p1center.begin();
-          pi != p1center.end(); pi++){
-        pi->second = tran.transform(pi->second);
+      dstore<vector3d<double> > p1center ;
+      entitySet p1Set = ii->first.bset ;
+      rigid_transform tran = periodic_transform[bc1] ;
+      for(entitySet::const_iterator ei = p1Set.begin();ei!=p1Set.end();++ei) {
+        vector3d<double> tot = vector3d<double>(0.0,0.0,0.0);
+        const int sz = face2node.end(*ei)-face2node.begin(*ei) ;
+        for(int i=0; i<sz; ++i) {
+          tot += tmp_pos[face2node[*ei][i]] ;
+        }
+        tot *= double(1)/double(sz) ;
+	vector3d<real_t> totr(tot.x,tot.y,tot.z) ;
+	totr = tran.transform(totr) ;
+        p1center[*ei] = realToDouble(totr) ;
       }
-      gStore<vector3d<real_t> > p2center ;
-      gEntitySet p2Set = ii->second.bset ;
-      p2center = fpos.get_simple_center(p2Set);
+
+      dstore<vector3d<double> > p2center ;
+      entitySet p2Set = ii->second.bset ;
+      for(entitySet::const_iterator ei = p2Set.begin();ei!=p2Set.end();++ei) {
+        vector3d<double> tot = vector3d<double>(0.0,0.0,0.0);
+        const int sz = face2node.end(*ei)-face2node.begin(*ei) ;
+        for(int i=0; i<sz; ++i) {
+          tot += tmp_pos[face2node[*ei][i]] ;
+        }
+        tot *= double(1)/double(sz) ;
+        p2center[*ei] = tot ;
+      }
 
       // Find closest points
-      vector<kdTree::coord3d> p1(p1center.size()) ;
-      vector<gEntity> p1id(p1center.domain().size()) ;
+      vector<kdTree::coord3d> p1(p1center.domain().size()) ;
+      vector<int> p1id(p1center.domain().size()) ;
       int cnt = 0 ;
-      for(gStore<vector3d<real_t> >::const_iterator itr = p1center.begin();
-          itr != p1center.end(); itr++){
-        p1[cnt][0] = (itr->second).x ;
-        p1[cnt][1] = (itr->second).y ;
-        p1[cnt][2] = (itr->second).z ;
-        p1id[cnt] = itr->first ;
+      FORALL(p1center.domain(),fc) {
+        p1[cnt][0] = realToDouble(p1center[fc].x) ;
+        p1[cnt][1] = realToDouble(p1center[fc].y) ;
+        p1[cnt][2] = realToDouble(p1center[fc].z) ;
+        p1id[cnt] = fc ;
         cnt++ ;
-      }
-      
-      vector<kdTree::coord3d> p2(p2center.size()) ;
-      vector<gEntity> p2id(p2center.domain().size()) ;
+      } ENDFORALL ;
+
+      vector<kdTree::coord3d> p2(p2center.domain().size()) ;
+      vector<int> p2id(p2center.domain().size()) ;
       cnt = 0 ;
-      for(gStore<vector3d<real_t> >::const_iterator itr = p2center.begin();
-          itr != p2center.end(); itr++){
-        p2[cnt][0] = (itr->second).x ;
-        p2[cnt][1] = (itr->second).y ;
-        p2[cnt][2] = (itr->second).z ;
-        p2id[cnt] = itr->first ;
+      FORALL(p2center.domain(),fc) {
+        p2[cnt][0] = realToDouble(p2center[fc].x) ;
+        p2[cnt][1] = realToDouble(p2center[fc].y) ;
+        p2[cnt][2] = realToDouble(p2center[fc].z) ;
+        p2id[cnt] = fc ;
         cnt++ ;
-      } 
+      } ENDFORALL ;
 
-      vector<gEntity> p1closest(p1.size()) ;
+      vector<int> p1closest(p1.size()) ;
 
-      parallelNearestNeighbors(p2,p2id,p1,p1closest,comm) ;
-      
-      vector<gEntity> p2closest(p2.size()) ;
-      parallelNearestNeighbors(p1,p1id,p2,p2closest,comm) ;
+      parallelNearestNeighbors(p2,p2id,p1,p1closest,MPI_COMM_WORLD) ;
+
+      vector<int> p2closest(p2.size()) ;
+      parallelNearestNeighbors(p1,p1id,p2,p2closest,MPI_COMM_WORLD) ;
       
       for(size_t i=0;i<p1.size();++i)
-        pmap.insert(p1id[i], p1closest[i]) ;
+        pmap[p1id[i]] = p1closest[i] ;
       for(size_t i=0;i<p2.size();++i)
-        pmap.insert(p2id[i], p2closest[i]) ;
-
-      pmap.local_sort();
-      
+        pmap[p2id[i]] = p2closest[i] ;
 
       // Check to make sure connection is one-to-one
-      gMap check ;
+      dstore<int> check ;
       for(size_t i=0;i<p2.size();++i)
-        check.insert(p2id[i], p2closest[i]) ;
-      check.local_sort();
-      gEntitySet p1map = gcreate_intervalSet(p1closest.begin(),p1closest.end()) ;
-      if(MPI_processes > 1){
-        gEntitySet old_dom = check.domain();
-        std::vector<gEntitySet> init_ptn = g_all_collect_vectors<gEntity>(old_dom,MPI_COMM_WORLD) ;
-        
-        check.setRep(check.expand(p1map, init_ptn, MPI_COMM_WORLD));
+        check[p2id[i]] = p2closest[i] ;
+
+      entitySet p1map = create_entitySet(p1closest.begin(),p1closest.end()) ;
+      storeRepP sp = check.Rep() ;
+      std::vector<entitySet> init_ptn ;
+      if(facts.is_distributed_start()) {
+        init_ptn = facts.get_init_ptn(fk) ; 
+        fill_clone(sp, p1map, init_ptn) ;
       }
-      
       bool periodic_problem = false ;
-      for(size_t i=0;i<p1id.size();++i){ 
-        gEntity node = p1id[i];
-        gEntity mapped_node = pmap.image(node);
-        if(check.image(mapped_node) != node){
-          debugout<< node <<" " << mapped_node <<endl; 
+      for(size_t i=0;i<p1id.size();++i) 
+        if(check[pmap[p1id[i]]] != p1id[i])
           periodic_problem = true ;
-        }
-      }
-     
       if(GLOBAL_OR(periodic_problem)) {
         if(MPI_rank == 0) {
           cerr << "Periodic boundary did not connect properly, is boundary point matched?" << endl ;
@@ -2727,131 +1588,126 @@ namespace Loci{
       }
     }
 
-    gKeySpaceP bc_space = gKeySpace::get_space("BcSpace", "");
     // Add periodic datastructures to fact database
-    facts.create_gfact("pmap",pmap, face_space, face_space) ;
-    facts.create_gfact("periodicTransform",periodic_transform, bc_space) ;
+    pmap.Rep()->setDomainKeySpace(fk) ;
+    MapRepP(pmap.Rep())->setRangeKeySpace(fk) ;
+    facts.create_fact("pmap",pmap) ;
+    facts.create_fact("periodicTransform",periodic_transform) ;
+
+    constraint pfaces ;
+    Map cl ;
+    pfaces = facts.get_variable("periodicFaces") ;
+
+#ifdef NOTNEEDED
+    *pfaces  = all_collect_entitySet(*pfaces) ;
+    
+    cl = facts.get_variable("cl") ;
+    entitySet pcells = MapRepP(cl.Rep())->image(*pfaces) ;
+
+    pcells = all_collect_entitySet(pcells) ;
+    constraint periodicCells ;
+    *periodicCells = pcells ;
+
+    facts.create_fact("periodicCells",periodicCells) ;
+    constraint notPeriodicCells ;
+    *notPeriodicCells = ~pcells ;
+    facts.create_fact("notPeriodicCells",notPeriodicCells) ;
+#endif
   } 
 
   void create_ci_map(fact_db &facts) {
-    gConstraint boundary_faces ;
-    boundary_faces = facts.get_gvariable("boundary_faces") ;
-    gEntitySet ci_faces = *boundary_faces ;
-    gStoreRepP pfacesP = facts.get_gvariable("periodicFaces") ;
+    constraint boundary_faces ;
+    boundary_faces = facts.get_variable("boundary_faces") ;
+    entitySet ci_faces = *boundary_faces ;
+
+    storeRepP pfacesP = facts.get_variable("periodicFaces") ;
     if(pfacesP != 0) {
-      gConstraint periodicFaces ;
+      constraint periodicFaces ;
       periodicFaces = pfacesP ;
       debugout << "periodicFaces = " << periodicFaces << endl ;
       ci_faces -= *periodicFaces ;
     }
 
-    gMap cl,ci ;
-    cl = facts.get_gvariable("cl") ;
+    Map cl,ci ;
 
-    for(gMap::const_iterator itr = cl.begin(); itr != cl.end(); itr++){
-      if(ci_faces.inSet(itr->first)) ci.insert(itr->first, itr->second);
-    }
-    gKeySpaceP face_space = cl.get_domain_space();
-    gKeySpaceP cell_space = cl.get_image_space(); 
-    facts.create_gfact("ci", ci, face_space, cell_space) ;
+    cl = facts.get_variable("cl") ;
+    ci.allocate(ci_faces) ;
+    
+    FORALL(ci_faces,fc) {
+      ci[fc] = cl[fc] ;
+    } ENDFORALL ;
+    ci.Rep()->setDomainKeySpace(cl.Rep()->getDomainKeySpace()) ;
+    facts.create_fact("ci",ci) ;
     debugout << "boundary_faces = " << *boundary_faces << endl ;
     debugout << "ci_faces = " << ci_faces << endl ;
   }
 
- 
-  struct gBCinfo {
-    std::string name ;
-    gEntity key ;
-    gEntitySet apply_set ;
-    options_list bc_options ;
-    gBCinfo() {}
-    gBCinfo(const std::string &n, gEntity k,
-            const gEntitySet &a, const options_list &o) :
-      name(n),key(k),apply_set(a),bc_options(o) {}
-    
-  } ; 
   void setupBoundaryConditions(fact_db &facts) {
-    list<gBCinfo> BCinfo_list ;
-    std::map<std::string,gEntitySet> BCsets ;
+    list<BCinfo> BCinfo_list ;
+    std::map<std::string,entitySet> BCsets ;
     
     /*Boundary Conditions*/
-    gEntitySet periodic ;
-    gConstraint periodic_faces;
-    gConstraint no_symmetry_BC ;
+    entitySet periodic ;
+    constraint periodic_faces;
+    constraint no_symmetry_BC ;
 
-    gEntitySet symmetry ;
+    entitySet symmetry ;
 
-    gStoreRepP tmp = facts.get_gvariable("boundary_names") ;
+    storeRepP tmp = facts.get_variable("boundary_names") ;
     if(tmp == 0) 
       throw(StringError("boundary_names not found in setupBoundaryConditions! Grid file read?")) ;
       
-    gStore<string> boundary_names ;
-    gStore<string> boundary_tags ;
+    store<string> boundary_names ;
+    store<string> boundary_tags ;
     boundary_names = tmp ;
-    //first expand boundary_names and boundary_tags so that they include all boundary surfaces
-    gEntitySet dom = boundary_names.domain() ;
-    gKeySpaceP bc_space = gKeySpace::get_space("BcSpace", "");
-    dom = g_all_collect_entitySet<gEntity>(dom) ;
-    MPI_Comm comm = bc_space->get_mpi_comm();
-    int num_process;
-    MPI_Comm_size(comm, &num_process);
-    vector<gEntitySet> ptn(num_process);
-    for(int i = 0; i < num_process; i++)ptn[i] = dom;
-    boundary_names = boundary_names.split_redistribute(ptn, comm);
-    boundary_names.local_sort();
-    boundary_tags = facts.get_gvariable("boundary_tags") ;
-    boundary_tags = boundary_tags.split_redistribute(ptn, comm);
-    boundary_tags.local_sort();
-    gMap ref ;
-    ref = facts.get_gvariable("ref") ;
-   
-    gKeySpaceP face_space = ref.get_domain_space();
+    boundary_tags = facts.get_variable("boundary_tags") ;
     
-
+    Map ref ;
+    ref = facts.get_variable("ref") ;
+    entitySet dom = boundary_names.domain() ;
+    dom = all_collect_entitySet(dom) ;
+    int fk = ref.Rep()->getDomainKeySpace() ;
     
-    gParam<options_list> bc_info ;
-    tmp = facts.get_gvariable("boundary_conditions") ;
+    param<options_list> bc_info ;
+    tmp = facts.get_variable("boundary_conditions") ;
     if(tmp == 0)
       throw(StringError("boundary_conditions not found in setupBoundaryConditions! Is vars file read?")) ;
     bc_info = tmp ;
-       
-    gParam<real_t> Lref ;
+    
+    param<real_t> Lref ;
     *Lref = 1.0 ;
-    gStoreRepP p = facts.get_gvariable("Lref") ;
+    storeRepP p = facts.get_variable("Lref") ;
     if(p != 0)
       Lref = p ;
     
-    vector<gperiodic_info> periodic_data ;
+    vector<periodic_info> periodic_data ;
 
     bool fail = false ;
     // WARNING, boundaryName assignment assuming that boundary
     // names and tags have been duplicated on all processors (which
     // they have).  But could break if the grid reader changes to a
     // more standard implementation.
-    gStore<string>::const_iterator bname_itr = boundary_names.begin();
-    gStore<string>::const_iterator btag_itr = boundary_tags.begin();
-    
-    for(; bname_itr != boundary_names.end(); bname_itr++, btag_itr++) {
-      gEntity bc = bname_itr->first ;
-      gEntitySet bcset = gInterval(bc,bc) ;
-      gEntitySet bfaces = ref.preimage(bcset).first ;
-      
-      
+    for(entitySet::const_iterator ei=dom.begin();ei!=dom.end();++ei) {
+      Entity bc = *ei ;
+      entitySet bcset = interval(bc,bc) ;
+      entitySet bfaces = ref.preimage(bcset).first ;
 
-      string bname = bname_itr->second ;
-      string tname = btag_itr->second ;
+      string bname = boundary_names[bc] ;
+      string tname = boundary_tags[bc] ;
 
-      gConstraint bconstraint ;
+      constraint bconstraint ;
       *bconstraint = bfaces ;
-     
-      facts.create_gfact(tname,bconstraint, face_space) ;
+      bconstraint.Rep()->setDomainKeySpace(fk) ;
+
+      facts.create_fact(tname,bconstraint) ;
       debugout << "boundary " << bname << "("<< tname << ") = "
                << *bconstraint << endl ;
-      gParam<string> boundarySet ;
+      param<string> boundarySet ;
       *boundarySet = bname ;
       string factname = "boundaryName(" + bname + ")" ;
       boundarySet.set_entitySet(bfaces) ;
-      facts.create_gfact(factname,boundarySet,face_space) ;
+      boundarySet.Rep()->setDomainKeySpace(fk) ;
+      facts.create_fact(factname,boundarySet) ;
       
       option_value_type vt =
         bc_info->getOptionValueType(bname);
@@ -2864,7 +1720,7 @@ namespace Loci{
         ov.get_value(name) ;
         bc_info->setOption(bname,name) ;
         {
-          BCinfo_list.push_back(gBCinfo(name,bc,bfaces,options_list())) ;
+          BCinfo_list.push_back(BCinfo(name,bc,bfaces,options_list())) ;
           BCsets[name] += bfaces ;
         }
         break ;
@@ -2875,7 +1731,7 @@ namespace Loci{
         {
           options_list ol ;
           ol.Input(value_list) ;
-          BCinfo_list.push_back(gBCinfo(name,bc,bfaces,ol)) ;
+          BCinfo_list.push_back(BCinfo(name,bc,bfaces,ol)) ;
           BCsets[name] += bfaces ;
         }
         break ;
@@ -2889,7 +1745,7 @@ namespace Loci{
         symmetry += bfaces ;
       } else if(name == "periodic") {
         periodic += bfaces ;
-        gperiodic_info pi ;
+        periodic_info pi ;
         pi.bc_num = bc ;
         pi.bset = bfaces ;
         options_list ol ;
@@ -2901,14 +1757,17 @@ namespace Loci{
           ol.getOption("name",pi.name) ;
         }
         if(ol.optionExists("center")) {
-          get_vect3dOption(ol,"center","m",pi.center,*Lref) ;
+	  //          get_vect3dOption(ol,"center","m",pi.center,*Lref) ;
+	  ol.getOptionUnits("center","m",pi.center,*Lref) ;
         }
         if(ol.optionExists("vector")) {
-          get_vect3d(ol,"vector",pi.v) ;
+	  //          get_vect3d(ol,"vector",pi.v) ;
+	  ol.getOptionUnits("vector","",pi.v) ;
           pi.v /=  norm(pi.v) ;
         }
         if(ol.optionExists("translate")) {
-          get_vect3dOption(ol,"translate","m",pi.translate,*Lref) ;
+          // get_vect3dOption(ol,"translate","m",pi.translate,*Lref) ;
+	  ol.getOptionUnits("translate","m",pi.translate,*Lref) ;
         }
         if(ol.optionExists("rotate")) {
           ol.getOptionUnits("rotate","radians",pi.angle) ;
@@ -2923,13 +1782,14 @@ namespace Loci{
 
     
     {
-      std::map<std::string, gEntitySet>::const_iterator mi ;
+      std::map<std::string, entitySet>::const_iterator mi ;
       for(mi=BCsets.begin();mi!=BCsets.end();++mi) {
         if(GLOBAL_OR(mi->second.size())) {
-          gConstraint bc_constraint ;
+          constraint bc_constraint ;
           bc_constraint = mi->second ;
           std::string constraint_name = mi->first + std::string("_BC") ;
-          facts.create_gfact(constraint_name,bc_constraint, face_space) ;
+	  bc_constraint.Rep()->setDomainKeySpace(fk) ;
+          facts.create_fact(constraint_name,bc_constraint) ;
           if(MPI_processes == 1)
             std::cout << constraint_name << ' ' << mi->second << endl ;
           else if(MPI_rank == 0)
@@ -2939,16 +1799,16 @@ namespace Loci{
     }
 
  
-    gConstraint cells ;
-    cells = facts.get_gvariable("cells") ;
-    gStore<options_list> BC_options ;
-    //BC_options.allocate(dom) ;
+    constraint cells ;
+    cells = facts.get_variable("cells") ;
+    store<options_list> BC_options ;
+    BC_options.allocate(dom) ;
 
-    std::map<std::string,gEntitySet> BC_options_args ;
+    std::map<std::string,entitySet> BC_options_args ;
 
-    for(list<gBCinfo>::iterator
+    for(list<BCinfo>::iterator
           li = BCinfo_list.begin() ; li != BCinfo_list.end() ; ++li) {
-      BC_options.insert(li->key, li->bc_options) ;
+      BC_options[li->key] = li->bc_options ;
       options_list::option_namelist onl=li->bc_options.getOptionNameList() ;
       options_list::option_namelist::const_iterator onli  ;
 
@@ -2958,25 +1818,26 @@ namespace Loci{
     }
 
     {
-      std::map<std::string, gEntitySet>::const_iterator mi ;
+      std::map<std::string, entitySet>::const_iterator mi ;
       for(mi=BC_options_args.begin();mi!=BC_options_args.end();++mi) {
-        gConstraint bc_constraint ;
+        constraint bc_constraint ;
         bc_constraint = mi->second ;
         std::string constraint_name = mi->first + std::string("_BCoption") ;
-        facts.create_gfact(constraint_name,bc_constraint, face_space) ;
+        facts.create_fact(constraint_name,bc_constraint) ;
       }
     }
     
     if(periodic_data.size() != 0) {
       periodic_faces = periodic ;
-      facts.create_gfact("periodicFaces",periodic_faces, face_space) ;
+      periodic_faces.Rep()->setDomainKeySpace(fk) ;
+      facts.create_fact("periodicFaces",periodic_faces) ;
 
-      list<pair<gperiodic_info,gperiodic_info> > periodic_list ;
+      list<pair<periodic_info,periodic_info> > periodic_list ;
       for(size_t i=0;i<periodic_data.size();++i) {
         if(!periodic_data[i].processed) {
           periodic_data[i].processed = true ;
-          gperiodic_info p1 = periodic_data[i] ;
-          gperiodic_info p2 ;
+          periodic_info p1 = periodic_data[i] ;
+          periodic_info p2 ;
           p2.name = "," ;
           for(size_t j=i+1;j<periodic_data.size();++j)
             if(periodic_data[i].name == periodic_data[j].name) {
@@ -3022,24 +1883,1748 @@ namespace Loci{
 
       setup_periodic_bc(periodic_list,facts) ;
     } else {
-      gConstraint notPeriodicCells ;
-      *notPeriodicCells = ~GEMPTY ;
-      facts.create_gfact("notPeriodicCells",notPeriodicCells, face_space) ;
+      constraint notPeriodicCells ;
+      *notPeriodicCells = ~EMPTY ;
+      facts.create_fact("notPeriodicCells",notPeriodicCells) ;
     }      
     
 
-    gEntitySet no_symmetry ;
-    gConstraint allfaces ;
-    allfaces = facts.get_gvariable("faces") ;
+    entitySet no_symmetry ;
+    constraint allfaces ;
+    allfaces = facts.get_variable("faces") ;
     no_symmetry  = *allfaces - symmetry ;
     no_symmetry_BC = no_symmetry ;
-    facts.create_gfact("no_symmetry_BC",no_symmetry_BC, face_space) ;
+    no_symmetry_BC.Rep()->setDomainKeySpace(fk) ;
+    facts.create_fact("no_symmetry_BC",no_symmetry_BC) ;
 
-    facts.create_gfact("BC_options",BC_options, bc_space) ;
+    facts.create_fact("BC_options",BC_options) ;
 
     create_ci_map(facts) ;
     
   }
 
-}
+  // Create Cell Stencil Plan:
 
+  // Get relations from face2cell and face2node
+  // Join to get node2cell
+  // join node2cell & node2cell to get cell2cell (through shared nodes)
+  // remove self2self references
+  // Convert resulting structure to multiMap
+
+  void getFaceCenter(fact_db &facts, dstore<vector3d<real_t> > &fcenter, dstore<real_t> &area, dstore<vector3d<real_t> > &normal) {
+    // Compute face centers
+    store<vector3d<real_t> > pos ;
+    pos = facts.get_variable("pos") ;
+
+    multiMap face2node ;
+    face2node = facts.get_variable("face2node") ;
+    entitySet fdom = face2node.domain() ;
+    entitySet f2n_image = Loci::MapRepP(face2node.Rep())->image(fdom) ;
+
+    entitySet out_of_dom = f2n_image - pos.domain() ;
+
+    dstore<vector3d<real_t> > tmp_pos ;
+    FORALL(pos.domain(), pi) {
+      tmp_pos[pi] = pos[pi] ;
+    } ENDFORALL ;
+    Loci::storeRepP sp = tmp_pos.Rep() ;
+    int tmp_out = out_of_dom.size() ;
+    std::vector<entitySet> init_ptn ;
+    if(facts.is_distributed_start()) {
+      init_ptn = facts.get_init_ptn() ;
+      if(GLOBAL_OR(tmp_out)) 
+	fill_clone(sp, out_of_dom, init_ptn) ;
+    }
+
+    param<std::string> centroid ;
+    centroid = facts.get_variable("centroid") ;
+    bool exact = false ;
+    if(*centroid == "exact") 
+      exact = true ;
+
+    FORALL(fdom,fc) {
+      int fsz = face2node[fc].size() ;
+      vector3d<real_t>  center = vector3d<real_t> (0,0,0) ;
+      real_t wsum = 0 ;
+	
+      for(int i=1;i<fsz;++i) {
+	real_t len = norm(tmp_pos[face2node[fc][i-1]]-tmp_pos[face2node[fc][i]]) ;
+	vector3d<real_t>  eloc = 0.5*(tmp_pos[face2node[fc][i-1]]+tmp_pos[face2node[fc][i]]) ;
+	center += len*eloc ;
+	wsum += len ;
+      }
+      real_t lenr = norm(tmp_pos[face2node[fc][0]]-tmp_pos[face2node[fc][fsz-1]]) ;
+      vector3d<real_t>  elocr = 0.5*(tmp_pos[face2node[fc][0]]+tmp_pos[face2node[fc][fsz-1]]) ;
+      center += lenr*elocr ;
+      wsum += lenr ;
+      center *= 1./wsum ;
+      fcenter[fc] = center ;
+      if(exact) {	
+	// Iterate to find exact centroid that is on the face
+	vector3d<real_t>  tmpcenter = center ;
+	const int NITER=4 ;
+	for(int iter=0;iter<NITER;++iter) {
+    
+	  // compute centroid using triangles formed by wireframe centroid
+	  vector3d<real_t>  centroidsum(0.0,0.0,0.0) ;
+	  real_t facearea = 0 ;
+	  for(int i=0;i<fsz;++i) {
+	    int n1 = i ;
+	    int n2 = (i+1==fsz)?0:i+1 ;
+	    vector3d<real_t>  p1 = tmp_pos[face2node[fc][n1]] ;
+	    vector3d<real_t>  p2 = tmp_pos[face2node[fc][n2]] ;
+	    
+	    const vector3d<real_t>  t_centroid = (p1 + p2 + tmpcenter)/3.0 ;
+	    const real_t t_area = 0.5*norm(cross(p1-tmpcenter,p2-tmpcenter)) ;
+	    centroidsum += t_area*t_centroid ;
+	    facearea += t_area ;
+	  }
+	  tmpcenter = centroidsum/facearea ;
+	}
+	fcenter[fc] = tmpcenter ;
+      }
+      vector3d<real_t> facearea = vector3d<real_t>(0,0,0) ;
+      vector3d<real_t>  tmpcenter = fcenter[fc] ;
+      for(int i=0;i<fsz;++i) {
+	int n1 = i ;
+	int n2 = (i+1==fsz)?0:i+1 ;
+	vector3d<real_t>  p1 = tmp_pos[face2node[fc][n1]] ;
+	vector3d<real_t>  p2 = tmp_pos[face2node[fc][n2]] ;
+	
+	facearea += cross(p1-tmpcenter,p2-tmpcenter) ;
+      }
+      real_t nfacearea = norm(facearea) ;
+      area[fc] = 0.5*nfacearea ;
+      normal[fc] = (1./nfacearea)*facearea ;
+    } ENDFORALL ;
+  }
+
+  void getCellCenter(fact_db &facts, dstore<vector3d<real_t> > &fcenter,
+		     dstore<vector3d<real_t> > &fnormal,
+		     dstore<vector3d<real_t> > &ccenter) {
+
+    dstore<real_t> area ;
+    getFaceCenter(facts,fcenter,area,fnormal) ;
+    multiMap upper,lower,boundary_map ;
+    upper = facts.get_variable("upper") ;
+    lower = facts.get_variable("lower") ;
+    boundary_map = facts.get_variable("boundary_map") ;
+    entitySet cells = upper.domain()&lower.domain()&boundary_map.domain() ;
+    entitySet faceimage  ;
+    faceimage += Loci::MapRepP(upper.Rep())->image(cells) ;
+    faceimage += Loci::MapRepP(lower.Rep())->image(cells) ;
+    faceimage += Loci::MapRepP(boundary_map.Rep())->image(cells) ;
+    entitySet out_of_dom = faceimage - fcenter.domain() ;
+    int tmp_out = out_of_dom.size() ;
+    std::vector<entitySet> init_ptn ;
+    if(facts.is_distributed_start()) {
+      init_ptn = facts.get_init_ptn() ;
+      if(GLOBAL_OR(tmp_out)) {
+	Loci::storeRepP sp = fcenter.Rep() ;
+	fill_clone(sp, out_of_dom, init_ptn) ;
+	sp = area.Rep() ;
+	fill_clone(sp, out_of_dom, init_ptn) ;
+	sp = fnormal.Rep() ;
+	fill_clone(sp, out_of_dom, init_ptn) ;
+      }
+    }
+    dstore<vector3d<real_t> > wccenter ;
+    // compute wireframe centroid
+    FORALL(cells,cc) {
+      vector3d<real_t>  csum = vector3d<real_t> (0,0,0) ;
+      real_t wsum = 0 ;
+      int lsz = lower[cc].size() ;
+      for(int i=0;i<lsz;++i) {
+	int f = lower[cc][i] ;
+	real_t w = area[f] ;
+	vector3d<real_t>  v = fcenter[f] ;
+	csum += w*v ;
+	wsum += w ;
+      }
+      int usz = upper[cc].size() ;
+      for(int i=0;i<usz;++i) {
+	int f = upper[cc][i] ;
+	real_t w = area[f] ;
+	vector3d<real_t>  v = fcenter[f] ;
+	csum += w*v ;
+	wsum += w ;
+      }
+      int bsz = boundary_map[cc].size() ;
+      for(int i=0;i<bsz;++i) {
+	int f = boundary_map[cc][i] ;
+	real_t w = area[f] ;
+	vector3d<real_t>  v = fcenter[f] ;
+	csum += w*v ;
+	wsum += w ;
+      }
+      csum *= 1./wsum ;
+      wccenter[cc] = csum ;
+      ccenter[cc] = csum ;
+    } ENDFORALL ;
+    param<std::string> centroid ;
+    centroid = facts.get_variable("centroid") ;
+    if(*centroid == "exact")  {
+      // Here we add code to compute exact centroid.
+      // face2node needs to be expanded to do this...
+    }
+    
+  }
+
+  void create_cell_stencil_full(fact_db &facts) {
+    using std::vector ;
+    using std::pair ;
+    Map cl,cr ;
+    multiMap face2node ;
+    cl = facts.get_variable("cl") ;
+    cr = facts.get_variable("cr") ;
+    face2node = facts.get_variable("face2node") ;
+    constraint geom_cells_c ;
+    geom_cells_c = facts.get_variable("geom_cells") ;
+    entitySet geom_cells = *geom_cells_c ;
+    // We need to have all of the geom_cells to do the correct test in the
+    // loop before, so gather with all_collect_entitySet
+    geom_cells = all_collect_entitySet(geom_cells) ;
+    entitySet faces = face2node.domain() ;
+
+    Loci::protoMap f2cell ;
+
+    // Get mapping from face to geometric cells
+    Loci::addToProtoMap(cl,f2cell) ;
+    FORALL(faces,fc) {
+      if(geom_cells.inSet(cr[fc]))
+        f2cell.push_back(pair<int,int>(fc,cr[fc])) ;
+    } ENDFORALL ;
+
+    // Get mapping from face to nodes
+    Loci::protoMap f2node ;
+    Loci::addToProtoMap(face2node,f2node) ;
+
+    // Equijoin on first of pairs to get node to neighboring cell mapping
+    // This will give us a mapping from nodes to neighboring cells
+    Loci::protoMap n2c ;
+    Loci::equiJoinFF(f2node,f2cell,n2c) ;
+
+    // In case there are processors that have no n2c's allocated to them
+    // re-balance map distribution
+    Loci::balanceDistribution(n2c,MPI_COMM_WORLD) ;
+    // Equijoin node2cell with itself to get cell to cell map of
+    // all cells that share one or more nodes
+    Loci::protoMap n2cc = n2c ;
+    Loci::protoMap c2c ;
+    Loci::equiJoinFF(n2c,n2cc,c2c) ;
+
+    // Remove self references
+    Loci::removeIdentity(c2c) ;
+
+    //
+    // Create cell stencil map from protoMap
+    multiMap cellStencil ;
+    std::vector<entitySet> ptn = facts.get_init_ptn() ;
+    distributed_inverseMap(cellStencil,c2c,geom_cells,geom_cells,ptn) ;
+    // Put in fact database
+    facts.create_fact("cellStencil",cellStencil) ;
+  }
+  
+  void create_cell_stencil(fact_db & facts) {
+    using std::vector ;
+    using std::pair ;
+    Map cl,cr ;
+    multiMap face2node ;
+    cl = facts.get_variable("cl") ;
+    cr = facts.get_variable("cr") ;
+    face2node = facts.get_variable("face2node") ;
+    constraint geom_cells_c ;
+    geom_cells_c = facts.get_variable("geom_cells") ;
+    entitySet geom_cells = *geom_cells_c ;
+    // We need to have all of the geom_cells to do the correct test in the
+    // loop before, so gather with all_collect_entitySet
+    geom_cells = all_collect_entitySet(geom_cells) ;
+    entitySet faces = face2node.domain() ;
+
+    Loci::protoMap f2cell ;
+
+    // Get mapping from face to geometric cells
+    Loci::addToProtoMap(cl,f2cell) ;
+    FORALL(faces,fc) {
+      if(geom_cells.inSet(cr[fc]))
+        f2cell.push_back(pair<int,int>(fc,cr[fc])) ;
+    } ENDFORALL ;
+
+    // Get mapping from face to nodes
+    Loci::protoMap f2node ;
+    Loci::addToProtoMap(face2node,f2node) ;
+
+    // Equijoin on first of pairs to get node to neighboring cell mapping
+    // This will give us a mapping from nodes to neighboring cells
+    Loci::protoMap n2c ;
+    Loci::equiJoinFF(f2node,f2cell,n2c) ;
+
+    // In case there are processors that have no n2c's allocated to them
+    // re-balance map distribution
+    Loci::balanceDistribution(n2c,MPI_COMM_WORLD) ;
+    // Equijoin node2cell with itself to get cell to cell map of
+    // all cells that share one or more nodes
+    Loci::protoMap n2cc = n2c ;
+    Loci::protoMap c2c ;
+    Loci::equiJoinFF(n2c,n2cc,c2c) ;
+
+    // Remove self references
+    Loci::removeIdentity(c2c) ;
+
+    //
+    // Create cell stencil map from protoMap
+    multiMap cellStencil ;
+    std::vector<entitySet> ptn = facts.get_init_ptn() ;
+    distributed_inverseMap(cellStencil,c2c,geom_cells,geom_cells,ptn) ;
+
+    // Now downselect cells
+    dstore<vector3d<real_t> > fcenter ;
+    dstore<vector3d<real_t> > fnormal ;
+    dstore<vector3d<real_t> > ccenter ;
+    getCellCenter(facts, fcenter, fnormal, ccenter) ;
+
+    entitySet cells = cellStencil.domain() ;
+    multiMap upper,lower,boundary_map ;
+    upper = facts.get_variable("upper") ;
+    lower = facts.get_variable("lower") ;
+    boundary_map = facts.get_variable("boundary_map") ;
+
+    entitySet cellImage = Loci::MapRepP(cellStencil.Rep())->image(cells) ;
+    cellImage -= cells ;
+    if(facts.is_distributed_start()) {
+      std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
+      int tmp_out = cellImage.size() ;
+      if(GLOBAL_OR(tmp_out)) {
+	Loci::storeRepP sp = ccenter.Rep() ;
+	fill_clone(sp, cellImage, init_ptn) ;
+      }
+    }
+
+    store<int> sizes ;
+    sizes.allocate(cells) ;
+    vector<int> cellmap ;
+    FORALL(cells,cc) {
+      int csz = cellStencil[cc].size() ;
+      int bsz = boundary_map[cc].size() ; ;
+      vector3d<real_t>  ccent = ccenter[cc] ;
+      vector<vector3d<real_t> > cdirs(csz+bsz) ;
+      for(int i=0;i<csz;++i) {
+	cdirs[i] = ccenter[cellStencil[cc][i]]-ccent ;
+	cdirs[i] *= 1./norm(cdirs[i]) ;
+      }
+      for(int i=0;i<bsz;++i) {
+	cdirs[csz+i] = fcenter[boundary_map[cc][i]]-ccent ;
+	cdirs[csz+i] *= 1./norm(cdirs[csz+i]) ;
+      }
+	
+      vector<int> flags(csz+bsz,0) ;
+      int lsz = lower[cc].size() ;
+      for(int i=0;i<lsz;++i) {
+	vector3d<real_t>  dir = fcenter[lower[cc][i]] -ccent;
+	dir *= 1./norm(dir) ;
+	int minid = 0 ;
+	int maxid = 0 ;
+	real_t minval = dot(dir,cdirs[0]) ;
+	real_t maxval = minval ;
+	for(int j=1;j<csz+bsz;++j) {
+	  real_t v = dot(dir,cdirs[j]) ;
+	  if(minval < v) {
+	    minid = j ;
+	    minval = v ;
+	  }
+	  if(maxval > v) {
+	    maxid = j ;
+	    maxval = v ;
+	  }
+	}
+	flags[minid] = 1 ;
+	flags[maxid] = 1 ;
+	minid = 0 ;
+	maxid = 0 ;
+	dir = fnormal[lower[cc][i]] ;
+	minval = dot(dir,cdirs[0]) ;
+	maxval = minval ;
+	for(int j=1;j<csz+bsz;++j) {
+	  real_t v = dot(dir,cdirs[j]) ;
+	  if(minval < v) {
+	    minid = j ;
+	    minval = v ;
+	  }
+	  if(maxval > v) {
+	    maxid = j ;
+	    maxval = v ;
+	  }
+	}
+	flags[minid] = 1 ;
+	flags[maxid] = 1 ;
+      }
+      int usz = upper[cc].size() ;
+      for(int i=0;i<usz;++i) {
+	vector3d<real_t>  dir = fcenter[upper[cc][i]] -ccent;
+	dir *= 1./norm(dir) ;
+	int minid = 0 ;
+	int maxid = 0 ;
+	real_t minval = dot(dir,cdirs[0]) ;
+	real_t maxval = minval ;
+	for(int j=1;j<csz+bsz;++j) {
+	  real_t v = dot(dir,cdirs[j]) ;
+	  if(minval < v) {
+	    minid = j ;
+	    minval = v ;
+	  }
+	  if(maxval > v) {
+	    maxid = j ;
+	    maxval = v ;
+	  }
+	}
+	flags[minid] = 1 ;
+	flags[maxid] = 1 ;
+	minid = 0 ;
+	maxid = 0 ;
+	dir = fnormal[upper[cc][i]] ;
+	minval = dot(dir,cdirs[0]) ;
+	maxval = minval ;
+	for(int j=1;j<csz+bsz;++j) {
+	  real_t v = dot(dir,cdirs[j]) ;
+	  if(minval < v) {
+	    minid = j ;
+	    minval = v ;
+	  }
+	  if(maxval > v) {
+	    maxid = j ;
+	    maxval = v ;
+	  }
+	}
+	flags[minid] = 1 ;
+	flags[maxid] = 1 ;
+      }
+
+      for(int i=0;i<bsz;++i) {
+	vector3d<real_t>  dir = fcenter[boundary_map[cc][i]] -ccent;
+	dir *= 1./norm(dir) ;
+	int minid = 0 ;
+	int maxid = 0 ;
+	real_t minval = dot(dir,cdirs[0]) ;
+	real_t maxval = minval ;
+	for(int j=1;j<csz+bsz;++j) {
+	  real_t v = dot(dir,cdirs[j]) ;
+	  if(minval < v) {
+	    minid = j ;
+	    minval = v ;
+	  }
+	  if(maxval > v) {
+	    maxid = j ;
+	    maxval = v ;
+	  }
+	}
+	flags[minid] = 1 ;
+	flags[maxid] = 1 ;
+	minid = 0 ;
+	maxid = 0 ;
+	dir = fnormal[boundary_map[cc][i]] ;
+	minval = dot(dir,cdirs[0]) ;
+	maxval = minval ;
+	for(int j=1;j<csz+bsz;++j) {
+	  real_t v = dot(dir,cdirs[i]) ;
+	  if(minval < v) {
+	    minid = j ;
+	    minval = v ;
+	  }
+	  if(maxval > v) {
+	    maxid = j ;
+	    maxval = v ;
+	  }
+	}
+	flags[minid] = 1 ;
+	flags[maxid] = 1 ;
+      }
+
+      int cnt = 0 ;
+      for(int i=0;i<csz;++i)
+	if(flags[i] > 0) {
+	  cellmap.push_back(cellStencil[cc][i]) ;
+	  cnt++ ;
+	}
+      sizes[cc] = cnt ;
+    } ENDFORALL ;
+
+    multiMap cellStencilFiltered ;
+    cellStencilFiltered.allocate(sizes) ;
+    int cnt = 0 ;
+    FORALL(cells,cc) {
+      for(int i=0;i<cellStencilFiltered[cc].size();++i) {
+	cellStencilFiltered[cc][i] = cellmap[cnt] ;
+	cnt++ ;
+      }
+    } ENDFORALL ;
+    // Put in fact database
+    facts.create_fact("cellStencil",cellStencilFiltered) ;
+  }
+
+  
+  void createLowerUpper(fact_db &facts) {
+    constraint geom_cells,interior_faces,boundary_faces ;
+    constraint faces = facts.get_variable("faces") ;
+    geom_cells = facts.get_variable("geom_cells") ;
+    interior_faces = facts.get_variable("interior_faces") ;
+    boundary_faces = facts.get_variable("boundary_faces") ;
+    entitySet bfaces = *boundary_faces ;
+    entitySet ifaces = *interior_faces ;
+
+    storeRepP pfacesP = facts.get_variable("periodicFaces") ;
+    if(pfacesP != 0) {
+      constraint periodicFaces ;
+      periodicFaces = pfacesP ;
+      bfaces -= *periodicFaces ;
+      ifaces += *periodicFaces ;
+    }
+    entitySet global_interior_faces = all_collect_entitySet(ifaces,facts) ;
+    entitySet global_boundary_faces = all_collect_entitySet(bfaces,facts) ;
+    
+    Map cl,cr ;
+    cl = facts.get_variable("cl") ;
+    cr = facts.get_variable("cr") ;
+    entitySet global_geom_cells ; 
+    std::vector<entitySet> init_ptn ;
+
+    global_geom_cells = all_collect_entitySet(*geom_cells,facts) ;
+    multiMap lower,upper,boundary_map ;
+    distributed_inverseMap(upper, cl, global_geom_cells, global_interior_faces,
+                           facts,0) ; // FIX THIS
+    distributed_inverseMap(lower, cr, global_geom_cells, global_interior_faces,
+                           facts,0) ;
+    distributed_inverseMap(boundary_map, cl, global_geom_cells,
+                           global_boundary_faces, facts,0) ;
+
+    MapRepP clr = MapRepP(cl.Rep()) ;
+    MapRepP crr = MapRepP(cr.Rep()) ;
+    lower.Rep()->setDomainKeySpace(crr->getRangeKeySpace()) ;
+    upper.Rep()->setDomainKeySpace(clr->getRangeKeySpace()) ;
+    boundary_map.Rep()->setDomainKeySpace(clr->getRangeKeySpace()) ;
+    MapRepP(lower.Rep())->setRangeKeySpace(crr->getDomainKeySpace()) ;
+    MapRepP(upper.Rep())->setRangeKeySpace(clr->getDomainKeySpace()) ;
+    MapRepP(boundary_map.Rep())->setRangeKeySpace(clr->getDomainKeySpace()) ;
+    facts.create_fact("lower",lower) ;
+    facts.create_fact("upper",upper) ;
+    facts.create_fact("boundary_map",boundary_map) ;
+
+    param<std::string> gradStencil ;
+    storeRepP var = facts.get_variable("gradStencil") ;
+    if(var != 0) {
+      gradStencil = var ;
+      if(*gradStencil == "stable")
+	create_cell_stencil(facts) ;
+      if(*gradStencil == "full")
+	create_cell_stencil_full(facts) ;
+    }
+
+  }
+
+  // this is a general routine that balances the pair vector
+  // on each process, it redistributes the pair vector
+  // among the processes such that each process holds
+  // roughly the same number of elements, it maintains the
+  // original global elements ordering in the redistribution
+  void
+  parallel_balance_pair_vector(vector<pair<int,int> >& vp,
+                               MPI_Comm comm) {
+    int num_procs = 0 ;
+    MPI_Comm_size(comm,&num_procs) ;
+
+    // we still use an all-to-all personalized communication
+    // algorithm to balance the element numbers on processes.
+    // we pick (p-1) equally spaced element as the splitters
+    // and then re-split the global vector sequence to balance
+    // the number of elements on processes.
+
+    int vp_size = vp.size() ;
+    int global_vp_size = 0 ;
+    MPI_Allreduce(&vp_size, &global_vp_size,
+                  1, MPI_INT, MPI_SUM, comm) ;
+
+    int space = global_vp_size / num_procs ;
+    // compute a global range for the elements on each process
+    int global_end = 0 ;
+    MPI_Scan(&vp_size, &global_end, 1, MPI_INT, MPI_SUM, comm) ;
+    int global_start = global_end - vp_size ;
+
+    vector<int> splitters(num_procs) ;
+    // splitters are just global index number
+    splitters[0] = space ;
+    for(int i=1;i<num_procs-1;++i)
+      splitters[i] = splitters[i-1] + space ;
+    splitters[num_procs-1] = global_vp_size ;
+
+    // split and communicate the vector of particles
+    vector<int> send_counts(num_procs, 0) ;
+    int part_start = global_start ;
+    for(int idx=0;idx<num_procs;++idx) {
+      if(part_start == global_end)
+        break ;
+      if(splitters[idx] > part_start) {
+        int part_end ;
+        if(splitters[idx] < global_end)
+          part_end = splitters[idx] ;
+        else
+          part_end = global_end ;
+        send_counts[idx] = part_end - part_start ;
+        part_start = part_end ;
+      }
+    }
+      
+    for(size_t i=0;i<send_counts.size();++i)
+      send_counts[i] *= 2 ;
+
+    vector<int> send_displs(num_procs) ;
+    send_displs[0] = 0 ;
+    for(int i=1;i<num_procs;++i)
+      send_displs[i] = send_displs[i-1] + send_counts[i-1] ;
+
+    vector<int> recv_counts(num_procs) ;
+    MPI_Alltoall(&send_counts[0], 1, MPI_INT,
+                 &recv_counts[0], 1, MPI_INT, comm) ;
+
+    vector<int> recv_displs(num_procs) ;
+    recv_displs[0] = 0 ;
+    for(int i=1;i<num_procs;++i)
+      recv_displs[i] = recv_displs[i-1] + recv_counts[i-1] ;
+
+    int total_recv_size = recv_displs[num_procs-1] +
+      recv_counts[num_procs-1] ;
+
+    // prepare send and recv buffer
+    vector<int> send_buf(vp_size*2) ;
+    int count = 0 ;
+    for(int i=0;i<vp_size;++i) {
+      send_buf[count++] = vp[i].first ;
+      send_buf[count++] = vp[i].second ;
+    }
+    // release vp buffer to save some memory because we no longer need it
+    vector<pair<int,int> >().swap(vp) ;
+    // prepare recv buffer
+    vector<int> recv_buf(total_recv_size) ;
+
+    MPI_Alltoallv(&send_buf[0], &send_counts[0],
+                  &send_displs[0], MPI_INT,
+                  &recv_buf[0], &recv_counts[0],
+                  &recv_displs[0], MPI_INT, comm) ;
+    // finally extract the data to fill the pair vector
+    // release send_buf first to save some memory
+    vector<int>().swap(send_buf) ;
+    vp.resize(total_recv_size/2) ;
+    count = 0 ;
+    for(int i=0;i<total_recv_size;i+=2,count++)
+      vp[count] = pair<int,int>(recv_buf[i], recv_buf[i+1]) ;
+  }
+  
+  // a parallel sample sort for vector<pair<int, int> >
+  // the passed in vector is the local SORTED data. NOTE:
+  // the precondition to this routine is that the passed
+  // in vector is sorted!!!
+  // after sorting, this function puts the new sorted pairs
+  // that are local to a processor in the data argument.
+  void
+  par_sort(vector<pair<int,int> >& data, MPI_Comm comm) {
+    // first get the processor id and total number of processors
+    int my_id, num_procs ;
+    MPI_Comm_size(comm, &num_procs) ;
+    MPI_Comm_rank(comm, &my_id) ;
+    if(num_procs <= 1)
+      return ;                  // single process, no need to proceed
+    // get the number of local elements
+    int local_size = data.size() ;
+    // then select num_procs-1 equally spaced elements as splitters
+    int* splitters = new int[num_procs] ;
+    int even_space = local_size / (num_procs-1) ;
+    int start_idx = even_space / 2 ;
+    int space_idx = start_idx ;
+    for(int i=0;i<num_procs-1;++i,space_idx+=even_space)
+      splitters[i] = data[space_idx].first ;
+    // gather the splitters to all processors as samples
+    int sample_size = num_procs * (num_procs-1) ;
+    int* samples = new int[sample_size] ;
+    MPI_Allgather(splitters, num_procs-1, MPI_INT,
+                  samples, num_procs-1, MPI_INT, comm) ;
+    // now we've obtained all the samples, first we sort them
+    sort(samples, samples+sample_size) ;
+    // select new splitters in the sorted samples
+    even_space = sample_size / (num_procs-1) ;
+    start_idx = even_space / 2 ;
+    space_idx = start_idx ;
+    for(int i=0;i<num_procs-1;++i,space_idx+=even_space)
+      splitters[i] = samples[space_idx] ;
+    // the last one set as maximum possible integer
+    splitters[num_procs-1] = std::numeric_limits<int>::max() ;
+
+    // now we can assign local elements to buckets (processors)
+    // according to the new splitters. first we will compute
+    // the size of each bucket and communicate them first
+    int* scounts = new int[num_procs] ;
+    for(int i=0;i<num_procs;++i)
+      scounts[i] = 0 ;
+    { // using a block just to make the definition of "i" and "j" local
+      int i, j ;
+      for(j=i=0;i<local_size;++i) {
+        if(data[i].first < splitters[j])
+          scounts[j]++ ;
+        else {
+          ++j ;
+          while(data[i].first >= splitters[j]) {
+            scounts[j] = 0 ;
+            ++j ;
+          }
+          scounts[j]++ ;
+        }
+      }
+    }
+    // but since one local element contains two integers (a pair of int),
+    // we will need to double the size
+    for(int i=0;i<num_procs;++i)
+      scounts[i] *= 2 ;
+    // now we compute the sending displacement for each bucket
+    int* sdispls = new int[num_procs] ;
+    sdispls[0] = 0 ;
+    for(int i=1;i<num_procs;++i)
+      sdispls[i] = sdispls[i-1] + scounts[i-1] ;
+    // communicate this information to all processors so that each will
+    // know how many elements are expected from every other processor
+    int* rcounts = new int[num_procs] ;
+    MPI_Alltoall(scounts, 1, MPI_INT, rcounts, 1, MPI_INT, comm) ;
+    // then based on the received info. we will need to compute the
+    // receive displacement
+    int* rdispls = new int[num_procs] ;
+    rdispls[0] = 0 ;
+    for(int i=1;i<num_procs;++i)
+      rdispls[i] = rdispls[i-1] + rcounts[i-1] ;
+    // then we will need to pack the elements in local into
+    // a buffer and communicate them
+    int* local_pairs = new int[local_size*2] ;
+    int count = 0 ;
+    for(int i=0;i<local_size;++i) {
+      local_pairs[count++] = data[i].first ;
+      local_pairs[count++] = data[i].second ;
+    }
+    // then we allocate buffer for new local elements
+    int new_local_size = rdispls[num_procs-1] + rcounts[num_procs-1] ;
+    int* sorted_pairs = new int[new_local_size] ;
+    // finally we communicate local_pairs to each processor
+    MPI_Alltoallv(local_pairs, scounts, sdispls, MPI_INT,
+                  sorted_pairs, rcounts, rdispls, MPI_INT, comm) ;
+    // release buffers
+    delete[] splitters ;
+    delete[] samples ;
+    delete[] scounts ;
+    delete[] sdispls ;
+    delete[] rcounts ;
+    delete[] rdispls ;
+    delete[] local_pairs ;
+    // finally we unpack the buffer into a vector of pairs
+    data.resize(new_local_size/2) ;
+    int data_idx = 0 ;
+    for(int i=0;i<new_local_size;i+=2,data_idx++)
+      data[data_idx] = pair<int,int>(sorted_pairs[i],sorted_pairs[i+1]) ;
+    // release the final buffer
+    delete[] sorted_pairs ;
+    // finally we sort the new local vector
+    sort(data.begin(), data.end()) ;
+  }
+
+  namespace {
+    // a utility that returns the global sum
+    int
+    global_sum(int l) {
+      int g ;
+      MPI_Allreduce(&l, &g, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD) ;
+      return g ;
+    }
+    // a utility function that takes an entitySet from a processor
+    // and returns a vector of entitySet gathered from all processors
+    vector<entitySet>
+    gather_all_entitySet(const entitySet& eset) {
+      int local_size = eset.size() ;
+      int global_size = global_sum(local_size) ;
+      // compute receive counts from all processors
+      int* recv_counts = new int[MPI_processes] ;
+      MPI_Allgather(&local_size, 1, MPI_INT,
+                    recv_counts, 1, MPI_INT, MPI_COMM_WORLD) ;
+      // then compute receive displacement
+      int* recv_displs = new int[MPI_processes] ;
+      recv_displs[0] = 0 ;
+      for(int i=1;i<MPI_processes;++i)
+        recv_displs[i] = recv_displs[i-1] + recv_counts[i-1] ;
+      // pack the local eset into an array
+      int* local_eset = new int[local_size] ;
+      int count = 0 ;
+      for(entitySet::const_iterator ei=eset.begin();
+          ei!=eset.end();++ei,++count)
+        local_eset[count] = *ei ;
+      // allocate the entire array for all data from all processors
+      int* global_eset = new int[global_size] ;
+      // communicate to obtain all esets from every processors
+      MPI_Allgatherv(local_eset, local_size, MPI_INT,
+                     global_eset, recv_counts, recv_displs,
+                     MPI_INT, MPI_COMM_WORLD) ;
+      delete[] local_eset ;
+      delete[] recv_counts ;
+      // unpack the raw buffer into a vector<entitySet>
+      vector<entitySet> ret(MPI_processes) ;
+      int k = 0 ;
+      for(int i=0;i<MPI_processes;++i) {
+        int limit ;
+        if(i == MPI_processes-1)
+          limit = global_size ;
+        else
+          limit = recv_displs[i+1] ;
+        for(;k<limit;++k)
+          ret[i] += global_eset[k] ;
+      }
+      delete[] recv_displs ;
+      delete[] global_eset ;
+
+      return ret ;
+    }
+    void
+    par_sort2(vector<pair<pair<int,int>, int> >& data, MPI_Comm comm){
+      // first get the processor id and total number of processors
+      int my_id, num_procs ;
+      MPI_Comm_size(comm, &num_procs) ;
+      MPI_Comm_rank(comm, &my_id) ;
+      if(num_procs <= 1)
+        return ;                  // single process, no need to proceed
+      // get the number of local elements
+      int local_size = data.size() ;
+      // then select num_procs-1 equally spaced elements as splitters
+      pair<int, int> *splitters = new pair<int, int>[num_procs] ;
+      int even_space = local_size / (num_procs-1) ;
+      int start_idx = even_space / 2 ;
+      int space_idx = start_idx ;
+      for(int i=0;i<num_procs-1;++i,space_idx+=even_space)
+        splitters[i] = data[space_idx].first ;
+      // gather the splitters to all processors as samples
+      int sample_size = num_procs * (num_procs-1) ;
+      pair<int, int>* samples = new pair<int, int>[sample_size] ;
+      MPI_Allgather(splitters, (num_procs-1)*2, MPI_INT,
+                    samples, (num_procs-1)*2, MPI_INT, comm) ;
+      // now we've obtained all the samples, first we sort them
+      sort(samples, samples+sample_size) ;
+      // select new splitters in the sorted samples
+      even_space = sample_size / (num_procs-1) ;
+      start_idx = even_space / 2 ;
+      space_idx = start_idx ;
+      for(int i=0;i<num_procs-1;++i,space_idx+=even_space)
+        splitters[i] = samples[space_idx] ;
+      // the last one set as maximum possible integer
+      int maxnumber = std::numeric_limits<int>::max();
+      splitters[num_procs-1] =pair<int, int>(maxnumber, maxnumber);
+                               
+  
+      // now we can assign local elements to buckets (processors)
+      // according to the new splitters. first we will compute
+      // the size of each bucket and communicate them first
+      int *scounts = new int[num_procs] ;
+      for(int i=0;i<num_procs;++i)
+        scounts[i] = 0;
+      { // using a block just to make the definition of "i" and "j" local
+        int i, j ;
+        for(j=i=0;i<local_size;++i) {
+          if(data[i].first < splitters[j])
+            scounts[j]++ ;
+          else {
+            ++j ;
+            while(data[i].first >= splitters[j]) {
+              scounts[j] = 0 ;
+              ++j ;
+            }
+            scounts[j]++ ;
+          }
+        }
+      }
+      // but since one local element contains two integers (a pair of int),
+      // we will need to double the size
+      for(int i=0;i<num_procs;++i)
+        scounts[i] *= 3 ;
+      // now we compute the sending displacement for each bucket
+      int* sdispls = new int[num_procs] ;
+      sdispls[0] = 0 ;
+      for(int i=1;i<num_procs;++i)
+        sdispls[i] = sdispls[i-1] + scounts[i-1] ;
+      // communicate this information to all processors so that each will
+      // know how many elements are expected from every other processor
+      int* rcounts = new int[num_procs] ;
+      MPI_Alltoall(scounts, 1, MPI_INT, rcounts, 1, MPI_INT, comm) ;
+      // then based on the received info. we will need to compute the
+      // receive displacement
+      int* rdispls = new int[num_procs] ;
+      rdispls[0] = 0 ;
+      for(int i=1;i<num_procs;++i)
+        rdispls[i] = rdispls[i-1] + rcounts[i-1] ;
+      // then we will need to pack the elements in local into
+      // a buffer and communicate them
+      int* local_pairs = new int[local_size*3] ;
+      int count = 0 ;
+      for(int i=0;i<local_size;++i) {
+        local_pairs[count++] = data[i].first.first ;
+        local_pairs[count++] = data[i].first.second;
+        local_pairs[count++] = data[i].second;
+      }
+      // then we allocate buffer for new local elements
+      int new_local_size = rdispls[num_procs-1] + rcounts[num_procs-1] ;
+      int* sorted_pairs = new int[new_local_size] ;
+      // finally we communicate local_pairs to each processor
+      MPI_Alltoallv(local_pairs, scounts, sdispls, MPI_INT,
+                    sorted_pairs, rcounts, rdispls, MPI_INT, comm) ;
+      // release buffers
+      delete[] splitters ;
+      delete[] samples ;
+      delete[] scounts ;
+      delete[] sdispls ;
+      delete[] rcounts ;
+      delete[] rdispls ;
+      delete[] local_pairs ;
+      // finally we unpack the buffer into a vector of pairs
+      data.resize(new_local_size/3) ;
+      int data_idx = 0 ;
+      for(int i=0;i<new_local_size;i+=3,data_idx++)
+        data[data_idx] = pair<pair<int,int>, int>(pair<int, int>(sorted_pairs[i],sorted_pairs[i+1]), sorted_pairs[i+2]) ;
+      // release the final buffer
+      delete[] sorted_pairs ;
+      // finally we sort the new local vector
+      sort(data.begin(), data.end()) ;
+    }
+
+
+    void
+    parallel_balance_pair2_vector(vector<pair<pair<int,int>, int> >& vp,
+                                  MPI_Comm comm) {
+      int num_procs = 0 ;
+      MPI_Comm_size(comm,&num_procs) ;
+  
+      // we still use an all-to-all personalized communication
+      // algorithm to balance the element numbers on processes.
+      // we pick (p-1) equally spaced element as the splitters
+      // and then re-split the global vector sequence to balance
+      // the number of elements on processes.
+  
+      int vp_size = vp.size() ;
+      int global_vp_size = 0 ;
+      MPI_Allreduce(&vp_size, &global_vp_size,
+                    1, MPI_INT, MPI_SUM, comm) ;
+  
+      int space = global_vp_size / num_procs ;
+      // compute a global range for the elements on each process
+      int global_end = 0 ;
+      MPI_Scan(&vp_size, &global_end, 1, MPI_INT, MPI_SUM, comm) ;
+      int global_start = global_end - vp_size ;
+  
+      vector<int> splitters(num_procs) ;
+      // splitters are just global index number
+      splitters[0] = space ;
+      for(int i=1;i<num_procs-1;++i)
+        splitters[i] = splitters[i-1] + space ;
+      splitters[num_procs-1] = global_vp_size ;
+  
+      // split and communicate the vector of particles
+      vector<int> send_counts(num_procs, 0) ;
+      int part_start = global_start ;
+      for(int idx=0;idx<num_procs;++idx) {
+        if(part_start == global_end)
+          break ;
+        if(splitters[idx] > part_start) {
+          int part_end ;
+          if(splitters[idx] < global_end)
+            part_end = splitters[idx] ;
+          else
+            part_end = global_end ;
+          send_counts[idx] = part_end - part_start ;
+          part_start = part_end ;
+        }
+      }
+  
+      for(size_t i=0;i<send_counts.size();++i)
+        send_counts[i] *= 3 ;
+  
+      vector<int> send_displs(num_procs) ;
+      send_displs[0] = 0 ;
+      for(int i=1;i<num_procs;++i)
+        send_displs[i] = send_displs[i-1] + send_counts[i-1] ;
+  
+      vector<int> recv_counts(num_procs) ;
+      MPI_Alltoall(&send_counts[0], 1, MPI_INT,
+                   &recv_counts[0], 1, MPI_INT, comm) ;
+  
+      vector<int> recv_displs(num_procs) ;
+      recv_displs[0] = 0 ;
+      for(int i=1;i<num_procs;++i)
+        recv_displs[i] = recv_displs[i-1] + recv_counts[i-1] ;
+  
+      int total_recv_size = recv_displs[num_procs-1] +
+        recv_counts[num_procs-1] ;
+  
+      // prepare send and recv buffer
+      vector<int> send_buf(vp_size*3) ;
+      int count = 0 ;
+      for(int i=0;i<vp_size;++i) {
+        send_buf[count++] = vp[i].first.first ;
+        send_buf[count++] = vp[i].first.second ;
+        send_buf[count++] = vp[i].second;
+      }
+      // release vp buffer to save some memory because we no longer need it
+      vector<pair<pair<int,int>, int>  >().swap(vp) ;
+      // prepare recv buffer
+      vector<int> recv_buf(total_recv_size) ;
+  
+      MPI_Alltoallv(&send_buf[0], &send_counts[0],
+                    &send_displs[0], MPI_INT,
+                    &recv_buf[0], &recv_counts[0],
+                    &recv_displs[0], MPI_INT, comm) ;
+      // finally extract the data to fill the pair vector
+      // release send_buf first to save some memory
+      vector<int>().swap(send_buf) ;
+      vp.resize(total_recv_size/3) ;
+      count = 0 ;
+      for(int i=0;i<total_recv_size;i+=3,count++)
+        vp[count] = pair<pair<int,int>, int>(pair<int, int>(recv_buf[i], recv_buf[i+1]), recv_buf[i+2]) ;
+    }
+
+
+
+ 
+    // this function transposes the passed in vector<entitySet>
+    // by an all to all personalized communication
+    // UNUSED
+    //     vector<entitySet>
+    //     transpose_vector_entitySet(const vector<entitySet>& in) {
+    //       // first compute the send count and displacement
+    //       int* send_counts = new int[MPI_processes] ;
+    //       for(int i=0;i<MPI_processes;++i)
+    //         send_counts[i] = in[i].size() ;
+    //       int* send_displs = new int[MPI_processes] ;
+    //       send_displs[0] = 0 ;
+    //       for(int i=1;i<MPI_processes;++i)
+    //         send_displs[i] = send_displs[i-1] + send_counts[i-1] ;
+    //       // then communicate this get the recv info.
+    //       int* recv_counts = new int[MPI_processes] ;
+    //       MPI_Alltoall(send_counts, 1, MPI_INT,
+    //                    recv_counts, 1, MPI_INT, MPI_COMM_WORLD) ;
+    //       int* recv_displs = new int[MPI_processes] ;
+    //       recv_displs[0] = 0 ;
+    //       for(int i=1;i<MPI_processes;++i)
+    //         recv_displs[i] = recv_displs[i-1] + recv_counts[i-1] ;
+    //       // all info. gathered, ready to do MPI_Alltoallv
+    //       // first pack data into a raw buffer.
+    //       int buf_size = 0 ;
+    //       for(int i=0;i<MPI_processes;++i)
+    //         buf_size += send_counts[i] ;
+    //       int* send_buf = new int[buf_size] ;
+    //       int buf_idx = 0 ;
+    //       for(int i=0;i<MPI_processes;++i) {
+    //         const entitySet& eset = in[i] ;
+    //         for(entitySet::const_iterator ei=eset.begin();
+    //             ei!=eset.end();++ei,++buf_idx)
+    //           send_buf[buf_idx] = *ei ;
+    //       }
+    //       // allocate receive buffer
+    //       int recv_size = 0 ;
+    //       for(int i=0;i<MPI_processes;++i)
+    //         recv_size += recv_counts[i] ;
+    //       int* recv_buf = new int[recv_size] ;
+    //       // communicate
+    //       MPI_Alltoallv(send_buf, send_counts,
+    //                     send_displs, MPI_INT,
+    //                     recv_buf, recv_counts,
+    //                     recv_displs, MPI_INT, MPI_COMM_WORLD) ;
+    //       delete[] send_counts ;
+    //       delete[] send_displs ;
+    //       delete[] recv_counts ;
+    //       delete[] send_buf ;
+    //       // unpack recv buffer into a vector of entitySet
+    //       vector<entitySet> out(MPI_processes) ;    
+    //       int k = 0 ;
+    //       for(int i=0;i<MPI_processes;++i) {
+    //         int limit ;
+    //         if(i == MPI_processes-1)
+    //           limit = recv_size ;
+    //         else
+    //           limit = recv_displs[i+1] ;
+    //         for(;k<limit;++k)
+    //           out[i] += recv_buf[k] ;
+    //       }
+    //       delete[] recv_displs ;
+    //       delete[] recv_buf ;
+
+    //       return out ;
+    //     }
+    //     // end of unnamed namespace
+  }
+  
+ 
+  void
+  createEdgesPar(fact_db &facts) {
+    multiMap face2node ;
+    face2node = facts.get_variable("face2node") ;
+    entitySet faces = face2node.domain() ;
+    
+    // Loop over faces and create list of edges (with duplicates)
+    vector<pair<Entity,Entity> > emap ;
+    for(entitySet::const_iterator ei=faces.begin();
+        ei!=faces.end();++ei) {
+      int sz = face2node[*ei].size() ;
+      for(int i=0;i<sz-1;++i) {
+        Entity e1 = face2node[*ei][i] ;
+        Entity e2 = face2node[*ei][i+1] ;
+        emap.push_back(pair<Entity,Entity>(min(e1,e2),max(e1,e2))) ;
+      }
+      Entity e1 = face2node[*ei][0] ;
+      Entity e2 = face2node[*ei][sz-1] ;
+      emap.push_back(pair<Entity,Entity>(min(e1,e2),max(e1,e2))) ;
+    }
+
+    // before we do the parallel sorting, we perform a check
+    // to see if every process at least has one data element in
+    // the "emap", if not, then the parallel sample sort would fail
+    // and we pre-balance the "emap" on every process before the
+    // sorting
+    if(GLOBAL_OR(emap.empty())) {
+      parallel_balance_pair_vector(emap, MPI_COMM_WORLD) ;
+    }
+    // Sort edges and remove duplicates
+    sort(emap.begin(),emap.end()) ;
+    vector<pair<Entity,Entity> >::iterator uend ;
+    uend = unique(emap.begin(), emap.end()) ;
+    emap.erase(uend, emap.end()) ;
+    // then sort emap in parallel
+    // but we check again to see if every process has at least one
+    // element, if not, that means that the total element number is
+    // less than the total number of processes, we split the communicator
+    // so that only those do have elements would participate in the
+    // parallel sample sorting
+    if(GLOBAL_OR(emap.empty())) {
+      MPI_Comm sub_comm ;
+      int color = emap.empty() ;
+      MPI_Comm_split(MPI_COMM_WORLD, color, MPI_rank, &sub_comm) ;
+      if(!emap.empty())
+        par_sort(emap, sub_comm) ;
+      MPI_Comm_free(&sub_comm) ;
+    } else {
+      par_sort(emap, MPI_COMM_WORLD) ;
+    }
+    // remove duplicates again in the new sorted vector
+    uend = unique(emap.begin(), emap.end()) ;
+    emap.erase(uend, emap.end()) ;
+#ifdef BOUNDARY_DUPLICATE_DETECT
+    if(MPI_processes > 1) {
+      // then we will need to remove duplicates along the boundaries
+      // we send the first element in the vector to the left neighbor
+      // processor (my_id - 1) and each processor compares its last
+      // element with the received element. if they are the same,
+      // then the processor will remove its last element
+      
+      // HOWEVER if the parallel sort was done using the sample sort
+      // algorithm, then this step is not necessary. Because in the
+      // sample sort, elements are partitioned to processors according
+      // to sample splitters, it is therefore guaranteed that no
+      // duplicates will be crossing the processor boundaries.
+      int sendbuf[2] ;
+      int recvbuf[2] ;
+      if(!emap.empty()) {
+        sendbuf[0] = emap[0].first ;
+        sendbuf[1] = emap[0].second ;
+      } else {
+        // if there is no local data, we set the send buffer
+        // to be the maximum integer so that we don't have problems
+        // in the later comparing stage
+        sendbuf[0] = std::numeric_limits<int>::max() ;
+        sendbuf[1] = std::numeric_limits<int>::max() ;
+      }
+      MPI_Status status ;
+      if(MPI_rank == 0) {
+        // rank 0 only receives from 1, no sending needed
+        MPI_Recv(recvbuf, 2, MPI_INT,
+                 1/*source*/, 0/*msg tag*/,
+                 MPI_COMM_WORLD, &status) ;
+      } else if(MPI_rank == MPI_processes-1) {
+        // the last processes only sends to the second last processes,
+        // no receiving is needed
+        MPI_Send(sendbuf, 2, MPI_INT,
+                 MPI_rank-1/*dest*/, 0/*msg tag*/, MPI_COMM_WORLD) ;
+      } else {
+        // others will send to MPI_rank-1 and receive from MPI_rank+1
+        MPI_Sendrecv(sendbuf, 2, MPI_INT, MPI_rank-1/*dest*/,0/*msg tag*/,
+                     recvbuf, 2, MPI_INT, MPI_rank+1/*source*/,0/*tag*/,
+                     MPI_COMM_WORLD, &status) ;
+      }
+      // then compare the results with last element in local emap
+      if( (MPI_rank != MPI_processes-1) && (!emap.empty())){
+        const pair<Entity,Entity>& last = emap.back() ;
+        if( (recvbuf[0] == last.first) &&
+            (recvbuf[1] == last.second)) {
+          emap.pop_back() ;
+        }
+      }
+    } // end if(MPI_Processes > 1)
+#endif
+    
+    // Allocate entities for new edges
+    int num_edges = emap.size() ;
+    int ek = facts.getKeyDomain("Edges") ;
+    if(!useDomainKeySpaces)
+      ek = 0 ;
+    int fk = face2node.Rep()->getDomainKeySpace() ;
+    
+    entitySet edges = facts.get_distributed_alloc(num_edges,ek).first ;// FIX THIS
+ 
+
+
+    //create constraint edges
+    constraint edges_tag;
+    *edges_tag = edges;
+    edges_tag.Rep()->setDomainKeySpace(ek) ;
+    facts.create_fact("edges", edges_tag);
+    
+    // Copy edge nodes into a MapVec
+    MapVec<2> edge ;
+    edge.Rep()->setDomainKeySpace(ek) ;
+    edge.allocate(edges) ;
+    vector<pair<Entity,Entity> >::iterator pi = emap.begin() ;
+    for(entitySet::const_iterator ei=edges.begin();
+        ei!=edges.end();++ei,++pi) {
+      edge[*ei][0] = pi->first ;
+      edge[*ei][1] = pi->second ;
+    }
+
+    // Add edge2node data structure to fact databse
+    // facts.create_fact("edge2node",edge) ;
+
+    // Now create face2edge data-structure
+    // We need to create a lower node to edge mapping to facilitate the
+    // searches.  First get map from edge to lower node
+    Map el ; // Lower edge map
+    el.allocate(edges) ;
+    for(entitySet::const_iterator ei=edges.begin();
+        ei!=edges.end();++ei,++pi) {
+      el[*ei] = edge[*ei][0] ;
+    }
+    
+    // Now invert this map to get nodes-> edges that have this as a first entry
+    multiMap n2e ;
+    // Get nodes
+    // Get mapping from nodes to edges from lower numbered node
+    
+    // note inorder to use the distributed_inverseMap, we need
+    // to provide a vector of entitySet partitions. for this 
+    // case, it is NOT the node (pos.domain()) distribution,
+    // instead it is the el Map image distribution
+    entitySet el_image = el.image(el.domain()) ;
+    vector<entitySet> el_image_partitions =
+      gather_all_entitySet(el_image) ;
+    distributed_inverseMap(n2e, el, el_image, edges, el_image_partitions) ;
+
+    // Now create face2edge map with same size as face2node
+    multiMap face2edge ;
+    store<int> count ;
+    count.allocate(faces) ;
+    for(entitySet::const_iterator ei = faces.begin();
+        ei!=faces.end();++ei) 
+      count[*ei] = face2node[*ei].size() ;
+    face2edge.allocate(count) ;
+
+    // before computing the face2edge map, we will need to gather
+    // necessary info among all processors since the edge map is
+    // distributed across all the processors. we need to retrieve
+    // those that are needed from other processors.
+
+    // we will first need to figure out the set of edges we need
+    // but are not on the local processor
+
+    // but we need to access the n2e map in the counting and it
+    // is possible that the local n2e map does not have enough
+    // data we are looking for, therefore we need to expand it
+    // first to include possible clone regions
+    entitySet nodes_accessed ;
+    for(entitySet::const_iterator ei=faces.begin();
+        ei!=faces.end();++ei) {
+      int sz = face2node[*ei].size() ;
+      for(int i=0;i<sz-1;++i) {
+        Entity t1 = face2node[*ei][i] ;
+        Entity t2 = face2node[*ei][i+1] ;
+        Entity e1 = min(t1,t2) ;
+        nodes_accessed += e1 ;
+      }
+      // Work on closing edge
+      Entity t1 = face2node[*ei][0] ;
+      Entity t2 = face2node[*ei][sz-1] ;
+      Entity e1 = min(t1,t2) ;
+      nodes_accessed += e1 ;
+    }
+    // we then expand the n2e map
+    entitySet nodes_out_domain = nodes_accessed - n2e.domain() ;    
+    n2e.setRep(MapRepP(n2e.Rep())->expand(nodes_out_domain,
+                                          el_image_partitions)) ;
+    // okay, then we are going to expand the edge map
+    // first count all the edges we need
+    entitySet edges_accessed ;
+    for(entitySet::const_iterator ei=faces.begin();
+        ei!=faces.end();++ei) {
+      int sz = face2node[*ei].size() ;
+      for(int i=0;i<sz-1;++i) {
+        Entity t1 = face2node[*ei][i] ;
+        Entity t2 = face2node[*ei][i+1] ;
+        Entity e1 = min(t1,t2) ;
+        for(int j=0;j<n2e[e1].size();++j) {
+          int e = n2e[e1][j] ;
+          edges_accessed += e ;
+        }
+      }
+      // Work on closing edge
+      Entity t1 = face2node[*ei][0] ;
+      Entity t2 = face2node[*ei][sz-1] ;
+      Entity e1 = min(t1,t2) ;
+      for(int j=0;j<n2e[e1].size();++j) {
+        int e = n2e[e1][j] ;
+        edges_accessed += e ;
+      }
+    }
+    vector<entitySet> edge_partitions = gather_all_entitySet(edge.domain()) ;
+    entitySet edges_out_domain = edges_accessed - edge.domain() ;
+    // but since there is no expand method implemented for
+    // MapVec at this time, we will just do a hack to convert
+    // the MapVec to a multiMap to reuse the expand code.
+    multiMap edge2 ;
+    store<int> edge2_count ;
+    entitySet edge_dom = edge.domain() ;
+    edge2_count.allocate(edge_dom) ;
+    for(entitySet::const_iterator ei=edge_dom.begin();
+        ei!=edge_dom.end();++ei)
+      edge2_count[*ei] = 2 ;
+    edge2.allocate(edge2_count) ;
+    for(entitySet::const_iterator ei=edge_dom.begin();
+        ei!=edge_dom.end();++ei) {
+      edge2[*ei][0] = edge[*ei][0] ;
+      edge2[*ei][1] = edge[*ei][1] ;
+    }
+    edge2.setRep(MapRepP(edge2.Rep())->expand(edges_out_domain,
+                                              edge_partitions)) ;
+    // we are now ready for the face2edge map
+
+    // Now loop over faces, for each face search for matching edge and
+    // store in the new face2edge structure
+    for(entitySet::const_iterator ei=faces.begin();
+        ei!=faces.end();++ei) {
+      int sz = face2node[*ei].size() ;
+      // Loop over edges of the face
+      for(int i=0;i<sz-1;++i) {
+        Entity t1 = face2node[*ei][i] ;
+        Entity t2 = face2node[*ei][i+1] ;
+        Entity e1 = min(t1,t2) ;
+        Entity e2 = max(t1,t2) ;
+        face2edge[*ei][i] = -1 ;
+        // search for matching edge
+        for(int j=0;j<n2e[e1].size();++j) {
+          int e = n2e[e1][j] ;
+          if(edge2[e][0] == e1 && edge2[e][1] == e2) {
+            face2edge[*ei][i] = e ;
+            break ;
+          }
+        }
+        if(face2edge[*ei][i] == -1)
+          cerr << "ERROR: not able to find edge for face " << *ei << endl ;
+      }
+      // Work on closing edge
+      Entity t1 = face2node[*ei][0] ;
+      Entity t2 = face2node[*ei][sz-1] ;
+      Entity e1 = min(t1,t2) ;
+      Entity e2 = max(t1,t2) ;
+      face2edge[*ei][sz-1] = -1 ;
+      for(int j=0;j<n2e[e1].size();++j) {
+        int e = n2e[e1][j] ;
+        if(edge2[e][0] == e1 && edge2[e][1] == e2) {
+          face2edge[*ei][sz-1] = e ;
+          break ;
+        }
+      }
+      if(face2edge[*ei][sz-1] == -1)
+        cerr << "ERROR: not able to find edge for face " << *ei << endl ;
+      
+    }
+    // Add face2edge to the fact database
+    face2edge.Rep()->setDomainKeySpace(fk) ;
+    MapRepP(face2edge.Rep())->setRangeKeySpace(ek) ;
+    facts.create_fact("face2edge",face2edge) ;
+
+
+    //sort edge2node according to fileNumbering
+    if(MPI_processes > 1){    
+      //create Map node_l2f
+      entitySet nodes;
+      Map node_l2f;  
+      FORALL(edges, e){
+        nodes += edge[e][0];
+        nodes += edge[e][1];
+      }ENDFORALL;
+    
+      
+      std::vector<entitySet> init_ptn = facts.get_init_ptn(0) ;// FIX THIS
+      fact_db::distribute_infoP df = facts.get_distribute_info() ;
+      storeRepP pos = facts.get_variable("pos");
+      
+      dMap g2f ;
+      g2f = df->g2fv[0].Rep() ; // FIX THIS
+      //don't use nodes & init_ptn to define local nodes,
+      //because nodes may not cover all nodes in init_ptn
+      entitySet localNodes = pos->domain()&init_ptn[MPI_rank] ;
+      node_l2f.allocate(localNodes);
+      FORALL(localNodes, d){
+        node_l2f[d] = g2f[d];
+      }ENDFORALL;
+       
+      entitySet out_of_dom = nodes - localNodes;
+      // vector<entitySet> tmp_ptn = gather_all_entitySet(localNodes);
+      node_l2f.setRep(MapRepP(node_l2f.Rep())->expand(out_of_dom, init_ptn)) ;
+     
+      
+      //end of create Map
+       
+      FORALL(edge.domain(), e){
+        if(node_l2f[edge[e][0] ]> node_l2f[edge[e][1]]){
+          std:: swap(edge[e][0], edge[e][1]);
+        }
+               
+      }ENDFORALL;
+    
+      
+  
+  
+    
+           
+  
+
+      //then update fact_db so that the file number of edges is consistent with the file number of nodes
+
+      //give each edge a file number
+      vector<pair<pair<Entity, Entity> , Entity> > edge2global(num_edges);
+      int eindex = 0;
+      FORALL(edges, ei){
+        edge2global[eindex++] = pair<pair<Entity, Entity>, Entity>(pair<Entity, Entity>(node_l2f[edge[ei][0]], node_l2f[edge[ei][1]]), ei); 
+      }ENDFORALL;
+
+
+      if(GLOBAL_OR(edge2global.empty())) {
+        parallel_balance_pair2_vector(edge2global, MPI_COMM_WORLD) ;
+      }
+      // Sort edges and remove duplicates
+      sort(edge2global.begin(),edge2global.end()) ;
+      vector<pair<pair<Entity,Entity>, Entity> >::iterator uend2 ;
+      uend2 = unique(edge2global.begin(), edge2global.end()) ;
+      edge2global.erase(uend2, edge2global.end()) ;
+      // then sort emap in parallel
+      // but we check again to see if every process has at least one
+      // element, if not, that means that the total element number is
+      // less than the total number of processes, we split the communicator
+      // so that only those do have elements would participate in the
+      // parallel sample sorting
+      if(GLOBAL_OR(edge2global.empty())) {
+        MPI_Comm sub_comm ;
+        int color = edge2global.empty() ;
+        MPI_Comm_split(MPI_COMM_WORLD, color, MPI_rank, &sub_comm) ;
+        if(!edge2global.empty())
+          par_sort2(edge2global, sub_comm) ;
+        MPI_Comm_free(&sub_comm) ;
+      } else {
+        par_sort2(edge2global, MPI_COMM_WORLD) ;
+      }
+      // remove duplicates again in the new sorted vector
+      uend2 = unique(edge2global.begin(), edge2global.end()) ;
+      edge2global.erase(uend2, edge2global.end()) ;
+#ifdef BOUNDARY_DUPLICATE_DETECT
+      if(MPI_processes > 1) {
+        // then we will need to remove duplicates along the boundaries
+        // we send the first element in the vector to the left neighbor
+        // processor (my_id - 1) and each processor compares its last
+        // element with the received element. if they are the same,
+        // then the processor will remove its last element
+
+        // HOWEVER if the parallel sort was done using the sample sort
+        // algorithm, then this step is not necessary. Because in the
+        // sample sort, elements are partitioned to processors according
+        // to sample splitters, it is therefore guaranteed that no
+        // duplicates will be crossing the processor boundaries.
+        int sendbuf[3] ;
+        int recvbuf[3] ;
+        if(!edge2global.empty()) {
+          sendbuf[0] = edge2global[0].first.first ;
+          sendbuf[1] = edge2global[0].first.second ;
+          sendbuf[2] = edge2global[0].second;
+        } else {
+          // if there is no local data, we set the send buffer
+          // to be the maximum integer so that we don't have problems
+          // in the later comparing stage
+          sendbuf[0] = std::numeric_limits<int>::max() ;
+          sendbuf[1] = std::numeric_limits<int>::max() ;
+          sendbuf[2] = std::numeric_limits<int>::max() ;
+        }
+        MPI_Status status ;
+        if(MPI_rank == 0) {
+          // rank 0 only receives from 1, no sending needed
+          MPI_Recv(recvbuf, 3, MPI_INT,
+                   1/*source*/, 0/*msg tag*/,
+                   MPI_COMM_WORLD, &status) ;
+        } else if(MPI_rank == MPI_processes-1) {
+          // the last processes only sends to the second last processes,
+          // no receiving is needed
+          MPI_Send(sendbuf, 3, MPI_INT,
+                   MPI_rank-1/*dest*/, 0/*msg tag*/, MPI_COMM_WORLD) ;
+        } else {
+          // others will send to MPI_rank-1 and receive from MPI_rank+1
+          MPI_Sendrecv(sendbuf, 3, MPI_INT, MPI_rank-1/*dest*/,0/*msg tag*/,
+                       recvbuf, 3, MPI_INT, MPI_rank+1/*source*/,0/*tag*/,
+                       MPI_COMM_WORLD, &status) ;
+        }
+        // then compare the results with last element in local emap
+        if( (MPI_rank != MPI_processes-1) && (!edge2global.empty())){
+          const pair<pair<Entity,Entity>, Entity>& last = edge2global.back() ;
+          if( (recvbuf[0] == last.first.first) &&
+              (recvbuf[1] == last.first.second)&&
+              (recvbuf[2] == last.secon)) {
+            edge2global.pop_back() ;
+          }
+        }
+      } // end if(MPI_Processes > 1)
+#endif
+
+    
+      int local_num_edge = edge2global.size();
+      vector<int> edge_sizes(MPI_processes);
+      MPI_Allgather(&local_num_edge,1,MPI_INT,&edge_sizes[0],1,MPI_INT,MPI_COMM_WORLD) ;
+    
+      int file_num_offset = 0;
+      for(int i = 0; i < MPI_rank; i++){
+        file_num_offset += edge_sizes[i];
+      }
+    
+      vector<pair<Entity, Entity> > file2global(edge2global.size());
+      int index = file_num_offset;
+    
+      entitySet input_image = edges;
+      entitySet input_preimage;
+      for(int i = 0; i < local_num_edge; i++){
+        input_preimage += index;
+        file2global[i] = pair<Entity, Entity>(index, edge2global[i].second);
+        index++;
+      }
+      
+      multiMap global2file;
+    
+      //the input_image is not really the image, it should be the global2file's domain
+      //if it doesn't include all corresponding entities in init_ptn, error will occur
+      //also input_preimage is never used
+      std::vector<entitySet> init_ptne = facts.get_init_ptn(ek) ;// FIX THIS
+
+      Loci::distributed_inverseMap(global2file,
+                                   file2global,
+                                   input_image,
+                                   input_preimage,
+                                   init_ptne);
+    
+    
+      if(global2file.domain() != edges){
+        cerr<<"the inversed map doesn't match edges" << endl;
+        cerr <<"domain: " << global2file.domain() << " edge:   " << edges << endl;
+        Loci::Abort();
+      }
+    
+      fact_db::distribute_infoP dist = facts.get_distribute_info() ;
+
+      FORALL(global2file.domain(), ei){
+        dist->g2fv[0][ei] = global2file[ei][0] ;
+      }ENDFORALL;
+    
+    }
+    //before put edge2node to fact_db, make sure each edge point from lower
+    //file number node to higher file number node
+    MapVec<2> edge3 ;
+    edge3.allocate(edges) ;
+    FORALL(edges, ei) {
+      edge3[ei][0] = edge[ei][0];
+      edge3[ei][1] = edge[ei][1];
+    }ENDFORALL;
+    
+    // Add edge3node data structure to fact databse
+    edge3.Rep()->setDomainKeySpace(ek) ;
+    facts.create_fact("edge2node",edge3) ;  
+    
+  } // end of createEdgesPar
+
+  void setupPosAutoDiff(fact_db &facts) {
+#if defined(USE_AUTODIFF) || defined(MULTIFAD)
+    
+    store<vector3d<Loci::real_t> > pout ;
+    {
+      store<vector3d<double> > pin ;
+      pin.setRep(facts.get_fact("pos")) ;
+    
+      entitySet dom = pin.domain() ;
+      pout.allocate(dom) ;
+      FORALL(dom,ii) {
+	pout[ii] = vector3d<Loci::real_t>(pin[ii].x,
+					  pin[ii].y,
+					  pin[ii].z) ;
+      } ENDFORALL ;
+    }
+    facts.replace_fact("pos",pout.Rep()) ;
+#endif
+  }
+
+
+  void setupOverset(fact_db &facts) {
+    using namespace Loci ;
+    using std::map ;
+    storeRepP sp = facts.get_variable("componentGeometry") ;
+    if(sp == 0)
+      return ;
+    sp = facts.get_variable("ci") ;
+    if(sp == 0)
+      return ;
+    entitySet bfaces = sp->domain() ;
+    sp = facts.get_variable("interface_BC") ;
+    if(sp != 0) {
+      constraint tmp ;
+      tmp = sp ;
+      bfaces -= *tmp ;
+    }
+    sp = facts.get_variable("symmetry_BC") ;
+    if(sp != 0) {
+      constraint tmp ;
+      tmp = sp ;
+      bfaces -= *tmp ;
+    }
+    sp = facts.get_variable("face2node") ;
+    
+    MapRepP mp = MapRepP(sp->getRep()) ;
+    entitySet nodeSet = mp->image(bfaces) ;
+
+    store<vector3d<double> > pos ;
+
+    pos = facts.get_variable("pos") ;
+    entitySet dom = pos.domain() ;
+    vector<entitySet> posptn = all_collect_vectors(dom,MPI_COMM_WORLD) ;
+    entitySet surfNodes = dist_collect_entitySet(nodeSet,posptn) ;
+    
+    // Now get volume tags
+    variableSet vars = facts.get_extensional_facts() ;
+    map<string,entitySet> volMap ;
+
+    for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
+      if(variable(*vi).get_arg_list().size() > 0 &&
+         variable(*vi).get_info().name == "volumeTag") {
+        param<string> vname(facts.get_variable(*vi)) ;
+
+	std::ostringstream vn ;
+        vn << *vi ;
+        string name = vn.str() ;
+        volMap[name] = vname.domain() ;
+      }
+    }
+
+    // If no volume tags (Weird), then make default tag.
+    if(volMap.begin() == volMap.end()) {
+      volMap[string("Main")] = ~EMPTY ;
+    }
+    vector<entitySet> volSets ;
+    map<string,entitySet>::const_iterator mi ;
+    for(mi=volMap.begin();mi!=volMap.end();++mi) {
+      // This could be a scalability problem!!!!
+      volSets.push_back(all_collect_entitySet(mi->second)) ;
+    }
+
+    // Now get face associations with volumes
+    vector<entitySet> facesets ;
+    int sz = volSets.size() ;
+    Map cl,cr ;
+    cl = facts.get_variable("cl") ;
+    cr = facts.get_variable("cr") ;
+    entitySet domf = cl.domain()+cr.domain() ;
+    for(int i=0;i<sz;++i) {
+      entitySet faces = (cr.preimage(volSets[i]).first +
+                         cl.preimage(volSets[i]).first) ;
+      
+      facesets.push_back(all_collect_entitySet(faces)) ;
+    }
+
+    // Now get node associations with volumes
+
+    vector<entitySet> nodesets ;
+    for(int i=0;i<sz;++i) {
+      entitySet nodes = mp->image(facesets[i]) ;
+      nodesets.push_back(all_collect_entitySet(nodes)) ;
+    }
+    
+
+    Map min_node2surf_loc ;
+    min_node2surf_loc.allocate(pos.domain()) ;
+
+    entitySet excludeSet ;
+    
+    for(int i=0;i<sz;++i) {
+      entitySet nodeSet = nodesets[i] & pos.domain() ;
+      entitySet nodeSetsurf = nodesets[i] & surfNodes ;
+      if(!GLOBAL_OR(nodeSetsurf.size()!=0)) {
+        excludeSet += nodeSet ;
+        continue ;
+      }
+      vector<Loci::kdTree::coord3d> bcnodes_pts(nodeSetsurf.size()) ;
+      vector<int> bcnodes_ids(nodeSetsurf.size()) ;
+
+      int cnt = 0 ;
+      FORALL(nodeSetsurf,nd) {
+        bcnodes_pts[cnt][0] = pos[nd].x ;
+        bcnodes_pts[cnt][1] = pos[nd].y ;
+        bcnodes_pts[cnt][2] = pos[nd].z ;
+        bcnodes_ids[cnt] = nd ;
+        cnt++ ;
+      } ENDFORALL ;
+
+
+      
+      
+      vector<Loci::kdTree::coord3d> node_pts(nodeSet.size()) ;
+      vector<int> closest(nodeSet.size(),-1) ;
+      cnt = 0 ;
+      FORALL(nodeSet,nd) {
+        node_pts[cnt][0] = pos[nd].x ;
+        node_pts[cnt][1] = pos[nd].y ;
+        node_pts[cnt][2] = pos[nd].z ;
+        cnt++ ;
+      } ENDFORALL ;
+      
+      Loci::parallelNearestNeighbors(bcnodes_pts,bcnodes_ids,node_pts,closest,
+                                     MPI_COMM_WORLD) ;
+
+      cnt = 0 ;
+      FORALL(nodeSet,nd) {
+        min_node2surf_loc[nd] = closest[cnt] ;
+        cnt++ ;
+      } ENDFORALL ;
+    }
+
+    Map min_node2surf ;
+
+    if(excludeSet == EMPTY) {
+      min_node2surf.setRep(min_node2surf_loc.Rep()) ;
+    } else {
+      entitySet dom = pos.domain()-excludeSet ;
+      min_node2surf.allocate(dom) ;
+      FORALL(dom,nd) {
+        min_node2surf[nd] = min_node2surf_loc[nd] ;
+      } ENDFORALL ;
+    }
+
+    facts.create_fact("node2surf",min_node2surf) ;
+  }    
+
+  
+  void setupPosAutoDiff(fact_db &facts, std::string filename) {
+#if defined(USE_AUTODIFF) || defined(MULTIFAD)
+    setupPosAutoDiff(facts) ;
+#endif
+  }
+}

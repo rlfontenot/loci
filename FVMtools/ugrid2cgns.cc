@@ -7,6 +7,19 @@
 #include <string.h>
 #include <ctype.h>
 #include <math.h>
+#include <string>
+#include <vector>
+#include <iostream>
+#include <fstream>
+#include <set>
+using std::string;
+using std::vector;
+using std::ifstream;
+using std::cout;
+using std::cerr;
+using std::endl;
+using std::ios;
+using std::set;
 #ifdef _WIN32
 #include <io.h>
 #define ACCESS _access
@@ -431,6 +444,149 @@ static void read_mapbc(char *filename)
 }
 
 /*----------------------------------------------------------------------*/
+ struct BC_descriptor {
+    std::string name ;
+    int id ;
+    bool Trans ;
+  } ;
+ vector<BC_descriptor> readTags(string filename) {
+    vector<BC_descriptor> bcs ;
+    ifstream file(filename.c_str(),ios::in) ;
+    if(file.fail()) {
+      return bcs ;
+    }
+    char buf[1024] ;
+    buf[1023] = '\0' ;
+    file.getline(buf,1023) ;
+    if(strncmp(buf,"# Generated",11) == 0) {
+      cout << "Tagfile: " << buf << endl ;
+      // New tag file, dump first two lines
+      file.getline(buf,1023) ;
+      file.getline(buf,1023) ;
+      int nsp = 0 ;
+      for(int i=0;i<1023;++i) {
+        if(buf[i] == '\0')
+          break ;
+        if(isspace(buf[i])) {
+          nsp++ ;
+          while(isspace(buf[i]))
+            i++ ;
+        }
+        if(strncmp(&buf[i],"Trans",5) == 0)
+          break ;
+      }
+          
+      int n2trans = nsp-1 ;
+      while(file.peek() != EOF) {
+        int id = -1;
+        file >> id ;
+        if(id == -1)
+          break ;
+        string name ;
+        file >> name ;
+        if(name == "")
+          break ;
+        string tmp = name ;
+        size_t nsz = name.size() ;
+        if(!(name[0] >= 'a' && name[0] <= 'z') &&
+           !(name[0] >= 'A' && name[0] <= 'Z'))
+          name[0] = '_' ;
+        for(size_t i=1;i<nsz;++i) 
+          if(!(name[i] >= 'a' && name[i] <= 'z') &&
+             !(name[i] >= 'A' && name[i] <= 'Z') &&
+             !(name[i] >= '0' && name[i] <= '9'))
+            name[i] = '_' ;
+        if(tmp != name) 
+          cerr << "Renaming tag '" << tmp << "' to '" << name << "'!" << endl ;
+        
+        bool trans ;
+        for(int i=0;i<n2trans;++i)
+          file >> trans ;
+        BC_descriptor BC ;
+        BC.id = id ;
+        BC.name = name ;
+        BC.Trans = trans ;
+        file.getline(buf,1023) ;
+        bcs.push_back(BC) ;
+        while(file.peek() != EOF && (isspace(file.peek())))
+          file.get() ;
+        while(file.peek() == '#') { // eat comments
+          file.getline(buf,1023) ;
+          while(file.peek() != EOF && (isspace(file.peek())))
+            file.get() ;
+        }
+      }
+    } else {
+      if(strncmp(buf,"#ID:",4) != 0) {
+        cerr << "unable to interpret tag file format" << endl ;
+        cerr << "first line: " << buf << endl ;
+        return bcs ;
+      }
+      int nsp = 0 ;
+      for(int i=0;i<120;++i) {
+        if(buf[i] == '\0')
+          break ;
+        if(isspace(buf[i])) {
+          nsp++ ;
+          while(isspace(buf[i]))
+            i++ ;
+        }
+        if(strncmp(&buf[i],"Trans",5) == 0)
+          break ;
+      }
+      int n2trans = nsp-1 ;
+      while(file.peek() != EOF) {
+        while(file.peek() != EOF&&file.peek() != '#')
+          file.get() ;
+
+        char c ;
+        c = file.get() ;
+        if(c != '#') {
+          cerr << "expected to get a hash while reading '" << filename << "'"
+               << endl ;
+          bcs.clear() ;
+          return bcs ;
+        }
+        int id = 0 ;
+        file >> id ;
+        c = file.get() ;
+        if(c != ':') {
+          cerr << "expected to get a colon while reading '" << filename << "'"
+               << endl ;
+          bcs.clear() ;
+          return bcs ;
+        }
+        string name ;
+        file >> name ;
+        string tmp = name ;
+        size_t nsz = name.size() ;
+        if(!(name[0] >= 'a' && name[0] <= 'z') &&
+           !(name[0] >= 'A' && name[0] <= 'Z'))
+          name[0] = '_' ;
+        for(size_t i=1;i<nsz;++i) 
+          if(!(name[i] >= 'a' && name[i] <= 'z') &&
+             !(name[i] >= 'A' && name[i] <= 'Z') &&
+             !(name[i] >= '0' && name[i] <= '9'))
+            name[i] = '_' ;
+        if(tmp != name) 
+          cerr << "Renaming tag '" << tmp << "' to '" << name << "'!" << endl ;
+
+        bool trans ;
+        for(int i=0;i<n2trans;++i)
+          file >> trans ;
+        BC_descriptor BC ;
+        BC.id = id ;
+        BC.name = name ;
+        BC.Trans = trans ;
+        file.getline(buf,1024) ;
+        bcs.push_back(BC) ;
+        while(file.peek() != EOF && (isspace(file.peek())))
+          file.get() ;
+      }
+    }
+    return bcs ;
+  }
+/*----------------------------------------------------------------------*/
 
 static CGNS_ENUMV(BCType_t) get_bctype (int bctype)
 {
@@ -477,7 +633,7 @@ static CGNS_ENUMV(BCType_t) get_bctype (int bctype)
 
 /*----------------------------------------------------------------------*/
 
-static void write_cgns(char *filename)
+static void write_cgns(char *filename, const vector<BC_descriptor>& bcs)
 {
     char name[33];
     const char *bcname;
@@ -564,84 +720,137 @@ static void write_cgns(char *filename)
         exit(1);
     }
 
-    /* write tris */
+    /* collect all the ids */
+    set<int> ids;
+    for (ns = 0; ns < nTriSets; ns++) ids.insert(TriSets[ns].id);
+    for (ns = 0; ns < nQuadSets; ns++)ids.insert(QuadSets[ns].id);
+    if(!bcs.empty() && ids.size() != bcs.size()){
+      cerr<<" ERROR: number of boundaries in .tags file does not match that in .ugrid file" <<endl;
+      cg_error_exit(); 
+    }
 
-    for (ns = 0; ns < nTriSets; ns++) {
-        n = 0;
-        for (ne = TriSets[ns].start; ne <= TriSets[ns].end; ne++) {
+    /* for each boundary, first write out its triset, then its quadset*/
+   
+    for(set<int>::const_iterator si=ids.begin(); si != ids.end(); si++){
+      int bc_id = *si;
+      /* write tris */
+
+      for (ns = 0; ns < nTriSets; ns++) {
+        if(TriSets[ns].id == bc_id){
+          n = 0;
+          for (ne = TriSets[ns].start; ne <= TriSets[ns].end; ne++) {
             for (i = 0; i < 3; i++)
-                nodes[n++] = Tris[ne].nodes[i];
-        }
-        end = start + TriSets[ns].end - TriSets[ns].start;
-        sprintf(name, "TriElements %d", ns+1);
-        if (cg_section_write(cgfile, cgbase, cgzone, name,
-                CGNS_ENUMV(TRI_3), start, end, 0, nodes, &cgsect))
+              nodes[n++] = Tris[ne].nodes[i];
+          }
+          end = start + TriSets[ns].end - TriSets[ns].start;
+          sprintf(name, "TriElements %d", ns+1);
+          if (cg_section_write(cgfile, cgbase, cgzone, name,
+                               CGNS_ENUMV(TRI_3), start, end, 0, nodes, &cgsect))
             cg_error_exit();
-        TriSets[ns].start = (int)start;
-        TriSets[ns].end = (int)end;
-        start = end + 1;
-    }
+          TriSets[ns].start = (int)start;
+          TriSets[ns].end = (int)end;
+          start = end + 1;
+          break;
+        }
+      }
 
-    /* write quads */
+      /* write quads */
 
-    for (ns = 0; ns < nQuadSets; ns++) {
-        n = 0;
-        for (ne = QuadSets[ns].start; ne <= QuadSets[ns].end; ne++) {
+      for (ns = 0; ns < nQuadSets; ns++) {
+        if(QuadSets[ns].id == bc_id){
+          n = 0;
+          for (ne = QuadSets[ns].start; ne <= QuadSets[ns].end; ne++) {
             for (i = 0; i < 4; i++)
-                nodes[n++] = Quads[ne].nodes[i];
-        }
-        end = start + QuadSets[ns].end - QuadSets[ns].start;
-        sprintf(name, "QuadElements %d", ns+1+nTriSets);
-        if (cg_section_write(cgfile, cgbase, cgzone, name,
-                CGNS_ENUMV(QUAD_4), start, end, 0, nodes, &cgsect))
+              nodes[n++] = Quads[ne].nodes[i];
+          }
+          end = start + QuadSets[ns].end - QuadSets[ns].start;
+          sprintf(name, "QuadElements %d", ns+1+nTriSets);
+          if (cg_section_write(cgfile, cgbase, cgzone, name,
+                               CGNS_ENUMV(QUAD_4), start, end, 0, nodes, &cgsect))
             cg_error_exit();
-        QuadSets[ns].start = (int)start;
-        QuadSets[ns].end = (int)end;
-        start = end + 1;
+          QuadSets[ns].start = (int)start;
+          QuadSets[ns].end = (int)end;
+          start = end + 1;
+          break;
+        }
+      }
     }
-
     free(nodes);
 
     /* write BCs */
+    for(set<int>::const_iterator si=ids.begin(); si != ids.end(); si++){
+      int bc_id = *si;
+      bool name_found = false;
+      if(!bcs.empty()){
+        for(unsigned int i= 0; i< bcs.size(); i++){
+          if(bcs[i].id == bc_id){
+            // std::strcpy (name, bcs[i].name.c_str());
+            sprintf(name, "%s", bcs[i].name.c_str()); 
+            name_found = true;
+            break;
+          }
+        }
+      }
+      bool tri_found = false;
+      for (ns = 0; ns < nTriSets; ns++) {
+        if(TriSets[ns].id == bc_id){
+          bctype = get_bctype(TriSets[ns].bctype);
+          if(!name_found){
+            bcname = cg_BCTypeName(bctype);
+            if (0 == strncmp(bcname, "BC", 2)) bcname += 2;
+            sprintf(name, "%s %d", bcname, ns+1);
+            name_found=true;
+          }
+          cout<< "bc name: " << string(name) << endl;
+          range[0] = TriSets[ns].start;
+          range[1] = TriSets[ns].end;
+          tri_found = true;
+          break;
+        }
+      }
 
-    for (ns = 0; ns < nTriSets; ns++) {
-        bctype = get_bctype(TriSets[ns].bctype);
-        bcname = cg_BCTypeName(bctype);
-        if (0 == strncmp(bcname, "BC", 2)) bcname += 2;
-        sprintf(name, "%s %d", bcname, ns+1);
-        range[0] = TriSets[ns].start;
-        range[1] = TriSets[ns].end;
+      bool quad_found = false;
+      for (ns = 0; ns < nQuadSets; ns++) {
+        if(QuadSets[ns].id == bc_id){
+           bctype = get_bctype(QuadSets[ns].bctype);
+           if(!name_found){
+             bcname = cg_BCTypeName(bctype);
+             if (0 == strncmp(bcname, "BC", 2)) bcname += 2;
+             sprintf(name, "%s %d", bcname, ns+1+nTriSets);
+             name_found = true;
+           }
+           if(tri_found){
+             range[1] = QuadSets[ns].end;
+           }else{
+             range[0] = QuadSets[ns].start;
+             range[1] = QuadSets[ns].end;
+           }
+           quad_found = true;
+           break;
+        }
+      }
+      if(!name_found) {
+        cerr << " ERROR: boundary name not found for bc id " << bc_id << endl;
+        cg_error_exit();
+      }
+      if(!(tri_found || quad_found)){
+        cerr<<"ERROR: not face set defined for bc id " << bc_id << endl;
+        cg_error_exit();
+      }
+          
 #if CGNS_VERSION < 3100
-        if (cg_boco_write(cgfile, cgbase, cgzone, name,
-                bctype, CGNS_ENUMV(ElementRange), 2, range, &cgbc))
+       if (cg_boco_write(cgfile, cgbase, cgzone, name,
+                         bctype, CGNS_ENUMV(ElementRange), 2, range, &cgbc))
 #else
-        if (cg_boco_write(cgfile, cgbase, cgzone, name,
-                bctype, CGNS_ENUMV(PointRange), 2, range, &cgbc) ||
-            cg_boco_gridlocation_write(cgfile, cgbase, cgzone,
-                cgbc, CGNS_ENUMV(FaceCenter)))
+         if (cg_boco_write(cgfile, cgbase, cgzone, name,
+                           bctype, CGNS_ENUMV(PointRange), 2, range, &cgbc) ||
+             cg_boco_gridlocation_write(cgfile, cgbase, cgzone,
+                                        cgbc, CGNS_ENUMV(FaceCenter)))
 #endif
-            cg_error_exit();
+           cg_error_exit();
     }
 
-    for (ns = 0; ns < nQuadSets; ns++) {
-        bctype = get_bctype(QuadSets[ns].bctype);
-        bcname = cg_BCTypeName(bctype);
-        if (0 == strncmp(bcname, "BC", 2)) bcname += 2;
-        sprintf(name, "%s %d", bcname, ns+1+nTriSets);
-        range[0] = QuadSets[ns].start;
-        range[1] = QuadSets[ns].end;
-#if CGNS_VERSION < 3100
-        if (cg_boco_write(cgfile, cgbase, cgzone, name,
-                bctype, CGNS_ENUMV(ElementRange), 2, range, &cgbc))
-#else
-        if (cg_boco_write(cgfile, cgbase, cgzone, name,
-                bctype, CGNS_ENUMV(PointRange), 2, range, &cgbc) ||
-            cg_boco_gridlocation_write(cgfile, cgbase, cgzone,
-                cgbc, CGNS_ENUMV(FaceCenter)))
-#endif
-            cg_error_exit();
-    }
-
+    
     cg_close(cgfile);
 }
 
@@ -710,6 +919,29 @@ int main (int argc, char *argv[])
     if (nPrisms) printf("nPrisms = %d\n", nPrisms);
     if (nHexas)  printf("nHexas  = %d\n", nHexas);
 
+
+
+    /* check for tags file */
+    vector<BC_descriptor> bcs ;
+    {
+      string tmpname =  string(basename);
+      std::size_t pos = tmpname.find('.');
+      
+      string tagsfile = tmpname.substr(0, pos) + ".tags" ;
+      bcs = readTags(tagsfile) ;
+      if(bcs.size() == 0) {
+        cerr << "unable to read '" << tagsfile << "'" << endl ;
+      }
+      
+      // for(size_t i=0;i<bcs.size();++i)
+      //   if(bcs[i].Trans)
+      //     transsurf.push_back(bcs[i].id) ;
+
+      cout << "boundary faces:"<<endl; ;
+      for(size_t i=0;i<bcs.size();++i)
+        cout << ' ' <<  bcs[i].id << " " << bcs[i].name<< endl;
+      
+    }
     /* check for mapbc file */
 
     tail = strrchr(basename, '/');
@@ -737,7 +969,8 @@ int main (int argc, char *argv[])
         fflush(stdout);
         read_mapbc(basename);
     }
-
+    
+    
     /* open CGNS file */
 
     if (argind < argc) {
@@ -748,10 +981,11 @@ int main (int argc, char *argv[])
         p = basename;
     }
     printf ("writing CGNS file to \"%s\"\n", p);
-    write_cgns(p);
+    write_cgns(p, bcs);
 
     return 0;
 }
+
 #else
 int main(int ac, char *av[]) {
   fprintf(stderr,"Loci not compiled with CGNS support enabled! This utility cannot work!\n") ;

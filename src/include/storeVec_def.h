@@ -69,6 +69,36 @@ namespace Loci {
       return ptr[idx] ;
     }
 #endif
+#ifdef BOUNDS_CHECK
+    const T &operator[](size_t idx) const {
+      fatal(idx >= size || idx < 0) ;
+      return ptr[idx] ;
+    }
+#else 
+    const T &restrict operator[](size_t idx) const restrict {
+      return ptr[idx] ;
+    }
+#endif
+#ifdef BOUNDS_CHECK
+    const T &operator[](unsigned int idx) const {
+      fatal(idx >= size || idx < 0) ;
+      return ptr[idx] ;
+    }
+#else 
+    const T &restrict operator[](unsigned int idx) const restrict {
+      return ptr[idx] ;
+    }
+#endif
+#ifdef BOUNDS_CHECK
+    const T &operator[](unsigned char idx) const {
+      fatal(idx >= size || idx < 0) ;
+      return ptr[idx] ;
+    }
+#else 
+    const T &restrict operator[](unsigned char idx) const restrict {
+      return ptr[idx] ;
+    }
+#endif
     operator const T *restrict () const restrict {
       return ptr ;
     }
@@ -201,6 +231,45 @@ namespace Loci {
 #endif
       return ptr[idx] ;
     }
+    T &operator[](size_t idx) {
+#ifdef BOUNDS_CHECK
+      fatal(idx >= size || idx < 0) ;
+#endif
+      return ptr[idx] ;
+    }
+
+    const T &operator[](size_t idx) const {
+#ifdef BOUNDS_CHECK
+      fatal(idx >= size || idx < 0) ;
+#endif
+      return ptr[idx] ;
+    }
+    T &operator[](unsigned int idx) {
+#ifdef BOUNDS_CHECK
+      fatal(idx >= size || idx < 0) ;
+#endif
+      return ptr[idx] ;
+    }
+
+    const T &operator[](unsigned int idx) const {
+#ifdef BOUNDS_CHECK
+      fatal(idx >= size || idx < 0) ;
+#endif
+      return ptr[idx] ;
+    }
+    T &operator[](unsigned char idx) {
+#ifdef BOUNDS_CHECK
+      fatal(idx >= size || idx < 0) ;
+#endif
+      return ptr[idx] ;
+    }
+
+    const T &operator[](unsigned char idx) const {
+#ifdef BOUNDS_CHECK
+      fatal(idx >= size || idx < 0) ;
+#endif
+      return ptr[idx] ;
+    }
 
     operator T*() {
       return ptr ;
@@ -224,6 +293,11 @@ namespace Loci {
     int  get_estimated_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset);
     void hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, frame_info &fi, entitySet &en) ;
     void hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER g, const entitySet &en) const;
+#ifdef H5_HAVE_PARALLEL
+    void hdf5readP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, frame_info &fi, entitySet &en, hid_t xfer_plist_id) ;
+    void hdf5writeP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER g, const entitySet &en, hid_t xfer_plist_id) const;
+#endif
+    
     void packdata(IDENTITY_CONVERTER c, void *ptr, int &loc, int size,
                   const entitySet &e) ;
     void unpackdata(IDENTITY_CONVERTER c, void *ptr, int &loc, int &size,
@@ -233,6 +307,10 @@ namespace Loci {
     int  get_estimated_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset);
     void hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER c, frame_info &fi, entitySet &en) ;
     void hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER g, const entitySet &en) const;
+#ifdef H5_HAVE_PARALLEL
+    void hdf5readP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER c, frame_info &fi, entitySet &en, hid_t xfer_plist_id) ;
+    void hdf5writeP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER g, const entitySet &en, hid_t xfer_plist_id) const;
+#endif    
     void packdata(USER_DEFINED_CONVERTER c, void *ptr, int &loc, int size,
                   const entitySet &e ) ;
     void unpackdata(USER_DEFINED_CONVERTER c, void *ptr, int &loc, int &size,
@@ -273,6 +351,10 @@ namespace Loci {
     virtual std::istream &Input(std::istream &s) ;
     virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en) ;
     virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const ;
+#ifdef H5_HAVE_PARALLEL
+    virtual void readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en, hid_t xfer_plist_id) ;
+    virtual void writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en, hid_t xfer_plist_id) const ;
+#endif    
     virtual void set_elem_size(int sz) ;
     T *get_alloc_ptr() const { return alloc_ptr ; }
     int get_base_offset() const { return base_offset ; }
@@ -305,13 +387,19 @@ namespace Loci {
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
     int vecSize() const { return size ; }
     const entitySet domain() const { return Rep()->domain() ; }
-    Vect<T> elem(int indx) {
+    Vect<T> elem(Entity indx) {
 #ifdef BOUNDS_CHECK
       fatal(alloc_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif 
       return Vect<T>(alloc_ptr+((indx-base_offset)*size),size) ; }
-    Vect<T> operator[](int indx) {
+    Vect<T> operator[](Entity indx) {
+#ifdef BOUNDS_CHECK
+      fatal(alloc_ptr==NULL); 
+      fatal(!((Rep()->domain()).inSet(indx))) ;
+#endif 
+      return Vect<T>(alloc_ptr+((indx-base_offset)*size),size) ; }
+    Vect<T> operator[](size_t indx) {
 #ifdef BOUNDS_CHECK
       fatal(alloc_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
@@ -319,6 +407,7 @@ namespace Loci {
       return Vect<T>(alloc_ptr+((indx-base_offset)*size),size) ; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ;}
+    
   } ;
 
   template<class T> class const_storeVec : public store_instance {
@@ -350,23 +439,32 @@ namespace Loci {
     int vecSize() const { return size ; }
     const entitySet domain() const { return Rep()->domain() ; }
 #ifdef BOUNDS_CHECK
-    const_Vect<T> elem(int indx) const {
+    const_Vect<T> elem(Entity indx) const {
       fatal(alloc_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
       return const_Vect<T>(alloc_ptr+((indx-base_offset)*size),size) ; }
-    const_Vect<T> operator[](int indx) const {
+    const_Vect<T> operator[](Entity indx) const {
+      fatal(alloc_ptr==NULL); 
+      fatal(!((Rep()->domain()).inSet(indx))) ;
+      return const_Vect<T>(alloc_ptr+((indx-base_offset)*size),size) ;
+    }
+    const_Vect<T> operator[](size_t indx) const {
       fatal(alloc_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
       return const_Vect<T>(alloc_ptr+((indx-base_offset)*size),size) ;
     }
 #else
-    const_Vect<T> elem(int indx) const restrict {
+    const_Vect<T> elem(Entity indx) const restrict {
       return const_Vect<T>(alloc_ptr+((indx-base_offset)*size),size) ; }
-    const_Vect<T> operator[](int indx) const restrict {
+    const_Vect<T> operator[](Entity indx) const restrict {
+      return const_Vect<T>(alloc_ptr+((indx-base_offset)*size),size) ;
+    }
+    const_Vect<T> operator[](size_t indx) const restrict {
       return const_Vect<T>(alloc_ptr+((indx-base_offset)*size),size) ;
     }
 #endif
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
+
   } ;
 
 

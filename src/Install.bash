@@ -41,10 +41,22 @@ cp System/libLoci.$LIB_POSTFIX $INSTALL_PATH/lib
 cp FVMMod/fvm_m.so $INSTALL_PATH/lib
 cp FVMAdapt/fvmadapt_m.so $INSTALL_PATH/lib
 cp FVMAdapt/libfvmadaptfunc.$LIB_POSTFIX $INSTALL_PATH/lib
-cp ParMetis-4.0/GKLib/libgk.$LIB_POSTFIX $INSTALL_PATH/lib
-cp ParMetis-4.0/METISLib/libmetis.$LIB_POSTFIX $INSTALL_PATH/lib
-cp ParMetis-4.0/ParMETISLib/libparmetis.$LIB_POSTFIX $INSTALL_PATH/lib
+cp FVMOverset/fvmoverset_m.so $INSTALL_PATH/lib
 cp sprng/libsprng.$LIB_POSTFIX $INSTALL_PATH/lib
+
+if [ ! ${INSTALL_METIS} == 0 ]; then
+    cp ParMetis-4.0/GKLib/libgk.$LIB_POSTFIX $INSTALL_PATH/lib
+    cp ParMetis-4.0/METISLib/libmetis.$LIB_POSTFIX $INSTALL_PATH/lib
+    cp ParMetis-4.0/ParMETISLib/libparmetis.$LIB_POSTFIX $INSTALL_PATH/lib
+    mkdir -p $INSTALL_PATH/ParMetis-4.0
+    mkdir -p $INSTALL_PATH/ParMetis-4.0/include
+    mkdir -p $INSTALL_PATH/ParMetis-4.0/lib
+    cp ParMetis-4.0/*.h $INSTALL_PATH/ParMetis-4.0
+    cp ParMetis-4.0/*.h $INSTALL_PATH/ParMetis-4.0/include
+    cp ParMetis-4.0/GKLib/libgk.$LIB_POSTFIX $INSTALL_PATH/ParMetis-4.0/lib
+    cp ParMetis-4.0/METISLib/libmetis.$LIB_POSTFIX $INSTALL_PATH/ParMetis-4.0/lib
+    cp ParMetis-4.0/ParMETISLib/libparmetis.$LIB_POSTFIX $INSTALL_PATH/ParMetis-4.0/lib
+fi
 
 echo Installing Loci Tools
 cp lpp/lpp $INSTALL_PATH/bin
@@ -54,6 +66,8 @@ cp FVMtools/make_periodic $INSTALL_PATH/bin
 cp FVMtools/plot3d2vog $INSTALL_PATH/bin
 cp FVMtools/vog2surf $INSTALL_PATH/bin
 cp FVMtools/ugrid2vog $INSTALL_PATH/bin
+cp FVMtools/msh2vog $INSTALL_PATH/bin
+cp FVMtools/cfd++2vog $INSTALL_PATH/bin
 cp FVMtools/fluent2vog $INSTALL_PATH/bin
 cp FVMtools/ccm2vog $INSTALL_PATH/bin
 cp FVMtools/vogmerge $INSTALL_PATH/bin
@@ -64,6 +78,11 @@ cp FVMtools/extruder $INSTALL_PATH/bin
 cp FVMtools/refmesh $INSTALL_PATH/bin
 cp FVMtools/marker $INSTALL_PATH/bin
 cp FVMtools/refine $INSTALL_PATH/bin
+cp FVMtools/cgns2ensight $INSTALL_PATH/bin
+cp FVMtools/cgns2surf $INSTALL_PATH/bin
+cp FVMtools/ugrid2cgns $INSTALL_PATH/bin
+cp FVMtools/cgns2ugrid $INSTALL_PATH/bin
+cp FVMtools/cgns2vog $INSTALL_PATH/bin
 
 echo cp Loci.conf comp.conf sys.conf $INSTALL_PATH
 cp Loci.conf comp.conf sys.conf $INSTALL_PATH
@@ -73,13 +92,12 @@ mkdir -p $INSTALL_PATH/include
 cp include/*.h $INSTALL_PATH/include
 cp include/*.lh $INSTALL_PATH/include
 cp include/Loci $INSTALL_PATH/include
-mkdir -p $INSTALL_PATH/ParMetis-4.0
-cp ParMetis-4.0/*.h $INSTALL_PATH/ParMetis-4.0
 
-for i in  Tools Config MPI_stubb FVMAdapt; do
+for i in  Tools Config MPI_stubb FVMAdapt FVMOverset; do
     mkdir -p $INSTALL_PATH/include/$i
     cp include/$i/*.h $INSTALL_PATH/include/$i
 done
+cp include/FVMOverset/*.lh $INSTALL_PATH/include/FVMOverset
 
 mkdir -p $INSTALL_PATH/docs
 mkdir -p $INSTALL_PATH/docs/1D-Diffusion

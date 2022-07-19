@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -38,14 +38,139 @@
 #include <distribute_io.h>
 
 namespace Loci {
-  ////this code is still used by fvmtools, will be replaced by member function of gMultiMap or gMap in the future
+  
   void distributed_inverseMap(multiMap &result,
                               std::vector<std::pair<Entity,Entity> > &input,
                               entitySet input_image,
                               entitySet input_preimage,
                               const std::vector<entitySet> &init_ptn) ;
 
- 
+  dMap distribute_dMap(dMap m, const std::vector<entitySet> &init_ptn) ;
+
+  void distributed_inverseMap(dmultiMap &result, const dMap &input_map,
+                              const entitySet &input_image,
+                              const entitySet &input_preimage,
+                              std::vector<entitySet> &init_ptn) ;
+  
+  void distributed_inverseMap(dmultiMap &result, const Map &input_map,
+                              const entitySet &input_image,
+                              const entitySet &input_preimage,
+                              std::vector<entitySet> &init_ptn) ;
+  
+  void distributed_inverseMap(dmultiMap &result,
+                              const dmultiMap &input_map,
+                              const entitySet &input_image,
+                              const entitySet &input_preimage,
+                              std::vector<entitySet> &init_ptn) ;
+  
+  void distributed_inverseMap(dmultiMap &result,
+                              const multiMap &input_map,
+                              const entitySet &input_image,
+                              const entitySet &input_preimage,
+                              std::vector<entitySet> &init_ptn); 
+
+  void distributed_inverseMap(dmultiMap &result,
+                              const const_dMap &input_map,
+                              const entitySet &input_image,
+                              const entitySet &input_preimage,
+                              std::vector<entitySet> &init_ptn) ;
+  
+  void distributed_inverseMap(dmultiMap &result,
+                              const const_Map &input_map,
+                              const entitySet &input_image,
+                              const entitySet &input_preimage,
+                              std::vector<entitySet> &init_ptn) ;
+  
+  void distributed_inverseMap(dmultiMap &result,
+                              const const_dmultiMap &input_map,
+                              const entitySet &input_image,
+                              const entitySet &input_preimage,
+                              std::vector<entitySet> &init_ptn) ;
+  
+  void distributed_inverseMap(dmultiMap &result,
+                              const const_multiMap &input_map,
+                              const entitySet &input_image,
+                              const entitySet &input_preimage,
+                              std::vector<entitySet> &init_ptn); 
+
+  inline void distributed_inverseMap(dmultiMap &result, const dMap &input_map, const entitySet &input_image, const entitySet &input_preimage, fact_db &facts, size_t kd) {
+    if(facts.is_distributed_start()) {
+      std::vector<entitySet> init_ptn = facts.get_init_ptn(kd) ;
+      Loci::distributed_inverseMap(result, input_map, input_image, input_preimage, init_ptn) ;
+    } else {
+      Loci::inverseMap(result,input_map,input_image,input_preimage) ;
+    }
+  }
+  
+  inline void distributed_inverseMap(dmultiMap &result, const Map &input_map, const entitySet &input_image, const entitySet &input_preimage, fact_db &facts, size_t kd) {
+    if(facts.is_distributed_start()) {
+      std::vector<entitySet> init_ptn = facts.get_init_ptn(kd) ;
+      Loci::distributed_inverseMap(result, input_map, input_image, input_preimage, init_ptn) ;
+    } else {
+      Loci::inverseMap(result,input_map,input_image,input_preimage) ;
+    }
+  }      
+
+  inline void distributed_inverseMap(dmultiMap &result, const dmultiMap &input_map, const entitySet &input_image, const entitySet &input_preimage, fact_db &facts,size_t kd) {
+    if(facts.is_distributed_start()) {
+      std::vector<entitySet> init_ptn = facts.get_init_ptn(kd) ;
+      Loci::distributed_inverseMap(result, input_map, input_image, input_preimage, init_ptn) ;
+    } else {
+      inverseMap(result,input_map,input_image,input_preimage) ;
+    }
+  }
+
+  inline void distributed_inverseMap(dmultiMap &result,
+                                     const multiMap &input_map,
+                                     const entitySet &input_image,
+                                     const entitySet &input_preimage,
+                                     fact_db &facts,
+				     size_t kd) {
+    if(facts.is_distributed_start()) {
+      std::vector<entitySet> init_ptn = facts.get_init_ptn(kd) ;
+      Loci::distributed_inverseMap(result, input_map, input_image, input_preimage, init_ptn) ;
+    } else {
+      inverseMap(result,input_map,input_image,input_preimage) ;
+    }
+  }
+
+  void distributed_inverseMap(multiMap &result, const dMap &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) ;
+  
+  void distributed_inverseMap(multiMap &result, const Map &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) ;
+  
+  void distributed_inverseMap(multiMap &result, const dmultiMap &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) ;
+  
+  void distributed_inverseMap(multiMap &result, const multiMap &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn);
+  
+
+  inline void distributed_inverseMap(multiMap &result, const Map &input_map, const entitySet &input_image, const entitySet &input_preimage, fact_db &facts, size_t kd) {
+    if(facts.is_distributed_start()) {
+      std::vector<entitySet> init_ptn = facts.get_init_ptn(kd) ;
+      Loci::distributed_inverseMap(result, input_map, input_image, input_preimage, init_ptn) ;
+    } else {
+      Loci::inverseMap(result,input_map,input_image,input_preimage) ;
+    }
+  }      
+
+  inline void distributed_inverseMap(multiMap &result, const multiMap &input_map, const entitySet &input_image, const entitySet &input_preimage, fact_db &facts,size_t kd) {
+    if(facts.is_distributed_start()) {
+      std::vector<entitySet> init_ptn = facts.get_init_ptn(kd) ;
+      Loci::distributed_inverseMap(result, input_map, input_image, input_preimage, init_ptn) ;
+    } else {
+      Loci::inverseMap(result,input_map,input_image,input_preimage) ;
+    }
+  }      
+
+  inline void distributed_inverseMap(multiMap &result, const dMap &input_map, const entitySet &input_image, const entitySet &input_preimage, fact_db &facts, size_t kd) {
+    if(facts.is_distributed_start()) {
+      std::vector<entitySet> init_ptn = facts.get_init_ptn(kd) ;
+      Loci::distributed_inverseMap(result, input_map, input_image, input_preimage, init_ptn) ;
+    } else {
+      Loci::inverseMap(result,input_map,input_image,input_preimage) ;
+    }
+  }
+
+
   typedef std::vector<std::pair<int,int> > protoMap;
   
   inline bool equiFF(const std::pair<int,int> &v1,

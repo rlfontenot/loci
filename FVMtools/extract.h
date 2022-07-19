@@ -30,6 +30,7 @@ enum var_type {NODAL_SCALAR,NODAL_VECTOR,NODAL_DERIVED,NODAL_MASSFRACTION, BOUND
 enum view_type {VIEWXY=0,VIEWYZ=1,VIEWXZ=2,VIEWXR=3}  ;
 
 
+extern string getTopoFileName(string output_dir, string casename, string iteration) ;
 
 // convert a string to an integer
 inline int str2int(string s) {
@@ -119,8 +120,11 @@ size_t  sizeElementType(hid_t group_id, const char *element_name) ;
 template<class T> void readElementType(hid_t group_id, const char *element_name,
                                        vector<T> &v) {
   if(v.size() > 0) {
+#ifdef H5_USE_16_API
+    hid_t dataset = H5Dopen(group_id,element_name) ;
+#else
     hid_t dataset = H5Dopen(group_id,element_name,H5P_DEFAULT) ;
-
+#endif
     typedef data_schema_traits<T> traits_type ;
     Loci::DatatypeP dp = traits_type::get_type() ;
     
@@ -136,7 +140,11 @@ void readElementTypeBlock(hid_t group_id,
                           size_t start_elem,
                           int block_size) {
   if(block_size > 0) {
+#ifdef H5_USE_16_API
+    hid_t dataset = H5Dopen(group_id,element_name) ;
+#else
     hid_t dataset = H5Dopen(group_id,element_name,H5P_DEFAULT) ;
+#endif
 
     typedef data_schema_traits<T> traits_type ;
     Loci::DatatypeP dp = traits_type::get_type() ;
@@ -173,12 +181,21 @@ template<class T> void writeElementType(hid_t group_id,
   typedef data_schema_traits<T> traits_type ;
   Loci::DatatypeP dp = traits_type::get_type() ;
   
+#ifdef H5_INTERFACE_1_6_4
   hsize_t start = 0 ;
+#else
+  hssize_t start = 0 ;
+#endif
   hsize_t stride = 1 ;
   hsize_t count = v.size() ;
   hid_t datatype = dp->get_hdf5_type() ;
+#ifdef H5_USE_16_API
+  hid_t dataset = H5Dcreate(group_id,element_name,datatype,
+                            dataspace, H5P_DEFAULT) ;
+#else
   hid_t dataset = H5Dcreate(group_id,element_name,datatype,
                             dataspace, H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
   if(count != 0) {
     H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
                         &start, &stride, &count, NULL) ;
@@ -279,6 +296,7 @@ public:
   virtual std::vector<string> getNodalScalarVars() const = 0 ;
   virtual std::vector<string> getNodalVectorVars() const = 0 ;
   virtual void getPos(vector<vector3d<float> > &pos) const = 0 ;
+  virtual void getPos(vector<vector3d<double> > &pos) const = 0 ;
   virtual void getTetBlock(vector<Array<int,4> > &tets, size_t start, size_t size) const = 0 ;
   virtual void getTetIds(vector<int> &tetids, size_t start, size_t size) const = 0 ;
   virtual void getPyrmBlock(vector<Array<int,5> > &pyrms, size_t start, size_t size) const = 0 ;
@@ -316,6 +334,7 @@ public:
   virtual std::vector<string> getNodalScalarVars() const ;
   virtual std::vector<string> getNodalVectorVars() const ;
   virtual void getPos(vector<vector3d<float> > &val) const ;
+  virtual void getPos(vector<vector3d<double> > &pos) const;
   virtual void getTetBlock(vector<Array<int,4> > &tets, size_t start, size_t size) const ;
   virtual void getTetIds(vector<int> &tetids, size_t start, size_t size) const ;
   virtual void getPyrmBlock(vector<Array<int,5> > &pyrms, size_t start, size_t size) const ;
@@ -355,6 +374,7 @@ public:
   virtual std::vector<string> getNodalScalarVars() const ;
   virtual std::vector<string> getNodalVectorVars() const ;
   virtual void getPos(vector<vector3d<float> > &val) const ;
+  virtual void getPos(vector<vector3d<double> > &pos) const;
   virtual void getTetBlock(vector<Array<int,4> > &tets, size_t start, size_t size) const ;
   virtual void getTetIds(vector<int> &tetids, size_t start, size_t size) const ;
   virtual void getPyrmBlock(vector<Array<int,5> > &pyrms, size_t start, size_t size) const ;
@@ -401,6 +421,7 @@ public:
   virtual void getGenfIds(vector<int> &genface_ids) const =0;
   
   virtual void getPos(vector<vector3d<float> > &pos) const = 0;
+  virtual void getPos(vector<vector3d<double> > &pos) const = 0 ;
   virtual void getNodalScalar(string varname, vector<float> &vals) const = 0 ;
   virtual void getNodalVector(string varname, vector<vector3d<float> > &vals) const = 0;
   virtual void getElementScalar(string varname, vector<float> &qvals,
@@ -441,6 +462,7 @@ public:
   virtual void getTriasIds(vector<int> &trias_ids) const ;
   virtual void getGenfIds(vector<int> &genface_ids) const ;
   virtual void getPos(vector<vector3d<float> > &pos) const ;
+  virtual void getPos(vector<vector3d<double> > &pos) const;
   virtual void getNodalScalar(string varname, vector<float> &vals) const ;
   virtual void getNodalVector(string varname, vector<vector3d<float> > &vals) const ;
   virtual void getElementScalar(string varname, vector<float> &qvals,
@@ -487,6 +509,7 @@ public:
   virtual void getGenfIds(vector<int> &genface_ids) const ;
   
   virtual void getPos(vector<vector3d<float> > &pos) const ;
+  virtual void getPos(vector<vector3d<double> > &pos) const;
   virtual void getNodalScalar(string varname, vector<float> &vals) const ;
   virtual void getNodalVector(string varname, vector<vector3d<float> > &vals) const ;
   virtual void getElementScalar(string varname, vector<float> &qvals,
@@ -505,7 +528,7 @@ class surfacePartCopy : public surfacePartBase {
   vector<int> quadIds;
   vector<int> genIds;
   vector<int> nodemap ;
-  vector<vector3d<float> > pos ;
+  vector<vector3d<double> > pos ;
   map<string,vector<float> > nodalScalars ;
   map<string,vector<vector3d<float> > > nodalVectors ;
   map<string,Array<vector<float>,3> > elementScalars ;
@@ -518,7 +541,7 @@ public:
                   vector<int>& quads_ids,
                   vector<int> &genface2n, vector<int> &gnodes,
                   vector<int>&gen_ids) ;
-  void registerPos(const vector<vector3d<float> > &pos) ;
+  void registerPos(const vector<vector3d<double> > &pos) ;
   void registerNodalScalar(string name,const vector<float> &val) ;
   void registerNodalVector(string name,const vector<vector3d<float> > &val) ;
   void registerElementScalar(string name, 
@@ -546,6 +569,7 @@ public:
   virtual void getGenfIds(vector<int> &genface_ids) const; 
   
   virtual void getPos(vector<vector3d<float> > &pos) const ;
+  virtual void getPos(vector<vector3d<double> > &pos) const ;
   virtual void getNodalScalar(string varname, vector<float> &vals) const ;
   virtual void getNodalVector(string varname, vector<vector3d<float> > &vals) const ;
   virtual void getElementScalar(string varname, vector<float> &qvals,
@@ -592,7 +616,7 @@ public:
   virtual void exportPostProcessorFiles(string casename, string iteration) const ;
 } ;
 
-
+//#ifdef HAVE_CGNS
 class cgnsPartConverter : public postProcessorConvert {
   bool id_required;
 public:
@@ -603,8 +627,7 @@ public:
 
   virtual void exportPostProcessorFiles(string casename, string iteration) const ;
 } ;
-
-
+//#endif
 
 class tecplotPartConverter : public postProcessorConvert {
 public:
@@ -666,5 +689,7 @@ public:
 
   virtual void exportPostProcessorFiles(string casename, string iteration) const ;
 } ;
+
+extern void readData(hid_t file_id, std::string vname, Loci::storeRepP var, entitySet readSet, fact_db &facts) ;
 
 #endif

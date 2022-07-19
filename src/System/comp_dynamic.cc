@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -280,8 +280,8 @@ namespace Loci {
           }
         }
         
-        WARN(reduction && pointwise || pointwise && singleton ||
-             reduction && singleton) ;
+        WARN((reduction && pointwise) || (pointwise && singleton) ||
+             (reduction && singleton)) ;
 
         if((use_rules != EMPTY)) {
           if((priority_rule || pointwise) && !recursive && (vi->get_info().name != "OUTPUT")){

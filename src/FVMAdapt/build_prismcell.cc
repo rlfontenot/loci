@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2015, Mississippi State University
+//# Copyright 2015-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -389,7 +389,10 @@ Prism* build_prism_cell(const Entity* lower, int lower_size,
   
   return aCell;
 }
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+#endif
 
 //build a cell with edgePlan and facePlan, tag the nodes
 //then resplit the edges and faces with edgePlan1 and facePlan1
@@ -564,7 +567,7 @@ Prism* build_resplit_prism_cell(const Entity* lower, int lower_size,
   
   
   //resplit the faces again without tagging the node
-  std::list<QuadFace*>::const_iterator qiter = qface_list.begin();
+  //  std::list<QuadFace*>::const_iterator qiter = qface_list.begin();
   std::list<Face*>::const_iterator giter = gface_list.begin();
   for(int i = 0; i < 2; i++){
     (*giter)->resplit(facePlan1[face_entity[i]], orientCode[i], bnode_list, edge_list);//resplit without orientCode
@@ -702,7 +705,7 @@ Prism* build_resplit_prism_cell_ctag(const Entity* lower, int lower_size,
   cells.clear();
     
   //resplit the faces again without tagging the node
-  std::list<QuadFace*>::const_iterator qiter = qface_list.begin();
+  //  std::list<QuadFace*>::const_iterator qiter = qface_list.begin();
   std::list<Face*>::const_iterator giter = gface_list.begin();
   for(int i = 0; i < 2; i++){
     (*giter)->resplit(facePlan1[face_entity[i]], orientCode[i], bnode_list, edge_list);//resplit without orientCode
@@ -1042,3 +1045,6 @@ Prism* build_prism_cell(const Entity* lower, int lower_size,
   return aCell;
 }
 
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif

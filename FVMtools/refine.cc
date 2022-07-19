@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -19,6 +19,7 @@
 //#
 //#############################################################################
 
+
 #include <iostream>
 #include <string>
 
@@ -27,8 +28,7 @@
 #include <limits>
 #include "./FVMAdapt/globals.h"
 #include <Loci>
-#include <GLoci.h>
-#include <fact_db.h>
+
 using std::cout ;
 
 
@@ -38,11 +38,9 @@ using std::endl;
 using std::cerr;
 using std::ofstream;
 using Loci::MPI_processes;
-using Loci::fact_db;
-using Loci::gParam;
 namespace Loci{
-  void parallelClassifyCell(fact_db &gfacts) ;
-  void createEdgesPar(fact_db &gfacts) ;
+  void parallelClassifyCell(fact_db &facts) ;
+  void createEdgesPar(fact_db &facts) ;
 }
 
 int main(int argc, char ** argv) {
@@ -334,117 +332,115 @@ int main(int argc, char ** argv) {
   rule_db rules;
   rules.add_rules(global_rule_list);
   
-  // Setup the gfact database.
-  fact_db gfacts;
+  // Setup the fact database.
+  fact_db facts;
   
   if(Loci::MPI_rank == 0) cout <<"reading in meshfile" << std::endl;
 
   // Read in the mesh file.  
-  if(!Loci::setupFVMGrid(gfacts,meshFile)) {
+  if(!Loci::setupFVMGrid(facts,meshFile)) {
     std::cerr << "unable to read grid file '" << meshFile << "'" << std::endl ;
     Loci::Abort() ;
   }
   
   //Setup Loci datastructures
-  Loci::createLowerUpper(gfacts) ;
-  Loci::createEdgesPar(gfacts) ;
-  Loci:: parallelClassifyCell(gfacts);
+  Loci::createLowerUpper(facts) ;
+  Loci::createEdgesPar(facts) ;
+  Loci:: parallelClassifyCell(facts);
 
  
   //this is a dummy parameter to trick Loci scheduler
-  gParam<bool> beginWithMarker;
+  param<bool> beginWithMarker;
   *beginWithMarker = true;
-  gfacts.create_gfact("beginWithMarker",beginWithMarker) ; 
+  facts.create_fact("beginWithMarker",beginWithMarker) ; 
   
-  gParam<std::string> meshfile_par ;
+  param<std::string> meshfile_par ;
   *meshfile_par = meshFile;
-  gfacts.create_gfact("meshfile_par",meshfile_par) ; 
+  facts.create_fact("meshfile_par",meshfile_par) ; 
 
-  gParam<std::string> outfile_par ;
+  param<std::string> outfile_par ;
   *outfile_par = outFile;
-  gfacts.create_gfact("outfile_par",outfile_par) ; 
+  facts.create_fact("outfile_par",outfile_par) ; 
 
   if(plan_output){ 
-    gParam<std::string> plan_outfile_par ;
+    param<std::string> plan_outfile_par ;
     *plan_outfile_par = outPlanFile;
-    gfacts.create_gfact("plan_outfile_par",plan_outfile_par) ;
+    facts.create_fact("plan_outfile_par",plan_outfile_par) ;
   }
   
   if(tag_input){
-    gParam<std::string> tagfile_par ;
+    param<std::string> tagfile_par ;
     *tagfile_par = tagFile;
-    gfacts.create_gfact("tagfile_par",tagfile_par) ;
+    facts.create_fact("tagfile_par",tagfile_par) ;
   }
  
   if(ctag_input){
-    gParam<std::string> tagfile_par ;
+    param<std::string> tagfile_par ;
     *tagfile_par = tagFile;
-    gfacts.create_gfact("cell_tagfile_par",tagfile_par) ;
+    facts.create_fact("cell_tagfile_par",tagfile_par) ;
   }
  
   if(par_input){
-    gParam<std::string> parfile_par ;
+    param<std::string> parfile_par ;
     *parfile_par = parFile;
-    gfacts.create_gfact("parfile_par",parfile_par) ;
+    facts.create_fact("parfile_par",parfile_par) ;
   }
   
   if(xml_input){
-    gParam<std::string> xmlfile_par ;
+    param<std::string> xmlfile_par ;
     *xmlfile_par = xmlFile;
-    gfacts.create_gfact("xmlfile_par",xmlfile_par) ;
+    facts.create_fact("xmlfile_par",xmlfile_par) ;
   }
   if(cell2parent){
-    gParam<std::string> c2pfile_par ;
+    param<std::string> c2pfile_par ;
     *c2pfile_par = c2pFile;
-    gfacts.create_gfact("cell2parent_file_par",c2pfile_par) ;
+    facts.create_fact("cell2parent_file_par",c2pfile_par) ;
     if(restart){
-      gParam<std::string> parent_planfile_par ;
+      param<std::string> parent_planfile_par ;
       *parent_planfile_par = planFile;
-      gfacts.create_gfact("parent_planfile_par",parent_planfile_par) ;
+      facts.create_fact("parent_planfile_par",parent_planfile_par) ;
     }
   }
   //parameters to identify different options
   if(restart){
-    gParam<std::string> planfile_par ;
+    param<std::string> planfile_par ;
     *planfile_par = planFile;
-    gfacts.create_gfact("planfile_par",planfile_par) ;
+    facts.create_fact("planfile_par",planfile_par) ;
     
     if(xml_input){
-      gParam<int> restart_xml_par;
+      param<int> restart_xml_par;
       *restart_xml_par = 1;
-      gfacts.create_gfact("restart_xml_par",restart_xml_par);
+      facts.create_fact("restart_xml_par",restart_xml_par);
     } else if(tag_input||ctag_input){
-      gParam<int> restart_tag_par;
+      param<int> restart_tag_par;
       *restart_tag_par = 1;
-      gfacts.create_gfact("restart_tag_par",restart_tag_par);
+      facts.create_fact("restart_tag_par",restart_tag_par);
     }else if(par_input){
-      gParam<int> restart_par_par;
+      param<int> restart_par_par;
       *restart_par_par = 1;
-      gfacts.create_gfact("restart_par_par",restart_par_par); 
+      facts.create_fact("restart_par_par",restart_par_par); 
     }
   }else{
     if(xml_input){
-      gParam<int> norestart_xml_par;
+      param<int> norestart_xml_par;
       *norestart_xml_par = 1;
-      gfacts.create_gfact("norestart_xml_par",norestart_xml_par);
+      facts.create_fact("norestart_xml_par",norestart_xml_par);
     }else if(tag_input||ctag_input){
-      gParam<int> norestart_tag_par;
+      param<int> norestart_tag_par;
       *norestart_tag_par = 1;
-      gfacts.create_gfact("norestart_tag_par",norestart_tag_par);
+      facts.create_fact("norestart_tag_par",norestart_tag_par);
     }else if(par_input){
-      gParam<int> norestart_par_par;
+      param<int> norestart_par_par;
       *norestart_par_par = 1;
-      gfacts.create_gfact("norestart_par_par",norestart_par_par);
+      facts.create_fact("norestart_par_par",norestart_par_par);
     }
   }
   
-  gParam<int> split_mode_par;
+  param<int> split_mode_par;
   *split_mode_par = split_mode;
-  gfacts.create_gfact("split_mode_par", split_mode_par);
+  facts.create_fact("split_mode_par", split_mode_par);
 
-
-
-    Loci::load_module("fvmadapt", rules);
+  Loci::load_module("fvmadapt", rules);
   //  if(Loci::MPI_rank==0){
   //     Loci::ruleSet all_rules = rules.all_rules();
   //     for(Loci::ruleSet::const_iterator ri = all_rules.begin();
@@ -454,33 +450,33 @@ int main(int argc, char ** argv) {
   //     cout<< endl;
   //   }
   
-   
+ 
   
   if(cell2parent){
-    if(!Loci::makeQuery(rules, gfacts, "cell2parent_output")) {
+    if(!Loci::makeQuery(rules, facts, "cell2parent_output")) {
       std::cerr << "query failed!" << std::endl;
       Loci::Abort();
     }
   }
  
  
-  if(!Loci::makeQuery(rules, gfacts,"node_output")) {
+  if(!Loci::makeQuery(rules, facts,"node_output")) {
     std::cerr << "query failed!" << std::endl;
     Loci::Abort();
   }
   
-  if(!Loci::makeQuery(rules, gfacts, "face_output")) {
+  if(!Loci::makeQuery(rules, facts, "face_output")) {
     std::cerr << "query failed!" << std::endl;
     Loci::Abort();
   }
-  if(!Loci::makeQuery(rules, gfacts, "volTag_output")) {
+  if(!Loci::makeQuery(rules, facts, "volTag_output")) {
     std::cerr << "query failed!" << std::endl;
     Loci::Abort();
   }
 
   
   if(plan_output){
-    if(!Loci::makeQuery(rules, gfacts, "cellplan_output")) {
+    if(!Loci::makeQuery(rules, facts, "cellplan_output")) {
       std::cerr << "query failed!" << std::endl;
       Loci::Abort();
     }

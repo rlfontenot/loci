@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -52,7 +52,6 @@ using std::cout;
 
 //cells: in and out, return all the leaves cells in a std::vector
 
-#pragma GCC diagnostic ignored "-Wchar-subscripts"
 
 void HexCell::resplit( const std::vector<char>& cellPlan,
                        std::list<Node*>& node_list,
@@ -375,6 +374,10 @@ HexCell* HexCell::findNeighbor(DIRECTION dd)
 //nodes: in and out, initially the nodes after resplit(), when return, all the new points
 //from split the faces are added
 // faces: in and out, initially empty, return all the indivial faces and its two cell inex
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wchar-subscripts"
+#endif
 
 void set_hex_faces(const std::vector<HexCell*>& cells,
                    std::map<QuadFace*, NeibIndex>& faces){
@@ -1759,3 +1762,6 @@ void reorder_faces(const const_store<int>& node_remap, std::vector<Entity>& lowe
   reorder_faces(node_remap, boundary_map);
 }
 
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif

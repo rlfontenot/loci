@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -60,17 +60,24 @@ namespace Loci {
     cerr << " This method should not be called for a Map " << endl ;
     return sp ;
   }
-  storeRepP MapRepI::remap(const dMap &m) const {
-    entitySet newdomain = m.domain() & domain() ;
-    pair<entitySet,entitySet> mappimage = preimage(m.domain()) ;
+  storeRepP MapRepI::MapRemap(const dMap &dm, const dMap &rm) const {
+    entitySet newdomain = dm.domain() & domain() ;
+    pair<entitySet,entitySet> mappimage = preimage(rm.domain()) ;
     newdomain &= mappimage.first ;
-    entitySet mapimage = m.image(newdomain) ;
+    entitySet mapimage = dm.image(newdomain) ;
     Map s ;
+    s.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(s.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
     s.allocate(mapimage) ;
     storeRepP my_store = getRep() ;
-    s.Rep()->scatter(m,my_store,newdomain) ;
-    MapRepP(s.Rep())->compose(m,mapimage) ;
+    s.Rep()->scatter(dm,my_store,newdomain) ;
+    MapRepP(s.Rep())->compose(rm,mapimage) ;
     return s.Rep() ;
+  }
+
+  storeRepP MapRepI::remap(const dMap &m) const {
+    cerr << "Map shouldn't use remap!" << endl ;
+    return MapRemap(m,m) ;
   }
 
   void MapRepI::compose(const dMap &m, const entitySet &context) {
@@ -472,6 +479,9 @@ namespace Loci {
       }
     }
     Map dm ;
+    dm.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(dm.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
+    
     entitySet tm = store_domain + out_of_dom ;
     dm.allocate(tm) ;
     for(ei = store_domain.begin(); ei != store_domain.end(); ++ei)
@@ -497,6 +507,8 @@ namespace Loci {
   storeRepP MapRepI::thaw() {
     
     dMap dm ;
+    dm.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(dm.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
     FORALL(store_domain,i) {
       dm[i] = base_ptr[i] ;
     } ENDFORALL ;
@@ -509,6 +521,8 @@ namespace Loci {
       sizes[i] = 1 ;
     } ENDFORALL ;
     multiMap result ;
+    result.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(result.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
     result.allocate(sizes) ;
     FORALL(store_domain,i) {
       result.begin(i)[0] = base_ptr[i] ;
@@ -564,10 +578,20 @@ namespace Loci {
     warn(true) ; 
   } 
 
+#ifdef H5_HAVE_PARALLEL 
+  void MapRepI::readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &usr_eset, hid_t xfer_plist_id){
+    warn(true) ; 
+  } 
+#endif
   void MapRepI::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet &usr_eset) const{
     warn(true) ;
   } 
 
+#ifdef H5_HAVE_PARALLEL 
+  void MapRepI::writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet &usr_eset, hid_t xfer_plist_id) const{
+    warn(true) ;
+  } 
+#endif  
   Map::~Map() {}
 
   void Map::notification() {
@@ -704,6 +728,8 @@ namespace Loci {
       }
     }
     multiMap dmul ;
+    dmul.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(dmul.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
     entitySet tm = store_domain + out_of_dom ;
     store<int> count ;
     count.allocate(tm) ;
@@ -742,6 +768,8 @@ namespace Loci {
   
   storeRepP multiMapRepI::thaw() {
     dmultiMap dm ;
+    dm.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(dm.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
     FORALL(store_domain, i) {
       size_t sz = end(i)-begin(i) ;
       std::vector<int,malloc_alloc<int> >(sz).swap(dm[i]) ;
@@ -751,34 +779,69 @@ namespace Loci {
     return(dm.Rep()) ;
   }
   
-  void multiMapRepI::allocate(const store<int> &sizes) {
-    
+  void multialloc(const store<int> &count, int ***index, int **alloc_pointer,
+                  int ***base_ptr) {
+    entitySet ptn = count.domain() ;
+    int top = ptn.Min() ;
+    int len = ptn.Max() - top + 2 ;
+    if(ptn == EMPTY) {
+      top = 0 ;
+      len = 0 ;
+    }
+    int **new_index = 0 ;
+    try {
+      if(ptn != EMPTY)
+	new_index = new int *[len] ;
+    } catch(std::exception &e) {
+      std::cerr << " a standard exception was caught in new_index"
+      		<< ", len=" << len << " with message: "
+      		<< e.what() << endl;
+      Loci::Abort() ;
+    }
+
+    int **new_base_ptr = new_index-top ;
     size_t sz = 0 ;
+    int min_count = 0x8fffffff ;
+    int max_count = 0 ;
+    FORALL(ptn,i) {
+      max_count = max(count[i],max_count) ;
+      min_count = min(count[i],min_count) ;
+      sz += count[i] ;
+    } ENDFORALL ;
+    int *new_alloc_pointer = 0 ;
+    try {
+      new_alloc_pointer = new int[sz+1] ;
+    } catch(std::exception &e) {
+      std::cerr << " a standard exception was caught in new_alloc_pointer "
+		<< ", sz=" << sz << ", min_cnt=" << min_count 
+		<< ", max_cnt=" << max_count
+		<< ", pnt.size() = " << ptn.size() 
+		<< ", exception = " 
+		<< e.what() << endl;
+    }
+    sz = 0 ;
+    for(size_t ivl=0;ivl<ptn.num_intervals();++ivl) {
+      int i = ptn[ivl].first ;
+      new_base_ptr[i] = new_alloc_pointer + sz ;
+      while(i<=ptn[ivl].second) {
+        sz += count[i] ;
+        ++i ;
+        new_base_ptr[i] = new_alloc_pointer + sz ;
+      }
+    }
+    *index = new_index ;
+    *alloc_pointer = new_alloc_pointer ;
+    *base_ptr = new_base_ptr ;
+  }
+
+  void multiMapRepI::allocate(const store<int> &sizes) {
     entitySet ptn = sizes.domain() ;
     if(alloc_pointer) delete[] alloc_pointer ;
     alloc_pointer = 0 ;
     if(index) delete[] index ;
     index = 0 ;
-    if(ptn != EMPTY) {
-      int top = ptn.Min() ;
-      int len = ptn.Max() - top + 2 ;
-      index = new int *[len] ;
-      base_ptr = index - top ;
-      FORALL(ptn,i) {
-        sz += sizes[i] ;
-      } ENDFORALL ;
-      alloc_pointer = new int[sz+1] ;
-      sz = 0 ;
-      for(size_t ivl=0;ivl<ptn.num_intervals();++ivl) {
-        int i = ptn[ivl].first ;
-        base_ptr[i] = alloc_pointer + sz ;
-        while(i<=ptn[ivl].second) {
-          sz += sizes[i] ;
-          ++i ;
-          base_ptr[i] = alloc_pointer + sz ;
-        }
-      }
-    }
+    multialloc(sizes, &index, &alloc_pointer, &base_ptr) ;
+   
     store_domain = ptn ;
     dispatch_notify() ;
   }
@@ -801,18 +864,25 @@ namespace Loci {
     } ENDFORALL ;
     return new multiMapRepI(count)  ;
   }
-  storeRepP multiMapRepI::remap(const dMap &m) const {
-    entitySet newdomain = m.domain() & domain() ;
+  storeRepP multiMapRepI::MapRemap(const dMap &dm, const dMap &rm) const {
+    entitySet newdomain = dm.domain() & domain() ;
     //    pair<entitySet,entitySet> mappimage = preimage(m.domain()) ;
     //    newdomain &= mappimage.first ;
-    entitySet mapimage = m.image(newdomain) ;
+    entitySet mapimage = dm.image(newdomain) ;
     multiMap s ;
+    s.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
+    MapRepP(s.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
+    
     s.allocate(mapimage) ;
     storeRepP my_store = getRep() ;
-    s.Rep()->scatter(m,my_store,newdomain) ;
-    MapRepP(s.Rep())->compose(m,mapimage) ;
+    s.Rep()->scatter(dm,my_store,newdomain) ;
+    MapRepP(s.Rep())->compose(rm,mapimage) ;
     return s.Rep() ;
   } 
+  storeRepP multiMapRepI::remap(const dMap &m) const {
+    cerr << "remap should not be used on Map!" << endl ;
+    return MapRemap(m,m) ;
+  }
 
   void multiMapRepI::compose(const dMap &m, const entitySet &context) {
     fatal(alloc_pointer == 0) ;
@@ -829,32 +899,6 @@ namespace Loci {
     } ENDFORALL ;
   }
 
-  void multialloc(const store<int> &count, int ***index, int **alloc_pointer,
-                  int ***base_ptr) {
-    entitySet ptn = count.domain() ;
-    int top = ptn.Min() ;
-    int len = ptn.Max() - top + 2 ;
-    int **new_index = new int *[len] ;
-    int **new_base_ptr = new_index-top ;
-    size_t sz = 0 ;
-    FORALL(ptn,i) {
-      sz += count[i] ;
-    } ENDFORALL ;
-    int *new_alloc_pointer = new int[sz+1] ;
-    sz = 0 ;
-    for(size_t ivl=0;ivl<ptn.num_intervals();++ivl) {
-      int i = ptn[ivl].first ;
-      new_base_ptr[i] = new_alloc_pointer + sz ;
-      while(i<=ptn[ivl].second) {
-        sz += count[i] ;
-        ++i ;
-        new_base_ptr[i] = new_alloc_pointer + sz ;
-      }
-    }
-    *index = new_index ;
-    *alloc_pointer = new_alloc_pointer ;
-    *base_ptr = new_base_ptr ;
-  }
     
   void multiMapRepI::copy(storeRepP &st, const entitySet &context) {
     const_multiMap s(st) ;
@@ -1178,12 +1222,23 @@ namespace Loci {
   
   void multiMapRepI::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &usr_eset) {
     warn(true) ;
-
   }
 
+#ifdef H5_HAVE_PARALLEL 
+  void multiMapRepI::readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &usr_eset, hid_t xfer_plist_id) {
+    warn(true) ;
+  }
+#endif
+  
   void multiMapRepI::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& eset) const{
     warn(true) ;
   } 
+  
+#ifdef H5_HAVE_PARALLEL 
+  void multiMapRepI::writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& eset, hid_t xfer_plist_id) const{
+    warn(true) ;
+  }  
+#endif
   
   multiMap::~multiMap() {}
 
@@ -1211,6 +1266,8 @@ namespace Loci {
                   const entitySet &input_preimage) {
     store<int> sizes ;
     sizes.allocate(input_image) ;
+    result.Rep()->setDomainKeySpace(MapRepP(input_map.Rep())->getRangeKeySpace()) ;
+    MapRepP(result.Rep())->setRangeKeySpace(input_map.Rep()->getDomainKeySpace()) ;
 
     FORALL(input_image,i) {
       sizes[i] = 0 ;
@@ -1242,6 +1299,8 @@ namespace Loci {
                   const entitySet &input_preimage) {
     store<int> sizes ;
     sizes.allocate(input_image) ;
+    result.Rep()->setDomainKeySpace(MapRepP(input_map.Rep())->getRangeKeySpace()) ;
+    MapRepP(result.Rep())->setRangeKeySpace(input_map.Rep()->getDomainKeySpace()) ;
     
     FORALL(input_image,i) {
       sizes[i] = 0 ;

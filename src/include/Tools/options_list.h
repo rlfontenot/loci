@@ -52,18 +52,21 @@ namespace Loci {
     double real_value ;
     double real_grad ;
     double real_grad2 ;
+    int grad_size ;
+    std::vector<double> gradN ;
     bool boolean_value ;
     UNIT_type units_value ;
     friend class options_list ;
   public:
-    option_values() { value_type = NOT_ASSIGNED ; real_value = 0 ; real_grad = 0; boolean_value = false ; }
+    option_values() { value_type = NOT_ASSIGNED ; real_value = 0 ; real_grad = 0; boolean_value = false ; grad_size = MFAD_SIZE ; gradN.resize(grad_size) ; for(int i=0;i<grad_size;i++) gradN[i] = 0; }
 
     option_value_type type_of() const { return value_type ; }
 
     void get_value(bool &b) const { b = boolean_value; }
     void get_value(double &r) const { r = real_value ; }
+    void get_value(MFADd &r) const { r = MFADd(real_value,&gradN[0],grad_size) ; }
     void get_value(FADd &r) const { r = FADd(real_value,real_grad) ; }
-    void get_value(FAD2d &r) const { r = FAD2d(real_value,real_grad,0.0) ; }
+    void get_value(FAD2d &r) const { r = FAD2d(real_value,real_grad,real_grad2) ; }
     void get_value(value_list_type &l) const { l = value_list ; }
     void get_value(std::string &n) const { n = name ; }
     void get_value(UNIT_type &ut) const { ut = units_value ; }
@@ -109,6 +112,7 @@ namespace Loci {
     option_values getOption(const std::string &option) const ;
     void getOption(const std::string &option, bool &value) const ;
     void getOption(const std::string &option, double &value) const ;
+    void getOption(const std::string &option, MFADd & value) const ;
     void getOption(const std::string &option, FAD2d & value) const ;
     void getOption(const std::string &option, FADd & value) const {
       FAD2d v ;
@@ -123,6 +127,8 @@ namespace Loci {
     void getOptionUnits(const std::string &option, const std::string &units,
                         double &value) const ;
     void getOptionUnits(const std::string &option, const std::string &units,
+                        MFADd &value) const ;
+    void getOptionUnits(const std::string &option, const std::string &units,
                         FAD2d &value) const ;
     void getOptionUnits(const std::string &option, const std::string &units,
                         FADd &value) const {
@@ -132,6 +138,11 @@ namespace Loci {
     }
     void getOptionUnits(const std::string &option, const std::string &units,
 			vector3d<double> &value, double scale=1.0) const ;
+    void getOptionUnits(const std::string &option, const std::string &units,
+			vector3d<MFADd> &value) const ;
+    void getOptionUnits(const std::string &option, const std::string &units,
+			vector3d<MFADd> &value,
+			MFADd scale) const ;
     void getOptionUnits(const std::string &option, const std::string &units,
 			vector3d<FAD2d> &value) const ;
     void getOptionUnits(const std::string &option, const std::string &units,

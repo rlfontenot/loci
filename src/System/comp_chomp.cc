@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -44,7 +44,6 @@ namespace Loci {
   extern int current_rule_id ;
   extern int chomping_size ;
   extern bool profile_memory_usage ;
-  extern bool chomp_verbose;
 
   extern double LociAppPeakMemory ;
   extern double LociAppAllocRequestBeanCounting ;
@@ -64,7 +63,6 @@ namespace Loci {
     }
   }
 
-  extern bool in_internal_query;
   extern bool threading_chomping;
   extern int num_total_chomping;
   extern int num_threaded_chomping;
@@ -132,7 +130,7 @@ namespace Loci {
     // a very large chomping domain and fail the program
     if(total_domain.size() < chomp_size)
       chomp_size = total_domain.size() ;
-
+    
     entitySet copy_total_domain = total_domain ;
     chomp_offset.clear() ;
     seq_table.clear();
@@ -259,14 +257,10 @@ namespace Loci {
       << ")" << endl ;
     printIndent(s) ;
     s << "--Perform chomping for the following rule sequence: " << endl ;
-    deque<entitySet>::const_iterator di=rule_seq.begin();
     for(vector<pair<rule,rule_compilerP> >::const_iterator
-          vi=chomp_comp.begin();vi!=chomp_comp.end();++vi,++di) {
+          vi=chomp_comp.begin();vi!=chomp_comp.end();++vi) {
       printIndent(s) ;
-      s << "-- " << vi->first;
-      if(chomp_verbose)
-        s << ", over: " << *di;
-      s << endl ;
+      s << "-- " << vi->first << endl ;
     }
     printIndent(s) ;
     s << "--End chomping" << endl ;
@@ -469,21 +463,29 @@ namespace Loci {
       total += rule_seq[i] ;
 
 #ifdef PTHREADS
-    ++num_total_chomping;
-    if(!in_internal_query && threading_chomping) {
+    if(threading_chomping) {
       int tnum = thread_control->num_threads();
       int minw = thread_control->min_work_per_thread();
       // no multithreading if the execution sequence is too small
-      if(total.size() < (size_t)tnum*minw)
+      if(total.size() < tnum*minw)
         // normal case
         return
           new execute_chomp(total,chomp_comp,rule_seq,chomp_vars,facts);
       else {
+#ifdef THREAD_CHOMP
         // generate multithreaded execution module
-        ++num_threaded_chomping;
+        vector<rule> rs;
+        for(size_t i=0;i<chomp_comp.size();++i)
+          rs.push_back(chomp_comp[i].first);
+        
         return new
-          Threaded_execute_chomp(sequence(total),chomp_comp,rule_seq,
+          Threaded_execute_chomp(sequence(total),rs,
+                                 chomp_comp,rule_seq,
                                  chomp_vars,facts,scheds);
+#else
+        return
+          new execute_chomp(total,chomp_comp,rule_seq,chomp_vars,facts);
+#endif
       }      
     } else {
 #endif

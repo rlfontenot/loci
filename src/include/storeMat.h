@@ -69,13 +69,19 @@ namespace Loci {
     int vecSize() const { return size_dim; }
     const entitySet domain() const { return Rep()->domain() ; }
 
-    Mat<T> elem(int indx) {
+    Mat<T> elem(Entity indx) {
 #ifdef BOUNDS_CHECK
       fatal(alloc_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif 
       return Mat<T>(alloc_ptr+((indx-base_offset)*size_tot),size_dim) ; }
-    Mat<T> operator[](int indx) {
+    Mat<T> operator[](Entity indx) {
+#ifdef BOUNDS_CHECK
+      fatal(alloc_ptr==NULL); 
+      fatal(!((Rep()->domain()).inSet(indx))) ;
+#endif 
+      return Mat<T>(alloc_ptr+((indx-base_offset)*size_tot),size_dim) ; }
+    Mat<T> operator[](size_t indx) {
 #ifdef BOUNDS_CHECK
       fatal(alloc_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
@@ -83,7 +89,6 @@ namespace Loci {
       return Mat<T>(alloc_ptr+((indx-base_offset)*size_tot),size_dim) ; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ;}
-
   } ;
 
   //**************************************************************************/
@@ -151,19 +156,26 @@ namespace Loci {
     const entitySet domain() { return Rep()->domain() ; }
     //    operator storeRepP() { return Rep() ; }
 
-    const_Mat<T> elem(int indx) {
+    const_Mat<T> elem(Entity indx) {
 #ifdef BOUNDS_CHECK
       fatal(alloc_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif 
       return const_Mat<T>(alloc_ptr+((indx-base_offset)*size_tot),size_dim) ; }
-    const_Mat<T> operator[](int indx) {
+    const_Mat<T> operator[](Entity indx) {
+#ifdef BOUNDS_CHECK
+      fatal(alloc_ptr==NULL); 
+      fatal(!((Rep()->domain()).inSet(indx))) ;
+#endif 
+      return const_Mat<T>(alloc_ptr+((indx-base_offset)*size_tot),size_dim) ; }
+    const_Mat<T> operator[](size_t indx) {
 #ifdef BOUNDS_CHECK
       fatal(alloc_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif 
       return const_Mat<T>(alloc_ptr+((indx-base_offset)*size_tot),size_dim) ; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
+
   } ;
 
   //***************************************************************************/

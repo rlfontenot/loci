@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -55,6 +55,7 @@ namespace Loci {
     virtual storeRep *new_store(const entitySet &p) const ;
     virtual storeRep *new_store(const entitySet &p, const int* cnt) const ;
     virtual storeRepP remap(const dMap &m) const ;
+    virtual storeRepP MapRemap(const dMap &dm, const dMap &rm) const ;
     virtual void compose(const dMap &m, const entitySet &context) ;
     virtual void copy(storeRepP &st, const entitySet &context)  ;
     virtual void gather(const dMap &m, storeRepP &st,
@@ -78,6 +79,11 @@ namespace Loci {
     virtual std::istream &Input(std::istream &s) ;
     virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset) ;
     virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const ;
+#ifdef H5_HAVE_PARALLEL 
+    virtual void readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset, hid_t xfer_plist_id) ;
+    virtual void writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en, hid_t xfer_plist_id) const ;
+#endif
+    
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
     virtual storeRepP thaw() ;
     virtual storeRepP freeze() ;
@@ -137,7 +143,7 @@ namespace Loci {
     std::vector<int,malloc_alloc<int> > &operator[](int indx) { return elem(indx); }
     
     const std::vector<int,malloc_alloc<int> > &operator[](int indx) const 
-      { return const_elem(indx) ; }
+    { return const_elem(indx) ; }
     
     int num_elems(int indx) const 
     { return const_elem(indx).size() ; }
@@ -152,10 +158,10 @@ namespace Loci {
   //***************************************************************************
 
   inline std::ostream & operator<<(std::ostream &s, const dmultiMap &m)
-    { return m.Print(s) ; }
+  { return m.Print(s) ; }
 
   inline std::istream & operator>>(std::istream &s, dmultiMap &m)
-    { return m.Input(s) ; }
+  { return m.Input(s) ; }
 
   //***************************************************************************
 
@@ -199,7 +205,7 @@ namespace Loci {
     }
 
     const std::vector<int,malloc_alloc<int> > operator[](int indx) const 
-      { return const_elem(indx) ; }
+    { return const_elem(indx) ; }
     
     int num_elems(int indx) const 
     {return const_elem(indx).size() ;}

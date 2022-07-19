@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -19,8 +19,8 @@
 //#
 //#############################################################################
 /*-*- C++ -*-*/
-#ifndef SCITYPES_H
-#define SCITYPES_H
+#ifndef LOCISCITYPES_H
+#define LOCISCITYPES_H
 
 #include <Loci_types.h>
 

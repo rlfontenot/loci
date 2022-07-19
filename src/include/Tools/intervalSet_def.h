@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -34,24 +34,27 @@
 #include <vector>
 #include <iostream>
 
+//this directive should be paired with the typedef of GEntity
+#define MPI_GENTITY_TYPE MPI_INT
+#define HDF5_GENTITY_TYPE  H5T_NATIVE_INT
+
 namespace Loci {
 
   typedef int int_type ;
+  typedef int GEntity;
 
-#define LONG_GENTITY
+  
 
-#ifdef LONG_GENTITY
-  typedef long long int gEntity;
-#define COPY2STORE
-#else
-#define COPY2STORE
-  typedef int_type gEntity;
-#endif
+ 
+  //c++ can not typedef a template class, so interval is replaced by genInterval and moved into genIntervalSet class
+  //outside class definition, interval is replaced by std::pair<T, T>. same with pair_vector
+  
+
   //num_intervals return size_t, instead of int
   //use size_t for size of genIntervalSet
   //use size_t for index of genIntervalSet
   //create_intervalSet, create_sequence and FORALL macro are for int_type only
-  //GFORALL is added for gEntity
+  //GFORALL is added for GEntity
   //add comparison between sequence and intervalSet
   
   template<class T> std::ostream & operator<<(std::ostream &s, const std::pair<T, T> &i) ;
@@ -243,13 +246,12 @@ namespace Loci {
     T Max() const {
       size_t sz = Rep->size() ;
       return sz==0?UNIVERSE_MIN:(*Rep)[sz-1].second ;}
-    void make_unique() { Rep.MakeUnique(); }
   } ;
 
 
   template<typename T> T genIntervalSet<T>::UNIVERSE_MAX = std::numeric_limits<T>::max() - 1 ;
   template<typename T> T genIntervalSet<T>::UNIVERSE_MIN = std::numeric_limits<T>::min() + 1 ;
-  template<typename T> genIntervalSet<T> genIntervalSet<T>::EMPTY ; 
+  template<typename T> genIntervalSet<T> genIntervalSet<T>::EMPTY = genIntervalSet<T>() ;
 
   template<typename T> inline genIntervalSet<T> operator~(const genIntervalSet<T> &e) {
     return genIntervalSet<T>::Complement(e) ;
@@ -627,7 +629,6 @@ namespace Loci {
     void Print() const { Print(std::cout) ; }
 
     std::istream &Input(std::istream &s) ;
-    void make_unique() { Rep.MakeUnique(); }
   } ;
 
   template<typename T> inline genSequence<T> & operator+=(genSequence<T> &e, T ival) 
@@ -760,33 +761,6 @@ namespace Loci {
     }
     return s ;
   }
-
-  template<class T> inline genIntervalSet<gEntity> gcreate_intervalSet(T start, T end) {
-    if(start==end)
-      return genIntervalSet<gEntity>::EMPTY ;
-    std::sort(start,end) ;
-    gEntity First = *start ;
-    gEntity Second = *start ;
-    genIntervalSet<gEntity> r ;
-    for(T p=start;p!=end;++p) {
-      if(*p > Second+1) {
-        r += std::pair<gEntity, gEntity>(First,Second) ;
-        First = *p ;
-      }
-      Second = *p ;
-    }
-    r += std::pair<gEntity, gEntity>(First,Second) ;
-    return r ;
-  }
-
-  template<class T> inline genSequence<gEntity> gcreate_sequence(T start, T end) {
-    genSequence<gEntity> s ;
-    for(T p=start;p!=end;++p) {
-      s += *p ;
-    }
-    return s ;
-  }
-  
  
 }
   
@@ -800,9 +774,9 @@ namespace Loci {
 
 
 #define GFORALL(var,indx)                                               \
-  {  const Loci::genIntervalSet<gEntity> &__p = var ;                   \
-  for(size_t __ii=0;__ii<__p.num_intervals();++__ii)                       \
-    for(Loci::gEntity indx=__p[__ii].first;indx<=__p[__ii].second;++indx)
+  {  const Loci::genIntervalSet<GEntity> &__p = var ;                   \
+  for(int __ii=0;__ii<__p.num_intervals();++__ii)                       \
+    for(Loci::GEntity indx=__p[__ii].first;indx<=__p[__ii].second;++indx)
       
 #define ENDGFORALL }
 

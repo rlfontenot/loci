@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -493,7 +493,7 @@ public:
       int parent_index = cell_l2f[cc]-*num_original_nodes-*num_original_faces+1;
       
       
-      c2p[i] = std::pair<int, int>(child_index, parent_index);
+      c2p[i] = make_pair(child_index, parent_index);
      
     }
     c2p.swap(cell2parent[cc]);

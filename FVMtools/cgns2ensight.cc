@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -18,6 +18,23 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
+/*cgns library can be compiled with 64-bit or 32-bit,
+  which will decide cgsize_t is long int or int
+  Loci library can also be compiled with 64-bit or 32-bit, which will affect gEntity
+  static_cast is used in case the size of gEntity and cgsize_t are different
+*/
+
+/*This program take a cgns path as input, which is written as "<filename>/<basename>" or "<filename>".
+
+  CGNS file requirements:
+
+  1. Only unstructured grid. Cell dimension is 3D, and physical dimension is 3D.
+  2. Allowed element type: TRI_3, QUAD_4,
+  TETRA_4,  PYRA_5, 
+  PENTA_6,  HEXA_8
+  3. assume boundary names are specified in ZoneBC nodes, and boundary conditions are defined on faces
+    
+*/
 
 
 #include <stdio.h>
@@ -37,6 +54,8 @@
 #include <algorithm>
 #include <vector>
 #include <map>
+
+
 using std::vector ;
 using std::string ;
 using std::cerr ;
@@ -50,9 +69,11 @@ using std::unique ;
 using std::ifstream ;
 using std::string;
 using std::set;
+using std::max;
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
+
 
 
 string output_dir ;
@@ -60,8 +81,9 @@ string output_dir ;
 void Usage(int ac, char *av[]) {
   cerr << av[0] << ": Incorrect Usage" << endl ;
   cout << "Usage:" << endl;
-  cout << av[0] << "  <case_name> <iteration> <variable(s)>" << endl ;
+  cout << av[0] << "  -f <filename>/<basename>  <variable(s)>" << endl ;
   cout << endl ;
+  cout << " if <basename> is not specified, the first base in cgns file is read" << endl; 
   cout << "Variables are defined by the solver, but typically include: " << endl
        << "r     - nodal density" << endl 
        << "p     - nodal log10 pressure" << endl
@@ -87,7 +109,6 @@ void Usage(int ac, char *av[]) {
        << endl ;
   cout << "extra options for controlling extract" << endl
        << "   -dir <directory> : change extract directory from default 'output'"
-
        << endl << endl ;
   exit(-1) ;
 }
@@ -101,16 +122,73 @@ struct Zone{
 };
   
 
+enum derivedVar_t { VAR_M, VAR_P, VAR_logp, VAR_U, VAR_0, VAR_1, VAR_2,
+                    VAR_X, VAR_Y, VAR_Z } ;
+//derived vars are the nodal scalar variables that can be computed from existing nodal scalars and nodal vectors 
+void process_derived_variables(const vector<string>& vars, //user-specified variables
+                               const set<string>& nodal_scalars,
+                               const set<string>& nodal_vectors,
+                               const set<string>& element_scalars,
+                               const set<string>& element_vectors,
+                               map<string,derivedVar_t>& derivedVars 
+                               ){
+  for(size_t i=0;i<vars.size();++i) {
+    if(vars[i] == "m" && nodal_scalars.find("m") == nodal_scalars.end() ) {
+      if(nodal_scalars.find("a")!= nodal_scalars.end() && 
+	 nodal_vectors.find("v")!=nodal_vectors.end())
+	derivedVars["m"] = VAR_M ;
+    }
+    if(vars[i] == "P" && nodal_scalars.find("P")==nodal_scalars.end()) {
+      if(nodal_scalars.find("pg")!=nodal_scalars.end()) {
+	derivedVars["P"] = VAR_P ;
+      }
+    }
+    if(vars[i] == "p" && nodal_scalars.find("p")==nodal_scalars.end()) {
+      if(nodal_scalars.find("pg") != nodal_scalars.end()) {
+	derivedVars["p"] = VAR_logp ;
+      }
+    }
+    if(vars[i] == "u" && nodal_scalars.find("u")==nodal_scalars.end()) {
+      if(nodal_vectors.find("v") != nodal_vectors.end()) {
+	derivedVars["u"] = VAR_U ;
+      }
+    }
+    if(vars[i] == "0" && nodal_scalars.find("0") == nodal_scalars.end()) {
+      if(nodal_vectors.find("v") != nodal_vectors.end()) {
+	derivedVars["0"] = VAR_0 ;
+      }
+    }
+    if(vars[i] == "1" && nodal_scalars.find("1")==nodal_scalars.end()) {
+      if(nodal_vectors.find("v") != nodal_vectors.end()) {
+	derivedVars["1"] = VAR_1 ;
+      }
+    }
+    if(vars[i] == "2" && nodal_scalars.find("2")==nodal_scalars.end()) {
+      if(nodal_vectors.find("v") != nodal_vectors.end()) {
+	derivedVars["2"] = VAR_2 ;
+      }
+    }
+    if(vars[i] == "x")
+      derivedVars["x"] = VAR_X ;
+    if(vars[i] == "y")
+      derivedVars["y"] = VAR_Y ;
+    if(vars[i] == "z")
+      derivedVars["z"] = VAR_Z ;
+  }
+}
+
 
  
 //if user-specified variables is empty, collect all variables in file
 //otherwise collect the intersection of user-specified variables and file variables
+//in the end, process derived variables
 void collect_variables(const vector<string>& variables, //user-specified variables
                        int index_file, int index_base,
                        set<string>& nodal_scalars,
                        set<string>& nodal_vectors,
                        set<string>& element_scalars,
                        set<string>& element_vectors,
+                       map<string,derivedVar_t>& derivedVars, 
                        vector<Zone*>& zone_data 
                        ) {
 
@@ -185,20 +263,345 @@ void collect_variables(const vector<string>& variables, //user-specified variabl
       }
     }
   }
+  process_derived_variables( variables, //user-specified variables
+                             nodal_scalars,
+                             nodal_vectors,
+                             element_scalars,
+                             element_vectors,
+                             derivedVars); 
 }
 
 
-      
+bool get_scalar_val(const string& varname,
+                    cgsize_t index_file,
+                    cgsize_t index_base,
+                    cgsize_t index_zone,
+                    const vector<Zone*> &zone_data,
+                    vector<float>& vals){
+  CGNS_ENUMT(DataType_t) dtype = CGNS_ENUMV(RealSingle);
+  map<string, int>& var2sol = zone_data[index_zone-1]->var2sol;
+  if(var2sol.find(varname) == var2sol.end())return false; //no var in this zone
+  int index_sol = var2sol[varname];
+  int data_dim = 0;
+  cgsize_t size = 0;
+  if(cg_sol_size( index_file, index_base, index_zone, index_sol, &data_dim,
+                  &size))cg_error_exit();
+  
+  if(data_dim != 1 || size <= 0)cg_error_exit();
+  cgsize_t range_min =1, range_max=size;
+  
+  vals.resize(size);
+  char name[80];
+  memset(name, '\0', 80) ;
+  snprintf(name,80,"%s",varname.c_str()) ;
+  if(cg_field_read(index_file, index_base, index_zone, index_sol ,name,
+                   dtype, &range_min, &range_max,
+                   &vals[0]))cg_error_exit();
+  return true;
+}
+       
+bool get_vector_val_i(const string& varname,
+                      int xi,//0: X; 1:Y; 2:Z
+                      cgsize_t index_file,
+                      cgsize_t index_base,
+                      cgsize_t index_zone,
+                      const vector<Zone*> &zone_data,
+                      vector<float>& vals){
+  CGNS_ENUMT(DataType_t) dtype = CGNS_ENUMV(RealSingle);
+  char component[]={'X', 'Y', 'Z'};
+  if(xi < 0 || xi > 2){
+    cerr<<" ERROR: xi should be 0, 1, or 2" << endl;
+    cg_error_exit();
+  }
+  
+  map<string, int>& var2sol = zone_data[index_zone-1]->var2sol;
+  if(var2sol.find(varname) == var2sol.end())return false;
+  int index_sol = var2sol[varname];
+  int data_dim = 0;
+  cgsize_t size = 0;
+  if(cg_sol_size( index_file, index_base, index_zone, index_sol, &data_dim,
+                  &size))cg_error_exit();
+  
+  if(data_dim != 1 || size <= 0)cg_error_exit();
+  cgsize_t range_min =1, range_max=size;
+ 
+  vals.resize(size);
+  char name[80];
+  string nameX = varname + component[xi];
+  memset(name, '\0', 80) ;
+  snprintf(name,80, "%s", nameX.c_str()); 
+  if(cg_field_read(index_file, index_base, index_zone, index_sol ,name,
+                   dtype, &range_min, &range_max,
+                   &vals[0]))cg_error_exit();
+  return true;
+}
+ 
+
+bool get_pos_i(int xi,//0: X; 1:Y; 2:Z
+               cgsize_t index_file,
+               cgsize_t index_base,
+               cgsize_t index_zone,
+               vector<float>& vals){
+  CGNS_ENUMT(DataType_t) dtype = CGNS_ENUMV(RealSingle);
+  
+  if(xi < 0 || xi > 2){
+    cerr<<" ERROR: xi should be 0, 1, or 2" << endl;
+    cg_error_exit();
+  }
+  char zname[80];
+  cgsize_t sizes[3];
+  
+  if(cg_zone_read (index_file, index_base, index_zone, zname, sizes))cg_error_exit();
+        
+  
+  //3D unstructured sizes:		NVertex, NCell3D, NBoundVertex
+  int  num_nodes = sizes[0];
+  if(num_nodes < 1){
+    cg_close(index_file);
+    cerr << "number of nodes < 1 " << endl;
+    exit(-1);
+  }
+  
+  //read in x
+  cgsize_t start_index = 1;
+  cgsize_t end_index = num_nodes;
+  vals.resize( num_nodes);
+  switch(xi){
+  case 0:
+    if(cg_coord_read (index_file, index_base, index_zone,
+                      "CoordinateX", dtype,
+                      &start_index, &end_index, &vals[0]))cg_error_exit();
+    break;
+  case 1:
+    if(cg_coord_read (index_file, index_base, index_zone,
+                      "CoordinateY", dtype,
+                      &start_index, &end_index, &vals[0]))cg_error_exit();
+    break;
+  case 2:
+    if(cg_coord_read (index_file, index_base, index_zone,
+                      "CoordinateZ", dtype,
+                      &start_index, &end_index, &vals[0]))cg_error_exit();
+    break;
+  }
+  return true;
+    
+}
+
+bool get_pambient(cgsize_t index_file,
+                  cgsize_t index_base,
+                  float& pambient){
+ 
+  char name[80];
+  DataType_t dtype;
+  int n = 1;
+  cgsize_t dim = 1;
+  int narray = 0;
+  if( cg_goto (index_file, index_base, "UserDefinedData_t", 1, "end")|| 
+      cg_narrays(&narray))cg_error_exit();
+ 
+  for(int i = 1; i <= narray; i++){
+    if(cg_array_info (i, name, &dtype, &n, &dim))cg_error_exit();
+ 
+    if(string(name) == string("Pambient")){
+      if(cg_array_read(i, &pambient))cg_error_exit();
+    
+     
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+bool get_derived_val(const string& varname,
+                     cgsize_t index_file,
+                     cgsize_t index_base,
+                     cgsize_t index_zone,
+                     const vector<Zone*> &zone_data,
+                     const map<string,derivedVar_t>& derivedVars,
+                     vector<float>& vals){
    
+    
+  map<string,derivedVar_t>::const_iterator mi=derivedVars.find(varname) ;
+  derivedVar_t vartype = mi->second ;
+
+  switch(vartype) {
+  case VAR_M: 
+    {
+      vector<float> a ;
+      vector<float> vx , vy, vz;
+      if(
+         get_scalar_val(string("a"),
+                        index_file,
+                        index_base,
+                        index_zone,
+                        zone_data,
+                        a) &&
+         get_vector_val_i(string("v"), 0,
+                          index_file,
+                          index_base,
+                          index_zone,
+                          zone_data,
+                          vx) &&
+         get_vector_val_i(string("v"), 1,
+                          index_file,
+                          index_base,
+                          index_zone,
+                          zone_data,
+                          vy) &&
+         get_vector_val_i(string("v"), 2,
+                          index_file,
+                          index_base,
+                          index_zone,
+                          zone_data,
+                          vz) ){
+        vector<float> m(a.size()) ;
+        for(size_t i=0;i<a.size();++i)
+          m[i] = sqrt(vx[i]*vx[i]+ vy[i]*vy[i] + vz[i]*vz[i])/a[i] ;
+        vals.swap(m) ;
+        return true; 
+      }else{
+        return false;
+      }
+    }
+    break ;
+  case VAR_P:
+  case VAR_logp:
+    { 
+      float Pambient;
+      vector<float> pg ;
+      
+      if(get_pambient( index_file,
+                       index_base,
+                       Pambient) &&
+         get_scalar_val(string("pg"),
+                        index_file,
+                        index_base,
+                        index_zone,
+                        zone_data,
+                        pg) ){
+        
+        vector<float> P(pg.size()) ;
+        for(size_t i=0;i<P.size();++i) 
+          P[i] = (vartype==VAR_logp)?log10(max(pg[i]+Pambient,1e-30f)):
+            (pg[i]+Pambient) ;
+        vals.swap(P) ;
+        return true;
+      }else{
+        return false;
+      }
+    }
+    break ;
+  case VAR_U:
+    {
+      vector<float> vx, vy, vz ;
+      if(get_vector_val_i(string("v"), 0,
+                          index_file,
+                          index_base,
+                          index_zone,
+                          zone_data,
+                          vx) &&
+         get_vector_val_i(string("v"), 1,
+                          index_file,
+                          index_base,
+                          index_zone,
+                          zone_data,
+                          vy) &&
+         get_vector_val_i(string("v"), 2,
+                          index_file,
+                          index_base,
+                          index_zone,
+                          zone_data,
+                          vz)){
+        vals.resize(vx.size());
+        for(size_t i = 0; i < vals.size(); i++){
+          vals[i] = sqrt(vx[i]*vx[i] + vy[i]+vy[i]+vz[i]*vz[i]);
+        }
+        return true;
+      }else{
+        return false;
+      }
+    }
+    break;
+  case VAR_0:
+    if(get_vector_val_i(string("v"), 0,
+                        index_file,
+                        index_base,
+                        index_zone,
+                        zone_data,
+                        vals)) return true;
+    
+    break;
+  case VAR_1:
+    if(get_vector_val_i(string("v"), 1,
+                        index_file,
+                        index_base,
+                        index_zone,
+                        zone_data,
+                        vals))return true;
+    break;
+  case VAR_2:
+    
+    if(get_vector_val_i(string("v"), 2,
+                        index_file,
+                        index_base,
+                        index_zone,
+                        zone_data,
+                        vals))return true;
+    break;
+    
+  case VAR_X:
+    if(get_pos_i(0,
+                 index_file,
+                 index_base,
+                 index_zone,
+                 vals))return true;
+    break;
+  case VAR_Y:
+    if(get_pos_i(1,
+                 index_file,
+                 index_base,
+                 index_zone,
+                 vals))return true;
+    break;
+    
+  case VAR_Z:
+    if(get_pos_i(2,
+                 index_file,
+                 index_base,
+                 index_zone,
+                 vals))return true;
+    break ;
+  }
+  return false;
+}
+
+  
   
 /*read grid information and variables from cgns file,
   and then write into enisght file
 */
 void get_ensight(const vector<string>& variables,
-                 string casename, string iteration,
+                 string pathname,
                  bool id_required) {
   //prepare to write
-  string dirname = casename + "_ensight."+iteration ;
+  
+  int loc = 0;
+  loc = pathname.find('.') ;
+  std::string casename = pathname.substr(0, loc) ;
+  string dirname = casename + "_ensight." ;
+  string basename;
+  std::size_t p1 = pathname.find('/');
+  string cgns_filename = pathname.substr(0, p1);
+  if(p1 != string::npos){
+    basename = pathname.substr(p1+1);
+  }
+
+  cout << " pathname " << pathname << endl; 
+  cout << " filename " << cgns_filename << endl;
+  cout << " basename " << basename << endl;
+  
+
   struct stat statbuf ;
   if(stat(dirname.c_str(),&statbuf))
     mkdir(dirname.c_str(),0755) ;
@@ -211,7 +614,7 @@ void get_ensight(const vector<string>& variables,
   
   string geo_filename =  casename + ".geo" ;
   string case_filename = dirname + "/" + casename + ".case" ;
-  string cgns_filename = casename +"_" +iteration +".cgns";
+ 
 
   int celldim = 3, phydim = 3;
   cgsize_t sizes[3]; 
@@ -232,28 +635,46 @@ void get_ensight(const vector<string>& variables,
   set<string> nodal_vectors ;
   set<string> element_scalars ;
   set<string> element_vectors ;
+  map<string,derivedVar_t> derivedVars; 
   vector<Zone*> zone_data; 
-  cout <<"start reading cgns file" << endl;
+  cout <<"open " << cgns_filename << " for reading" << endl;
+
   if(cg_open (cgns_filename.c_str(), CG_MODE_READ, &index_file)) cg_error_exit();
   if(cg_nbases (index_file, &num_bases))cg_error_exit();
-  if(num_bases != 1){
-    cout<<" there are " << num_bases << " bases"<< endl;
-    cout<< "only read the first one" << endl;
+  if(num_bases > 1 && basename.empty()){
+    for(index_base = 1; index_base<= num_bases; index_base++){
+      if(cg_base_read (index_file, index_base, bname, &celldim, &phydim))cg_error_exit();
+      if(basename == string(bname)) break;
+    }
+    if(index_base > num_bases){
+      cg_close(index_file);
+      cerr<<"base "<< basename <<" not found"<< endl;
+      exit(-1);
+    } 
+  }else{
+    index_base = 1;
   }
-  index_base =1; //assume only one base and its index is 1
+  if(celldim != 3 || phydim != 3){
+    cg_close(index_file);
+    cerr << "only 3D cell and physical dimensions are allowed in CGNS file" << endl;
+    exit(-1);
+  }
   if(cg_base_read (index_file, index_base, bname, &celldim, &phydim))cg_error_exit();
   if(celldim != 3 || phydim != 3)cg_error_exit();
   if(cg_nzones (index_file, index_base, &num_zones)) cg_error_exit();
   //collect variables
+  cout << " collect variables " << endl;
   collect_variables(  variables,
                       index_file, index_base,
                       nodal_scalars,
                       nodal_vectors,
                       element_scalars,
                       element_vectors,
+                      derivedVars,
                       zone_data);
  
   //write out case file
+  cout << " writing out " << case_filename << endl;
   ofstream of(case_filename.c_str(),ios::out) ;
   of << "FORMAT" << endl ;
   of << "type:  ensight gold" << endl ;
@@ -270,6 +691,9 @@ void get_ensight(const vector<string>& variables,
     for(si=nodal_scalars.begin();si!=nodal_scalars.end();++si) {
       of << "scalar per node:\t " << *si << '\t' << *si << endl ;
     }
+    for( map<string,derivedVar_t>::const_iterator mi = derivedVars.begin(); mi != derivedVars.end(); mi++){
+      of << "scalar per node:\t " << mi->first << '\t' << mi->first << endl ;
+    }
     for(si=nodal_vectors.begin();si!=nodal_vectors.end();++si) {
       of << "vector per node:\t " << *si << '\t' << *si << endl ;
     }
@@ -282,7 +706,10 @@ void get_ensight(const vector<string>& variables,
   }
 
   of.close() ;
-  
+
+
+  //write out geo file
+  cout << " writing out " << geo_filename << endl;
   FILE *OFP ;
   OFP = fopen(geo_filename.c_str(),"wb") ;
   if(OFP == NULL) {
@@ -311,7 +738,7 @@ void get_ensight(const vector<string>& variables,
   
   int part_id = 0 ;
   // Volume Parts Output
-  map<int, int> zone2part;
+  map<int, int> part2zone;
   for(int index_zone = 1; index_zone <= num_zones; index_zone++)
     {
       if(zone_data[index_zone-1]->isVolume){
@@ -330,7 +757,8 @@ void get_ensight(const vector<string>& variables,
         
         //output coordinates
         part_id++ ;
-        zone2part[index_zone] = part_id;
+        part2zone[part_id] = index_zone;
+        cout << " zone " << index_zone << " to part " << part_id << endl;  
         memset(tmp_buf, '\0', 80) ;
         snprintf(tmp_buf, 80, "part") ;
         fwrite(tmp_buf,sizeof(char), 80, OFP) ;
@@ -379,7 +807,7 @@ void get_ensight(const vector<string>& variables,
         vector<int> genface; 
         vector<int> gencell; 
       
-       
+        cout<< " start writing volume part " << endl;
         for (index_sect = 1; index_sect <= num_sections; ++index_sect)
           {
             
@@ -427,7 +855,7 @@ void get_ensight(const vector<string>& variables,
           }
 
         cout << " num tets " << tets.size() << endl;
-        cout << " num prramids " << pyramids.size() << endl;
+        cout << " num pyramids " << pyramids.size() << endl;
         cout << " num prism : "<<  prisms.size() << endl;
         cout << " num hex " <<  hexs.size()<< endl;
         cout << " num genc " << gencell.size() << endl;; 
@@ -446,7 +874,9 @@ void get_ensight(const vector<string>& variables,
             fwrite(&ids[0],sizeof(int),num_elem,OFP); 
           }
           fwrite(&tets[0],sizeof(int),tets.size(),OFP);
+         
         }
+        
         if(pyramids.size() > 0){
           int num_elem = pyramids.size()/5;
           memset(name, '\0', 80) ;
@@ -459,6 +889,7 @@ void get_ensight(const vector<string>& variables,
           }       
           fwrite(&pyramids[0],sizeof(int),pyramids.size(),OFP);
         }
+        //cout<< " finish writing pyramids" << endl;
         if(prisms.size() > 0){
           int num_elem = prisms.size()/6;
           memset(name, '\0', 80) ;
@@ -532,7 +963,8 @@ void get_ensight(const vector<string>& variables,
         }
       }
     }
-  
+  cout<< " finish writing volume part " << endl;
+  cout<< " start writing surface part " << endl;
   for(int index_zone = 1; index_zone <= num_zones; index_zone++){ //other zones are surface part
     Zone* z = zone_data[index_zone -1];
     if(!(z->isVolume)){
@@ -540,6 +972,7 @@ void get_ensight(const vector<string>& variables,
       if (ztype != Unstructured) cg_error_exit();
       if(cg_zone_read (index_file, index_base, index_zone, zname, sizes))cg_error_exit();
 
+      cout<< " zone " << string(zname) << endl;
     
       //3D unstructured sizes:		NVertex, NCell3D, NBoundVertex
       int num_nodes = sizes[0];
@@ -551,7 +984,8 @@ void get_ensight(const vector<string>& variables,
 
       part_id++ ;
       
-      zone2part[index_zone] = part_id;
+      part2zone[part_id] = index_zone;
+      cout << " zone " << index_zone << " to part " << part_id << endl;  
       memset(tmp_buf, '\0', 80) ;
       snprintf(tmp_buf, 80, "part") ;
       fwrite(tmp_buf,sizeof(char), 80, OFP) ;
@@ -593,7 +1027,7 @@ void get_ensight(const vector<string>& variables,
         cerr << "number of section < 1 " << endl;
         exit(-1);
       }
-
+      
       vector<int > quads;
       vector<int > trias;
       vector<int > genface;
@@ -616,7 +1050,7 @@ void get_ensight(const vector<string>& variables,
           if (cg_elements_read (index_file, index_base, index_zone, index_sect, conn, NULL))
             cg_error_exit ();
  
-      
+       
      
           //int num_elem = end_index -  start_index + 1;
           switch (etype) {
@@ -635,8 +1069,10 @@ void get_ensight(const vector<string>& variables,
           }
         }
       //read element id
-
+      size_t num_quads = quads.size()/4;
+      size_t num_trias = trias.size()/3;
       
+       
       vector<int> quads_ids;
       vector<int> trias_ids;
       vector<int> genface_ids;
@@ -648,35 +1084,42 @@ void get_ensight(const vector<string>& variables,
         int nsol = 0;
         if(cg_nsols(index_file, index_base, index_zone, &nsol))cg_error_exit();
         for(int index_sol = 1; index_sol<= nsol; index_sol++){
+          
           if(cg_sol_info(index_file, index_base, index_zone, index_sol, sname,
                          &location))cg_error_exit();
           if(location==CGNS_ENUMV(CellCenter) && string(sname) == string("ElementVariables")){
             int data_dim;
             cgsize_t dim_vals;
+            
             if(cg_sol_size(index_file, index_base, index_zone, index_sol, &data_dim,
                            &dim_vals))cg_error_exit();
             vector<int> ids(dim_vals);
+            
             cgsize_t range_min = 1 , range_max = dim_vals;
             memset(name, '\0', 80) ;
             sprintf(name, "ElementIds");
+            
             if(cg_field_read(index_file, index_base, index_zone, index_sol, name,
                              datatype, &range_min, &range_max,
                              &ids[0]))cg_error_exit();
             
             size_t ei = 0;
-            for(size_t i = 0; i < quads.size(); i++){
+            for(size_t i = 0; i < num_quads; i++){
               quads_ids.push_back(ids[ei++]);
             }
-            for(size_t i = 0; i < trias.size(); i++){
+            
+            for(size_t i = 0; i < num_trias; i++){
               trias_ids.push_back(ids[ei++]);
+              //cout<< " i " << i << " id " << trias_ids[i] << endl;
             }
-            for(size_t i = 0; i < genface.size(); i++){
+            while(ei<size_t(dim_vals)){
               genface_ids.push_back(ids[ei++]);
             }
+            
           }
         }
       }
-
+ 
     
       if(quads.size() > 0){
         int num_elem = quads.size()/4;
@@ -728,20 +1171,22 @@ void get_ensight(const vector<string>& variables,
       }
       z->num_quad = quads.size()/4;
       z->num_tria = trias.size()/3;
-   
+    
     }
   }
   fclose(OFP) ;
-  
+  cout<< " finsh writing out " << geo_filename << endl;
+
   
   
   // Finished writing out the the geo file, now write out the variables
-             
+  cout<<" start writing out variables " << endl;           
   set<string>::const_iterator si ;
   // write out nodal scalars
   for(si=nodal_scalars.begin();si!=nodal_scalars.end();++si) {
     string varname = *si ;
     string filename = dirname + "/" + varname ;
+    cout << " writing out " << filename << endl;
     FILE *FP = 0 ;
     FP = fopen(filename.c_str(), "wb") ;
     if(FP==0) {
@@ -753,11 +1198,10 @@ void get_ensight(const vector<string>& variables,
     memset(tmp_buf, '\0', 80) ;
     snprintf(tmp_buf,80,"variable : %s",varname.c_str()) ;
     fwrite(tmp_buf, sizeof(char), 80, FP) ;
-    // Loop over volume parts and write out variables for each part if they
+    // Loop over parts and write out variables for each part if they
     // exist
-    
-
-    for(int index_zone = 1; index_zone <= num_zones; index_zone++){
+    for(int index_part = 1; index_part <= num_zones; index_part++){
+      int index_zone = part2zone[index_part];
       map<string, int>& var2sol = zone_data[index_zone-1]->var2sol;
       if(var2sol.find(varname) != var2sol.end()){
         int index_sol = var2sol[varname];
@@ -784,8 +1228,49 @@ void get_ensight(const vector<string>& variables,
         memset(tmp_buf, '\0', 80) ;
         snprintf(tmp_buf,80, "part") ;
         fwrite(tmp_buf, sizeof(char), 80, FP) ;
-        int tmp = zone2part[index_zone] ;
-        fwrite(&tmp, sizeof(int), 1, FP) ;
+        fwrite(&index_part, sizeof(int), 1, FP) ;
+        memset(tmp_buf, '\0', 80) ;
+        snprintf(tmp_buf,80, "coordinates") ;
+        fwrite(tmp_buf, sizeof(char), 80, FP) ;
+        fwrite(&vals[0],sizeof(float),vals.size(),FP) ;
+      }
+    }
+    fclose(FP) ;
+  }
+  
+  //write out derived variables
+  for(map<string,derivedVar_t>::const_iterator mi = derivedVars.begin(); mi != derivedVars.end(); mi++){
+    string varname = mi->first ;
+    string filename = dirname + "/" + varname ;
+    cout << " writing out " << filename << endl;
+    FILE *FP = 0 ;
+    FP = fopen(filename.c_str(), "wb") ;
+    if(FP==0) {
+      cerr << "can't open file '" << filename << "' for writing variable info!"
+           << endl ;
+       
+      continue ;
+    }
+    memset(tmp_buf, '\0', 80) ;
+    snprintf(tmp_buf,80,"variable : %s",varname.c_str()) ;
+    fwrite(tmp_buf, sizeof(char), 80, FP) ;
+    // Loop over parts and write out variables for each part if they
+    // exist
+    for(int index_part = 1; index_part <= num_zones; index_part++){
+      int index_zone = part2zone[index_part];
+      vector<float> vals;
+      if(get_derived_val(varname,
+                         index_file,
+                         index_base,
+                         index_zone,
+                         zone_data,
+                         derivedVars,
+                         vals)){
+       
+        memset(tmp_buf, '\0', 80) ;
+        snprintf(tmp_buf,80, "part") ;
+        fwrite(tmp_buf, sizeof(char), 80, FP) ;
+        fwrite(&index_part, sizeof(int), 1, FP) ;
         memset(tmp_buf, '\0', 80) ;
         snprintf(tmp_buf,80, "coordinates") ;
         fwrite(tmp_buf, sizeof(char), 80, FP) ;
@@ -796,11 +1281,14 @@ void get_ensight(const vector<string>& variables,
 
     fclose(FP) ;
   }
+
+  
   
   // write out nodal vector variables
   for(si=nodal_vectors.begin();si!=nodal_vectors.end();++si) {
     string varname = *si ;
     string filename = dirname + "/" + varname ;
+    cout << " writing out " << filename << endl; 
     FILE *FP = 0 ;
     FP = fopen(filename.c_str(), "wb") ;
     if(FP==0) {
@@ -816,7 +1304,8 @@ void get_ensight(const vector<string>& variables,
     // exist
 
     char name[80];
-    for(int index_zone = 1; index_zone <= num_zones; index_zone++){
+    for(int index_part = 1; index_part <= num_zones; index_part++){
+      int index_zone = part2zone[index_part];
       map<string, int>& var2sol = zone_data[index_zone-1]->var2sol;
       if(var2sol.find(varname) != var2sol.end()){
         int index_sol = var2sol[varname];
@@ -832,8 +1321,7 @@ void get_ensight(const vector<string>& variables,
         memset(tmp_buf, '\0', 80) ;
         snprintf(tmp_buf,80, "part") ;
         fwrite(tmp_buf, sizeof(char), 80, FP) ;
-        int tmp = zone2part[index_zone];
-        fwrite(&tmp, sizeof(int), 1, FP) ;
+        fwrite(&index_part, sizeof(int), 1, FP) ;
         memset(tmp_buf, '\0', 80) ;
         snprintf(tmp_buf,80, "coordinates") ;
         fwrite(tmp_buf, sizeof(char), 80, FP) ;
@@ -873,6 +1361,7 @@ void get_ensight(const vector<string>& variables,
   for(si=element_scalars.begin();si!=element_scalars.end();++si) {
     string varname = *si ;
     string filename = dirname + "/" + varname ;
+    cout << " writing out " << filename << endl;
     FILE *FP = 0 ;
     FP = fopen(filename.c_str(), "wb") ;
     if(FP==0) {
@@ -888,7 +1377,8 @@ void get_ensight(const vector<string>& variables,
     
     // Loop over parts and write out variables for each part if they 
     // exist ;
-    for(int index_zone = 1; index_zone <= num_zones; index_zone++){
+    for(int index_part = 1; index_part <= num_zones; index_part++){
+      int index_zone = part2zone[index_part];
       map<string, int>& var2sol = zone_data[index_zone-1]->var2sol;
       if((!zone_data[index_zone-1]->isVolume) && var2sol.find(varname) != var2sol.end()){
         int index_sol = var2sol[varname];
@@ -921,8 +1411,7 @@ void get_ensight(const vector<string>& variables,
         memset(tmp_buf, '\0', 80) ;
 	snprintf(tmp_buf,80, "part") ;
 	fwrite(tmp_buf, sizeof(char), 80, FP) ;
-	int tmp = zone2part[index_zone] ;
-	fwrite(&tmp, sizeof(int), 1, FP) ;
+        fwrite(&index_part, sizeof(int), 1, FP) ;
 
         if(qvals.size() > 0) {
           memset(tmp_buf, '\0', 80) ;
@@ -955,6 +1444,7 @@ void get_ensight(const vector<string>& variables,
   for(si=element_vectors.begin();si!=element_vectors.end();++si) {
     string varname = *si ;
     string filename = dirname + "/" + varname ;
+    cout << " writing out " << filename << endl;
     FILE *FP = 0 ;
     FP = fopen(filename.c_str(), "wb") ;
     if(FP==0) {
@@ -969,7 +1459,8 @@ void get_ensight(const vector<string>& variables,
     // Loop over parts and write out variables for each part if they 
     // exist ;
 
-    for(int index_zone = 1; index_zone <= num_zones; index_zone++){
+    for(int index_part = 1; index_part <= num_zones; index_part++){
+      int index_zone = part2zone[index_part];
       map<string, int>& var2sol = zone_data[index_zone-1]->var2sol;
       if((!zone_data[index_zone -1]->isVolume) && var2sol.find(varname) != var2sol.end()){
         int index_sol = var2sol[varname];
@@ -1009,8 +1500,7 @@ void get_ensight(const vector<string>& variables,
         memset(tmp_buf, '\0', 80) ;
         snprintf(tmp_buf,80, "part") ;
         fwrite(tmp_buf, sizeof(char), 80, FP) ;
-        int tmp = zone2part[index_zone];
-        fwrite(&tmp, sizeof(int), 1, FP) ;
+        fwrite(&index_part, sizeof(int), 1, FP) ;
         vector<float> qvals_x, tvals_x, gvals_x ;
         vector<float> qvals_y, tvals_y, gvals_y ;
         vector<float> qvals_z, tvals_z, gvals_z ;
@@ -1075,12 +1565,9 @@ void get_ensight(const vector<string>& variables,
 
 int main(int ac, char *av[]) {
   output_dir = "output" ;
-
+  string basepath;
  
-  string casename ;
-  bool found_casename = false ;
-  bool found_iteration = false ;
-  string iteration ;
+ 
   vector<string> variables ;
   
 
@@ -1089,27 +1576,26 @@ int main(int ac, char *av[]) {
   bool id_required = true;//ensight has the option to display node and element ids
 
   vector<string> partlist ;
- 
+  if(ac <2){
+    Usage(ac,av) ;
+  }
   for(int i=1;i<ac;++i) {
     if(av[i][0] == '-') {
       if(!strcmp(av[i],"-dir")) {
         ++i ;
         output_dir = string(av[i]) ;
-      } else {
+      } else if(!strcmp(av[i],"-f")){
+        ++i;
+        basepath = string(av[i]);
+      }else if( !strcmp(av[i],"-h") || !strcmp(av[i],"-help")){
+        Usage(ac,av) ;
+      }else{
         cerr << "unknown option " << av[i] << endl ;
         Usage(ac,av) ;
       }
       
-    } else {
-      if(found_iteration)
-        variables.push_back(string(av[i])) ;
-      else if(found_casename) {
-        iteration = string(av[i]) ;
-        found_iteration = true ;
-      } else {
-        casename = string(av[i]) ;
-        found_casename = true ;
-      }
+    } else  {
+      variables.push_back(string(av[i])) ;
     }
   }
   
@@ -1147,7 +1633,7 @@ int main(int ac, char *av[]) {
   variables.swap(varlist) ;
       
   get_ensight(variables,
-              casename, iteration,
+              basepath,
               id_required);
 
     

@@ -64,7 +64,9 @@ void Usage() {
        << "  -nz <float value>" << endl
        << "     extrusion normal vector z component (default 1.0)" << endl
        << "  -xr"<< endl
-       << "     project cylindrical coordinates onto xy surface" << endl ;
+       << "     project cylindrical coordinates onto xy surface" << endl 
+       << "  -no_hanging_nodes" << endl
+       << "     mesh does not contain hanging nodes from mesh adaptation so don't merge edges" << endl ;
   cerr << endl ;
   exit(-1) ;
 }
@@ -77,6 +79,7 @@ int main(int ac, char *av[]) {
   double growth = 1.0 ;
   int nplanes = 2 ;
   bool use_delta_file = false ;
+  bool merge_hanging_nodes = true ;
   string delta_file = "" ;
   while(ac > 2 ) {
     if(!strcmp(av[1],"-xy")) {
@@ -161,6 +164,10 @@ int main(int ac, char *av[]) {
       }
       ac-- ;
       av++ ;
+    } else if(!strcmp(av[1],"-no_hanging_nodes") && ac > 2) {
+      ac-- ;
+      av++ ;
+      merge_hanging_nodes = false ;
     } else {
       cerr << "unknown argument '" << av[1] << endl ;
       Usage() ;
@@ -313,22 +320,25 @@ int main(int ac, char *av[]) {
   sort(boundary_edges.begin(),boundary_edges.end()) ;
   vector<int> edgepairs ;
   vector<int> edge_map_bpairs(edge_map.size(),0) ;
-  for(size_t i=0;i<boundary_edges.size(); i+=2) {
-    if(boundary_edges[i][0] != boundary_edges[i+1][0]) {
-      cerr << "dangling end of boundary edges!" << endl ;
-    }
-    int b1 = boundary_edges[i][1] ;
-    int b2 = boundary_edges[i+1][1] ;
-    if(edge_map_bpairs[b1] ==0 && edge_map_bpairs[b2] == 0 &&
-       edge_map[b1][2] == edge_map[b2][2] &&
-       edge_map[b1+1][2] == edge_map[b2+1][2]) {
-      edge_map_bpairs[b1] = 1 ;
-      edge_map_bpairs[b1+1] = 1 ;
-      edge_map_bpairs[b2] = 1 ;
-      edge_map_bpairs[b2+1] = 1 ;
-      edgepairs.push_back(i) ;
+  if(merge_hanging_nodes) {
+    for(size_t i=0;i<boundary_edges.size(); i+=2) {
+      if(boundary_edges[i][0] != boundary_edges[i+1][0]) {
+	cerr << "dangling end of boundary edges!" << endl ;
+      }
+      int b1 = boundary_edges[i][1] ;
+      int b2 = boundary_edges[i+1][1] ;
+      if(edge_map_bpairs[b1] ==0 && edge_map_bpairs[b2] == 0 &&
+	 edge_map[b1][2] == edge_map[b2][2] &&
+	 edge_map[b1+1][2] == edge_map[b2+1][2]) {
+	edge_map_bpairs[b1] = 1 ;
+	edge_map_bpairs[b1+1] = 1 ;
+	edge_map_bpairs[b2] = 1 ;
+	edge_map_bpairs[b2+1] = 1 ;
+	edgepairs.push_back(i) ;
+      }
     }
   }
+
   cout << "num boundary edges = " << boundary_edges.size()/2 << endl ;
   if(edgepairs.size() > 0)
     cout << "paired boundary edges= " << edgepairs.size() << endl ;

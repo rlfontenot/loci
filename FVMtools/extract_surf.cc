@@ -1,6 +1,6 @@
 //#############################################################################
 //#
-//# Copyright 2008, 2015, Mississippi State University
+//# Copyright 2008-2019, Mississippi State University
 //#
 //# This file is part of the Loci Framework.
 //#
@@ -47,7 +47,7 @@ using std::unique ;
 // Extract a surface and write it out as an ascii file
 
 struct surf_info {
-  int bc_id ;
+  string name ;
   vector<pair<int,int> > edge_list ;
 } ;
   
@@ -74,12 +74,15 @@ void get_surf(string casename, string iteration,
   Loci::readContainer(file_id,"pos",pos.Rep(),EMPTY,facts) ;
   Loci::hdf5CloseFile(file_id) ;
 
-  string gridtopo = "output/" + casename +".topo" ;
-
+  string gridtopo = getTopoFileName(output_dir, casename, iteration) ;
 
   file_id = H5Fopen(gridtopo.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   
+#ifdef H5_USE_16_API
+  hid_t bndg = H5Gopen(file_id,"boundaries") ;
+#else
   hid_t bndg = H5Gopen(file_id,"boundaries",H5P_DEFAULT) ;
+#endif
   hsize_t num_bcs = 0 ;
   H5Gget_num_objs(bndg,&num_bcs) ;
   vector<string> processed_bcs ;
@@ -88,17 +91,17 @@ void get_surf(string casename, string iteration,
   vector<int> fsurfid ;
   vector<int> f2node ;
 
-  vector<surf_info> bc_data(num_bcs) ;
-  int bc_data_index = 0;
-  vector<string> bc_name(num_bcs);
+  vector<surf_info> bc_data ;
   for(hsize_t bc=0;bc<num_bcs;++bc) {
     char buf[1024] ;
     memset(buf, '\0', 1024) ;
     H5Gget_objname_by_idx(bndg,bc,buf,sizeof(buf)) ;
     buf[1023]='\0' ;
+#ifdef H5_USE_16_API
+    hid_t bcg = H5Gopen(bndg,buf) ;
+#else
     hid_t bcg = H5Gopen(bndg,buf,H5P_DEFAULT) ;
-    
-    bc_name[bc] = string(buf);
+#endif
     
     int nquads = sizeElementType(bcg,"quads") ;
     int ntrias = sizeElementType(bcg,"triangles") ;
@@ -119,7 +122,6 @@ void get_surf(string casename, string iteration,
       if(boundaries[k] == buf)
         bc_to_extract = true ;
     if(!bc_to_extract) { // collect boundary edges
-      
       vector<pair<int,int> > edges ;
       for(int i=0;i<ntrias;++i) {
         pair<int,int> e ;
@@ -133,7 +135,6 @@ void get_surf(string casename, string iteration,
         e.second = max(trias[i][2],trias[i][0]) ;
         edges.push_back(e) ;
       }
-       
       for(int i=0;i<nquads;++i) {
         pair<int,int> e ;
         e.first = min(quads[i][0],quads[i][1]) ;
@@ -149,8 +150,6 @@ void get_surf(string casename, string iteration,
         e.second = max(quads[i][0],quads[i][3]) ;
         edges.push_back(e) ;
       }
-
-       
       int off = 0 ;
       for(int i=0;i<ngeneral;++i) {
         int sz = nside_sizes[i] ;
@@ -170,19 +169,19 @@ void get_surf(string casename, string iteration,
         off += sz ;
       }
       sort(edges.begin(),edges.end()) ;
-      surf_info& sf = bc_data[bc_data_index++]; 
-      sf.bc_id = bc;
+      bc_data.push_back(surf_info()) ;
+      bc_data.back().name = string(buf) ;
       int esz = edges.size() ;
       for(int i=0;i<esz;++i) {
         if((i+1 == esz) || (edges[i] != edges[i+1]))
-          sf.edge_list.push_back(edges[i]) ;
+          bc_data.back().edge_list.push_back(edges[i]) ;
         else 
           i++ ;
       }
-      
     } else {
       processed_bcs.push_back(string(buf)) ;
-      
+      cout << "processing bc: " << buf << endl ;
+
       for(int i=0;i<ntrias;++i) {
         f2size.push_back(3) ;
         fsurfid.push_back(bc) ;
@@ -209,7 +208,6 @@ void get_surf(string casename, string iteration,
       }
     }
   }
-  bc_data.resize(bc_data_index); 
   if(processed_bcs.size() != boundaries.size()) {
     cerr << "Warning: Not all boundaries were found in the input file!"
          << endl
@@ -233,6 +231,7 @@ void get_surf(string casename, string iteration,
     mx = max(mx,node_set[i]) ;
     mn = min(mn,node_set[i]) ;
   }
+  
   entitySet nset = interval(mn,mx);
 
   store<int> nmap ;
@@ -244,6 +243,7 @@ void get_surf(string casename, string iteration,
   for(size_t i=0;i<node_set.size();++i) {
     nmap[node_set[i]] = i+1 ;
   }
+
   int nbc = 0 ;
   for(size_t i=0;i<bc_data.size();++i) {
     vector<pair<int,int> > elist ;
@@ -260,13 +260,13 @@ void get_surf(string casename, string iteration,
     if(bc_data[i].edge_list.size() > 0)
       nbc++ ;
   }
-  
+    
   for(size_t i=0;i<f2node.size();++i) {
     if(nmap[f2node[i]] < 0)
       cerr << "nmap invalid for f2node, i = " << i << endl ;
     f2node[i] = nmap[f2node[i]] ;
   }
- 
+
 
   string filename = processed_bcs[0] + ".gsurf" ;
   ofstream sfile(filename.c_str(),ios::out) ;
@@ -296,7 +296,7 @@ void get_surf(string casename, string iteration,
   sfile << nbc << endl ;
   for(size_t i=0;i<bc_data.size();++i) {
     if(bc_data[i].edge_list.size() != 0) {
-      sfile << bc_name[bc_data[i].bc_id] << endl ;
+      sfile << bc_data[i].name << endl ;
       sfile << bc_data[i].edge_list.size() << endl ;
       for(size_t j=0;j<bc_data[i].edge_list.size();++j) {
         sfile << bc_data[i].edge_list[j].first << ' ' 
