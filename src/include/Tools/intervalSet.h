@@ -27,9 +27,24 @@
 namespace Loci {
   typedef  genIntervalSet<int_type> intervalSet;
   typedef genSequence<int_type> sequence;
+  typedef genIntervalSet<gEntity> gEntitySet;
+  typedef genSequence<gEntity> gSequence;
   extern const genIntervalSet<int_type> EMPTY ;
-  extern const int UNIVERSE_MIN ;
-  extern const int UNIVERSE_MAX ;
+  extern const genIntervalSet<gEntity> GEMPTY ;
+  extern const int_type UNIVERSE_MIN ;
+  extern const int_type UNIVERSE_MAX ;
+  extern const gEntity GUNIVERSE_MIN ;
+  extern const gEntity GUNIVERSE_MAX ;
   typedef std::pair<int_type, int_type> interval;
+  typedef std::pair<gEntity, gEntity> gInterval;
+  inline intervalSet gconvert(gEntitySet g) {
+    int nivals = g.num_intervals() ;
+    if(g==~GEMPTY)
+      return ~EMPTY ;
+    intervalSet tmp ;
+    for(int i=0;i<nivals;++i)
+      tmp += interval(g[i].first,g[i].second) ;
+    return tmp ;
+  }
 }
 #endif
