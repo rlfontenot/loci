@@ -219,18 +219,16 @@ namespace Loci {
         int rank = 1 ;
         hid_t dataspace = H5Screate_simple(rank, &dimension, NULL) ;
         hid_t datatype = H5T_NATIVE_INT ;
-#ifdef H5_USE_16_API
-        hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,H5P_DEFAULT) ;
-#else
-        hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+
+        hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,
+				  H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+
         H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.is_stat) ;
         H5Dclose(dataset) ;
-#ifdef H5_USE_16_API
-        dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,H5P_DEFAULT) ;
-#else
-        dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+
+        dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,
+			    H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+
         H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.size) ;
         H5Dclose(dataset) ;
         H5Sclose(dataspace) ;
@@ -238,13 +236,9 @@ namespace Loci {
           rank = 1 ;
           dimension = 1 ;
           dataspace = H5Screate_simple(rank,&dimension,NULL) ;
-#ifdef H5_USE_16_API
-          hid_t dataset = H5Dcreate(group_id,"second_level",H5T_NATIVE_INT,
-                                    dataspace,H5P_DEFAULT) ;
-#else
+
           hid_t dataset = H5Dcreate(group_id,"second_level",H5T_NATIVE_INT,
                                     dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
 
           hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
           H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, &fi.second_level[0]) ;
@@ -271,21 +265,19 @@ namespace Loci {
       int rank = 1 ;
       hid_t dataspace = H5Screate_simple(rank, &dimension, NULL) ;
       hid_t datatype = H5T_NATIVE_INT ;
-#ifdef H5_USE_16_API
-      hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,H5P_DEFAULT) ;
-#else
-      hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+
+      hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,
+				H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+
       
       if(prank==0) {
         H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.is_stat) ;
       }
       H5Dclose(dataset) ;
-#ifdef H5_USE_16_API
-      dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,H5P_DEFAULT) ;
-#else
-      dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+
+      dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,
+			  H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+
       if(prank==0) {
         H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.size) ;
       }
@@ -295,13 +287,10 @@ namespace Loci {
         rank = 1 ;
         dimension = 1 ;
         dataspace = H5Screate_simple(rank,&dimension,NULL) ;
-#ifdef H5_USE_16_API
-        hid_t dataset = H5Dcreate(group_id,"second_level",H5T_NATIVE_INT,
-                                  dataspace,H5P_DEFAULT) ;
-#else
+
         hid_t dataset = H5Dcreate(group_id,"second_level",H5T_NATIVE_INT,
                                   dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+
         if(prank==0) {
           hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
           H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, &fi.second_level[0]) ;
@@ -325,18 +314,16 @@ namespace Loci {
         int rank = 1 ;
         hid_t dataspace = H5Screate_simple(rank, &dimension, NULL) ;
         hid_t datatype = H5T_NATIVE_INT ;
-#ifdef H5_USE_16_API
-        hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,H5P_DEFAULT) ;
-#else
-        hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+
+        hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,
+				  H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+
         H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.is_stat) ;
         H5Dclose(dataset) ;
-#ifdef H5_USE_16_API
-        dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,H5P_DEFAULT) ;
-#else
-        dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+
+        dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,
+			    H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+
         H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.size) ;
         H5Dclose(dataset) ;
         H5Sclose(dataspace) ;
@@ -373,20 +360,18 @@ namespace Loci {
       int rank = 1 ;
       hid_t dataspace = H5Screate_simple(rank, &dimension, NULL) ;
       hid_t datatype = H5T_NATIVE_INT ;
-#ifdef H5_USE_16_API
-      hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,H5P_DEFAULT) ;
-#else
-      hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+
+      hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,
+				H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+
       if(prank==0) {
         H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.is_stat) ;
       }
       H5Dclose(dataset) ;
-#ifdef H5_USE_16_API
-      dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,H5P_DEFAULT) ;
-#else
-      dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+
+      dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,
+			  H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+
       if(prank==0) {
         H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.size) ;
       }
@@ -423,29 +408,22 @@ namespace Loci {
       frame_info fi ;
       if(prank == 0) {
         hid_t datatype = H5T_NATIVE_INT ;
-#ifdef H5_USE_16_API
-        hid_t dataset = H5Dopen(group_id, "is_stat") ;
-#else
+
         hid_t dataset = H5Dopen(group_id, "is_stat",H5P_DEFAULT) ;
-#endif
+
 
         H5Dread(dataset,datatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &is_stat) ;
         H5Dclose(dataset) ;
-#ifdef H5_USE_16_API
-        dataset = H5Dopen(group_id, "vec_size") ;
-#else
+
         dataset = H5Dopen(group_id, "vec_size",H5P_DEFAULT) ;
-#endif
+
         H5Dread(dataset,datatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &sz) ;
         H5Dclose(dataset) ;
         fi.is_stat = is_stat ;
         fi.size = sz ;
         if(is_stat != 0) {
-#ifdef H5_USE_16_API
-          hid_t dataset = H5Dopen(group_id, "second_level") ;
-#else
+
           hid_t dataset = H5Dopen(group_id, "second_level",H5P_DEFAULT) ;
-#endif
           hid_t dataspace = H5Dget_space(dataset) ;
           hsize_t dimension = 1 ;
           H5Sget_simple_extent_dims(dataspace, &dimension, NULL) ;
@@ -473,18 +451,12 @@ namespace Loci {
       // read in is_stat and vector size
       if(prank == 0) {
         hid_t datatype = H5T_NATIVE_INT ;
-#ifdef H5_USE_16_API
-        hid_t dataset = H5Dopen(group_id, "is_stat") ;
-#else
+
         hid_t dataset = H5Dopen(group_id, "is_stat",H5P_DEFAULT) ;
-#endif
         H5Dread(dataset,datatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &is_stat) ;
         H5Dclose(dataset) ;
-#ifdef H5_USE_16_API
-        dataset = H5Dopen(group_id, "vec_size") ;
-#else
+
         dataset = H5Dopen(group_id, "vec_size",H5P_DEFAULT) ;
-#endif
         H5Dread(dataset,datatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &sz) ;
         H5Dclose(dataset) ;
       }
@@ -526,18 +498,12 @@ namespace Loci {
       //read in is_stat and vec_size using MPI_IO
       if(prank == 0) {
         hid_t datatype = H5T_NATIVE_INT ;
-#ifdef H5_USE_16_API
-        hid_t dataset = H5Dopen(group_id, "is_stat") ;
-#else
+
         hid_t dataset = H5Dopen(group_id, "is_stat",H5P_DEFAULT) ;
-#endif
         H5Dread(dataset,datatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &is_stat) ;
         H5Dclose(dataset) ;
-#ifdef H5_USE_16_API
-        dataset = H5Dopen(group_id, "vec_size") ;
-#else
+
         dataset = H5Dopen(group_id, "vec_size",H5P_DEFAULT) ;
-#endif
         H5Dread(dataset,datatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &sz) ;
         H5Dclose(dataset) ;
       }
@@ -594,11 +560,8 @@ namespace Loci {
           array_size = 1 ;
         hsize_t dimension = array_size ;
         int rank = 1 ;
-#ifdef H5_INTERFACE_1_6_4
+
         hsize_t start = 0 ;
-#else
-        hssize_t start = 0 ;
-#endif
         hsize_t stride = 1 ;
         hsize_t count = array_size ;
 
@@ -608,11 +571,10 @@ namespace Loci {
         H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
         dimension = count ;
         start += dimension ;
-#ifdef H5_USE_16_API
-        hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT) ;
-#else
-        hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+
+        hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace,
+				  H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+
         entitySet dom = ~EMPTY ;
         qrep->writehdf5(group_id, dataspace, dataset, dimension, "data", dom) ;
         H5Dclose(dataset) ;
@@ -649,11 +611,7 @@ namespace Loci {
         array_size = 1 ;
       hsize_t dimension = array_size ;
       int rank = 1 ;
-#ifdef H5_INTERFACE_1_6_4
       hsize_t start = 0 ;
-#else
-      hssize_t start = 0 ;
-#endif
       hsize_t stride = 1 ;
       hsize_t count = array_size ;
 
@@ -663,11 +621,10 @@ namespace Loci {
       H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
       dimension = count ;
       start += dimension ;
-#ifdef H5_USE_16_API
-      hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT) ;
-#else
-      hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+
+      hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace,
+				H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+
       entitySet dom = ~EMPTY ;
       //only process 0 do the writing, and use non-parallel
       if(prank==0)  qrep->writehdf5(group_id, dataspace, dataset, dimension, "data", dom) ;
@@ -759,11 +716,7 @@ namespace Loci {
         // Begin writing array
         int rank = 1 ;
         hsize_t dimension = 1 ;
-#ifdef H5_INTERFACE_1_6_4
         hsize_t start = 0 ;
-#else
-        hssize_t start = 0 ;
-#endif
         hsize_t stride = 1 ;
         hsize_t count = arr_sizes[0] ;
         dimension =  tot_arr_size ;
@@ -775,11 +728,10 @@ namespace Loci {
           H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
           dimension = count ;
           start += dimension ;
-#ifdef H5_USE_16_API
-          hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT) ;
-#else
-          hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+
+          hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace,
+				    H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+
           qrep->writehdf5(group_id, dataspace, dataset, dimension, "data", dom) ;
           H5Dclose(dataset) ;
 
@@ -808,11 +760,7 @@ namespace Loci {
             H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
             start += count ;
 
-#ifdef H5_USE_16_API
-            dataset = H5Dopen(group_id, "data") ;
-#else
             dataset = H5Dopen(group_id, "data",H5P_DEFAULT) ;
-#endif
 
             t_qrep->writehdf5(group_id, dataspace, dataset, dimension, "data", tmpset) ;
             t_qrep->allocate(EMPTY) ;
@@ -904,11 +852,7 @@ namespace Loci {
    
       int rank = 1 ;
       hsize_t dimension = 1 ;
-#ifdef H5_INTERFACE_1_6_4
       hsize_t start = 0 ;
-#else
-      hssize_t start = 0 ;
-#endif
       hsize_t stride = 1 ;
       hsize_t count = arr_sizes[prank] ;
 
@@ -920,12 +864,9 @@ namespace Loci {
         hid_t dataspace =  H5Screate_simple(rank, &dimension, NULL) ;
         DatatypeP dp = qrep->getType() ;
         hid_t datatype = dp->get_hdf5_type() ;
-#ifdef H5_USE_16_API
-        hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT) ;
-#else
-        hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
-        
+
+        hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace,
+				  H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
         
         H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
         dimension = count ;
@@ -1073,17 +1014,11 @@ namespace Loci {
         qrep->unpack(tmp_buf, loc_unpack, total_size, tmp_seq) ;
       } else {
         // processor zero
-#ifdef H5_USE_16_API
-        hid_t dataset =  H5Dopen(group_id, "data") ;
-#else
+
         hid_t dataset =  H5Dopen(group_id, "data",H5P_DEFAULT) ;
-#endif
         hid_t dataspace = H5Dget_space(dataset) ;
-#ifdef H5_INTERFACE_1_6_4
+
         hsize_t start = 0 ;
-#else
-        hssize_t start = 0 ;
-#endif
         hsize_t stride = 1 ;
         hsize_t count = 0 ;
         int curr_indx = 0 ;
@@ -1266,17 +1201,11 @@ namespace Loci {
       std::vector<int> arr_sizes = all_collect_sizes(array_size,comm) ;
          
       //  each process open dataset and read in data
-#ifdef H5_USE_16_API
-      hid_t dataset =  H5Dopen(group_id, "data") ;
-#else
       hid_t dataset =  H5Dopen(group_id, "data",H5P_DEFAULT) ;
-#endif
+
       hid_t dataspace = H5Dget_space(dataset) ;
-#ifdef H5_INTERFACE_1_6_4
+
       hsize_t start = 0 ;
-#else
-      hssize_t start = 0 ;
-#endif
       hsize_t stride = 1 ;
       hsize_t count = 0 ;
       
@@ -1347,11 +1276,7 @@ namespace Loci {
       }
 
       hid_t dimension = array_size ;
-#ifdef H5_USE_16_API
-      hid_t dataset =  H5Dopen(group_id, "data") ;
-#else
       hid_t dataset =  H5Dopen(group_id, "data",H5P_DEFAULT) ;
-#endif
       hid_t dataspace = H5Dget_space(dataset) ;
       entitySet dom = ~EMPTY ;
       qrep->readhdf5(group_id, dataspace, dataset, dimension, "data", fi, dom) ;
@@ -1891,13 +1816,10 @@ namespace Loci {
     hid_t group_id = 0 ;
     int prank = 0 ;
     MPI_Comm_rank(comm,&prank) ;
-#ifdef H5_USE_16_API
     if(use_parallel_io || prank == 0)
-      group_id = H5Gcreate(file_id, vname.c_str(), 0) ;
-#else
-    if(use_parallel_io || prank == 0)
-      group_id = H5Gcreate(file_id, vname.c_str(), H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+      group_id = H5Gcreate(file_id, vname.c_str(),
+			   H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+
     if(var->RepType() != PARAMETER) {
       int offset = 0 ;
       if(use_parallel_io)
@@ -1921,13 +1843,9 @@ namespace Loci {
     int prank = 0 ;
     MPI_Comm_rank(comm,&prank) ;
     hid_t group_id = 0;
-#ifdef H5_USE_16_API
-    if(prank == 0||use_parallel_io)
-      group_id = H5Gopen(file_id, vname.c_str()) ;
-#else
     if(prank == 0||use_parallel_io)
       group_id = H5Gopen(file_id, vname.c_str(),H5P_DEFAULT) ;
-#endif
+
     if(var->RepType() == PARAMETER) {
       read_parameter(group_id, var, comm) ;
       if(prank == 0 || use_parallel_io)
@@ -1955,13 +1873,11 @@ namespace Loci {
     }
 
     hid_t group_id = 0 ;
-#ifdef H5_USE_16_API
+
     if(MPI_rank == 0||use_parallel_io)
-      group_id = H5Gcreate(file_id, vname.c_str(), 0) ;
-#else
-    if(MPI_rank == 0||use_parallel_io)
-      group_id = H5Gcreate(file_id, vname.c_str(), H5P_DEFAULT,H5P_DEFAULT, H5P_DEFAULT) ;
-#endif
+      group_id = H5Gcreate(file_id, vname.c_str(),
+			   H5P_DEFAULT,H5P_DEFAULT, H5P_DEFAULT) ;
+
     // Redistribute container to map from local to global numbering
     if(var->RepType() != PARAMETER && MPI_processes != 1) {
       // parallel store write.. reorder to file numbering then write out
@@ -2020,13 +1936,9 @@ namespace Loci {
                                    storeRepP var, entitySet read_set,
                                    fact_db &facts) {
     hid_t group_id = 0;
-#ifdef H5_USE_16_API
-    if(use_parallel_io || MPI_rank == 0)
-      group_id = H5Gopen(file_id, vname.c_str()) ;
-#else
     if(use_parallel_io || MPI_rank == 0)
       group_id = H5Gopen(file_id, vname.c_str(),H5P_DEFAULT) ;
-#endif
+
     if(var->RepType() == PARAMETER) {
       read_parameter(group_id, var, MPI_COMM_WORLD) ;
       if(use_parallel_io || MPI_rank == 0)
@@ -2124,11 +2036,8 @@ namespace Loci {
 
     file_id = writeVOGOpen(filename);
     if(MPI_rank == 0 || use_parallel_io) {
-#ifdef H5_USE_16_API
-      group_id = H5Gcreate(file_id,"dataInfo",0) ;
-#else
-      group_id = H5Gcreate(file_id,"dataInfo",H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+      group_id = H5Gcreate(file_id,"dataInfo",
+			   H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
     }
     writeSetIds(group_id,set,facts) ;
     if(MPI_rank == 0 || use_parallel_io)

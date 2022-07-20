@@ -38,6 +38,7 @@
 
 #include <Loci_Datatypes.h>
 #include <Tools/expr.h>
+#include <mpi.h>
 
 namespace Loci {
 
@@ -483,6 +484,130 @@ namespace Loci {
     }
   } ;
 
+  template <class T> class MPI_traits {} ;
+
+
+  template<> class MPI_traits <unsigned char> {
+  public:
+    static MPI_Datatype get_MPI_type() { return MPI_UNSIGNED_CHAR ; } ;
+  } ;
+
+  template<> class MPI_traits <char> {
+  public:
+    static MPI_Datatype get_MPI_type() { return MPI_BYTE ; } ;
+  } ;
+
+  template<> class MPI_traits <short> {
+  public:
+    static MPI_Datatype get_MPI_type() { return MPI_SHORT ; } ;
+  } ;
+
+  template<> class MPI_traits <unsigned int> {
+  public:
+    static MPI_Datatype get_MPI_type() { return MPI_UNSIGNED ; } ;
+  } ;
+
+
+
+  template<> class MPI_traits <int> {
+  public:
+    static MPI_Datatype get_MPI_type() { return MPI_INT ; } ;
+  } ;
+
+  template<> class MPI_traits <long> {
+  public:
+    static MPI_Datatype get_MPI_type() { return MPI_LONG ; } ;
+  } ;
+
+  template<> class MPI_traits <unsigned long> {
+  public:
+    static MPI_Datatype get_MPI_type() { return MPI_UNSIGNED_LONG ; } ;
+  } ;
+
+  template<> class MPI_traits <long long> {
+  public:
+    static MPI_Datatype get_MPI_type() { return MPI_LONG_LONG_INT; } ;
+  } ;
+
+  template<> class MPI_traits <float> {
+  public:
+    static MPI_Datatype get_MPI_type() { return MPI_FLOAT ; } ;
+  } ;
+
+  template<> class MPI_traits <double> {
+  public:
+    static MPI_Datatype get_MPI_type() { return MPI_DOUBLE ; } ;
+  } ;
+
+  template<> class MPI_traits <long double> {
+  public:
+    static MPI_Datatype get_MPI_type() { return MPI_LONG_DOUBLE ; } ;
+  } ;
+
+
+
+  template <class T> class HDF5_traits {} ;
+
+  template<> class HDF5_traits <char> {
+  public:
+    static hid_t get_HDF5_type() { return H5T_NATIVE_CHAR ; } ;
+  } ;
+
+  template<> class HDF5_traits <short> {
+  public:
+    static hid_t get_HDF5_type() { return H5T_NATIVE_SHORT ; } ;
+  } ;
+
+  template<> class HDF5_traits <int> {
+  public:
+    static hid_t get_HDF5_type() { return H5T_NATIVE_INT ; } ;
+  } ;
+
+  template<> class HDF5_traits <long> {
+  public:
+    static hid_t get_HDF5_type() { return H5T_NATIVE_LONG ; } ;
+  } ;
+
+  template<> class HDF5_traits <long long> {
+  public:
+    static hid_t get_HDF5_type() { return H5T_NATIVE_LLONG; } ;
+  } ;
+
+
+  template<> class HDF5_traits <unsigned char> {
+  public:
+    static hid_t get_HDF5_type() { return H5T_NATIVE_UCHAR ; } ;
+  } ;
+
+  template<> class HDF5_traits <unsigned short> {
+  public:
+    static hid_t get_HDF5_type() { return H5T_NATIVE_USHORT ; } ;
+  } ;
+
+  template<> class HDF5_traits <unsigned int> {
+  public:
+    static hid_t get_HDF5_type() { return H5T_NATIVE_UINT ; } ;
+  } ;
+
+  template<> class HDF5_traits <unsigned long> {
+  public:
+    static hid_t get_HDF5_type() { return H5T_NATIVE_ULONG ; } ;
+  } ;
+
+  template<> class HDF5_traits <unsigned long long> {
+  public:
+    static hid_t get_HDF5_type() { return H5T_NATIVE_ULLONG; } ;
+  } ;
+
+  template<> class HDF5_traits <float> {
+  public:
+    static hid_t get_HDF5_type() { return H5T_NATIVE_FLOAT ; } ;
+  } ;
+
+  template<> class HDF5_traits <double> {
+  public:
+    static hid_t get_HDF5_type() { return H5T_NATIVE_DOUBLE ; } ;
+  } ;
     
 }
 

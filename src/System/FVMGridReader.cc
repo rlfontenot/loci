@@ -138,11 +138,7 @@ namespace Loci {
     hid_t dspace = 0 ;
 
     if(use_parallel_io || MPI_rank == 0) {
-#ifdef H5_USE_16_API
-      dataset = H5Dopen(group_id,vector_name) ;
-#else
       dataset = H5Dopen(group_id,vector_name,H5P_DEFAULT) ;
-#endif
       if(dataset < 0) {
         cerr << "unable to open dataset" << endl ;
         Loci::Abort() ;
@@ -159,11 +155,7 @@ namespace Loci {
       hsize_t dimension = lsz ;
       hsize_t count = dimension ;
       hsize_t stride = 1 ;
-#ifdef H5_INTERFACE_1_6_4
       hsize_t start = 0 ;
-#else
-      hssize_t start = 0 ;
-#endif
 
       //each process has different start
       for(int i = 0; i < MPI_rank; i++) start +=  sizes[i];
@@ -195,11 +187,7 @@ namespace Loci {
 	hsize_t dimension = lsz ;
 	hsize_t count = dimension ;
 	hsize_t stride = 1 ;
-#ifdef H5_INTERFACE_1_6_4
 	hsize_t start = 0 ;
-#else
-	hssize_t start = 0 ;
-#endif
 
 	H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&start,&stride,&count, NULL) ;
 	start += dimension  ;
@@ -387,27 +375,16 @@ namespace Loci {
     H5E_auto_t old_func = 0 ;
     void *old_client_data = 0 ;
     if(MPI_rank == 0) {
-#ifdef H5_USE_16_API
-      H5Eget_auto(&old_func, &old_client_data);
-      /* Turn off error handling */
-      H5Eset_auto(NULL, NULL);
-#else
       H5Eget_auto(H5E_DEFAULT,&old_func, &old_client_data);
       /* Turn off error handling */
       H5Eset_auto(H5E_DEFAULT,NULL, NULL);
-#endif
-
 
       file_id = H5Fopen(filename.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
       if(file_id <= 0) 
         failure = 1 ;
 
       // Check to see if the file has surface info
-#ifdef H5_USE_16_API
-      hid_t bc_g = H5Gopen(file_id,"surface_info") ;
-#else
       hid_t bc_g = H5Gopen(file_id,"surface_info",H5P_DEFAULT) ;
-#endif
 
       boundary_ids.clear() ;
       // If surface info, then check surfaces
@@ -421,11 +398,8 @@ namespace Loci {
           buf[1023]='\0' ;
           
           string name = string(buf) ;
-#ifdef H5_USE_16_API
-          hid_t sf_g = H5Gopen(bc_g,buf) ;
-#else
           hid_t sf_g = H5Gopen(bc_g,buf,H5P_DEFAULT) ;
-#endif
+
           hid_t id_a = H5Aopen_name(sf_g,"Ident") ;
           int ident ;
           H5Aread(id_a,H5T_NATIVE_INT,&ident) ;
@@ -436,11 +410,8 @@ namespace Loci {
         H5Gclose(bc_g) ;
         H5Fclose(file_id) ;
         /* Restore previous error handler */
-#ifdef H5_USE_16_API
-        H5Eset_auto(old_func, old_client_data);
-#else
         H5Eset_auto(H5E_DEFAULT,old_func, old_client_data);
-#endif
+
       }
     }
     // Share boundary tag data with all other processors
@@ -492,22 +463,15 @@ namespace Loci {
     /* Save old error handler */
     H5E_auto_t old_func = 0;
     void *old_client_data = 0 ;
-#ifdef H5_USE_16_API
-    H5Eget_auto(&old_func, &old_client_data);
-    /* Turn off error handling */
-    H5Eset_auto(NULL, NULL);
-#else
     H5Eget_auto(H5E_DEFAULT,&old_func, &old_client_data);
     /* Turn off error handling */
     H5Eset_auto(H5E_DEFAULT,NULL, NULL);
-#endif
+
     
     vector<pair<string,entitySet> > volTags ;
-#ifdef H5_USE_16_API
-    hid_t cell_info = H5Gopen(input_fid,"cell_info") ;
-#else
+
     hid_t cell_info = H5Gopen(input_fid,"cell_info",H5P_DEFAULT) ;
-#endif
+
     if(cell_info > 0) {
       vector<string> vol_tag ;
       vector<entitySet> vol_set ;
@@ -522,11 +486,8 @@ namespace Loci {
         buf[1023]='\0' ;
         
         string name = string(buf) ;
-#ifdef H5_USE_16_API
-        hid_t vt_g = H5Gopen(cell_info,buf) ;
-#else
+
         hid_t vt_g = H5Gopen(cell_info,buf,H5P_DEFAULT) ;
-#endif
         hid_t id_a = H5Aopen_name(vt_g,"Ident") ;
         int ident ;
         H5Aread(id_a,H5T_NATIVE_INT,&ident) ;
@@ -548,11 +509,8 @@ namespace Loci {
         volTags[vol_id[i]].second = vol_set[i] ;
       }
     } else {
-#ifdef H5_USE_16_API
-      hid_t file_info = H5Gopen(input_fid,"file_info") ;
-#else
+
       hid_t file_info = H5Gopen(input_fid,"file_info",H5P_DEFAULT) ;
-#endif
       long numCells = readAttributeLong(file_info,"numCells") ;
       volTags.push_back(pair<string,entitySet>
                         (string("Main"),
@@ -560,13 +518,9 @@ namespace Loci {
       H5Gclose(file_info) ;
     }
   
-#ifdef H5_USE_16_API
-    /* Restore previous error handler */
-    H5Eset_auto(old_func, old_client_data);
-#else
     /* Restore previous error handler */
     H5Eset_auto(H5E_DEFAULT,old_func, old_client_data);
-#endif
+
     volDat.swap(volTags) ;
     return true ;
   }
@@ -606,15 +560,9 @@ namespace Loci {
     void *old_client_data = 0 ;
     vector<pair<int,string> > boundary_ids ;
     if(use_parallel_io || MPI_rank == 0) {
-#ifdef H5_USE_16_API
-      H5Eget_auto(&old_func, &old_client_data);
-      /* Turn off error handling */
-      H5Eset_auto(NULL, NULL);
-#else
       H5Eget_auto(H5E_DEFAULT,&old_func, &old_client_data);
       /* Turn off error handling */
       H5Eset_auto(H5E_DEFAULT,NULL, NULL);
-#endif
     }
     
     //    file_id = H5Fopen(filename.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
@@ -628,19 +576,10 @@ namespace Loci {
       return false ;
      
     if(use_parallel_io || MPI_rank == 0) {
-#ifdef H5_USE_16_API
-      face_g = H5Gopen(file_id,"face_info") ;
-      node_g = H5Gopen(file_id,"node_info") ;
-      // Check to see if the file has surface info
-      hid_t bc_g = H5Gopen(file_id,"surface_info") ;
-#else
       face_g = H5Gopen(file_id,"face_info",H5P_DEFAULT) ;
       node_g = H5Gopen(file_id,"node_info",H5P_DEFAULT) ;
       // Check to see if the file has surface info
       hid_t bc_g = H5Gopen(file_id,"surface_info",H5P_DEFAULT) ;
-#endif
-
-
 
       // If surface info, then check surfaces
       if(bc_g > 0) {
@@ -653,11 +592,8 @@ namespace Loci {
           buf[1023]='\0' ;
           
           string name = string(buf) ;
-#ifdef H5_USE_16_API
-          hid_t sf_g = H5Gopen(bc_g,buf) ;
-#else
+
           hid_t sf_g = H5Gopen(bc_g,buf,H5P_DEFAULT) ;
-#endif
           hid_t id_a = H5Aopen_name(sf_g,"Ident") ;
           int ident ;
           H5Aread(id_a,H5T_NATIVE_INT,&ident) ;
@@ -704,11 +640,8 @@ namespace Loci {
     int nodes_base = max_alloc ;
     if(use_parallel_io) {
       // First read in and disribute node positions...
-#ifdef H5_USE_16_API
-      dataset = H5Dopen(node_g,"positions") ;
-#else
+
       dataset = H5Dopen(node_g,"positions",H5P_DEFAULT) ;
-#endif
       dspace = H5Dget_space(dataset) ;
       if(dataset <=0 || dspace <=0)
 	failure = 1 ;
@@ -756,11 +689,7 @@ namespace Loci {
 	hsize_t dimension = lsz ;
 	hsize_t count = dimension ;
 	hsize_t stride = 1 ;
-#ifdef H5_INTERFACE_1_6_4
 	hsize_t start = 0 ;
-#else
-	hssize_t start = 0 ;
-#endif
 
 	//each process has different start
 	for(int i = 0; i < MPI_rank; i++){
@@ -796,11 +725,8 @@ namespace Loci {
     } else { //end of parallel io version
       // First read in and disribute node positions (serial case)
       if(MPI_rank == 0) {
-#ifdef H5_USE_16_API
-	dataset = H5Dopen(node_g,"positions") ;
-#else
+
 	dataset = H5Dopen(node_g,"positions",H5P_DEFAULT) ;
-#endif
 	dspace = H5Dget_space(dataset) ;
 	if(dataset <=0 || dspace <=0)
 	  failure = 1 ;
@@ -844,11 +770,7 @@ namespace Loci {
 	hsize_t dimension = lsz ;
 	hsize_t count = dimension ;
 	hsize_t stride = 1 ;
-#ifdef H5_INTERFACE_1_6_4
 	hsize_t start = 0 ;
-#else
-	hssize_t start = 0 ;
-#endif
 	
 	H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&start,&stride,&count, NULL) ;
 	start += dimension  ;
@@ -937,11 +859,8 @@ namespace Loci {
     // Now read in face clusters
     long nclusters = 0 ;
     if(use_parallel_io || MPI_rank == 0) {
-#ifdef H5_USE_16_API
-      dataset = H5Dopen(face_g,"cluster_sizes") ;
-#else
+
       dataset = H5Dopen(face_g,"cluster_sizes",H5P_DEFAULT) ;
-#endif
       dspace = H5Dget_space(dataset) ;
       if(dataset <=0 || dspace <=0)
         failure = 1 ;
@@ -1026,11 +945,7 @@ namespace Loci {
       H5Gclose(face_g) ;
       H5Fclose(file_id) ;
       /* Restore previous error handler */
-#ifdef H5_USE_16_API
-      H5Eset_auto(old_func, old_client_data);
-#else
       H5Eset_auto(H5E_DEFAULT,old_func, old_client_data);
-#endif
     }
 
     MPI_Allreduce(&failure,&fail_state,1,MPI_INT,MPI_MAX,MPI_COMM_WORLD) ;

@@ -112,15 +112,9 @@ void readSurfaces(string filename,
     Usage() ;
   }
 
-#ifdef H5_USE_16_API  
-  hid_t face_g = H5Gopen(input_fid,"face_info") ;
-  // Read cluster sizes
-  hid_t dataset = H5Dopen(face_g,"cluster_sizes") ;
-#else
   hid_t face_g = H5Gopen(input_fid,"face_info",H5P_DEFAULT) ;
   // Read cluster sizes
   hid_t dataset = H5Dopen(face_g,"cluster_sizes",H5P_DEFAULT) ;
-#endif
   
   hid_t dspace = H5Dget_space(dataset) ;
   hsize_t size = 0 ;
@@ -128,11 +122,7 @@ void readSurfaces(string filename,
   vector<unsigned short> csizes(size) ;
   hsize_t dimension = size ;
   hsize_t stride = 1 ;
-#ifdef H5_INTERFACE_1_6_4
   hsize_t start = 0 ;
-#else
-  hssize_t start = 0 ;
-#endif
   hsize_t count = size ;
   H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&start,&stride,&count,NULL) ;
   int rank = 1 ;
@@ -147,11 +137,7 @@ void readSurfaces(string filename,
   H5Sclose(memspace) ;
 
   // Read in clusters and transform
-#ifdef H5_USE_16_API
-  dataset = H5Dopen(face_g,"cluster_info") ;
-#else
   dataset = H5Dopen(face_g,"cluster_info",H5P_DEFAULT) ;
-#endif
   dspace = H5Dget_space(dataset) ;
   start = 0 ;
   for(size_t c=0;c<size;++c) { // Loop over clusters
@@ -231,32 +217,19 @@ void readSurfaces(string filename,
   }
 
   // read in positions
-#ifdef H5_USE_16_API
-  hid_t fi = H5Gopen(input_fid,"file_info") ;
-#else
   hid_t fi = H5Gopen(input_fid,"file_info",H5P_DEFAULT) ;
-#endif
   unsigned long numNodes = readAttributeLong(fi,"numNodes") ;
     
   H5Gclose(fi) ;
 
   count = numNodes ;
 
-#ifdef H5_INTERFACE_1_6_4
     hsize_t lstart = 0 ;
-#else
-    hssize_t lstart = 0 ;
-#endif
       
   // Read in pos data from file i
   vector<Loci::vector3d<double> > pos_dat(numNodes) ;
-#ifdef H5_USE_16_API
-  hid_t node_g = H5Gopen(input_fid,"node_info") ;
-  dataset = H5Dopen(node_g,"positions") ;
-#else
   hid_t node_g = H5Gopen(input_fid,"node_info",H5P_DEFAULT) ;
   dataset = H5Dopen(node_g,"positions",H5P_DEFAULT) ;
-#endif
   dspace = H5Dget_space(dataset) ;
       
   H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&lstart,&stride,&count,NULL) ;

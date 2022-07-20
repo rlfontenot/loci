@@ -247,29 +247,19 @@ namespace Loci {
         surface_ids_mod[i].second = from ;
       }
       
-#ifdef H5_USE_16_API
-      group_id = H5Gcreate(file_id,"surface_info",0) ;
-#else
       group_id = H5Gcreate(file_id,"surface_info",
                            H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+
       for(size_t i=0;i<surface_ids.size();++i) {
         hid_t bc_id = 0 ;
-#ifdef H5_USE_16_API
-        bc_id = H5Gcreate(group_id,surface_ids_mod[i].second.c_str(),0) ;
-#else
-        bc_id = H5Gcreate(group_id,surface_ids_mod[i].second.c_str(),H5P_DEFAULT,H5P_DEFAULT, H5P_DEFAULT) ;
-#endif
+
+        bc_id = H5Gcreate(group_id,surface_ids_mod[i].second.c_str(),
+			  H5P_DEFAULT,H5P_DEFAULT, H5P_DEFAULT) ;
         hsize_t dims = 1 ;
         hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
           
-#ifdef H5_USE_16_API
-        hid_t att_id = H5Acreate(bc_id,"Ident", H5T_NATIVE_INT,
-                                 dataspace_id, H5P_DEFAULT) ;
-#else
         hid_t att_id = H5Acreate(bc_id,"Ident", H5T_NATIVE_INT,
                                  dataspace_id, H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
          
         H5Awrite(att_id,H5T_NATIVE_INT,&surface_ids_mod[i].first) ;
         H5Aclose(att_id) ;
@@ -283,29 +273,20 @@ namespace Loci {
   // originally, no MPI_rank ==0,  can not run in parallel. Modified so that writeVOG can run in parallel io
   void writeVOGTag(hid_t output_fid,  vector<pair<string,entitySet> >& volTags){
     if(MPI_rank == 0 || (use_parallel_io && output_fid > 0)){
-#ifdef H5_USE_16_API
-      hid_t cell_info = H5Gcreate(output_fid,"cell_info", 0) ;
-#else
+
       hid_t cell_info = H5Gcreate(output_fid,"cell_info", 
                                   H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+
       for(size_t i=0;i<volTags.size();++i) {
-#ifdef H5_USE_16_API
-        hid_t vol_id = H5Gcreate(cell_info,volTags[i].first.c_str(),0) ;
-#else
+
         hid_t vol_id = H5Gcreate(cell_info,volTags[i].first.c_str(),
                                  H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
         hsize_t dims = 1 ;
         hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
       
-#ifdef H5_USE_16_API
-        hid_t att_id = H5Acreate(vol_id,"Ident", H5T_NATIVE_INT,
-                                 dataspace_id, H5P_DEFAULT) ;
-#else
         hid_t att_id = H5Acreate(vol_id,"Ident", H5T_NATIVE_INT,
                                  dataspace_id, H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+
         int num = int(i) ;
         H5Awrite(att_id,H5T_NATIVE_INT,&num) ;
         H5Aclose(att_id) ;
@@ -322,12 +303,10 @@ namespace Loci {
   void writeVOGNode(hid_t file_id, store<vector3d<double> > &pos) {//parallel io included
     hid_t group_id = 0 ;
     if(MPI_rank == 0 || use_parallel_io){
-#ifdef H5_USE_16_API
-      group_id = H5Gcreate(file_id,"node_info",0) ;
-#else
+
       group_id = H5Gcreate(file_id,"node_info",H5P_DEFAULT,
                            H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+
     }
     // Write out node info
     entitySet nodes = pos.domain() ;
@@ -350,25 +329,17 @@ namespace Loci {
                   MPI_SUM,MPI_COMM_WORLD) ;
 
     if(MPI_rank == 0 || use_parallel_io) {
-#ifdef H5_USE_16_API
-      group_id = H5Gcreate(file_id,"file_info",0) ;
-#else
       group_id = H5Gcreate(file_id,"file_info",
 			   H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
     
       if(MPI_rank == 0) cerr << "num_nodes = " << num_nodes << endl ;
 
       hsize_t dims = 1 ;
       hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
      
-#ifdef H5_USE_16_API
-      hid_t att_id = H5Acreate(group_id,"numNodes", H5T_STD_I64BE,
-                               dataspace_id, H5P_DEFAULT) ;
-#else
       hid_t att_id = H5Acreate(group_id,"numNodes", H5T_STD_I64BE,
                                dataspace_id, H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+
       H5Awrite(att_id,H5T_NATIVE_LLONG,&num_nodes) ;
       H5Aclose(att_id) ;
       H5Gclose(group_id) ;
@@ -397,11 +368,7 @@ namespace Loci {
 
     hid_t group_id = 0 ;
     if(MPI_rank == 0 || use_parallel_io) {
-#ifdef H5_USE_16_API
-      group_id = H5Gopen(file_id,"file_info") ;
-#else
       group_id = H5Gopen(file_id,"file_info",H5P_DEFAULT) ;
-#endif
 
       if(MPI_rank == 0)cerr << "num_cells = " << num_cells << endl
                             << "num_faces = " << num_faces << endl ;
@@ -409,31 +376,22 @@ namespace Loci {
       hsize_t dims = 1 ;
       hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
 
-#ifdef H5_USE_16_API    
-      hid_t att_id = H5Acreate(group_id,"numFaces", H5T_STD_I64BE,
-                               dataspace_id, H5P_DEFAULT) ;
-#else
       hid_t att_id = H5Acreate(group_id,"numFaces", H5T_STD_I64BE,
                                dataspace_id, H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+
       H5Awrite(att_id,H5T_NATIVE_LLONG,&num_faces) ;
       H5Aclose(att_id) ;
-#ifdef H5_USE_16_API    
-      att_id = H5Acreate(group_id,"numCells", H5T_STD_I64BE,
-                         dataspace_id, H5P_DEFAULT) ;
-#else
+
       att_id = H5Acreate(group_id,"numCells", H5T_STD_I64BE,
                          dataspace_id, H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+
       H5Awrite(att_id,H5T_NATIVE_LLONG,&num_cells) ;
       H5Aclose(att_id) ;
       H5Gclose(group_id) ;
-#ifdef H5_USE_16_API
-      group_id = H5Gcreate(file_id,"face_info",0) ;
-#else
+
       group_id = H5Gcreate(file_id,"face_info",
 			   H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+
     }
   
     entitySet faces = face2node.domain() ;

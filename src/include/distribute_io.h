@@ -363,22 +363,13 @@ namespace Loci {
         typedef data_schema_traits<T> traits_type ;
         DatatypeP dp = traits_type::get_type() ;
       
-#ifdef H5_INTERFACE_1_6_4
         hsize_t start = 0 ;
-#else
-        hssize_t start = 0 ;
-#endif
         hsize_t stride = 1 ;
         hsize_t count = v.size() ;
         hid_t datatype = dp->get_hdf5_type() ;
      
-#ifdef H5_USE_16_API
-        hid_t dataset = H5Dcreate(group_id,element_name,datatype,
-                                  dataspace, H5P_DEFAULT) ;
-#else
-        hid_t dataset = H5Dcreate(group_id,element_name,datatype,
-                                  dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) ;
-#endif
+        hid_t dataset = H5Dcreate(group_id,element_name,datatype,dataspace,
+				  H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) ;
      
         if(count != 0) {
      
@@ -420,21 +411,14 @@ namespace Loci {
         typedef data_schema_traits<T> traits_type ;
         DatatypeP dp = traits_type::get_type() ;
 
-#ifdef H5_INTERFACE_1_6_4
         hsize_t start = 0 ;
-#else
-        hssize_t start = 0 ;
-#endif
         hsize_t stride = 1 ;
         hsize_t count = recv_sizes[0] ;
         hid_t datatype = dp->get_hdf5_type() ;
-#ifdef H5_USE_16_API
-        hid_t dataset = H5Dcreate(group_id,element_name,datatype,
-                                  dataspace, H5P_DEFAULT) ;
-#else
-        hid_t dataset = H5Dcreate(group_id,element_name,datatype,
-                                  dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) ;
-#endif
+
+        hid_t dataset = H5Dcreate(group_id,element_name,datatype,dataspace,
+				  H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) ;
+
         if(count != 0) {
           H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
                               &start, &stride, &count, NULL) ;
@@ -510,11 +494,7 @@ namespace Loci {
         typedef data_schema_traits<T> traits_type ;
         DatatypeP dp = traits_type::get_type() ;
 
-#ifdef H5_INTERFACE_1_6_4
         hsize_t start = 0 ;
-#else
-        hssize_t start = 0 ;
-#endif
         hsize_t stride = 1 ;
         hsize_t count = v.size() ;
         hid_t datatype = dp->get_hdf5_type() ;

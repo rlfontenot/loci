@@ -32,10 +32,10 @@
 #include <Tools/intervalSet.h>
 #include <istream>
 #include <ostream>
-#include <data_traits.h>
 #include <mpi.h>
+#include <data_traits.h>
 #include <Tools/nptr.h>
-#include <frame_info.h>
+//#include <frame_info.h>
 //for test
 //also need the declaration of class frame_info
 //#include <store_rep.h>
