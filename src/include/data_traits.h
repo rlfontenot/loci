@@ -163,7 +163,7 @@ namespace Loci {
       oss << ref ;
       return oss.str().size() ;
     }
-    void getState(char *buf, int &size) {
+    void getState(char *buf, int &size) const {
       std::ostringstream oss ;
       oss << ref ;
       const std::string &s = oss.str() ;
@@ -171,7 +171,7 @@ namespace Loci {
       for(int i=0;i<size;++i)
         buf[i] = s[i] ;
     }
-    void setState(char *buf, int size) {
+    void setState(const char *buf, int size) {
       std::string s ;
       for(int i=0;i<size;++i)
         s += buf[i] ;
@@ -188,10 +188,10 @@ namespace Loci {
       std::cerr << "undefined converter" << std::endl ;
       return 0 ;
     }
-    void getState(char *buf, int &size) {
+    void getState(char *buf, int &size) const {
       std::cerr << "undefined converter" << std::endl ;
     }
-    void setState(char *buf, int size) {
+    void setState(const char *buf, int size) {
       std::cerr << "undefined converter" << std::endl ;
     }
   } ;
@@ -330,6 +330,24 @@ namespace Loci {
   } ;
 
   template <>
+  struct data_schema_traits<long long> {
+    typedef IDENTITY_CONVERTER Schema_Converter;
+
+    static DatatypeP get_type() {
+      return DatatypeP(new AtomicType(LONGLONG)) ;
+    }      
+  } ;
+
+  template <>
+  struct data_schema_traits<unsigned long long> {
+    typedef IDENTITY_CONVERTER Schema_Converter;
+
+    static DatatypeP get_type() {
+      return DatatypeP(new AtomicType(UNSIGNED_LONGLONG)) ;
+    }      
+  } ;
+
+  template <>
   struct data_schema_traits<float> {
     typedef IDENTITY_CONVERTER Schema_Converter;
 
@@ -375,13 +393,13 @@ namespace Loci {
     int getSize() const {
       return eref.size() ;
     }
-    void getState(int *buf, int &size) {
+    void getState(int *buf, int &size) const {
       size = getSize() ;
       int ii=0; 
       for(entitySet::const_iterator i=eref.begin();i!=eref.end();++i)
         buf[ii++] = *i ;
     }
-    void setState(int *buf, int size) {
+    void setState(const int *buf, int size) {
       eref = EMPTY ;
       for(int i=0;i<size;++i)
         eref += buf[i] ;
@@ -405,12 +423,12 @@ namespace Loci {
     int getSize() const {
       return eref.size() ;
     }
-    void getState(T *buf, int &size) {
+    void getState(T *buf, int &size) const {
       size = getSize() ;
       for(int i=0;i<size;++i)
         buf[i] = eref[i] ;
     }
-    void setState(T *buf, int size) {
+    void setState(const T *buf, int size) {
       eref.clear() ;
       eref.reserve(size) ;
       for(int i=0;i<size;++i)
@@ -432,12 +450,12 @@ namespace Loci {
     int getSize() const {
       return ref.size() ;
     }
-    void getState(char *buf, int &size) {
+    void getState(char *buf, int &size) const {
       size = getSize() ;
       for(int i=0;i<size;++i)
         buf[i] = ref[i] ;
     }
-    void setState(char *buf, int size) {
+    void setState(const char *buf, int size) {
       ref = "" ;
       for(int i=0;i<size;++i)
         ref += buf[i] ;
