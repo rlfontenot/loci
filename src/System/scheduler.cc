@@ -138,6 +138,7 @@ namespace Loci {
   extern bool threading_chomping;
   extern bool threading_recursion;
   extern int num_threads;  
+  extern int num_thread_blocks;
   // 
   int num_threaded_pointwise = 0;
   int num_total_pointwise = 0;
@@ -657,66 +658,6 @@ namespace Loci {
 	     << cmd << "')" << endl ;
     }
   }
-#ifdef EXPERIMENTAL
-  // UNUSED
-  /////////////////////////////////////////////////////////////////////
-  //experimental functions
-  namespace {
-    void compare_dependency_graph(const digraph& gr1,
-                                  const digraph& gr2) {
-      ruleSet rules1 = extract_rules(gr1.get_all_vertices()) ;
-      ruleSet rules2 = extract_rules(gr2.get_all_vertices()) ;
-      ruleSet common = ruleSet(rules1 & rules2) ;
-      ruleSet only1 = ruleSet(rules1 - common) ;
-      ruleSet only2 = ruleSet(rules2 - common) ;
-      ruleSet only1d, only2d ;
-      map<rule,rule> set1, set2 ;
-      ruleSet::const_iterator ri ;
-      for(ri=only1.begin();ri!=only1.end();++ri) {
-        rule dp(*ri,time_ident()) ;
-        only1d += dp ;
-        set1[dp] = *ri ;
-      }
-      for(ri=only2.begin();ri!=only2.end();++ri) {
-        rule dp(*ri,time_ident()) ;
-        only2d += dp ;
-        set2[dp] = *ri ;
-      }
-
-      ruleSet common2 = ruleSet(only1d & only2d) ;
-      ruleSet only1_ad = ruleSet(only1d - common2) ;
-      ruleSet only2_ad = ruleSet(only2d - common2) ;
-
-      cerr << endl ;
-      cerr << "These rules are only in graph 1: {{{{{" << endl ;
-      for(ri=only1_ad.begin();ri!=only1_ad.end();++ri)
-        cerr << pretty_sig(set1[*ri]) << endl ;
-      cerr << "}}}}}" << endl << endl ;
-
-      cerr << "These rules are only in graph 2: {{{{{" << endl ;
-      for(ri=only2_ad.begin();ri!=only2_ad.end();++ri) {
-        cerr << pretty_sig(set2[*ri]) << endl ;
-      }
-      cerr << "}}}}}" << endl ;
-
-      variableSet vars1 = extract_vars(gr1.get_all_vertices()) ;
-      variableSet vars2 = extract_vars(gr2.get_all_vertices()) ;
-      variableSet vars_common = variableSet(vars1 & vars2) ;
-      variableSet vars1only = variableSet(vars1 - vars_common) ;
-      variableSet vars2only = variableSet(vars2 - vars_common) ;
-
-      cerr << "These variables are only in graph 1: {{{{{" << endl ;
-      cerr << vars1only << endl ;
-      cerr << "}}}}}" << endl << endl ;
-
-      cerr << "These variables are only in graph 2: {{{{{" << endl ;
-      cerr << vars2only << endl ;
-      cerr << "}}}}}" << endl << endl ;
-    }
-
-  }
-#endif
-
 
   void prune_graph(digraph& gr, variableSet& given,
                    const variableSet& target, fact_db& facts) {
@@ -975,13 +916,14 @@ namespace Loci {
       }
     */
     ///////////////////////////////////
-    if(Loci::MPI_rank==0)
+    if(Loci::MPI_rank==0) {
 #ifdef PTHREADS
       if(threading_pointwise || threading_global_reduction
          || threading_local_reduction || threading_chomping 
          || threading_recursion) {
         cout << "creating multithreaded execution schedule ("
-             << num_threads << " threads per MPI process)" << endl;
+             << num_threads << " threads per MPI process, "
+             << num_thread_blocks << " blocks each)" << endl;
         cout << "--threading suitable ";
         if(threading_pointwise)
           cout << "[pointwise] ";
@@ -994,9 +936,11 @@ namespace Loci {
         if(threading_recursion)
           cout << "[recursive] ";
         cout << "rules" << endl;
-      } else
+      } else {
 #endif
         cout << "creating execution schedule..." << endl;
+      }
+    }
     sw.start() ;
     
     executeP sched =  compile_graph.execution_schedule
@@ -1867,24 +1811,26 @@ bool operator <(const timingData &d) const {
       if(MPI_rank == 0)
         cout << "begin execution" << endl ;
 
-      if (threading_pointwise)
-        cout << "--threading " << num_threaded_pointwise
-          << "/" << num_total_pointwise << " pointwise rules" << endl;
-      if (threading_global_reduction)
-        cout << "--threading " << num_threaded_global_reduction
-          << "/" << num_total_global_reduction 
-          << " global reduction rules" << endl;
-      if (threading_local_reduction)
-        cout << "--threading " << num_threaded_local_reduction
-          << "/" << num_total_local_reduction 
-          << " local reduction rules" << endl;
-      if (threading_chomping)
-        cout << "--threading " << num_threaded_chomping
-          << "/" << num_total_chomping << " chomping rules" << endl;
-      if (threading_recursion)
-        cout << "--threading " << num_threaded_recursion
-          << "/" << num_total_recursion << " recursive rules" << endl;
-
+      if(MPI_rank == 0) {
+	if (threading_pointwise)
+	  cout << "--threading " << num_threaded_pointwise
+	       << "/" << num_total_pointwise << " pointwise rules" << endl;
+	if (threading_global_reduction)
+	  cout << "--threading " << num_threaded_global_reduction
+	       << "/" << num_total_global_reduction 
+	       << " global reduction rules" << endl;
+	if (threading_local_reduction)
+	  cout << "--threading " << num_threaded_local_reduction
+	       << "/" << num_total_local_reduction 
+	       << " local reduction rules" << endl;
+	if (threading_chomping)
+	  cout << "--threading " << num_threaded_chomping
+	       << "/" << num_total_chomping << " chomping rules" << endl;
+	if (threading_recursion)
+	  cout << "--threading " << num_threaded_recursion
+	       << "/" << num_total_recursion << " recursive rules" << endl;
+      }
+      
       if(schedule_output) {
         // Save the schedule in the file schedule for reference
         ostringstream oss ;

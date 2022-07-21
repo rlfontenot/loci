@@ -108,6 +108,7 @@ namespace Loci {
   int             ta_dctrl_executes = 0 ;
 #endif
 
+  extern bool in_internal_query;
   extern bool threading_pointwise;
   extern int num_threaded_pointwise;
   extern int num_total_pointwise;
@@ -1222,12 +1223,12 @@ namespace Loci {
         break;
       }
     }
-    if(threading_pointwise && threadable) {
+    if(!in_internal_query && threading_pointwise && threadable) {
       int tnum = thread_control->num_threads();
       int minw = thread_control->min_work_per_thread();
       // if a rule is not for threading, then generate a normal module,
       // also no multithreading if the execution sequence is too small
-      if(exec_seq.size() < tnum*minw)
+      if(exec_seq.size() < (size_t)tnum*minw)
         // normal case
         return new execute_rule(impl,sequence(exec_seq),facts, scheds);
       else {

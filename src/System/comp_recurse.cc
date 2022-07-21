@@ -36,6 +36,7 @@ using std::set ;
 //#define VERBOSE
 
 namespace Loci {
+  extern bool in_internal_query;
   extern bool threading_recursion;
   extern int num_total_recursion;
   extern int num_threaded_recursion;
@@ -944,14 +945,14 @@ namespace Loci {
           if(li->size() != 0) {
             executeP exec_rule;
 #ifdef PTHREADS
-            if (threading_recursion) {
+            if (!in_internal_query && threading_recursion) {
               int tnum = thread_control->num_threads();
               int minw = thread_control->min_work_per_thread();
               if (!num_threads_counted) {
                 ++num_threaded_recursion;
                 num_threads_counted = true;
               }
-              if (li->size() >= tnum*minw)
+              if (li->size() >= (size_t)tnum*minw)
                 exec_rule = new Threaded_execute_rule
                   (*ri, sequence(*li), facts, scheds);
               else

@@ -227,6 +227,7 @@ namespace Loci {
   bool threading_chomping = false;
   bool threading_recursion = false;
   int num_threads = 0;
+  int num_thread_blocks = 10; // default 10 blocks per threads
 
 
   ofstream debugout ;
@@ -760,16 +761,23 @@ namespace Loci {
           // but right now, we will accept the user inputs
           // and check if it is reasonable
           int nt = atoi( (*argv)[i+1]);
-          if(nt < 0 || nt > 20)
+          if(nt < 0 || nt > 128) 
             nt = 2;
           num_threads = nt;
           if(num_threads > 1) {
             threading_pointwise = true;
             threading_global_reduction = true;
             threading_local_reduction = true;
-            threading_chomping = false;//true;
+            threading_chomping = true;
             threading_recursion = true;
           }
+          i+=2;
+        } else if(!strcmp((*argv)[i],"--thread_blocks")) {
+          // determine the number of thread blocks to use
+          int nb = atoi( (*argv)[i+1]);
+          if(nb <= 0 || nb > 100)
+            nb = 10; // prevent unreasonable values
+          num_thread_blocks = nb;
           i+=2;
         } else if(!strcmp((*argv)[i],"--no_threading_pointwise")) {
           threading_pointwise = false;
