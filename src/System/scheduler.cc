@@ -936,10 +936,9 @@ namespace Loci {
         if(threading_recursion)
           cout << "[recursive] ";
         cout << "rules" << endl;
-      } else {
+      } else 
 #endif
         cout << "creating execution schedule..." << endl;
-      }
     }
     sw.start() ;
     
