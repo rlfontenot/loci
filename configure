@@ -1,7 +1,7 @@
 #!/bin/bash
 ###############################################################################
 #
-# Copyright 2008, 2015, Mississippi State University
+# Copyright 2008, 2015, 2019, 2022 Mississippi State University
 #
 # This file is part of the Loci Framework.
 #
@@ -22,6 +22,7 @@
 
 LD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:$LD_LIBRARY_PATH:/:/usr:/usr/local:/opt:/opt/local
 PETSC_BASE=$PETSC_DIR
+USE_PTHREADS=0
 if [ -e ParMetis-4.0/metis.h ] ; then
 INSTALL_METIS=1
 USE_METIS=1
@@ -82,16 +83,12 @@ ARCH=`uname -s`
 
 COMPILER=gcc
 
-case "$ARCH" in
-    IRIX64)
-    COMPILER=CC_sgi
-    ;;
-    *)
-    ;;
-esac
-
 NO_MPI=0
 NO_MPI_DRIVER=0
+
+PTHREADS_DEFINE=
+PTHREADS_LIB=
+USE_PTHREADS=0
 
 PREFIX=/usr/local
 if [ $# -eq 0 ]; then
@@ -132,6 +129,21 @@ while [ $# -ne 0 ]; do
 	--with-petsc\=*)
 	    tmp=$1
 	    PETSC_BASE=${tmp#--with-petsc\=}
+	    ;;
+	--with-pthreads)
+	    PTHREADS_DEFINE=-DPTHREADS
+	    PTHREADS_LIB=-lpthread
+	    USE_PTHREADS=1
+	    ;;
+	--no-pthreads)
+	    PTHREADS_DEFINE=
+	    PTHREADS_LIB=
+	    USE_PTHREADS=0
+	    ;;
+	--nopthreads)
+	    PTHREADS_DEFINE=
+	    PTHREADS_LIB=
+	    USE_PTHREADS=0
 	    ;;
 	--no-metis)
 	    METIS_BASE=""
@@ -407,17 +419,10 @@ if [ $NO_MPI == 1 ] ; then
     echo MPI_F90_COMPILER = none >> sys.conf
 else
     if [ "$MPI_C_COMPILER" == "none" ]; then
-	if [ "$ARCH" == "IRIX64" ]; then
-	    echo MPI_BASE = /usr/ >> sys.conf
-	    echo MPI_LIBS = -L/usr/lib64 \$\(RPATH\)/usr/lib64 $MPI_LIBRARY >> sys.conf
-	    echo MPI_INCLUDE = -DMPI_NO_CPPBIND >> sys.conf
-	    echo MPI_RUN = $MPIEXEC >> sys.conf
-	else
-	    echo MPI_BASE =  $MPI_BASE >> sys.conf
-	    echo MPI_LIBS =  -L$MPI_BASE/lib $MPI_LIBRARY >> sys.conf
-	    echo MPI_INCLUDE = -DMPI_NO_CPPBIND -I$MPI_BASE/include  >> sys.conf
-	    echo MPI_RUN=$MPI_PATH/$MPIEXEC >> sys.conf
-	fi
+	echo MPI_BASE =  $MPI_BASE >> sys.conf
+	echo MPI_LIBS =  -L$MPI_BASE/lib $MPI_LIBRARY >> sys.conf
+	echo MPI_INCLUDE = -DMPI_NO_CPPBIND -I$MPI_BASE/include  >> sys.conf
+	echo MPI_RUN=$MPI_PATH/$MPIEXEC >> sys.conf
     else
 	echo MPI_BASE =  $MPI_BASE >> sys.conf
 	echo MPI_LIBS =   >> sys.conf
@@ -634,7 +639,10 @@ else
     echo "         the PETSc libraries enabled."
 fi
 
-
+echo >> sys.conf
+echo \# POSIX threads setup >> sys.conf
+echo PTHREADS_DEFINE=$PTHREADS_DEFINE >> sys.conf
+echo PTHREADS_LIB= $PTHREADS_LIB >> sys.conf
 echo >> sys.conf
 
 # check for fortran includes
@@ -667,26 +675,19 @@ case "$COMPILER" in
 esac
 
 case "$ARCH" in
-    SunOS)
-# SunOS architecture
-    # find sunmath.h
-    find_exec cc
-    CCPATH=$RETURN_VALUE/cc
-    CCBASE=${CCPATH%/bin/cc}
-    CCINC=$CCBASE/prod/include/cc
-    if [ -e $CCINC/sunmath.h ]; then
-	echo MISC=-I$CCINC >> sys.conf
-	echo MISC_LIBS=-L$CCBASE/lib -lsunmath -lmalloc -lm $FORTRAN_LIBS >> sys.conf
-    else
-	echo MISC=-DNOSUNMATH >> sys.conf
-	echo MISC_LIBS=-lmalloc -lm $FORTRAN_LIBS >> sys.conf
-    fi
-    ;;
+    Darwin)
+	echo MISC=-DARCH_MACOS >> sys.conf
+	echo MISC_LIBS=$FORTRAN_LIBS >> sys.conf
+	;;
+    Linux)
+	echo MISC=-DARCH_LINUX >> sys.conf
+	echo MISC_LIBS=$FORTRAN_LIBS >> sys.conf
+	;;
     *)
-#everything else
-    echo MISC= >> sys.conf
-    echo MISC_LIBS=$FORTRAN_LIBS >> sys.conf
-    ;;
+	#everything else
+	echo MISC= >> sys.conf
+	echo MISC_LIBS=$FORTRAN_LIBS >> sys.conf
+	;;
 esac
 
 echo >> sys.conf
@@ -702,15 +703,12 @@ case "$ARCH" in
     echo DYNAMIC_LOADING_DEFINES = >> sys.conf
     echo DYNAMIC_LOADING_LINK = -ldl >> sys.conf
     ;;
-    IRIX64)
-    echo DYNAMIC_LOADING_DEFINES = >> sys.conf
-    echo DYNAMIC_LOADING_LINK = -lc >> sys.conf
-    ;;
     *)
     echo DYNAMIC_LOADING_DEFINES = >> sys.conf
     echo DYNAMIC_LOADING_LINK =  >> sys.conf
     ;;
 esac
+
 
 echo >> sys.conf
 
@@ -739,10 +737,11 @@ echo >> sys.conf
 
 echo "MACHINE_SPECIFIC = \$(PETSC_DEFINE) \$(PETSC_INCLUDE) \$(HDF5_INCLUDE)\\">> sys.conf
 echo "                   \$(MPI_INCLUDE) \$(METIS_INCLUDE) \$(CGNS_INCLUDE) \$(MISC)\\" >> sys.conf
-echo "                   \$(DYNAMIC_LOADING_DEFINES) " >> sys.conf
+echo "                   \$(DYNAMIC_LOADING_DEFINES) \$(PTHREADS_DEFINE)" >> sys.conf
 echo >> sys.conf
 echo "BASE_LIBS = \$(HDF5_LIBS) \$(PETSC_LIBS)  \$(METIS_LIBS) \\" >> sys.conf
-echo "            \$(MISC_LIBS) \$(CGNS_LIBS) \$(DYNAMIC_LOADING_LINK) \$(MPI_LIBS)" >> sys.conf
+echo "            \$(MISC_LIBS) \$(CGNS_LIBS) \$(DYNAMIC_LOADING_LINK) \\" >> sys.conf
+echo "            \$(MPI_LIBS) \$(PTHREADS_LIB)" >> sys.conf
 
 
 echo Making compile subdirectory ${OBJDIR}...
