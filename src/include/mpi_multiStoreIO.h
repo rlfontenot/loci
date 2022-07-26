@@ -19,6 +19,8 @@
 #include "execute.h"
 #include <multiStoreIO.h>
 #include <mpi.h>
+
+#ifndef MPI_STUBB
 /*
   When writing in collective mode, the MPI library carries out a
   number of optimisations
@@ -656,5 +658,6 @@ namespace Loci {
     MPI_File_close(&fh);
   }
 }
+#endif
 
 #endif

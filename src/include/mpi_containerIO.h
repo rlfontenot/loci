@@ -8,6 +8,9 @@
 #include <distribute.h>
 #include <distribute_io.h>
 #include <mpi.h>
+
+#ifndef MPI_STUBB
+
 namespace Loci {
   /*
     mpi version to read/write stores. parallel io only
@@ -28,4 +31,5 @@ namespace Loci {
     pmpi_read_container_redistribute(filename, var, readSet, facts, xfer_type) ;
   }
 }
+#endif
 #endif

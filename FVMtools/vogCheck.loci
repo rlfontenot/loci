@@ -113,10 +113,11 @@ int main(int ac, char *av[]) {
     
     *modelName = basename ;
     facts.create_fact("modelName",modelName) ;
-    if(Loci::MPI_rank == 0)
+    if(Loci::MPI_rank==0) {
       cout << "Reading: '" << filename <<"' ..." <<  endl  ;
+    }
     if(!Loci::setupFVMGrid(facts,filename)) {
-      if(Loci::MPI_rank == 0) {
+      if(Loci::MPI_rank==0) {
         cerr << "Reading grid file '" << filename <<"' failed in grid reader!"
              << endl ;
       }
@@ -125,7 +126,7 @@ int main(int ac, char *av[]) {
 
     setupPosAutoDiff(facts) ;
     	   
-    if(Loci::MPI_rank == 0) {
+    if(Loci::MPI_rank==0) {
       cout << "finished reading grid." << endl ;
     }
 
@@ -207,7 +208,7 @@ void dump_pos(const sequence &seq,const_store<vector3d<real_t> > &pos,
   oss << "output/grid_pos." << cycle << "_" << *modelName ;
   string filename = oss.str() ;
 
-  $[Once] {
+  if(Loci::MPI_rank==0) {
     Loci::debugout << "writing file " << filename << endl ;
   }
 
@@ -237,6 +238,7 @@ public:
     input("pos") ;
     input("modelName") ;
     output("topo") ;
+    disable_threading() ;
   }
   void compute(const sequence &seq) {
     dump_pos(seq,pos,modelName) ;
@@ -272,9 +274,9 @@ $rule apply(numNodes<-pos)[Loci::Summation] {
   join($numNodes,cnt) ;
 }
 
-$rule apply(topo<-numNodes,numAccessedNodes)[Loci::Maximum], prelude {
+$rule apply(topo<-numNodes,numAccessedNodes)[Loci::Maximum],option(disable_threading), prelude {
   if(*$numNodes != *$numAccessedNodes) {
-    $[Once]{
+    if(Loci::MPI_rank==0) {
       cerr << "Warning: "
            << *$numNodes-*$numAccessedNodes
            << " unreferenced nodes in grid." << endl ;
@@ -526,7 +528,7 @@ $type maxShearTwist param<real_t> ;
 $type modelName param<string> ;
 $type convexCell param<int> ;
 
-$rule singleton(report<-volRatio,maxCellAngle,minVol,maxTwist,maxShearTwist,topo,modelName,convexCell,topocheck) {
+$rule singleton(report<-volRatio,maxCellAngle,minVol,maxTwist,maxShearTwist,topo,modelName,convexCell,topocheck),option(disable_threading) {
   $[Once] {
     if($minVol <= 0) {
       cerr << "Negative or zero volume cell!  The grid quality is too poor to use." << endl ;
@@ -883,6 +885,7 @@ dump_boundary_geom::dump_boundary_geom() {
   input("modelName") ;
   constraint("ci->cellcenter") ;
   output("topo") ;
+  disable_threading() ;
 }
 void dump_boundary_geom::compute(const sequence &seq) {
   ostringstream oss ;
