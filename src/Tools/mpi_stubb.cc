@@ -1145,25 +1145,25 @@ extern "C" {
 
   int  MPI_Info_create(MPI_Info *)
   {
-    err_report();
+    //    err_report();
     return -1;
   }
 
   int MPI_Info_delete(MPI_Info, char *)
   {
-    err_report();
+    //    err_report();
     return -1;
   }
 
   int MPI_Info_dup(MPI_Info, MPI_Info *)
   {
-    err_report();
+    //    err_report();
     return -1;
   }
 
   int MPI_Info_free(MPI_Info *)
   {
-    err_report();
+    //    err_report();
     return -1;
   }
 

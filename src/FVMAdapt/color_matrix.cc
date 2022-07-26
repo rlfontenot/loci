@@ -584,7 +584,7 @@ namespace Loci{
 #ifndef H5_HAVE_PARALLEL
   
       writeVOGNodeS( file_id,
-                     &pos,
+                     pos,
                      inner_nodes);
 #else
    

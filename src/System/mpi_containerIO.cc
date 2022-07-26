@@ -41,6 +41,7 @@ using std::cerr;
 using std::endl;
 
 
+#ifndef MPI_STUBB
 
 namespace Loci {
   extern entitySet BcastEntitySet(entitySet set, int root, MPI_Comm comm);
@@ -387,7 +388,7 @@ namespace Loci {
 }
 
 
-
+#endif
 
 
 
