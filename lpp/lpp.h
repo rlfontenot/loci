@@ -21,14 +21,17 @@
 #ifndef LPP_H
 #define LPP_H
 
-#include "variable.h"
 #include <list>
 #include <string>
 #include <algorithm>
 #include <fstream>
 #include <map>
 
+//optional compile or run-time selection
+#include "variable.h"
+
 extern bool prettyOutput ;
+
 
 struct parseError {
   std::string error_type ;
@@ -49,6 +52,19 @@ class parseFile {
       outputFile << "#line " << line_no << " \"" << filename << "\"" << std::endl ;
   }
 
+  //multiple-device version
+  void syncFiles(std::vector<std::pair<std::string, std::ostream*> >& dev_outs, bool oneOutput) {
+    if(prettyOutput)return;
+    if(oneOutput){
+      *(dev_outs[0].second) << "#line " << line_no << " \"" << filename << "\"" << std::endl ;
+    }else{
+      for(int i = 0; i < dev_outs.size(); i++){
+        *(dev_outs[i].second) << "#line " << line_no << " \"" << filename << "\"" << std::endl ;
+      }
+    }
+  }
+
+  
   void validate_VariableAccess(Loci::variable v, 
 			       const std::list<Loci::variable> &vlist,
 			       bool first_name,
@@ -59,18 +75,42 @@ class parseFile {
 			     const std::map<Loci::variable,std::string> &vnames,
 			     const std::set<std::list<Loci::variable> > &validate_set) ;
   
-  void process_SpecialCommand(std::ostream &outputFile,
+  void process_SpecialCommand(std::istream &str_is,
+                              int& lines,
+                              std::ostream &outputFile,
                               const std::map<Loci::variable,std::string> &vnames,
                               int &openbrace) ;
-  void process_Prelude(std::ostream &outputFile,
+
+  void process_SpecialCommands(std::istream &str_is,
+                               int& lines,
+                               std::vector<std::pair<std::string, std::ostream*> >&outputFile,
+                               bool oneOutput,
+                               const std::map<Loci::variable,std::string> &vnames,
+                               int &openbrace) ;
+  
+  void process_Prelude(std::string& instring,
+                       std::ostream &outputFile,
                        const std::map<Loci::variable,std::string> &vnames) ;
-  void process_Compute(std::ostream &outputFile,
-                       const std::map<Loci::variable,std::string> &vnames) ;
-  void process_Calculate(std::ostream &outputFile,
+  
+                         
+  
+  void process_Compute(std::string& instring,
+                       std::ostream &outputFile,
+                       const std::map<Loci::variable,std::string> &vnames
+                       ) ;
+ 
+  
+  void process_Calculate(int start_line,
+                         std::string& instring,
+                         std::ostream &outputFile,
                          const std::map<Loci::variable,std::string> &vnames,
-                         const std::set<std::list<Loci::variable> > & validate_set) ;
-  void setup_Type(std::ostream &outputFile) ;
-  void setup_Rule(std::ostream &outputFile) ;
+                         const std::set<std::list<Loci::variable> > & validate_set
+                         ) ;
+
+  
+  
+  void setup_Type(std::vector<std::pair<std::string, std::ostream*> >& dev_outs, bool oneOutput) ;
+  void setup_Rule(std::vector<std::pair<std::string, std::ostream*> >& dev_outs, bool oneOutput) ;
 public:
   parseFile() {
     line_no = 0 ;
@@ -78,7 +118,7 @@ public:
     Loci::variable OUTPUT("OUTPUT") ;
     type_map[OUTPUT] = std::pair<std::string,std::string>("param","<bool>") ;
   }
-  void processFile(std::string file, std::ostream &outputFile) ;
+  void processFile(std::string file, std::vector<std::pair<std::string, std::ostream*> >& dev_outs, bool oneOutput) ;
 } ;
 
 extern std::list<std::string> include_dirs ;
