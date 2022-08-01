@@ -28,7 +28,7 @@ list<string> include_dirs ;
 bool prettyOutput = false ;
 
 namespace {
-  const char *revision_name = "$Name: rel-4-0-patches $" ;
+  const char *revision_name = "$Name:  $" ;
   
   std::string version() {
     const char *p = revision_name;
@@ -247,7 +247,7 @@ int main(int argc, char *argv[]) {
       delete ofs[0].second;
     }
   }else{
-    for(int i  = 0; i < ofs.size(); i++){
+    for(size_t i  = 0; i < ofs.size(); i++){
       if(ofs[i].second != &cout){
         delete ofs[i].second;
       }

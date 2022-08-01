@@ -37,7 +37,7 @@ struct parseError {
   std::string error_type ;
   parseError(std::string errs) : error_type(errs) {}
 } ;
-  
+
 class parseFile {
   int cnt ;
   std::string filename ;
@@ -58,14 +58,14 @@ class parseFile {
     if(oneOutput){
       *(dev_outs[0].second) << "#line " << line_no << " \"" << filename << "\"" << std::endl ;
     }else{
-      for(int i = 0; i < dev_outs.size(); i++){
+      for(size_t i = 0; i < dev_outs.size(); i++){
         *(dev_outs[i].second) << "#line " << line_no << " \"" << filename << "\"" << std::endl ;
       }
     }
   }
 
-  
-  void validate_VariableAccess(Loci::variable v, 
+
+  void validate_VariableAccess(Loci::variable v,
 			       const std::list<Loci::variable> &vlist,
 			       bool first_name,
 			       const std::map<Loci::variable,std::string> &vnames,
@@ -74,7 +74,7 @@ class parseFile {
   std::string process_String(std::string instring,
 			     const std::map<Loci::variable,std::string> &vnames,
 			     const std::set<std::list<Loci::variable> > &validate_set) ;
-  
+
   void process_SpecialCommand(std::istream &str_is,
                               int& lines,
                               std::ostream &outputFile,
@@ -87,19 +87,19 @@ class parseFile {
                                bool oneOutput,
                                const std::map<Loci::variable,std::string> &vnames,
                                int &openbrace) ;
-  
+
   void process_Prelude(std::string& instring,
                        std::ostream &outputFile,
                        const std::map<Loci::variable,std::string> &vnames) ;
-  
-                         
-  
+
+
+
   void process_Compute(std::string& instring,
                        std::ostream &outputFile,
                        const std::map<Loci::variable,std::string> &vnames
                        ) ;
- 
-  
+
+
   void process_Calculate(int start_line,
                          std::string& instring,
                          std::ostream &outputFile,
@@ -107,8 +107,8 @@ class parseFile {
                          const std::set<std::list<Loci::variable> > & validate_set
                          ) ;
 
-  
-  
+
+
   void setup_Type(std::vector<std::pair<std::string, std::ostream*> >& dev_outs, bool oneOutput) ;
   void setup_Rule(std::vector<std::pair<std::string, std::ostream*> >& dev_outs, bool oneOutput) ;
 public:
