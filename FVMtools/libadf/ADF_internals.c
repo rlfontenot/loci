@@ -248,6 +248,8 @@ bytes	start	end   description      range / format
 #include "ADF.h"
 #include "ADF_internals.h"
 
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
+
 #if defined (_WIN64) || defined(_WIN32)
 typedef __int64 file_offset_t;
 #else
@@ -4874,7 +4876,7 @@ void	ADFI_flush_buffers(
 		int flush_mode,
 		int *error_return )
 {
-char data;
+  char data=0;
 
 if( file_in_use[ file_index ] == 0 ) {
    *error_return = ADF_FILE_NOT_OPENED ;

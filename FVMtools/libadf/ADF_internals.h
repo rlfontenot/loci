@@ -524,7 +524,7 @@ extern	void	ADFI_open_fileW(
 extern	void	ADFI_read_chunk_length(
 	    const unsigned int file_index,
 	    const struct DISK_POINTER *block_offset,
-	    char tag[4],
+	    char tag[5],
 	    struct DISK_POINTER *end_of_chunk_tag,
 	    int *error_return ) ;
 

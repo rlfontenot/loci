@@ -132,6 +132,8 @@ static char	data_chunk_start_tag[] = "DaTa" ;
 #endif
 #endif
 
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
+
 
 /***********************************************************************
     Error strings
