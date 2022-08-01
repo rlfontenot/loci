@@ -1,0 +1,56 @@
+Command line :
+
+1. from command line, add -d option. The option will output non-cpu rule when
+appropriate, otherwise, all output rules are c++ rule. Different
+device version can write into one file or different files, which is
+specified by -o option. 
+
+one example simple.loci is given here, run.sh demonstrate the usage of
+new lpp tool.
+ 
+
+Select c++ rule and cuda rule:
+
+2. special rules, such as singleton rule, 
+optional rule, default rule, constraint rule, blackbox rule, stay as c++ rule.
+
+3. if a rule has special conditions, such as disable_threading(), compute(),
+use_prelude, is_specialized, has_constraint,  etc. it will stay as c++
+rule.
+
+4. if a rule's variables have the following type: multiStore,
+storeVec, storeMat, it will stay as c++ rule 
+
+
+For Cuda rule:
+
+5. for base class,  replace loci rule type name with cuda rule type name
+ 
+6. add a constructor that takes ctxId as an argument 
+
+7. compute() function is replaced by a class 'Compute',
+
+8. replace variables with pointer.
+
+9. replace name_stores() with bind() function
+
+10. add getDomain(), setDomain() function
+
+11. calculate() function is replaced by operator() function
+
+12. remove register_rule part
+
+
+ 
+
+
+Currently not consider yet:
+
+1. unit rule and apply rule, might need more attention
+
+ 
+Will not consider:
+
+1. translate from c++ code to cuda code
+
+ 
