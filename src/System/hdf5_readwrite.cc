@@ -60,24 +60,53 @@ namespace Loci {
       MPI_Info_create(info);
     
 #ifdef H5_HAVE_PARALLEL //optional setup
+
       //MPI predefined hints
-      MPI_Info_set(*info, "striping_unit", "8388608") ;
-      MPI_Info_set(*info,"stripping_factor","4");
-      MPI_Info_set(*info,"cb_nodes","4");
-      MPI_Info_set(*info,"cb_buffer_size","4194304");
+      MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_RETURN) ;
+
+      if(MPI_Info_set(*info, "striping_unit", "8388608")!=MPI_SUCCESS)
+	cerr << "failed to set MPI info for 'striping_unit'" << endl ;
+
+      if(MPI_Info_set(*info,"stripping_factor","4")!=MPI_SUCCESS)
+	cerr << "failed to set MPI info for 'stripping_factor'" << endl ;
+
+      if(MPI_Info_set(*info,"cb_nodes","4")!=MPI_SUCCESS)
+	cerr << "failed to set MPI info for 'cb_nodes'" << endl ;
+
+      if(MPI_Info_set(*info,"cb_buffer_size","4194304")!=MPI_SUCCESS)
+	cerr << "failed to set MPI info for 'cb_buffer_size'" << endl ;
    
       //new algorithm parameters
-      MPI_Info_set(*info,"ind_rd_buffer_size","41943040"); 
-      MPI_Info_set(*info,"ind_wr_buffer_size","5242880");
+      if(MPI_Info_set(*info,"ind_rd_buffer_size","41943040")!=MPI_SUCCESS)
+	cerr << "failed to set MPI info for 'ind_rd_buffer_size'" << endl ;
+
+      if(MPI_Info_set(*info,"ind_wr_buffer_size","5242880")!=MPI_SUCCESS)
+	cerr << "failed to set MPI info for 'ind_wr_buffer_size'" << endl ;
+
       //platform-specific hints
-      MPI_Info_set(*info,"IBM_largeblock_io","true");
-      MPI_Info_set(*info,"H5F_ACS_CORE_WRITE_TRACKING_PAGE_SIZE_DEF","524288");
-      MPI_Info_set(*info,"romio_ds_read","disable"); //dissble datat sieving in read
-      MPI_Info_set(*info,"romio_ds_write","disable"); // disable data sieving in write
-      MPI_Info_set(*info,"romio_cb_write","enable"); //enable aggregation
+      if(MPI_Info_set(*info,"IBM_largeblock_io","true")!=MPI_SUCCESS)
+	cerr << "failed to set MPI info for 'IBM_largeblock_io'" << endl ;
+
+      //      if(MPI_Info_set(*info,"H5F_ACS_CORE_WRITE_TRACKING_PAGE_SIZE_DEF","524288")!=MPI_SUCCESS)
+      //	cerr << "failed to set MPI info for 'H5F_ACS_CORE_WRITE_TRACKING_PAGE_SIZE_DEF'" << endl ;
+
+      //dissble datat sieving in read
+      if(MPI_Info_set(*info,"romio_ds_read","disable")!=MPI_SUCCESS)
+	cerr << "failed to set MPI info for 'romio_ds_read'" << endl ;
+
+      // disable data sieving in write
+      if(MPI_Info_set(*info,"romio_ds_write","disable")!=MPI_SUCCESS)
+	cerr << "failed to set MPI info for 'romio_ds_write'" << endl ;
+
+      //enable aggregation
+      if(MPI_Info_set(*info,"romio_cb_write","enable")!=MPI_SUCCESS)
+	cerr << "failed to set MPI info for 'romio_cb_write'" << endl ;
+	
       //Setting the environment variable
       //MPICH_MPIIO_HINTS_DISPLAY=1 to print out available I/O hints and their values
       //aggreation: processors with fast connection perform io for others
+      MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_ARE_FATAL) ;
+
 #endif
       return 0;
     }
