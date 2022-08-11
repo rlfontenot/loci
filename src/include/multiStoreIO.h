@@ -92,16 +92,112 @@ namespace Loci {
                                const std::vector<int> &local_num,
                                const std::vector<int> &procID) ;
 
-  void sendCounts(std::vector<int>&recv_count,
-                  const std::vector<int> &send_sz,
-                  const std::vector<int> &recv_sz,
-                  const std::vector<int> &recv_local_num,
-                  const std::vector<int> &counts,
-                  const std::vector<int> &procID) ;
+  
+  template< class T >
+  void sendData(std::vector<T>&recv_count,
+                const std::vector<int> &send_sz,
+                const std::vector<int> &recv_sz,
+                const std::vector<int> &recv_local_num,
+                const std::vector<T> &counts,
+                const std::vector<int> &procID) {
+    const int p = MPI_processes ;
+    std::vector<int> soffsets(p+1,0) ;
+    std::vector<int> roffsets(p+1,0) ;
+    for(int i=0;i<p;++i) {
+      soffsets[i+1] = soffsets[i] + send_sz[i] ;
+      roffsets[i+1] = roffsets[i] + recv_sz[i] ;
+    }
+    std::vector<int> so(p,0) ;
+    std::vector<T> sbuf(counts.size()) ;
+    for(size_t i=0;i<counts.size();++i) {
+      int ps = procID[i] ;
+      sbuf[soffsets[ps]+so[ps]] = counts[i] ;
+      so[ps]++ ;
+    }
 
+    std::vector<T> rbuf(roffsets[p]) ;
+    int nreq = 0 ;
+    for(int i=0;i<p;++i) {
+      if(send_sz[i] > 0)
+	nreq++ ;
+      if(recv_sz[i] > 0)
+	nreq++ ;
+    }
+    std::vector<MPI_Request> recv_Requests(nreq) ;
+    int req = 0 ;
+    for(int i=0;i<p;++i)
+      if(recv_sz[i] > 0) {
+	MPI_Irecv(&rbuf[roffsets[i]],recv_sz[i]*sizeof(T),MPI_BYTE,i,3,
+		  MPI_COMM_WORLD,&recv_Requests[req]) ;
+	req++ ;
+      }
+    for(int i=0;i<p;++i)
+      if(send_sz[i] > 0) {
+	MPI_Isend(&sbuf[soffsets[i]],send_sz[i]*sizeof(T),MPI_BYTE,i,3,
+		  MPI_COMM_WORLD,&recv_Requests[req]) ;
+	req++ ;
+      }
+    std::vector<MPI_Status> statuslist(nreq) ;
+    MPI_Waitall(nreq,&recv_Requests[0],&statuslist[0]) ;
+    recv_count.swap(rbuf) ;
+    
+  }
+  
+  template< class T >
+  void sendMultiData(std::vector<T>&recv_count,
+                     const std::vector<int> &send_sz,
+                     const std::vector<int> &recv_sz,
+                     const std::vector<int> &recv_local_num,
+                     const std::vector<T> &counts,
+                     const std::vector<int> &procID,
+                     int vec_size) {
+    const int p = MPI_processes ;
+    std::vector<int> soffsets(p+1,0) ;
+    std::vector<int> roffsets(p+1,0) ;
+    for(int i=0;i<p;++i) {
+      soffsets[i+1] = soffsets[i] + send_sz[i]*vec_size ;
+      roffsets[i+1] = roffsets[i] + recv_sz[i]*vec_size ;
+    }
+    std::vector<int> so(p,0) ;
+    std::vector<T> sbuf(counts.size()) ;
+    int dom_size = counts.size()/vec_size;
+    for(size_t i=0;i<dom_size;++i) {
+      for(int j = 0; j < vec_size; j++){
+        int ps = procID[i] ;
+        sbuf[soffsets[ps]+so[ps]] = counts[i*vec_size+j] ;
+        so[ps]++ ;
+      }
+    }
 
+    std::vector<T> rbuf(roffsets[p]) ;
+    int nreq = 0 ;
+    for(int i=0;i<p;++i) {
+      if(send_sz[i] > 0)
+	nreq++ ;
+      if(recv_sz[i] > 0)
+	nreq++ ;
+    }
+    std::vector<MPI_Request> recv_Requests(nreq) ;
+    int req = 0 ;
+    for(int i=0;i<p;++i)
+      if(recv_sz[i] > 0) {
+	MPI_Irecv(&rbuf[roffsets[i]],recv_sz[i]*sizeof(T)*vec_size,MPI_BYTE,i,3,
+		  MPI_COMM_WORLD,&recv_Requests[req]) ;
+	req++ ;
+      }
+    for(int i=0;i<p;++i)
+      if(send_sz[i] > 0) {
+	MPI_Isend(&sbuf[soffsets[i]],send_sz[i]*sizeof(T)*vec_size,MPI_BYTE,i,3,
+		  MPI_COMM_WORLD,&recv_Requests[req]) ;
+	req++ ;
+      }
+    std::vector<MPI_Status> statuslist(nreq) ;
+    MPI_Waitall(nreq,&recv_Requests[0],&statuslist[0]) ;
+    recv_count.swap(rbuf) ;
+    
+  }
 
- 
+  
   inline size_t containerSizeEstimateKb(storeRepP p) {
     entitySet dom = p->domain() ;
     int szkb = 0 ;
@@ -743,7 +839,7 @@ namespace Loci {
       std::vector<int> recv_local_num ;
       distributeMapMultiStore(send_sz,recv_sz,recv_local_num,local_num,procID) ;
       std::vector<int> recv_count ;
-      sendCounts(recv_count,send_sz,recv_sz,recv_local_num,counts,procID) ;
+      sendData(recv_count,send_sz,recv_sz,recv_local_num,counts,procID) ;
       //    distributeMapMultiStore(send_sz,recv_sz,recv_count,counts,procID) ;
 
       std::vector<int> alloc_set = recv_local_num ;
@@ -978,7 +1074,7 @@ namespace Loci {
     std::vector<int> recv_local_num ;
     distributeMapMultiStore(send_sz,recv_sz,recv_local_num,local_num,procID) ;
     std::vector<int> recv_count ;
-    sendCounts(recv_count,send_sz,recv_sz,recv_local_num,counts,procID) ;
+    sendData(recv_count,send_sz,recv_sz,recv_local_num,counts,procID) ;
     //    distributeMapMultiStore(send_sz,recv_sz,recv_count,counts,procID) ;
 
     std::vector<int> alloc_set = recv_local_num ;
@@ -1035,7 +1131,6 @@ namespace Loci {
     int rank = 1 ;
     hsize_t start = 0 ;
     hsize_t stride = 1 ;
-    //    hsize_t read_size = 0 ;
     herr_t ret;
     int blksz = 0 ;
     std::vector<int> file_read_sizes(p,0) ;
