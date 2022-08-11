@@ -44,6 +44,12 @@ namespace Loci {
                                                     std::vector<T> &v,
                                                     MPI_Comm prime_comm,
                                                     int xfer_type) {
+    /*this function write out the total size of v (one unsignd long) and the data in v
+      in the order of process 0 , process 1, ...
+      parallel io,
+      moffset is used to specify the global location before writing ,
+      and it is updated after writing
+    */
     int mpi_size;
     int mpi_rank;
     MPI_Comm_rank(prime_comm, &mpi_rank);
@@ -87,7 +93,7 @@ namespace Loci {
     moffset += array_size_combined*sizeof(T);
   }
 
-  
+ 
  
   template<class T> void pmpi_writeVectorSerialP(MPI_File fh,
                                                  MPI_Offset &moffset,
@@ -202,7 +208,70 @@ namespace Loci {
       moffset += array_size_combined*sizeof(T);
     }
   }
+  template<class T>
+  void pmpi_readUnorderedDataVectorP(MPI_File fh, MPI_Offset& moffset, std::vector<T> &v, MPI_Comm prime_comm,  int xfer_type) {
+    /*
+      each process read in different data in parallel,
+      this function is used when reading in storeVec data,
+      v is already resized according to its domain,
+      the data is partitioned according to the size of v
+    */
+    int mpi_rank = -1;
+    int mpi_size = -1;
+    
+    if (MPI_COMM_NULL != prime_comm){
+      MPI_Comm_rank(prime_comm, &mpi_rank);
+      MPI_Comm_size(prime_comm, &mpi_size);
 
+      //process 0 read in array_size_combined and broadcast it 
+      unsigned long array_size_combined = 0;
+      if(mpi_rank == 0)
+        MPI_File_read_at(fh, moffset, &array_size_combined, sizeof(unsigned long), MPI_BYTE, MPI_STATUS_IGNORE);
+     
+      
+
+      
+      moffset +=  (MPI_Offset)sizeof(unsigned long); //all the process update moffset
+  
+    
+     
+  
+      unsigned long loc_array_size = v.size(); 
+      std::vector<unsigned long> all_local_sizes(mpi_size) ;
+      MPI_Allgather(&loc_array_size,1,MPI_UNSIGNED_LONG,
+                    &all_local_sizes[0],1,MPI_UNSIGNED_LONG,
+                    prime_comm) ;
+
+      //process 0 perform sanity check
+      if(mpi_rank == 0) {
+        unsigned long total = 0;
+        for(int i = 0; i < mpi_size; i++) total += all_local_sizes[i];
+        if(total != array_size_combined){
+          cerr << "ERROR: total size of data vector doesn't match the size in file" << endl;
+          Loci::debugout << "ERROR: total size of data vector doesn't match the size in file "<<endl;
+          Loci::Abort();
+        }
+      }
+  
+      //each process read in its own part in parallel here
+      unsigned long start = 0;
+      for(int i = 0; i < mpi_rank; i++) start += all_local_sizes[i];
+      MPI_Offset tmp_moffset = moffset;
+      tmp_moffset += (MPI_Offset) start*sizeof(T);
+  
+      unsigned long count = loc_array_size  ;
+      
+      if(xfer_type == DXFER_COLLECTIVE_IO)
+        MPI_File_read_at_all(fh, tmp_moffset, &v[0], count*sizeof(T), MPI_BYTE, MPI_STATUS_IGNORE);
+      else
+        MPI_File_read_at(fh, tmp_moffset, &v[0], count*sizeof(T), MPI_BYTE, MPI_STATUS_IGNORE);
+
+      //update moffset
+      moffset += array_size_combined*sizeof(T);
+    }
+  }
+
+  
     
   template< class T >
   inline void pmpi_writeMultiStoreP(std::string filename,                              
@@ -469,7 +538,7 @@ namespace Loci {
     std::vector<int> recv_local_num ;
     distributeMapMultiStore(send_sz,recv_sz,recv_local_num,local_num,procID) ;
     std::vector<int> recv_count ;
-    sendCounts(recv_count,send_sz,recv_sz,recv_local_num,counts,procID) ;
+    sendData(recv_count,send_sz,recv_sz,recv_local_num,counts,procID) ;
   
 
     std::vector<int> alloc_set = recv_local_num ;
@@ -517,7 +586,7 @@ namespace Loci {
     
 
     // Loop over block schedule, communicate each block
-    int rank = 1 ;
+    
     unsigned long start = 0 ;
  
  
