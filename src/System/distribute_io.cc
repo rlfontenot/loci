@@ -1212,30 +1212,24 @@ namespace Loci {
 
       
       //each process do partition and compute dom
-      std::vector<int> interval_sizes ;
-      entitySet dom ;
-      if(q_dom != EMPTY) {
-        vector<entitySet> ptn = simplePartition(q_dom.Min(),q_dom.Max(),comm) ;
-        for(int i=0;i<np;++i) {
-          entitySet qset = ptn[i] &q_dom ;
-          interval_sizes.push_back(qset.size()) ;
-        }
-        dom = ptn[prank] &q_dom ;
-      } else
-        for(int i=0;i<np;++i)
-          interval_sizes.push_back(0) ;
-
       if(q_dom==EMPTY) {
         qrep->allocate(q_dom) ;
         return ;
       }
+      entitySet dom ;
+      if(q_dom != EMPTY) {
+        vector<entitySet> ptn = simplePartition(q_dom.Min(),q_dom.Max(),comm) ;
+        dom = ptn[prank] &q_dom ;
+      } 
+
+     
       offset = dom.Min() ;
       dom <<= offset ;
-      qrep->allocate(dom) ;
+      
     
 
-      //each process read in frame_info and compute vez_size and array_size
-      frame_info fi = read_frame_infoP(group_id,dom.size(),comm) ;
+      //to avoid read storm, use serial io when read in frame_info
+      frame_info fi = read_frame_infoS(group_id,dom.size(),comm) ;
       int array_size = 0 ;
     
       if(fi.size) {
@@ -1989,7 +1983,7 @@ namespace Loci {
 
   int getMinFileNumberFromLocal(entitySet read_set,
                                 fact_db::distribute_infoP dist ) {
-
+    if(dist == 0) return read_set.Min();
     int minIDfl = std::numeric_limits<int>::max() ;
     int kd =  getKeyDomain(read_set, dist, MPI_COMM_WORLD) ;
     if(kd< 0) {
