@@ -324,52 +324,5 @@ namespace Loci {
     recv_local_num.swap(recv_data) ;
   }    
 
-  void sendCounts(std::vector<int>&recv_count,
-		  const std::vector<int> &send_sz,
-		  const std::vector<int> &recv_sz,
-		  const std::vector<int> &recv_local_num,
-		  const std::vector<int> &counts,
-		  const std::vector<int> &procID) {
-    const int p = MPI_processes ;
-    std::vector<int> soffsets(p+1,0) ;
-    std::vector<int> roffsets(p+1,0) ;
-    for(int i=0;i<p;++i) {
-      soffsets[i+1] = soffsets[i] + send_sz[i] ;
-      roffsets[i+1] = roffsets[i] + recv_sz[i] ;
-    }
-    std::vector<int> so(p,0) ;
-    std::vector<int> sbuf(counts.size()) ;
-    for(size_t i=0;i<counts.size();++i) {
-      int ps = procID[i] ;
-      sbuf[soffsets[ps]+so[ps]] = counts[i] ;
-      so[ps]++ ;
-    }
-
-    std::vector<int> rbuf(roffsets[p]) ;
-    int nreq = 0 ;
-    for(int i=0;i<p;++i) {
-      if(send_sz[i] > 0)
-	nreq++ ;
-      if(recv_sz[i] > 0)
-	nreq++ ;
-    }
-    std::vector<MPI_Request> recv_Requests(nreq) ;
-    int req = 0 ;
-    for(int i=0;i<p;++i)
-      if(recv_sz[i] > 0) {
-	MPI_Irecv(&rbuf[roffsets[i]],recv_sz[i],MPI_INT,i,3,
-		  MPI_COMM_WORLD,&recv_Requests[req]) ;
-	req++ ;
-      }
-    for(int i=0;i<p;++i)
-      if(send_sz[i] > 0) {
-	MPI_Isend(&sbuf[soffsets[i]],send_sz[i],MPI_INT,i,3,
-		  MPI_COMM_WORLD,&recv_Requests[req]) ;
-	req++ ;
-      }
-    std::vector<MPI_Status> statuslist(nreq) ;
-    MPI_Waitall(nreq,&recv_Requests[0],&statuslist[0]) ;
-    recv_count.swap(rbuf) ;
-    
-  }
+ 
 }
