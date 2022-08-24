@@ -18,7 +18,7 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
-#define io_performance
+//#define io_performance
 #include <vector>
 using std::vector;
 #include <string>
@@ -832,9 +832,11 @@ namespace Loci {
           }
         }
       }
+#ifdef io_performance
       MPI_Barrier(MPI_COMM_WORLD);
       double wall_time = s.stop();
-      if(prank == 0) std::cerr << "                                                    serial time to write_store: "  << "  " << wall_time << endl; 
+      if(prank == 0) std::cerr << "                                                    serial time to write_store: "  << "  " << wall_time << endl;
+#endif
     }
   
     void write_storeP(hid_t group_id, storeRepP qrep, entitySet dom, int offset, MPI_Comm comm) {
@@ -932,10 +934,14 @@ namespace Loci {
         H5Sclose(dataspace) ;
         H5Tclose(datatype) ;
       }
+#ifdef io_performance
       MPI_Barrier(MPI_COMM_WORLD);
       double wall_time = s.stop();
-      if(prank == 0) std::cerr << "                                                    parallel time to write_store "  << "  " << wall_time << endl; 
+      if(prank == 0) std::cerr << "                                                    parallel time to write_store "  << "  " << wall_time << endl;
 #endif
+      
+#endif
+      
     }
 
     void write_containerS(hid_t group_id, storeRepP qrep) {
