@@ -211,15 +211,17 @@ void dump_pos(const sequence &seq,const_store<vector3d<real_t> > &pos,
     Loci::debugout << "writing file " << filename << endl ;
   }
 
+  //  cerr << "opening file " << filename<< endl ;
   hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
 				       H5P_DEFAULT, H5P_DEFAULT) ;
-
+  //  cerr << "file_id = " << file_id << endl ;
   if(file_id < 0) {
     cerr << "unable to open file " << filename << endl ;
     Loci::Abort() ;
   }
+  //  cerr << "write pos using writeContainer" << endl ;
   Loci::writeContainer(file_id,"pos",pos.Rep()) ;
-
+  //  cerr << "after write pos" << endl ;
   Loci::hdf5CloseFile(file_id) ;
 }
 
