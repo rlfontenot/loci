@@ -23,7 +23,8 @@
 #include <set>
 #include <iostream>
 #include <sstream>
-#include <sys/timeb.h>
+//#include <sys/timeb.h>
+#include <time.h>
 
 using std::istringstream ;
 using std::ostringstream ;
@@ -1529,11 +1530,16 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
   class_name += '0' + (cnt/100)%10 ;
   class_name += '0' + (cnt/10)%10 ;
   class_name += '0' + (cnt)%10 ;
-  timeb tdata ;
-  ftime(&tdata) ;
+
+  //  timeb tdata ;
+  //  ftime(&tdata) ;
+  timespec tdata ;
+  clock_gettime(CLOCK_MONOTONIC,&tdata) ;
+  
   
   ostringstream tss ;
-  tss <<  '_' << tdata.time << 'm'<< tdata.millitm;
+  //  tss <<  '_' << tdata.time << 'm'<< tdata.millitm;
+  tss << '_' << tdata.tv_sec << 'm' << tdata.tv_nsec/1000000 ;
   
   class_name += tss.str() ;
   cnt++ ;
