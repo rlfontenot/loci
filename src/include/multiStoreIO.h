@@ -160,7 +160,7 @@ namespace Loci {
     }
     std::vector<int> so(p,0) ;
     std::vector<T> sbuf(counts.size()) ;
-    int dom_size = counts.size()/vec_size;
+    size_t dom_size = counts.size()/vec_size;
     for(size_t i=0;i<dom_size;++i) {
       for(int j = 0; j < vec_size; j++){
         int ps = procID[i] ;

@@ -67,6 +67,8 @@
 #include <pnn.h>
 
 #define HAS_MODULE_SEARCH_DIR
+#define LOCI_HAS_MPI_IO
+
 namespace Loci {
   extern void AddModuleSearchDir(std::string dirname);
   extern double random() ;

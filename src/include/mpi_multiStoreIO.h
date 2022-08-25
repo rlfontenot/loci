@@ -185,7 +185,7 @@ namespace Loci {
       //partition the data
       unsigned long delta = array_size_combined/mpi_size ;
       unsigned long rem = array_size_combined%mpi_size ;
-      unsigned long loc_array_size = delta + ((mpi_rank<rem)?1:0);
+      unsigned long loc_array_size = delta + ((mpi_rank<int(rem))?1:0);
   
   
       std::vector<T> tmp(loc_array_size) ;
@@ -193,7 +193,7 @@ namespace Loci {
   
   
       //each process read in its own part in parallel here
-      unsigned long start = (mpi_rank< rem)?mpi_rank*(delta+1):(delta+1)*rem+delta*(mpi_rank-rem) ;
+      unsigned long start = (mpi_rank<int(rem))?mpi_rank*(delta+1):(delta+1)*rem+delta*(mpi_rank-rem) ;
       MPI_Offset tmp_moffset = moffset;
       tmp_moffset += (MPI_Offset) start*sizeof(T);
   
