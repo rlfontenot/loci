@@ -70,6 +70,7 @@ cp FVMtools/msh2vog $INSTALL_PATH/bin
 cp FVMtools/cfd++2vog $INSTALL_PATH/bin
 cp FVMtools/fluent2vog $INSTALL_PATH/bin
 cp FVMtools/ccm2vog $INSTALL_PATH/bin
+cp FVMtools/ccm2vogp $INSTALL_PATH/bin
 cp FVMtools/vogmerge $INSTALL_PATH/bin
 cp FVMtools/vogcheck $INSTALL_PATH/bin
 cp FVMtools/vogcut $INSTALL_PATH/bin
