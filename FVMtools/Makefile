@@ -26,7 +26,7 @@ COPT = $(COPTLESS)
 # List the name of your compiled program here
 TARGET = extract
 
-OTHER_APPS = plot3d2vog make_periodic ugrid2vog msh2vog cfd++2vog fluent2vog cobalt2vog vogmerge vogcut vogcheck extruder vog2surf ccm2vog refmesh marker refine cgns2vog ugrid2cgns  cgns2ugrid cgns2ensight cgns2surf 
+OTHER_APPS = plot3d2vog make_periodic ugrid2vog msh2vog cfd++2vog fluent2vog cobalt2vog vogmerge vogcut vogcheck extruder vog2surf ccm2vog ccm2vogp refmesh marker refine cgns2vog ugrid2cgns  cgns2ugrid cgns2ensight cgns2surf 
 
 # List your object files here
 OBJS =  extract.o extract_ensight.o extract_2dgv.o extract_ascii.o extract_tecplot.o extract_vtk.o extract_fv.o extract_cut.o extract_surf.o extract_mean.o extract_cgns.o
@@ -51,6 +51,9 @@ libadf/libadf.a:
 
 ccm2vog.o: ccm2vog.cc
 	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) -Ilibadf -c ccm2vog.cc
+
+ccm2vogp.o: ccm2vogp.cc
+	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) -Ilibadf -c ccm2vogp.cc
 
 #hash.o: hash.cc
 #	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES)  -c hash.cc
@@ -121,6 +124,9 @@ fluent2vog: fluent2vog.o vogtools.o
 
 ccm2vog: ccm2vog.o vogtools.o libadf/libadf.a
 	 $(LD) -o ccm2vog ccm2vog.o vogtools.o libadf/libadf.a $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+
+ccm2vogp: ccm2vogp.o vogtools.o libadf/libadf.a
+	 $(LD) -o ccm2vogp ccm2vogp.o vogtools.o libadf/libadf.a $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
 vogmerge: vogmerge.o
 	$(LD) -o vogmerge vogmerge.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
