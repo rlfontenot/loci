@@ -80,7 +80,7 @@ namespace Loci {
   int create_mpi_info(MPI_Info *info);
 
   /*turn on parallel io, must be called by all processes collectively */
-  void set_parallel_io(bool io_type);
+  bool set_parallel_io(bool io_type);
 
 }
 #endif

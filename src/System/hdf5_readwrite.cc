@@ -36,7 +36,8 @@ namespace Loci {
   }
 
   /*turn on parallel io, must be called by all processes collectively */
-  void set_parallel_io(bool io_type){
+  bool set_parallel_io(bool io_type){
+    bool save = use_parallel_io ;
     if(io_type){
 #ifdef H5_HAVE_PARALLEL
       if(MPI_processes > 1){ 
@@ -52,9 +53,10 @@ namespace Loci {
     }else{
       use_parallel_io = false ;
     }
-    }
+    return save ;
+  }
   
-      int  create_mpi_info(MPI_Info *info){//create a info and set the
+  int  create_mpi_info(MPI_Info *info){//create a info and set the
       // *info = MPI_INFO_NULL;
       //return 0;
       MPI_Info_create(info);
