@@ -1,8 +1,5 @@
 #include <Loci.h>
 
-using std::cerr ;
-using std::endl ;
-
 $include "FVM.lh"
 $include "heat.lh"
 // This file has rules for default and optional variable
@@ -18,77 +15,18 @@ $rule default(T_initial),
   $T_initial = 300 ;
 }
 
-class materialProperties_ol : public options_list {
-public:
-  // Use constructor to specify allowable option names
-  materialProperties_ol(): options_list("density:Cp:conductivity") {}
-} ;
-
-// Provide a traits class to tell how Loci how to read and write
-// this type
-namespace Loci {
-  template<> struct data_schema_traits<materialProperties_ol> {
-    // The user defined converter is used for objects that have 
-    // sizes that vary at runtime.  The user is responsible for serializing
-    // these objects.
-    typedef USER_DEFINED_CONVERTER Schema_Converter ; 
-
-    // This object will be converted into an array of this type by the
-    // Converter_Type
-    typedef char Converter_Base_Type ;
-
-    // This is a converter type provided by Loci, it will convert the
-    // object to a string of characters using the stream operators
-    // provided by the type
-    typedef StringStreamConverter<options_list> Converter_Type ;
-  } ;
+$rule default(Density),
+  comments("Solid Material Density in kg/m^3") {
+  $Density = 300 ;
 }
 
-// Since traits were defined for our new object, we can now put it into a 
-// parameter.
-$type materialProperties param<materialProperties_ol> ;
-
-// This rule will allow materialProperties to be specified in the
-// vars file
-$rule optional(materialProperties),
-  comments("specify solid material properties: density, Cp, and conductivity") {
+$rule default(conductivity) {
+  $conductivity = 1.0 ;
 }
 
-// Rule to extract the material density from the materialProperties
-// variable
-$rule singleton(Density<-materialProperties) {
-  if($materialProperties.optionExists("density")) {
-    $materialProperties.getOptionUnits("density","kg/m/m/m",$Density) ;
-  } else {
-    $[Once] {
-      cerr << "ERROR: 'density' not defined in materialProperties" << endl ;
-    }
-    Loci::Abort() ;
-  }
+$rule default(Cp) {
+  $Cp = 1.0 ;
 }
-
-$rule singleton(conductivity<-materialProperties) {
-  if($materialProperties.optionExists("conductivity")) {
-    $materialProperties.getOptionUnits("conductivity","W/m/K",$conductivity) ;
-  } else {
-    $[Once] {
-      cerr << "ERROR: 'conductivity' not defined in materialProperties" << endl ;
-    }
-    Loci::Abort() ;
-  }
-}
-
-$rule singleton(Cp<-materialProperties) {
-  if($materialProperties.optionExists("Cp")) {
-    $materialProperties.getOptionUnits("Cp","J/kg/K",$Cp) ;
-  } else {
-    $[Once] {
-      cerr << "ERROR: 'Cp' not defined in materialProperties" << endl ;
-    }
-    Loci::Abort() ;
-  }
-}
-
 
 $rule default(stop_iter) {
   $stop_iter = 10 ;

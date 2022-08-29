@@ -1,6 +1,4 @@
 #include <Loci.h>
-#include <unistd.h>
-
 using namespace std ;
 $include "FVM.lh"
 $include "heat.lh"
@@ -44,9 +42,8 @@ void dump_pos(const sequence &seq,const_store<vector3d<double> > &pos,
   string filename = oss.str() ;
   
 #ifdef VERBOSE
-  $[Once] {
+  if(Loci::MPI_rank == 0)
     cout << "writing file " << filename << endl ;
-  }
 #endif
   
   
@@ -101,9 +98,8 @@ public:
     ofstream file(topolink.c_str(),ios::trunc) ;
     file << basename << endl ;
     //    if(*firstPlot) {
-    $[Once] {
+    if(Loci::MPI_rank == 0)
       cout << "writing grid topology file: " << basename << endl ;
-    }
 
     Loci::parallelWriteGridTopology(filename.c_str(),
 				    upper.Rep(),lower.Rep(),
@@ -136,7 +132,7 @@ public:
     }
     void compute(const sequence &seq) {
       dump_pos(seq,pos,string(""),*modelName) ;
-      $[Once] {
+      if(Loci::MPI_rank==0) {
 	string filename = string("output/grid_pos.") +
 	  *plot_postfix + string("_") + *modelName ;
 	cout << "unlink filename = " << filename << endl ;
@@ -157,9 +153,8 @@ public:
         << "_" << modelName ;
     string filename = oss.str() ;
 #ifdef VERBOSE
-    $[Once] {
+    if(Loci::MPI_rank == 0)
       cout << "writing file " << filename << endl ;
-    }
 #endif
 
 
@@ -178,12 +173,12 @@ $rule pointwise(OUTPUT<-cell2node(temperature),plot_postfix,modelName),
 	      "sca","temperature") ;
 } ;
 
-// Here we use $[Once] to guard output only from processor
+// Here we check the MPI_rank so that we only output from processor
 // zero, otherwise the message would be printed p times from each
 // processor
 $rule singleton(OUTPUT<-L2Norm(qresidual),$n),
   option(disable_threading) {
-  $[Once] {
+  if(Loci::MPI_rank==0) {
     cout << "R" << $$n << ": " << $L2Norm(qresidual) << endl ;
   }
 }
