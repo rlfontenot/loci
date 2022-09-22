@@ -9,16 +9,13 @@ namespace Loci {
     // contain mapping information from file to local
     fact_db::distribute_infoP df = facts.get_distribute_info() ;
     read_set = read_set & df->my_entities ;
-    const_Map l2g ;
-    const_dMap g2f ;
-    l2g = df->l2g.Rep() ;
-    g2f = df->g2f.Rep() ;
-
+    const_Map l2f ;
+    l2f = df->l2f.Rep() ;
     // Find bounds of file number
-    int fmin_local = g2f[l2g[read_set.Min()]] ;
+    int fmin_local = l2f[read_set.Min()] ;
     int fmax_local = fmin_local ;
     FORALL(read_set,ii) {
-      int fid = g2f[l2g[ii]] ;
+      int fid = l2f[ii] ;
       fmin_local = min(fmin_local,fid) ;
       fmax_local = max(fmax_local,fid) ;
     } ENDFORALL ;
@@ -50,10 +47,8 @@ namespace Loci {
     // contain mapping information from file to local
     fact_db::distribute_infoP df = facts.get_distribute_info() ;
     read_set = read_set & df->my_entities ;
-    const_Map l2g ;
-    const_dMap g2f ;
-    l2g = df->l2g.Rep() ;
-    g2f = df->g2f.Rep() ;
+    const_Map l2f ;
+    l2f = df->l2f.Rep() ;
 
     const int p = MPI_processes ;
     // Collect information about mapping between file number and
@@ -61,7 +56,7 @@ namespace Loci {
     // Find file number to processor mapping
     std::vector<int> sendto(p,0) ;
     FORALL(read_set,ii) {
-      int fid = g2f[l2g[ii]]-fmin ;
+      int fid = l2f[ii]-fmin ;
       int ps = fid/delta ;
       sendto[ps]++ ;
     } ENDFORALL ;
@@ -79,7 +74,7 @@ namespace Loci {
       recv_offsets[i+1] = recv_offsets[i]+recvfrom[i] ;
     }
     FORALL(read_set,ii) {
-      int fid = g2f[l2g[ii]]-fmin ;
+      int fid = l2f[ii]-fmin ;
       int p = fid/delta ;
       int offset = offsets[p]+send_offsets[p] ; ;
       offsets[p]++ ;

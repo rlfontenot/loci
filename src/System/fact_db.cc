@@ -135,10 +135,12 @@ namespace Loci {
     // we make a deep copy of the maps
     entitySet l2g_alloc = fdf->l2g.domain() ;
     df->l2g.allocate(l2g_alloc) ;
+    df->l2f.allocate(l2g_alloc) ;
     df->key_domain.allocate(l2g_alloc) ;
     for(entitySet::const_iterator ei=l2g_alloc.begin();
         ei!=l2g_alloc.end();++ei) {
       df->l2g[*ei] = fdf->l2g[*ei] ;
+      df->l2f[*ei] = fdf->l2f[*ei] ;
       df->key_domain[*ei] = fdf->key_domain[*ei] ;
     }
 
@@ -1025,10 +1027,38 @@ namespace Loci {
   void serial_freeze(fact_db &facts) {
     variableSet vars = facts.get_typed_variables() ;
 
+    fact_db::distribute_infoP df = new distribute_info;
+    df->myid = 0 ;
+    df->isDistributed = 0 ;
+    entitySet dom ;
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
       storeRepP p = facts.get_variable(*vi) ;
-      facts.replace_fact(*vi, p->freeze()) ;
+      p = p->freeze() ;
+      facts.replace_fact(*vi, p) ;
+      if(p->domain()!=~EMPTY)
+	dom += p->domain() ;
     }
+    Map l2g ;
+    store<unsigned char> key_domain ;
+    l2g.allocate(dom) ;
+    key_domain.allocated(dom) ;
+    dMap g2l ;
+    FORALL(dom,ii) {
+      l2g[ii] = ii ;
+      key_domain[ii] = 0 ;
+      g2l[ii] = ii ;
+    } ENDFORALL ;
+    df->l2g = l2g.Rep() ;
+    df->key_domain = key_domain.Rep() ;
+    df->l2f = l2g.Rep() ;
+#ifdef LOCI_COMPAT_MODE1
+    df->g2l = g2l.Rep() ;
+    df->g2f = g2l.Rep() ;
+#endif
+    df->myEntities = ~EMPTY ;
+    df->g2lv.push_back(g2l) ;
+    df->g2fv.push_back(g2l) ;
+    facts.put_distribute_info(df) ;
   }
 
   void fact_db::set_variable_type(variable v, storeRepP st) {

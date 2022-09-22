@@ -1121,6 +1121,8 @@ namespace Loci {
 
   entitySet
   getF2G(Map &f2g, Loci::entitySet fdom, dMap &g2f, MPI_Comm comm) ;
+  entitySet
+  getF2G2(Map &f2g, entitySet fdom, Map &l2g, Map &l2f, MPI_Comm comm) ;
   void File2LocalOrderGeneral(storeRepP &result, entitySet resultSet,
                               storeRepP input, int offset,
                               fact_db::distribute_infoP dist,

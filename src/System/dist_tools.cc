@@ -541,6 +541,7 @@ namespace Loci {
     int myid = MPI_rank ;
     int size = 0 ;
     Map l2g ;
+    Map l2f ;
     int isDistributed ;
 
     vector<vector<entitySet> > proc_entities(nkd) ;
@@ -592,6 +593,7 @@ namespace Loci {
     int j = 0 ;
     entitySet e = interval(0, size-1) ;
     l2g.allocate(e) ;
+    l2f.allocate(e) ;
     store<unsigned char> key_domain ;
     key_domain.allocate(e) ;
 
@@ -599,12 +601,21 @@ namespace Loci {
     s.start() ;
     vector<entitySet> glist ;
     for(int kd=0;kd<nkd;++kd) {
+      dMap g2f ;
+      g2f.setRep(df->g2fv[kd].Rep()) ;
+      entitySet gdom = g2f.domain() ;
+
       entitySet g ;
       for(size_t i = 0; i < proc_entities[kd].size(); ++i) {
 	g += proc_entities[kd][i] ;
 	entitySet::const_iterator ei ;
 	for(ei = proc_entities[kd][i].begin(); ei != proc_entities[kd][i].end(); ++ei ) {
 	  l2g[j] = *ei ;
+	  if(gdom.inSet(*ei)) 
+	    l2f[j] = g2f[*ei] ;
+	  else
+	    l2f[j] = -1 ; // Probably something else should be used here
+	  //	    cout << "l2f not in gdom!" << endl ;
 	  key_domain[j] = kd ;
 	  ++j ;
 	}
@@ -615,6 +626,7 @@ namespace Loci {
     debugout << "time setting up l2g = " << s.stop() ;
     s.start() ;
     df->l2g = l2g.Rep() ;
+    df->l2f = l2f.Rep() ;
     df->key_domain = key_domain.Rep() ; // FIX THIS
 
     vector<dMap> tmp2(nkd) ;

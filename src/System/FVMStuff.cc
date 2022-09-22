@@ -750,8 +750,7 @@ namespace Loci{
     entitySet  fset = (MapRepP(boundary_mapRep)->image(localCells)+
                        MapRepP(upperRep)->image(localCells)) & ref.domain() ;
 
-    Map l2g ;
-    dMap g2f ;
+    Map l2f ;
     if(MPI_processes > 1) {
       fact_db::distribute_infoP df = facts.get_distribute_info() ;
       int kd =  getKeyDomain(fset, df, MPI_COMM_WORLD) ;
@@ -763,13 +762,11 @@ namespace Loci{
       }
       //      debugout << "in write gridTopology, face key domain is " << kd
       //	       << endl ;
-      l2g = df->l2g.Rep() ;
-      g2f = df->g2fv[kd].Rep() ;
+      l2f = df->l2f.Rep() ;
     } else {
-      l2g.allocate(fset) ;
+      l2f.allocate(fset) ;
       FORALL(fset,fc) {
-	l2g[fc] = fc ;
-	g2f[fc] = fc ;
+	l2f[fc] = fc ;
       } ENDFORALL ;
     }
 
@@ -823,20 +820,20 @@ namespace Loci{
           Trias[nt][0] = node_remap[face2node[fc][0]] ;
           Trias[nt][1] = node_remap[face2node[fc][1]] ;
           Trias[nt][2] = node_remap[face2node[fc][2]] ;
-          tria_ids[nt] = g2f[l2g[fc]] ;
+          tria_ids[nt] = l2f[fc] ;
           nt++ ;
         } else if(face2node[fc].size() == 4) {
           Quads[nq][0] = node_remap[face2node[fc][0]] ;
           Quads[nq][1] = node_remap[face2node[fc][1]] ;
           Quads[nq][2] = node_remap[face2node[fc][2]] ;
           Quads[nq][3] = node_remap[face2node[fc][3]] ;
-          quad_ids[nq] = g2f[l2g[fc]] ;
+          quad_ids[nq] = l2f[fc] ;
           nq++ ;
         } else {
           nsizes[ng] = face2node[fc].size() ;
           for(int i=0;i<nsizes[ng];++i)
             nsidenodes.push_back(node_remap[face2node[fc][i]]) ;
-          genc_ids[ng] = g2f[l2g[fc]] ;
+          genc_ids[ng] = l2f[fc] ;
           ng++ ;
         }
       } ENDFORALL ;

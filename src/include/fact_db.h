@@ -67,6 +67,7 @@ namespace Loci {
       int isDistributed ;
       Map l2g ; // local numbering to global numbering
       store<unsigned char> key_domain ; // local numbering to key domain
+      Map l2f ; // local numbering to file numbering
 
 #ifdef LOCI_COMPAT_MODE1
       dMap g2l,g2f ;
