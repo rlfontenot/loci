@@ -1027,7 +1027,7 @@ namespace Loci {
   void serial_freeze(fact_db &facts) {
     variableSet vars = facts.get_typed_variables() ;
 
-    fact_db::distribute_infoP df = new distribute_info;
+    fact_db::distribute_infoP df = new fact_db::distribute_info;
     df->myid = 0 ;
     df->isDistributed = 0 ;
     entitySet dom ;
@@ -1041,7 +1041,7 @@ namespace Loci {
     Map l2g ;
     store<unsigned char> key_domain ;
     l2g.allocate(dom) ;
-    key_domain.allocated(dom) ;
+    key_domain.allocate(dom) ;
     dMap g2l ;
     FORALL(dom,ii) {
       l2g[ii] = ii ;
@@ -1055,7 +1055,7 @@ namespace Loci {
     df->g2l = g2l.Rep() ;
     df->g2f = g2l.Rep() ;
 #endif
-    df->myEntities = ~EMPTY ;
+    df->my_entities = ~EMPTY ;
     df->g2lv.push_back(g2l) ;
     df->g2fv.push_back(g2l) ;
     facts.put_distribute_info(df) ;
