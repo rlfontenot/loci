@@ -1573,11 +1573,21 @@ namespace Loci {
                            face2node.Rep()) ;
     tmp_face2node.allocate(EMPTY) ;
 
+    entitySet geom_cells = (cr.image(faces)+cl.image(faces))-bcsurfset ;
+    dstore<int> ords ;
+    int cnt = 0 ;
+    FORALL(geom_cells,cc) {
+      ords[cc] = cnt++ ;
+    } ENDFORALL ;
+    FORALL(bcsurfset,bc) { // number boundary cells last
+      ords[bc] = cnt++ ;
+    } ENDFORALL ;
+
     // sort faces
     int i=0 ;
     FORALL(faces,fc) {
-      Entity minc = max(cr[fc],cl[fc]) ;
-      sortlist[i++] = pair<Entity,Entity>(minc,fc) ;
+      Entity maxo = max(ords[cr[fc]],ords[cl[fc]]) ;
+      sortlist[i++] = pair<Entity,Entity>(maxo,fc) ;
     } ENDFORALL ;
     sort(sortlist.begin(),sortlist.end(),fieldSort) ;
     i = 0 ;
