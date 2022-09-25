@@ -2490,17 +2490,17 @@ namespace Loci {
 
 
   void getL2FMap(Map &l2f, entitySet dom, fact_db::distribute_infoP dist) {
-    l2f.allocate(dom) ;
     if(dist == 0) {
+      l2f.allocate(dom) ;
       FORALL(dom,ii) {
         l2f[ii] = ii-dom.Min() ;
       } ENDFORALL ;
     } else {
-      Map l2f ;
-      l2f = dist->l2f.Rep() ;
+      l2f.allocate(dom) ;
+
       int mnl = std::numeric_limits<int>::max() ;
       FORALL(dom,ii) {
-        l2f[ii] = l2f[ii] ; 
+        l2f[ii] = dist->l2f[ii] ; 
         mnl = min(mnl,l2f[ii]) ;
       } ENDFORALL ;
       int mn=mnl ;

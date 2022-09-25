@@ -1587,21 +1587,6 @@ namespace Loci{
     Map cl ;
     pfaces = facts.get_variable("periodicFaces") ;
 
-#ifdef NOTNEEDED
-    *pfaces  = all_collect_entitySet(*pfaces) ;
-    
-    cl = facts.get_variable("cl") ;
-    entitySet pcells = MapRepP(cl.Rep())->image(*pfaces) ;
-
-    pcells = all_collect_entitySet(pcells) ;
-    constraint periodicCells ;
-    *periodicCells = pcells ;
-
-    facts.create_fact("periodicCells",periodicCells) ;
-    constraint notPeriodicCells ;
-    *notPeriodicCells = ~pcells ;
-    facts.create_fact("notPeriodicCells",notPeriodicCells) ;
-#endif
   } 
 
   void create_ci_map(fact_db &facts) {
@@ -1654,7 +1639,8 @@ namespace Loci{
     Map ref ;
     ref = facts.get_variable("ref") ;
     entitySet dom = boundary_names.domain() ;
-    dom = all_collect_entitySet(dom) ;
+    dom = all_collect_entitySet(dom) ;// gather the boundary surface ids
+
     int fk = ref.Rep()->getDomainKeySpace() ;
     
     param<options_list> bc_info ;
@@ -2067,13 +2053,15 @@ namespace Loci{
     cl = facts.get_variable("cl") ;
     cr = facts.get_variable("cr") ;
     face2node = facts.get_variable("face2node") ;
+    entitySet faces = face2node.domain() ;
+    entitySet cellmask = cl.image(faces)+cr.image(faces) ;
+    
     constraint geom_cells_c ;
     geom_cells_c = facts.get_variable("geom_cells") ;
     entitySet geom_cells = *geom_cells_c ;
     // We need to have all of the geom_cells to do the correct test in the
-    // loop before, so gather with all_collect_entitySet
-    geom_cells = all_collect_entitySet(geom_cells) ;
-    entitySet faces = face2node.domain() ;
+    // loop before, so gather with clone cells
+    geom_cells = collectSet(geom_cells,cellmask,MPI_COMM_WORLD) ;
 
     Loci::protoMap f2cell ;
 
@@ -2122,13 +2110,16 @@ namespace Loci{
     cl = facts.get_variable("cl") ;
     cr = facts.get_variable("cr") ;
     face2node = facts.get_variable("face2node") ;
+
+    entitySet faces = face2node.domain() ;
+    entitySet cellmask = cl.image(faces)+cr.image(faces) ;
+    
     constraint geom_cells_c ;
     geom_cells_c = facts.get_variable("geom_cells") ;
     entitySet geom_cells = *geom_cells_c ;
     // We need to have all of the geom_cells to do the correct test in the
-    // loop before, so gather with all_collect_entitySet
-    geom_cells = all_collect_entitySet(geom_cells) ;
-    entitySet faces = face2node.domain() ;
+    // loop before, so gather clone cells
+    geom_cells = collectSet(geom_cells,cellmask,MPI_COMM_WORLD) ;
 
     Loci::protoMap f2cell ;
 
@@ -2367,16 +2358,16 @@ namespace Loci{
       bfaces -= *periodicFaces ;
       ifaces += *periodicFaces ;
     }
-    entitySet global_interior_faces = all_collect_entitySet(ifaces,facts) ;
-    entitySet global_boundary_faces = all_collect_entitySet(bfaces,facts) ;
     
+    entitySet global_interior_faces = collectSet(ifaces,*faces,MPI_COMM_WORLD) ;
+    entitySet global_boundary_faces = collectSet(bfaces,*faces,MPI_COMM_WORLD) ;
+
     Map cl,cr ;
     cl = facts.get_variable("cl") ;
     cr = facts.get_variable("cr") ;
-    entitySet global_geom_cells ; 
-    std::vector<entitySet> init_ptn ;
-
-    global_geom_cells = all_collect_entitySet(*geom_cells,facts) ;
+    entitySet cdom = cl.image(*faces)+cr.image(*faces) ;
+    entitySet global_geom_cells = collectSet(*geom_cells,cdom,MPI_COMM_WORLD) ;
+    
     multiMap lower,upper,boundary_map ;
     distributed_inverseMap(upper, cl, global_geom_cells, global_interior_faces,
                            facts,0) ; // FIX THIS
@@ -3513,6 +3504,11 @@ namespace Loci{
         volMap[name] = vname.domain() ;
       }
     }
+    Map cl,cr ;
+    cl = facts.get_variable("cl") ;
+    cr = facts.get_variable("cr") ;
+    entitySet domf = cl.domain()+cr.domain() ;
+    entitySet domc = cl.image(domf)+cr.image(domf) ;
 
     // If no volume tags (Weird), then make default tag.
     if(volMap.begin() == volMap.end()) {
@@ -3522,21 +3518,17 @@ namespace Loci{
     map<string,entitySet>::const_iterator mi ;
     for(mi=volMap.begin();mi!=volMap.end();++mi) {
       // This could be a scalability problem!!!!
-      volSets.push_back(all_collect_entitySet(mi->second)) ;
+      entitySet volgather = collectSet(mi->second,domc,MPI_COMM_WORLD) ;
+      volSets.push_back(volgather) ;
     }
 
     // Now get face associations with volumes
     vector<entitySet> facesets ;
     int sz = volSets.size() ;
-    Map cl,cr ;
-    cl = facts.get_variable("cl") ;
-    cr = facts.get_variable("cr") ;
-    entitySet domf = cl.domain()+cr.domain() ;
     for(int i=0;i<sz;++i) {
       entitySet faces = (cr.preimage(volSets[i]).first +
                          cl.preimage(volSets[i]).first) ;
-      
-      facesets.push_back(all_collect_entitySet(faces)) ;
+      facesets.push_back(faces) ;
     }
 
     // Now get node associations with volumes
@@ -3544,7 +3536,8 @@ namespace Loci{
     vector<entitySet> nodesets ;
     for(int i=0;i<sz;++i) {
       entitySet nodes = mp->image(facesets[i]) ;
-      nodesets.push_back(all_collect_entitySet(nodes)) ;
+      nodes = collectSet(nodes,pos.domain(),MPI_COMM_WORLD) ;
+      nodesets.push_back(nodes) ;
     }
     
 

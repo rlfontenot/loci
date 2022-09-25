@@ -65,6 +65,16 @@ namespace Loci {
 
   std::vector<entitySet> all_collect_vectors(entitySet &e,MPI_Comm comm) ;
   std::vector<entitySet> all_collect_vectors(entitySet &e) ;
+
+  entitySet all_collect_entitySet(const entitySet &e) ;
+
+  // This is equivalent to but more efficient than
+  // collectSet(entitySet iset) {
+  // dset = all_collect_entitySet(kset) ;
+  // return dset & domain
+  entitySet collectSet(const entitySet iset, const entitySet domain,
+		       MPI_Comm comm) ;
+  
   int GLOBAL_OR(int b, MPI_Comm comm=MPI_COMM_WORLD) ;
   int GLOBAL_AND(int b, MPI_Comm comm=MPI_COMM_WORLD) ;
   int GLOBAL_MAX(int b, MPI_Comm comm=MPI_COMM_WORLD) ;

@@ -86,7 +86,7 @@ namespace Loci {
     // then communicate this get the recv info.
     vector<int> recv_counts(np,0) ;
     MPI_Alltoall(&send_counts[0], 1, MPI_INT,
-                 &recv_counts[0], 1, MPI_INT, MPI_COMM_WORLD) ;
+                 &recv_counts[0], 1, MPI_INT, comm) ;
     vector<int> recv_displs(np,0) ;
     recv_displs[0] = 0 ;
     for(int i=1;i<np;++i)
@@ -128,7 +128,7 @@ namespace Loci {
     MPI_Alltoallv(&send_buf[0], &send_counts[0],
                   &send_displs[0], MPI_INT,
                   &recv_buf[0], &recv_counts[0],
-                  &recv_displs[0], MPI_INT, MPI_COMM_WORLD) ;
+                  &recv_displs[0], MPI_INT, comm) ;
     // release buffers that are not needed
     vector<int>().swap(send_counts) ;
     vector<int>().swap(send_displs) ;
@@ -203,7 +203,7 @@ namespace Loci {
     // then communicate this get the recv info.
     vector<int> recv_counts(np,0) ;
     MPI_Alltoall(&send_counts[0], 1, MPI_INT,
-                 &recv_counts[0], 1, MPI_INT, MPI_COMM_WORLD) ;
+                 &recv_counts[0], 1, MPI_INT, comm) ;
     vector<int> recv_displs(np,0) ;
     recv_displs[0] = 0 ;
     for(int i=1;i<np;++i)
@@ -244,7 +244,7 @@ namespace Loci {
     MPI_Alltoallv(&send_buf[0], &send_counts[0],
                   &send_displs[0], MPI_INT,
                   &recv_buf[0], &recv_counts[0],
-                  &recv_displs[0], MPI_INT, MPI_COMM_WORLD) ;
+                  &recv_displs[0], MPI_INT, comm) ;
     // release buffers that are not needed
     vector<int>().swap(send_counts) ;
     vector<int>().swap(send_displs) ;
@@ -1134,6 +1134,51 @@ namespace Loci {
 
     return lset ;
   }
+
+
+  // Conceptually this will be equivalent to
+  // entitySet all = all_collect_entitySet(set) ;
+  // return domain & all ;
+  
+  entitySet collectSet(const entitySet iset, const entitySet domain,
+		       MPI_Comm comm) {
+    int np ;
+    MPI_Comm_size(comm, &np) ;
+    if(np == 1)
+      return iset&domain ;
+    int lmn = iset.Min() ;
+    int lmx = iset.Max() ;
+    int gmn = lmn ;
+    int gmx = lmx ;
+    MPI_Allreduce(&lmn,&gmn,1,MPI_INT,MPI_MIN,comm) ;
+    MPI_Allreduce(&lmx,&gmx,1,MPI_INT,MPI_MAX,comm) ;
+    if(gmn > gmx) // This means that all of the sets are empty
+      return EMPTY ;
+    
+    // now just get a simple partition (note this is assuming the set is dense)
+    int delta = (gmx-gmn+np)/np ;
+    vector<entitySet> setsplit(np),domsplit(np) ;
+
+    for(int i=0;i<np;++i) {
+      setsplit[i] = iset & interval(gmn+i*delta,gmn+(i+1)*delta) ;
+      domsplit[i] = domain & interval(gmn+i*delta,gmn+(i+1)*delta) ;
+    }
+    vector<entitySet> setgather =  transpose_entitySet(setsplit,comm)  ;
+    entitySet dset=EMPTY ; // we are now redistributing set to processors ;
+    for(int i=0;i<np;++i)
+      dset += setgather[i] ;
+    vector<entitySet> domgather = transpose_entitySet(domsplit,comm) ;
+    // Now filter domain to set
+    for(int i=0;i<np;++i)
+      domgather[i] &= dset ;
+
+    vector<entitySet> domreturn = transpose_entitySet(domgather,comm) ;
+    entitySet rset=EMPTY ; // we are now redistributing set to processors ;
+    for(int i=0;i<np;++i)
+      rset += domreturn[i] ;
+    return rset ;
+  }
+  
   
   entitySet all_collect_entitySet(const entitySet &e) {
     const int p = MPI_processes ;

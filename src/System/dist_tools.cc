@@ -39,6 +39,7 @@ using std::sort;
 
 #include <Tools/debug.h>
 #include <entitySet.h>
+#include "distribute.h"
 #include "dist_tools.h"
 #include <rule.h>
 #include <fact_db.h>
@@ -221,7 +222,7 @@ namespace Loci {
 
 	      entitySet tmp_dom = p->domain() ;
 	      MapRepP mp =  MapRepP(p->getRep()) ;
-	      entitySet glob_dom = all_collect_entitySet(tmp_dom) ;
+	      entitySet glob_dom = collectSet(tmp_dom,locdom[kd],MPI_COMM_WORLD) ;
 	      entitySet tmp_out = (glob_dom & locdom[kd]) - tmp_dom ;
 	      storeRepP sp = mp->expand(tmp_out, ptn) ;
 	      if(sp->domain() != tmp_dom) {
@@ -248,6 +249,17 @@ namespace Loci {
     std::set<std::vector<variableSet> > classify_moderate_maps(fact_db &facts, const std::set<std::vector<variableSet> > &maps) {
       variableSet vars = facts.get_typed_variables() ;
       std::set<std::vector<variableSet> >::const_iterator smi ;
+      // entitySet referencedEntities ;
+      // for(variableSet::const_iterator vi = vars.begin(); vi != vars.end(); ++vi) {
+      // 	storeRepP tmp_sp = facts.get_variable(*vi) ;
+      // 	if(tmp_sp->RepType() == STORE || tmp_sp->RepType()==MAP)
+      // 	  referencedEntities += tmp_sp->domain() ;
+      // 	if(tmp_sp->RepType() == MAP) {
+      // 	  MapRepP tmp_mp = MapRepP(tmp_sp->getRep()) ;
+      // 	  referencedEntities += tmp_mp->image(tmp_sp->domain()) ;
+      // 	}
+      // }
+
       std::set<std::vector<variableSet> > return_maps;
       for(smi = maps.begin(); smi != maps.end(); ++smi) {
 	entitySet domain;
@@ -276,7 +288,7 @@ namespace Loci {
 	      image += mp->image(tmp);
 	    }
 	  }
-
+	  //tmp = collectSet(image,referencedEntities,MPI_COMM_WORLD) ;
 	  tmp = all_collect_entitySet(image);
 	  image = EMPTY;
 	}
@@ -305,6 +317,16 @@ namespace Loci {
       std::vector<entitySet> ptn = facts.get_init_ptn(0) ;// FIX THIS
       entitySet context;
       variableSet vars = facts.get_typed_variables() ;
+      // entitySet referencedEntities ;
+      // for(variableSet::const_iterator vi = vars.begin(); vi != vars.end(); ++vi) {
+      // 	storeRepP tmp_sp = facts.get_variable(*vi) ;
+      // 	if(tmp_sp->RepType() == STORE || tmp_sp->RepType()==MAP)
+      // 	  referencedEntities += tmp_sp->domain() ;
+      // 	if(tmp_sp->RepType() == MAP) {
+      // 	  MapRepP tmp_mp = MapRepP(tmp_sp->getRep()) ;
+      // 	  referencedEntities += tmp_mp->image(tmp_sp->domain()) ;
+      // 	}
+      // }
       std::set<std::vector<variableSet> >::const_iterator smi ;
       for(smi = maps.begin(); smi != maps.end(); ++smi) {
 	std::vector<entitySet>  preimage_vec = all_collect_vectors(domain);
@@ -324,6 +346,8 @@ namespace Loci {
 	  }
 	  for(int j = 0; j < MPI_processes; j++) {
 	    preimage_vec[j] = all_collect_entitySet(tmp_preimage_vec[j]);
+	    //	    preimage_vec[j] = collectSet(tmp_preimage_vec[j],referencedEntities,
+	    //					 MPI_COMM_WORLD);
 	  }
 
 	  if(i == 0) {
@@ -360,7 +384,9 @@ namespace Loci {
 	    if(p->RepType() ==  MAP) {
 	      entitySet tmp_dom = p->domain() ;
 	      MapRepP mp =  MapRepP(p->getRep()) ;
-	      entitySet glob_dom = all_collect_entitySet(tmp_dom) ;
+	      entitySet glob_dom = collectSet(tmp_dom,locdom,MPI_COMM_WORLD)
+
+ ;
 	      entitySet tmp_out = (glob_dom & locdom) - tmp_dom ;
 	      storeRepP sp = mp->expand(tmp_out, ptn) ;
 	      if(sp->domain() != tmp_dom) {
@@ -386,12 +412,25 @@ namespace Loci {
     fact_db::distribute_infoP df = facts.get_distribute_info()  ;
     // reallocate constraints on whole domain(instead of local domain) on each process
     variableSet tmp_vars = facts.get_typed_variables();
+    // entitySet referencedEntities ;
+    // for(variableSet::const_iterator vi = tmp_vars.begin(); vi != tmp_vars.end(); ++vi) {
+    //   storeRepP tmp_sp = facts.get_variable(*vi) ;
+    //   if(tmp_sp->RepType() == STORE || tmp_sp->RepType() == MAP)
+    // 	referencedEntities += tmp_sp->domain() ;
+    //   if(tmp_sp->RepType() == MAP) {
+    // 	MapRepP tmp_mp = MapRepP(tmp_sp->getRep()) ;
+    // 	referencedEntities += tmp_mp->image(tmp_sp->domain()) ;
+    //   }
+    // }
+	  
     for(variableSet::const_iterator vi = tmp_vars.begin(); vi != tmp_vars.end(); ++vi) {
       storeRepP tmp_sp = facts.get_variable(*vi) ;
       if(tmp_sp->RepType() == CONSTRAINT) {
         entitySet tmp_dom = tmp_sp->domain() ;
         if(GLOBAL_OR(tmp_dom != ~EMPTY,MPI_COMM_WORLD)) {
-          entitySet global_tmp_dom = all_collect_entitySet(tmp_dom) ;
+	  entitySet global_tmp_dom = all_collect_entitySet(tmp_dom) ;
+	  //	  entitySet global_tmp_dom = collectSet(tmp_dom,referencedEntities,
+	  //						MPI_COMM_WORLD) ;
           constraint tmp ;
           *tmp = global_tmp_dom ;
 	  tmp.Rep()->setDomainKeySpace(tmp_sp->getDomainKeySpace()) ;
@@ -442,7 +481,7 @@ namespace Loci {
 					   facts, context_maps) ;
 	  entitySet added_entities = context_for_map_output(mySet,  facts, context_maps);
 	  added_entities -= facts.global_comp_entities;
-	  if(all_collect_entitySet(added_entities) == EMPTY)
+	  if(GLOBAL_AND(added_entities==EMPTY)) 
 	    continue_adding = false;
 	  else {
 	    facts.global_comp_entities += added_entities;
@@ -555,7 +594,6 @@ namespace Loci {
       debugout << "finding categories time = " << s.stop() << endl ;
       s.start() ;
       for(size_t i=0;i < iv.size(); ++i) {
-	//      iv[i] = all_collect_entitySet(iv[i]) ;
 	debugout << "iv["<< i << "] size before expand = " << iv[i].num_intervals()<< endl ;
 	entitySet tmp_copy =  image[kd] - ptn[MPI_rank] ;
 	iv[i] = dist_expand_entitySet(iv[i],tmp_copy,ptn) ;

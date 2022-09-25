@@ -1488,11 +1488,21 @@ namespace Loci {
                            face2node.Rep()) ;
     tmp_face2node.allocate(EMPTY) ;
 
+    entitySet geom_cells = (cr.image(faces)+cl.image(faces))-bcsurfset ;
+    dstore<int> ords ;
+    int cnt = 0 ;
+    FORALL(geom_cells,cc) {
+      ords[cc] = cnt++ ;
+    } ENDFORALL ;
+    FORALL(bcsurfset,bc) { // number boundary cells last
+      ords[bc] = cnt++ ;
+    } ENDFORALL ;
+
     // sort faces
     int i=0 ;
     FORALL(faces,fc) {
-      Entity minc = max(cr[fc],cl[fc]) ;
-      sortlist[i++] = pair<Entity,Entity>(minc,fc) ;
+      Entity maxo = max(ords[cr[fc]],ords[cl[fc]]) ;
+      sortlist[i++] = pair<Entity,Entity>(maxo,fc) ;
     } ENDFORALL ;
     sort(sortlist.begin(),sortlist.end(),fieldSort) ;
     i = 0 ;
@@ -3017,8 +3027,11 @@ namespace Loci {
     } ENDFORALL ;
 
     std::vector<entitySet> init_ptn = facts.get_init_ptn(0) ;//FIX THIS
-    entitySet global_geom = all_collect_entitySet(*geom_cells,facts) ;
-    *geom_cells = global_geom & init_ptn[ MPI_rank] ;
+
+    entitySet global_geom = collectSet(*geom_cells,init_ptn[MPI_rank],
+				       MPI_COMM_WORLD) ;
+    *geom_cells = global_geom ;
+    //   *geom_cells = global_geom & init_ptn[ MPI_rank] ;
 
 
     int fk = boundary_faces.Rep()->getDomainKeySpace()  ;
@@ -3054,7 +3067,6 @@ namespace Loci {
     constraint faces ;
     faces = (cl.domain() & cr.domain()) ;
     
-    //    faces = all_collect_entitySet(*faces) ;
     int fk = cl.Rep()->getDomainKeySpace() ;
     faces.Rep()->setDomainKeySpace(fk) ;
     facts.create_fact("faces",faces) ;
@@ -3066,7 +3078,7 @@ namespace Loci {
     constraint boundary_faces ;
 
     boundary_faces = bcfaces ;
-    //    boundary_faces = all_collect_entitySet(bcfaces) ;
+
     constraint interior_faces ;
     interior_faces = (*faces-*boundary_faces) ;
     boundary_faces.Rep()->setDomainKeySpace(fk) ;
