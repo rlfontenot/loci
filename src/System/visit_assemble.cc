@@ -1622,7 +1622,7 @@ namespace Loci {
           s += ve[i].second ;
         score[*vi] = s ;
       }
-      double smax = std::numeric_limits<double>::min() ;
+      double smax = -std::numeric_limits<double>::max() ;
       double smin = std::numeric_limits<double>::max() ;
       for(map<int,double>::const_iterator
             mi=score.begin();mi!=score.end();++mi) {
