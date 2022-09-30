@@ -416,7 +416,7 @@ namespace Loci {
   using std::cout ;
   
   $rule unit(NGTNodalMax(X)), constraint(pos) {
-    $NGTNodalMax(X) = std::numeric_limits<real_t>::min() ;
+    $NGTNodalMax(X) = -std::numeric_limits<real_t>::max() ;
   }
   $rule apply(face2node->NGTNodalMax(X)<-cl->X)[Loci::Maximum] {
     int nsz = $face2node.size() ;
@@ -474,7 +474,7 @@ namespace Loci {
   
 
   $rule unit(NGTNodalv3dMax(X)), constraint(pos) {
-    const real_t mn = std::numeric_limits<real_t>::min() ;
+    const real_t mn = -std::numeric_limits<real_t>::max() ;
     $NGTNodalv3dMax(X) = vector3d<real_t>(mn,mn,mn) ;
   }
   $rule apply(face2node->NGTNodalv3dMax(X)<-cl->X)[Loci::Maximum] {
@@ -525,7 +525,7 @@ namespace Loci {
   $rule unit(NGTNodalvMax(X)<-vecSize(X)), constraint(pos), prelude {
     $NGTNodalvMax(X).setVecSize(*$vecSize(X)) ;
   } compute {
-    $NGTNodalvMax(X) = mk_Scalar(std::numeric_limits<real_t>::min()) ;
+    $NGTNodalvMax(X) = mk_Scalar(-std::numeric_limits<real_t>::max()) ;
   }
   $rule apply(face2node->NGTNodalvMax(X)<-cl->X)[Loci::Maximum] {
     const int sz = $face2node.size() ;
