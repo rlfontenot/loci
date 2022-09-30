@@ -86,4 +86,16 @@ using std::abort ;
 
 #endif // DEBUG
 
+namespace Loci {
+  long getmaxrss() ;
+}
+
+#ifdef MEMDEBUG
+#define REPORTMEM() { Loci::debugout << "MEM: file " << __FILE__ << \
+                                    "\", line " << __LINE__ << \
+      "- Max RSS = " << ::Loci::getmaxrss()  << std::endl;  }
+#else
+#define REPORTMEM() 
+#endif
+
 #endif // DEBUG_H

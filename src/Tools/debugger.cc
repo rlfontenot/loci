@@ -38,6 +38,8 @@
 #endif
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 #include <stdlib.h>
 #include <unistd.h>
@@ -52,6 +54,13 @@ using std::endl ;
 #define HOST_ID "localhost"
 
 namespace Loci {
+
+  long getmaxrss() {
+    rusage usage ;
+    getrusage(RUSAGE_SELF,&usage) ;
+    return usage.ru_maxrss ;
+  }
+  
   const char *debug_hostname = HOST_ID ;
   const char *debug_execname = "a.out" ;
 #ifdef SGI
