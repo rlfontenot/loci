@@ -1745,6 +1745,7 @@ bool operator <(const timingData &d) const {
 
   bool makeQuery(const rule_db &rdb, fact_db &facts,
                  const std::string& query) {
+    REPORTMEM() ;
 	/*	
 	  #ifdef USE_PAPI
 	  int perr,ev_set=PAPI_NULL;
@@ -1851,6 +1852,7 @@ bool operator <(const timingData &d) const {
       
       */
 
+      REPORTMEM() ;
       sw.start() ;
       executeP schedule =
         create_execution_schedule(rdb,local_facts,local_scheds,target) ;
@@ -1862,7 +1864,8 @@ bool operator <(const timingData &d) const {
       double tglobal = 0 ;
       MPI_Allreduce(&tlocal,&tglobal, 1, MPI_DOUBLE, MPI_MAX,MPI_COMM_WORLD) ;
       debugout << "time to create schedule " << tglobal  << endl ;
-      
+
+      REPORTMEM() ;
       // If a schedule was generated, execute it
       if(MPI_rank == 0)
         cout << "begin execution" << endl ;
@@ -1899,6 +1902,7 @@ bool operator <(const timingData &d) const {
         schedule->Print(sched_file) ;
         sched_file.close() ;
       }
+      REPORTMEM() ;
 
       // execute schedule
       stopWatch sw ;
@@ -1932,6 +1936,7 @@ bool operator <(const timingData &d) const {
 
       timeProf.PrintSummary(debugout) ;
 
+      REPORTMEM() ;
       //      if(collect_perf_data)
       //        perfAnalysis->stop_timer(execute_schedule_timer);
 

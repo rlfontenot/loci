@@ -77,8 +77,6 @@ typedef double metisreal_t ;
 #endif
 namespace Loci {
 
-  extern void memSpace(string s) ;
-
   extern bool use_simple_partition ;
   extern bool use_orb_partition ;
   extern bool use_sfc_partition ;
@@ -755,7 +753,7 @@ namespace Loci{
 	tmp_boundary_names[-id] = boundary_ids[i].second ;
     }
     
-    memSpace("before partitioning") ;
+    REPORTMEM() ;
 
     vector<entitySet> cell_ptn,face_ptn,node_ptn ;
 
@@ -872,9 +870,9 @@ namespace Loci{
 	}
 	
       }
-      memSpace("mid partitioning") ;
+      REPORTMEM() ;
       face_ptn = partitionFaces(cell_ptn,tmp_cl,tmp_cr,tmp_boundary_tags) ;
-      memSpace("after partitionFaces") ;
+      REPORTMEM() ;
       
       node_ptn = partitionNodes(face_ptn,
 				MapRepP(tmp_face2node.Rep()),
@@ -894,7 +892,7 @@ namespace Loci{
       if(cnt == MPI_processes)
 	cnt = 0 ;
     } ENDFORALL ;
-    memSpace("after partitioning") ;
+    REPORTMEM() ;
       
     vector<entitySet> cell_ptn_t = transposePtn(cell_ptn) ;
     vector<entitySet> face_ptn_t = transposePtn(face_ptn) ;
@@ -961,7 +959,7 @@ namespace Loci{
     
     entitySet bcsurfset = facts.get_distributed_alloc(bcsurf_alloc,0).first ;// FIX THIS
     
-    memSpace("before remapGridStructures") ;
+    REPORTMEM() ;
     Map cl, cr ;
     multiMap face2node ;
     tmp_cl.Rep()->setDomainKeySpace(fk) ;
@@ -977,7 +975,7 @@ namespace Loci{
               nodes, faces, cells,
               pos, cl, cr, face2node,
 	      boundary_names,boundary_tags, bcsurfset, facts);
-    memSpace("after remapGridStructures") ;
+    REPORTMEM() ;
 
     facts.create_fact("cl", cl) ;
     facts.create_fact("cr", cr) ;
@@ -1015,7 +1013,7 @@ namespace Loci{
     double t2 = MPI_Wtime() ;
     debugout << "Time to process and partition adapted mesh is " << t2-t1
              << endl ;
-    memSpace("returning from FVM grid reader") ;
+    REPORTMEM() ;
     return true ;
     
   }
@@ -1032,6 +1030,7 @@ namespace Loci{
                                  vector<pair<int,string> >& boundary_ids,
                                  vector<pair<string,entitySet> >& volTags ) {
        
+    REPORTMEM() ;
     if(!inputFVMGrid(facts,
                      local_nodes,
                      local_faces,
@@ -1043,11 +1042,11 @@ namespace Loci{
                      boundary_ids,
                      volTags))
       return false ;
-    Loci::memSpace("before create_face_info") ;
 
     create_face_info(facts) ;
     create_ref(facts) ;
     create_ghost_cells(facts) ;
+    REPORTMEM() ;
 
     return true ;
   }

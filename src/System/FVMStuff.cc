@@ -69,7 +69,7 @@ namespace Loci{
   //assume the union of nodes on all processors will be either all the nodes,
   //all the faces, or all the cells. i.e., one interval in file numbering
   storeRepP get_node_remap(fact_db &facts,entitySet nodes) {
-
+    REPORTMEM() ;
     if(MPI_processes == 1) {
       int minNode = nodes.Min() ;
       
@@ -78,6 +78,7 @@ namespace Loci{
       FORALL(nodes,nd) {
         nm[nd] = nd - minNode + 1 ;
       } ENDFORALL ;
+      REPORTMEM() ;
       return nm.Rep() ;
     }
     
@@ -103,6 +104,7 @@ namespace Loci{
     FORALL(nodes,i) {
       newnum[i] = g2f[l2g[i]]-minNode+1 ;
     } ENDFORALL ;
+    REPORTMEM() ;
     return newnum.Rep() ;
   }
 
@@ -123,6 +125,7 @@ namespace Loci{
       } ENDFORALL ;
       return nm.Rep() ;
     }
+    REPORTMEM() ;
 #ifdef VERBOSE
     stopWatch s ;
     s.start() ;
@@ -269,6 +272,7 @@ namespace Loci{
 #ifdef VERBOSE
     debugout << "time to form map = " << s.stop() << endl ;
 #endif
+    REPORTMEM() ;
     return newnum.Rep() ;
   }
   
@@ -494,6 +498,7 @@ namespace Loci{
                                  storeRepP posRep,
                                  entitySet localCells,
                                  fact_db &facts) {
+    REPORTMEM() ;
     const_multiMap upper(upperRep),lower(lowerRep),
       boundary_map(boundary_mapRep),face2node(face2nodeRep) ;
     const_Map ref(refRep) ;
@@ -870,7 +875,7 @@ namespace Loci{
       H5Gclose(group_id) ;
       H5Fclose(file_id) ;
     } 
-
+    REPORTMEM() ;
   }
   
   //collect all boundary names
@@ -1005,6 +1010,7 @@ namespace Loci{
                          storeRepP face2nodeRep,
                          entitySet bfaces,//boundary faces define this surface 
                          fact_db &facts ){ 
+      REPORTMEM() ;
 #ifdef VERBOSE
     debugout << "writing out boundary surface topology" << endl ;
     stopWatch s ;
@@ -1103,6 +1109,7 @@ namespace Loci{
     debugout << "time to write unordered vectors = " << s.stop() << endl ;
     debugout << "finished writing boundary topology" << endl ;
 #endif
+      REPORTMEM() ;
   }
       
   //this function find the index of an inner edge.
@@ -1321,6 +1328,7 @@ namespace Loci{
                        storeRepP valRep,
                        entitySet localCells,//all geom_cells
                        fact_db &facts) {
+    REPORTMEM() ;
     
     const_multiMap upper(upperRep),lower(lowerRep),
       boundary_map(boundary_mapRep),face2node(face2nodeRep), face2edge(face2edgeRep) ;
@@ -1380,6 +1388,7 @@ namespace Loci{
     }ENDFORALL;
     
    
+    REPORTMEM() ;
     return CutPlane(edgesWeight.Rep(),
                     new_faceLoops);
                      
@@ -1390,6 +1399,7 @@ namespace Loci{
   void writeCutPlaneTopo(hid_t bc_id,
                          const CutPlane& cp,
                          fact_db &facts){ 
+      REPORTMEM() ;
 #ifdef VERBOSE
     debugout << "write cutPlaneTopology" << endl ;
     stopWatch s ;
@@ -1430,6 +1440,7 @@ namespace Loci{
 #ifdef VERBOSE
     debugout << "time to write cut plane topology=" << s.stop() << endl ;
 #endif
+      REPORTMEM() ;
   }
 
   namespace {
@@ -2071,6 +2082,7 @@ namespace Loci{
   }
 
   void create_cell_stencil_full(fact_db &facts) {
+    REPORTMEM() ;
     using std::vector ;
     using std::pair ;
     Map cl,cr ;
@@ -2123,9 +2135,11 @@ namespace Loci{
     distributed_inverseMap(cellStencil,c2c,geom_cells,geom_cells,ptn) ;
     // Put in fact database
     facts.create_fact("cellStencil",cellStencil) ;
+    REPORTMEM() ;
   }
   
   void create_cell_stencil(fact_db & facts) {
+    REPORTMEM() ;
     using std::vector ;
     using std::pair ;
     Map cl,cr ;
@@ -2359,10 +2373,12 @@ namespace Loci{
     } ENDFORALL ;
     // Put in fact database
     facts.create_fact("cellStencil",cellStencilFiltered) ;
+    REPORTMEM() ;
   }
 
   
   void createLowerUpper(fact_db &facts) {
+    REPORTMEM() ;
     constraint geom_cells,interior_faces,boundary_faces ;
     constraint faces = facts.get_variable("faces") ;
     geom_cells = facts.get_variable("geom_cells") ;
@@ -2417,6 +2433,7 @@ namespace Loci{
       if(*gradStencil == "full")
 	create_cell_stencil_full(facts) ;
     }
+    REPORTMEM() ;
 
   }
 
@@ -2960,6 +2977,7 @@ namespace Loci{
  
   void
   createEdgesPar(fact_db &facts) {
+    REPORTMEM() ;
     multiMap face2node ;
     face2node = facts.get_variable("face2node") ;
     entitySet faces = face2node.domain() ;
@@ -3452,6 +3470,7 @@ namespace Loci{
     edge3.Rep()->setDomainKeySpace(ek) ;
     facts.create_fact("edge2node",edge3) ;  
     
+    REPORTMEM() ;
   } // end of createEdgesPar
 
   void setupPosAutoDiff(fact_db &facts) {
@@ -3476,6 +3495,7 @@ namespace Loci{
 
 
   void setupOverset(fact_db &facts) {
+    REPORTMEM() ;
     using namespace Loci ;
     using std::map ;
     storeRepP sp = facts.get_variable("componentGeometry") ;
@@ -3619,6 +3639,7 @@ namespace Loci{
     }
 
     facts.create_fact("node2surf",min_node2surf) ;
+    REPORTMEM() ;
   }    
 
   
