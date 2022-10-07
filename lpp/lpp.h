@@ -27,17 +27,11 @@
 #include <fstream>
 #include <map>
 
+#include "parsebase.h"
 //optional compile or run-time selection
 #include "variable.h"
 
 extern bool prettyOutput ;
-
-
-struct parseError {
-  std::string error_type ;
-  parseError(std::string errs) : error_type(errs) {}
-} ;
-
 class parseFile {
   int cnt ;
   std::string filename ;
@@ -111,6 +105,7 @@ class parseFile {
 
   void setup_Type(std::vector<std::pair<std::string, std::ostream*> >& dev_outs, bool oneOutput) ;
   void setup_Rule(std::vector<std::pair<std::string, std::ostream*> >& dev_outs, bool oneOutput) ;
+  void setup_Struct(std::vector<std::pair<std::string, std::ostream*> >& dev_outs, bool oneOutput) ;
 public:
   parseFile() {
     line_no = 0 ;
