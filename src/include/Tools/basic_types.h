@@ -1514,6 +1514,31 @@ namespace Loci {
     return ArrayOperator<T,ArrayPowR<T,Array<T,n>,R > >(ArrayPowR<T,Array<T,n>,R>(a,b.data())) ;
   }
 
+  template<typename T, typename F, typename Op>
+  struct ArrayFunctorB {
+    const F &f ;
+    const Op &op ;
+    ArrayFunctorB(const F &fin,const Op o):f(fin),op(o) {}
+    T operator[](const size_t i) const
+    { return f(op[i]) ; }
+  } ;
+  template<typename T, typename F, typename Op>
+  struct ArrayFunctorC {
+    const F &f ;
+    const Op op ;
+    ArrayFunctorC(const F &fin,const Op o):f(fin),op(o) {}
+    T operator[](const size_t i) const
+    { return f(op[i]) ; }
+  } ;
+  
+  template<typename T, typename F,typename R>
+  inline  ArrayOperator<T,ArrayFunctorC<T,F,R> > mapArray(const F &f, const ArrayOperator<T,R> &a) {
+    return ArrayOperator<T,ArrayFunctorC<T,F,R> >(ArrayFunctorC<T,F,R>(f,a.data())) ;
+  }
+  template<typename T, typename F, size_t n>
+  inline ArrayOperator<T,ArrayFunctorB<T,F,Array<T,n> > > mapArray(const F &f, const Array<T,n> &a) {
+    return ArrayOperator<T,ArrayFunctorB<T,F,Array<T,n> > >(ArrayFunctorB<T,F,Array<T,n> >(f,a)) ;
+  }
 
   //---------------------vector3d------------------//
   template <class T> 
