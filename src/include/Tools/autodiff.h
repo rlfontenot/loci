@@ -2003,10 +2003,10 @@ namespace Loci {
     return ::floor(u.value) ;
   }
 
-  inline MFADd erf(const FADd u) {
+  inline MFADd erf(const MFADd u) {
     double ef = ::erf(u.value) ;
-    size_t s = maxN ;
-    MFADd out(::erf(u.value),s)
+    size_t s = MFADd::maxN ;
+    MFADd out(ef,s) ;
     double efp = (2./sqrt(M_PI))*std::exp(-u.value*u.value) ;
     for(size_t i=0;i<s;++i)
       out.grad[i] = u.grad[i]*efp ; 
@@ -2014,116 +2014,116 @@ namespace Loci {
   }
 
   inline MFADd sin(const MFADd &u) {
-    size_t s = maxN;
+    size_t s = MFADd::maxN;
     MFADd out(::sin(u.value),s);
     for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]*::cos(u.value);
     return out;
   }
   inline MFADd cos(const MFADd &u) {
-    size_t s = maxN;
+    size_t s = MFADd::maxN;
     MFADd out(::cos(u.value),s);
     for (size_t i=0; i<s; i++) out.grad[i] = -u.grad[i]*::sin(u.value);
     return out;
   }
   inline MFADd tan(const MFADd &u) {
-    size_t s = maxN;
+    size_t s = MFADd::maxN;
     MFADd out(::tan(u.value),s);
     for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]/pow(::cos(u.value),2) ;
     return out;
   }
   inline MFADd exp(const MFADd &u) {
-    size_t s = maxN;
+    size_t s = MFADd::maxN;
     MFADd out(::exp(u.value),s);
     for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]*::exp(u.value);
     return out;
   }
   inline MFADd log(const MFADd &u) {
-    size_t s = maxN;
+    size_t s = MFADd::maxN;
     MFADd out(::log(u.value),s);
     for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]/u.value ;
     return out;
   }
   inline MFADd log10(const MFADd u) {
-    size_t s = maxN;
+    size_t s = MFADd::maxN;
     MFADd out(::log(u.value)/::log(10.0),s);
     for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]/u.value/::log(10.0);
     return out;
   }
 
   inline MFADd abs(MFADd u) {
-    size_t s = maxN;
+    size_t s = MFADd::maxN;
     MFADd out(::fabs(u.value),s);
     for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]*( (u.value<0.0)?-1.0:1.0 ); 
     return out;
   }
   inline MFADd fabs(MFADd u) {
-    size_t s = maxN;
+    size_t s = MFADd::maxN;
     MFADd out(::fabs(u.value),s);
     for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]*( (u.value<0.0)?-1.0:1.0 );
     return out;
   }
   
   inline MFADd pow(const MFADd u, const int k) {
-    size_t s = maxN;
+    size_t s = MFADd::maxN;
     MFADd out(::pow(u.value, k),s);
     for (size_t i=0; i<s; i++) out.grad[i] = (double)k * ::pow(u.value, (double)k-1.0)*u.grad[i] ;
     return out ;
   }
   inline MFADd pow(const MFADd u, const float k) {
-    size_t s = maxN;
+    size_t s = MFADd::maxN;
     MFADd out(::pow(u.value, k),s);
     for (size_t i=0; i<s; i++) out.grad[i] = (double)k * ::pow(u.value, (double)k-1.0)*u.grad[i] ;
     return out ;
   }
   inline MFADd pow(const MFADd u, const double k) {
-    size_t s = maxN;
+    size_t s = MFADd::maxN;
     MFADd out(::pow(u.value, k),s);
     for (size_t i=0; i<s; i++) out.grad[i] = k * ::pow(u.value, k-1.0)*u.grad[i] ;
     return out ;
   }
   inline MFADd pow(const MFADd u, const long double k) {
-    size_t s = maxN;
+    size_t s = MFADd::maxN;
     MFADd out(::pow(u.value, k),s);
     for (size_t i=0; i<s; i++) out.grad[i] = (double)k * ::pow(u.value, (double)k-1.0)*u.grad[i] ;
     return out ;
   }
   inline MFADd sqrt(const MFADd &u) { 
-    size_t s = maxN;
+    size_t s = MFADd::maxN;
     double sq = ::sqrt(u.value);
     MFADd out(sq,s) ;
     for (size_t i=0; i<s; i++) out.grad[i] = 0.5*u.grad[i]/::max(sq,1e-30) ;
     return out;
   }
   inline MFADd pow(const MFADd k, const MFADd u) {
-    size_t s = maxN;
+    size_t s = MFADd::maxN;
     double kpu = ::pow(k.value,u.value) ;
     MFADd out(kpu,s);
     for (size_t i=0; i<s; i++) out.grad[i] = ::pow(k.value,u.value-1.)*k.grad[i]*u.value + kpu*::log(k.value)*u.grad[i] ;
     return out ;
   }
   inline MFADd pow(const int k, const MFADd u) {
-    size_t s = maxN;
+    size_t s = MFADd::maxN;
     double kpu = ::pow(k,u.value) ;
     MFADd out(kpu,s);
     for (size_t i=0; i<s; i++) out.grad[i] = kpu*::log(double(k))*u.grad[i] ;
     return out ;
   }
   inline MFADd pow(const float k, const MFADd u) {
-    size_t s = maxN;
+    size_t s = MFADd::maxN;
     double kpu = ::pow(k,u.value) ;
     MFADd out(kpu,s);
     for (size_t i=0; i<s; i++) out.grad[i] = kpu*::log(double(k))*u.grad[i] ;
     return out ;
   }
   inline MFADd pow(const double k, const MFADd u) {
-    size_t s = maxN;
+    size_t s = MFADd::maxN;
     double kpu = ::pow(k,u.value) ;
     MFADd out(kpu,s);
     for (size_t i=0; i<s; i++) out.grad[i] = kpu*::log(k)*u.grad[i] ;
     return out ;
   }
   inline MFADd pow(const long double k, const MFADd u) {
-    size_t s = maxN;
+    size_t s = MFADd::maxN;
     double kpu = ::pow(k,u.value) ;
     MFADd out(kpu,s);
     for (size_t i=0; i<s; i++) out.grad[i] = kpu*::log(k)*u.grad[i] ;
@@ -2131,19 +2131,19 @@ namespace Loci {
   }
 
   inline MFADd sinh(const MFADd u) {
-    size_t s = maxN;
+    size_t s = MFADd::maxN;
     MFADd out(::sinh(u.value),s);
     for (size_t i=0; i<s; i++) out.grad[i] = 0.5*u.grad[i]*(::exp(u.value) + ::exp(-(u.value))) ;
     return out;
   }
   inline MFADd cosh(const MFADd u) {
-    size_t s = maxN;
+    size_t s = FMADd::maxN;
     MFADd out(::cosh(u.value),s);
     for (size_t i=0; i<s; i++) out.grad[i] = 0.5*u.grad[i]*(::exp(u.value) - ::exp(-(u.value))) ;
     return out;
   }
   inline MFADd tanh(const MFADd u) {
-    size_t s = maxN;
+    size_t s = MFADd::maxN;
     MFADd out(::tanh(u.value),s);
     double ex = ::exp(::min(u.value,350.0)) ;
     double exm = ::exp(::min(-u.value,350.0)) ;
@@ -2153,21 +2153,21 @@ namespace Loci {
     return out;
   }
   inline MFADd asin(const MFADd u) {
-    size_t s = maxN;
+    size_t s = MFADd::maxN;
     MFADd out(::asin(u.value),s);
     double val = ::sqrt(1.0-u.value*u.value);
     for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]/val;
     return out;
   }
   inline MFADd acos(const MFADd u) {
-    size_t s = maxN;
+    size_t s = MFADd::maxN;
     MFADd out(::acos(u.value),s);
     double val = ::sqrt(1.0-u.value*u.value);
     for (size_t i=0; i<s; i++) out.grad[i] = -u.grad[i]/val;
     return out;
   }
   inline MFADd atan(const MFADd u) {
-    size_t s = maxN;
+    size_t s = MFADd::maxN;
     MFADd out(::atan(u.value),s);
     for (size_t i=0; i<s; i++) out.grad[i] = u.grad[i]/(u.value*u.value + 1.0);
     return out;
@@ -2176,7 +2176,7 @@ namespace Loci {
     return atan(u/v);
   }
   inline MFADd asinh(const MFADd u) {
-    size_t s = maxN;
+    size_t s = MFADd::maxN;
     MFADd out(::asinh(u.value),s);
     double strm = ::sqrt(u.value*u.value+1.) ;
     double uvstrm = u.value+strm ;
@@ -2184,7 +2184,7 @@ namespace Loci {
     return out;
   }
   inline MFADd acosh(const MFADd u) {
-    size_t s = maxN;
+    size_t s = MFADd::maxN;
     MFADd out(::acosh(u.value),s);
     double strm = ::sqrt(u.value*u.value-1.) ;
     double uvstrm = u.value+strm ;
@@ -2192,7 +2192,7 @@ namespace Loci {
     return out;
   }
   inline MFADd atanh(const MFADd &u) {
-    size_t s = maxN;
+    size_t s = MFADd::maxN;
     const double uv = u.value ;
     MFADd out(::atanh(uv),s);
     for (size_t i=0; i<s; i++) out.grad[i] = .5*u.grad[i]*(1./(1.+uv)+1./(1.-uv)) ;
@@ -2204,6 +2204,15 @@ namespace Loci {
   }
   inline double floor(const MFADd u) {
     return std::floor(u.value) ;
+  }
+  inline MFADd erf(const MFADd u) {
+    double ef = ::erf(u.value) ;
+    size_t s = MFADd::maxN ;
+    MFADd out(ef,s) ;
+    double efp = (2./sqrt(M_PI))*std::exp(-u.value*u.value) ;
+    for(size_t i=0;i<s;++i)
+      out.grad[i] = u.grad[i]*efp ; 
+    return out ;
   }
   inline MFADd sin(const MFADd u) {
     size_t s = MFADd::maxN;
