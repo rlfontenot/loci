@@ -451,7 +451,7 @@ namespace Loci {
                                entitySet write_set, fact_db &facts) {
 
 #ifndef H5_HAVE_PARALLEL
-    writeMultiStoreS(file_id,vname,var,write_set,facts) ; ;
+    pio::writeMultiStoreS(file_id,vname,var,write_set,facts) ; ;
 #else
     
     //open the group
