@@ -412,11 +412,13 @@ namespace Loci {
         if(typed_vars.inSet(*vi)) {
           if(!skip_type_check) {
             storeRepP fact_type = facts.get_variable(*vi)->getRep() ;
-            if(typeid(*rule_type) != typeid(*fact_type)) {
+	    auto &rule_type_dr = *rule_type ;
+	    auto &fact_type_dr = *fact_type ;
+            if(typeid(rule_type_dr) != typeid(fact_type_dr)) {
               cerr << "variable type mismatch for variable " << *vi << " in rule "
                    << *ri << endl ;
-              cerr << "fact database has type " << typeid(*fact_type).name() << endl ;
-              cerr << "rule has type " << typeid(*rule_type).name() << endl ;
+              cerr << "fact database has type " << typeid(fact_type_dr).name() << endl ;
+              cerr << "rule has type " << typeid(rule_type_dr).name() << endl ;
               type_error = true ;
             }
           }

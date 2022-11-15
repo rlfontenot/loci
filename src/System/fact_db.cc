@@ -1124,9 +1124,11 @@ namespace Loci {
       KeySpaceP kp = ki.get_p()->rr->get_space() ;
       // first get the space name
       if(!kp->named_space()) {
-        if(Loci::MPI_rank == 0)
+        if(Loci::MPI_rank == 0) {
+	  auto &kpdr = *kp ;
           cerr << "fact_db Error: Initializing Unnamed Keyspace!"
-               << " typeid = " << typeid(*kp).name() << endl ;
+               << " typeid = " << typeid(kpdr).name() << endl ;
+	}
         return false ;
       }
       string name = kp->get_name() ;

@@ -894,7 +894,8 @@ namespace Loci {
   rule::info::info(const rule_implP &fp) {
     rule_impl = fp ;
     desc = fp->get_info() ;
-    impl_name = typeid(*fp).name() ;
+    auto &fpdr = *fp ;
+    impl_name = typeid(fpdr).name() ;
     rule_ident.append(impl_name) ;
     rule_ident.append("#") ;
     rule_ident.append(desc.rule_identifier()) ;
