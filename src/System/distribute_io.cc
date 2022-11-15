@@ -980,9 +980,9 @@ namespace Loci {
       int* tmp_int  ;
       tmp_int = new int[max_tmp_size] ;
       std::vector<int> arr_sizes = all_collect_sizes(array_size,comm) ;
-      size_t tot_arr_size = 0 ;
-      for(int i = 0; i < np; ++i)
-        tot_arr_size += size_t(max(0,arr_sizes[i])) ;
+      //      size_t tot_arr_size = 0 ;
+      //      for(int i = 0; i < np; ++i)
+      //        tot_arr_size += size_t(max(0,arr_sizes[i])) ;
       MPI_Status status ;
       if(prank != 0) {
         int t = 0 ;

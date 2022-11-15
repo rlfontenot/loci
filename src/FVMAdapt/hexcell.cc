@@ -1351,7 +1351,7 @@ void HexCell::setSplitCode(int split_mode, double tol){
     for(int i = 0; i < 3; i++)normalize(average_direction[i]);
       
     // bitset<3> oldCode(mySplitCode);
-    bitset<3> mask(7); //all bits are 1s;
+    //    bitset<3> mask(7); //all bits are 1s;
     int z_direction =     -1;
     for(int i = 0; i < 3; i++){
       if(abs(average_direction[i].x) < 0.01 && abs(average_direction[i].y) < 0.01) {

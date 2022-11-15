@@ -603,7 +603,9 @@ namespace Loci
       }
     }
 
+#ifdef VERBOSE
     double comm_time = timer.stop() ;
+#endif
     //=======================================================
     // Execute Chunks recording time
     //=======================================================
@@ -747,8 +749,8 @@ namespace Loci
         sp->allocate (EMPTY);
       }
     }
-    comm_time += timer.stop() ;
 #ifdef VERBOSE
+    comm_time += timer.stop() ;
     debugout << "done communication, collect times" << endl ;
 #endif
     //=======================================================
