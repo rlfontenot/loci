@@ -52,7 +52,7 @@ using std::list ;
 using std::map ;
 #include <functional>
 using std::plus ;
-using std::bind2nd ;
+//using std::bind2nd ;
 #include <limits>
 
 #ifdef NO_CMATH
