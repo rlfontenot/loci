@@ -58,7 +58,7 @@ using std::priority_queue ;
 using std::remove_if ;
 using std::sort ;
 using std::stable_sort ;
-using std::random_shuffle ;
+//using std::random_shuffle ;
 
 #include <sys/time.h>
 

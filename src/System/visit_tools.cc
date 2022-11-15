@@ -37,8 +37,8 @@ using std::find_if ;
 using std::copy ;
 using std::find ;
 #include <functional>
-using std::bind2nd ;
-using std::ptr_fun ;
+//using std::bind2nd ;
+//using std::ptr_fun ;
 #include <iterator>
 using std::ostream_iterator ;
 #include <utility>
@@ -1078,10 +1078,13 @@ namespace Loci {
       vector<variable>::iterator pos ;
       vector<variable>::iterator old_pos = all_targets.begin() ;
       while(old_pos != all_targets.end()) {
-        pos = find_if(old_pos+1,all_targets.end(),
-                      bind2nd(ptr_fun(time_after),*old_pos)
-                      ) ;
-        
+	// old way
+	//	pos = find_if(old_pos+1,all_targets.end(),
+	//		      bind2nd(ptr_fun(time_after),*old_pos)
+	//		      ) ;
+        // now replaced with lambda expression
+	pos = find_if(old_pos+1,all_targets.end(),
+		      [old_pos](variable elem) { return time_after(elem,*old_pos) ; }) ;
         if(pos - old_pos > 1) {
           variableSet time_ident_vars ;
           variableSet real_varset ;
