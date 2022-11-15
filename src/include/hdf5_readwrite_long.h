@@ -92,18 +92,16 @@ namespace Loci {
                 H5P_DEFAULT, &tmp_data[0]);
         
        eset =genIntervalSet<T>::EMPTY;
-       for(size_t i=0;i< dimension;i++){
+       for(size_t i=0;i< dimension;i+=2){
          eset |= std::pair<T, T>(T(tmp_data[i]),T(tmp_data[i+1]));
-         i++;
        }
      }else{//assume type match
        std::vector<T> data(dimension);
        H5Dread( dataset, datatype, H5S_ALL, dataspace,
                 H5P_DEFAULT, &data[0]);
        eset =genIntervalSet<T>::EMPTY;
-       for(size_t i=0;i< dimension;i++){
+       for(size_t i=0;i< dimension;i+=2){
          eset |= std::pair<T, T>(data[i],data[i+1]);
-         i++;
        }
      }
      H5Sclose(dataspace);
