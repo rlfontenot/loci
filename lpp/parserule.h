@@ -112,7 +112,7 @@ class parserule : public parsebase {
 
 
 
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
 #endif
 template<class T> class templlist : public parsebase {
