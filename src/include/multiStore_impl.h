@@ -75,17 +75,22 @@ namespace Loci {
     // Assign new entitySet ...
     entitySet ptn = sizes.domain() ;
     if(index) {
-#ifdef PAGE_ALLOCATE
-      // Call destructor for all allocated objects in container
-      for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
-	p->~T() ;
-      // release allocated objects
-      pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
-		  alloc_pointer) ;
-      // release index pointer array
-      pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
-#else
       delete[] index ;
+#ifdef STORE_ALIGN_SIZE
+      if(!std::is_trivially_default_constructible<T>::value) {
+	T * tmp_base_ptr = alloc_pointer ;
+	T * tmp_base_algn = (T *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
+	if(tmp_base_ptr !=tmp_base_algn) 
+	  tmp_base_ptr = (T *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
+	T *use_ptr = tmp_base_ptr  ;
+	// Call destructor
+	for(int i=0;i<allocated_sz;++i) {
+	  T * p = use_ptr + i ;
+	  p->~T() ;
+	}
+      }
+      free(alloc_pointer) ;
+#else
       delete[] alloc_pointer ;
 #endif
     }
@@ -99,32 +104,40 @@ namespace Loci {
     if(ptn != EMPTY) {
       int top  = ptn.Min() ;
       int len  = ptn.Max() - top + 2 ;
-#ifdef PAGE_ALLOCATE
-      index = pageAlloc(len,index) ;
-#else
       index    = new T *[len] ;
-#endif
       base_ptr = index - top ;
 
       FORALL(ptn,i) {
         sz += sizes[i] ;
       } ENDFORALL ;
 
-#ifdef PAGE_ALLOCATE
-      alloc_pointer = pageAlloc(sz+1,alloc_pointer) ;
-      for(size_t i=0;i<sz+1;++i)
-	new (&alloc_pointer[i]) T() ;
+      allocated_sz = sz+1 ;
+#ifdef STORE_ALIGN_SIZE
+      alloc_pointer = (T *) malloc(sizeof(T)*(allocated_sz)+(STORE_ALIGN_SIZE)) ;
+      T * tmp_base_ptr = alloc_pointer ;
+      T * tmp_base_algn = (T *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
+      if(tmp_base_ptr !=tmp_base_algn) 
+	tmp_base_ptr = (T *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
+      T *use_ptr = tmp_base_ptr  ;
+      // Call placement new
+      if(!std::is_trivially_default_constructible<T>::value) {
+	for(int i=0;i<allocated_sz;++i) {
+	  T * p = use_ptr + i ;
+	  new(p) T() ;
+	} ;
+      }
 #else
-      alloc_pointer = new T[sz+1] ;
-#endif
+      alloc_pointer = new T[allocated_sz] ;
+      T *use_ptr = alloc_pointer  ;
+#endif 
       sz = 0 ;
       for(size_t ivl=0;ivl< ptn.num_intervals(); ++ivl) {
         int i       = ptn[ivl].first ;
-        base_ptr[i] = alloc_pointer + sz ;
+        base_ptr[i] = use_ptr + sz ;
         while(i<=ptn[ivl].second) {
           sz += sizes[i] ;
           ++i ;
-          base_ptr[i] = alloc_pointer + sz ;
+          base_ptr[i] = use_ptr + sz ;
         }
       }
 
@@ -136,44 +149,56 @@ namespace Loci {
 
   template<class T> 
   void multiStoreRepI<T>::multialloc(const store<int> &count, T ***index, 
-                                     T **alloc_pointer, T ***base_ptr ) {
+                                     T **alloc_pointer, T ***base_ptr, size_t &allocated_sz) {
     entitySet ptn = count.domain() ;
     int top = ptn.Min() ;
     int len = ptn.Max() - top + 2 ;
     T **new_index = 0 ;
-#ifdef PAGE_ALLOCATE
-    new_index = pageAlloc(len,new_index) ;
-#else
+
     new_index = new T *[len] ;
-#endif
+
     T **new_base_ptr = new_index - top ;
     size_t sz = 0 ;
     
     FORALL(ptn, i) {
       sz += count[i] ;
     } ENDFORALL ;
-    
+    allocated_sz = sz+1 ;
     T *new_alloc_pointer = 0 ;
-#ifdef PAGE_ALLOCATE
-    alloc_pointer = pageAlloc(sz+1,alloc_pointer) ;
-    for(size_t i=0;i<sz+1;++i)
-      new (&alloc_pointer[i]) T() ;
+
+#ifdef STORE_ALIGN_SIZE
+    new_alloc_pointer = (T *) malloc(sizeof(T)*(allocated_sz)+(STORE_ALIGN_SIZE)) ;
+    T * tmp_base_ptr = new_alloc_pointer ;
+    T * tmp_base_algn = (T *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
+    if(tmp_base_ptr !=tmp_base_algn) 
+      tmp_base_ptr = (T *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
+    T *use_ptr = tmp_base_ptr  ;
+    // Call placement new
+    if(!std::is_trivially_default_constructible<T>::value) {
+      for(int i=0;i<allocated_sz;++i) {
+	T * p = use_ptr + i ;
+	new(p) T() ;
+      } ;
+    }
 #else
-    new_alloc_pointer = new T[sz + 1] ;
-#endif
+    new_alloc_pointer = new T[allocated_sz] ;
+    T *use_ptr = new_alloc_pointer ;
+#endif 
+
     sz = 0 ;
     
     for(size_t ivl = 0; ivl < ptn.num_intervals(); ++ivl) {
       int i = ptn[ivl].first ;
-      new_base_ptr[i] = new_alloc_pointer + sz ;
+      new_base_ptr[i] = use_ptr + sz ;
       while(i <= ptn[ivl].second) {
 	sz += count[i] ;
 	++i ;
-	new_base_ptr[i] = new_alloc_pointer + sz ;
+	new_base_ptr[i] = use_ptr + sz ;
       }
     }
     
     *base_ptr = new_base_ptr ;
+    *alloc_pointer = new_alloc_pointer ;
   }
 
   //*************************************************************************/
@@ -188,19 +213,26 @@ namespace Loci {
     mutex.lock() ;
 
     if(alloc_pointer != 0 && base_ptr[store_domain.Min()] == base_ptr[store_domain.Max()]) {
-#ifdef PAGE_ALLOCATE
-      // Call destructor for all allocated objects in container
-      for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
-	p->~T() ;
-      // release allocated objects
-      pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
-		  alloc_pointer) ;
-      // release index pointer array
-      pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
+
+      delete[] index ;
+#ifdef STORE_ALIGN_SIZE
+      if(!std::is_trivially_default_constructible<T>::value) {
+	T * tmp_base_ptr = alloc_pointer ;
+	T * tmp_base_algn = (T *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
+	if(tmp_base_ptr !=tmp_base_algn) 
+	  tmp_base_ptr = (T *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
+	T *use_ptr = tmp_base_ptr  ;
+	// Call destructor
+	for(int i=0;i<allocated_sz;++i) {
+	  T * p = use_ptr + i ;
+	  p->~T() ;
+	}
+      }
+      free(alloc_pointer) ;
 #else
       delete[] alloc_pointer ;
-      delete[] index ;
 #endif
+
       index = 0 ;
       alloc_pointer = 0 ;
     }
@@ -247,18 +279,23 @@ namespace Loci {
       return ;
 
     if(index) {
-#ifdef PAGE_ALLOCATE
-      // Call destructor for all allocated objects in container
-      for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
-	p->~T() ;
-      // release allocated objects
-      pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
-		  alloc_pointer) ;
-      // release index pointer array
-      pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
+      delete[] index ;
+#ifdef STORE_ALIGN_SIZE
+      if(!std::is_trivially_default_constructible<T>::value) {
+	T * tmp_base_ptr = alloc_pointer ;
+	T * tmp_base_algn = (T *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
+	if(tmp_base_ptr !=tmp_base_algn) 
+	  tmp_base_ptr = (T *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
+	T *use_ptr = tmp_base_ptr  ;
+	// Call destructor
+	for(int i=0;i<allocated_sz;++i) {
+	  T * p = use_ptr + i ;
+	  p->~T() ;
+	}
+      }
+      free(alloc_pointer) ;
 #else
       delete[] alloc_pointer ;
-      delete[] index ;
 #endif
     }
 
@@ -300,17 +337,22 @@ namespace Loci {
   multiStoreRepI<T>::~multiStoreRepI() 
   {
     if(index) {
-#ifdef PAGE_ALLOCATE
-      // Call destructor for all allocated objects in container
-      for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
-	p->~T() ;
-      // release allocated objects
-      pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
-		  alloc_pointer) ;
-      // release index pointer array
-      pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
-#else
       delete[] index ;    
+#ifdef STORE_ALIGN_SIZE
+      if(!std::is_trivially_default_constructible<T>::value) {
+	T * tmp_base_ptr = alloc_pointer ;
+	T * tmp_base_algn = (T *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
+	if(tmp_base_ptr !=tmp_base_algn) 
+	  tmp_base_ptr = (T *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
+	T *use_ptr = tmp_base_ptr  ;
+	// Call destructor
+	for(int i=0;i<allocated_sz;++i) {
+	  T * p = use_ptr + i ;
+	  p->~T() ;
+	}
+      }
+      free(alloc_pointer) ;
+#else
       delete[] alloc_pointer ;
 #endif
     }
@@ -400,8 +442,9 @@ namespace Loci {
     T **new_index ;
     T *new_alloc_pointer ;
     T **new_base_ptr ;
-    
-    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
+
+    size_t new_allocated_sz = 0 ;
+    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr, new_allocated_sz ) ;
 
     FORALL(domain()-context,i) {
       for(int j=0;j<count[i];++j) 
@@ -414,21 +457,27 @@ namespace Loci {
     } ENDFORALL ;
     
     if(index) {
-#ifdef PAGE_ALLOCATE
-      // Call destructor for all allocated objects in container
-      for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
-	p->~T() ;
-      // release allocated objects
-      pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
-		  alloc_pointer) ;
-      // release index pointer array
-      pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
-#else
       delete[] index ;
+#ifdef STORE_ALIGN_SIZE
+      if(!std::is_trivially_default_constructible<T>::value) {
+	T * tmp_base_ptr = alloc_pointer ;
+	T * tmp_base_algn = (T *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
+	if(tmp_base_ptr !=tmp_base_algn) 
+	  tmp_base_ptr = (T *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
+	T *use_ptr = tmp_base_ptr  ;
+	// Call destructor
+	for(int i=0;i<allocated_sz;++i) {
+	  T * p = use_ptr + i ;
+	  p->~T() ;
+	}
+      }
+      free(alloc_pointer) ;
+#else
       delete[] alloc_pointer ;
 #endif
     }
     alloc_pointer = new_alloc_pointer;
+    allocated_sz = new_allocated_sz ;
     index = new_index ;
     base_ptr = new_base_ptr ;
 
@@ -457,7 +506,8 @@ namespace Loci {
     T *new_alloc_pointer ;
     T **new_base_ptr ;
 
-    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
+    size_t new_allocated_sz = 0 ;
+    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr, new_allocated_sz) ;
     
     FORALL(domain()-context,i) {
       for(int j = 0; j < count[i]; ++j) 
@@ -470,22 +520,27 @@ namespace Loci {
     } ENDFORALL ;
 
     if(index) {
-#ifdef PAGE_ALLOCATE
-      // Call destructor for all allocated objects in container
-      for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
-	p->~T() ;
-      // release allocated objects
-      pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
-		  alloc_pointer) ;
-      // release index pointer array
-      pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
+      delete[] index ;
+#ifdef STORE_ALIGN_SIZE
+      if(!std::is_trivially_default_constructible<T>::value) {
+	T * tmp_base_ptr = alloc_pointer ;
+	T * tmp_base_algn = (T *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
+	if(tmp_base_ptr !=tmp_base_algn) 
+	  tmp_base_ptr = (T *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
+	T *use_ptr = tmp_base_ptr  ;
+	// Call destructor
+	for(int i=0;i<allocated_sz;++i) {
+	  T * p = use_ptr + i ;
+	  p->~T() ;
+	}
+      }
+      free(alloc_pointer) ;
 #else
       delete[] alloc_pointer ;
-      delete[] index ;
 #endif
     }
     alloc_pointer = new_alloc_pointer;
-
+    allocated_sz = new_allocated_sz ;
     index = new_index ;
     base_ptr = new_base_ptr ;
 
@@ -518,8 +573,9 @@ namespace Loci {
     T **new_index ;
     T *new_alloc_pointer ;
     T **new_base_ptr ;
-    
-    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
+
+    size_t new_allocated_sz = 0 ;
+    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr,new_allocated_sz) ;
     
     FORALL(domain() - m.image(context),i) {
       for(int j=0;j<count[i];++j) 
@@ -533,21 +589,27 @@ namespace Loci {
     } ENDFORALL ;
     
     if(index) {
-#ifdef PAGE_ALLOCATE
-      // Call destructor for all allocated objects in container
-      for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
-	p->~T() ;
-      // release allocated objects
-      pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
-		  alloc_pointer) ;
-      // release index pointer array
-      pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
-#else
-      delete[] alloc_pointer;
       delete[] index ;
+#ifdef STORE_ALIGN_SIZE
+      if(!std::is_trivially_default_constructible<T>::value) {
+	T * tmp_base_ptr = alloc_pointer ;
+	T * tmp_base_algn = (T *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
+	if(tmp_base_ptr !=tmp_base_algn) 
+	  tmp_base_ptr = (T *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
+	T *use_ptr = tmp_base_ptr  ;
+	// Call destructor
+	for(int i=0;i<allocated_sz;++i) {
+	  T * p = use_ptr + i ;
+	  p->~T() ;
+	}
+      }
+      free(alloc_pointer) ;
+#else
+      delete[] alloc_pointer ;
 #endif
     }
     alloc_pointer = new_alloc_pointer;
+    allocated_sz = new_allocated_sz ;
     index = new_index ;
     base_ptr = new_base_ptr ;
     
@@ -863,8 +925,9 @@ namespace Loci {
     if(conflict) {
       T **new_index ;
       T *new_alloc_pointer ;
-      T **new_base_ptr ; 
-      multialloc(ecount, &new_index, &new_alloc_pointer, &new_base_ptr) ;
+      T **new_base_ptr ;
+      size_t new_allocated_sz = 0 ;
+      multialloc(ecount, &new_index, &new_alloc_pointer, &new_base_ptr,new_allocated_sz) ;
       
       for(entitySet::const_iterator ei = ent.begin(); ei != ent.end(); ++ei) {
         for(int j = 0 ; j < ecount[*ei]; ++j) 
@@ -872,22 +935,28 @@ namespace Loci {
       }
       
       if(index) {
-#ifdef PAGE_ALLOCATE
-        // Call destructor for all allocated objects in container
-        for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
-          p->~T() ;
-        // release allocated objects
-        pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
-                    alloc_pointer) ;
-        // release index pointer array
-        pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
-#else
-	delete [] alloc_pointer ;
 	delete[] index ;
+#ifdef STORE_ALIGN_SIZE
+      if(!std::is_trivially_default_constructible<T>::value) {
+	T * tmp_base_ptr = alloc_pointer ;
+	T * tmp_base_algn = (T *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
+	if(tmp_base_ptr !=tmp_base_algn) 
+	  tmp_base_ptr = (T *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
+	T *use_ptr = tmp_base_ptr  ;
+	// Call destructor
+	for(int i=0;i<allocated_sz;++i) {
+	  T * p = use_ptr + i ;
+	  p->~T() ;
+	}
+      }
+      free(alloc_pointer) ;
+#else
+      delete[] alloc_pointer ;
 #endif
       }
 
       alloc_pointer = new_alloc_pointer;
+      allocated_sz = new_allocated_sz ;
       index = new_index ;
       base_ptr = new_base_ptr ;
 

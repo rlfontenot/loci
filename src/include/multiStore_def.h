@@ -43,6 +43,7 @@ namespace Loci {
     entitySet store_domain ;
     T **index ;
     T *alloc_pointer ;
+    size_t allocated_sz ;
     T **base_ptr ;
     int size ;
     lmutex mutex ;
@@ -87,7 +88,7 @@ namespace Loci {
 
     void allocate(const store<int> &sizes) ;
     virtual void shift(int_type offset) ;
-    void multialloc(const store<int> &count, T ***index, T **alloc_pointer, T ***base_ptr) ;
+    void multialloc(const store<int> &count, T ***index, T **alloc_pointer, T ***base_ptr, size_t &allocated_sz) ;
     void setSizes(const const_multiMap &mm) ;
     virtual ~multiStoreRepI() ;
     virtual void allocate(const entitySet &ptn) ;

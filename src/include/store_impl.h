@@ -29,12 +29,15 @@ namespace Loci {
     // if the pass in is EMPTY, we delete the previous allocated memory
     // this equals to free the memory
     if( eset == EMPTY ) {
-#ifdef PAGE_ALLOCATE
-      // Explicitly call destructor
-      FORALL(store_domain,ii) {
-	base_ptr[ii].~T() ;
-      } ENDFORALL ;
-      pageRelease(store_domain.Max()-store_domain.Min()+1,alloc_pointer) ;
+#ifdef STORE_ALIGN_SIZE
+      // Call placement delete
+      if(!std::is_trivially_default_constructible<T>::value) {
+	FORALL(store_domain,ii) {
+	  base_ptr[ii].~T() ;
+	} ENDFORALL ;
+      }
+      if(alloc_pointer)
+	free(alloc_pointer) ;
 #else
       delete [] alloc_pointer ;
 #endif
@@ -62,17 +65,19 @@ namespace Loci {
     // allocated storage
     entitySet ecommon = store_domain & eset ;
 
-#ifdef PAGE_ALLOCATE
-    // Allocate memory in whole pages
-    T* tmp_alloc_pointer = 0 ;
-    tmp_alloc_pointer = pageAlloc(new_range_max-new_range_min+1,
-				  tmp_alloc_pointer) ;
-    // Now call constructor
+#ifdef STORE_ALIGN_SIZE
+    size_t alloc_size = new_range_max-new_range_min+1 ;
+    T * tmp_alloc_pointer = (T *) malloc(sizeof(T)*(alloc_size)+(STORE_ALIGN_SIZE)) ;
     T* tmp_base_ptr = tmp_alloc_pointer - new_range_min ;
+    T* tmp_base_algn = (T *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
+    if(tmp_base_ptr !=tmp_base_algn) 
+      tmp_base_ptr = (T *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
     // Call placement new
-    FORALL(eset,ii) {
-      new(&tmp_base_ptr[ii]) T() ;
-    } ENDFORALL ;
+    if(!std::is_trivially_default_constructible<T>::value) {
+      FORALL(eset,ii) {
+	new(&tmp_base_ptr[ii]) T() ;
+      } ENDFORALL ;
+    }
 #else
     T* tmp_alloc_pointer = new T[new_range_max - new_range_min + 1] ;
     T* tmp_base_ptr = tmp_alloc_pointer - new_range_min ;
@@ -83,12 +88,15 @@ namespace Loci {
     } ENDFORALL ;
 
 
-#ifdef PAGE_ALLOCATE
-    // Explicitly call destructor
-    FORALL(store_domain,ii) {
-      base_ptr[ii].~T() ;
-    } ENDFORALL ;
-    pageRelease(store_domain.Max()-store_domain.Min()+1,alloc_pointer) ;
+#ifdef STORE_ALIGN_SIZE
+    // Call placement delete
+    if(!std::is_trivially_default_constructible<T>::value) {
+      FORALL(store_domain,ii) {
+	base_ptr[ii].~T() ;
+      } ENDFORALL ;
+    }
+    if(alloc_pointer)
+      free(alloc_pointer) ;
 #else
     delete [] alloc_pointer ;
 #endif
@@ -146,13 +154,14 @@ namespace Loci {
 
   template<class T>  storeRepI<T>::~storeRepI() {
     if(alloc_pointer) {
-#ifdef PAGE_ALLOCATE
-      // Explicitly call destructor
-      FORALL(store_domain,ii) {
-	base_ptr[ii].~T() ;
-      } ENDFORALL ;
-      
-      pageRelease(store_domain.Max()-store_domain.Min()+1,alloc_pointer) ;
+#ifdef STORE_ALIGN_SIZE
+      // Call placement delete
+      if(!std::is_trivially_default_constructible<T>::value) {
+	FORALL(store_domain,ii) {
+	  base_ptr[ii].~T() ;
+	} ENDFORALL ;
+      }
+      free(alloc_pointer) ;
 #else
       delete[] alloc_pointer ;
 #endif

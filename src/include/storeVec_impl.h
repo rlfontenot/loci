@@ -91,37 +91,50 @@ namespace Loci {
   template<class T> 
   void storeVecRepI<T>::allocate(const entitySet &ptn) {
   
-    if(alloc_ptr) {
-#ifdef PAGE_ALLOCATE
-      FORALL(store_domain,ii) {
-	T * p = alloc_ptr + (ii-base_offset)*size ;
-	for(int i=0;i<size;++i)
-	  p[i].~T() ;
-      } ENDFORALL ;
-      pageRelease((store_domain.Max()-store_domain.Min()+1)*size,
-		  alloc_ptr) ;
+    if(free_ptr) {
+#ifdef STORE_ALIGN_SIZE
+      // Call placement delete
+      if(!std::is_trivially_default_constructible<T>::value) {
+	FORALL(store_domain,ii) {
+	  T * p = alloc_ptr + (ii-base_offset)*size ;
+	  for(int i=0;i<size;++i)
+	    p[i].~T() ;
+	} ENDFORALL ;
+      }
+      if(free_ptr)
+	free(free_ptr) ;
 #else
-      delete[] alloc_ptr ;
+      delete[] free_ptr ;
 #endif
     }
     alloc_ptr = 0 ;
+    free_ptr = 0 ;
 
     if(size != 0) {
       fatal(size < 1) ;
       if(ptn != EMPTY) {
         int top = ptn.Min() ; int sza = (ptn.Max()-top+1)*size ;
 	base_offset = top ;
-#ifdef PAGE_ALLOCATE
-	alloc_ptr = pageAlloc(sza,alloc_ptr) ;
-	FORALL(ptn,ii) {
-	  T * p = alloc_ptr + (ii-base_offset)*size ;
+#ifdef STORE_ALIGN_SIZE
+	T * tmp_alloc_ptr = (T *) malloc(sizeof(T)*(sza)+(STORE_ALIGN_SIZE)) ;
+	T * tmp_base_ptr = tmp_alloc_ptr ;
+	T * tmp_base_algn = (T *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
+	if(tmp_base_ptr !=tmp_base_algn) 
+	  tmp_base_ptr = (T *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
+	// Call placement new
+	if(!std::is_trivially_default_constructible<T>::value) {
+	  FORALL(ptn,ii) {
+	  T * p = tmp_base_ptr + (ii-base_offset)*size ;
 	  for(int i=0;i<size;++i)
 	    new(&p[i]) T() ;
-	} ENDFORALL ;
+	  } ENDFORALL ;
+	}
+	alloc_ptr = tmp_base_ptr ;
+	free_ptr = tmp_alloc_ptr ;
 #else
         alloc_ptr = new T[sza] ;
+	free_ptr = alloc_ptr ;
 #endif
-
       }
     }
     
@@ -142,17 +155,19 @@ namespace Loci {
   template<class T> 
   storeVecRepI<T>::~storeVecRepI() 
   {
-    if(alloc_ptr) {
-#ifdef PAGE_ALLOCATE
-      FORALL(store_domain,ii) {
-	T * p = alloc_ptr + (ii-base_offset)*size ;
-	for(int i=0;i<size;++i)
-	  p[i].~T() ;
-      } ENDFORALL ;
-      pageRelease((store_domain.Max()-store_domain.Min()+1)*size,
-		  alloc_ptr) ;
+    if(free_ptr) {
+#ifdef STORE_ALIGN_SIZE
+      // Call placement delete
+      if(!std::is_trivially_default_constructible<T>::value) {
+	FORALL(store_domain,ii) {
+	  T * p = alloc_ptr + (ii-base_offset)*size ;
+	  for(int i=0;i<size;++i)
+	    p[i].~T() ;
+	} ENDFORALL ;
+      }
+      free(free_ptr) ;
 #else
-      delete[] alloc_ptr ;
+      delete[] free_ptr ;
 #endif
     }
   }
