@@ -84,7 +84,7 @@ namespace Loci {
 	  tmp_base_ptr = (T *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
 	T *use_ptr = tmp_base_ptr  ;
 	// Call destructor
-	for(int i=0;i<allocated_sz;++i) {
+	for(size_t i=0;i<allocated_sz;++i) {
 	  T * p = use_ptr + i ;
 	  p->~T() ;
 	}
@@ -121,7 +121,7 @@ namespace Loci {
       T *use_ptr = tmp_base_ptr  ;
       // Call placement new
       if(!std::is_trivially_default_constructible<T>::value) {
-	for(int i=0;i<allocated_sz;++i) {
+	for(size_t i=0;i<allocated_sz;++i) {
 	  T * p = use_ptr + i ;
 	  new(p) T() ;
 	} ;
@@ -223,7 +223,7 @@ namespace Loci {
 	  tmp_base_ptr = (T *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
 	T *use_ptr = tmp_base_ptr  ;
 	// Call destructor
-	for(int i=0;i<allocated_sz;++i) {
+	for(size_t i=0;i<allocated_sz;++i) {
 	  T * p = use_ptr + i ;
 	  p->~T() ;
 	}
