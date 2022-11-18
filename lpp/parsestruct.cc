@@ -135,7 +135,7 @@ istream &parsestruct::get(std::string& filename, int& cnt, int start_line,  istr
     //first, it should start with a type,
     //might be decorator such as 'const', 'inline', consider this later
     type_index = is_type(is);
-    if(type_index <0 || type_index > type_list.size()) break; //if not start with a type, break
+    if(type_index <0 || type_index > int(type_list.size())) break; //if not start with a type, break
 
     //get type
     if(!get_token(is, type_list[type_index])) throw parseError("syntax error") ;
