@@ -1,3 +1,4 @@
+#define DEBUG
 #include <Loci.h>
 #include <iostream>
 #include <fstream>
@@ -50,14 +51,20 @@ inline bool quadCompare(const quadFace &f1, const quadFace &f2) {
           (f1.nodes[0] == f2.nodes[0] && f1.nodes[1] == f2.nodes[1] &&
            f1.nodes[2] < f2.nodes[2]) ||
           (f1.nodes[0] == f2.nodes[0] && f1.nodes[1] == f2.nodes[1] &&
-           f1.nodes[2] == f2.nodes[2] && f1.nodes[3] < f2.nodes[3])) ;
+           f1.nodes[2] == f2.nodes[2] && f1.nodes[3] < f2.nodes[3]) ||
+          (f1.nodes[0] == f2.nodes[0] && f1.nodes[1] == f2.nodes[1] &&
+           f1.nodes[2] == f2.nodes[2] && f1.nodes[3] == f2.nodes[3] &&
+	   f1.cell > f2.cell)) ;
 }
+
 
 inline bool triaCompare(const triaFace &f1, const triaFace &f2) {
   return ((f1.nodes[0] < f2.nodes[0]) ||
           (f1.nodes[0] == f2.nodes[0] && f1.nodes[1] < f2.nodes[1]) ||
           (f1.nodes[0] == f2.nodes[0] && f1.nodes[1] == f2.nodes[1] &&
-           f1.nodes[2] < f2.nodes[2])) ;
+           f1.nodes[2] < f2.nodes[2]) ||
+          (f1.nodes[0] == f2.nodes[0] && f1.nodes[1] == f2.nodes[1] &&
+           f1.nodes[2] == f2.nodes[2] && f1.cell > f2.cell)) ;
 }
 
 
@@ -749,34 +756,41 @@ int main(int ac, char *av[]) {
   }
   sort(quad.begin(),quad.end(),quadCompare) ;
 
-  int matchcnt = 0 ;
-  int unmatchcnt = 0 ;
-  for(size_t i=0;i+1<tria.size();i++) {
-    if(triaEqual(tria[i],tria[i+1])) {
-      i++ ;
-      matchcnt++ ;
-    } else {
-      unmatchcnt++ ;
-    }
-    
-  }
-  
-  matchcnt = 0 ;
-  unmatchcnt = 0 ;
-  for(size_t i=0;i+1<quad.size();i++) {
-    if(quadEqual(quad[i],quad[i+1])) {
-      i++ ;
-      matchcnt++ ;
-    } else {
-      unmatchcnt++ ;
-    }
-  }
-  
-  //due to edge split, trias and quads can turn into general faces
-  int ntria = tria.size()/2 ;
-  int nquad = quad.size()/2 ;
-  int nfaces = ntria+nquad ;
 
+  // Ok now sort out how many triangle and quad faces there are
+
+  vector<int> tria_equals ;
+  tria_equals.reserve(tria.size()/2) ;
+  for(size_t i=0;i<tria.size();++i) {
+    int cnt = 1 ;
+    size_t j=i+1 ;
+    while(j<tria.size() && triaEqual(tria[i],tria[j])) {
+      cnt++ ;j++ ;
+    }
+    i=j-1;
+    tria_equals.push_back(cnt) ;
+  }
+
+  cout << "ntrias=" << tria_equals.size() << endl ;
+
+  vector<int> quad_equals ;
+  quad_equals.reserve(quad.size()/2) ;
+  for(size_t i=0;i<quad.size();++i) {
+    int cnt = 1 ;
+    size_t j=i+1 ;
+    while(j<quad.size() && quadEqual(quad[i],quad[j])) {
+      cnt++ ;j++ ;
+    }
+    i=j-1;
+    quad_equals.push_back(cnt) ;
+  }
+
+  cout << "nquads=" << quad_equals.size() << endl ;
+  
+
+  int ntria = tria_equals.size() ;
+  int nquad = quad_equals.size() ;
+  int nfaces = ntria+nquad ;
 
   int facebase = std::numeric_limits<int>::min()+2048 ;
 
@@ -818,103 +832,113 @@ int main(int ac, char *av[]) {
   face2node.allocate(count) ;
   fc = facebase ;
   int ccerror = 0 ;
+  int unmatched_boundary_faces = 0 ;
   
-  for(int i=0;i<ntria;++i) {
+  int i=0 ;
+  for(size_t eq=0;eq<tria_equals.size();++eq) {
     int corner[3];
-    for(int j=0;j<3;++j) {
-      corner[j] = tria[i*2].nodes[j] ;
-      FATAL(tria[i*2].nodes[j] != tria[i*2+1].nodes[j]) ;
+    if(tria[i].left) {
+      for(int j=0;j<3;++j) 
+	corner[j] = tria[i].nodes[j] ;
+    } else {
+      for(int j=0;j<3;++j)
+	corner[j] = tria[i].nodes[2-j] ;
     }
-    int c1 = tria[i*2].cell ;
-    int c2 = tria[i*2+1].cell ;
-    if(c1 < 0 && c2 < 0) {
+    int f1 = i ;
+    int f2 = i+1 ;
+    int c1 = tria[f1].cell ;
+    int c2 = tria[f2].cell ;
+
+    if(c1 < 0 ) {
+      if(tria_equals[eq] == 1) {
+	cerr << "isolated boundary face!" << endl
+	     << "mesh doesn't seem to be tagging boundaries properly for tag " << -c1 << endl ;
+	Loci::Abort() ;
+      }
       cerr << "two boundary faces glued together, probably a transparent surface is causing the problem!"<< endl ;
+      cout << "c1=" << c1 << "c2=" << c2 << " out of " << tria_equals[eq] << endl ;
       Loci::Abort() ;
     }
-    if(c1 < 0) {
-      cl[fc] = c2 ;
-      cr[fc] = c1 ;
-      if(tria[i*2+1].left)
-        for(int j=0;j<3;++j)
-          corner[j] = tria[i*2+1].nodes[j] ;
-      else
-        for(int j=0;j<3;++j)
-          corner[j] = tria[i*2+1].nodes[2-j] ;
-    } else if(c2 < 0) {
-      cl[fc] = c1 ;
-      cr[fc] = c2 ;
-      if(tria[i*2].left)
-        for(int j=0;j<3;++j)
-          corner[j] = tria[i*2].nodes[j] ;
-      else
-        for(int j=0;j<3;++j)
-          corner[j] = tria[i*2].nodes[2-j] ;
-    } else {
-      if(!tria[i*2].left)
-        std::swap(c1,c2) ;
-      cl[fc] = c1 ;
-      cr[fc] = c2 ;
-      if((tria[i*2].left && tria[i*2+1].left) ||
-         (!tria[i*2].left && !tria[i*2+1].left)) {
-        cerr << "consistency error" << endl ;
-	ccerror++ ;
-      }
+
+    if(tria_equals[eq] == 1) {
+      c2 = -1024 ;
+      f2 = f1 ;
+      unmatched_boundary_faces++ ;
+    }
+    if(tria_equals[eq] > 2) {
+      cerr << "There appear to be interior tagged faces.  " << endl
+	   << "Interior tagged faces are not supported in the vog file format. "
+	   << endl ;
+    }
+    cl[fc] = c1 ;
+    cr[fc] = c2 ;
+    if(c1 >=0 && c2 >=0 &&(tria[f1].left == tria[f2].left)) {
+      cerr << "consistency error " << c1 << ' ' << c2 << endl ;
+      ccerror++ ;
     }
 
-    for(int j=0;j<3;++j) {
+    for(int j=0;j<4;++j) {
       face2node[fc][j] = corner[j] ;
     }
-
     fc++ ;
+    i += tria_equals[eq] ;
   }
 
-  for(int i=0;i<nquad;++i) {
+
+  i=0 ;
+  for(size_t eq=0;eq<quad_equals.size();++eq) {
     int corner[4];
-    for(int j=0;j<4;++j) {
-      corner[j] = quad[i*2].nodes[j] ;
-      FATAL(quad[i*2].nodes[j] != quad[i*2+1].nodes[j]) ;
+    if(quad[i].left) {
+      for(int j=0;j<4;++j) 
+	corner[j] = quad[i].nodes[j] ;
+    } else {
+      for(int j=0;j<4;++j)
+	corner[j] = quad[i].nodes[3-j] ;
     }
-    int c1 = quad[i*2].cell ;
-    int c2 = quad[i*2+1].cell ;
-    if(c1 < 0 && c2 < 0) {
+    int f1 = i ;
+    int f2 = i+1 ;
+    int c1 = quad[f1].cell ;
+    int c2 = quad[f2].cell ;
+
+    if(c1 < 0 ) {
+      if(quad_equals[eq] == 1) {
+	cerr << "isolated boundary face!" << endl
+	     << "mesh doesn't seem to be tagging boundaries properly for tag " << -c1 << endl ;
+	Loci::Abort() ;
+      }
       cerr << "two boundary faces glued together, probably a transparent surface is causing the problem!"<< endl ;
+      cout << "c1=" << c1 << "c2=" << c2 << " out of " << quad_equals[eq] << endl ;
       Loci::Abort() ;
     }
 
-    if(c1 < 0) {
-      cl[fc] = c2 ;
-      cr[fc] = c1 ;
-      if(quad[i*2+1].left)
-        for(int j=0;j<4;++j)
-          corner[j] = quad[i*2+1].nodes[j] ;
-      else
-        for(int j=0;j<4;++j)
-          corner[j] = quad[i*2+1].nodes[3-j] ;
-    } else if(c2 < 0) {
-      cl[fc] = c1 ;
-      cr[fc] = c2 ;
-      if(quad[i*2].left)
-        for(int j=0;j<4;++j)
-          corner[j] = quad[i*2].nodes[j] ;
-      else
-        for(int j=0;j<4;++j)
-          corner[j] = quad[i*2].nodes[3-j] ;
-    } else {
-      if(!quad[i*2].left)
-        std::swap(c1,c2) ;
-      cl[fc] = c1 ;
-      cr[fc] = c2 ;
-      if((quad[i*2].left && quad[i*2+1].left) ||
-         (!quad[i*2].left && !quad[i*2+1].left)) {
-        cerr << "consistency error" << endl ;
-	ccerror++ ;
-      }
+    if(quad_equals[eq] == 1) {
+      c2 = -1024 ;
+      f2 = f1 ;
+      unmatched_boundary_faces++ ;
+    }
+    if(quad_equals[eq] > 2) {
+      cerr << "There appear to be interior tagged faces.  " << endl
+	   << "Interior tagged faces are not supported in the vog file format. "
+	   << endl ;
+    }
+    cl[fc] = c1 ;
+    cr[fc] = c2 ;
+    if(c1>=0 && c2 >=0 &&(quad[f1].left == quad[f2].left)) {
+      cerr << "consistency error" << endl ;
+      ccerror++ ;
     }
 
     for(int j=0;j<4;++j) {
       face2node[fc][j] = corner[j] ;
     }
     fc++ ;
+    i += quad_equals[eq] ;
+  }
+
+  if(unmatched_boundary_faces > 0) {
+    cerr << "There were " << unmatched_boundary_faces << " boundary faces that were not matched!" << endl
+	 << "  ** Check the mesh to make sure all boundary faces are tagged." << endl 
+	 << "  ** The vog file has given these faces the 1024 tag." << endl ;
   }
   if(ccerror > 0) {
     cerr << "consistency error #=" << ccerror << endl ;
