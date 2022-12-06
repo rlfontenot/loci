@@ -1499,7 +1499,7 @@ namespace Loci {
   $type Xin store<real_t> ;
   $type Xout store<real_t> ;
 
-  $rule pointwise(iblank::Xout<-iblank,Xin,upper->cr->(iblank,Xin),lower->cl->(iblank,Xin),(upper,lower)->area,interpolateCellStencil),inplace(iblank::Xout|Xin),constraint(Xin,iblank,componentGeometry),parametric(scalarInterpolateToBlankedCells(Xout,Xin)),option(disable_threading),prelude {
+  $rule pointwise(iblank::Xout<-iblank,Xin,upper->cr->(iblank,Xin),lower->cl->(iblank,Xin),(upper,lower)->area,interpolateCellStencil),inplace(iblank::Xout|Xin),constraint(Xin,iblank,componentGeometry,geom_cells),parametric(scalarInterpolateToBlankedCells(Xout,Xin)),option(disable_threading),prelude {
     MEMORY_PROFILE(compute_start) ;
     entitySet odom = entitySet(seq) ;
     entitySet dom = EMPTY ;
@@ -1590,7 +1590,7 @@ namespace Loci {
 
   $type Xin store<vector3d<real_t> > ;
   $type Xout store<vector3d<real_t> > ;
-  $rule pointwise(iblank::Xout<-iblank,Xin,upper->cr->(iblank,Xin),lower->cl->(iblank,Xin),(upper,lower)->area,interpolateCellStencil),inplace(iblank::Xout|Xin),constraint(Xin,iblank,componentGeometry),parametric(v3dInterpolateToBlankedCells(Xout,Xin)),option(disable_threading), prelude {
+  $rule pointwise(iblank::Xout<-iblank,Xin,upper->cr->(iblank,Xin),lower->cl->(iblank,Xin),(upper,lower)->area,interpolateCellStencil),inplace(iblank::Xout|Xin),constraint(Xin,iblank,componentGeometry,geom_cells),parametric(v3dInterpolateToBlankedCells(Xout,Xin)),option(disable_threading), prelude {
     MEMORY_PROFILE(compute_start) ;
     entitySet odom = entitySet(seq) ;
     entitySet dom = EMPTY ;
@@ -1679,7 +1679,7 @@ namespace Loci {
   $type Xin storeVec<real_t> ;
   $type Xout storeVec<real_t> ;
 
-  $rule pointwise(iblank::Xout<-iblank,Xin,upper->cr->(iblank,Xin),lower->cl->(iblank,Xin),(upper,lower)->area,interpolateCellStencil),inplace(iblank::Xout|Xin),constraint(Xin,iblank,componentGeometry),parametric(vecInterpolateToBlankedCells(Xout,Xin)),option(disable_threading),prelude {
+  $rule pointwise(iblank::Xout<-iblank,Xin,upper->cr->(iblank,Xin),lower->cl->(iblank,Xin),(upper,lower)->area,interpolateCellStencil),inplace(iblank::Xout|Xin),constraint(Xin,iblank,componentGeometry,geom_cells),parametric(vecInterpolateToBlankedCells(Xout,Xin)),option(disable_threading),prelude {
     MEMORY_PROFILE(compute_start) ;
     const int vs = $Xin.vecSize() ;
     entitySet odom = entitySet(seq) ;
