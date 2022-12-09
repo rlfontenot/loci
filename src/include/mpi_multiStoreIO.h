@@ -293,8 +293,8 @@ namespace Loci {
       
     std::vector<int> sizes_local ;//unique sizes on this process, such as 0, 35, 105,...
       
-    double time_write = 0 ;
-    double pre_time = 0 ;
+    //    double time_write = 0 ;
+    //    double pre_time = 0 ;
     
     entitySet dom = write_set ;
     fact_db::distribute_infoP df = facts.get_distribute_info() ;
@@ -402,7 +402,7 @@ namespace Loci {
     pmpi_writeVectorSerialP(fh, moffset, block_sizes, MPI_COMM_WORLD) ;
     pmpi_writeVectorSerialP(fh, moffset, block_data_elems, MPI_COMM_WORLD) ;
    
-    pre_time += sp.stop() ;
+    //    pre_time += sp.stop() ;
     // Now write out the main data block
 
 
@@ -497,7 +497,7 @@ namespace Loci {
             moffset += (MPI_Offset) total_block_size*sizeof(T);
           }
         }
-        time_write += s.stop() ;
+	//        time_write += s.stop() ;
         start += block_sizes[i]*block_data_elems[i]; //how many total elements written for this block
       }
     }
