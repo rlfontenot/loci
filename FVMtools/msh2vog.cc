@@ -1,4 +1,3 @@
-#define DEBUG
 #include <Loci.h>
 #include <iostream>
 #include <fstream>
