@@ -407,7 +407,10 @@ namespace Loci {
   };
 
   inline std::ostream &operator <<(std::ostream& stream, const FAD2d &u) {
-    stream << u.value << '^' << u.grad << "^^" << u.grad2 ;
+    if(u.grad != 0 || u.grad2 != 0)
+      stream << u.value << '^' << u.grad << "^^" << u.grad2 ;
+    else
+      stream << u.value ;
     return stream;
   }
   inline std::istream &operator >> (std::istream& stream, FAD2d &u) {
@@ -1262,7 +1265,11 @@ namespace Loci {
   };
 
   inline std::ostream &operator <<(std::ostream& stream, const FADd &u) {
-    stream << u.value << '^' << u.grad ;
+    if(u.grad != 0) 
+      stream << u.value << '^' << u.grad ;
+    else
+      stream << u.value ;
+      
     return stream;
   }
   inline std::istream &operator >> (std::istream& stream, FADd &u) {
