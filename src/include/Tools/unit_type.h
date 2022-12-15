@@ -123,6 +123,9 @@ namespace Loci {
     MFADd get_value_inM(const std::string unit_str);
     UNIT_type(unit_mode in_mode, std::string in_kind, double in_value, std::string in_unit) {mode=in_mode,unit_kind=in_kind,value=in_value,input_unit=in_unit;
     input_value=value;
+    input_value_mfad.value = value.value ;
+    for(size_t i=0;i<input_value_mfad.maxN;++i)
+      input_value_mfad.grad[i] = 0 ;
     exprP exp;
     exp=expression::create(input_unit);
     output(exp);
@@ -132,24 +135,31 @@ namespace Loci {
       value=FAD2d(in_value.value,in_value.grad,0.0) ;
       input_unit=in_unit;
       input_value=value ;
+      input_value_mfad.value = input_value.value ;
+      for(size_t i=0;i<input_value_mfad.maxN;++i)
+	input_value_mfad.grad[i] = 0 ;
       exprP exp;
       exp=expression::create(input_unit);
       output(exp);
     }
     UNIT_type(unit_mode in_mode, std::string in_kind, FAD2d in_value, std::string in_unit) {mode=in_mode,unit_kind=in_kind,value=in_value,input_unit=in_unit;
       input_value=value;
+      input_value_mfad.value = input_value.value ;
+      for(size_t i=0;i<input_value_mfad.maxN;++i)
+	input_value_mfad.grad[i] = 0 ;
       exprP exp;
       exp=expression::create(input_unit);
       output(exp);
     }
     UNIT_type(unit_mode in_mode, std::string in_kind, MFADd in_value, std::string in_unit) {mode=in_mode,unit_kind=in_kind,value_mfad=in_value,input_unit=in_unit;
+      input_value = value_mfad.value ;
       input_value_mfad=value_mfad;
       exprP exp;
       exp=expression::create(input_unit);
       output(exp);
     }
 
-    UNIT_type() { mode=MKS; unit_kind=""; value = 0 ; conversion_factor=1; input_value = 0;}
+    UNIT_type() { mode=MKS; unit_kind=""; value = 0 ; conversion_factor=1; input_value = 0;input_value_mfad = 0 ;}
 
   private:
     bool is_reference_unit(std::string str);
@@ -184,14 +194,11 @@ namespace Loci {
   };
 
   inline std::ostream &operator<<(std::ostream &s, const UNIT_type &o_unit){
-    bool higher_grads = false ;
-    for (size_t i=0;i<o_unit.input_value_mfad.maxN;i++) {
-      if (o_unit.input_value_mfad.grad[i] == 0) higher_grads = true ;
-    }
-    if(o_unit.input_value.grad==0 && o_unit.input_value.grad2 == 0 && !higher_grads) 
-      s << o_unit.input_value.value << ' ' << o_unit.input_unit ;
-    else
-      s << o_unit.input_value << ' ' << o_unit.input_unit ;
+    //    bool higher_grads = false ;
+    //    for (size_t i=0;i<o_unit.input_value_mfad.maxN;i++) {
+    //      if (o_unit.input_value_mfad.grad[i] == 0) higher_grads = true ;
+    //    }
+    s << o_unit.input_value << ' ' << o_unit.input_unit ;
     return s ;
   }
 
