@@ -251,7 +251,7 @@ namespace Loci {
   } ;
 
   $rule apply(componentGeometryData<-componentGeometry)[Loci::NullOp],
-    parametric(volumeTag(X)), prelude {
+    prelude {
     Loci::options_list::option_namelist nl = ($componentGeometry)->getOptionNameList() ;
     Loci::options_list::option_namelist::const_iterator nli ;
     for(nli=nl.begin();nli!=nl.end();++nli) {
