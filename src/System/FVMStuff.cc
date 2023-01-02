@@ -3572,9 +3572,7 @@ namespace Loci{
       vector<int> closest(nodeSet.size(),-1) ;
       cnt = 0 ;
       FORALL(nodeSet,nd) {
-        node_pts[cnt][0] = pos[nd].x ;
-        node_pts[cnt][1] = pos[nd].y ;
-        node_pts[cnt][2] = pos[nd].z ;
+        node_pts[cnt] = pos[nd] ;
         cnt++ ;
       } ENDFORALL ;
       
