@@ -39,7 +39,7 @@
 namespace Loci {
 
   
-  enum KeyScope {FILE, GLOBAL, LOCAL} ;
+  enum KeyScope {FILESPACE, GLOBALSPACE, LOCALSPACE} ;
   class gKeySpace;
   typedef CPTR<gKeySpace> gKeySpaceP ;
   
@@ -297,7 +297,7 @@ namespace Loci {
       //reset my_keys, 
       my_keys = km->generate_key(num_keys);
       generate_g2f_map();
-      scope = GLOBAL; 
+      scope = GLOBALSPACE; 
     }
 
     //this method is used to generate ghost cells
@@ -311,7 +311,7 @@ namespace Loci {
       GFORALL(temp_keys, k){
         g2f.insert(k,k);
       }ENDGFORALL;
-      scope = GLOBAL;
+      scope = GLOBALSPACE ;
       return temp_keys;
     }
 

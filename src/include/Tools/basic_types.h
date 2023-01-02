@@ -1545,41 +1545,19 @@ namespace Loci {
   struct vector3d {
     T x,y,z ;
     vector3d() {} 
+    vector3d(const vector3d &v): x(v.x),y(v.y),z(v.z) {}
     vector3d(T xx,T yy, T zz) : x(xx),y(yy),z(zz) {}
-    vector3d(const vector3d &v) {x=v.x;y=v.y;z=v.z;}
-    template <class S> vector3d(const vector3d<S> &v) {x=v.x;y=v.y;z=v.z;}
-    template <class S> vector3d(const Array<S,3> &a) {x=a[0];y=a[1];z=a[2];}
-    template <class S> operator Array<S,3>() {
-      Array<S,3> a ;
-      a[0] = x ;
-      a[1] = y ;
-      a[2] = z ;
-      return a;
-    }
-    T &operator[](int i) {
-      switch(i) {
-      case 0:
-        return x ;
-      case 1:
-        return y ;
-      case 2:
-        return z ;
-      default:
-        return z ;
-      }
-    }
-    const T &operator[](int i) const {
-      switch(i) {
-      case 0:
-        return x ;
-      case 1:
-        return y ;
-      case 2:
-        return z ;
-      default:
-        return z ;
-      }
-    }
+    template <class S> vector3d(const vector3d<S> &v): x(v.x),y(v.y),z(v.z) {}
+    //    template <class S> vector3d(const Array<S,3> &a) {x=a[0];y=a[1];z=a[2];}
+    // template <class S> operator Array<S,3>() {
+    //   Array<S,3> a ;
+    //   a[0] = x ;
+    //   a[1] = y ;
+    //   a[2] = z ;
+    //   return a;
+    // }
+    T &operator[](size_t i) { return (&x)[i] ; }
+    const T &operator[](size_t i) const { return (&x)[i] ; }
   } ;
   
   template <class T> inline std::ostream & operator<<(std::ostream &s, const vector3d<T> &v)

@@ -71,8 +71,9 @@ namespace Loci {
 
     FORALL(e,ii) {
       T * p = alloc_ptr + (ii-base_offset)*size ;
-      for(int i=0;i<size;++i)
-        p[i] = T() ;
+      if(!std::is_trivially_default_constructible<T>::value) 
+	for(int i=0;i<size;++i)
+	  p[i] = T() ;
       
       Loci::streaminput(p,size,s) ;
     } ENDFORALL ;

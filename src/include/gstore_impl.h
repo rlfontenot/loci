@@ -72,7 +72,7 @@ namespace Loci {
   template<class T>
   gStoreRepP gStoreRepI<T>::remap(const gMap &m) const{
     fatal(!sorted);
-    fatal( !m.sorted());
+    //    fatal( !m.sorted());
     fatal(m.domain()-domain() != GEMPTY);
     gStore<T> s;
     typename gRep::const_iterator itr1 = begin();

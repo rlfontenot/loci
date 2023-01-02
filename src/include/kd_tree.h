@@ -725,8 +725,8 @@ namespace Loci {
 
     // Compute the squared distance between two points
     inline double dist2(const coord3d &v1,const coord3d &v2) {
-      const double vd[3] = {v1[0]-v2[0],v1[1]-v2[1],v1[2]-v2[2]} ;
-      return vd[0]*vd[0]+vd[1]*vd[1]+vd[2]*vd[2] ;
+      const coord3d vdiff = v1-v2 ;
+      return dot(vdiff,vdiff) ;
     }
 
 

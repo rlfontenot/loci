@@ -205,7 +205,8 @@ namespace Loci {
       s.putback(ch) ;
       e = ~EMPTY ;
       allocate(e) ;
-      attrib_data = T() ;
+      if(!std::is_trivially_default_constructible<T>::value) 
+	attrib_data = T() ;
       Loci::streaminput(&attrib_data,1,s) ;
       return s ;
     }

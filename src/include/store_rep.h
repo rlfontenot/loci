@@ -36,6 +36,7 @@
 #include <entitySet.h>
 #include <istream>
 #include <ostream>
+#include <type_traits>
 
 #include <data_traits.h>
 

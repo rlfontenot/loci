@@ -67,7 +67,7 @@ namespace Loci {
  
   template<class T>
   gStoreRepP gMultiStoreRepI<T>::remap(const gMap &m) const{
-    fatal( !m.sorted());
+    //    fatal( !m.sorted());
     fatal(m.domain()-domain() != GEMPTY);
     fatal(!sorted);
     gMultiStore<T> s;
