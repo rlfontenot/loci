@@ -112,4 +112,33 @@
 
 	Fixed issues with type signatures in MPI_Stubb code
 
-	
+//-----------------------------------------------------------------------------
+	Version V 4.0 p6-> V 4.0 p7
+
+	Added gmsh format to vog file converter tool (msh2vog)
+
+	Added developmental parallel ccm2vogp tool
+
+	Updated parallel HDF5 facilities
+
+	Added parallel MPI IO API
+
+	Updated MPI_stubbs to work with MPI parallel IO API
+
+//-----------------------------------------------------------------------------
+	Version V 4.0 p7 -> V 4.0 p8
+
+	Fixed issue with nodal barth limiter
+
+	Improved gmesh file converter msh2vog
+
+	Fixed issues with the Overset library
+
+	Restructured memory debugging infrastructure in grid reader
+
+	Code cleanup to silence warnings about unused variables
+
+	Fixed autodiff output code to remove spurious output.
+
+	Fixed issue with erf function in autodiff code
+
