@@ -110,6 +110,12 @@ int getDecimal(istream &s) {
   return val ;
 }
 
+int getHexBin(istream &s) {
+  int val ;
+  s.read(reinterpret_cast<char *>(&val),sizeof(int)) ;
+  return val ;
+}
+
 int getHex(istream &s) {
   int val = 0 ;
   while(s.peek() == ' ' || s.peek() == '\t' || 
@@ -184,7 +190,7 @@ int scanFluentFile(string filename,
   map<int,int> zone_map ;
   store<int> count ;
   store<Loci::Array<int,4> > face_info ;
-  ifstream s(filename.c_str(),ios::in) ;
+  ifstream s(filename.c_str(),ios::in|ios::binary) ;
   if(s.fail()) {
     return -1 ;
   }
@@ -259,6 +265,61 @@ int scanFluentFile(string filename,
         
 	getCloseParen(s) ;
       }
+      break ; 
+    case 3010:
+      {
+	int start,end,type,dim ;
+	int zone = getZoneInfo(s,start,end,type,dim) ;
+	if(type != 1) {
+	  cerr << "can only handle type 1 nodes" << endl;
+          //	  exit(-2) ;
+	}
+        if(zone == 0) { // allocate pos ;
+          if(dimension == 2) {
+            n2dpos = end-start+1 ;
+            entitySet dom = interval(start-1,end-1+n2dpos) ;
+            pos.allocate(dom) ;
+            cout << "reading " << end << " nodes." << endl ;
+          } else {
+            entitySet dom = interval(start-1,end-1) ;
+            pos.allocate(dom) ;
+            cout << "reading " << end << " nodes." << endl ;
+          }
+        } else {
+          if(pos.domain() == EMPTY) {
+            cerr << "No zone 0 to set node size!" << endl ;
+            return -1 ;
+          }
+          getOpenParen(s) ;
+          if(dimension == 2) {
+            for(int i=start-1;i<end;++i) {
+              s >> pos[i].x >> pos[i].y ;
+              pos[i].z = -0.5*extrude_dist ;
+            }
+            for(int i=start-1;i<end;++i) {
+              pos[i+n2dpos]= pos[i] ;
+              pos[i+n2dpos].z = 0.5*extrude_dist;
+            }
+          } else {
+            for(int i=start-1;i<end;++i) {
+	      char buf[sizeof(double)*3] ;
+	      s.read(&buf[0],sizeof(double)*3) ;
+		     //	      for(unsigned int j=0;j<sizeof(double)*3;++j) {
+		     //		s >> std::noskipws >> buf[j] ;
+		     //	      }
+	      double *vals = reinterpret_cast<double *> (&buf[0]) ;
+	      pos[i].x = vals[0] ;
+	      pos[i].y = vals[1] ;
+	      pos[i].z = vals[2] ;
+	      //	      cout << pos[i].x << ' ' <<  pos[i].y << ' ' << pos[i].z << endl ;
+	      //              s >> pos[i].x >> pos[i].y >> pos[i].z ;
+            }
+          }
+          getCloseParen(s) ;
+        }
+        
+	getCloseParen(s) ;
+      }
       break ;
     case 18: // Periodic BC
       cerr << "warning, periodic zone ignored" << endl ;
@@ -268,6 +329,19 @@ int scanFluentFile(string filename,
       {
 	int start, end, type, dim ;
 	int zone = getZoneInfo(s,start,end,type,dim) ;
+	getCloseParen(s) ;
+        if(zone == 0)
+          cout << "reading " << end-start+1 << " cells." << endl ;
+      }
+      break ;
+    case 2012: // Cells
+      {
+	int start, end, type, dim ;
+	int zone = getZoneInfo(s,start,end,type,dim) ;
+	// need to load in binary block here!
+	for(int i=start-1;i<end;++i) {
+	  getHexBin(s) ;
+	}
 	getCloseParen(s) ;
         if(zone == 0)
           cout << "reading " << end-start+1 << " cells." << endl ;
@@ -388,6 +462,143 @@ int scanFluentFile(string filename,
                   face_info[i][j] = getHex(s) ;
                 cl[i] = getHex(s) ;
                 cr[i] = getHex(s) ;
+                if(cr[i] == 0) {
+                  cr[i] = -zone ;
+                  zone_map[zone] = 1 ;
+                } else if(cl[i] == 0) {
+                  cl[i] = -zone ;
+                  zone_map[zone] = 1 ;
+                  std::swap(cl[i],cr[i]) ;
+                  for(int j=0;j<nfaces/2;++j)
+                    std::swap(face_info[i][j],face_info[i][nfaces-j-1]) ;
+                }
+                count[i] = nfaces ;
+              }
+            } else {
+              cerr << "unsupported face type " << endl ;
+              return -1 ;
+            }
+            getCloseParen(s) ;
+          }
+        }
+	getCloseParen(s) ;
+      }
+      break ;
+    case 2013: // Faces
+      {
+	int start, end, type, dim ;
+	int zone = getZoneInfo(s,start,end,type,dim) ;
+        maxzoneid = max(maxzoneid,zone) ;
+        if(zone == 0) {
+          if(dimension == 2) {
+            cout << "reading " << end-start+1 << " edges." << endl ;
+          } else {
+            entitySet dom = interval(start-1,end-1) ;
+            cl.allocate(dom) ;
+            cr.allocate(dom) ;
+            count.allocate(dom) ;
+            face_info.allocate(dom) ;
+          }
+        } else {
+          if(dimension == 2) {
+            getOpenParen(s) ;
+            if(dim == 0) { // mixed element type (better be edges)
+              for(int i=start-1;i<end;++i) {
+                int nfaces = getHex(s) ;
+                if(nfaces != 2) {
+                  cerr << "faces should be edges in 2-D mesh." << endl ;
+                  exit(-1) ;
+                }
+                int n1 = getHex(s)-1 ;
+                int n2 = getHex(s)-1 ;
+
+                int c1 = getHex(s) ; // cell left side
+                int c2 = getHex(s) ; // cell right side
+                if(c2 == 0) {
+                  c2 = -zone ;
+                  zone_map[zone] = 1 ;
+                } else if(c1 == 0) {
+                  c1 = -zone ;
+                  zone_map[zone] = 1 ;
+                  std::swap(c1,c2) ;
+                  std::swap(n1,n2) ;
+                }
+                pair<int,int> nc = pair<int,int>(n1,n2) ;
+                pair<int,int> cc = pair<int,int>(c1,c2) ;
+                edge_list.push_back(pair<pair<int,int>,pair<int,int> >(nc,cc)) ;
+              }
+            } else if(dim == 2) { // edges
+              for(int i=start-1;i<end;++i) {
+                int n1 = getHex(s)-1 ;
+                int n2 = getHex(s)-1 ;
+
+                int c1 = getHex(s) ; // cell left side
+                int c2 = getHex(s) ; // cell right side
+                if(c2 == 0) {
+                  c2 = -zone ;
+                  zone_map[zone] = 1 ;
+                } else if(c1 == 0) {
+                  c1 = -zone ;
+                  zone_map[zone] = 1 ;
+                  std::swap(c1,c2) ;
+                  std::swap(n1,n2) ;
+                }
+                pair<int,int> nc = pair<int,int>(n1,n2) ;
+                pair<int,int> cc = pair<int,int>(c1,c2) ;
+                edge_list.push_back(pair<pair<int,int>,pair<int,int> >(nc,cc)) ;
+              }
+            } else {
+              cerr << "unsupported face type " << endl ;
+              return -1 ;
+            }
+            getCloseParen(s) ;
+          } else {
+            getOpenParen(s) ;
+            if(dim == 0) { // mixed element type
+              for(int i=start-1;i<end;++i) {
+                int nfaces = getHexBin(s) ;
+                for(int j=0;j<nfaces;++j)
+                  face_info[i][j] = getHexBin(s) ;
+                cl[i] = getHexBin(s) ;
+                cr[i] = getHexBin(s) ;
+                if(cr[i] == 0) {
+                  cr[i] = -zone ;
+                  zone_map[zone] = 1 ;
+                } else if(cl[i] == 0) {
+                  cl[i] = -zone ;
+                  zone_map[zone] = 1 ;
+                  std::swap(cl[i],cr[i]) ;
+                  for(int j=0;j<nfaces/2;++j)
+                    std::swap(face_info[i][j],face_info[i][nfaces-j-1]) ;
+                }
+                count[i] = nfaces ;
+              }
+            } else if(dim == 3) { // triangles
+              for(int i=start-1;i<end;++i) {
+                int nfaces = 3 ;
+                for(int j=0;j<nfaces;++j)
+                  face_info[i][j] = getHexBin(s) ;
+                cl[i] = getHexBin(s) ;
+                cr[i] = getHexBin(s) ;
+                if(cr[i] == 0) {
+                  cr[i] = -zone ;
+                  zone_map[zone] = 1 ;
+                } else if(cl[i] == 0) {
+                  cl[i] = -zone ;
+                  zone_map[zone] = 1 ;
+                  std::swap(cl[i],cr[i]) ;
+                  for(int j=0;j<nfaces/2;++j)
+                    std::swap(face_info[i][j],face_info[i][nfaces-j-1]) ;
+                }
+                count[i] = nfaces ;
+              }
+            } else if(dim == 4) { // quads
+              for(int i=start-1;i<end;++i) {
+                int nfaces = 4 ;
+                for(int j=0;j<nfaces;++j)
+                  face_info[i][j] = getHexBin(s) ;
+                cl[i] = getHexBin(s) ;
+                cr[i] = getHexBin(s) ;
                 if(cr[i] == 0) {
                   cr[i] = -zone ;
                   zone_map[zone] = 1 ;
