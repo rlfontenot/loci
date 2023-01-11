@@ -293,7 +293,12 @@ int scanFluentFile(string filename,
           getOpenParen(s) ;
           if(dimension == 2) {
             for(int i=start-1;i<end;++i) {
-              s >> pos[i].x >> pos[i].y ;
+	      char buf[sizeof(double)*2] ;
+	      s.read(&buf[0],sizeof(double)*2) ;
+	      double *vals = reinterpret_cast<double *> (&buf[0]) ;
+	      pos[i].x = vals[0] ;
+	      pos[i].y = vals[1] ;
+	      //              s >> pos[i].x >> pos[i].y ;
               pos[i].z = -0.5*extrude_dist ;
             }
             for(int i=start-1;i<end;++i) {
@@ -504,16 +509,16 @@ int scanFluentFile(string filename,
             getOpenParen(s) ;
             if(dim == 0) { // mixed element type (better be edges)
               for(int i=start-1;i<end;++i) {
-                int nfaces = getHex(s) ;
+                int nfaces = getHexBin(s) ;
                 if(nfaces != 2) {
                   cerr << "faces should be edges in 2-D mesh." << endl ;
                   exit(-1) ;
                 }
-                int n1 = getHex(s)-1 ;
-                int n2 = getHex(s)-1 ;
+                int n1 = getHexBin(s)-1 ;
+                int n2 = getHexBin(s)-1 ;
 
-                int c1 = getHex(s) ; // cell left side
-                int c2 = getHex(s) ; // cell right side
+                int c1 = getHexBin(s) ; // cell left side
+                int c2 = getHexBin(s) ; // cell right side
                 if(c2 == 0) {
                   c2 = -zone ;
                   zone_map[zone] = 1 ;
@@ -529,11 +534,11 @@ int scanFluentFile(string filename,
               }
             } else if(dim == 2) { // edges
               for(int i=start-1;i<end;++i) {
-                int n1 = getHex(s)-1 ;
-                int n2 = getHex(s)-1 ;
+                int n1 = getHexBin(s)-1 ;
+                int n2 = getHexBin(s)-1 ;
 
-                int c1 = getHex(s) ; // cell left side
-                int c2 = getHex(s) ; // cell right side
+                int c1 = getHexBin(s) ; // cell left side
+                int c2 = getHexBin(s) ; // cell right side
                 if(c2 == 0) {
                   c2 = -zone ;
                   zone_map[zone] = 1 ;
