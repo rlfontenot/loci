@@ -189,6 +189,8 @@ int scanFluentFile(string filename,
   
   map<int,int> zone_map ;
   store<int> count ;
+  store<int> offsets ;
+  vector<int> face_infov ;
   store<Loci::Array<int,4> > face_info ;
   ifstream s(filename.c_str(),ios::in|ios::binary) ;
   if(s.fail()) {
@@ -196,464 +198,459 @@ int scanFluentFile(string filename,
   }
   vector<pair<pair<int,int>,pair<int,int> > > edge_list ;
 
+  const int P = Loci::MPI_processes ;
+  const int R = Loci::MPI_rank ;
   int n2dpos = 0;
   int dimension = 0 ;
-  while(!s.eof()) {
-    getOpenParen(s) ;
-    int code = getDecimal(s) ;
-    switch(code) {
-    case 0: // comment
-      getString(s) ;
-      getCloseParen(s) ;
-      break ;
-    case 1: // Header
-      getString(s) ;
-      getCloseParen(s) ;
-      break ;
-    case 2: // Dimension
-      dimension = getDecimal(s) ;
-      if(dimension == 2) {
-        cout << "Converting 2-D mesh, extruding creating two symmetry planes."
-             << endl ;
-      } else if(dimension != 3) {
-        cerr << "Don't know how to process a "
-             << dimension << " dimensional mesh." << endl ;
-        exit(-1) ;
-      } 
-      break ;
-    case 10:
-      {
-	int start,end,type,dim ;
-	int zone = getZoneInfo(s,start,end,type,dim) ;
-	if(type != 1) {
-	  cerr << "can only handle type 1 nodes" << endl;
-          //	  exit(-2) ;
+  vector<entitySet> local_nodes(P) ;
+  if(R == 0) {
+    while(!s.eof()) {
+      getOpenParen(s) ;
+      int code = getDecimal(s) ;
+      if(P>1)
+	MPI_Bcast(&code,1,MPI_INT,0,MPI_COMM_WORLD) ;
+      switch(code) {
+      case 0: // comment
+	getString(s) ;
+	getCloseParen(s) ;
+	break ;
+      case 1: // Header
+	getString(s) ;
+	getCloseParen(s) ;
+	break ;
+      case 2: // Dimension
+	dimension = getDecimal(s) ;
+	if(dimension == 2) {
+	  cout << "Converting 2-D mesh, extruding creating two symmetry planes."
+	       << endl ;
+	} else if(dimension != 3) {
+	  cerr << "Don't know how to process a "
+	       << dimension << " dimensional mesh." << endl ;
+	  exit(-1) ;
+	} 
+	break ;
+      case 39:
+	getCloseParen(s) ;
+	break ;
+	
+	
+      case 10:
+	{
+	  int start,end,type,dim ;
+	  int zone = getZoneInfo(s,start,end,type,dim) ;
+	  if(P>1) {
+	    MPI_Bcast(&start,1,MPI_INT,0,MPI_COMM_WORLD) ;
+	    MPI_Bcast(&end,1,MPI_INT,0,MPI_COMM_WORLD) ;
+	    MPI_Bcast(&zone,1,MPI_INT,0,MPI_COMM_WORLD) ;
+	  }
+	  if(zone == 0) {
+	    int num_nodes = end-start+1 ;
+	    vector<int> node_ptns = VOG::simplePartitionVec(0,num_nodes-1,P) ;
+	    for(int i=0;i<P;++i) {
+	      local_nodes[i] = interval(node_ptns[i],node_ptns[i+1]-1) ;
+	    }
+	  }
+	  if(type != 1) {
+	    cerr << "can only handle type 1 nodes" << endl;
+	    //	  exit(-2) ;
+	  }
+	  if(zone == 0) { // allocate pos ;
+	    if(dimension == 2) {
+	      if(P>1) {
+		cerr << "2-D meshes can't be converted in parallel!"
+		     << endl ;
+		Loci::Abort() ;
+	      }
+	      n2dpos = end-start+1 ;
+	      entitySet dom = interval(start-1,end-1+n2dpos) ;
+	      pos.allocate(dom) ;
+	      cout << "reading " << end << " nodes." << endl ;
+	    } else {
+	      //	      entitySet dom = interval(start-1,end-1) ;
+	      //	      pos.allocate(dom) ;
+	      pos.allocate(local_nodes[R]) ;
+	      cout << "reading " << end << " nodes." << endl ;
+	    }
+	  } else {
+	    if(pos.domain() == EMPTY) {
+	      cerr << "No zone 0 to set node size!" << endl ;
+	      return -1 ;
+	    }
+	    getOpenParen(s) ;
+	    if(dimension == 2) {
+	      for(int i=start-1;i<end;++i) {
+		s >> pos[i].x >> pos[i].y ;
+		pos[i].z = -0.5*extrude_dist ;
+	      }
+	      for(int i=start-1;i<end;++i) {
+		pos[i+n2dpos]= pos[i] ;
+		pos[i+n2dpos].z = 0.5*extrude_dist;
+	      }
+	    } else {
+	      entitySet dom = interval(start-1,end-1) ;
+	      entitySet dom0 = dom & local_nodes[0] ;
+	      FORALL(dom0,i) {
+		//	      for(int i=start-1;i<end;++i) {
+		s >> pos[i].x >> pos[i].y >> pos[i].z ;
+	      } ENDFORALL ;
+	      for(int j=1;j<P;++j) {
+		entitySet domj = dom&local_nodes[j] ;
+		int sz = domj.size() ;
+		if(sz>0) {
+		  vector<vector3d<double> > scratch(sz) ;
+		  int cnt = 0 ;
+		  FORALL(domj,i) {
+		    s >> scratch[cnt].x >> scratch[cnt].y >> scratch[cnt].z ;
+		    cnt++ ;
+		  } ENDFORALL ;
+		  MPI_Send(&(scratch[0].x),sz*3,MPI_DOUBLE,j,10,MPI_COMM_WORLD) ;
+		}
+	      }
+	    }
+	    getCloseParen(s) ;
+	  }
+	  getCloseParen(s) ;
 	}
-        if(zone == 0) { // allocate pos ;
-          if(dimension == 2) {
-            n2dpos = end-start+1 ;
-            entitySet dom = interval(start-1,end-1+n2dpos) ;
-            pos.allocate(dom) ;
-            cout << "reading " << end << " nodes." << endl ;
-          } else {
-            entitySet dom = interval(start-1,end-1) ;
-            pos.allocate(dom) ;
-            cout << "reading " << end << " nodes." << endl ;
-          }
-        } else {
-          if(pos.domain() == EMPTY) {
-            cerr << "No zone 0 to set node size!" << endl ;
-            return -1 ;
-          }
-          getOpenParen(s) ;
-          if(dimension == 2) {
-            for(int i=start-1;i<end;++i) {
-              s >> pos[i].x >> pos[i].y ;
-              pos[i].z = -0.5*extrude_dist ;
-            }
-            for(int i=start-1;i<end;++i) {
-              pos[i+n2dpos]= pos[i] ;
-              pos[i+n2dpos].z = 0.5*extrude_dist;
-            }
-          } else {
-            for(int i=start-1;i<end;++i) {
-              s >> pos[i].x >> pos[i].y >> pos[i].z ;
-            }
-          }
-          getCloseParen(s) ;
-        }
+	break ;
+      case 3010:
+	{
+	  int start,end,type,dim ;
+	  int zone = getZoneInfo(s,start,end,type,dim) ;
+	  if(P>1) {
+	    MPI_Bcast(&start,1,MPI_INT,0,MPI_COMM_WORLD) ;
+	    MPI_Bcast(&end,1,MPI_INT,0,MPI_COMM_WORLD) ;
+	    MPI_Bcast(&zone,1,MPI_INT,0,MPI_COMM_WORLD) ;
+	  }
+	  if(zone == 0) {
+	    int num_nodes = end-start+1 ;
+	    vector<int> node_ptns = VOG::simplePartitionVec(0,num_nodes-1,P) ;
+	    for(int i=0;i<P;++i)
+	      local_nodes[i] = interval(node_ptns[i],node_ptns[i+1]-1) ;
+	  }
+
+	  if(type != 1) {
+	    cerr << "can only handle type 1 nodes" << endl;
+	    //	  exit(-2) ;
+	  }
+	  if(zone == 0) { // allocate pos ;
+	    if(dimension == 2) {
+	      n2dpos = end-start+1 ;
+	      entitySet dom = interval(start-1,end-1+n2dpos) ;
+	      pos.allocate(dom) ;
+	      cout << "reading " << end << " nodes." << endl ;
+	    } else {
+	      //	      entitySet dom = interval(start-1,end-1) ;
+	      //	      pos.allocate(dom) ;
+	      pos.allocate(local_nodes[R]) ;
+	      cout << "reading " << end << " nodes." << endl ;
+	    }
+	  } else {
+	    if(pos.domain() == EMPTY) {
+	      cerr << "No zone 0 to set node size!" << endl ;
+	      return -1 ;
+	    }
+	    getOpenParen(s) ;
+	    if(dimension == 2) {
+	      for(int i=start-1;i<end;++i) {
+		char buf[sizeof(double)*2] ;
+		s.read(&buf[0],sizeof(double)*2) ;
+		double *vals = reinterpret_cast<double *> (&buf[0]) ;
+		pos[i].x = vals[0] ;
+		pos[i].y = vals[1] ;
+		//              s >> pos[i].x >> pos[i].y ;
+		pos[i].z = -0.5*extrude_dist ;
+	      }
+	      for(int i=start-1;i<end;++i) {
+		pos[i+n2dpos]= pos[i] ;
+		pos[i+n2dpos].z = 0.5*extrude_dist;
+	      }
+	    } else {
+	      entitySet dom = interval(start-1,end-1) ;
+	      entitySet dom0 = dom & local_nodes[0] ;
+	      int sz = dom0.size() ;
+	      char *readp = reinterpret_cast<char *>(&(pos[start-1].x)) ;
+	      s.read(readp,sizeof(double)*3*sz) ;
+	      
+	      for(int j=1;j<P;++j) {
+		entitySet domj = dom&local_nodes[j] ;
+		int sz = domj.size() ;
+		if(sz>0) {
+		  vector<vector3d<double> > scratch(sz) ;
+		  char *readp = reinterpret_cast<char *>(&(scratch[0].x)) ;
+		  s.read(readp,sizeof(double)*3*sz) ;
+		  MPI_Send(&(scratch[0].x),sz*3,MPI_DOUBLE,j,10,MPI_COMM_WORLD) ;		}
+	      }
+	    }
+	    getCloseParen(s) ;
+	  }
         
-	getCloseParen(s) ;
-      }
-      break ; 
-    case 3010:
-      {
-	int start,end,type,dim ;
-	int zone = getZoneInfo(s,start,end,type,dim) ;
-	if(type != 1) {
-	  cerr << "can only handle type 1 nodes" << endl;
-          //	  exit(-2) ;
+	  getCloseParen(s) ;
 	}
-        if(zone == 0) { // allocate pos ;
-          if(dimension == 2) {
-            n2dpos = end-start+1 ;
-            entitySet dom = interval(start-1,end-1+n2dpos) ;
-            pos.allocate(dom) ;
-            cout << "reading " << end << " nodes." << endl ;
-          } else {
-            entitySet dom = interval(start-1,end-1) ;
-            pos.allocate(dom) ;
-            cout << "reading " << end << " nodes." << endl ;
-          }
-        } else {
-          if(pos.domain() == EMPTY) {
-            cerr << "No zone 0 to set node size!" << endl ;
-            return -1 ;
-          }
-          getOpenParen(s) ;
-          if(dimension == 2) {
-            for(int i=start-1;i<end;++i) {
-	      char buf[sizeof(double)*2] ;
-	      s.read(&buf[0],sizeof(double)*2) ;
-	      double *vals = reinterpret_cast<double *> (&buf[0]) ;
-	      pos[i].x = vals[0] ;
-	      pos[i].y = vals[1] ;
-	      //              s >> pos[i].x >> pos[i].y ;
-              pos[i].z = -0.5*extrude_dist ;
-            }
-            for(int i=start-1;i<end;++i) {
-              pos[i+n2dpos]= pos[i] ;
-              pos[i+n2dpos].z = 0.5*extrude_dist;
-            }
-          } else {
-            for(int i=start-1;i<end;++i) {
-	      char buf[sizeof(double)*3] ;
-	      s.read(&buf[0],sizeof(double)*3) ;
-		     //	      for(unsigned int j=0;j<sizeof(double)*3;++j) {
-		     //		s >> std::noskipws >> buf[j] ;
-		     //	      }
-	      double *vals = reinterpret_cast<double *> (&buf[0]) ;
-	      pos[i].x = vals[0] ;
-	      pos[i].y = vals[1] ;
-	      pos[i].z = vals[2] ;
-	      //	      cout << pos[i].x << ' ' <<  pos[i].y << ' ' << pos[i].z << endl ;
-	      //              s >> pos[i].x >> pos[i].y >> pos[i].z ;
-            }
-          }
-          getCloseParen(s) ;
-        }
-        
+	break ;
+      case 18: // Periodic BC
+	cerr << "warning, periodic zone ignored" << endl ;
 	getCloseParen(s) ;
-      }
-      break ;
-    case 18: // Periodic BC
-      cerr << "warning, periodic zone ignored" << endl ;
-      getCloseParen(s) ;
-      break ;
-    case 12: // Cells
-      {
-	int start, end, type, dim ;
-	int zone = getZoneInfo(s,start,end,type,dim) ;
-	getCloseParen(s) ;
-        if(zone == 0)
-          cout << "reading " << end-start+1 << " cells." << endl ;
-      }
-      break ;
-    case 2012: // Cells
-      {
-	int start, end, type, dim ;
-	int zone = getZoneInfo(s,start,end,type,dim) ;
-	// need to load in binary block here!
-	for(int i=start-1;i<end;++i) {
-	  getHexBin(s) ;
+	break ;
+      case 12: // Cells
+	{
+	  int start, end, type, dim ;
+	  int zone = getZoneInfo(s,start,end,type,dim) ;
+	  getCloseParen(s) ;
+	  if(zone == 0)
+	    cout << "reading " << end-start+1 << " cells." << endl ;
 	}
+	break ;
+      case 2012: // Cells
+	{
+	  int start, end, type, dim ;
+	  int zone = getZoneInfo(s,start,end,type,dim) ;
+	  // need to load in binary block here!
+	  for(int i=start-1;i<end;++i) {
+	    getHexBin(s) ;
+	  }
+	  getCloseParen(s) ;
+	  if(zone == 0)
+	    cout << "reading " << end-start+1 << " cells." << endl ;
+	}
+	break ;
+      case 13: // Faces
+      case 2013:
+	{
+	  int start, end, type, dim ;
+	  int zone = getZoneInfo(s,start,end,type,dim) ;
+	  bool binary = false ;
+	  if(code == 2013)
+	    binary = true ;
+	  maxzoneid = max(maxzoneid,zone) ;
+	  if(zone == 0) {
+	    if(dimension == 2) {
+	      cout << "reading " << end-start+1 << " edges." << endl ;
+	    } else {
+	      entitySet dom = interval(start-1,end-1) ;
+	      cl.allocate(dom) ;
+	      cr.allocate(dom) ;
+	      count.allocate(dom) ;
+	      offsets.allocate(dom) ;
+	      face_info.allocate(dom) ;
+	    }
+	  } else {
+	    if(dimension == 2) {
+	      getOpenParen(s) ;
+	      if(dim == 0) { // mixed element type (better be edges)
+		for(int i=start-1;i<end;++i) {
+		  int nfaces = 0 ;
+		  if(binary)
+		    nfaces= getHexBin(s) ;
+		  else
+		    nfaces= getHex(s) ;
+		  if(nfaces != 2) {
+		    cerr << "faces should be edges in 2-D mesh." << endl ;
+		    exit(-1) ;
+		  }
+		  int n1=0,n2=0,c1=0,c2=0 ;
+		  if(binary) {
+		    n1 = getHexBin(s)-1 ;
+		    n2 = getHexBin(s)-1 ;
+		    
+		    c1 = getHexBin(s) ; // cell left side
+		    c2 = getHexBin(s) ; // cell right side
+		  } else {
+		    n1 = getHex(s)-1 ;
+		    n2 = getHex(s)-1 ;
+		    
+		    c1 = getHex(s) ; // cell left side
+		    c2 = getHex(s) ; // cell right side
+		  }
+		  if(c2 == 0) {
+		    c2 = -zone ;
+		    zone_map[zone] = 1 ;
+		  } else if(c1 == 0) {
+		    c1 = -zone ;
+		    zone_map[zone] = 1 ;
+		    std::swap(c1,c2) ;
+		    std::swap(n1,n2) ;
+		  }
+		  pair<int,int> nc = pair<int,int>(n1,n2) ;
+		  pair<int,int> cc = pair<int,int>(c1,c2) ;
+		  edge_list.push_back(pair<pair<int,int>,pair<int,int> >(nc,cc)) ;
+		}
+	      } else if(dim == 2) { // edges
+		for(int i=start-1;i<end;++i) {
+		  int n1=0,n2=0,c1=0,c2=0 ;
+		  if(binary) {
+		    n1 = getHexBin(s)-1 ;
+		    n2 = getHexBin(s)-1 ;
+		    
+		    c1 = getHexBin(s) ; // cell left side
+		    c2 = getHexBin(s) ; // cell right side
+		  } else {
+		    n1 = getHex(s)-1 ;
+		    n2 = getHex(s)-1 ;
+		    
+		    c1 = getHex(s) ; // cell left side
+		    c2 = getHex(s) ; // cell right side
+		  }
+		  if(c2 == 0) {
+		    c2 = -zone ;
+		    zone_map[zone] = 1 ;
+		  } else if(c1 == 0) {
+		    c1 = -zone ;
+		    zone_map[zone] = 1 ;
+		    std::swap(c1,c2) ;
+		    std::swap(n1,n2) ;
+		  }
+		  pair<int,int> nc = pair<int,int>(n1,n2) ;
+		  pair<int,int> cc = pair<int,int>(c1,c2) ;
+		  edge_list.push_back(pair<pair<int,int>,pair<int,int> >(nc,cc)) ;
+		}
+	      } else {
+		cerr << "unsupported face type " << endl ;
+		return -1 ;
+	      }
+	      getCloseParen(s) ;
+	    } else { // 3-D mesh
+	      getOpenParen(s) ;
+	      for(int i=start-1;i<end;++i) {
+		int nfaces = 0 ;
+		switch(dim) {
+		case 0:
+		  if(binary)
+		    nfaces = getHexBin(s) ;
+		  else
+		    nfaces = getHex(s) ;
+		  break ;
+		case 3:
+		  nfaces = 3 ;
+		  break ;
+		case 4:
+		  nfaces = 4 ;
+		  break ;
+		default:
+		  cerr << "unknown face type " << dim << endl ;
+		}
+		if(binary) {
+		  for(int j=0;j<nfaces;++j) 
+		    face_info[i][j] = getHexBin(s) ;
+		  cl[i] = getHexBin(s) ;
+		  cr[i] = getHexBin(s) ;
+		}else {
+		  for(int j=0;j<nfaces;++j)
+		    face_info[i][j] = getHex(s) ;
+		  cl[i] = getHex(s) ;
+		  cr[i] = getHex(s) ;
+		}
+		if(cr[i] == 0) {
+		  cr[i] = -zone ;
+		  zone_map[zone] = 1 ;
+		} else if(cl[i] == 0) {
+		  cl[i] = -zone ;
+		  zone_map[zone] = 1 ;
+		  std::swap(cl[i],cr[i]) ;
+		  for(int j=0;j<nfaces/2;++j)
+		    std::swap(face_info[i][j],face_info[i][nfaces-j-1]) ;
+		}
+		count[i] = nfaces ;
+	      }
+	      getCloseParen(s) ;
+	    }
+	  }
+	  getCloseParen(s) ;
+	}
+	break ;
+      case 45: // Boundary names
+	{
+	  getOpenParen(s) ;
+	  int zoneId = getDecimal(s) ;
+	  maxzoneid = max(maxzoneid,zoneId) ;
+	  string type = getName(s) ;
+	  string name = getName(s) ;
+	  if(zone_map.find(zoneId) != zone_map.end()) {
+	    VOG::BC_descriptor tmp ;
+	    tmp.name = name ;
+	    tmp.id = zoneId ;
+	    tmp.Trans = false ;
+	    bcs.push_back(tmp) ;
+	    cout << "Boundary Face: " << zoneId << " " << name << endl ;
+	  }
+	  getCloseParen(s) ;
+	  getCloseParen(s) ;
+	}
+	break ;
+      default:
+	cerr << "unknown section " << code << " ignored." << endl ;
 	getCloseParen(s) ;
-        if(zone == 0)
-          cout << "reading " << end-start+1 << " cells." << endl ;
+	break ;
       }
-      break ;
-    case 13: // Faces
-      {
-	int start, end, type, dim ;
-	int zone = getZoneInfo(s,start,end,type,dim) ;
-        maxzoneid = max(maxzoneid,zone) ;
-        if(zone == 0) {
-          if(dimension == 2) {
-            cout << "reading " << end-start+1 << " edges." << endl ;
-          } else {
-            entitySet dom = interval(start-1,end-1) ;
-            cl.allocate(dom) ;
-            cr.allocate(dom) ;
-            count.allocate(dom) ;
-            face_info.allocate(dom) ;
-          }
-        } else {
-          if(dimension == 2) {
-            getOpenParen(s) ;
-            if(dim == 0) { // mixed element type (better be edges)
-              for(int i=start-1;i<end;++i) {
-                int nfaces = getHex(s) ;
-                if(nfaces != 2) {
-                  cerr << "faces should be edges in 2-D mesh." << endl ;
-                  exit(-1) ;
-                }
-                int n1 = getHex(s)-1 ;
-                int n2 = getHex(s)-1 ;
+    }
+    int code = -1 ;
+    if(P>1)
+      MPI_Bcast(&code,1,MPI_INT,0,MPI_COMM_WORLD) ;
+  } else {
+    for(;;) {
+      int code ;
+      MPI_Bcast(&code,1,MPI_INT,0,MPI_COMM_WORLD) ;
+      if(code < 0)
+	break ;
+      switch(code) {
+      case 0:
+	break ;
+      case 1:
+	break ;
+      case 2:
+	break ;
+      case 39:
+	break ;
+      case 10:  // nodes (ascii read)
+      case 3010:// nodes (binary read)
+	{
+	  int start=0, end=0,zone=0 ;
+	  MPI_Bcast(&start,1,MPI_INT,0,MPI_COMM_WORLD) ;
+	  MPI_Bcast(&end,1,MPI_INT,0,MPI_COMM_WORLD) ;
+	  MPI_Bcast(&zone,1,MPI_INT,0,MPI_COMM_WORLD) ;
+	  int num_nodes = end-start+1 ;
+	  if(zone==0) {
+	    vector<int> node_ptns = VOG::simplePartitionVec(0,num_nodes-1,P) ;
+	    for(int i=0;i<P;++i)
+	      local_nodes[i] = interval(node_ptns[i],node_ptns[i+1]-1) ;
+	    pos.allocate(local_nodes[R]) ;
+	  } else {
+	    entitySet dom = interval(start-1,end-1) ;
+	    entitySet domj = dom&local_nodes[R] ;
+	    int sz = domj.size() ;
+	    if(sz > 0) {
+	      MPI_Status status ;
+	      MPI_Recv(&(pos[domj.Min()].x),sz*3,MPI_DOUBLE,0,10,MPI_COMM_WORLD,
+		       &status) ;
+	    }
+	  }
+	}
 
-                int c1 = getHex(s) ; // cell left side
-                int c2 = getHex(s) ; // cell right side
-                if(c2 == 0) {
-                  c2 = -zone ;
-                  zone_map[zone] = 1 ;
-                } else if(c1 == 0) {
-                  c1 = -zone ;
-                  zone_map[zone] = 1 ;
-                  std::swap(c1,c2) ;
-                  std::swap(n1,n2) ;
-                }
-                pair<int,int> nc = pair<int,int>(n1,n2) ;
-                pair<int,int> cc = pair<int,int>(c1,c2) ;
-                edge_list.push_back(pair<pair<int,int>,pair<int,int> >(nc,cc)) ;
-              }
-            } else if(dim == 2) { // edges
-              for(int i=start-1;i<end;++i) {
-                int n1 = getHex(s)-1 ;
-                int n2 = getHex(s)-1 ;
-
-                int c1 = getHex(s) ; // cell left side
-                int c2 = getHex(s) ; // cell right side
-                if(c2 == 0) {
-                  c2 = -zone ;
-                  zone_map[zone] = 1 ;
-                } else if(c1 == 0) {
-                  c1 = -zone ;
-                  zone_map[zone] = 1 ;
-                  std::swap(c1,c2) ;
-                  std::swap(n1,n2) ;
-                }
-                pair<int,int> nc = pair<int,int>(n1,n2) ;
-                pair<int,int> cc = pair<int,int>(c1,c2) ;
-                edge_list.push_back(pair<pair<int,int>,pair<int,int> >(nc,cc)) ;
-              }
-            } else {
-              cerr << "unsupported face type " << endl ;
-              return -1 ;
-            }
-            getCloseParen(s) ;
-          } else {
-            getOpenParen(s) ;
-            if(dim == 0) { // mixed element type
-              for(int i=start-1;i<end;++i) {
-                int nfaces = getHex(s) ;
-                for(int j=0;j<nfaces;++j)
-                  face_info[i][j] = getHex(s) ;
-                cl[i] = getHex(s) ;
-                cr[i] = getHex(s) ;
-                if(cr[i] == 0) {
-                  cr[i] = -zone ;
-                  zone_map[zone] = 1 ;
-                } else if(cl[i] == 0) {
-                  cl[i] = -zone ;
-                  zone_map[zone] = 1 ;
-                  std::swap(cl[i],cr[i]) ;
-                  for(int j=0;j<nfaces/2;++j)
-                    std::swap(face_info[i][j],face_info[i][nfaces-j-1]) ;
-                }
-                count[i] = nfaces ;
-              }
-            } else if(dim == 3) { // triangles
-              for(int i=start-1;i<end;++i) {
-                int nfaces = 3 ;
-                for(int j=0;j<nfaces;++j)
-                  face_info[i][j] = getHex(s) ;
-                cl[i] = getHex(s) ;
-                cr[i] = getHex(s) ;
-                if(cr[i] == 0) {
-                  cr[i] = -zone ;
-                  zone_map[zone] = 1 ;
-                } else if(cl[i] == 0) {
-                  cl[i] = -zone ;
-                  zone_map[zone] = 1 ;
-                  std::swap(cl[i],cr[i]) ;
-                  for(int j=0;j<nfaces/2;++j)
-                    std::swap(face_info[i][j],face_info[i][nfaces-j-1]) ;
-                }
-                count[i] = nfaces ;
-              }
-            } else if(dim == 4) { // quads
-              for(int i=start-1;i<end;++i) {
-                int nfaces = 4 ;
-                for(int j=0;j<nfaces;++j)
-                  face_info[i][j] = getHex(s) ;
-                cl[i] = getHex(s) ;
-                cr[i] = getHex(s) ;
-                if(cr[i] == 0) {
-                  cr[i] = -zone ;
-                  zone_map[zone] = 1 ;
-                } else if(cl[i] == 0) {
-                  cl[i] = -zone ;
-                  zone_map[zone] = 1 ;
-                  std::swap(cl[i],cr[i]) ;
-                  for(int j=0;j<nfaces/2;++j)
-                    std::swap(face_info[i][j],face_info[i][nfaces-j-1]) ;
-                }
-                count[i] = nfaces ;
-              }
-            } else {
-              cerr << "unsupported face type " << endl ;
-              return -1 ;
-            }
-            getCloseParen(s) ;
-          }
-        }
-	getCloseParen(s) ;
+	break ;
+      case 18: // Periodic BC
+	break ;
+      case 12:   // cells ascii read
+      case 2012: // Cells binary read
+	break ;
+      case 13:   // Faces (ascii read)
+      case 2013: // Faces (binary read)
+	break ;
+      case 45: // Boundary names
+	break ;
+      default:
+	break ;
       }
-      break ;
-    case 2013: // Faces
-      {
-	int start, end, type, dim ;
-	int zone = getZoneInfo(s,start,end,type,dim) ;
-        maxzoneid = max(maxzoneid,zone) ;
-        if(zone == 0) {
-          if(dimension == 2) {
-            cout << "reading " << end-start+1 << " edges." << endl ;
-          } else {
-            entitySet dom = interval(start-1,end-1) ;
-            cl.allocate(dom) ;
-            cr.allocate(dom) ;
-            count.allocate(dom) ;
-            face_info.allocate(dom) ;
-          }
-        } else {
-          if(dimension == 2) {
-            getOpenParen(s) ;
-            if(dim == 0) { // mixed element type (better be edges)
-              for(int i=start-1;i<end;++i) {
-                int nfaces = getHexBin(s) ;
-                if(nfaces != 2) {
-                  cerr << "faces should be edges in 2-D mesh." << endl ;
-                  exit(-1) ;
-                }
-                int n1 = getHexBin(s)-1 ;
-                int n2 = getHexBin(s)-1 ;
-
-                int c1 = getHexBin(s) ; // cell left side
-                int c2 = getHexBin(s) ; // cell right side
-                if(c2 == 0) {
-                  c2 = -zone ;
-                  zone_map[zone] = 1 ;
-                } else if(c1 == 0) {
-                  c1 = -zone ;
-                  zone_map[zone] = 1 ;
-                  std::swap(c1,c2) ;
-                  std::swap(n1,n2) ;
-                }
-                pair<int,int> nc = pair<int,int>(n1,n2) ;
-                pair<int,int> cc = pair<int,int>(c1,c2) ;
-                edge_list.push_back(pair<pair<int,int>,pair<int,int> >(nc,cc)) ;
-              }
-            } else if(dim == 2) { // edges
-              for(int i=start-1;i<end;++i) {
-                int n1 = getHexBin(s)-1 ;
-                int n2 = getHexBin(s)-1 ;
-
-                int c1 = getHexBin(s) ; // cell left side
-                int c2 = getHexBin(s) ; // cell right side
-                if(c2 == 0) {
-                  c2 = -zone ;
-                  zone_map[zone] = 1 ;
-                } else if(c1 == 0) {
-                  c1 = -zone ;
-                  zone_map[zone] = 1 ;
-                  std::swap(c1,c2) ;
-                  std::swap(n1,n2) ;
-                }
-                pair<int,int> nc = pair<int,int>(n1,n2) ;
-                pair<int,int> cc = pair<int,int>(c1,c2) ;
-                edge_list.push_back(pair<pair<int,int>,pair<int,int> >(nc,cc)) ;
-              }
-            } else {
-              cerr << "unsupported face type " << endl ;
-              return -1 ;
-            }
-            getCloseParen(s) ;
-          } else {
-            getOpenParen(s) ;
-            if(dim == 0) { // mixed element type
-              for(int i=start-1;i<end;++i) {
-                int nfaces = getHexBin(s) ;
-                for(int j=0;j<nfaces;++j)
-                  face_info[i][j] = getHexBin(s) ;
-                cl[i] = getHexBin(s) ;
-                cr[i] = getHexBin(s) ;
-                if(cr[i] == 0) {
-                  cr[i] = -zone ;
-                  zone_map[zone] = 1 ;
-                } else if(cl[i] == 0) {
-                  cl[i] = -zone ;
-                  zone_map[zone] = 1 ;
-                  std::swap(cl[i],cr[i]) ;
-                  for(int j=0;j<nfaces/2;++j)
-                    std::swap(face_info[i][j],face_info[i][nfaces-j-1]) ;
-                }
-                count[i] = nfaces ;
-              }
-            } else if(dim == 3) { // triangles
-              for(int i=start-1;i<end;++i) {
-                int nfaces = 3 ;
-                for(int j=0;j<nfaces;++j)
-                  face_info[i][j] = getHexBin(s) ;
-                cl[i] = getHexBin(s) ;
-                cr[i] = getHexBin(s) ;
-                if(cr[i] == 0) {
-                  cr[i] = -zone ;
-                  zone_map[zone] = 1 ;
-                } else if(cl[i] == 0) {
-                  cl[i] = -zone ;
-                  zone_map[zone] = 1 ;
-                  std::swap(cl[i],cr[i]) ;
-                  for(int j=0;j<nfaces/2;++j)
-                    std::swap(face_info[i][j],face_info[i][nfaces-j-1]) ;
-                }
-                count[i] = nfaces ;
-              }
-            } else if(dim == 4) { // quads
-              for(int i=start-1;i<end;++i) {
-                int nfaces = 4 ;
-                for(int j=0;j<nfaces;++j)
-                  face_info[i][j] = getHexBin(s) ;
-                cl[i] = getHexBin(s) ;
-                cr[i] = getHexBin(s) ;
-                if(cr[i] == 0) {
-                  cr[i] = -zone ;
-                  zone_map[zone] = 1 ;
-                } else if(cl[i] == 0) {
-                  cl[i] = -zone ;
-                  zone_map[zone] = 1 ;
-                  std::swap(cl[i],cr[i]) ;
-                  for(int j=0;j<nfaces/2;++j)
-                    std::swap(face_info[i][j],face_info[i][nfaces-j-1]) ;
-                }
-                count[i] = nfaces ;
-              }
-            } else {
-              cerr << "unsupported face type " << endl ;
-              return -1 ;
-            }
-            getCloseParen(s) ;
-          }
-        }
-	getCloseParen(s) ;
-      }
-      break ;
-    case 45: // Boundary names
-      {
-	getOpenParen(s) ;
-	int zoneId = getDecimal(s) ;
-        maxzoneid = max(maxzoneid,zoneId) ;
-	string type = getName(s) ;
-	string name = getName(s) ;
-        if(zone_map.find(zoneId) != zone_map.end()) {
-          VOG::BC_descriptor tmp ;
-          tmp.name = name ;
-          tmp.id = zoneId ;
-          tmp.Trans = false ;
-          bcs.push_back(tmp) ;
-          cout << "Boundary Face: " << zoneId << " " << name << endl ;
-        }
-	getCloseParen(s) ;
-	getCloseParen(s) ;
-      }
-      break ;
-    default:
-      cerr << "unknown section " << code << endl ;
-      cerr << "ignored" << endl ;
-      getCloseParen(s) ;
-      break ;
     }
   }
 
+  
   if(dimension == 2) { // Need to extrude mesh
+    if(P>1) {
+      if(R==0)
+	cerr << "fluent2vog parallel mode is not compatible with 2-D meshes"
+	     << endl ;
+      Loci::Abort() ;
+    }
+	     
     // Create names for two symmetry planes ;
     int s1 = maxzoneid+1 ;
     int s2 = maxzoneid+2 ;
@@ -793,10 +790,10 @@ int main(int ac, char *av[]) {
   
   Loci::Init(&ac,&av) ;
 
-  if(Loci::MPI_processes > 1) {
-    cerr << "fluent2vog does not run multiprocessor" << endl ;
-    Loci::Abort() ;
-  }
+  //  if(Loci::MPI_processes > 1) {
+  //    cerr << "fluent2vog does not run multiprocessor" << endl ;
+  //    Loci::Abort() ;
+  //  }
   string Lref = "NOSCALE" ;
   while(ac>=2 && av[1][0] == '-') {
     // If user specifies an alternate query, extract it from the
@@ -910,16 +907,16 @@ int main(int ac, char *av[]) {
     } ENDFORALL ;
   }
   
-  if(MPI_rank == 0)
-    cerr << "coloring matrix" << endl ;
-  VOG::colorMatrix(pos,cl,cr,face2node) ;
-
   if(optimize) {
     if(MPI_rank == 0) 
       cerr << "optimizing mesh layout" << endl ;
     VOG::optimizeMesh(pos,cl,cr,face2node) ;
   }
   
+  if(MPI_rank == 0)
+    cerr << "coloring matrix" << endl ;
+  VOG::colorMatrix(pos,cl,cr,face2node) ;
+
   if(MPI_rank == 0)
     cerr << "writing VOG file" << endl ;
 
