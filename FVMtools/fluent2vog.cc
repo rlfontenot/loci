@@ -191,7 +191,6 @@ int scanFluentFile(string filename,
   store<int> count ;
   store<int> offsets ;
   vector<int> face_infov ;
-  store<Loci::Array<int,4> > face_info ;
   ifstream s(filename.c_str(),ios::in|ios::binary) ;
   if(s.fail()) {
     return -1 ;
@@ -203,12 +202,14 @@ int scanFluentFile(string filename,
   int n2dpos = 0;
   int dimension = 0 ;
   vector<entitySet> local_nodes(P) ;
+  vector<entitySet> local_faces(P) ;
   if(R == 0) {
     while(!s.eof()) {
       getOpenParen(s) ;
       int code = getDecimal(s) ;
       if(P>1)
 	MPI_Bcast(&code,1,MPI_INT,0,MPI_COMM_WORLD) ;
+
       switch(code) {
       case 0: // comment
 	getString(s) ;
@@ -418,6 +419,17 @@ int scanFluentFile(string filename,
 	{
 	  int start, end, type, dim ;
 	  int zone = getZoneInfo(s,start,end,type,dim) ;
+	  if(P>1) {
+	    MPI_Bcast(&start,1,MPI_INT,0,MPI_COMM_WORLD) ;
+	    MPI_Bcast(&end,1,MPI_INT,0,MPI_COMM_WORLD) ;
+	    MPI_Bcast(&zone,1,MPI_INT,0,MPI_COMM_WORLD) ;
+	  }
+	  if(zone == 0) {
+	    vector<int> face_ptns = VOG::simplePartitionVec(start-1,end-1,P) ;
+	    for(int i=0;i<P;++i) {
+	      local_faces[i] = interval(face_ptns[i],face_ptns[i+1]-1) ;
+	    }
+	  }
 	  bool binary = false ;
 	  if(code == 2013)
 	    binary = true ;
@@ -426,12 +438,13 @@ int scanFluentFile(string filename,
 	    if(dimension == 2) {
 	      cout << "reading " << end-start+1 << " edges." << endl ;
 	    } else {
-	      entitySet dom = interval(start-1,end-1) ;
+	      entitySet dom = local_faces[0] ; //interval(start-1,end-1) ;
 	      cl.allocate(dom) ;
 	      cr.allocate(dom) ;
 	      count.allocate(dom) ;
 	      offsets.allocate(dom) ;
-	      face_info.allocate(dom) ;
+	      face_infov = vector<int>() ;
+	      face_infov.reserve(dom.size()*4) ;
 	    }
 	  } else {
 	    if(dimension == 2) {
@@ -510,7 +523,10 @@ int scanFluentFile(string filename,
 	      getCloseParen(s) ;
 	    } else { // 3-D mesh
 	      getOpenParen(s) ;
-	      for(int i=start-1;i<end;++i) {
+	      entitySet dom = interval(start-1,end-1) ;
+	      entitySet dom0 = dom & local_faces[0] ;
+
+	      FORALL(dom0,i) {
 		int nfaces = 0 ;
 		switch(dim) {
 		case 0:
@@ -528,14 +544,19 @@ int scanFluentFile(string filename,
 		default:
 		  cerr << "unknown face type " << dim << endl ;
 		}
+		
+		count[i] = nfaces ;
+		offsets[i] = face_infov.size() ;
 		if(binary) {
-		  for(int j=0;j<nfaces;++j) 
-		    face_info[i][j] = getHexBin(s) ;
+		  for(int j=0;j<nfaces;++j)  {
+		    face_infov.push_back(getHexBin(s)) ;
+		  }
 		  cl[i] = getHexBin(s) ;
 		  cr[i] = getHexBin(s) ;
 		}else {
-		  for(int j=0;j<nfaces;++j)
-		    face_info[i][j] = getHex(s) ;
+		  for(int j=0;j<nfaces;++j) {
+		    face_infov.push_back(getHex(s)) ;
+		  }
 		  cl[i] = getHex(s) ;
 		  cr[i] = getHex(s) ;
 		}
@@ -547,9 +568,80 @@ int scanFluentFile(string filename,
 		  zone_map[zone] = 1 ;
 		  std::swap(cl[i],cr[i]) ;
 		  for(int j=0;j<nfaces/2;++j)
-		    std::swap(face_info[i][j],face_info[i][nfaces-j-1]) ;
+		    std::swap(face_infov[offsets[i]+j],
+			      face_infov[offsets[i]+nfaces-j-1]) ;
 		}
-		count[i] = nfaces ;
+	      } ENDFORALL ;
+	      // now read in rest of the faces information
+	      for(int j=1;j<P;++j) {
+		entitySet domj = dom&local_faces[j] ;
+		int sz = domj.size() ;
+		if(sz>0) {
+		  Map bcl,bcr ;
+		  store<int> bcount ;
+		  store<int> boffsets ;
+		  vector<int> bface_infov ;
+		  bcl.allocate(domj) ;
+		  bcr.allocate(domj) ;
+		  bcount.allocate(domj) ;
+		  boffsets.allocate(domj) ;
+		  bface_infov.reserve(sz*4) ;
+		  
+		  FORALL(domj,i) {
+		    int nfaces = 0 ;
+		    switch(dim) {
+		    case 0:
+		      if(binary)
+			nfaces = getHexBin(s) ;
+		      else
+			nfaces = getHex(s) ;
+		      break ;
+		    case 3:
+		      nfaces = 3 ;
+		      break ;
+		    case 4:
+		      nfaces = 4 ;
+		      break ;
+		    default:
+		      cerr << "unknown face type " << dim << endl ;
+		    }
+		
+		    bcount[i] = nfaces ;
+		    boffsets[i] = bface_infov.size() ;
+		    if(binary) {
+		      for(int j=0;j<nfaces;++j)  {
+			bface_infov.push_back(getHexBin(s)) ;
+		      }
+		      bcl[i] = getHexBin(s) ;
+		      bcr[i] = getHexBin(s) ;
+		    }else {
+		      for(int j=0;j<nfaces;++j) {
+			bface_infov.push_back(getHex(s)) ;
+		      }
+		      bcl[i] = getHex(s) ;
+		      bcr[i] = getHex(s) ;
+		    }
+		    if(bcr[i] == 0) {
+		      bcr[i] = -zone ;
+		      zone_map[zone] = 1 ;
+		    } else if(bcl[i] == 0) {
+		      bcl[i] = -zone ;
+		      zone_map[zone] = 1 ;
+		      std::swap(bcl[i],bcr[i]) ;
+		      for(int j=0;j<nfaces/2;++j)
+			std::swap(bface_infov[boffsets[i]+j],
+				  bface_infov[boffsets[i]+nfaces-j-1]) ;
+		    }
+		  } ENDFORALL ;
+		  int base = domj.Min() ;
+		  MPI_Send(&bcount[base],sz,MPI_INT,j,20,MPI_COMM_WORLD) ;
+		  MPI_Send(&bcl[base],sz,MPI_INT,j,20,MPI_COMM_WORLD);
+		  MPI_Send(&bcr[base],sz,MPI_INT,j,20,MPI_COMM_WORLD);
+		  int bsz = bface_infov.size() ;
+		  MPI_Send(&bsz,1,MPI_INT,j,20,MPI_COMM_WORLD) ;
+		  MPI_Send(&bface_infov[0],bsz,MPI_INT,j,20,MPI_COMM_WORLD) ;
+		  
+		}
 	      }
 	      getCloseParen(s) ;
 	    }
@@ -633,6 +725,50 @@ int scanFluentFile(string filename,
 	break ;
       case 13:   // Faces (ascii read)
       case 2013: // Faces (binary read)
+	{
+	  int start=0, end=0,zone=0 ;
+	  MPI_Bcast(&start,1,MPI_INT,0,MPI_COMM_WORLD) ;
+	  MPI_Bcast(&end,1,MPI_INT,0,MPI_COMM_WORLD) ;
+	  MPI_Bcast(&zone,1,MPI_INT,0,MPI_COMM_WORLD) ;
+	  if(zone == 0) {
+	    vector<int> face_ptns = VOG::simplePartitionVec(start-1,end-1,P) ;
+	    for(int i=0;i<P;++i) {
+	      local_faces[i] = interval(face_ptns[i],face_ptns[i+1]-1) ;
+	    }
+	    entitySet dom = local_faces[R] ; //interval(start-1,end-1) ;
+	    cl.allocate(dom) ;
+	    cr.allocate(dom) ;
+	    count.allocate(dom) ;
+	    offsets.allocate(dom) ;
+	    face_infov = vector<int>() ;
+	    face_infov.reserve(dom.size()*4) ;
+	  } else {
+	    entitySet dom = interval(start-1,end-1) ;
+	    entitySet domj = dom & local_faces[R] ;
+	    int sz = domj.size() ;
+	    if(sz>0) {
+	      int base = domj.Min() ;
+
+	      MPI_Status status ;
+	      // need to process MPI_Recv calls here
+	      MPI_Recv(&count[base],sz,MPI_INT,0,20,MPI_COMM_WORLD,&status) ;
+	      MPI_Recv(&cl[base],sz,MPI_INT,0,20,MPI_COMM_WORLD,&status) ;
+	      MPI_Recv(&cr[base],sz,MPI_INT,0,20,MPI_COMM_WORLD,&status) ;
+	      int bsz = 0 ;
+	      MPI_Recv(&bsz,1,MPI_INT,0,20,MPI_COMM_WORLD,&status)  ;
+	      int offset = face_infov.size() ;
+	      for(int k=0;k<bsz;++k) {
+		face_infov.push_back(0) ;
+	      }
+	      
+	      MPI_Recv(&face_infov[offset],bsz,MPI_INT,0,20,MPI_COMM_WORLD,&status) ;
+	      FORALL(domj,i) {
+		offsets[i] = offset ;
+		offset += count[i] ;
+	      } ENDFORALL ;
+	    }
+	  }
+	}
 	break ;
       case 45: // Boundary names
 	break ;
@@ -775,7 +911,7 @@ int scanFluentFile(string filename,
     FORALL(dom,ii) {
       int fsz = face2node[ii].size() ;
       for(int j=0;j<fsz;++j)
-        face2node[ii][j] = face_info[ii][fsz-j-1]-1 ;
+        face2node[ii][j] = face_infov[offsets[ii]+fsz-j-1]-1 ;
     } ENDFORALL ;
     return 0 ;
   }
@@ -907,15 +1043,16 @@ int main(int ac, char *av[]) {
     } ENDFORALL ;
   }
   
+  
+  if(MPI_rank == 0)
+    cerr << "coloring matrix" << endl ;
+  VOG::colorMatrix(pos,cl,cr,face2node) ;
+
   if(optimize) {
     if(MPI_rank == 0) 
       cerr << "optimizing mesh layout" << endl ;
     VOG::optimizeMesh(pos,cl,cr,face2node) ;
   }
-  
-  if(MPI_rank == 0)
-    cerr << "coloring matrix" << endl ;
-  VOG::colorMatrix(pos,cl,cr,face2node) ;
 
   if(MPI_rank == 0)
     cerr << "writing VOG file" << endl ;
