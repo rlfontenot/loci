@@ -1402,10 +1402,68 @@ public:
 		    OP_AMPERSAND, OP_DOLLAR, OP_STAR,
 		    OP_OPENPAREN,OP_CLOSEPAREN,OP_OPENBRACKET,OP_CLOSEBRACKET,
 		    OP_OPENBRACE,OP_CLOSEBRACE,
-		    OP_LOCI_DIRECTIVE,OP_LOCI_VARIABLE,OP_LOCI_CONTAINER
+		    OP_LOCI_DIRECTIVE,OP_LOCI_VARIABLE,OP_LOCI_CONTAINER,
+		    TK_BRACEBLOCK=0x2000,
+		    TK_SCOPE,
+		    TK_AT, // For using @ to separate namespaces
+		    // Traditional C operators
+		    TK_ARROW, 
+		    TK_TIMES, TK_DIVIDE, TK_MODULUS,
+		    TK_PLUS, TK_MINUS, 
+		    TK_SHIFT_RIGHT, TK_SHIFT_LEFT,
+		    TK_LT, TK_GT, TK_GE, TK_LE,
+		    TK_EQUAL, TK_NOT_EQUAL, 
+		    TK_AND, TK_EXOR, TK_OR,
+		    TK_LOGICAL_AND, TK_LOGICAL_OR, 
+		    TK_ASSIGN,
+		    TK_TIMES_ASSIGN,
+		    TK_DIVIDE_ASSIGN,
+		    TK_MODULUS_ASSIGN,
+		    TK_PLUS_ASSIGN,
+		    TK_MINUS_ASSIGN,
+		    TK_SHIFT_LEFT_ASSIGN,
+		    TK_SHIFT_RIGHT_ASSIGN,
+		    TK_AND_ASSIGN,
+		    TK_OR_ASSIGN,
+		    TK_EXOR_ASSIGN,
+		    TK_COMMA, TK_DOT,
+		    TK_COLON,
+		    TK_SEMICOLON,
+		    // terminal for empty statement
+		    TK_NIL,
+		    // terminals for variable name, function, array or name{args}
+		    TK_INCREMENT,TK_DECREMENT,TK_COMMENT,
+		    TK_NAME, TK_FUNC, TK_ARRAY, TK_NAME_BRACE, TK_FUNC_BRACE,
+		    // terminal for string, integer, or unspecified error condition
+		    TK_STRING, TK_NUMBER, TK_ERROR,
+		    // Unary operations
+		    TK_UNARY_PLUS, TK_UNARY_MINUS, TK_NOT, TK_TILDE,
+		    TK_AMPERSAND, TK_DOLLAR, TK_STAR,
+		    TK_OPENPAREN,TK_CLOSEPAREN,TK_OPENBRACKET,TK_CLOSEBRACKET,
+		    TK_OPENBRACE,TK_CLOSEBRACE,
+		    TK_LOCI_DIRECTIVE,TK_LOCI_VARIABLE,TK_LOCI_CONTAINER,
+		    // Now the keywords
+		    TK_ALIGNAS, TK_ALIGNOF, TK_ASM, 
+		    TK_BOOL,TK_FALSE,TK_TRUE,TK_CHAR,TK_INT,TK_LONG,
+		    TK_SHORT,TK_SIGNED,TK_UNSIGNED,TK_DOUBLE,TK_FLOAT,TK_ENUM,
+		    TK_MUTABLE,TK_CONST,TK_STATIC,TK_VOLATILE,TK_AUTO,
+		    TK_REGISTER,TK_EXPORT,TK_EXTERN,TK_INLINE,TK_NAMESPACE,
+		    TK_EXPLICIT,TK_DYNAMIC_CAST,TK_STATIC_CAST,
+		    TK_REINTERPRET_CAST,
+		    TK_OPERATOR,TK_PROTECTED,TK_NOEXCEPT,TK_NULLPTR,
+		    TK_RETURN,TK_SIZEOF,TK_THIS,TK_TYPEID,
+		    TK_SWITCH,TK_CASE,TK_BREAK,TK_DEFAULT,
+		    TK_FOR,TK_DO,TK_WHILE,TK_CONTINUE,
+		    TK_CLASS,TK_STRUCT,TK_PUBLIC,TK_PRIVATE,TK_FRIEND,
+		    TK_UNION,TK_TYPENAME,TK_TEMPLATE,TK_TYPEDEF,
+		    TK_VIRTUAL,TK_VOID,TK_TRY,TK_CATCH,TK_THROW,
+		    TK_IF,TK_ELSE,TK_GOTO,TK_NEW,TK_DELETE
+		    
+		    
 		    
   } ;
   elementType nodeType ;
+  virtual void DiagPrint(ostream &s, int &line) const = 0 ;
   
 } ;
 
@@ -1413,14 +1471,29 @@ class AST_Token : public AST_type {
 public:
   string text ;
   int lineno ;
+  void DiagPrint(ostream &s, int &line) const {
+    if(line != lineno) {
+      cout << endl ;
+      if(line+1 != lineno) {
+	cout << "#line " << lineno << endl ;
+      }
+      line = lineno ;
+    }
+    s <<text << ' ' ;
+  }
+
 } ;
 
 class AST_Block : public AST_type {
 public:
   ASTList elements ;
+  void DiagPrint(ostream &s, int &lineno) const {
+    for(ASTList::const_iterator ii=elements.begin();ii!=elements.end();++ii)
+      (*ii)->DiagPrint(s,lineno) ;
+  }
 } ;
 
-AST_type::ASTP getNumberToken(std::istream &is, int &linecount) {
+CPTR<AST_Token> getNumberToken(std::istream &is, int &linecount) {
   // Process elements that start with 0-9, '.'
   CPTR<AST_Token> AST_data = new AST_Token() ;
   AST_data->lineno = linecount ;
@@ -1430,14 +1503,14 @@ AST_type::ASTP getNumberToken(std::istream &is, int &linecount) {
     numberdata += is.get() ;
     if(is.peek() <'0' || is.peek() > '9') {
       // Not a floating point number
-      AST_data->nodeType = AST_type::OP_DOT ;
+      AST_data->nodeType = AST_type::TK_DOT ;
       AST_data->text = numberdata ;
-      return AST_type::ASTP(AST_data) ;
+      return AST_data ;
     }
     hasPoint = true ;
   }
   if((is.peek() >= '0' && is.peek() <='9')) {
-    AST_data->nodeType = AST_type::OP_NUMBER ;
+    AST_data->nodeType = AST_type::TK_NUMBER ;
     string numberdata ;
     if(is.peek() == '0' && !hasPoint) {
       // This path is either binary, octal, or hexidecimal
@@ -1450,12 +1523,12 @@ AST_type::ASTP getNumberToken(std::istream &is, int &linecount) {
 	  numberdata += is.get() ;
 	}
 	if(numberdata.size() == 2)
-	  AST_data->nodeType = AST_type::OP_ERROR ;
+	  AST_data->nodeType = AST_type::TK_ERROR ;
 	while(is.peek() == 'l' || is.peek() =='L' ||
 	      is.peek() == 'u' || is.peek() =='U')
 	  numberdata += is.get() ;
 	AST_data->text = numberdata ;
-	return AST_type::ASTP(AST_data) ;
+	return AST_data ;
       }
       if(is.peek() == 'b' || is.peek() == 'B') { // binary number
 	numberdata += is.get() ;
@@ -1463,24 +1536,24 @@ AST_type::ASTP getNumberToken(std::istream &is, int &linecount) {
 	  numberdata += is.get() ;
 	}
 	if(numberdata.size() == 2 || (is.peek() >= '2' && is.peek() <='9'))
-	  AST_data->nodeType = AST_type::OP_ERROR ;
+	  AST_data->nodeType = AST_type::TK_ERROR ;
 	while(is.peek() == 'l' || is.peek() =='L' ||
 	      is.peek() == 'u' || is.peek() =='U')
 	  numberdata += is.get() ;
 	AST_data->text = numberdata ;
-	return AST_type::ASTP(AST_data) ;
+	return AST_data ;
       }
       // octal number
       while(is.peek() >= '0' && is.peek() <= '7') {
 	numberdata += is.get() ;
       }
       if(is.peek() >= '8' && is.peek() <='9')
-	AST_data->nodeType = AST_type::OP_ERROR ;
+	AST_data->nodeType = AST_type::TK_ERROR ;
       while(is.peek() == 'l' || is.peek() =='L' ||
 	    is.peek() == 'u' || is.peek() =='U')
 	numberdata += is.get() ;
       AST_data->text = numberdata ;
-      return AST_type::ASTP(AST_data) ;
+      return AST_data ;
     }
     while(is.peek() >= '0' && is.peek() <= '9') {
       numberdata += is.get() ;
@@ -1511,26 +1584,111 @@ AST_type::ASTP getNumberToken(std::istream &is, int &linecount) {
 	numberdata += is.get() ;
     }
     AST_data->text=numberdata ;
-    return AST_type::ASTP(AST_data) ;
+    return AST_data ;
   }
   AST_data->text=numberdata ;
-  AST_data->nodeType = AST_type::OP_ERROR ;
-  return AST_type::ASTP(AST_data) ;
+  AST_data->nodeType = AST_type::TK_ERROR ;
+  return AST_data ;
 }
-AST_type::ASTP getToken(std::istream &is, int &linecount) {
+
+struct keywords {
+  const char *keyword ;
+  AST_type::elementType nodeType;
+} ;
+
+keywords keywordDictionary[] = {
+				"alignas", AST_type::TK_ALIGNAS,
+				"alignof", AST_type::TK_ALIGNOF,
+				"and", AST_type::TK_LOGICAL_AND,
+				"and_eq", AST_type::TK_AND_ASSIGN,
+				"asm", AST_type::TK_ASM,
+				"auto", AST_type::TK_AUTO,
+				"bitand", AST_type::TK_AND,
+				"bitor", AST_type::TK_OR,
+				"bool", AST_type::TK_BOOL,
+				"break", AST_type::TK_BREAK,
+				"case", AST_type::TK_CASE,
+				"catch", AST_type::TK_CATCH,
+				"char", AST_type::TK_CHAR,
+				"class", AST_type::TK_CLASS,
+				"const", AST_type::TK_CONST,
+				"continue", AST_type::TK_CONTINUE,
+				"default", AST_type::TK_DEFAULT,
+				"delete", AST_type::TK_DELETE,
+				"double", AST_type::TK_DOUBLE,
+				"do", AST_type::TK_DO,
+				"dynamic_cast", AST_type::TK_DYNAMIC_CAST,
+				"else", AST_type::TK_ELSE,
+				"enum", AST_type::TK_ENUM,
+				"explicit", AST_type::TK_EXPLICIT,
+				"export", AST_type::TK_EXPORT,
+				"extern", AST_type::TK_EXTERN,
+				"false", AST_type::TK_FALSE,
+				"float", AST_type::TK_FLOAT,
+				"for", AST_type::TK_FOR,
+				"friend", AST_type::TK_FRIEND,
+				"goto", AST_type::TK_GOTO,
+				"if", AST_type::TK_IF,
+				"inline", AST_type::TK_INLINE,
+				"int", AST_type::TK_INT,
+				"long", AST_type::TK_LONG,
+				"mutable", AST_type::TK_MUTABLE,
+				"namespace", AST_type::TK_NAMESPACE,
+				"new", AST_type::TK_NEW,
+				"noexcept", AST_type::TK_NOEXCEPT,
+				"not", AST_type::TK_NOT,
+				"not_eq", AST_type::TK_EQUAL,
+				"nullptr", AST_type::TK_NULLPTR,
+				"operator", AST_type::TK_OPERATOR,
+				"or", AST_type::TK_LOGICAL_OR,
+				"or_eq", AST_type::TK_OR_ASSIGN,
+				"private", AST_type::TK_PRIVATE,
+				"protected",AST_type::TK_PROTECTED,
+				"public", AST_type::TK_PUBLIC,
+				"register", AST_type::TK_REGISTER,
+				"reinterpret_cast", AST_type::TK_REINTERPRET_CAST,
+				"return", AST_type::TK_RETURN,
+				"short", AST_type::TK_SHORT,
+				"signed", AST_type::TK_SIGNED,
+				"sizeof", AST_type::TK_SIZEOF,
+				"static", AST_type::TK_STATIC,
+				"static_cast", AST_type::TK_STATIC_CAST,
+				"struct", AST_type::TK_STRUCT,
+				"switch", AST_type::TK_SWITCH,
+				"template", AST_type::TK_TEMPLATE,
+				"this", AST_type::TK_THIS,
+				"throw", AST_type::TK_THROW,
+				"true", AST_type::TK_TRUE,
+				"try", AST_type::TK_TRY,
+				"typedef", AST_type::TK_TYPEDEF,
+				"typeid", AST_type::TK_TYPEID,
+				"typename", AST_type::TK_TYPENAME,
+				"union", AST_type::TK_UNION,
+				"unsigned", AST_type::TK_UNSIGNED,
+				"virtual", AST_type::TK_VIRTUAL,
+				"void", AST_type::TK_VOID,
+				"volatile", AST_type::TK_VOLATILE,
+				"while", AST_type::TK_WHILE,
+				"xor",  AST_type::TK_EXOR,
+				"xor_eq", AST_type::TK_EXOR_ASSIGN
+			       
+} ;
+				
+
+CPTR<AST_Token> getToken(std::istream &is, int &linecount) {
   killsp(is,linecount) ;
   if(is.fail() || is.eof()) {
     CPTR<AST_Token> AST_data = new AST_Token() ;
     AST_data->lineno = linecount ;
-    AST_data->nodeType = AST_type::OP_ERROR ;
-    return AST_type::ASTP(AST_data) ;
+    AST_data->nodeType = AST_type::TK_ERROR ;
+    return AST_data ;
   }
   if(is_name(is)) {
     CPTR<AST_Token> AST_data = new AST_Token() ;
-    AST_data->nodeType = AST_type::OP_NAME ;
+    AST_data->nodeType = AST_type::TK_NAME ;
     AST_data->text = get_name(is) ;
     AST_data->lineno = linecount ;
-    return AST_type::ASTP(AST_data) ;
+    return AST_data ;
   }
   if(is.peek() == '.' || (is.peek() >= '0' && is.peek() <='9')) {
     return getNumberToken(is,linecount) ;
@@ -1542,55 +1700,55 @@ AST_type::ASTP getToken(std::istream &is, int &linecount) {
   case '+':
     if(is.peek()=='+') {
       AST_data->text += is.get() ;
-      AST_data->nodeType = AST_type::OP_INCREMENT ;
-      return AST_type::ASTP(AST_data) ;
+      AST_data->nodeType = AST_type::TK_INCREMENT ;
+      return AST_data ;
     }
     if(is.peek()=='=') {
       AST_data->text += is.get() ;
-      AST_data->nodeType = AST_type::OP_PLUS_ASSIGN ;
-      return AST_type::ASTP(AST_data) ;
+      AST_data->nodeType = AST_type::TK_PLUS_ASSIGN ;
+      return AST_data ;
     }
-    AST_data->nodeType = AST_type::OP_PLUS ;
-    return AST_type::ASTP(AST_data) ;
+    AST_data->nodeType = AST_type::TK_PLUS ;
+    return AST_data ;
   case '-':
     if(is.peek()=='-') {
       AST_data->text += is.get() ;
-      AST_data->nodeType = AST_type::OP_DECREMENT ;
-      return AST_type::ASTP(AST_data) ;
+      AST_data->nodeType = AST_type::TK_DECREMENT ;
+      return AST_data ;
     }
     if(is.peek()=='=') {
       AST_data->text += is.get() ;
-      AST_data->nodeType = AST_type::OP_MINUS_ASSIGN ;
-      return AST_type::ASTP(AST_data) ;
+      AST_data->nodeType = AST_type::TK_MINUS_ASSIGN ;
+      return AST_data ;
     }
     if(is.peek()=='>') {
       AST_data->text += is.get() ;
-      AST_data->nodeType = AST_type::OP_ARROW ;
-      return AST_type::ASTP(AST_data) ;
+      AST_data->nodeType = AST_type::TK_ARROW ;
+      return AST_data ;
     }      
-    AST_data->nodeType = AST_type::OP_MINUS ;
-    return AST_type::ASTP(AST_data) ;
+    AST_data->nodeType = AST_type::TK_MINUS ;
+    return AST_data ;
   case '*':
     if(is.peek()=='=') {
       AST_data->text += is.get() ;
-      AST_data->nodeType = AST_type::OP_TIMES_ASSIGN ;
-      return AST_type::ASTP(AST_data) ;
+      AST_data->nodeType = AST_type::TK_TIMES_ASSIGN ;
+      return AST_data ;
     }
-    AST_data->nodeType = AST_type::OP_TIMES ;
-    return AST_type::ASTP(AST_data) ;
+    AST_data->nodeType = AST_type::TK_TIMES ;
+    return AST_data ;
   case '/':
     if(is.peek()=='=') {
       AST_data->text += is.get() ;
-      AST_data->nodeType = AST_type::OP_DIVIDE_ASSIGN ;
-      return AST_type::ASTP(AST_data) ;
+      AST_data->nodeType = AST_type::TK_DIVIDE_ASSIGN ;
+      return AST_data ;
     }
     if(is.peek()=='/') {
       AST_data->text += is.get() ;
       while(is.peek() != '\n' && !is.eof() && !is.fail()) {
 	AST_data->text += is.get() ;
       }
-      AST_data->nodeType = AST_type::OP_COMMENT ;
-      return AST_type::ASTP(AST_data) ;
+      AST_data->nodeType = AST_type::TK_COMMENT ;
+      return AST_data ;
     }
     if(is.peek()=='*') {
       AST_data->text += is.get() ;
@@ -1601,8 +1759,8 @@ AST_type::ASTP getToken(std::istream &is, int &linecount) {
 	  AST_data->text += is.get() ;
 	  if(is.peek() == '/') {
 	    AST_data->text = is.get() ;
-	    AST_data->nodeType=AST_type::OP_COMMENT ;
-	    return AST_type::ASTP(AST_data) ;
+	    AST_data->nodeType=AST_type::TK_COMMENT ;
+	    return AST_data ;
 	  }
 	} else {
 	  if(is.peek() == '\n')
@@ -1610,131 +1768,131 @@ AST_type::ASTP getToken(std::istream &is, int &linecount) {
 	  AST_data->text += is.get() ;
 	}
       }
-      AST_data->nodeType=AST_type::OP_ERROR ;
-      return AST_type::ASTP(AST_data) ;
+      AST_data->nodeType=AST_type::TK_ERROR ;
+      return AST_data ;
     }
-    AST_data->nodeType = AST_type::OP_DIVIDE ;
-    return AST_type::ASTP(AST_data) ;
+    AST_data->nodeType = AST_type::TK_DIVIDE ;
+    return AST_data ;
   case '%':
     if(is.peek()=='=') {
       AST_data->text += is.get() ;
-      AST_data->nodeType = AST_type::OP_MODULUS_ASSIGN ;
-      return AST_type::ASTP(AST_data) ;
+      AST_data->nodeType = AST_type::TK_MODULUS_ASSIGN ;
+      return AST_data ;
     }
-    AST_data->nodeType = AST_type::OP_MODULUS ;
-    return AST_type::ASTP(AST_data) ;
+    AST_data->nodeType = AST_type::TK_MODULUS ;
+    return AST_data ;
   case ',':
-    AST_data->nodeType = AST_type::OP_COMMA ;
-    return AST_type::ASTP(AST_data) ;
+    AST_data->nodeType = AST_type::TK_COMMA ;
+    return AST_data ;
   case '@':
-    AST_data->nodeType = AST_type::OP_AT ;
-    return AST_type::ASTP(AST_data) ;
+    AST_data->nodeType = AST_type::TK_AT ;
+    return AST_data ;
   case '&':
     if(is.peek() == '&' ) {
       AST_data->text += is.get() ;
-      AST_data->nodeType = AST_type::OP_LOGICAL_AND ;
-      return AST_type::ASTP(AST_data) ;
+      AST_data->nodeType = AST_type::TK_LOGICAL_AND ;
+      return AST_data ;
     }
     if(is.peek() == '=' ) {
       AST_data->text += is.get() ;
-      AST_data->nodeType = AST_type::OP_AND_ASSIGN ;
-      return AST_type::ASTP(AST_data) ;
+      AST_data->nodeType = AST_type::TK_AND_ASSIGN ;
+      return AST_data ;
     }
-    AST_data->nodeType = AST_type::OP_AND ;
-    return AST_type::ASTP(AST_data) ;
+    AST_data->nodeType = AST_type::TK_AND ;
+    return AST_data ;
   case '|':
     if(is.peek() != '|') {
       AST_data->text += is.get() ;
-      AST_data->nodeType = AST_type::OP_LOGICAL_OR ;
-      return AST_type::ASTP(AST_data) ;
+      AST_data->nodeType = AST_type::TK_LOGICAL_OR ;
+      return AST_data ;
     }
     if(is.peek() == '=' ) {
       AST_data->text += is.get() ;
-      AST_data->nodeType = AST_type::OP_OR_ASSIGN ;
-      return AST_type::ASTP(AST_data) ;
+      AST_data->nodeType = AST_type::TK_OR_ASSIGN ;
+      return AST_data ;
     }
-    AST_data->nodeType = AST_type::OP_OR ;
-    return AST_type::ASTP(AST_data) ;
+    AST_data->nodeType = AST_type::TK_OR ;
+    return AST_data ;
   case '^':
     if(is.peek() == '=') {
       AST_data->text += is.get() ;
-      AST_data->nodeType = AST_type::OP_EXOR_ASSIGN ;
-      return AST_type::ASTP(AST_data) ;
-      return AST_type::ASTP(AST_data) ;
+      AST_data->nodeType = AST_type::TK_EXOR_ASSIGN ;
+      return AST_data ;
     }
-    AST_data->nodeType = AST_type::OP_EXOR ;
-    return AST_type::ASTP(AST_data) ;
+    AST_data->nodeType = AST_type::TK_EXOR ;
+    return AST_data ;
   case '=':
     if(is.peek() == '=') {
       AST_data->text += is.get() ;
-      AST_data->nodeType = AST_type::OP_EQUAL ;
-      return AST_type::ASTP(AST_data) ;
+      AST_data->nodeType = AST_type::TK_EQUAL ;
+      return AST_data ;
     }
-    AST_data->nodeType = AST_type::OP_ASSIGN ;
-    return AST_type::ASTP(AST_data) ;
+    AST_data->nodeType = AST_type::TK_ASSIGN ;
+    return AST_data ;
   case '!':
     if(is.peek() == '=') {
       AST_data->text += is.get() ;
-      AST_data->nodeType = AST_type::OP_NOT_EQUAL ;
-      return AST_type::ASTP(AST_data) ;
+      AST_data->nodeType = AST_type::TK_NOT_EQUAL ;
+      return AST_data ;
     }
-    AST_data->nodeType = AST_type::OP_NOT ;
-    return AST_type::ASTP(AST_data) ;
+    AST_data->nodeType = AST_type::TK_NOT ;
+    return AST_data ;
   case ':':
     if(is.peek() == ':') {
       AST_data->text += is.get() ;
-      AST_data->nodeType = AST_type::OP_SCOPE ;
-      return AST_type::ASTP(AST_data) ;
+      AST_data->nodeType = AST_type::TK_SCOPE ;
+      return AST_data ;
     }
-    AST_data->nodeType = AST_type::OP_COLON ;
-    return AST_type::ASTP(AST_data) ;
+
+    AST_data->nodeType = AST_type::TK_COLON ;
+    return AST_data ;
   case '<':
     if(is.peek() == '=') {
       AST_data->text += is.get() ;
-      AST_data->nodeType = AST_type::OP_LE ;
-      return AST_type::ASTP(AST_data) ;
+      AST_data->nodeType = AST_type::TK_LE ;
+      return AST_data ;
     }
     if(is.peek() == '<') {
       AST_data->text += is.get() ;
       if(is.peek() == '=') {
 	AST_data->text += is.get() ;
-	AST_data->nodeType = AST_type::OP_SHIFT_LEFT_ASSIGN ;
-	return AST_type::ASTP(AST_data) ;
+	AST_data->nodeType = AST_type::TK_SHIFT_LEFT_ASSIGN ;
+	return AST_data ;
       }
-      AST_data->nodeType = AST_type::OP_SHIFT_LEFT ;
-      return AST_type::ASTP(AST_data) ;
+      AST_data->nodeType = AST_type::TK_SHIFT_LEFT ;
+      return AST_data ;
     }
-    AST_data->nodeType = AST_type::OP_LT ;
-    return AST_type::ASTP(AST_data) ;
+    AST_data->nodeType = AST_type::TK_LT ;
+    return AST_data ;
   case '>':
     if(is.peek() == '=') {
       AST_data->text += is.get() ;
-      AST_data->nodeType = AST_type::OP_GE ;
-      return AST_type::ASTP(AST_data) ;
+      AST_data->nodeType = AST_type::TK_GE ;
+      return AST_data ;
     }
     if(is.peek() == '>') {
       AST_data->text += is.get() ;
       if(is.peek() == '=') {
 	AST_data->text += is.get() ;
-	AST_data->nodeType = AST_type::OP_SHIFT_RIGHT_ASSIGN ;
-	return AST_type::ASTP(AST_data) ;
+	AST_data->nodeType = AST_type::TK_SHIFT_RIGHT_ASSIGN ;
+	return AST_data ;
       }
-      AST_data->nodeType = AST_type::OP_SHIFT_RIGHT ;
-      return AST_type::ASTP(AST_data) ;
+      AST_data->nodeType = AST_type::TK_SHIFT_RIGHT ;
+      return AST_data ;
     }
-    AST_data->nodeType = AST_type::OP_GT ;
-    return AST_type::ASTP(AST_data) ;
+    AST_data->nodeType = AST_type::TK_GT ;
+    return AST_data ;
   case '~':
-    AST_data->nodeType = AST_type::OP_TILDE ;
-    return AST_type::ASTP(AST_data) ;
+    AST_data->nodeType = AST_type::TK_TILDE ;
+    return AST_data ;
   case '"':
     while(is.peek() != '"' && !is.eof() && !is.fail()) {
       AST_data->text += is.get() ;
     }
     if(is.peek() == '"') {
       AST_data->text += is.get() ;
-      AST_data->nodeType = AST_type::OP_STRING ;
-      return AST_type::ASTP(AST_data) ;
+      AST_data->nodeType = AST_type::TK_STRING ;
+      return AST_data ;
     }
     break ;
   case '\'':
@@ -1743,32 +1901,31 @@ AST_type::ASTP getToken(std::istream &is, int &linecount) {
     }
     if(is.peek() == '\'') {
       AST_data->text += is.get() ;
-      AST_data->nodeType = AST_type::OP_STRING ;
-      return AST_type::ASTP(AST_data) ;
+      AST_data->nodeType = AST_type::TK_STRING ;
+      return AST_data ;
     }
     break ;
   case ';':
-    AST_data->nodeType = AST_type::OP_SEMICOLON ;
-    return AST_type::ASTP(AST_data) ;
+    AST_data->nodeType = AST_type::TK_SEMICOLON ;
+    return AST_data ;
   case '(':
-    AST_data->nodeType = AST_type::OP_OPENPAREN ;
-    return AST_type::ASTP(AST_data) ;
+    AST_data->nodeType = AST_type::TK_OPENPAREN ;
+    return AST_data ;
   case ')':
-    AST_data->nodeType = AST_type::OP_CLOSEPAREN ;
-    return AST_type::ASTP(AST_data) ;
+    AST_data->nodeType = AST_type::TK_CLOSEPAREN ;
+    return AST_data ;
   case '[':
-    AST_data->nodeType = AST_type::OP_OPENBRACKET ;
-    return AST_type::ASTP(AST_data) ;
+    AST_data->nodeType = AST_type::TK_OPENBRACKET ;
+    return AST_data ;
   case ']':
-    AST_data->nodeType = AST_type::OP_CLOSEBRACKET ;
-    return AST_type::ASTP(AST_data) ;
+    AST_data->nodeType = AST_type::TK_CLOSEBRACKET ;
+    return AST_data ;
   case '{':
-    AST_data->nodeType = AST_type::OP_OPENBRACE ;
-    return AST_type::ASTP(AST_data) ;
+    AST_data->nodeType = AST_type::TK_OPENBRACE ;
+    return AST_data ;
   case '}':
-    AST_data->nodeType = AST_type::OP_CLOSEBRACE ;
-    return AST_type::ASTP(AST_data) ;
-
+    AST_data->nodeType = AST_type::TK_CLOSEBRACE ;
+    return AST_data ;
   case '$':
     // Now we have a Loci variable or a Loci command
     if(is.peek() == '[') { // This is a Loci command
@@ -1787,12 +1944,12 @@ AST_type::ASTP getToken(std::istream &is, int &linecount) {
 	  AST_data->text += is.get() ;
       }
       AST_data->text += is.get() ;
-      AST_data->nodeType = AST_type::OP_LOCI_DIRECTIVE ;
-      return AST_type::ASTP(AST_data) ;
+      AST_data->nodeType = AST_type::TK_LOCI_DIRECTIVE ;
+      return AST_data ;
     }
-    AST_data->nodeType = AST_type::OP_LOCI_VARIABLE ;
+    AST_data->nodeType = AST_type::TK_LOCI_VARIABLE ;
     if(is.peek() == '*') {
-      AST_data->nodeType = AST_type::OP_LOCI_CONTAINER ;
+      AST_data->nodeType = AST_type::TK_LOCI_CONTAINER ;
       AST_data->text += is.peek() ;
     }
     if(!is.fail() && !is.eof() &&
@@ -1830,27 +1987,30 @@ AST_type::ASTP getToken(std::istream &is, int &linecount) {
       }
 
     }
-    return AST_type::ASTP(AST_data) ;
+    return AST_data ;
   } 
      
       
-  AST_data->nodeType = AST_type::OP_ERROR ;
-  return AST_type::ASTP(AST_data) ;
+  AST_data->nodeType = AST_type::TK_ERROR ;
+  return AST_data ;
 
 }
 
+//AST_type::ASTP getStatement(std::istream &is, int &linecount) {
+//  AST_type::ASTP token = getToken(is,linecount) ;
+//}
 AST_type::ASTP parseBlock(std::istream &is, int &linecount) {
-  CPTR<AST_Block> AST_data ;
-  AST_data->nodeType = AST_type::OP_BRACEBLOCK ;
+  CPTR<AST_Block> AST_data = new AST_Block ;
+  AST_data->nodeType = AST_type::TK_BRACEBLOCK ;
 
-  AST_type::ASTP token = getToken(is,linecount) ;
-  if(token->nodeType != AST_type::OP_OPENBRACE) {
-    token->nodeType = AST_type::OP_ERROR ;
+  AST_type::ASTP token = AST_type::ASTP(getToken(is,linecount)) ;
+  if(token->nodeType != AST_type::TK_OPENBRACE) {
+    token->nodeType = AST_type::TK_ERROR ;
     return token ;
   }
-  while(token->nodeType != AST_type::OP_CLOSEBRACE) {
+  while(token->nodeType != AST_type::TK_CLOSEBRACE) {
     AST_data->elements.push_back(token) ;
-    token = getToken(is,linecount) ;
+    token = AST_type::ASTP(getToken(is,linecount)) ;
     if(is.fail() || is.eof()) 
       break ;
   }
@@ -1859,7 +2019,10 @@ AST_type::ASTP parseBlock(std::istream &is, int &linecount) {
 }
 
 void parseFile::setup_Test(std::ostream &outputFile) {
-  
+  CPTR<AST_type> ap = parseBlock(is,line_no) ;
+  outputFile << "Parsed TEST:" << endl ;
+  int lineno=-1 ;
+  ap->DiagPrint(outputFile,lineno) ;
 }
 
 void parseFile::setup_Rule(std::ostream &outputFile) {
