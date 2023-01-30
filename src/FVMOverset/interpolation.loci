@@ -1784,7 +1784,7 @@ namespace Loci {
 
   $rule pointwise(iblankCell<-interpolateCellStencil,iblank,
 		  upper->cr->(iblank), lower->cl->(iblank),
-		  (upper,lower)->area), constraint(iblank,componentGeometry),
+		  (upper,lower)->area), constraint(iblank,componentGeometry,geom_cells),
   option(disable_threading),
   prelude {
     MEMORY_PROFILE(compute_start) ;
