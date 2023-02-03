@@ -230,6 +230,8 @@ public:
     if(s.peek() != '(')
       return s ;
     char c = s.get();
+    if(c != '(')
+      return s ; // should never get here, silence compiler warning
     parsebase::killsp(s) ;
     for(;;) {
       T tmp ;
@@ -272,7 +274,7 @@ public:
   }
 } ;
   
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
 #endif
 template<class T> class templlist : public parsebase {
@@ -1597,83 +1599,98 @@ struct keywords {
 } ;
 
 keywords keywordDictionary[] = {
-				"alignas", AST_type::TK_ALIGNAS,
-				"alignof", AST_type::TK_ALIGNOF,
-				"and", AST_type::TK_LOGICAL_AND,
-				"and_eq", AST_type::TK_AND_ASSIGN,
-				"asm", AST_type::TK_ASM,
-				"auto", AST_type::TK_AUTO,
-				"bitand", AST_type::TK_AND,
-				"bitor", AST_type::TK_OR,
-				"bool", AST_type::TK_BOOL,
-				"break", AST_type::TK_BREAK,
-				"case", AST_type::TK_CASE,
-				"catch", AST_type::TK_CATCH,
-				"char", AST_type::TK_CHAR,
-				"class", AST_type::TK_CLASS,
-				"const", AST_type::TK_CONST,
-				"continue", AST_type::TK_CONTINUE,
-				"default", AST_type::TK_DEFAULT,
-				"delete", AST_type::TK_DELETE,
-				"double", AST_type::TK_DOUBLE,
-				"do", AST_type::TK_DO,
-				"dynamic_cast", AST_type::TK_DYNAMIC_CAST,
-				"else", AST_type::TK_ELSE,
-				"enum", AST_type::TK_ENUM,
-				"explicit", AST_type::TK_EXPLICIT,
-				"export", AST_type::TK_EXPORT,
-				"extern", AST_type::TK_EXTERN,
-				"false", AST_type::TK_FALSE,
-				"float", AST_type::TK_FLOAT,
-				"for", AST_type::TK_FOR,
-				"friend", AST_type::TK_FRIEND,
-				"goto", AST_type::TK_GOTO,
-				"if", AST_type::TK_IF,
-				"inline", AST_type::TK_INLINE,
-				"int", AST_type::TK_INT,
-				"long", AST_type::TK_LONG,
-				"mutable", AST_type::TK_MUTABLE,
-				"namespace", AST_type::TK_NAMESPACE,
-				"new", AST_type::TK_NEW,
-				"noexcept", AST_type::TK_NOEXCEPT,
-				"not", AST_type::TK_NOT,
-				"not_eq", AST_type::TK_EQUAL,
-				"nullptr", AST_type::TK_NULLPTR,
-				"operator", AST_type::TK_OPERATOR,
-				"or", AST_type::TK_LOGICAL_OR,
-				"or_eq", AST_type::TK_OR_ASSIGN,
-				"private", AST_type::TK_PRIVATE,
-				"protected",AST_type::TK_PROTECTED,
-				"public", AST_type::TK_PUBLIC,
-				"register", AST_type::TK_REGISTER,
-				"reinterpret_cast", AST_type::TK_REINTERPRET_CAST,
-				"return", AST_type::TK_RETURN,
-				"short", AST_type::TK_SHORT,
-				"signed", AST_type::TK_SIGNED,
-				"sizeof", AST_type::TK_SIZEOF,
-				"static", AST_type::TK_STATIC,
-				"static_cast", AST_type::TK_STATIC_CAST,
-				"struct", AST_type::TK_STRUCT,
-				"switch", AST_type::TK_SWITCH,
-				"template", AST_type::TK_TEMPLATE,
-				"this", AST_type::TK_THIS,
-				"throw", AST_type::TK_THROW,
-				"true", AST_type::TK_TRUE,
-				"try", AST_type::TK_TRY,
-				"typedef", AST_type::TK_TYPEDEF,
-				"typeid", AST_type::TK_TYPEID,
-				"typename", AST_type::TK_TYPENAME,
-				"union", AST_type::TK_UNION,
-				"unsigned", AST_type::TK_UNSIGNED,
-				"virtual", AST_type::TK_VIRTUAL,
-				"void", AST_type::TK_VOID,
-				"volatile", AST_type::TK_VOLATILE,
-				"while", AST_type::TK_WHILE,
-				"xor",  AST_type::TK_EXOR,
-				"xor_eq", AST_type::TK_EXOR_ASSIGN
-			       
+  {"alignas", AST_type::TK_ALIGNAS},
+  {"alignof", AST_type::TK_ALIGNOF},
+  {"and", AST_type::TK_LOGICAL_AND},
+  {"and_eq", AST_type::TK_AND_ASSIGN},
+  {"asm", AST_type::TK_ASM},
+  {"auto", AST_type::TK_AUTO},
+  {"bitand", AST_type::TK_AND},
+  {"bitor", AST_type::TK_OR},
+  {"bool", AST_type::TK_BOOL},
+  {"break", AST_type::TK_BREAK},
+  {"case", AST_type::TK_CASE},
+  {"catch", AST_type::TK_CATCH},
+  {"char", AST_type::TK_CHAR},
+  {"class", AST_type::TK_CLASS},
+  {"const", AST_type::TK_CONST},
+  {"continue", AST_type::TK_CONTINUE},
+  {"default", AST_type::TK_DEFAULT},
+  {"delete", AST_type::TK_DELETE},
+  {"double", AST_type::TK_DOUBLE},
+  {"do", AST_type::TK_DO},
+  {"dynamic_cast", AST_type::TK_DYNAMIC_CAST},
+  {"else", AST_type::TK_ELSE},
+  {"enum", AST_type::TK_ENUM},
+  {"explicit", AST_type::TK_EXPLICIT},
+  {"export", AST_type::TK_EXPORT},
+  {"extern", AST_type::TK_EXTERN},
+  {"false", AST_type::TK_FALSE},
+  {"float", AST_type::TK_FLOAT},
+  {"for", AST_type::TK_FOR},
+  {"friend", AST_type::TK_FRIEND},
+  {"goto", AST_type::TK_GOTO},
+  {"if", AST_type::TK_IF},
+  {"inline", AST_type::TK_INLINE},
+  {"int", AST_type::TK_INT},
+  {"long", AST_type::TK_LONG},
+  {"mutable", AST_type::TK_MUTABLE},
+  {"namespace", AST_type::TK_NAMESPACE},
+  {"new", AST_type::TK_NEW},
+  {"noexcept", AST_type::TK_NOEXCEPT},
+  {"not", AST_type::TK_NOT},
+  {"not_eq", AST_type::TK_EQUAL},
+  {"nullptr", AST_type::TK_NULLPTR},
+  {"operator", AST_type::TK_OPERATOR},
+  {"or", AST_type::TK_LOGICAL_OR},
+  {"or_eq", AST_type::TK_OR_ASSIGN},
+  {"private", AST_type::TK_PRIVATE},
+  {"protected",AST_type::TK_PROTECTED},
+  {"public", AST_type::TK_PUBLIC},
+  {"register", AST_type::TK_REGISTER},
+  {"reinterpret_cast", AST_type::TK_REINTERPRET_CAST},
+  {"return", AST_type::TK_RETURN},
+  {"short", AST_type::TK_SHORT},
+  {"signed", AST_type::TK_SIGNED},
+  {"sizeof", AST_type::TK_SIZEOF},
+  {"static", AST_type::TK_STATIC},
+  {"static_cast", AST_type::TK_STATIC_CAST},
+  {"struct", AST_type::TK_STRUCT},
+  {"switch", AST_type::TK_SWITCH},
+  {"template", AST_type::TK_TEMPLATE},
+  {"this", AST_type::TK_THIS},
+  {"throw", AST_type::TK_THROW},
+  {"true", AST_type::TK_TRUE},
+  {"try", AST_type::TK_TRY},
+  {"typedef", AST_type::TK_TYPEDEF},
+  {"typeid", AST_type::TK_TYPEID},
+  {"typename", AST_type::TK_TYPENAME},
+  {"union", AST_type::TK_UNION},
+  {"unsigned", AST_type::TK_UNSIGNED},
+  {"virtual", AST_type::TK_VIRTUAL},
+  {"void", AST_type::TK_VOID},
+  {"volatile", AST_type::TK_VOLATILE},
+  {"while", AST_type::TK_WHILE},
+  {"xor",  AST_type::TK_EXOR},
+  {"xor_eq", AST_type::TK_EXOR_ASSIGN}
 } ;
-				
+
+std::map<string,AST_type::elementType> tokenDictionary ;
+AST_type::elementType getNameToken(const string &name) {
+  if(tokenDictionary.size() == 0) {
+    int ntokens = sizeof(keywordDictionary)/sizeof(keywords) ;
+    for(int i=0;i<ntokens;++i) {
+      string token = keywordDictionary[i].keyword ;
+      tokenDictionary[token] = keywordDictionary[i].nodeType ;
+    }
+  }
+  std::map<string,AST_type::elementType>::const_iterator fp =
+    tokenDictionary.find(name) ;
+  if(fp == tokenDictionary.end()) {
+    return AST_type::TK_NAME ;
+  }
+  return fp->second ;
+}
 
 CPTR<AST_Token> getToken(std::istream &is, int &linecount) {
   killsp(is,linecount) ;
@@ -1685,8 +1702,8 @@ CPTR<AST_Token> getToken(std::istream &is, int &linecount) {
   }
   if(is_name(is)) {
     CPTR<AST_Token> AST_data = new AST_Token() ;
-    AST_data->nodeType = AST_type::TK_NAME ;
     AST_data->text = get_name(is) ;
+    AST_data->nodeType = getNameToken(AST_data->text) ;
     AST_data->lineno = linecount ;
     return AST_data ;
   }
@@ -2000,9 +2017,15 @@ CPTR<AST_Token> getToken(std::istream &is, int &linecount) {
 //  AST_type::ASTP token = getToken(is,linecount) ;
 //}
 AST_type::ASTP parseBlock(std::istream &is, int &linecount) {
+  killsp(is,linecount) ;
   CPTR<AST_Block> AST_data = new AST_Block ;
   AST_data->nodeType = AST_type::TK_BRACEBLOCK ;
-
+  if(is.peek() != '{') {
+    CPTR<AST_Token> AST_tok = new AST_Token() ;
+    AST_tok->lineno = linecount ;
+    AST_tok->nodeType = AST_type::TK_ERROR ;
+    return AST_type::ASTP(AST_tok) ;
+  }
   AST_type::ASTP token = AST_type::ASTP(getToken(is,linecount)) ;
   if(token->nodeType != AST_type::TK_OPENBRACE) {
     token->nodeType = AST_type::TK_ERROR ;
