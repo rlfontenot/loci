@@ -1516,8 +1516,8 @@ namespace Loci {
     delete[] send_store ;
   }
 
-  inline bool fieldSort(const std::pair<Entity,Entity> &p1,
-                        const std::pair<Entity,Entity> &p2) {
+  inline bool fieldSort(const std::pair<pair<Entity,Entity>,Entity> &p1,
+                        const std::pair<pair<Entity,Entity>,Entity> &p2) {
     return p1.first < p2.first ;
   }
 
@@ -1559,7 +1559,7 @@ namespace Loci {
     cr.Rep()->setDomainKeySpace(faceKeySpace) ;
 
     using std::pair ;
-    vector<pair<Entity,Entity> > sortlist(faces.size()) ;
+    vector<pair<pair<Entity,Entity>,Entity> > sortlist(faces.size()) ;
 
     store<int> count ;
     entitySet infaces = tmp_face2node.domain() ;
@@ -1577,20 +1577,11 @@ namespace Loci {
     tmp_face2node.allocate(EMPTY) ;
 
     entitySet geom_cells = (cr.image(faces)+cl.image(faces))-bcsurfset ;
-    dstore<int> ords ;
-    int cnt = 0 ;
-    FORALL(geom_cells,cc) {
-      ords[cc] = cnt++ ;
-    } ENDFORALL ;
-    FORALL(bcsurfset,bc) { // number boundary cells last
-      ords[bc] = cnt++ ;
-    } ENDFORALL ;
-
     // sort faces
     int i=0 ;
     FORALL(faces,fc) {
-      Entity maxo = max(ords[cr[fc]],ords[cl[fc]]) ;
-      sortlist[i++] = pair<Entity,Entity>(maxo,fc) ;
+      pair<Entity,Entity> key(cr[fc],cl[fc]) ;
+      sortlist[i++] = pair<pair<Entity,Entity> ,Entity>(key,fc) ;
     } ENDFORALL ;
     sort(sortlist.begin(),sortlist.end(),fieldSort) ;
     i = 0 ;
