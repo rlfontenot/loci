@@ -230,8 +230,6 @@ public:
     if(s.peek() != '(')
       return s ;
     char c = s.get();
-    if(c != '(')
-      return s ; // should never get here, silence compiler warning
     parsebase::killsp(s) ;
     for(;;) {
       T tmp ;
@@ -1673,24 +1671,9 @@ keywords keywordDictionary[] = {
   {"while", AST_type::TK_WHILE},
   {"xor",  AST_type::TK_EXOR},
   {"xor_eq", AST_type::TK_EXOR_ASSIGN}
+			       
 } ;
-
-std::map<string,AST_type::elementType> tokenDictionary ;
-AST_type::elementType getNameToken(const string &name) {
-  if(tokenDictionary.size() == 0) {
-    int ntokens = sizeof(keywordDictionary)/sizeof(keywords) ;
-    for(int i=0;i<ntokens;++i) {
-      string token = keywordDictionary[i].keyword ;
-      tokenDictionary[token] = keywordDictionary[i].nodeType ;
-    }
-  }
-  std::map<string,AST_type::elementType>::const_iterator fp =
-    tokenDictionary.find(name) ;
-  if(fp == tokenDictionary.end()) {
-    return AST_type::TK_NAME ;
-  }
-  return fp->second ;
-}
+				
 
 CPTR<AST_Token> getToken(std::istream &is, int &linecount) {
   killsp(is,linecount) ;
@@ -1702,8 +1685,8 @@ CPTR<AST_Token> getToken(std::istream &is, int &linecount) {
   }
   if(is_name(is)) {
     CPTR<AST_Token> AST_data = new AST_Token() ;
+    AST_data->nodeType = AST_type::TK_NAME ;
     AST_data->text = get_name(is) ;
-    AST_data->nodeType = getNameToken(AST_data->text) ;
     AST_data->lineno = linecount ;
     return AST_data ;
   }
@@ -2013,26 +1996,99 @@ CPTR<AST_Token> getToken(std::istream &is, int &linecount) {
 
 }
 
-//AST_type::ASTP getStatement(std::istream &is, int &linecount) {
-//  AST_type::ASTP token = getToken(is,linecount) ;
-//}
-AST_type::ASTP parseBlock(std::istream &is, int &linecount) {
-  killsp(is,linecount) ;
+AST_type::ASTP parseBlock(std::istream &is, int &linecount, AST_type::ASTP openToken)  ;
+
+AST_type::ASTP parseExpression(std::istream &is, int &linecount, AST_type::ASTP openToken) {
+  AST_type::ASTP term1 =0;
+  switch(openToken->nodeType) {
+  case AST_type::TK_OPENPAREN:
+    return parseBlock(is,linecount,openToken) ;
+  case AST_type::TK_PLUS:
+  case AST_type::TK_MINUS:
+  case AST_type::TK_TIMES:
+  default:
+    break ;
+  }
+  return openToken ;
+    
+
+}
+
+AST_type::ASTP parseDeclaration(std::istream &is, int &linecount, AST_type::ASTP openToken)  ;
+AST_type::ASTP parseLoopStatement(std::istream &is, int &linecount, AST_type::ASTP openToken)  ;
+AST_type::ASTP parseIfStatement(std::istream &is, int &linecount, AST_type::ASTP openToken)  ;
+AST_type::ASTP parseSwitchStatement(std::istream &is, int &linecount, AST_type::ASTP openToken)  ;
+
+AST_type::ASTP parseSwitchStatement(std::istream &is, int &linecount, AST_type::ASTP openToken)  {
+  return openToken ;
+}
+
+AST_type::ASTP parseIfStatement(std::istream &is, int &linecount, AST_type::ASTP openToken)  {
+  return openToken ;
+}
+
+AST_type::ASTP parseLoopStatement(std::istream &is, int &linecount, AST_type::ASTP openToken) {
+  return openToken ;
+}
+AST_type::ASTP parseDeclaration(std::istream &is, int &linecount, AST_type::ASTP openToken) {
+  return openToken ;
+}
+
+AST_type::ASTP parseStatement(std::istream &is, int &linecount,
+			      AST_type::ASTP firstToken) {
+  switch(firstToken->nodeType) {
+  case AST_type::TK_OPENBRACE:
+  case AST_type::TK_OPENPAREN:
+    return parseBlock(is,linecount,firstToken) ;
+  case AST_type::TK_CHAR:
+  case AST_type::TK_FLOAT:
+  case AST_type::TK_DOUBLE:
+  case AST_type::TK_INT:
+  case AST_type::TK_BOOL:
+  case AST_type::TK_LONG:
+  case AST_type::TK_SIGNED:
+  case AST_type::TK_UNSIGNED:
+  case AST_type::TK_CONST:
+    return parseDeclaration(is,linecount,firstToken) ;
+  case AST_type::TK_FOR:
+  case AST_type::TK_WHILE:
+  case AST_type::TK_DO:
+    return parseLoopStatement(is,linecount,firstToken) ;
+  case AST_type::TK_IF:
+    return parseIfStatement(is,linecount,firstToken) ;
+  case AST_type::TK_SWITCH:
+    return parseSwitchStatement(is,linecount,firstToken) ;
+  default:
+    break ;
+  }
+  // Ok, so this is either a type declaration or an expression
+  return firstToken ;
+}
+
+AST_type::ASTP parseBlock(std::istream &is, int &linecount, AST_type::ASTP openToken) {
+
+  AST_type::elementType closeType = AST_type::TK_CLOSEBRACE ;
+  switch(openToken->nodeType) {
+  case AST_type::TK_OPENBRACE:
+    closeType = AST_type::TK_CLOSEBRACE ;
+    break ;
+  case AST_type::TK_OPENBRACKET:
+    closeType = AST_type::TK_CLOSEBRACKET ;
+    break ;
+  case AST_type::TK_OPENPAREN:
+    closeType = AST_type::TK_CLOSEPAREN ;
+    break ;
+  default:
+    return openToken ;
+  }
+
   CPTR<AST_Block> AST_data = new AST_Block ;
   AST_data->nodeType = AST_type::TK_BRACEBLOCK ;
-  if(is.peek() != '{') {
-    CPTR<AST_Token> AST_tok = new AST_Token() ;
-    AST_tok->lineno = linecount ;
-    AST_tok->nodeType = AST_type::TK_ERROR ;
-    return AST_type::ASTP(AST_tok) ;
-  }
-  AST_type::ASTP token = AST_type::ASTP(getToken(is,linecount)) ;
-  if(token->nodeType != AST_type::TK_OPENBRACE) {
-    token->nodeType = AST_type::TK_ERROR ;
-    return token ;
-  }
-  while(token->nodeType != AST_type::TK_CLOSEBRACE) {
-    AST_data->elements.push_back(token) ;
+  AST_data->elements.push_back(openToken) ;
+  CPTR<AST_type> token = AST_type::ASTP(getToken(is,linecount)) ;
+  while(token->nodeType != closeType) {
+    CPTR<AST_type> statement = parseStatement(is,linecount,token) ;
+    AST_data->elements.push_back(statement) ;
     token = AST_type::ASTP(getToken(is,linecount)) ;
     if(is.fail() || is.eof()) 
       break ;
@@ -2042,10 +2098,13 @@ AST_type::ASTP parseBlock(std::istream &is, int &linecount) {
 }
 
 void parseFile::setup_Test(std::ostream &outputFile) {
-  CPTR<AST_type> ap = parseBlock(is,line_no) ;
-  outputFile << "Parsed TEST:" << endl ;
-  int lineno=-1 ;
-  ap->DiagPrint(outputFile,lineno) ;
+  CPTR<AST_type> token = CPTR<AST_type>(getToken(is,line_no)) ;
+  if(token->nodeType == AST_type::TK_OPENBRACE) {
+    CPTR<AST_type> ap = parseBlock(is,line_no,token) ;
+    outputFile << "Parsed TEST:" << endl ;
+    int lineno=-1 ;
+    ap->DiagPrint(outputFile,lineno) ;
+  }
 }
 
 void parseFile::setup_Rule(std::ostream &outputFile) {
