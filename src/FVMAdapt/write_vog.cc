@@ -77,7 +77,6 @@ typedef double metisreal_t ;
 #endif
 namespace Loci {
 
-  extern void memSpace(string s) ;
 
   extern bool use_simple_partition ;
   extern bool use_orb_partition ;
@@ -672,9 +671,9 @@ namespace Loci{
                     ) {
     double t1 = MPI_Wtime() ;
     // Identify boundary tags
-    entitySet local_boundary_cells = getBoundaryCells(MapRepP(tmp_cr.Rep()));
-    entitySet global_boundary_cells = all_collect_entitySet(local_boundary_cells) ;
     if(Loci::MPI_processes == 1) {
+      entitySet local_boundary_cells = getBoundaryCells(MapRepP(tmp_cr.Rep()));
+      entitySet global_boundary_cells = all_collect_entitySet(local_boundary_cells) ;
 
       int npnts = local_nodes[0].size();
       int nfaces = local_faces[0].size();
@@ -737,25 +736,70 @@ namespace Loci{
       return true ;
     }
 
-    store<string> tmp_boundary_tags,tmp_boundary_names ;
+    entitySet local_boundary_cells = getBoundaryCells(MapRepP(tmp_cr.Rep()));
+    entitySet global_boundary_cells = all_collect_entitySet(local_boundary_cells) ;
+    int maxc = 0 ;
+    entitySet dom = tmp_cr.domain()&tmp_cl.domain() ;
+    FORALL(dom,ii) {
+      maxc = max(maxc,max(tmp_cr[ii],tmp_cl[ii])) ;
+    } ENDFORALL ;
+    int maxctot = maxc ;
+    MPI_Allreduce(&maxc,&maxctot,1,MPI_INT,MPI_MAX,MPI_COMM_WORLD) ;
+    entitySet boundary_taglist = global_boundary_cells ;
+    int ref_base = maxctot+1 ;
+    entitySet refSet = interval(ref_base,ref_base+(boundary_taglist.size()-1)) ;
     
-    tmp_boundary_tags.allocate(global_boundary_cells) ;
-    tmp_boundary_names.allocate(global_boundary_cells) ;
-    FORALL(global_boundary_cells, bc) {
-      char buf[512] ;
-      bzero(buf,512) ;
-      snprintf(buf,511,"BC_%d",-bc) ;
-      tmp_boundary_tags[bc] = string(buf) ;
-      tmp_boundary_names[bc] = string(buf) ;
+    store<int> boundary_info ;
+    boundary_info.allocate(refSet) ;
+    map<int,int> boundary_remap ;
+    int ct = 0 ;
+    FORALL(boundary_taglist,ii) {
+      boundary_remap[ii]=ct+ref_base ;
+      boundary_info[ct+ref_base]=ii ;
+      ct++ ;
+    } ENDFORALL ;
+
+    entitySet domcr = tmp_cr.domain() ;
+    FORALL(domcr,fc) {
+      if(tmp_cr[fc] < 0)
+	tmp_cr[fc] = boundary_remap[tmp_cr[fc]] ;
+    } ENDFORALL ;
+
+    store<string> tmp_boundary_tags,tmp_boundary_names ;
+    tmp_boundary_names.allocate(refSet) ;
+    tmp_boundary_tags.allocate(refSet) ;
+
+    map<int,int> bcmap ;
+    FORALL(refSet, ii) {
+      int bc = boundary_info[ii] ;
+      char buf[128] ;
+      bzero(buf,128) ;
+      snprintf(buf,127,"BC_%d",-bc) ;
+      bcmap[-bc] = ii ;
+      tmp_boundary_tags[ii] = string(buf) ;
+      tmp_boundary_names[ii] = string(buf) ;
     } ENDFORALL ;
 
     for(size_t i=0;i<boundary_ids.size();++i) {
       int id = boundary_ids[i].first ;
-      if(global_boundary_cells.inSet(-id))
-	tmp_boundary_names[-id] = boundary_ids[i].second ;
+      map<int,int>::const_iterator mi = bcmap.find(id) ;
+      if(mi != bcmap.end())
+	tmp_boundary_names[mi->second] = boundary_ids[i].second ;
+      else 
+	debugout << "id " << id << " for boundary surface " << boundary_ids[i].second
+                 << " not found!" << endl ;
+    }
+
+      
+    if(Loci::MPI_rank == 0) {
+      Loci::debugout << " boundaries identified as:" ;
+      FORALL(refSet, bc) {
+	debugout << " " << tmp_boundary_names[bc] ;
+      } ENDFORALL ;
+      Loci::debugout << endl ;
     }
     
-    memSpace("before partitioning") ;
+    REPORTMEM() ;
 
     vector<entitySet> cell_ptn,face_ptn,node_ptn ;
 
@@ -872,9 +916,9 @@ namespace Loci{
 	}
 	
       }
-      memSpace("mid partitioning") ;
+      REPORTMEM() ;
       face_ptn = partitionFaces(cell_ptn,tmp_cl,tmp_cr,tmp_boundary_tags) ;
-      memSpace("after partitionFaces") ;
+      REPORTMEM() ;
       
       node_ptn = partitionNodes(face_ptn,
 				MapRepP(tmp_face2node.Rep()),
@@ -894,7 +938,7 @@ namespace Loci{
       if(cnt == MPI_processes)
 	cnt = 0 ;
     } ENDFORALL ;
-    memSpace("after partitioning") ;
+    REPORTMEM() ;
       
     vector<entitySet> cell_ptn_t = transposePtn(cell_ptn) ;
     vector<entitySet> face_ptn_t = transposePtn(face_ptn) ;
@@ -961,7 +1005,7 @@ namespace Loci{
     
     entitySet bcsurfset = facts.get_distributed_alloc(bcsurf_alloc,0).first ;// FIX THIS
     
-    memSpace("before remapGridStructures") ;
+    REPORTMEM() ;
     Map cl, cr ;
     multiMap face2node ;
     tmp_cl.Rep()->setDomainKeySpace(fk) ;
@@ -977,7 +1021,7 @@ namespace Loci{
               nodes, faces, cells,
               pos, cl, cr, face2node,
 	      boundary_names,boundary_tags, bcsurfset, facts);
-    memSpace("after remapGridStructures") ;
+    REPORTMEM() ;
 
     facts.create_fact("cl", cl) ;
     facts.create_fact("cr", cr) ;
@@ -1015,7 +1059,7 @@ namespace Loci{
     double t2 = MPI_Wtime() ;
     debugout << "Time to process and partition adapted mesh is " << t2-t1
              << endl ;
-    memSpace("returning from FVM grid reader") ;
+    REPORTMEM() ;
     return true ;
     
   }
@@ -1043,7 +1087,7 @@ namespace Loci{
                      boundary_ids,
                      volTags))
       return false ;
-    Loci::memSpace("before create_face_info") ;
+    REPORTMEM() ;
 
     create_face_info(facts) ;
     create_ref(facts) ;

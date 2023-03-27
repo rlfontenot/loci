@@ -51,10 +51,6 @@ using std::pair ;
 using std::ostringstream ;
 using std::istringstream ;
 
-#ifdef HAS_MALLINFO
-#include <malloc.h>
-#endif
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -78,45 +74,14 @@ typedef double metisreal_t ;
 
 namespace Loci {
   extern  bool useDomainKeySpaces  ;
-  //#define MEMDIAG
-  
-#ifdef MEMDIAG
-  void *memtop =0;
 
-  class beginexec {
-  public:
-    beginexec() {
-      memtop = sbrk(0) ;
-    }
-  } ;
-
-  beginexec hackit;
-#endif
   extern void ORBPartition(const vector<vector3d<float> > &pnts,
                            vector<int> &procid,
                            MPI_Comm comm) ;
 
   bool redistribute_cell_weight(storeRepP old_store, storeRepP new_store);
   extern vector<entitySet> simplePartition(int mn, int mx, MPI_Comm comm);
-  void memSpace(string s) {
-#ifdef MEMDIAG
 
-    unsigned long memsize = (char *)sbrk(0)-(char *)memtop ;
-    debugout << s << ": malloc = " << double(memsize)/(1024.*1024) << endl ;
-    //#define MEMINFO
-#ifdef MEMINFO
-    struct mallinfo info = mallinfo() ;
-    debugout << s << ": minfo, arena=" << info.arena
-             << ", ordblks=" << info.ordblks
-             << ", hblks="<< info.hblks
-             << ", hblkhd="<< info.hblkhd
-             << ", uordblks=" << info.uordblks
-             << ", fordblks="<<info.fordblks
-             << ", keepcost="<<info.keepcost << endl ;
-#endif
-    debugout.flush() ;
-#endif
-  }
   extern bool use_simple_partition ;
   extern bool use_orb_partition ;
   extern bool use_sfc_partition ;
@@ -681,7 +646,7 @@ namespace Loci {
     
 
       { // each process read in node positions, 
-	memSpace("Read in Pos") ;
+	REPORTMEM() ;
 	// read processor zero section first
 	int lst = local_nodes[MPI_rank].Min() ;
 	int lsz = local_nodes[MPI_rank].size() ;
@@ -762,7 +727,7 @@ namespace Loci {
 
       pos.allocate(local_nodes[MPI_rank]) ;
       if(MPI_rank == 0) { // read in node positions, send to other processors
-	memSpace("Read in Pos") ;
+	REPORTMEM() ;
 	// read processor zero section first
 	int lst = local_nodes[MPI_rank].Min() ;
 	int lsz = local_nodes[0].size() ;
@@ -885,7 +850,7 @@ namespace Loci {
       sum += cluster_dist[i] ;
     }
     FATAL(sum != nclusters) ;
-    memSpace("before face cluster size reading" ) ;
+    REPORTMEM() ;
     readVectorDist(face_g,"cluster_sizes",cluster_dist,cluster_sizes) ;
     
     long cluster_info_size = 0 ;
@@ -897,10 +862,10 @@ namespace Loci {
                   &cluster_dist[0],sizeof(long),MPI_BYTE,
                   MPI_COMM_WORLD) ;
 
-    memSpace("before face cluster reading" ) ;
+    REPORTMEM() ;
     readVectorDist(face_g,"cluster_info",cluster_dist,cluster_info) ;
       
-    memSpace("after face cluster reading" ) ;
+    REPORTMEM() ;
 
     // Read in volume tag information
     vector<pair<string,Loci::entitySet> > volDat ;
@@ -952,7 +917,7 @@ namespace Loci {
     if(fail_state != 0)
       return false ;
     
-    memSpace("before unpacking clusters") ;
+    REPORTMEM() ;
     vector<long> cluster_offset(cluster_sizes.size()+1) ;
     cluster_offset[0] = 0 ;
     for(size_t i=0;i<cluster_sizes.size();++i)
@@ -1098,7 +1063,7 @@ namespace Loci {
       Loci::debugout << endl ;
     }
 
-    memSpace("after unpacking clusters") ;
+    REPORTMEM() ;
     return true ;
   }
 
@@ -1428,8 +1393,8 @@ namespace Loci {
     delete[] send_store ;
   }
 
-  inline bool fieldSort(const std::pair<Entity,Entity> &p1,
-                        const std::pair<Entity,Entity> &p2) {
+  inline bool fieldSort(const std::pair<pair<Entity,Entity>,Entity> &p1,
+                        const std::pair<pair<Entity,Entity>,Entity> &p2) {
     return p1.first < p2.first ;
   }
 
@@ -1471,7 +1436,7 @@ namespace Loci {
     cr.Rep()->setDomainKeySpace(faceKeySpace) ;
 
     using std::pair ;
-    vector<pair<Entity,Entity> > sortlist(faces.size()) ;
+    vector<pair<pair<Entity,Entity>,Entity> > sortlist(faces.size()) ;
 
     store<int> count ;
     entitySet infaces = tmp_face2node.domain() ;
@@ -1501,8 +1466,8 @@ namespace Loci {
     // sort faces
     int i=0 ;
     FORALL(faces,fc) {
-      Entity maxo = max(ords[cr[fc]],ords[cl[fc]]) ;
-      sortlist[i++] = pair<Entity,Entity>(maxo,fc) ;
+      pair<Entity,Entity> key(cr[fc],cl[fc]) ;
+      sortlist[i++] = pair<pair<Entity,Entity> ,Entity>(key,fc) ;
     } ENDFORALL ;
     sort(sortlist.begin(),sortlist.end(),fieldSort) ;
     i = 0 ;
@@ -1705,13 +1670,13 @@ namespace Loci {
   
   void fill_clone_proc( map<int,int> &mapdata, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) {
 
-    memSpace("fill_clone start") ;
+    REPORTMEM() ;
     vector<entitySet> recv_req(MPI_processes) ;
     for(int i=0;i<MPI_processes;++i)
       if(i!=MPI_rank) 
         recv_req[i] = out_of_dom & init_ptn[i] ;
     
-    memSpace("reqcomp") ;
+    REPORTMEM() ;
     // send the recieve requests
     int *recv_count = new int[ MPI_processes] ;
     int *send_count = new int[ MPI_processes] ;
@@ -1731,7 +1696,7 @@ namespace Loci {
     int mp = MPI_processes-1 ;
     int send_sizes = send_displacement[mp]+send_count[mp] ;
     int recv_sizes = recv_displacement[mp]+recv_count[mp] ; 
-    memSpace("before allocating send_set") ;
+    REPORTMEM() ;
     int * send_set_buf = new int[send_sizes] ;
     int * recv_set_buf = new int[recv_sizes] ;
 
@@ -1789,7 +1754,7 @@ namespace Loci {
     send_sizes = send_displacement[mp]+send_count[mp] ;
     recv_sizes = recv_displacement[mp]+recv_count[mp] ;
     
-    memSpace("before allocating send_store") ;
+    REPORTMEM() ;
     int *send_store = new int[send_sizes] ;
     int *recv_store = new int[recv_sizes] ;
 
@@ -1810,7 +1775,7 @@ namespace Loci {
 		  recv_store, recv_count, recv_displacement, MPI_INT,
 		  MPI_COMM_WORLD) ;
     
-    memSpace("before mapdata insert") ;
+    REPORTMEM() ;
     for(int i = 0; i <  MPI_processes; ++i) {
       int loc_pack = 0 ;
       FORALL(recv_req[i],ii) {
@@ -1863,7 +1828,7 @@ namespace Loci {
       else
         boundary_faces += fc ;
     } ENDFORALL ;
-    memSpace("start face_ptn") ;
+    REPORTMEM() ;
     vector<int> curr_sizes(MPI_processes),tot_sizes(MPI_processes) ;
 
 
@@ -1873,7 +1838,7 @@ namespace Loci {
     int STEPS = min(MPI_processes,13);
     for(int s=0;s<STEPS;++s) {
       
-      memSpace("STEPS") ;
+      REPORTMEM() ;
       for(int i=0;i<MPI_processes;++i)
         curr_sizes[i] = face_ptn[i].size() ;
 
@@ -2537,7 +2502,7 @@ namespace Loci {
     //	timer_token read_file_timer = new timer_token;
     //	if(collect_perf_data)
     //		read_file_timer = perfAnalysis->start_timer("Reading in FVM Grid");
-    memSpace("readFVMGrid Start") ;
+    REPORTMEM() ;
     vector<entitySet> local_nodes;
     vector<entitySet> local_cells;
     vector<entitySet> local_faces;
@@ -2574,12 +2539,12 @@ namespace Loci {
       return false;
     }
     
-    memSpace("after reading grid") ;
+    REPORTMEM() ;
 
     // Identify boundary tags
 
     entitySet global_boundary_cells = tmp_boundary_tags.domain() ;
-    memSpace("after all_collect boundary cells") ;
+    REPORTMEM() ;
     
     if(MPI_processes == 1) {
 
@@ -2626,7 +2591,7 @@ namespace Loci {
       return true ;
     }
 
-    memSpace("before partitioning") ;
+    REPORTMEM() ;
 
     vector<entitySet> cell_ptn,face_ptn,node_ptn ;
 
@@ -2836,9 +2801,9 @@ namespace Loci {
 	}
       }
 
-      memSpace("mid partitioning") ;
+      REPORTMEM() ;
       face_ptn = partitionFaces(cell_ptn,tmp_cl,tmp_cr,tmp_boundary_tags) ;
-      memSpace("after partitionFaces") ;
+      REPORTMEM() ;
 
       node_ptn = partitionNodes(face_ptn,
                                 MapRepP(tmp_face2node.Rep()),
@@ -2860,7 +2825,7 @@ namespace Loci {
 	cnt = 0 ;
     } ENDFORALL ;
 
-    memSpace("after partitioning") ;
+    REPORTMEM() ;
       
     vector<entitySet> cell_ptn_t = transposePtn(cell_ptn) ;
     vector<entitySet> face_ptn_t = transposePtn(face_ptn) ;
@@ -2927,7 +2892,7 @@ namespace Loci {
     
     entitySet bcsurfset = facts.get_distributed_alloc(bcsurf_alloc,0).first ;// FIX THIS
     
-    memSpace("before remapGridStructures") ;
+    REPORTMEM() ;
     Map cl, cr ;
     multiMap face2node ;
     tmp_cl.Rep()->setDomainKeySpace(fk) ;
@@ -2943,7 +2908,7 @@ namespace Loci {
               nodes, faces, cells,
               pos, cl, cr, face2node,
 	      boundary_names,boundary_tags, bcsurfset, facts);
-    memSpace("after remapGridStructures") ;
+    REPORTMEM() ;
 
     facts.create_fact("cl", cl) ;
     facts.create_fact("cr", cr) ;
@@ -2978,7 +2943,7 @@ namespace Loci {
     double t2 = MPI_Wtime() ;
     debugout << "Time to read in file '" << filename << ", is " << t2-t1
              << endl ;
-    memSpace("returning from FVM grid reader") ;
+    REPORTMEM() ;
     return true ;
   }
 
@@ -3091,7 +3056,7 @@ namespace Loci {
     if(!readFVMGrid(facts,filename))
       return false ;
 
-    memSpace("before create_face_info") ;
+    REPORTMEM() ;
     create_face_info(facts) ;
 
     create_ref(facts) ;
@@ -3143,7 +3108,7 @@ namespace Loci {
       return false ;
     }
     cell_weight_store = 0;
-    memSpace("before create_face_info") ;
+    REPORTMEM() ;
     create_face_info(facts) ;
     
     create_ref(facts) ;
@@ -3175,7 +3140,7 @@ namespace Loci {
       return false ;
     }
     
-    memSpace("before create_face_info") ;
+    REPORTMEM()  ;
     create_face_info(facts) ;
     
     create_ref(facts) ;
