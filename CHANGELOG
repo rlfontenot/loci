@@ -142,3 +142,9 @@
 
 	Fixed issue with erf function in autodiff code
 
+//-----------------------------------------------------------------------------
+	Version V 4.0 p8 -> V 4.0 p8a
+
+	This fixes a bug in the online adaption code that causes large memory
+	allocations in some circumstances.
+	
