@@ -92,16 +92,112 @@ namespace Loci {
                                const std::vector<int> &local_num,
                                const std::vector<int> &procID) ;
 
-  void sendCounts(std::vector<int>&recv_count,
-                  const std::vector<int> &send_sz,
-                  const std::vector<int> &recv_sz,
-                  const std::vector<int> &recv_local_num,
-                  const std::vector<int> &counts,
-                  const std::vector<int> &procID) ;
+  
+  template< class T >
+  void sendData(std::vector<T>&recv_count,
+                const std::vector<int> &send_sz,
+                const std::vector<int> &recv_sz,
+                const std::vector<int> &recv_local_num,
+                const std::vector<T> &counts,
+                const std::vector<int> &procID) {
+    const int p = MPI_processes ;
+    std::vector<int> soffsets(p+1,0) ;
+    std::vector<int> roffsets(p+1,0) ;
+    for(int i=0;i<p;++i) {
+      soffsets[i+1] = soffsets[i] + send_sz[i] ;
+      roffsets[i+1] = roffsets[i] + recv_sz[i] ;
+    }
+    std::vector<int> so(p,0) ;
+    std::vector<T> sbuf(counts.size()) ;
+    for(size_t i=0;i<counts.size();++i) {
+      int ps = procID[i] ;
+      sbuf[soffsets[ps]+so[ps]] = counts[i] ;
+      so[ps]++ ;
+    }
 
+    std::vector<T> rbuf(roffsets[p]) ;
+    int nreq = 0 ;
+    for(int i=0;i<p;++i) {
+      if(send_sz[i] > 0)
+	nreq++ ;
+      if(recv_sz[i] > 0)
+	nreq++ ;
+    }
+    std::vector<MPI_Request> recv_Requests(nreq) ;
+    int req = 0 ;
+    for(int i=0;i<p;++i)
+      if(recv_sz[i] > 0) {
+	MPI_Irecv(&rbuf[roffsets[i]],recv_sz[i]*sizeof(T),MPI_BYTE,i,3,
+		  MPI_COMM_WORLD,&recv_Requests[req]) ;
+	req++ ;
+      }
+    for(int i=0;i<p;++i)
+      if(send_sz[i] > 0) {
+	MPI_Isend(&sbuf[soffsets[i]],send_sz[i]*sizeof(T),MPI_BYTE,i,3,
+		  MPI_COMM_WORLD,&recv_Requests[req]) ;
+	req++ ;
+      }
+    std::vector<MPI_Status> statuslist(nreq) ;
+    MPI_Waitall(nreq,&recv_Requests[0],&statuslist[0]) ;
+    recv_count.swap(rbuf) ;
+    
+  }
+  
+  template< class T >
+  void sendMultiData(std::vector<T>&recv_count,
+                     const std::vector<int> &send_sz,
+                     const std::vector<int> &recv_sz,
+                     const std::vector<int> &recv_local_num,
+                     const std::vector<T> &counts,
+                     const std::vector<int> &procID,
+                     int vec_size) {
+    const int p = MPI_processes ;
+    std::vector<int> soffsets(p+1,0) ;
+    std::vector<int> roffsets(p+1,0) ;
+    for(int i=0;i<p;++i) {
+      soffsets[i+1] = soffsets[i] + send_sz[i]*vec_size ;
+      roffsets[i+1] = roffsets[i] + recv_sz[i]*vec_size ;
+    }
+    std::vector<int> so(p,0) ;
+    std::vector<T> sbuf(counts.size()) ;
+    size_t dom_size = counts.size()/vec_size;
+    for(size_t i=0;i<dom_size;++i) {
+      for(int j = 0; j < vec_size; j++){
+        int ps = procID[i] ;
+        sbuf[soffsets[ps]+so[ps]] = counts[i*vec_size+j] ;
+        so[ps]++ ;
+      }
+    }
 
+    std::vector<T> rbuf(roffsets[p]) ;
+    int nreq = 0 ;
+    for(int i=0;i<p;++i) {
+      if(send_sz[i] > 0)
+	nreq++ ;
+      if(recv_sz[i] > 0)
+	nreq++ ;
+    }
+    std::vector<MPI_Request> recv_Requests(nreq) ;
+    int req = 0 ;
+    for(int i=0;i<p;++i)
+      if(recv_sz[i] > 0) {
+	MPI_Irecv(&rbuf[roffsets[i]],recv_sz[i]*sizeof(T)*vec_size,MPI_BYTE,i,3,
+		  MPI_COMM_WORLD,&recv_Requests[req]) ;
+	req++ ;
+      }
+    for(int i=0;i<p;++i)
+      if(send_sz[i] > 0) {
+	MPI_Isend(&sbuf[soffsets[i]],send_sz[i]*sizeof(T)*vec_size,MPI_BYTE,i,3,
+		  MPI_COMM_WORLD,&recv_Requests[req]) ;
+	req++ ;
+      }
+    std::vector<MPI_Status> statuslist(nreq) ;
+    MPI_Waitall(nreq,&recv_Requests[0],&statuslist[0]) ;
+    recv_count.swap(rbuf) ;
+    
+  }
 
- 
+  
   inline size_t containerSizeEstimateKb(storeRepP p) {
     entitySet dom = p->domain() ;
     int szkb = 0 ;
@@ -141,9 +237,9 @@ namespace Loci {
       }
       std::vector<int> sizes_local ;
 
-      double time_write = 0 ;
-      double pre_time = 0 ;
-      double time_wait = 0 ;
+      //      double time_write = 0 ;
+      //      double pre_time = 0 ;
+      //      double time_wait = 0 ;
       entitySet dom = write_set ;
       fact_db::distribute_infoP df = facts.get_distribute_info() ;
       if(df != 0)
@@ -164,11 +260,14 @@ namespace Loci {
             cnt++ ;
           } ENDFORALL ;
         } else {
-	  Map l2f ;
-	  l2f = df->l2f.Rep() ;
+          Map l2g ;
+          l2g = df->l2g.Rep() ;
+          dMap g2f ;
+          g2f = df->g2f.Rep() ;
+
           FORALL(dom,ii) {
             counts[cnt] = var.vec_size(ii) ;
-            int file_no = l2f[ii] ; 
+            int file_no = g2f[l2g[ii]] ;
             fileids[cnt] = file_no ;
             cnt++ ;
           } ENDFORALL ;
@@ -240,7 +339,7 @@ namespace Loci {
         pio::writeVectorSerialS(group_id,"block_schedule",block_sizes) ;
         pio::writeVectorSerialS(group_id,"block_sets", block_data_elems) ;
       }
-      pre_time += sp.stop() ;
+      //      pre_time += sp.stop() ;
       // Now write out the main data block
 
       size_t total_size = 0 ;
@@ -331,7 +430,7 @@ namespace Loci {
             hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
             H5Dwrite(dataset,datatype,memspace,dataspace,H5P_DEFAULT,&buffer[0][0]) ;
             H5Sclose(memspace) ;
-            time_write += s.stop() ;
+	    //            time_write += s.stop() ;
             start += count ;
           }
 
@@ -358,7 +457,7 @@ namespace Loci {
 
               MPI_Wait(&recv_Requests[id],&mstat) ;
 
-              time_wait += sw.stop() ;
+	      //              time_wait += sw.stop() ;
 
               Loci::stopWatch s ;
               s.start() ;
@@ -372,7 +471,7 @@ namespace Loci {
 
               H5Dwrite(dataset,datatype,memspace,dataspace,H5P_DEFAULT,&buffer[id][0]) ;
               H5Sclose(memspace) ;
-              time_write += s.stop() ;
+	      //              time_write += s.stop() ;
               start += count ;
             }
             int k_new = k+nadvance ;
@@ -451,7 +550,7 @@ namespace Loci {
                                entitySet write_set, fact_db &facts) {
 
 #ifndef H5_HAVE_PARALLEL
-    pio::writeMultiStoreS(file_id,vname,var,write_set,facts) ; ;
+    writeMultiStoreS(file_id,vname,var,write_set,facts) ; ;
 #else
     
     //open the group
@@ -460,8 +559,8 @@ namespace Loci {
 
     std::vector<int> sizes_local ;//unique sizes on this process, such as 0, 35, 105,...
 
-    double time_write = 0 ;
-    double pre_time = 0 ;
+    //    double time_write = 0 ;
+    //    double pre_time = 0 ;
 
     entitySet dom = write_set ;
     fact_db::distribute_infoP df = facts.get_distribute_info() ;
@@ -486,12 +585,15 @@ namespace Loci {
         } ENDFORALL ;
 
       } else {
-	Map l2f ;
-	l2f = df->l2f.Rep() ;
+        Map l2g ;
+        l2g = df->l2g.Rep() ;
+        dMap g2f ;
+        g2f = df->g2f.Rep() ;
+
         FORALL(dom,ii) {
           counts[cnt] = var.vec_size(ii) ;
 
-          int file_no = l2f[ii] ; 
+          int file_no = g2f[l2g[ii]] ;
           fileids[cnt] = file_no ;
           cnt++ ;
         } ENDFORALL ;
@@ -562,7 +664,7 @@ namespace Loci {
     Loci::pio::writeVectorSerialP(group_id,"block_schedule",block_sizes, MPI_COMM_WORLD) ;
     Loci::pio::writeVectorSerialP(group_id,"block_sets", block_data_elems, MPI_COMM_WORLD) ;
 
-    pre_time += sp.stop() ;
+    //    pre_time += sp.stop() ;
     // Now write out the main data block
 
 
@@ -695,7 +797,7 @@ namespace Loci {
           H5Sclose(dataspace) ;
           H5Tclose(datatype) ;
         }
-        time_write += s.stop() ;
+	//        time_write += s.stop() ;
         start += block_sizes[i]*block_data_elems[i]; //how many total elements written for this block
       }
     }
@@ -737,7 +839,7 @@ namespace Loci {
       std::vector<int> recv_local_num ;
       distributeMapMultiStore(send_sz,recv_sz,recv_local_num,local_num,procID) ;
       std::vector<int> recv_count ;
-      sendCounts(recv_count,send_sz,recv_sz,recv_local_num,counts,procID) ;
+      sendData(recv_count,send_sz,recv_sz,recv_local_num,counts,procID) ;
       //    distributeMapMultiStore(send_sz,recv_sz,recv_count,counts,procID) ;
 
       std::vector<int> alloc_set = recv_local_num ;
@@ -972,7 +1074,7 @@ namespace Loci {
     std::vector<int> recv_local_num ;
     distributeMapMultiStore(send_sz,recv_sz,recv_local_num,local_num,procID) ;
     std::vector<int> recv_count ;
-    sendCounts(recv_count,send_sz,recv_sz,recv_local_num,counts,procID) ;
+    sendData(recv_count,send_sz,recv_sz,recv_local_num,counts,procID) ;
     //    distributeMapMultiStore(send_sz,recv_sz,recv_count,counts,procID) ;
 
     std::vector<int> alloc_set = recv_local_num ;
@@ -1029,7 +1131,6 @@ namespace Loci {
     int rank = 1 ;
     hsize_t start = 0 ;
     hsize_t stride = 1 ;
-    //    hsize_t read_size = 0 ;
     herr_t ret;
     int blksz = 0 ;
     std::vector<int> file_read_sizes(p,0) ;
