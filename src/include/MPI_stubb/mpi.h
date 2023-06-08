@@ -145,7 +145,7 @@ enum {
 #define MPI_INT32_T MPI_INTEGER
 #define MPI_INT64_T MPI_LONG_LONG
   
-int MPI_GET_TYPE_SIZE(int type);
+int MPI_GET_TYPE_SIZE(MPI_Datatype type);
 
 
 #define MPI_LONG_LONG_INT	MPI_LONG_LONG

@@ -11,7 +11,6 @@
 #include <execute.h>
 #include <multiStoreIO.h>
 #include <mpi_multiStoreIO.h>
-#ifndef MPI_STUBB
 
 namespace Loci {
   /*
@@ -55,7 +54,12 @@ namespace Loci {
     
     const_store<T> var_const ;
     var_const = var.Rep() ;
+#ifndef MPI_STUBB
     pmpi_writeStoreP(filename, var_const, write_set, facts, iotype, ordered) ;
+#else
+    cerr << "MPI/IO is not supported with this compile of Loci!" << endl ;
+    Loci::Abort() ;
+#endif
   }
   
   template< class T >
@@ -64,13 +68,20 @@ namespace Loci {
                                    const entitySet& write_set, fact_db &facts, int xfer_type, bool ordered){
     const_storeVec<T> var_const;
     var_const = var.Rep() ;
+    
+#ifndef MPI_STUBB
     pmpi_writeStoreVecP(filename, var_const, write_set, facts, xfer_type, ordered) ;
+#else
+    cerr << "MPI/IO is not supported with this compile of Loci!" << endl ;
+    Loci::Abort() ;
+#endif
   }
 
   template< class T >
   inline void pmpi_write_ordered_store(std::string& filename, 
                                        const const_store<T> &var,int offset,
                                        fact_db &facts, int xfer_type) {
+#ifndef MPI_STUBB
     /*
       write out the store that already in file numbering
     */
@@ -85,7 +96,6 @@ namespace Loci {
     MPI_File fh = 0;
     MPI_File_open( comm, filename.c_str(),
                    MPI_MODE_WRONLY | MPI_MODE_CREATE, PHDF5_MPI_Info, &fh) ; 
-
    
  
     // Shift domain by offset
@@ -133,12 +143,18 @@ namespace Loci {
 
     //close file
     MPI_File_close(&fh);
+#else
+    cerr << "MPI/IO is not supported with this compile of Loci!" << endl ;
+    Loci::Abort() ;
+#endif
+
   }
 
   template< class T >
   inline void pmpi_write_ordered_storeVec(std::string& filename, 
                                           const const_storeVec<T> &var,int offset,
                                           fact_db &facts, int xfer_type) {
+#ifndef MPI_STUBB
     /*
       write out the storeVec that already in file numbering
     */
@@ -202,6 +218,10 @@ namespace Loci {
 
     //close file
     MPI_File_close(&fh);
+#else
+    cerr << "MPI/IO is not supported with this compile of Loci!" << endl ;
+    Loci::Abort() ;
+#endif
   }
 
   
@@ -209,6 +229,7 @@ namespace Loci {
   inline void pmpi_writeStoreP(std::string& filename,
                                const const_store<T> &var,
                                const entitySet& write_set, fact_db &facts, int xfer_type, bool ordered) {
+#ifndef MPI_STUBB
     MPI_Comm comm = MPI_COMM_WORLD ;
     int prank = 0 ;
     int np = 0 ;
@@ -323,12 +344,19 @@ namespace Loci {
       if(prank == 0) std::cerr << "                                                    mpi parallel time to write   ordered store : "  << wall_time << std::endl; 
 #endif
     }
+#else
+    cerr << "MPI/IO is not supported with this compile of Loci!" << endl ;
+    Loci::Abort() ;
+#endif
+
   }
 
   template< class T >
   inline void pmpi_writeStoreVecP( std::string& filename,
                                    const const_storeVec<T> &var,
                                    const entitySet& write_set, fact_db &facts, int xfer_type, bool ordered) {
+#ifndef MPI_STUBB
+
     MPI_Comm comm = MPI_COMM_WORLD;
     int prank = 0 ;
     int np = 0 ;
@@ -446,6 +474,10 @@ namespace Loci {
       if(prank == 0) std::cerr << "                                                    mpi parallel time to write   ordered storeVec : "  << wall_time << std::endl; 
 #endif
     }
+#else
+    cerr << "MPI/IO is not supported with this compile of Loci!" << endl ;
+    Loci::Abort() ;
+#endif
   }
 
 
@@ -454,6 +486,7 @@ namespace Loci {
                        store<T> &var,
                        entitySet read_set,
                        fact_db &facts, int xfer_type) {
+#ifndef MPI_STUBB
     MPI_Comm comm = MPI_COMM_WORLD;
     int prank = 0 ;
     int np = 0 ;
@@ -599,6 +632,11 @@ namespace Loci {
         var.Rep()->copy(new_store,read_set) ;
       }
     }
+#else
+    cerr << "MPI/IO is not supported with this compile of Loci!" << endl ;
+    Loci::Abort() ;
+#endif
+
   }
 
 
@@ -607,6 +645,7 @@ namespace Loci {
                           storeVec<T> &var,
                           entitySet read_set,
                           fact_db &facts, int xfer_type) {
+#ifndef MPI_STUBB
     MPI_Comm comm = MPI_COMM_WORLD;
     int prank = 0 ;
     int np = 0 ;
@@ -759,8 +798,11 @@ namespace Loci {
         var.Rep()->copy(new_store,read_set) ;
       }
     }
+#else
+    cerr << "MPI/IO is not supported with this compile of Loci!" << endl ;
+    Loci::Abort() ;
+#endif
   }
   
 }
-#endif
 #endif
