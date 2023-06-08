@@ -41,6 +41,17 @@ const int MPI_TYPE_SIZE[] =
     sizeof(long)+sizeof(int), 2*sizeof(int)
   } ;
 
+extern "C" {
+  
+  int MPI_GET_TYPE_SIZE(MPI_Datatype type)
+  {
+    
+    if(type >= sizeof(MPI_TYPE_SIZE)/sizeof(int))
+      return 1 ;
+    else
+      return MPI_TYPE_SIZE[type] ;
+  }
+}
 
 /** Added by Kenny Moser krm104 **/
 struct Comm_Buffer
@@ -139,13 +150,6 @@ struct Comm_Buffer
 
 extern "C" {
   
-  int MPI_GET_TYPE_SIZE(int type)
-  {
-    if(size_t(type) > sizeof(MPI_TYPE_SIZE)/sizeof(int))
-      return 1 ;
-    else
-      return MPI_TYPE_SIZE[type] ;
-  }
 
   /*************************************/
   /* MPI-1 bindings, sorted by chapter */
