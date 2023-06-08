@@ -1454,15 +1454,6 @@ namespace Loci {
     tmp_face2node.allocate(EMPTY) ;
 
     entitySet geom_cells = (cr.image(faces)+cl.image(faces))-bcsurfset ;
-    dstore<int> ords ;
-    int cnt = 0 ;
-    FORALL(geom_cells,cc) {
-      ords[cc] = cnt++ ;
-    } ENDFORALL ;
-    FORALL(bcsurfset,bc) { // number boundary cells last
-      ords[bc] = cnt++ ;
-    } ENDFORALL ;
-
     // sort faces
     int i=0 ;
     FORALL(faces,fc) {
