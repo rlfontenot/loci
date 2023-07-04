@@ -2623,7 +2623,7 @@ namespace Loci {
 	  // read
 	   
 	  
-	  readContainerRAW(file_id,"cell weight", cell_weights.Rep(),
+	  readContainerRAW(file_id,"cellweight", cell_weights.Rep(),
 			   MPI_COMM_WORLD) ;
 	  Loci::hdf5CloseFile(file_id) ;
 	} else if(cell_weight_store != 0){
@@ -2708,7 +2708,7 @@ namespace Loci {
 	    // read
 	   
 	    
-	    readContainerRAW(file_id,"cell weight", cell_weights.Rep(),
+	    readContainerRAW(file_id,"cellweight", cell_weights.Rep(),
 			     MPI_COMM_WORLD) ;
             Loci::hdf5CloseFile(file_id) ;
           }else if(cell_weight_store != 0){
