@@ -323,7 +323,7 @@ namespace Loci {
   // definitely not in the Loci spirit since we are collecting data from
   // other processes.
   $rule singleton(petscNumCell,petscLocalCell<-petscDummy),
-                constraint(geom_cells),option(disable_threading) {
+    constraint(geom_cells),option(disable_threading) {
 
     // Get the collection of entities assigned to this processor
     storeRepP myEntities=
@@ -344,7 +344,7 @@ namespace Loci {
       cerr << "process,numCell: " << i << " " << $petscNumCell[i] << endl ;
 #endif
   } 
-
+  
   $type petscCellToRow store<int> ;
   
   $rule pointwise(petscCellToRow<-petscNumCell),
@@ -369,23 +369,50 @@ namespace Loci {
       $cr->$petscCellToRow = $pmap->$cl->$petscCellToRow ;
   }
 
-  $type petscNumDiagonalNonZero store<int> ;
   // Determines the number of non-zero entries in the local portion of the
   // Petsc matrix for each cell. The local portion is defined as the square
   // row/column sub-block of the PETSC matrix whose rows map to cells local
   // to the process.
-  $rule pointwise(petscNumDiagonalNonZero<-petscLocalCell,upper->cr,lower->cl),constraint(geom_cells) {
+  $type petscNumDiagonal store<int>;
+  $rule pointwise(petscNumDiagonal <- petscLocalCell, upper->cr, lower->cl),
+      constraint(geom_cells) {
     int cnt = 1 ; // Diagonal
-    for(int i=0;i<$lower.size();++i) 
-      if($petscLocalCell.inSet($lower[i]->$cl))
+    for(int i=0;i<$lower.size();++i) {
+      if($petscLocalCell.inSet($lower[i]->$cl)) {
         cnt++ ;
-    
-    for(int i=0;i<$upper.size();++i)
-      if($petscLocalCell.inSet($upper[i]->$cr))
+      }
+    }
+    for(int i=0;i<$upper.size();++i) {
+      if($petscLocalCell.inSet($upper[i]->$cr)) {
         cnt++ ;
-    $petscNumDiagonalNonZero = cnt ;
+      }
+    }
+    $petscNumDiagonal = cnt ;
   }
 
+  // For cases with periodic boundary conditions where both cells in a periodic
+  // pair are local, the number of non-zeros in the row must increase by 1 to
+  // account for a cell's periodic partner.
+  $type petscNumDiagonalFromPeriodic store<int>;
+  $rule pointwise(petscNumDiagonalFromPeriodic), constraint(geom_cells) {
+    $petscNumDiagonalFromPeriodic = 0;
+  }
+
+  $rule pointwise(cl->periodic::petscNumDiagonalFromPeriodic <- cl->petscLocalCell, cl, pmap->cl),
+      constraint(periodicFaces) {
+    $cl->$petscNumDiagonalFromPeriodic = 0;
+    // if both cells in a periodic pair are local, increase diagonal
+    if($cl->$petscLocalCell.inSet($cl) && $cl->$petscLocalCell.inSet($pmap->$cl)) {
+      $cl->$petscNumDiagonalFromPeriodic = 1;
+    }
+  }
+
+  $type petscNumDiagonalNonZero store<int>;
+  $rule pointwise(petscNumDiagonalNonZero <- petscNumDiagonal, petscNumDiagonalFromPeriodic),
+      constraint(geom_cells) {
+    $petscNumDiagonalNonZero = $petscNumDiagonal + $petscNumDiagonalFromPeriodic;
+  }
+  
 
   $type petscNumOffDiagonalNonZero store<int> ;
   
@@ -600,130 +627,46 @@ namespace Loci {
   class PETSCSolveUnit : public unit_rule {
     private:
     const_param<vector<int> > petscNumCell ;
-      const_multiMap upper,lower ;
-      const_Map cl,cr ;
-      const_store<real> xU,xL,xB,xD ;
       const_store<int> petscCellToRow ;
-      const_blackbox<PETSCVector> b ;
-      const_blackbox<PETSCMatrix> A ;
-      const_blackbox<PETSCKsp> ksp ;
       blackbox<PETSCVector> phi ;
-    private:
-      int *columnIndex ;
-      PetscScalar *columnValue ;
     public:
 
       // Define input and output.
       PETSCSolveUnit() {
-        name_store("cl",cl) ;
-        name_store("cr",cr) ;
-        name_store("upper",upper) ;
-        name_store("lower",lower) ;
-        name_store("X_U",xU) ;
-        name_store("X_L",xL) ;
-        name_store("X_B",xB) ;
-        name_store("X_D",xD) ;
         name_store("petscCellToRow",petscCellToRow) ;
         name_store("petscNumCell",petscNumCell) ;
-        name_store("petscScalarB(X)",b) ;
-        name_store("petscScalarA(X)",A) ;
-        name_store("petscKSP(X)",ksp) ;
         name_store("petscScalarSolveBB(X)",phi) ;
         input("petscNumCell") ;
-        input("upper->cr->petscCellToRow") ;
-        input("lower->cl->petscCellToRow") ;
-        input("upper->X_U,lower->X_L,X_B,X_D") ;
-        input("petscScalarA(X),petscScalarB(X),petscKSP(X)") ;
+        input("petscCellToRow") ;
         output("petscScalarSolveBB(X)") ;
-        constraint("geom_cells") ;
-        //        constraint("PETSCLinearSolver(X),geom_cells") ;
         disable_threading() ;
       }
 
-      // Assemble and solve.
-      virtual void compute(const sequence &seq) {
+      void calculate(Entity cell) {
+        const PetscScalar value= 0 ;
+        int row = petscCellToRow[cell] ;
+        (*phi).SetValue(&row,&value) ;
+      }
 
-      int localNumCell=(*petscNumCell)[Loci::MPI_rank],globalNumCell=0 ;
-      for(size_t i=0;i<(*petscNumCell).size();++i) globalNumCell+=
+      // Do nothing
+      void compute(const sequence &seq) {
+        // Create the solution vector.
+        // Get the number of local and global cells.
+        int localNumCell=(*petscNumCell)[Loci::MPI_rank],globalNumCell=0 ;
+        for(size_t i=0;i<(*petscNumCell).size();++i) globalNumCell+=
                                                      (*petscNumCell)[i] ;
 
-      (*phi).Create(localNumCell,globalNumCell) ;
-        // Create the solution vector.
-        //        (*phi).DuplicateFrom(*b) ;
+        (*phi).Create(localNumCell,globalNumCell) ;
 
-        // Allocate memory for column index and values arrays. There should
-        // never be more than 100 entries.
-        columnIndex=new int[100] ; columnValue=new PetscScalar[100] ;
-
-        // Assemble the matrix.
-        do_loop(seq,this,&PETSCSolveUnit::AssembleMatrix) ;
-        (*A).AssemblyBegin() ; (*A).AssemblyEnd() ;
-        
-        // Dellocate memory.
-        delete [] columnIndex ; delete [] columnValue ;
-
-        // Assemble the rhs vector.
-        do_loop(seq,this,&PETSCSolveUnit::AssembleRHS) ;
-        (*b).AssemblyBegin() ; (*b).AssemblyEnd() ;
-
-#ifdef VERBOSE
-        cerr << "solving the linear system" << endl ;
-#endif
-        // Solve the linear system
-#ifdef VERBOSE
-        cerr << "calling(SetOperators)" << endl ;
-#endif
-        (*ksp).SetOperators(*A) ;
-#ifdef VERBOSE
-        cerr << "calling Solve()" << endl ;
-#endif
-        (*ksp).Solve(*b,*phi) ;
-//cerr << "numIterations: " << (*ksp).GetIterationNumber() << endl ;
-      }
-
-      // Sets matrix values for a cell's row.
-      void AssembleMatrix(Entity cell) {
-
-        // Get the row number for this cell.
-        int rowIndex=petscCellToRow[cell] ;
-
-        // Set the diagonal entry for the row.
-        columnIndex[0]=rowIndex ; columnValue[0]=xD[cell] ;
-        //        cerr << "diagonal column value = " << rowIndex << ' ' << xD[cell]
-        //             << endl ;
-
-        // Set the column entries for "upper" neighbors.
-        const int numUpperEntry=upper.num_elems(cell) ; int count=1 ;
-        for(int i=0;i<numUpperEntry;++i,++count){
-          columnIndex[count]=petscCellToRow[cr[upper[cell][i]]] ;
-          columnValue[count]=xU[upper[cell][i]] ;
-        }
-
-        // Set the column entries for "lower" neighbors.
-        const int numLowerEntry=lower.num_elems(cell) ;
-        for(int i=0;i<numLowerEntry;++i,++count){
-          columnIndex[count]=petscCellToRow[cl[lower[cell][i]]] ;
-          columnValue[count]=xL[lower[cell][i]] ;
-        }
-
-        // Insert row entries into the Petsc matrix.
-        (*A).SetRowValues(rowIndex,numUpperEntry+numLowerEntry+1,columnIndex,
-          columnValue) ;
-      }
-
-      // Sets matrix values for a cell's row.
-      void AssembleRHS(Entity cell) {
-        const PetscScalar value=xB[cell] ;
-        //        cout << "value = " << value << endl ;
-        (*b).SetValue(&(petscCellToRow[cell]),&value) ;
+        do_loop(seq,this) ;
+        (*phi).AssemblyBegin() ;
+        (*phi).AssemblyEnd() ;
       }
   } ;
 
   register_rule<PETSCSolveUnit> registerPETSCSolveUnit ;
 
-  // Empty apply rule required by Loci. The data type and operator do not
-  // matter since nothing is done by this rule. Keep the same inputs and
-  // outputs as the unit rule, even though we don't have to.
+  // Assemble and solve the linear system
   class PETSCSolveApply : public apply_rule<blackbox<PETSCVector>,
                                             Loci::NullOp<PETSCVector> > {
     private:
@@ -735,7 +678,10 @@ namespace Loci {
       const_blackbox<PETSCMatrix> A ;
       const_blackbox<PETSCKsp> ksp ;
       blackbox<PETSCVector> phi ;
-    public:
+
+      int *columnIndex ;
+      PetscScalar *columnValue ;
+  public:
 
       // Define input and output.
       PETSCSolveApply() {
@@ -759,11 +705,82 @@ namespace Loci {
         output("petscScalarSolveBB(X)") ;
         constraint("geom_cells") ;
         disable_threading() ;
-        //        constraint("PETSCLinearSolver(X),geom_cells") ;
       }
 
-      // Do nothing.
-      void compute(const sequence & seq) {}
+      // assemble and solve
+      void compute(const sequence & seq) {
+        // Allocate memory for column index and values arrays. There should
+        // never be more than 100 entries.
+        columnIndex=new int[100] ; columnValue=new PetscScalar[100] ;
+
+        // Assemble the matrix.
+        do_loop(seq,this,&PETSCSolveApply::AssembleMatrix) ;
+        (*A).AssemblyBegin() ;
+	(*A).AssemblyEnd() ;
+	
+        // Dellocate memory.
+        delete [] columnIndex ; delete [] columnValue ;
+
+        // Assemble the rhs vector.
+        do_loop(seq,this,&PETSCSolveApply::AssembleRHS) ;
+        (*b).AssemblyBegin() ;
+	(*b).AssemblyEnd() ;
+	
+#ifdef VERBOSE
+        cerr << "solving the linear system" << endl ;
+#endif
+        // Solve the linear system
+#ifdef VERBOSE
+        cerr << "calling(SetOperators)" << endl ;
+#endif
+        (*ksp).SetOperators(*A) ;
+#ifdef VERBOSE
+        cerr << "calling Solve()" << endl ;
+#endif
+        (*ksp).Solve(*b,*phi) ;
+      }
+
+      // Sets matrix values for a cell's row.
+      void AssembleMatrix(Entity cell) {
+
+        // Get the row number for this cell.
+        int rowIndex=petscCellToRow[cell] ;
+
+        // Set the diagonal entry for the row.
+        columnIndex[0]=rowIndex ; columnValue[0]=xD[cell] ;
+
+	(*A).SetRowValues(rowIndex,1,&rowIndex,columnValue);
+
+        // Set the column entries for "upper" neighbors.
+        const int numUpperEntry=upper.num_elems(cell) ; int count=1 ;
+        for(int i=0;i<numUpperEntry;++i,++count){
+          // Do not include self references (can happen due to periodic BC's)
+          if(petscCellToRow[cell] != petscCellToRow[cr[upper[cell][i]]]) {
+            columnIndex[count]=petscCellToRow[cr[upper[cell][i]]] ;
+            columnValue[0]=xU[upper[cell][i]] ;
+            (*A).SetRowValues(rowIndex,1,&columnIndex[count],columnValue) ;
+	  }
+        }
+
+        // Set the column entries for "lower" neighbors.
+        const int numLowerEntry=lower.num_elems(cell) ;
+        for(int i=0;i<numLowerEntry;++i,++count){
+          // Do not include self references (can happen due to periodic BC's)
+          columnIndex[count]=petscCellToRow[cl[lower[cell][i]]] ;
+          columnValue[0]=xL[lower[cell][i]] ;
+          (*A).SetRowValues(rowIndex,1,&columnIndex[count],columnValue) ;
+        }
+
+        // Insert row entries into the Petsc matrix.
+        //(*A).SetRowValues(rowIndex,numUpperEntry+numLowerEntry+1,columnIndex,
+        //  columnValue) ;
+      }
+
+      // Sets matrix values for a cell's row.
+      void AssembleRHS(Entity cell) {
+        const PetscScalar value=xB[cell] ;
+        (*b).SetValue(&(petscCellToRow[cell]),&value) ;
+      }
   } ;
 
   register_rule<PETSCSolveApply> registerPETSCSolveApply ;
@@ -1624,7 +1641,6 @@ namespace Loci {
             //          cout << endl ;
           }
           (*A).SetRowValues(rowIndex,1,&columnIndex[count],columnValue) ;
-          
         }
       
       // Set the column entries for "lower" neighbors.
