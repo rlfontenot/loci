@@ -883,8 +883,20 @@ namespace Loci{
 	  }
 	  
 	  // compute the weight per processor
-	  int wpp1 = ((woffsets1[MPI_processes]+MPI_processes-1)/MPI_processes) ;
-	  int wpp2 = ((woffsets2[MPI_processes]+MPI_processes-1)/MPI_processes) ;
+	  int wpp1 = ((woffsets1[MPI_processes])/MPI_processes) ;
+	  int rpp1 = ((woffsets1[MPI_processes])%MPI_processes) ;
+	  int wpp2 = ((woffsets2[MPI_processes])/MPI_processes) ;
+	  int rpp2 = ((woffsets2[MPI_processes])%MPI_processes) ;
+	  vector<int> splits1(MPI_processes),splits2(MPI_processes) ;
+	  int tot1 = 0 ;
+	  int tot2 = 0 ;
+	  for(int i=0;i<MPI_processes;++i) {
+	    splits1[i] = tot1 + wpp1 + ((i<rpp1)?1:0) ;
+	    tot1 += splits1[i] ;
+	    splits2[i] = tot2 + wpp2 + ((1<rpp2)?1:0) ;
+	    tot2 += splits2[i] ;
+	  }
+	  
 	  // Now compute local weighted sums
 	  int ncel = dom.size() ;
 	  vector<int> wts1(tot_weight1+1, woffsets1[MPI_rank]) ;
@@ -904,12 +916,19 @@ namespace Loci{
 	  entitySet pdom = local_cells[MPI_rank] ;
 	  cnt1 = 0 ;
 	  cnt2 = 0 ;
+	  int p1 = 0 ;
+	  int p2 = 0 ;
+	  
 	  FORALL(dom,i) {
 	    if(cell_weights[i] <= 1) {
-	      cell_ptn[wts1[cnt1]/wpp1] += i ;
+	      while(wts1[i] >= splits1[p1] && p1 < MPI_processes)
+		p1++ ;
+	      cell_ptn[p1] += i ;
 	      cnt1++ ;
 	    } else {
-	      cell_ptn[wts2[cnt2]/wpp2] += i ;
+	      while(wts2[i] >= splits2[p2] && p2 < MPI_processes)
+		p2++ ;
+	      cell_ptn[p2] += i ;
 	      cnt2++ ;
 	    }
 	  } ENDFORALL ;
