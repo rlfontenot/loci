@@ -80,6 +80,7 @@ int main(int ac, char *av[]) {
   int nplanes = 2 ;
   bool use_delta_file = false ;
   bool merge_hanging_nodes = true ;
+  bool radial = false ;
   string delta_file = "" ;
   while(ac > 2 ) {
     if(!strcmp(av[1],"-xy")) {
@@ -114,6 +115,10 @@ int main(int ac, char *av[]) {
       ac-- ;
       av++ ;
       nz = atof(av[1]) ;
+      ac-- ;
+      av++ ;
+    } else if(!strcmp(av[1],"-radial") && ac > 2) {
+      radial = true ;
       ac-- ;
       av++ ;
     } else if(!strcmp(av[1],"-delta_file") && ac > 3) {
@@ -404,6 +409,7 @@ int main(int ac, char *av[]) {
     double dx = nx*dn ;
     double dy = ny*dn ;
     double dz = nz*dn ;
+    double dnsave = dn ;
     ddn *= growth ;
     ddn = min(ddn,deltamax) ;
     if(use_delta_file) {
@@ -412,8 +418,18 @@ int main(int ac, char *av[]) {
     } else {
       dn += ddn ;
     }
-    for(int i=0;i<npnts;++i) {
-      ofile << x[i]+dx << ' ' << y[i]+dy << ' ' << z[i]+dz << endl ;
+    if(radial) {
+      for(int i=0;i<npnts;++i) {
+	double rlen = 1./sqrt(y[i]*y[i]+z[i]*z[i]) ;
+	double dx = 0 ;
+	double dy = dnsave*rlen*y[i] ;
+	double dz = dnsave*rlen*z[i] ;
+	ofile << x[i]+dx << ' ' << y[i]+dy << ' ' << z[i]+dz << endl ;
+      }	
+    } else {
+      for(int i=0;i<npnts;++i) {
+	ofile << x[i]+dx << ' ' << y[i]+dy << ' ' << z[i]+dz << endl ;
+      }
     }
   }
   // now output mesh faces, starting with edge extrusion
