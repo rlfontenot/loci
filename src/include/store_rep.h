@@ -41,11 +41,27 @@
 #include <data_traits.h>
 
 #include <mpi.h>
-
-
+#include <vector>
 
 namespace Loci {
 
+  struct storeAllocateInfo {
+    void *alloc_ptr1 ;
+    void *alloc_ptr2 ;
+    void *base_ptr ;
+    int base_offset ;
+    int size ;
+    size_t allocated_size ;
+    bool allocated ;
+  } ;
+  
+  extern std::vector<storeAllocateInfo> storeAllocateData ;
+
+  extern int getStoreAllocateID() ;
+  extern void releaseStoreAllocateID(int id) ;
+  
+    
+  
   enum store_type { STORE, PARAMETER, MAP, CONSTRAINT, BLACKBOX } ;
 
   class Map ;
@@ -99,7 +115,8 @@ namespace Loci {
   class storeRep : public NPTR_type {
     int domainKeySpace ;
   public:
-    storeRep() { domainKeySpace = 0 ; }
+    int alloc_id ;
+    storeRep() { domainKeySpace = 0 ; alloc_id = -1 ; }
     virtual ~storeRep() ;
     virtual void allocate(const entitySet &p) = 0 ;
     // erase part of the domain, useful for dynamic containers,

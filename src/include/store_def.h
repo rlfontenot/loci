@@ -81,7 +81,7 @@ namespace Loci {
     frame_info get_frame_info(IDENTITY_CONVERTER g) ;
     frame_info get_frame_info(USER_DEFINED_CONVERTER g) ;
   public:
-    storeRepI() { alloc_pointer = 0 ; base_ptr = 0; }
+    storeRepI() { alloc_pointer = 0 ; base_ptr = 0 ; }
     storeRepI(const entitySet &p) { alloc_pointer=0 ; allocate(p) ;}
     virtual void allocate(const entitySet &ptn) ;
     virtual void shift(int_type offset) ;
@@ -114,7 +114,8 @@ namespace Loci {
     virtual void writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en, hid_t xfer_plist_id) const ;
 #endif
     virtual entitySet domain() const ;
-    T * get_base_ptr() const { return base_ptr ; }
+    T * get_base_ptr() const { T *p = 0 ; if(alloc_id>=0) p= (T *)storeAllocateData[alloc_id].base_ptr ; return p; 
+}
     virtual DatatypeP getType() ;
     virtual frame_info get_frame_info() ;
   } ;

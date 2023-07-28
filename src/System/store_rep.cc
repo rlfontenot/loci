@@ -26,6 +26,40 @@ using std::istream ;
 using std::ostream ;
 
 namespace Loci {
+
+  std::vector<storeAllocateInfo> storeAllocateData ;
+  std::vector<int> storeAllocateFreeList ;
+
+  int getStoreAllocateID() {
+    // allocate slot in storeAllocateData
+    int id = storeAllocateData.size() ;
+    if(!storeAllocateFreeList.empty()) {
+      id = storeAllocateFreeList.back() ;
+      storeAllocateFreeList.pop_back() ;
+    } else {
+      storeAllocateData.push_back(storeAllocateInfo()) ;
+    }
+    storeAllocateData[id].alloc_ptr1 = 0 ;
+    storeAllocateData[id].alloc_ptr2 = 0 ;
+    storeAllocateData[id].base_ptr = 0 ;
+    storeAllocateData[id].base_offset = 0 ;
+    storeAllocateData[id].size = 0 ;
+    storeAllocateData[id].allocated_size = 0 ;
+    storeAllocateData[id].allocated = true ;
+    return id ;
+  }
+    
+  void releaseStoreAllocateID(int id) {
+    storeAllocateData[id].alloc_ptr1 = 0 ;
+    storeAllocateData[id].alloc_ptr2 = 0 ;
+    storeAllocateData[id].base_ptr = 0 ;
+    storeAllocateData[id].base_offset = 0 ;
+    storeAllocateData[id].size = 0 ;
+    storeAllocateData[id].allocated_size = 0 ;
+    storeAllocateData[id].allocated = false ;
+    storeAllocateFreeList.push_back(id) ;
+  }
+  
   storeRep::~storeRep() {}
   void storeRep::set_elem_size(int sz) { warn(true) ; }
 

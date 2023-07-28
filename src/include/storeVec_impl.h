@@ -91,6 +91,8 @@ namespace Loci {
   //*****************************************************************/
   template<class T> 
   void storeVecRepI<T>::allocate(const entitySet &ptn) {
+    if(alloc_id < 0)
+      alloc_id = getStoreAllocateID() ;
   
     if(free_ptr) {
 #ifdef STORE_ALIGN_SIZE
@@ -138,7 +140,12 @@ namespace Loci {
 #endif
       }
     }
-    
+
+    storeAllocateData[alloc_id].alloc_ptr1 = free_ptr ;
+    storeAllocateData[alloc_id].base_ptr = alloc_ptr ;
+    storeAllocateData[alloc_id].base_offset = base_offset ;
+    storeAllocateData[alloc_id].size = size ;
+
     store_domain = ptn ;
     dispatch_notify() ;
   }
@@ -148,6 +155,7 @@ namespace Loci {
   void storeVecRepI<T>::shift(int_type offset) {
     store_domain >>= offset ;
     base_offset += offset ;
+    storeAllocateData[alloc_id].base_offset = base_offset ;
     dispatch_notify() ;
   }
 
@@ -170,6 +178,10 @@ namespace Loci {
 #else
       delete[] free_ptr ;
 #endif
+      storeAllocateData[alloc_id].alloc_ptr1 = 0 ;
+      storeAllocateData[alloc_id].base_ptr = 0 ;
+      storeAllocateData[alloc_id].base_offset = 0 ;
+      storeAllocateData[alloc_id].size = size ;
     }
   }
 

@@ -357,9 +357,9 @@ namespace Loci {
     virtual void writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en, hid_t xfer_plist_id) const ;
 #endif    
     virtual void set_elem_size(int sz) ;
-    T *get_alloc_ptr() const { return alloc_ptr ; }
-    int get_base_offset() const { return base_offset ; }
-    int get_size() const { return size ; }
+    T *get_alloc_ptr() const { T *p = 0; if(alloc_id>=0) p=(T *)storeAllocateData[alloc_id].base_ptr ; return p ; }
+    int get_base_offset() const { int o = 0 ;if(alloc_id>=0) o = storeAllocateData[alloc_id].base_offset ; return o ; }
+    int get_size() const { int sz = 0 ; if(alloc_id>=0) sz = storeAllocateData[alloc_id].size ; return sz ; }
     virtual DatatypeP getType() ;
     virtual frame_info get_frame_info() ;
     void setIsMat(bool im){isMat=im;}

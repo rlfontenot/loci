@@ -26,6 +26,9 @@
 
 namespace Loci {
   template<class T> void storeRepI<T>::allocate(const entitySet &eset) {
+    if(alloc_id < 0)
+      alloc_id = getStoreAllocateID() ;
+    
     // if the pass in is EMPTY, we delete the previous allocated memory
     // this equals to free the memory
     if( eset == EMPTY ) {
@@ -42,6 +45,9 @@ namespace Loci {
       delete [] alloc_pointer ;
 #endif
       alloc_pointer = 0 ; base_ptr = 0;
+      storeAllocateData[alloc_id].alloc_ptr1 = alloc_pointer ;
+      storeAllocateData[alloc_id].base_ptr = base_ptr ;
+      storeAllocateData[alloc_id].size = 0 ;
       store_domain = eset ;
       dispatch_notify() ;
       return ;
@@ -102,7 +108,9 @@ namespace Loci {
 #endif
     alloc_pointer = tmp_alloc_pointer ;
     base_ptr = tmp_base_ptr ;
-
+    storeAllocateData[alloc_id].alloc_ptr1 = alloc_pointer ;
+    storeAllocateData[alloc_id].base_ptr = base_ptr ;
+    storeAllocateData[alloc_id].size = 1 ;
     store_domain = eset ;
     dispatch_notify() ;
     return ;
@@ -111,6 +119,7 @@ namespace Loci {
   template<class T> void storeRepI<T>::shift(int_type offset) {
     store_domain >>= offset ;
     base_ptr -= offset ;
+    storeAllocateData[alloc_id].base_ptr = base_ptr ;
     dispatch_notify() ;
   }
 
@@ -165,6 +174,10 @@ namespace Loci {
 #else
       delete[] alloc_pointer ;
 #endif
+    }
+    if(alloc_id>=0) {
+      releaseStoreAllocateID(alloc_id) ;
+      alloc_id = -1 ;
     }
   }
 
