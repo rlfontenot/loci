@@ -34,22 +34,87 @@ namespace Loci {
   store_type MapRep::RepType() const { return MAP ; }
   
   void MapRepI::allocate(const entitySet &ptn) {
-    if(alloc_pointer) delete[] alloc_pointer ;
-    alloc_pointer = 0 ;
-    base_ptr = 0 ;
-    if(ptn != EMPTY) {
-      int top = ptn.Min() ;
-      int size = ptn.Max()-top+1 ;
-      alloc_pointer = new Entity[size] ;
-      base_ptr = alloc_pointer - top ;
+    if(alloc_id < 0)
+      alloc_id = getStoreAllocateID() ;
+
+    if( ptn == EMPTY ) {
+#ifdef STORE_ALIGN_SIZE
+      if(alloc_pointer)
+	free(alloc_pointer) ;
+#else
+      delete [] alloc_pointer ;
+#endif
+      alloc_pointer = 0 ; base_ptr = 0;
+      storeAllocateData[alloc_id].alloc_ptr1 = alloc_pointer ;
+      storeAllocateData[alloc_id].base_ptr = base_ptr ;
+      storeAllocateData[alloc_id].size = 0 ;
+      store_domain = ptn ;
+      dispatch_notify() ;
+      return ;
     }
+    int_type old_range_min = store_domain.Min() ;
+    int_type old_range_max = store_domain.Max() ;
+    int_type new_range_min = ptn.Min() ;
+    int_type new_range_max = ptn.Max() ;
+    // if the old range and the new range are equal, nothing
+    // needs to be done, just return
+    if( (old_range_min == new_range_min) &&
+        (old_range_max == new_range_max)) {
+      store_domain = ptn ;
+      return ;
+    }
+    // is there any overlap between the old and the new domain?
+    // we copy the contents in the overlap region to the new
+    // allocated storage
+    entitySet ecommon = store_domain & ptn ;
+
+#ifdef STORE_ALIGN_SIZE
+    size_t alloc_size = new_range_max-new_range_min+1 ;
+    Entity * tmp_alloc_pointer = (Entity *) malloc(sizeof(Entity)*(alloc_size)+(STORE_ALIGN_SIZE)) ;
+    Entity* tmp_base_ptr = tmp_alloc_pointer - new_range_min ;
+    Entity* tmp_base_algn = (Entity *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
+    if(tmp_base_ptr !=tmp_base_algn) 
+      tmp_base_ptr = (Entity *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
+#else
+    T* tmp_alloc_pointer = new T[new_range_max - new_range_min + 1] ;
+    T* tmp_base_ptr = tmp_alloc_pointer - new_range_min ;
+#endif
+    // if ecommon == EMPTY, then nothing is done in the loop
+    FORALL(ecommon,i) {
+      tmp_base_ptr[i] = base_ptr[i] ;
+    } ENDFORALL ;
+
+
+#ifdef STORE_ALIGN_SIZE
+    // Call placement delete
+    if(alloc_pointer)
+      free(alloc_pointer) ;
+#else
+    delete [] alloc_pointer ;
+#endif
+    alloc_pointer = tmp_alloc_pointer ;
+    base_ptr = tmp_base_ptr ;
+    storeAllocateData[alloc_id].alloc_ptr1 = alloc_pointer ;
+    storeAllocateData[alloc_id].base_ptr = base_ptr ;
+    storeAllocateData[alloc_id].size = 1 ;
     store_domain = ptn ;
     dispatch_notify() ;
+    return ;
   }
 
 
   MapRepI::~MapRepI() {
-    if(alloc_pointer) delete[] alloc_pointer ;
+    if(alloc_pointer) {
+#ifdef STORE_ALIGN_SIZE
+      free(alloc_pointer) ;
+#else
+      delete[] alloc_pointer ;
+#endif
+    }
+    if(alloc_id>=0) {
+      releaseStoreAllocateID(alloc_id) ;
+      alloc_id = -1 ;
+    }
   }
 
   storeRep *MapRepI::new_store(const entitySet &p) const {
@@ -122,17 +187,17 @@ namespace Loci {
   int MapRepI::pack_size(const entitySet &e) {
     fatal((e - domain()) != EMPTY);
     int size ;
-    size = sizeof(int) * e.size() ;
+    size = sizeof(Entity) * e.size() ;
     return(size) ;
   }
   int MapRepI::estimated_pack_size(const entitySet &e) {
    
-    return e.size()*sizeof(int) ;
+    return e.size()*sizeof(Entity) ;
   }
   int MapRepI::
   pack_size(const entitySet& e, entitySet& packed) {
     packed = domain() & e ;
-    int size = sizeof(int) * packed.size() ;
+    int size = sizeof(Entity) * packed.size() ;
     return size ;
   }
   
@@ -1018,11 +1083,11 @@ namespace Loci {
       size += end(i) - begin(i);
     } ENDFORALL ;
     
-    return( (size+eset.size())*sizeof(int) ) ;
+    return( (size+eset.size())*sizeof(Entity) ) ;
   }
   
   int multiMapRepI::estimated_pack_size(const  entitySet &eset ) {
-    return 5*eset.size()*sizeof(int);
+    return 5*eset.size()*sizeof(Entity);
   }
 
   int multiMapRepI::
@@ -1033,7 +1098,7 @@ namespace Loci {
       size += end(i) - begin(i) ;
     } ENDFORALL ;
 
-    return ( (size+packed.size()) * sizeof(int)) ;
+    return ( (size+packed.size()) * sizeof(Entity)) ;
   }
 
   void multiMapRepI::pack(void *outbuf, int &position, int &outcount, const entitySet &eset) {

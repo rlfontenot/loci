@@ -89,7 +89,7 @@ namespace Loci {
     virtual void readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en, hid_t xfer_plist_id) ;
     virtual void writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name,  entitySet& en, hid_t xfer_plist_id) const ;
 #endif    
-    Entity * get_base_ptr() const { return base_ptr ; }
+    Entity * get_base_ptr() const { Entity * p = 0 ; if(alloc_id>=0) p = (Entity *)storeAllocateData[alloc_id].base_ptr ; return p ; }
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
     virtual DatatypeP getType() ;
     virtual frame_info get_frame_info() ;
