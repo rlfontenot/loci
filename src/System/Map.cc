@@ -76,8 +76,8 @@ namespace Loci {
     if(tmp_base_ptr !=tmp_base_algn) 
       tmp_base_ptr = (Entity *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
 #else
-    T* tmp_alloc_pointer = new T[new_range_max - new_range_min + 1] ;
-    T* tmp_base_ptr = tmp_alloc_pointer - new_range_min ;
+    Entity * tmp_alloc_pointer = new Entity[new_range_max - new_range_min + 1] ;
+    Entity * tmp_base_ptr = tmp_alloc_pointer - new_range_min ;
 #endif
     // if ecommon == EMPTY, then nothing is done in the loop
     FORALL(ecommon,i) {

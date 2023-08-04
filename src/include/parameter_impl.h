@@ -92,7 +92,24 @@ namespace Loci {
 
   //**************************************************************************/
 
-  template<class T> paramRepI<T>::~paramRepI() {}
+  template<class T> paramRepI<T>::~paramRepI() {
+    if(alloc_ptr) {
+#ifdef STORE_ALIGN_SIZE
+      // Call placement delete
+      if(!std::is_trivially_default_constructible<T>::value) {
+	base_ptr[0].~T() ;
+      }
+      free(alloc_ptr) ;
+#else
+      delete[] alloc_ptr ;
+#endif
+    }
+    
+    if(alloc_id>=0) {
+      releaseStoreAllocateID(alloc_id) ;
+      alloc_id = -1 ;
+    }
+}
 
   //**************************************************************************/
 

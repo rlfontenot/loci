@@ -29,6 +29,7 @@
 #include <istream>
 #include <ostream>
 
+#include <Tools/basic_types.h>
 #include <Tools/debug.h>
 #include <Map_rep.h>
 #include <store.h>
@@ -41,7 +42,7 @@ namespace Loci {
 
   template <int M> class MapVecRepI : public MapRep {
   public:
-    typedef int VEC[M] ;
+    typedef Array<int,M> VEC ;
   private:
     entitySet store_domain ;
     VEC *alloc_pointer ;
@@ -82,7 +83,7 @@ namespace Loci {
     virtual void readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en, hid_t xfer_plist_id) ;
     virtual void writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en, hid_t xfer_plist_id) const ;
 #endif
-    VEC * get_base_ptr() const { return base_ptr; } 
+    VEC * get_base_ptr() const { VEC * p = 0 ; if(alloc_id>=0) p = (VEC *)storeAllocateData[alloc_id].base_ptr ; return p ; }
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
     virtual storeRepP freeze() ;
     virtual storeRepP thaw() ;

@@ -28,23 +28,88 @@ namespace Loci {
   
   template<int M> void MapVecRepI<M>::allocate(const entitySet &ptn) {
 
-    if(alloc_pointer) delete[] alloc_pointer ;
-    alloc_pointer = 0 ;
-    base_ptr = 0 ;
-    if(ptn != EMPTY) {
-      int top = ptn.Min() ;
-      int size = ptn.Max()-top+1 ;
-      alloc_pointer = new VEC[size] ;
-      base_ptr = alloc_pointer-top ;
+    if(alloc_id < 0)
+      alloc_id = getStoreAllocateID() ;
+
+    if( ptn == EMPTY ) {
+#ifdef STORE_ALIGN_SIZE
+      if(alloc_pointer)
+	free(alloc_pointer) ;
+#else
+      delete [] alloc_pointer ;
+#endif
+      alloc_pointer = 0 ; base_ptr = 0;
+      storeAllocateData[alloc_id].alloc_ptr1 = alloc_pointer ;
+      storeAllocateData[alloc_id].base_ptr = base_ptr ;
+      storeAllocateData[alloc_id].size = 0 ;
+      store_domain = ptn ;
+      dispatch_notify() ;
+      return ;
     }
+    int_type old_range_min = store_domain.Min() ;
+    int_type old_range_max = store_domain.Max() ;
+    int_type new_range_min = ptn.Min() ;
+    int_type new_range_max = ptn.Max() ;
+    // if the old range and the new range are equal, nothing
+    // needs to be done, just return
+    if( (old_range_min == new_range_min) &&
+        (old_range_max == new_range_max)) {
+      store_domain = ptn ;
+      return ;
+    }
+    // is there any overlap between the old and the new domain?
+    // we copy the contents in the overlap region to the new
+    // allocated storage
+    entitySet ecommon = store_domain & ptn ;
+
+#ifdef STORE_ALIGN_SIZE
+    size_t alloc_size = new_range_max-new_range_min+1 ;
+    VEC * tmp_alloc_pointer = (VEC *) malloc(sizeof(VEC)*(alloc_size)+(STORE_ALIGN_SIZE)) ;
+    VEC* tmp_base_ptr = tmp_alloc_pointer - new_range_min ;
+    VEC* tmp_base_algn = (VEC *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
+    if(tmp_base_ptr !=tmp_base_algn) 
+      tmp_base_ptr = (VEC *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
+#else
+    VEC * tmp_alloc_pointer = new VEC[new_range_max - new_range_min + 1] ;
+    VEC * tmp_base_ptr = tmp_alloc_pointer - new_range_min ;
+#endif
+    // if ecommon == EMPTY, then nothing is done in the loop
+    FORALL(ecommon,i) {
+      tmp_base_ptr[i] = base_ptr[i] ;
+    } ENDFORALL ;
+
+
+#ifdef STORE_ALIGN_SIZE
+    // Call placement delete
+    if(alloc_pointer)
+      free(alloc_pointer) ;
+#else
+    delete [] alloc_pointer ;
+#endif
+    alloc_pointer = tmp_alloc_pointer ;
+    base_ptr = tmp_base_ptr ;
+    storeAllocateData[alloc_id].alloc_ptr1 = alloc_pointer ;
+    storeAllocateData[alloc_id].base_ptr = base_ptr ;
+    storeAllocateData[alloc_id].size = 1 ;
     store_domain = ptn ;
     dispatch_notify() ;
+    return ;
   }
 
   //*************************************************************************/
 
   template<int M> MapVecRepI<M>::~MapVecRepI() {
-    if(alloc_pointer) delete[] alloc_pointer ;
+    if(alloc_pointer) {
+#ifdef STORE_ALIGN_SIZE
+      free(alloc_pointer) ;
+#else
+      delete[] alloc_pointer ;
+#endif
+    }
+    if(alloc_id>=0) {
+      releaseStoreAllocateID(alloc_id) ;
+      alloc_id = -1 ;
+    }
   }
 
   //*************************************************************************/
@@ -316,7 +381,7 @@ namespace Loci {
 
     entitySet::const_iterator ci;
     for( ci = eset.begin(); ci != eset.end(); ++ci) 
-      MPI_Pack( base_ptr[*ci], M, MPI_INT, outbuf, outcount, &position, 
+      MPI_Pack( &base_ptr[*ci][0], M, MPI_INT, outbuf, outcount, &position, 
                 MPI_COMM_WORLD);
   }
   //*************************************************************************/
@@ -335,7 +400,7 @@ namespace Loci {
 
     sequence::const_iterator ci;
     for( ci = seq.begin(); ci != seq.end(); ++ci) 
-      MPI_Unpack( inbuf, insize, &position, base_ptr[*ci], M, MPI_INT, 
+      MPI_Unpack( inbuf, insize, &position, &base_ptr[*ci][0], M, MPI_INT, 
                   MPI_COMM_WORLD) ;
   }
   //*************************************************************************/
