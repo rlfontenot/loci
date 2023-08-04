@@ -35,14 +35,16 @@
 #include <store_rep.h>
 //#include <distribute.h>
 #include <data_traits.h>
-
+//#include <gstore_rep.h>
+#include <gkeyspace.h>
 
 namespace Loci {
   
   template<class T> class paramRepI : public storeRep {
     entitySet store_domain ;
-    T attrib_data ;
-
+    T *alloc_ptr ;
+    T *base_ptr ;
+    
     void hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER g, frame_info &fi, const entitySet &en);
     void hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset,hsize_t dimension, const char* name, USER_DEFINED_CONVERTER g, frame_info &fi, const entitySet &en);
 
@@ -63,12 +65,20 @@ namespace Loci {
     frame_info get_frame_info(IDENTITY_CONVERTER g) ;
     frame_info get_frame_info(USER_DEFINED_CONVERTER g) ;
   public:
-    paramRepI() { store_domain = interval(UNIVERSE_MIN,UNIVERSE_MAX) ; }
-    paramRepI(const entitySet &p) { store_domain = p ;}
+    paramRepI() {
+      alloc_ptr=0; base_ptr = 0 ;
+      store_domain = interval(UNIVERSE_MIN,UNIVERSE_MAX) ;
+      allocate(store_domain) ;
+    }
+    
+    paramRepI(const entitySet &p) {
+      alloc_ptr=0 ; base_ptr=0; store_domain=p ;
+      allocate(store_domain) ;
+    }
     virtual void allocate(const entitySet &p)  ;
     virtual void erase(const entitySet& rm) ;
     virtual void guarantee_domain(const entitySet& include) ;
-    virtual gStoreRepP copy2gstore()const;
+    //    virtual gStoreRepP copy2gstore()const;
     virtual storeRepP
     redistribute(const std::vector<entitySet>& dom_ptn,
                  MPI_Comm comm=MPI_COMM_WORLD) ;
@@ -103,7 +113,7 @@ namespace Loci {
     virtual std::istream &Input(std::istream &s) ;
     virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en) ;
     virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const ;
-    T *get_param() { return &attrib_data ; }
+    T *get_param() { return base_ptr ; }
     virtual DatatypeP getType() ;
     virtual frame_info get_frame_info() ;
   } ;
@@ -169,7 +179,7 @@ namespace Loci {
     }
 
     void set_entitySet(const entitySet &ptn) {Rep()->allocate(ptn); }
-    virtual gStoreRepP copy2gstore()const{return Rep()->copy2gstore();}
+    //    virtual gStoreRepP copy2gstore()const{return Rep()->copy2gstore();}
     entitySet domain() const { return Rep()->domain(); }
 
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
@@ -229,7 +239,7 @@ namespace Loci {
     }
 
     entitySet domain() const { return Rep()->domain(); }
-    virtual gStoreRepP copy2gstore()const{return Rep()->copy2gstore();}
+    //    virtual gStoreRepP copy2gstore()const{return Rep()->copy2gstore();}
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
   } ;
 

@@ -31,6 +31,34 @@ namespace Loci {
 
 
   template<class T> void paramRepI<T>::allocate(const entitySet &p) {
+    if(alloc_id < 0)
+      alloc_id = getStoreAllocateID() ;
+
+    if(!alloc_ptr) {
+      // Ok, we need to allocate the data for the first time
+#ifdef STORE_ALIGN_SIZE
+      size_t alloc_size = 1 ;
+      T * tmp_alloc_ptr = (T *) malloc(sizeof(T)*(alloc_size)+(STORE_ALIGN_SIZE)) ;
+      T* tmp_base_ptr = tmp_alloc_ptr  ;
+      T* tmp_base_algn = (T *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
+      if(tmp_base_ptr !=tmp_base_algn) 
+	tmp_base_ptr = (T *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
+      // Call placement new
+      if(!std::is_trivially_default_constructible<T>::value) {
+	new(tmp_base_ptr) T() ;
+      }
+      alloc_ptr = tmp_alloc_ptr ;
+      base_ptr = tmp_base_ptr ;
+#else
+      T* tmp_alloc_ptr = new T[1] ;
+      T* tmp_base_ptr = tmp_alloc_ptr ;
+      alloc_ptr = tmp_alloc_ptr ;
+      base_ptr = tmp_base_ptr ;
+#endif
+      storeAllocateData[alloc_id].alloc_ptr1 = alloc_ptr ;
+      storeAllocateData[alloc_id].base_ptr = base_ptr ;
+      storeAllocateData[alloc_id].size = 1 ;
+    }
     store_domain = p ;
     dispatch_notify();
   }
@@ -51,16 +79,16 @@ namespace Loci {
     dispatch_notify() ;
   }
 
-  template<class T> gStoreRepP paramRepI<T>:: copy2gstore()const{
-    //store domain must be universal key set
-    fatal(store_domain != ~EMPTY);
-    gParam<T> r ;
-    r.set_entitySet(~GEMPTY);
-    *r = attrib_data;
-    gKeySpaceP space = gKeySpace::get_space("UniverseSpace", "");
-    r.set_domain_space(space);
-    return r.Rep() ;
-  }
+  //  template<class T> gStoreRepP paramRepI<T>:: copy2gstore()const{
+  //    //store domain must be universal key set
+  //    fatal(store_domain != ~EMPTY);
+  //    gParam<T> r ;
+  //    r.set_entitySet(~GEMPTY);
+  //    *r = attrib_data;
+  //    gKeySpaceP space = gKeySpace::get_space("UniverseSpace", "");
+  //    r.set_domain_space(space);
+  //    return r.Rep() ;
+  //  }
 
   //**************************************************************************/
 
@@ -103,10 +131,10 @@ namespace Loci {
   {
     entitySet dom = domain() ;
     if(dom == ~EMPTY) {
-      Loci::streamoutput(&attrib_data,1,s) ;
+      Loci::streamoutput(base_ptr,1,s) ;
     } else {
       s << '{' << domain() << std::endl ;
-      Loci::streamoutput(&attrib_data,1,s) ;
+      Loci::streamoutput(base_ptr,1,s) ;
       s << '}' << std::endl ;
     }
     return s ;
@@ -125,16 +153,16 @@ namespace Loci {
       s.putback(ch) ;
       e = ~EMPTY ;
       allocate(e) ;
-      attrib_data = T() ;
-      Loci::streaminput(&attrib_data,1,s) ;
+      *base_ptr = T() ;
+      Loci::streaminput(base_ptr,1,s) ;
       return s ;
     }
 
     s >> e ;
     allocate(e) ;
 
-    attrib_data = T() ;
-    Loci::streaminput(&attrib_data,1,s) ;
+    *base_ptr = T() ;
+    Loci::streaminput(base_ptr,1,s) ;
 
     do ch = s.get(); while(ch==' ' || ch=='\n') ;
     if(ch != '}') {
@@ -165,7 +193,7 @@ namespace Loci {
     fi.size = 1 ;
     int stateSize = 0;
     typedef data_schema_traits<T> schema_traits ;
-    typename schema_traits::Converter_Type cvtr(attrib_data);
+    typename schema_traits::Converter_Type cvtr(*base_ptr) ; 
     stateSize = cvtr.getSize();
     fi.second_level.push_back(stateSize) ;
 
@@ -243,7 +271,7 @@ namespace Loci {
   {
     param<T> r ;
     r.set_entitySet(m.image(m.domain()&domain())) ;
-    *r = attrib_data ;
+    *r = *base_ptr ;
     return r.Rep() ;
   }
 
@@ -262,7 +290,7 @@ namespace Loci {
   void paramRepI<T>::copy(storeRepP &st, const entitySet &context)
   {
     param<T> p(st) ;
-    attrib_data = *p ;
+    *base_ptr = *p ;
     warn((store_domain - context) != EMPTY) ;
     store_domain = context ;
     dispatch_notify() ;
@@ -277,7 +305,7 @@ namespace Loci {
     storeRepP true_rep = st->getRep();
     paramRepI<T>* p = dynamic_cast<paramRepI<T>*>(&(*true_rep));
     fatal(p==0);
-    attrib_data = p->attrib_data;
+    *base_ptr = p->base_ptr[0];
     warn((store_domain - context) != EMPTY) ;
     store_domain = context ;
   }
@@ -304,7 +332,7 @@ namespace Loci {
     store_domain = m.image(context) ;
 
     param<T> p(st) ;
-    attrib_data = *p ;
+    *base_ptr = *p ; 
   }
 
   //**************************************************************************/
@@ -360,7 +388,7 @@ namespace Loci {
   {
     typedef data_schema_traits<T> schema_traits;
 
-    typename schema_traits::Converter_Type cvtr(attrib_data);
+    typename schema_traits::Converter_Type cvtr(*base_ptr);
     int arraySize = cvtr.getSize() ;
 
     return(arraySize*sizeof(typename schema_traits::Converter_Base_Type) + sizeof(int));
@@ -387,7 +415,7 @@ namespace Loci {
   void paramRepI<T>::packdata( IDENTITY_CONVERTER c, void *outbuf, int &position,
                                int outcount )
   {
-    MPI_Pack( &attrib_data, sizeof(T), MPI_BYTE, outbuf, outcount, &position,
+    MPI_Pack( base_ptr, sizeof(T), MPI_BYTE, outbuf, outcount, &position,
               MPI_COMM_WORLD) ;
   }
 
@@ -404,7 +432,7 @@ namespace Loci {
 
     int typesize = sizeof(dtype);
 
-    typename data_schema_traits<T>::Converter_Type cvtr( attrib_data );
+    typename data_schema_traits<T>::Converter_Type cvtr( *base_ptr );
 
     std::vector<dtype> inbuf(cvtr.getSize());
     cvtr.getState( &inbuf[0], stateSize);
@@ -439,7 +467,7 @@ namespace Loci {
       DatatypeP    atom_type = traits_type::get_type();
       MPI_Datatype datatype  = atom_type->get_mpi_type();
     */
-    MPI_Unpack( inbuf, insize, &position, &attrib_data, sizeof(T),
+    MPI_Unpack( inbuf, insize, &position, base_ptr, sizeof(T),
                 MPI_BYTE, MPI_COMM_WORLD) ;
 
   }
@@ -462,7 +490,7 @@ namespace Loci {
     outcount = stateSize*sizeof(dtype);
     MPI_Unpack( inbuf, insize, &position, &outbuf[0], outcount,
                 MPI_BYTE, MPI_COMM_WORLD) ;
-    typename schema_traits::Converter_Type  cvtr( attrib_data );
+    typename schema_traits::Converter_Type  cvtr( *base_ptr );
     cvtr.setState( &outbuf[0], stateSize);
 
   }
@@ -490,7 +518,7 @@ namespace Loci {
       hid_t datatype = dp->get_hdf5_type() ;
       hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
 
-      H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, &attrib_data) ;
+      H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, base_ptr) ;
       H5Sclose(memspace) ;
       H5Tclose(datatype) ;
     }
@@ -511,7 +539,7 @@ namespace Loci {
       typedef typename schema_traits::Converter_Base_Type dtype;
       dtype* tmp_array = new dtype[dimension] ;
       int stateSize = 0 ;
-      T tmp = attrib_data;
+      T tmp = *base_ptr;
       typename schema_traits::Converter_Type cvtr(tmp);
       cvtr.getState(tmp_array, stateSize) ;
       H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, tmp_array) ;
@@ -537,7 +565,7 @@ namespace Loci {
       if(err < 0) {
         cerr << "H5Dread() failed" << endl ;
       }
-      attrib_data = tmp_array[0] ;
+      *base_ptr = tmp_array[0] ;
 
       H5Sclose(memspace) ;
       H5Tclose(datatype) ;
@@ -565,7 +593,7 @@ namespace Loci {
       if(err < 0) {
         cerr << "H5Dread() failed" << endl ;
       }
-      typename data_schema_traits<T>::Converter_Type cvtr(attrib_data);
+      typename data_schema_traits<T>::Converter_Type cvtr(*base_ptr);
       int bucsize = vint[0] ;
       cvtr.setState(tmp_array, bucsize) ;
       H5Sclose(memspace) ;
@@ -597,7 +625,7 @@ namespace Loci {
 
     param<T> np ;
     np.set_entitySet(new_dom) ;
-    *np = attrib_data ;
+    *np = *base_ptr ;
 
     return np.Rep() ;
   }
@@ -621,7 +649,7 @@ namespace Loci {
 
     param<T> np ;
     np.set_entitySet(new_dom) ;
-    *np = attrib_data ;
+    *np = *base_ptr ;
 
     return np.Rep() ;
   }
