@@ -68,6 +68,8 @@ namespace Loci {
   template<class T> 
   void multiStoreRepI<T>::allocate(const store<int> &sizes) 
   {
+    if(alloc_id < 0)
+      alloc_id = getStoreAllocateID() ;
     //-------------------------------------------------------------------------
     // Objective: Allocate memeory for multiStore data. This call reclaims 
     // all previously held memory
@@ -140,8 +142,14 @@ namespace Loci {
           base_ptr[i] = use_ptr + sz ;
         }
       }
-
     }
+    storeAllocateData[alloc_id].alloc_ptr1 = alloc_pointer ;
+    storeAllocateData[alloc_id].alloc_ptr2 = index ;
+    storeAllocateData[alloc_id].base_ptr = base_ptr ;
+    storeAllocateData[alloc_id].base_offset = 0 ;
+    storeAllocateData[alloc_id].size = size ;
+    storeAllocateData[alloc_id].allocated_size = allocated_sz ;
+
     dispatch_notify();
   }
 
@@ -150,6 +158,8 @@ namespace Loci {
   template<class T> 
   void multiStoreRepI<T>::multialloc(const store<int> &count, T ***index, 
                                      T **alloc_pointer, T ***base_ptr, size_t &allocated_sz) {
+    if(alloc_id < 0)
+      alloc_id = getStoreAllocateID() ;
     entitySet ptn = count.domain() ;
     int top = ptn.Min() ;
     int len = ptn.Max() - top + 2 ;
@@ -199,6 +209,7 @@ namespace Loci {
     
     *base_ptr = new_base_ptr ;
     *alloc_pointer = new_alloc_pointer ;
+    
   }
 
   //*************************************************************************/
@@ -263,6 +274,7 @@ namespace Loci {
       } ENDFORALL ;
       allocate(sizes) ;
     }
+    
     mutex.unlock() ;
   }
 
@@ -271,6 +283,9 @@ namespace Loci {
   template<class T> 
   void multiStoreRepI<T>::allocate(const entitySet &ptn) 
   {
+    
+    if(alloc_id < 0)
+      alloc_id = getStoreAllocateID() ;
     //------------------------------------------------------------------------
     // Objective : allocate memory specified by the entitySet. Allocation
     // doesn't resize the memory, therefore reclaims previously held memory.
@@ -323,6 +338,12 @@ namespace Loci {
     // Notify all observers ...
     //-------------------------------------------------------------------------
 
+    storeAllocateData[alloc_id].alloc_ptr1 = alloc_pointer ;
+    storeAllocateData[alloc_id].alloc_ptr2 = index ;
+    storeAllocateData[alloc_id].base_ptr = base_ptr ;
+    storeAllocateData[alloc_id].base_offset = 0 ;
+    storeAllocateData[alloc_id].size = size ;
+    storeAllocateData[alloc_id].allocated_size = allocated_sz ;
     dispatch_notify() ;
   }
 
@@ -355,6 +376,10 @@ namespace Loci {
 #else
       delete[] alloc_pointer ;
 #endif
+    }
+    if(alloc_id>=0) {
+      releaseStoreAllocateID(alloc_id) ;
+      alloc_id = -1 ;
     }
   }
 
@@ -481,6 +506,12 @@ namespace Loci {
     index = new_index ;
     base_ptr = new_base_ptr ;
 
+    storeAllocateData[alloc_id].alloc_ptr1 = alloc_pointer ;
+    storeAllocateData[alloc_id].alloc_ptr2 = index ;
+    storeAllocateData[alloc_id].base_ptr = base_ptr ;
+    storeAllocateData[alloc_id].base_offset = 0 ;
+    storeAllocateData[alloc_id].size = size ;
+    storeAllocateData[alloc_id].allocated_size = allocated_sz ;
     dispatch_notify() ;
   }
 
@@ -544,6 +575,12 @@ namespace Loci {
     index = new_index ;
     base_ptr = new_base_ptr ;
 
+    storeAllocateData[alloc_id].alloc_ptr1 = alloc_pointer ;
+    storeAllocateData[alloc_id].alloc_ptr2 = index ;
+    storeAllocateData[alloc_id].base_ptr = base_ptr ;
+    storeAllocateData[alloc_id].base_offset = 0 ;
+    storeAllocateData[alloc_id].size = size ;
+    storeAllocateData[alloc_id].allocated_size = allocated_sz ;
     dispatch_notify() ;
   }
 
@@ -613,6 +650,12 @@ namespace Loci {
     index = new_index ;
     base_ptr = new_base_ptr ;
     
+    storeAllocateData[alloc_id].alloc_ptr1 = alloc_pointer ;
+    storeAllocateData[alloc_id].alloc_ptr2 = index ;
+    storeAllocateData[alloc_id].base_ptr = base_ptr ;
+    storeAllocateData[alloc_id].base_offset = 0 ;
+    storeAllocateData[alloc_id].size = size ;
+    storeAllocateData[alloc_id].allocated_size = allocated_sz ;
     dispatch_notify() ;
   }
 
@@ -960,6 +1003,12 @@ namespace Loci {
       index = new_index ;
       base_ptr = new_base_ptr ;
 
+      storeAllocateData[alloc_id].alloc_ptr1 = alloc_pointer ;
+      storeAllocateData[alloc_id].alloc_ptr2 = index ;
+      storeAllocateData[alloc_id].base_ptr = base_ptr ;
+      storeAllocateData[alloc_id].base_offset = 0 ;
+      storeAllocateData[alloc_id].size = size ;
+      storeAllocateData[alloc_id].allocated_size = allocated_sz ;
       dispatch_notify() ;
     }
 

@@ -119,7 +119,7 @@ namespace Loci {
     virtual void readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en, hid_t xfer_plsit_id) ;
     virtual void writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en,hid_t xfer_plsit_id) const ;
 #endif
-    T ** get_base_ptr() const { return base_ptr ; }
+    T ** get_base_ptr() const { T **p = 0 ; if(alloc_id>=0) p = (T **)storeAllocateData[alloc_id].base_ptr; return p ; }
     T *begin(int indx) { return base_ptr[indx] ; }
     T *end(int indx) { return base_ptr[indx+1] ; }
     const T *begin(int indx) const  { return base_ptr[indx] ; }
