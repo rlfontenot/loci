@@ -46,6 +46,7 @@ namespace Loci {
     storeAllocateData[id].size = 0 ;
     storeAllocateData[id].allocated_size = 0 ;
     storeAllocateData[id].allocated = true ;
+    storeAllocateData[id].allocset = EMPTY ;
     return id ;
   }
     
@@ -57,6 +58,7 @@ namespace Loci {
     storeAllocateData[id].size = 0 ;
     storeAllocateData[id].allocated_size = 0 ;
     storeAllocateData[id].allocated = false ;
+    storeAllocateData[id].allocset = EMPTY ;
     storeAllocateFreeList.push_back(id) ;
   }
   

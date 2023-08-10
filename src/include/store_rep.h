@@ -53,8 +53,128 @@ namespace Loci {
     int size ;
     size_t allocated_size ;
     bool allocated ;
+    entitySet allocset ;
+    storeAllocateInfo():alloc_ptr1(0),alloc_ptr2(0),base_ptr(0),size(00),allocated_size(0),allocated(false) {allocset=EMPTY ;}
+
+    template<class T> void allocBasic(const entitySet &eset, int sz) {
+      // if the pass in is EMPTY, we delete the previous allocated memory
+      // this equals to free the memory
+      if( eset == EMPTY ) {
+	if(alloc_ptr1 != 0) {
+#ifdef STORE_ALIGN_SIZE
+	  // Call placement delete
+	  if(!std::is_trivially_default_constructible<T>::value) {
+	    T *p = ((T *) base_ptr) ;
+	    for(size_t i=0;i<allocated_size;++i)
+	      p[i].~T() ;
+	  }
+	  free(alloc_ptr1) ;
+#else
+	  delete[] (T *)alloc_ptr1 ;
+#endif
+	}
+	alloc_ptr1 = 0 ;
+	base_ptr = 0 ;
+	size=0 ;
+	base_offset=0 ;
+	allocated_size = 0 ;
+	allocset = eset ;
+	return ;
+      }
+
+      int_type old_range_min = allocset.Min() ;
+      int_type old_range_max = allocset.Max() ;
+      int_type new_range_min = eset.Min() ;
+      int_type new_range_max = eset.Max() ;
+
+      // if the old range and the new range are equal, nothing
+      // needs to be done, just return
+      if( (old_range_min == new_range_min) &&
+	  (old_range_max == new_range_max)) {
+	allocset = eset ;
+	//	cerr << "doing nothing... allocset=" << allocset << ", eset=" << eset  << endl ;
+	return ;
+      }
+
+      // is there any overlap between the old and the new domain?
+      // we copy the contents in the overlap region to the new
+      // allocated storage
+      entitySet ecommon = allocset & eset ;
+
+#ifdef STORE_ALIGN_SIZE
+      size_t alloc_size = (new_range_max-new_range_min+1)*sz ;
+      T * tmp_alloc_pointer = (T *) malloc(sizeof(T)*(alloc_size)+(STORE_ALIGN_SIZE)) ;
+      T* tmp_base_ptr = tmp_alloc_pointer ; 
+      T* tmp_base_algn = (T *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
+      if(tmp_base_ptr !=tmp_base_algn) 
+	tmp_base_ptr = (T *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
+      // Call placement new
+      if(!std::is_trivially_default_constructible<T>::value) {
+	for(size_t i=0;i<alloc_size;++i) {
+	  new(&tmp_base_ptr[i]) T() ;
+	}
+      }
+#else
+      T* tmp_alloc_pointer = new T[new_range_max - new_range_min + 1] ;
+      T* tmp_base_ptr = tmp_alloc_pointer ; 
+#endif
+      if(sz == size) {
+	T *p = ((T *) base_ptr)  ;
+      // if ecommon == EMPTY, then nothing is done in the loop
+	FORALL(ecommon,ii) {
+	  for(int i=0;i<sz;++i)
+	    tmp_base_ptr[ii-new_range_min*sz+i] = p[ii-base_offset*sz+i] ;
+	} ENDFORALL ;
+      }
+
+
+#ifdef STORE_ALIGN_SIZE
+      // Call placement delete
+      if(!std::is_trivially_default_constructible<T>::value) {
+	T *p = (T *) base_ptr ;
+	for(size_t i=0;i<allocated_size;++i) 
+	  p[i].~T() ;
+      }
+      if(alloc_ptr1)
+      	free(alloc_ptr1) ;
+#else
+      if(alloc_ptr1)
+	delete [] (T *)alloc_ptr1 ;
+#endif
+      alloc_ptr1 = tmp_alloc_pointer ;
+      base_ptr = tmp_base_ptr ;
+      base_offset = new_range_min ;
+      allocated_size = alloc_size ;
+      size = sz ;
+      allocset = eset ;
+      return ;
+    }
+
+    template<class T> void release() {
+      if(alloc_ptr1!=0) {
+#ifdef STORE_ALIGN_SIZE
+	// Call placement delete
+	if(!std::is_trivially_default_constructible<T>::value) {
+	  T *p = (T *) base_ptr ;
+	  for(size_t i=0;i<allocated_size;++i)
+	    p[i].~T() ;
+	}
+	free(alloc_ptr1) ;
+#else
+	delete[] (T *)alloc_ptr1 ;
+#endif
+	alloc_ptr1 = 0 ;
+	base_ptr = 0 ;
+	base_offset = 0 ;
+	allocated_size = 0 ;
+      }
+    }
+      
+
   } ;
-  
+
+
+
   extern std::vector<storeAllocateInfo> storeAllocateData ;
 
   extern int getStoreAllocateID() ;

@@ -28,103 +28,22 @@ namespace Loci {
   template<class T> void storeRepI<T>::allocate(const entitySet &eset) {
     if(alloc_id < 0)
       alloc_id = getStoreAllocateID() ;
-    
-    // if the pass in is EMPTY, we delete the previous allocated memory
-    // this equals to free the memory
-    if( eset == EMPTY ) {
-#ifdef STORE_ALIGN_SIZE
-      // Call placement delete
-      if(!std::is_trivially_default_constructible<T>::value) {
-	FORALL(store_domain,ii) {
-	  base_ptr[ii].~T() ;
-	} ENDFORALL ;
-      }
-      if(alloc_pointer)
-	free(alloc_pointer) ;
-#else
-      delete [] alloc_pointer ;
-#endif
-      alloc_pointer = 0 ; base_ptr = 0;
-      storeAllocateData[alloc_id].alloc_ptr1 = alloc_pointer ;
-      storeAllocateData[alloc_id].base_ptr = base_ptr ;
-      storeAllocateData[alloc_id].size = 0 ;
-      store_domain = eset ;
-      dispatch_notify() ;
-      return ;
-    }
 
-    int_type old_range_min = store_domain.Min() ;
-    int_type old_range_max = store_domain.Max() ;
-    int_type new_range_min = eset.Min() ;
-    int_type new_range_max = eset.Max() ;
-
-    // if the old range and the new range are equal, nothing
-    // needs to be done, just return
-    if( (old_range_min == new_range_min) &&
-        (old_range_max == new_range_max)) {
-      store_domain = eset ;
-      return ;
-    }
-
-    // is there any overlap between the old and the new domain?
-    // we copy the contents in the overlap region to the new
-    // allocated storage
-    entitySet ecommon = store_domain & eset ;
-
-#ifdef STORE_ALIGN_SIZE
-    size_t alloc_size = new_range_max-new_range_min+1 ;
-    T * tmp_alloc_pointer = (T *) malloc(sizeof(T)*(alloc_size)+(STORE_ALIGN_SIZE)) ;
-    T* tmp_base_ptr = tmp_alloc_pointer - new_range_min ;
-    T* tmp_base_algn = (T *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
-    if(tmp_base_ptr !=tmp_base_algn) 
-      tmp_base_ptr = (T *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
-    // Call placement new
-    if(!std::is_trivially_default_constructible<T>::value) {
-      FORALL(eset,ii) {
-	new(&tmp_base_ptr[ii]) T() ;
-      } ENDFORALL ;
-    }
-#else
-    T* tmp_alloc_pointer = new T[new_range_max - new_range_min + 1] ;
-    T* tmp_base_ptr = tmp_alloc_pointer - new_range_min ;
-#endif
-    // if ecommon == EMPTY, then nothing is done in the loop
-    FORALL(ecommon,i) {
-      tmp_base_ptr[i] = base_ptr[i] ;
-    } ENDFORALL ;
-
-
-#ifdef STORE_ALIGN_SIZE
-    // Call placement delete
-    if(!std::is_trivially_default_constructible<T>::value) {
-      FORALL(store_domain,ii) {
-	base_ptr[ii].~T() ;
-      } ENDFORALL ;
-    }
-    if(alloc_pointer)
-      free(alloc_pointer) ;
-#else
-    delete [] alloc_pointer ;
-#endif
-    alloc_pointer = tmp_alloc_pointer ;
-    base_ptr = tmp_base_ptr ;
-    storeAllocateData[alloc_id].alloc_ptr1 = alloc_pointer ;
-    storeAllocateData[alloc_id].base_ptr = base_ptr ;
-    storeAllocateData[alloc_id].size = 1 ;
-    store_domain = eset ;
+    storeAllocateData[alloc_id].template allocBasic<T>(eset,1) ;
+    store_domain = storeAllocateData[alloc_id].allocset ; ;
     dispatch_notify() ;
     return ;
   }
 
   template<class T> void storeRepI<T>::shift(int_type offset) {
     store_domain >>= offset ;
-    base_ptr -= offset ;
-    storeAllocateData[alloc_id].base_ptr = base_ptr ;
+    storeAllocateData[alloc_id].base_offset += offset ;
     dispatch_notify() ;
   }
 
   template<class T> std::ostream &storeRepI<T>::Print(std::ostream &s) const {
     s << '{' << domain() << std::endl ;
+    T *base_ptr = get_base_ptr() ;
     FORALL(domain(),ii) {
       Loci::streamoutput(&base_ptr[ii],1,s) ;
     }ENDFORALL ;
@@ -146,6 +65,7 @@ namespace Loci {
     s >> e ;
     allocate(e) ;
 
+    T *base_ptr = get_base_ptr() ;
     FORALL(e,ii) {
       base_ptr[ii] = T() ;
       Loci::streaminput(&base_ptr[ii],1,s) ;
@@ -162,20 +82,8 @@ namespace Loci {
   //*************************************************************************/
 
   template<class T>  storeRepI<T>::~storeRepI() {
-    if(alloc_pointer) {
-#ifdef STORE_ALIGN_SIZE
-      // Call placement delete
-      if(!std::is_trivially_default_constructible<T>::value) {
-	FORALL(store_domain,ii) {
-	  base_ptr[ii].~T() ;
-	} ENDFORALL ;
-      }
-      free(alloc_pointer) ;
-#else
-      delete[] alloc_pointer ;
-#endif
-    }
     if(alloc_id>=0) {
+      storeAllocateData[alloc_id].template release<T>() ;
       releaseStoreAllocateID(alloc_id) ;
       alloc_id = -1 ;
     }
@@ -240,6 +148,7 @@ namespace Loci {
 
   template<class T> storeRepP storeRepI<T>::thaw() {
     dstore<T> ds ;
+    T *base_ptr = get_base_ptr() ;
     for(entitySet::const_iterator ei=store_domain.begin();
         ei!=store_domain.end();++ei)
       ds[*ei] = base_ptr[*ei] ;
@@ -252,6 +161,7 @@ namespace Loci {
     entitySet out = es - domain() ;
 
     dstore<T> ds ;
+    T *base_ptr = get_base_ptr() ;
     for(entitySet::const_iterator ei=shared.begin();
         ei!=shared.end();++ei)
       ds[*ei] = base_ptr[*ei] ;
@@ -266,6 +176,7 @@ namespace Loci {
   
   template<class T> void storeRepI<T>::copy(storeRepP &st, const entitySet &context)  {
     const_store<T> s(st) ;
+    T *base_ptr = get_base_ptr() ;
     fatal((context != EMPTY) && (base_ptr ==0)) ;
     fatal((context-domain()) != EMPTY) ;
     FORALL(context,i) {
@@ -276,6 +187,7 @@ namespace Loci {
   template<class T> void storeRepI<T>::gather(const dMap &m, storeRepP &st,
                                               const entitySet &context) {
     const_store<T> s(st) ;
+    T *base_ptr = get_base_ptr() ;
     fatal((context != EMPTY) && (base_ptr == 0)) ;
     fatal((m.image(context) - s.domain()) != EMPTY) ;
     fatal((context - domain()) != EMPTY) ;
@@ -287,6 +199,7 @@ namespace Loci {
   template<class T> void storeRepI<T>::scatter(const dMap &m, storeRepP &st,
                                                const entitySet &context) {
     const_store<T> s(st) ;
+    T *base_ptr = get_base_ptr() ;
     fatal((context != EMPTY) && (base_ptr == 0)) ;
     fatal((context - s.domain()) != EMPTY) ;
     fatal((m.image(context) - domain()) != EMPTY) ;
@@ -324,6 +237,7 @@ namespace Loci {
 
     fatal((eset - domain()) != EMPTY);
 
+    T *base_ptr = get_base_ptr() ;
     entitySet sdom = eset & domain() ;
     for( ci = sdom.begin(); ci != sdom.end(); ++ci) {
       typename converter_traits::Converter_Type cvtr(base_ptr[*ci]);
@@ -377,6 +291,7 @@ namespace Loci {
                                      int &position, int outcount,
                                      const entitySet &eset )
   {
+    T *base_ptr = get_base_ptr() ;
     for( size_t i = 0; i < eset.num_intervals(); i++) {
       const Loci::int_type begin = eset[i].first ;
       int t = eset[i].second - eset[i].first + 1 ;
@@ -404,6 +319,7 @@ namespace Loci {
     size_t  incount = 0;
     int     stateSize, maxStateSize = 0;
     typedef data_schema_traits<T> schema_traits ;
+    T *base_ptr = get_base_ptr() ;
     for( ci = ecommon.begin(); ci != ecommon.end(); ++ci) {
       typename schema_traits::Converter_Type cvtr( base_ptr[*ci] );
       stateSize    = cvtr.getSize();
@@ -458,6 +374,7 @@ namespace Loci {
                                        const sequence &seq)
   {
 
+    T *base_ptr = get_base_ptr() ;
     for(size_t i = 0; i < seq.num_intervals(); ++i) {
       if(seq[i].first > seq[i].second) {
         const Loci::int_type stop = seq[i].second ;
@@ -490,6 +407,7 @@ namespace Loci {
     typename converter_traits::Converter_Base_Type *outbuf;
 
     int typesize = sizeof(typename converter_traits::Converter_Base_Type);
+    T *base_ptr = get_base_ptr() ;
 
     for( ci = seq.begin(); ci != seq.end(); ++ci) {
       if( !store_domain.inSet( *ci ) ) {
@@ -552,6 +470,7 @@ namespace Loci {
     fi.size = 1 ;
     int stateSize = 0;
     typedef data_schema_traits<T> schema_traits ;
+    T *base_ptr = get_base_ptr() ;
     for(entitySet::const_iterator ci = dom.begin(); ci != dom.end(); ++ci)
       for(int ivec = 0; ivec < fi.size; ivec++){
         typename schema_traits::Converter_Type cvtr(base_ptr[(*ci)*fi.size+ivec] );
@@ -612,6 +531,7 @@ namespace Loci {
       hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
       T* tmp_array = new T[dimension] ;
       size_t tmp = 0 ;
+      T *base_ptr = get_base_ptr() ;
       for(entitySet::const_iterator si = eset.begin(); si != eset.end();++si)
         tmp_array[tmp++] = base_ptr[*si] ;
 
@@ -627,7 +547,6 @@ namespace Loci {
   template <class T>
   void storeRepI<T> :: hdf5writeP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, const entitySet &eset, hid_t xfer_plist_id)  const
   {
-    //   if(dimension != 0) {
     storeRepP qrep = getRep() ;
     int rank = 1 ;
     DatatypeP dp = qrep->getType() ;
@@ -635,6 +554,7 @@ namespace Loci {
     hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
     T* tmp_array = new T[dimension] ;
     size_t tmp = 0 ;
+    T *base_ptr = get_base_ptr() ;
     for(entitySet::const_iterator si = eset.begin(); si != eset.end();++si)
       tmp_array[tmp++] = base_ptr[*si] ;
 
@@ -643,7 +563,6 @@ namespace Loci {
     H5Sclose(memspace) ;
     H5Tclose(datatype) ;
     delete [] tmp_array ;
-    //    }
   }
 #endif  
   //*********************************************************************/
@@ -662,6 +581,7 @@ namespace Loci {
       dtype* tmp_array = new dtype[dimension] ;
       size_t tmp = 0 ;
       int stateSize = 0 ;
+      T *base_ptr = get_base_ptr() ;
       for(entitySet::const_iterator si = eset.begin(); si != eset.end();++si) {
         typename schema_traits::Converter_Type cvtr(base_ptr[*si]);
         cvtr.getState(tmp_array+tmp, stateSize) ;
@@ -679,7 +599,6 @@ namespace Loci {
   void storeRepI<T>::hdf5writeP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER g, const entitySet &eset, hid_t xfer_plist_id) const
   {
     typedef data_schema_traits<T> schema_traits ;
-    //  if(dimension != 0) {
     storeRepP qrep = getRep() ;
     int rank = 1 ;
     DatatypeP dp = qrep->getType() ;
@@ -689,6 +608,7 @@ namespace Loci {
     dtype* tmp_array = new dtype[dimension] ;
     size_t tmp = 0 ;
     int stateSize = 0 ;
+    T *base_ptr = get_base_ptr() ;
     for(entitySet::const_iterator si = eset.begin(); si != eset.end();++si) {
       typename schema_traits::Converter_Type cvtr(base_ptr[*si]);
       cvtr.getState(tmp_array+tmp, stateSize) ;
@@ -698,7 +618,6 @@ namespace Loci {
     H5Sclose(memspace) ;
     H5Tclose(datatype) ;
     delete [] tmp_array ;
-    //}
   }
 #endif
   //*********************************************************************/
@@ -736,6 +655,7 @@ namespace Loci {
         std::string error = "H5Dread: failed" ;
         throw StringError(error) ;
       }
+      T *base_ptr = get_base_ptr() ;
       for(entitySet::const_iterator si = eset.begin(); si != eset.end();++si)
         base_ptr[*si] = tmp_array[tmp++] ;
       H5Sclose(memspace) ;
@@ -747,7 +667,6 @@ namespace Loci {
   template<class T>
   void  storeRepI<T>::hdf5readP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, frame_info &fi, entitySet &eset, hid_t xfer_plist_id)
   {
-    // if(dimension != 0) {
     storeRepP qrep = getRep() ;
     int rank = 1 ;
     DatatypeP dp = qrep->getType() ;
@@ -761,12 +680,12 @@ namespace Loci {
       std::string error = "H5Dread: failed" ;
       throw StringError(error) ;
     }
+    T *base_ptr = get_base_ptr() ;
     for(entitySet::const_iterator si = eset.begin(); si != eset.end();++si)
       base_ptr[*si] = tmp_array[tmp++] ;
     H5Sclose(memspace) ;
     H5Tclose(datatype) ;
     delete [] tmp_array ;
-    //}
   }
 #endif
   //*********************************************************************/
@@ -793,6 +712,7 @@ namespace Loci {
       size_t tmp = 0 ;
       int bucsize ;
       size_t indx = 0 ;
+      T *base_ptr = get_base_ptr() ;
       for(entitySet::const_iterator si = eset.begin(); si != eset.end(); ++si) {
 	typename data_schema_traits<T>::Converter_Type cvtr(base_ptr[*si]);
 	bucsize = vint[indx++] ;
@@ -810,7 +730,6 @@ namespace Loci {
   void  storeRepI<T>::hdf5readP(hid_t group_id, hid_t dataspace, hid_t dataset,hsize_t dimension, const char* name, USER_DEFINED_CONVERTER c, frame_info &fi, entitySet &eset,hid_t xfer_plist_id)
   {
     typedef data_schema_traits<T> schema_traits ;
-    //   if(dimension != 0) {
     storeRepP qrep = getRep() ;
     int rank = 1 ;
     DatatypeP dp = qrep->getType() ;
@@ -828,6 +747,7 @@ namespace Loci {
     size_t tmp = 0 ;
     int bucsize ;
     size_t indx = 0 ;
+    T *base_ptr = get_base_ptr() ;
     for(entitySet::const_iterator si = eset.begin(); si != eset.end(); ++si) {
       typename data_schema_traits<T>::Converter_Type cvtr(base_ptr[*si]);
       bucsize = vint[indx++] ;
@@ -837,7 +757,6 @@ namespace Loci {
     H5Sclose(memspace) ;
     H5Tclose(datatype) ;
     delete [] tmp_array ;
-    // }
   }
 #endif
   //*********************************************************************/
