@@ -283,9 +283,6 @@ namespace Loci {
   //******************************************************************/
   template<class T> class storeVecRepI : public storeRep {
     entitySet    store_domain ;
-    T           *alloc_ptr ;
-    T           *free_ptr ;
-    int          base_offset ;
     int          size ;
     lmutex       mutex ;
     bool         isMat; //if this is a storeMat
@@ -321,11 +318,9 @@ namespace Loci {
     frame_info get_frame_info(IDENTITY_CONVERTER g) ;
     frame_info get_frame_info(USER_DEFINED_CONVERTER g) ;
   public:
-    storeVecRepI() 
-    { alloc_ptr= 0 ; free_ptr = 0 ; base_offset = 0 ; size=0 ; isMat=false; }
+    storeVecRepI(): size(0),isMat(false) { }
     
-    storeVecRepI(const entitySet &p) 
-    { size = 0; alloc_ptr=0 ;free_ptr = 0 ; allocate(p) ; isMat = false; }
+    storeVecRepI(const entitySet &p):size(0),isMat(false)  { allocate(p) ; }
     
     virtual ~storeVecRepI() ;
     virtual void allocate(const entitySet &ptn) ;

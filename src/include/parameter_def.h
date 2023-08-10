@@ -42,7 +42,6 @@ namespace Loci {
   
   template<class T> class paramRepI : public storeRep {
     entitySet store_domain ;
-    T *alloc_ptr ;
     T *base_ptr ;
     
     void hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER g, frame_info &fi, const entitySet &en);
@@ -66,13 +65,13 @@ namespace Loci {
     frame_info get_frame_info(USER_DEFINED_CONVERTER g) ;
   public:
     paramRepI() {
-      alloc_ptr=0; base_ptr = 0 ;
+      base_ptr = 0 ;
       store_domain = interval(UNIVERSE_MIN,UNIVERSE_MAX) ;
       allocate(store_domain) ;
     }
     
     paramRepI(const entitySet &p) {
-      alloc_ptr=0 ; base_ptr=0; store_domain=p ;
+      base_ptr=0; store_domain=p ;
       allocate(store_domain) ;
     }
     virtual void allocate(const entitySet &p)  ;

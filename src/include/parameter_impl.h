@@ -34,33 +34,12 @@ namespace Loci {
     if(alloc_id < 0)
       alloc_id = getStoreAllocateID() ;
 
-    if(!alloc_ptr) {
-      // Ok, we need to allocate the data for the first time
-#ifdef STORE_ALIGN_SIZE
-      size_t alloc_size = 1 ;
-      T * tmp_alloc_ptr = (T *) malloc(sizeof(T)*(alloc_size)+(STORE_ALIGN_SIZE)) ;
-      T* tmp_base_ptr = tmp_alloc_ptr  ;
-      T* tmp_base_algn = (T *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
-      if(tmp_base_ptr !=tmp_base_algn) 
-	tmp_base_ptr = (T *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
-      // Call placement new
-      if(!std::is_trivially_default_constructible<T>::value) {
-	new(tmp_base_ptr) T() ;
-      }
-      alloc_ptr = tmp_alloc_ptr ;
-      base_ptr = tmp_base_ptr ;
-#else
-      T* tmp_alloc_ptr = new T[1] ;
-      T* tmp_base_ptr = tmp_alloc_ptr ;
-      alloc_ptr = tmp_alloc_ptr ;
-      base_ptr = tmp_base_ptr ;
-#endif
-      storeAllocateData[alloc_id].alloc_ptr1 = alloc_ptr ;
-      storeAllocateData[alloc_id].base_ptr = base_ptr ;
-      storeAllocateData[alloc_id].size = 1 ;
-    }
+    entitySet single = interval(0,0) ;
+    storeAllocateData[alloc_id].template allocBasic<T>(single,1) ;
+    base_ptr = (T *)storeAllocateData[alloc_id].base_ptr ;
     store_domain = p ;
     dispatch_notify();
+    return ;
   }
 
   template<class T> void paramRepI<T>::erase(const entitySet& rm) {
@@ -93,22 +72,12 @@ namespace Loci {
   //**************************************************************************/
 
   template<class T> paramRepI<T>::~paramRepI() {
-    if(alloc_ptr) {
-#ifdef STORE_ALIGN_SIZE
-      // Call placement delete
-      if(!std::is_trivially_default_constructible<T>::value) {
-	base_ptr[0].~T() ;
-      }
-      free(alloc_ptr) ;
-#else
-      delete[] alloc_ptr ;
-#endif
-    }
-    
     if(alloc_id>=0) {
+      storeAllocateData[alloc_id].template release<T>() ;
       releaseStoreAllocateID(alloc_id) ;
       alloc_id = -1 ;
     }
+    return ;
 }
 
   //**************************************************************************/

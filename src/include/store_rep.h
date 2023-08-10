@@ -54,7 +54,7 @@ namespace Loci {
     size_t allocated_size ;
     bool allocated ;
     entitySet allocset ;
-    storeAllocateInfo():alloc_ptr1(0),alloc_ptr2(0),base_ptr(0),size(00),allocated_size(0),allocated(false) {allocset=EMPTY ;}
+    storeAllocateInfo():alloc_ptr1(0),alloc_ptr2(0),base_ptr(0),size(0),allocated_size(0),allocated(false) {allocset=EMPTY ;}
 
     template<class T> void allocBasic(const entitySet &eset, int sz) {
       // if the pass in is EMPTY, we delete the previous allocated memory
@@ -75,7 +75,7 @@ namespace Loci {
 	}
 	alloc_ptr1 = 0 ;
 	base_ptr = 0 ;
-	size=0 ;
+	size=sz ;
 	base_offset=0 ;
 	allocated_size = 0 ;
 	allocset = eset ;
