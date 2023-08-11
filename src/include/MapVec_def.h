@@ -45,11 +45,10 @@ namespace Loci {
     typedef Array<int,M> VEC ;
   private:
     entitySet store_domain ;
-    VEC *alloc_pointer ;
     VEC *base_ptr ;
   public:
-    MapVecRepI() { alloc_pointer = 0 ; base_ptr = 0 ; }
-    MapVecRepI(const entitySet &p) { alloc_pointer=0 ; allocate(p) ; }
+    MapVecRepI() {  base_ptr = 0 ; }
+    MapVecRepI(const entitySet &p) { allocate(p) ; }
     virtual void allocate(const entitySet &ptn) ;
     virtual ~MapVecRepI() ;
     virtual storeRep *new_store(const entitySet &p) const ;
@@ -83,7 +82,7 @@ namespace Loci {
     virtual void readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en, hid_t xfer_plist_id) ;
     virtual void writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en, hid_t xfer_plist_id) const ;
 #endif
-    VEC * get_base_ptr() const { VEC * p = 0 ; if(alloc_id>=0) p = (VEC *)storeAllocateData[alloc_id].base_ptr ; return p ; }
+    VEC * get_base_ptr() const { VEC * p = 0 ; if(alloc_id>=0) p = ((VEC *)storeAllocateData[alloc_id].base_ptr) - storeAllocateData[alloc_id].base_offset ; return p ; }
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
     virtual storeRepP freeze() ;
     virtual storeRepP thaw() ;

@@ -37,84 +37,97 @@ namespace Loci {
     if(alloc_id < 0)
       alloc_id = getStoreAllocateID() ;
 
-    if( ptn == EMPTY ) {
-#ifdef STORE_ALIGN_SIZE
-      if(alloc_pointer)
-	free(alloc_pointer) ;
-#else
-      delete [] alloc_pointer ;
-#endif
-      alloc_pointer = 0 ; base_ptr = 0;
-      storeAllocateData[alloc_id].alloc_ptr1 = alloc_pointer ;
-      storeAllocateData[alloc_id].base_ptr = base_ptr ;
-      storeAllocateData[alloc_id].size = 0 ;
-      store_domain = ptn ;
-      dispatch_notify() ;
-      return ;
-    }
-    int_type old_range_min = store_domain.Min() ;
-    int_type old_range_max = store_domain.Max() ;
-    int_type new_range_min = ptn.Min() ;
-    int_type new_range_max = ptn.Max() ;
-    // if the old range and the new range are equal, nothing
-    // needs to be done, just return
-    if( (old_range_min == new_range_min) &&
-        (old_range_max == new_range_max)) {
-      store_domain = ptn ;
-      return ;
-    }
-    // is there any overlap between the old and the new domain?
-    // we copy the contents in the overlap region to the new
-    // allocated storage
-    entitySet ecommon = store_domain & ptn ;
-
-#ifdef STORE_ALIGN_SIZE
-    size_t alloc_size = new_range_max-new_range_min+1 ;
-    Entity * tmp_alloc_pointer = (Entity *) malloc(sizeof(Entity)*(alloc_size)+(STORE_ALIGN_SIZE)) ;
-    Entity* tmp_base_ptr = tmp_alloc_pointer - new_range_min ;
-    Entity* tmp_base_algn = (Entity *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
-    if(tmp_base_ptr !=tmp_base_algn) 
-      tmp_base_ptr = (Entity *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
-#else
-    Entity * tmp_alloc_pointer = new Entity[new_range_max - new_range_min + 1] ;
-    Entity * tmp_base_ptr = tmp_alloc_pointer - new_range_min ;
-#endif
-    // if ecommon == EMPTY, then nothing is done in the loop
-    FORALL(ecommon,i) {
-      tmp_base_ptr[i] = base_ptr[i] ;
-    } ENDFORALL ;
-
-
-#ifdef STORE_ALIGN_SIZE
-    // Call placement delete
-    if(alloc_pointer)
-      free(alloc_pointer) ;
-#else
-    delete [] alloc_pointer ;
-#endif
-    alloc_pointer = tmp_alloc_pointer ;
-    base_ptr = tmp_base_ptr ;
-    storeAllocateData[alloc_id].alloc_ptr1 = alloc_pointer ;
-    storeAllocateData[alloc_id].base_ptr = base_ptr ;
-    storeAllocateData[alloc_id].size = 1 ;
-    store_domain = ptn ;
+    storeAllocateData[alloc_id].template allocBasic<Entity>(ptn,1) ;
+    store_domain = storeAllocateData[alloc_id].allocset ;
+    base_ptr = (((Entity *) storeAllocateData[alloc_id].base_ptr) -
+		storeAllocateData[alloc_id].base_offset) ;
+      
     dispatch_notify() ;
     return ;
+    
+//     if( ptn == EMPTY ) {
+// #ifdef STORE_ALIGN_SIZE
+//       if(alloc_pointer)
+// 	free(alloc_pointer) ;
+// #else
+//       delete [] alloc_pointer ;
+// #endif
+//       alloc_pointer = 0 ; base_ptr = 0;
+//       storeAllocateData[alloc_id].alloc_ptr1 = alloc_pointer ;
+//       storeAllocateData[alloc_id].base_ptr = base_ptr ;
+//       storeAllocateData[alloc_id].size = 0 ;
+//       store_domain = ptn ;
+//       dispatch_notify() ;
+//       return ;
+//     }
+//     int_type old_range_min = store_domain.Min() ;
+//     int_type old_range_max = store_domain.Max() ;
+//     int_type new_range_min = ptn.Min() ;
+//     int_type new_range_max = ptn.Max() ;
+//     // if the old range and the new range are equal, nothing
+//     // needs to be done, just return
+//     if( (old_range_min == new_range_min) &&
+//         (old_range_max == new_range_max)) {
+//       store_domain = ptn ;
+//       return ;
+//     }
+//     // is there any overlap between the old and the new domain?
+//     // we copy the contents in the overlap region to the new
+//     // allocated storage
+//     entitySet ecommon = store_domain & ptn ;
+
+// #ifdef STORE_ALIGN_SIZE
+//     size_t alloc_size = new_range_max-new_range_min+1 ;
+//     Entity * tmp_alloc_pointer = (Entity *) malloc(sizeof(Entity)*(alloc_size)+(STORE_ALIGN_SIZE)) ;
+//     Entity* tmp_base_ptr = tmp_alloc_pointer - new_range_min ;
+//     Entity* tmp_base_algn = (Entity *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
+//     if(tmp_base_ptr !=tmp_base_algn) 
+//       tmp_base_ptr = (Entity *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
+// #else
+//     Entity * tmp_alloc_pointer = new Entity[new_range_max - new_range_min + 1] ;
+//     Entity * tmp_base_ptr = tmp_alloc_pointer - new_range_min ;
+// #endif
+//     // if ecommon == EMPTY, then nothing is done in the loop
+//     FORALL(ecommon,i) {
+//       tmp_base_ptr[i] = base_ptr[i] ;
+//     } ENDFORALL ;
+
+
+// #ifdef STORE_ALIGN_SIZE
+//     // Call placement delete
+//     if(alloc_pointer)
+//       free(alloc_pointer) ;
+// #else
+//     delete [] alloc_pointer ;
+// #endif
+//     alloc_pointer = tmp_alloc_pointer ;
+//     base_ptr = tmp_base_ptr ;
+//     storeAllocateData[alloc_id].alloc_ptr1 = alloc_pointer ;
+//     storeAllocateData[alloc_id].base_ptr = base_ptr ;
+//     storeAllocateData[alloc_id].size = 1 ;
+//     store_domain = ptn ;
+//     dispatch_notify() ;
+//     return ;
   }
 
 
   MapRepI::~MapRepI() {
-    if(alloc_pointer) {
-#ifdef STORE_ALIGN_SIZE
-      free(alloc_pointer) ;
-#else
-      delete[] alloc_pointer ;
-#endif
-    }
     if(alloc_id>=0) {
+      storeAllocateData[alloc_id].template release<Entity>() ;
       releaseStoreAllocateID(alloc_id) ;
       alloc_id = -1 ;
     }
+//     if(alloc_pointer) {
+// #ifdef STORE_ALIGN_SIZE
+//       free(alloc_pointer) ;
+// #else
+//       delete[] alloc_pointer ;
+// #endif
+//     }
+//     if(alloc_id>=0) {
+//       releaseStoreAllocateID(alloc_id) ;
+//       alloc_id = -1 ;
+//     }
   }
 
   storeRep *MapRepI::new_store(const entitySet &p) const {

@@ -45,11 +45,10 @@ namespace Loci {
   
   class MapRepI : public MapRep {
     entitySet store_domain ;
-    Entity *alloc_pointer ;
     Entity *base_ptr ;
   public:
-    MapRepI() { alloc_pointer = 0 ; base_ptr = 0 ; }
-    MapRepI(const entitySet &p) { alloc_pointer=0 ; allocate(p) ; }
+    MapRepI() { base_ptr = 0 ; }
+    MapRepI(const entitySet &p) { allocate(p) ; }
     virtual void allocate(const entitySet &ptn) ;
     virtual ~MapRepI() ;
     virtual storeRep *new_store(const entitySet &p) const ;
@@ -89,7 +88,8 @@ namespace Loci {
     virtual void readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en, hid_t xfer_plist_id) ;
     virtual void writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name,  entitySet& en, hid_t xfer_plist_id) const ;
 #endif    
-    Entity * get_base_ptr() const { Entity * p = 0 ; if(alloc_id>=0) p = (Entity *)storeAllocateData[alloc_id].base_ptr ; return p ; }
+
+    Entity * get_base_ptr() const { Entity * p = 0 ; if(alloc_id>=0) p = ((Entity *)storeAllocateData[alloc_id].base_ptr) -storeAllocateData[alloc_id].base_offset ; return p ; }
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
     virtual DatatypeP getType() ;
     virtual frame_info get_frame_info() ;
