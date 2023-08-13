@@ -109,7 +109,7 @@ int main(int argc, char *argv[])
   upper.allocate(count) ;
   entitySet::const_iterator ei ;
   for(ei=alloc_set.begin(); ei!= alloc_set.end(); ++ei) {
-    for(int i=1;i<upper.vec_size(*ei);++i)
+    for(int i=0;i<upper.vec_size(*ei);++i)
       upper[*ei][i] = i ;
   }
 
