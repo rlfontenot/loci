@@ -44,72 +44,7 @@ namespace Loci {
       
     dispatch_notify() ;
     return ;
-    
-//     if( ptn == EMPTY ) {
-// #ifdef STORE_ALIGN_SIZE
-//       if(alloc_pointer)
-// 	free(alloc_pointer) ;
-// #else
-//       delete [] alloc_pointer ;
-// #endif
-//       alloc_pointer = 0 ; base_ptr = 0;
-//       storeAllocateData[alloc_id].alloc_ptr1 = alloc_pointer ;
-//       storeAllocateData[alloc_id].base_ptr = base_ptr ;
-//       storeAllocateData[alloc_id].size = 0 ;
-//       store_domain = ptn ;
-//       dispatch_notify() ;
-//       return ;
-//     }
-//     int_type old_range_min = store_domain.Min() ;
-//     int_type old_range_max = store_domain.Max() ;
-//     int_type new_range_min = ptn.Min() ;
-//     int_type new_range_max = ptn.Max() ;
-//     // if the old range and the new range are equal, nothing
-//     // needs to be done, just return
-//     if( (old_range_min == new_range_min) &&
-//         (old_range_max == new_range_max)) {
-//       store_domain = ptn ;
-//       return ;
-//     }
-//     // is there any overlap between the old and the new domain?
-//     // we copy the contents in the overlap region to the new
-//     // allocated storage
-//     entitySet ecommon = store_domain & ptn ;
-
-// #ifdef STORE_ALIGN_SIZE
-//     size_t alloc_size = new_range_max-new_range_min+1 ;
-//     Entity * tmp_alloc_pointer = (Entity *) malloc(sizeof(Entity)*(alloc_size)+(STORE_ALIGN_SIZE)) ;
-//     Entity* tmp_base_ptr = tmp_alloc_pointer - new_range_min ;
-//     Entity* tmp_base_algn = (Entity *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
-//     if(tmp_base_ptr !=tmp_base_algn) 
-//       tmp_base_ptr = (Entity *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
-// #else
-//     Entity * tmp_alloc_pointer = new Entity[new_range_max - new_range_min + 1] ;
-//     Entity * tmp_base_ptr = tmp_alloc_pointer - new_range_min ;
-// #endif
-//     // if ecommon == EMPTY, then nothing is done in the loop
-//     FORALL(ecommon,i) {
-//       tmp_base_ptr[i] = base_ptr[i] ;
-//     } ENDFORALL ;
-
-
-// #ifdef STORE_ALIGN_SIZE
-//     // Call placement delete
-//     if(alloc_pointer)
-//       free(alloc_pointer) ;
-// #else
-//     delete [] alloc_pointer ;
-// #endif
-//     alloc_pointer = tmp_alloc_pointer ;
-//     base_ptr = tmp_base_ptr ;
-//     storeAllocateData[alloc_id].alloc_ptr1 = alloc_pointer ;
-//     storeAllocateData[alloc_id].base_ptr = base_ptr ;
-//     storeAllocateData[alloc_id].size = 1 ;
-//     store_domain = ptn ;
-//     dispatch_notify() ;
-//     return ;
   }
-
 
   MapRepI::~MapRepI() {
     if(alloc_id>=0) {
@@ -117,17 +52,6 @@ namespace Loci {
       releaseStoreAllocateID(alloc_id) ;
       alloc_id = -1 ;
     }
-//     if(alloc_pointer) {
-// #ifdef STORE_ALIGN_SIZE
-//       free(alloc_pointer) ;
-// #else
-//       delete[] alloc_pointer ;
-// #endif
-//     }
-//     if(alloc_id>=0) {
-//       releaseStoreAllocateID(alloc_id) ;
-//       alloc_id = -1 ;
-//     }
   }
 
   storeRep *MapRepI::new_store(const entitySet &p) const {
@@ -857,68 +781,19 @@ namespace Loci {
     return(dm.Rep()) ;
   }
   
-  void multialloc(const store<int> &count, int ***index, int **alloc_pointer,
-                  int ***base_ptr) {
-    entitySet ptn = count.domain() ;
-    int top = ptn.Min() ;
-    int len = ptn.Max() - top + 2 ;
-    if(ptn == EMPTY) {
-      top = 0 ;
-      len = 0 ;
-    }
-    int **new_index = 0 ;
-    try {
-      if(ptn != EMPTY)
-	new_index = new int *[len] ;
-    } catch(std::exception &e) {
-      std::cerr << " a standard exception was caught in new_index"
-      		<< ", len=" << len << " with message: "
-      		<< e.what() << endl;
-      Loci::Abort() ;
-    }
-
-    int **new_base_ptr = new_index-top ;
-    size_t sz = 0 ;
-    int min_count = 0x8fffffff ;
-    int max_count = 0 ;
-    FORALL(ptn,i) {
-      max_count = max(count[i],max_count) ;
-      min_count = min(count[i],min_count) ;
-      sz += count[i] ;
-    } ENDFORALL ;
-    int *new_alloc_pointer = 0 ;
-    try {
-      new_alloc_pointer = new int[sz+1] ;
-    } catch(std::exception &e) {
-      std::cerr << " a standard exception was caught in new_alloc_pointer "
-		<< ", sz=" << sz << ", min_cnt=" << min_count 
-		<< ", max_cnt=" << max_count
-		<< ", pnt.size() = " << ptn.size() 
-		<< ", exception = " 
-		<< e.what() << endl;
-    }
-    sz = 0 ;
-    for(size_t ivl=0;ivl<ptn.num_intervals();++ivl) {
-      int i = ptn[ivl].first ;
-      new_base_ptr[i] = new_alloc_pointer + sz ;
-      while(i<=ptn[ivl].second) {
-        sz += count[i] ;
-        ++i ;
-        new_base_ptr[i] = new_alloc_pointer + sz ;
-      }
-    }
-    *index = new_index ;
-    *alloc_pointer = new_alloc_pointer ;
-    *base_ptr = new_base_ptr ;
-  }
 
   void multiMapRepI::allocate(const store<int> &sizes) {
+    if(alloc_id < 0)
+      alloc_id = getStoreAllocateID() ;
+
     entitySet ptn = sizes.domain() ;
-    if(alloc_pointer) delete[] alloc_pointer ;
-    alloc_pointer = 0 ;
-    if(index) delete[] index ;
-    index = 0 ;
-    multialloc(sizes, &index, &alloc_pointer, &base_ptr) ;
+    int cntid = sizes.Rep()->get_alloc_id() ;
+    storeAllocateData[alloc_id].template release<Entity>() ;
+    storeAllocateData[alloc_id].template
+      allocMulti<Entity>(storeAllocateData[cntid],ptn) ;
+
+    base_ptr = ((Entity **)storeAllocateData[alloc_id].alloc_ptr2 -
+		storeAllocateData[alloc_id].base_offset) ;
    
     store_domain = ptn ;
     dispatch_notify() ;
@@ -926,8 +801,11 @@ namespace Loci {
   
 
   multiMapRepI::~multiMapRepI() {
-    if(alloc_pointer) delete[] alloc_pointer ;
-    if(index) delete[] index ;
+    if(alloc_id>=0) {
+      storeAllocateData[alloc_id].template release<Entity>() ;
+      releaseStoreAllocateID(alloc_id) ;
+      alloc_id = -1 ;
+    }
   }
 
   storeRep *multiMapRepI::new_store(const entitySet &p) const {
@@ -963,7 +841,6 @@ namespace Loci {
   }
 
   void multiMapRepI::compose(const dMap &m, const entitySet &context) {
-    fatal(alloc_pointer == 0) ;
     fatal((context-store_domain) != EMPTY) ;
     //fatal((image(context)-m.domain()) != EMPTY) ;
     entitySet dom = m.domain() ;
@@ -980,7 +857,6 @@ namespace Loci {
     
   void multiMapRepI::copy(storeRepP &st, const entitySet &context) {
     const_multiMap s(st) ;
-    fatal(alloc_pointer == 0) ;
     fatal((context-domain()) != EMPTY) ;
     fatal((context-s.domain()) != EMPTY) ;
 
@@ -992,12 +868,16 @@ namespace Loci {
     FORALL(context,i) {
       count[i] = s.end(i)-s.begin(i) ;
     } ENDFORALL ;
-    
-    int **new_index ;
-    int *new_alloc_pointer ;
-    int **new_base_ptr ;
 
-    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
+    // Allocate a temporary copy for the copy
+    int cntid = count.Rep()->get_alloc_id() ;
+    storeAllocateInfo tmp ;
+    tmp.template allocMulti<Entity>(storeAllocateData[cntid],count.domain()) ;
+
+    Entity **new_base_ptr = ((Entity **)tmp.alloc_ptr2 -
+			     tmp.base_offset) ;
+
+    // Copy data to new allocation
     FORALL(domain()-context,i) {
       for(int j=0;j<count[i];++j) 
         new_base_ptr[i][j] = base_ptr[i][j] ;
@@ -1007,11 +887,10 @@ namespace Loci {
       for(int j=0;j<count[i];++j)
         new_base_ptr[i][j] = s[i][j] ;
     } ENDFORALL ;
-
-    if(alloc_pointer) delete[] alloc_pointer ;
-    alloc_pointer = new_alloc_pointer;
-    if(index) delete[] index ;
-    index = new_index ;
+    // release old allocation
+    storeAllocateData[alloc_id].template release<Entity>() ;
+    // copy newly copied temporary to main allocatin
+    storeAllocateData[alloc_id] = tmp ;
     base_ptr = new_base_ptr ;
     dispatch_notify() ;
   }
@@ -1027,11 +906,14 @@ namespace Loci {
     FORALL(context,i) {
       count[i] = s.end(m[i])-s.begin(m[i]) ;
     } ENDFORALL ;
-    int **new_index ;
-    int *new_alloc_pointer ;
-    int **new_base_ptr ;
 
-    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
+    // Allocate a temporary copy for the copy
+    int cntid = count.Rep()->get_alloc_id() ;
+    storeAllocateInfo tmp ;
+    tmp.template allocMulti<Entity>(storeAllocateData[cntid],count.domain()) ;
+
+    Entity **new_base_ptr = ((Entity **)tmp.alloc_ptr2 -
+			     tmp.base_offset) ;
     FORALL(domain()-context,i) {
       for(int j=0;j<count[i];++j) 
         new_base_ptr[i][j] = base_ptr[i][j] ;
@@ -1042,10 +924,11 @@ namespace Loci {
         new_base_ptr[i][j] = s[m[i]][j] ;
     } ENDFORALL ;
 
-    if(alloc_pointer) delete[] alloc_pointer ;
-    alloc_pointer = new_alloc_pointer;
-    if(index) delete[] index ;
-    index = new_index ;
+    // release old allocation
+    storeAllocateData[alloc_id].template release<Entity>() ;
+    // copy newly copied temporary to main allocatin
+    storeAllocateData[alloc_id] = tmp ;
+
     base_ptr = new_base_ptr ;
     dispatch_notify() ;
   }
@@ -1066,11 +949,14 @@ namespace Loci {
     FORALL(context,i) {
       count[m[i]] = s.end(i)-s.begin(i) ;
     } ENDFORALL ;
-    int **new_index ;
-    int *new_alloc_pointer ;
-    int **new_base_ptr ;
-    
-    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
+    // Allocate a temporary copy for the copy
+    int cntid = count.Rep()->get_alloc_id() ;
+    storeAllocateInfo tmp ;
+    tmp.template allocMulti<Entity>(storeAllocateData[cntid],count.domain()) ;
+
+    Entity **new_base_ptr = ((Entity **)tmp.alloc_ptr2 -
+			     tmp.base_offset) ;
+
     FORALL(domain()-m.image(context),i) {
       for(int j=0;j<count[i];++j) 
         new_base_ptr[i][j] = base_ptr[i][j] ;
@@ -1080,10 +966,11 @@ namespace Loci {
         new_base_ptr[m[i]][j] = s[i][j] ;
       }
     } ENDFORALL ;
-    if(alloc_pointer) delete[] alloc_pointer ;
-    alloc_pointer = new_alloc_pointer;
-    if(index) delete[] index ;
-    index = new_index ;
+    // release old allocation
+    storeAllocateData[alloc_id].template release<Entity>() ;
+    // copy newly copied temporary to main allocatin
+    storeAllocateData[alloc_id] = tmp ;
+
     base_ptr = new_base_ptr ;
     dispatch_notify() ;
   }

@@ -75,142 +75,21 @@ namespace Loci {
     // all previously held memory
     //-------------------------------------------------------------------------
     // Assign new entitySet ...
+
     entitySet ptn = sizes.domain() ;
-    if(index) {
-      delete[] index ;
-#ifdef STORE_ALIGN_SIZE
-      if(!std::is_trivially_default_constructible<T>::value) {
-	T * tmp_base_ptr = alloc_pointer ;
-	T * tmp_base_algn = (T *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
-	if(tmp_base_ptr !=tmp_base_algn) 
-	  tmp_base_ptr = (T *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
-	T *use_ptr = tmp_base_ptr  ;
-	// Call destructor
-	for(size_t i=0;i<allocated_sz;++i) {
-	  T * p = use_ptr + i ;
-	  p->~T() ;
-	}
-      }
-      free(alloc_pointer) ;
-#else
-      delete[] alloc_pointer ;
-#endif
-    }
+    int cntid = sizes.Rep()->get_alloc_id() ;
+    storeAllocateData[alloc_id].template release<T>() ;
+    storeAllocateData[alloc_id].template
+      allocMulti<T>(storeAllocateData[cntid],ptn) ;
 
-    store_domain  = ptn ;
-    alloc_pointer = 0 ;
-    index = 0 ;
-    base_ptr = 0 ;
-    
-    size_t sz = 0 ;
-    if(ptn != EMPTY) {
-      int top  = ptn.Min() ;
-      int len  = ptn.Max() - top + 2 ;
-      index    = new T *[len] ;
-      base_ptr = index - top ;
-
-      FORALL(ptn,i) {
-        sz += sizes[i] ;
-      } ENDFORALL ;
-
-      allocated_sz = sz+1 ;
-#ifdef STORE_ALIGN_SIZE
-      alloc_pointer = (T *) malloc(sizeof(T)*(allocated_sz)+(STORE_ALIGN_SIZE)) ;
-      T * tmp_base_ptr = alloc_pointer ;
-      T * tmp_base_algn = (T *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
-      if(tmp_base_ptr !=tmp_base_algn) 
-	tmp_base_ptr = (T *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
-      T *use_ptr = tmp_base_ptr  ;
-      // Call placement new
-      if(!std::is_trivially_default_constructible<T>::value) {
-	for(size_t i=0;i<allocated_sz;++i) {
-	  T * p = use_ptr + i ;
-	  new(p) T() ;
-	} ;
-      }
-#else
-      alloc_pointer = new T[allocated_sz] ;
-      T *use_ptr = alloc_pointer  ;
-#endif 
-      sz = 0 ;
-      for(size_t ivl=0;ivl< ptn.num_intervals(); ++ivl) {
-        int i       = ptn[ivl].first ;
-        base_ptr[i] = use_ptr + sz ;
-        while(i<=ptn[ivl].second) {
-          sz += sizes[i] ;
-          ++i ;
-          base_ptr[i] = use_ptr + sz ;
-        }
-      }
-    }
-    storeAllocateData[alloc_id].alloc_ptr1 = alloc_pointer ;
-    storeAllocateData[alloc_id].alloc_ptr2 = index ;
-    storeAllocateData[alloc_id].base_ptr = base_ptr ;
-    storeAllocateData[alloc_id].base_offset = 0 ;
-    storeAllocateData[alloc_id].size = size ;
-    storeAllocateData[alloc_id].allocated_size = allocated_sz ;
+    base_ptr = ((T **)storeAllocateData[alloc_id].alloc_ptr2 -
+		storeAllocateData[alloc_id].base_offset) ;
+   
+    store_domain = ptn ;
 
     dispatch_notify();
   }
 
-  //*************************************************************************/
-
-  template<class T> 
-  void multiStoreRepI<T>::multialloc(const store<int> &count, T ***index, 
-                                     T **alloc_pointer, T ***base_ptr, size_t &allocated_sz) {
-    if(alloc_id < 0)
-      alloc_id = getStoreAllocateID() ;
-    entitySet ptn = count.domain() ;
-    int top = ptn.Min() ;
-    int len = ptn.Max() - top + 2 ;
-    T **new_index = 0 ;
-
-    new_index = new T *[len] ;
-
-    T **new_base_ptr = new_index - top ;
-    size_t sz = 0 ;
-    
-    FORALL(ptn, i) {
-      sz += count[i] ;
-    } ENDFORALL ;
-    allocated_sz = sz+1 ;
-    T *new_alloc_pointer = 0 ;
-
-#ifdef STORE_ALIGN_SIZE
-    new_alloc_pointer = (T *) malloc(sizeof(T)*(allocated_sz)+(STORE_ALIGN_SIZE)) ;
-    T * tmp_base_ptr = new_alloc_pointer ;
-    T * tmp_base_algn = (T *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
-    if(tmp_base_ptr !=tmp_base_algn) 
-      tmp_base_ptr = (T *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
-    T *use_ptr = tmp_base_ptr  ;
-    // Call placement new
-    if(!std::is_trivially_default_constructible<T>::value) {
-      for(size_t i=0;i<allocated_sz;++i) {
-	T * p = use_ptr + i ;
-	new(p) T() ;
-      } ;
-    }
-#else
-    new_alloc_pointer = new T[allocated_sz] ;
-    T *use_ptr = new_alloc_pointer ;
-#endif 
-
-    sz = 0 ;
-    
-    for(size_t ivl = 0; ivl < ptn.num_intervals(); ++ivl) {
-      int i = ptn[ivl].first ;
-      new_base_ptr[i] = use_ptr + sz ;
-      while(i <= ptn[ivl].second) {
-	sz += count[i] ;
-	++i ;
-	new_base_ptr[i] = use_ptr + sz ;
-      }
-    }
-    
-    *base_ptr = new_base_ptr ;
-    *alloc_pointer = new_alloc_pointer ;
-    
-  }
 
   //*************************************************************************/
    
@@ -223,57 +102,16 @@ namespace Loci {
 
     mutex.lock() ;
 
-    if(alloc_pointer != 0 && base_ptr[store_domain.Min()] == base_ptr[store_domain.Max()]) {
-
-      delete[] index ;
-#ifdef STORE_ALIGN_SIZE
-      if(!std::is_trivially_default_constructible<T>::value) {
-	T * tmp_base_ptr = alloc_pointer ;
-	T * tmp_base_algn = (T *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
-	if(tmp_base_ptr !=tmp_base_algn) 
-	  tmp_base_ptr = (T *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
-	T *use_ptr = tmp_base_ptr  ;
-	// Call destructor
-	for(size_t i=0;i<allocated_sz;++i) {
-	  T * p = use_ptr + i ;
-	  p->~T() ;
-	}
-      }
-      free(alloc_pointer) ;
-#else
-      delete[] alloc_pointer ;
-#endif
-
-      index = 0 ;
-      alloc_pointer = 0 ;
-    }
-
-    if(alloc_pointer != 0) {
-      entitySet map_set = mm.domain() & store_domain ;
-      entitySet problem ;
-      FORALL(map_set,i) {
-        if((end(i)-begin(i))<(mm.end(i)-mm.begin(i)))
-          problem += i ;
-      } ENDFORALL ;
-
-      if(problem != EMPTY) {
-        std::cerr << "reallocation of multiStore required for entities"
-                  << problem << endl
-                  << "Currently this reallocation isn't implemented."
-                  << endl ;
-      }
-    } else {
-      store<int> sizes ;
-      sizes.allocate(store_domain) ;
-      FORALL(store_domain,i) {
-        sizes[i] = 0 ;
-      } ENDFORALL ;
-      entitySet map_set = mm.domain() & store_domain ;
-      FORALL(map_set,i) {
-        sizes[i] = (mm.end(i) - mm.begin(i)) ;
-      } ENDFORALL ;
-      allocate(sizes) ;
-    }
+    store<int> sizes ;
+    sizes.allocate(store_domain) ;
+    FORALL(store_domain,i) {
+      sizes[i] = 0 ;
+    } ENDFORALL ;
+    entitySet map_set = mm.domain() & store_domain ;
+    FORALL(map_set,i) {
+      sizes[i] = (mm.end(i) - mm.begin(i)) ;
+    } ENDFORALL ;
+    allocate(sizes) ;
     
     mutex.unlock() ;
   }
@@ -293,34 +131,7 @@ namespace Loci {
     if(ptn == store_domain)
       return ;
 
-    if(index) {
-      delete[] index ;
-#ifdef STORE_ALIGN_SIZE
-      if(!std::is_trivially_default_constructible<T>::value) {
-	T * tmp_base_ptr = alloc_pointer ;
-	T * tmp_base_algn = (T *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
-	if(tmp_base_ptr !=tmp_base_algn) 
-	  tmp_base_ptr = (T *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
-	T *use_ptr = tmp_base_ptr  ;
-	// Call destructor
-	for(size_t i=0;i<allocated_sz;++i) {
-	  T * p = use_ptr + i ;
-	  p->~T() ;
-	}
-      }
-      free(alloc_pointer) ;
-#else
-      delete[] alloc_pointer ;
-#endif
-    }
-
-    alloc_pointer = 0 ;
-    index         = 0 ;
     
-    base_ptr      = 0 ;
-
-    store_domain  = ptn ;
-
     //-------------------------------------------------------------------------
     // Initialize degree of each entity to zero 
     //-------------------------------------------------------------------------
@@ -334,50 +145,26 @@ namespace Loci {
     
     allocate(count) ;
 
-    //-------------------------------------------------------------------------
-    // Notify all observers ...
-    //-------------------------------------------------------------------------
-
-    storeAllocateData[alloc_id].alloc_ptr1 = alloc_pointer ;
-    storeAllocateData[alloc_id].alloc_ptr2 = index ;
-    storeAllocateData[alloc_id].base_ptr = base_ptr ;
-    storeAllocateData[alloc_id].base_offset = 0 ;
-    storeAllocateData[alloc_id].size = size ;
-    storeAllocateData[alloc_id].allocated_size = allocated_sz ;
-    dispatch_notify() ;
   }
 
   template<class T>
   void multiStoreRepI<T>::shift(int_type offset) {
+    if(alloc_id < 0)
+      alloc_id = getStoreAllocateID() ;
+    
     store_domain >>= offset ;
-    allocate(store_domain) ;
+    storeAllocateData[alloc_id].allocset >>= offset ;
+    storeAllocateData[alloc_id].base_offset += offset ;
+    base_ptr = get_base_ptr() ;
+    dispatch_notify() ;
   }
   //*************************************************************************/
 
   template<class T> 
   multiStoreRepI<T>::~multiStoreRepI() 
   {
-    if(index) {
-      delete[] index ;    
-#ifdef STORE_ALIGN_SIZE
-      if(!std::is_trivially_default_constructible<T>::value) {
-	T * tmp_base_ptr = alloc_pointer ;
-	T * tmp_base_algn = (T *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
-	if(tmp_base_ptr !=tmp_base_algn) 
-	  tmp_base_ptr = (T *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
-	T *use_ptr = tmp_base_ptr  ;
-	// Call destructor
-	for(size_t i=0;i<allocated_sz;++i) {
-	  T * p = use_ptr + i ;
-	  p->~T() ;
-	}
-      }
-      free(alloc_pointer) ;
-#else
-      delete[] alloc_pointer ;
-#endif
-    }
     if(alloc_id>=0) {
+      storeAllocateData[alloc_id].template release<T>() ;
       releaseStoreAllocateID(alloc_id) ;
       alloc_id = -1 ;
     }
@@ -464,54 +251,29 @@ namespace Loci {
       count[i] = s.end(i) - s.begin(i) ;
     } ENDFORALL ;
     
-    T **new_index ;
-    T *new_alloc_pointer ;
-    T **new_base_ptr ;
+    // Allocate a temporary copy for the copy
+    int cntid = count.Rep()->get_alloc_id() ;
+    storeAllocateInfo tmp ;
+    tmp.template allocMulti<T>(storeAllocateData[cntid],count.domain()) ;
 
-    size_t new_allocated_sz = 0 ;
-    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr, new_allocated_sz ) ;
+    T **new_base_ptr = ((T **)tmp.alloc_ptr2 -
+			     tmp.base_offset) ;
 
+    // Copy data to new allocation
     FORALL(domain()-context,i) {
       for(int j=0;j<count[i];++j) 
         new_base_ptr[i][j] = base_ptr[i][j] ;
     } ENDFORALL ;
-    
+
     FORALL(context,i) {
       for(int j=0;j<count[i];++j)
         new_base_ptr[i][j] = s[i][j] ;
     } ENDFORALL ;
-    
-    if(index) {
-      delete[] index ;
-#ifdef STORE_ALIGN_SIZE
-      if(!std::is_trivially_default_constructible<T>::value) {
-	T * tmp_base_ptr = alloc_pointer ;
-	T * tmp_base_algn = (T *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
-	if(tmp_base_ptr !=tmp_base_algn) 
-	  tmp_base_ptr = (T *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
-	T *use_ptr = tmp_base_ptr  ;
-	// Call destructor
-	for(size_t i=0;i<allocated_sz;++i) {
-	  T * p = use_ptr + i ;
-	  p->~T() ;
-	}
-      }
-      free(alloc_pointer) ;
-#else
-      delete[] alloc_pointer ;
-#endif
-    }
-    alloc_pointer = new_alloc_pointer;
-    allocated_sz = new_allocated_sz ;
-    index = new_index ;
+    // release old allocation
+    storeAllocateData[alloc_id].template release<T>() ;
+    // copy newly copied temporary to main allocatin
+    storeAllocateData[alloc_id] = tmp ;
     base_ptr = new_base_ptr ;
-
-    storeAllocateData[alloc_id].alloc_ptr1 = alloc_pointer ;
-    storeAllocateData[alloc_id].alloc_ptr2 = index ;
-    storeAllocateData[alloc_id].base_ptr = base_ptr ;
-    storeAllocateData[alloc_id].base_offset = 0 ;
-    storeAllocateData[alloc_id].size = size ;
-    storeAllocateData[alloc_id].allocated_size = allocated_sz ;
     dispatch_notify() ;
   }
 
@@ -533,54 +295,29 @@ namespace Loci {
       count[i] = s.end(m[i])-s.begin(m[i]) ;
     } ENDFORALL ;
     
-    T **new_index ;
-    T *new_alloc_pointer ;
-    T **new_base_ptr ;
+    // Allocate a temporary copy for the copy
+    int cntid = count.Rep()->get_alloc_id() ;
+    storeAllocateInfo tmp ;
+    tmp.template allocMulti<T>(storeAllocateData[cntid],count.domain()) ;
 
-    size_t new_allocated_sz = 0 ;
-    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr, new_allocated_sz) ;
-    
+    T **new_base_ptr = ((T **)tmp.alloc_ptr2 -
+			     tmp.base_offset) ;
     FORALL(domain()-context,i) {
-      for(int j = 0; j < count[i]; ++j) 
+      for(int j=0;j<count[i];++j) 
         new_base_ptr[i][j] = base_ptr[i][j] ;
     } ENDFORALL ;
 
     FORALL(context,i) {
-      for(int j = 0; j < count[i]; ++j)
+      for(int j=0;j<count[i];++j)
         new_base_ptr[i][j] = s[m[i]][j] ;
     } ENDFORALL ;
 
-    if(index) {
-      delete[] index ;
-#ifdef STORE_ALIGN_SIZE
-      if(!std::is_trivially_default_constructible<T>::value) {
-	T * tmp_base_ptr = alloc_pointer ;
-	T * tmp_base_algn = (T *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
-	if(tmp_base_ptr !=tmp_base_algn) 
-	  tmp_base_ptr = (T *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
-	T *use_ptr = tmp_base_ptr  ;
-	// Call destructor
-	for(size_t i=0;i<allocated_sz;++i) {
-	  T * p = use_ptr + i ;
-	  p->~T() ;
-	}
-      }
-      free(alloc_pointer) ;
-#else
-      delete[] alloc_pointer ;
-#endif
-    }
-    alloc_pointer = new_alloc_pointer;
-    allocated_sz = new_allocated_sz ;
-    index = new_index ;
-    base_ptr = new_base_ptr ;
+    // release old allocation
+    storeAllocateData[alloc_id].template release<T>() ;
+    // copy newly copied temporary to main allocatin
+    storeAllocateData[alloc_id] = tmp ;
 
-    storeAllocateData[alloc_id].alloc_ptr1 = alloc_pointer ;
-    storeAllocateData[alloc_id].alloc_ptr2 = index ;
-    storeAllocateData[alloc_id].base_ptr = base_ptr ;
-    storeAllocateData[alloc_id].base_offset = 0 ;
-    storeAllocateData[alloc_id].size = size ;
-    storeAllocateData[alloc_id].allocated_size = allocated_sz ;
+    base_ptr = new_base_ptr ;
     dispatch_notify() ;
   }
 
@@ -607,55 +344,29 @@ namespace Loci {
       count[m[i]] = s.end(i)-s.begin(i) ;
     } ENDFORALL ;
     
-    T **new_index ;
-    T *new_alloc_pointer ;
-    T **new_base_ptr ;
+    // Allocate a temporary copy for the copy
+    int cntid = count.Rep()->get_alloc_id() ;
+    storeAllocateInfo tmp ;
+    tmp.template allocMulti<T>(storeAllocateData[cntid],count.domain()) ;
 
-    size_t new_allocated_sz = 0 ;
-    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr,new_allocated_sz) ;
-    
-    FORALL(domain() - m.image(context),i) {
+    T **new_base_ptr = ((T **)tmp.alloc_ptr2 -
+			     tmp.base_offset) ;
+
+    FORALL(domain()-m.image(context),i) {
       for(int j=0;j<count[i];++j) 
         new_base_ptr[i][j] = base_ptr[i][j] ;
     } ENDFORALL ;
-
     FORALL(context,i) {
       for(int j=0;j<count[m[i]];++j) {
         new_base_ptr[m[i]][j] = s[i][j] ;
       }
     } ENDFORALL ;
-    
-    if(index) {
-      delete[] index ;
-#ifdef STORE_ALIGN_SIZE
-      if(!std::is_trivially_default_constructible<T>::value) {
-	T * tmp_base_ptr = alloc_pointer ;
-	T * tmp_base_algn = (T *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
-	if(tmp_base_ptr !=tmp_base_algn) 
-	  tmp_base_ptr = (T *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
-	T *use_ptr = tmp_base_ptr  ;
-	// Call destructor
-	for(size_t i=0;i<allocated_sz;++i) {
-	  T * p = use_ptr + i ;
-	  p->~T() ;
-	}
-      }
-      free(alloc_pointer) ;
-#else
-      delete[] alloc_pointer ;
-#endif
-    }
-    alloc_pointer = new_alloc_pointer;
-    allocated_sz = new_allocated_sz ;
-    index = new_index ;
+    // release old allocation
+    storeAllocateData[alloc_id].template release<T>() ;
+    // copy newly copied temporary to main allocatin
+    storeAllocateData[alloc_id] = tmp ;
+
     base_ptr = new_base_ptr ;
-    
-    storeAllocateData[alloc_id].alloc_ptr1 = alloc_pointer ;
-    storeAllocateData[alloc_id].alloc_ptr2 = index ;
-    storeAllocateData[alloc_id].base_ptr = base_ptr ;
-    storeAllocateData[alloc_id].base_offset = 0 ;
-    storeAllocateData[alloc_id].size = size ;
-    storeAllocateData[alloc_id].allocated_size = allocated_sz ;
     dispatch_notify() ;
   }
 
@@ -937,7 +648,7 @@ namespace Loci {
     schema_converter traits_type;
 
     FORALL(eset,ii){
-      size = end(ii) - begin(ii) ;
+      int size = end(ii) - begin(ii) ;
       MPI_Pack( &size, 1, MPI_INT, outbuf, outcount, &position, MPI_COMM_WORLD) ;
     }ENDFORALL ;
 
@@ -959,57 +670,8 @@ namespace Loci {
     store<int> ecount ;
     ecount.allocate(new_dom) ;
 
-    bool conflict = 0 ;
     for(Loci::sequence::const_iterator si = seq.begin(); si != seq.end(); ++si) {
       MPI_Unpack(ptr, size, &loc, &ecount[*si], 1, MPI_INT, MPI_COMM_WORLD) ;
-      if(ecount[*si] != (base_ptr[*si+1] - base_ptr[*si])) conflict = 1 ;
-    }
-
-    if(conflict) {
-      T **new_index ;
-      T *new_alloc_pointer ;
-      T **new_base_ptr ;
-      size_t new_allocated_sz = 0 ;
-      multialloc(ecount, &new_index, &new_alloc_pointer, &new_base_ptr,new_allocated_sz) ;
-      
-      for(entitySet::const_iterator ei = ent.begin(); ei != ent.end(); ++ei) {
-        for(int j = 0 ; j < ecount[*ei]; ++j) 
-          new_base_ptr[*ei][j] = base_ptr[*ei][j] ;
-      }
-      
-      if(index) {
-	delete[] index ;
-#ifdef STORE_ALIGN_SIZE
-      if(!std::is_trivially_default_constructible<T>::value) {
-	T * tmp_base_ptr = alloc_pointer ;
-	T * tmp_base_algn = (T *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
-	if(tmp_base_ptr !=tmp_base_algn) 
-	  tmp_base_ptr = (T *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
-	T *use_ptr = tmp_base_ptr  ;
-	// Call destructor
-	for(size_t i=0;i<allocated_sz;++i) {
-	  T * p = use_ptr + i ;
-	  p->~T() ;
-	}
-      }
-      free(alloc_pointer) ;
-#else
-      delete[] alloc_pointer ;
-#endif
-      }
-
-      alloc_pointer = new_alloc_pointer;
-      allocated_sz = new_allocated_sz ;
-      index = new_index ;
-      base_ptr = new_base_ptr ;
-
-      storeAllocateData[alloc_id].alloc_ptr1 = alloc_pointer ;
-      storeAllocateData[alloc_id].alloc_ptr2 = index ;
-      storeAllocateData[alloc_id].base_ptr = base_ptr ;
-      storeAllocateData[alloc_id].base_offset = 0 ;
-      storeAllocateData[alloc_id].size = size ;
-      storeAllocateData[alloc_id].allocated_size = allocated_sz ;
-      dispatch_notify() ;
     }
 
     unpackdata( traits_type, ptr, loc, size, seq); 

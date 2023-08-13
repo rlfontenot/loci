@@ -41,11 +41,7 @@ namespace Loci {
 
   template<class T> class multiStoreRepI : public storeRep {
     entitySet store_domain ;
-    T **index ;
-    T *alloc_pointer ;
-    size_t allocated_sz ;
     T **base_ptr ;
-    int size ;
     lmutex mutex ;
     
     void  hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, frame_info&fi, entitySet &en);
@@ -78,17 +74,16 @@ namespace Loci {
     frame_info get_frame_info(USER_DEFINED_CONVERTER g) ;
   public:
     multiStoreRepI()
-    { index = 0; alloc_pointer = 0 ; base_ptr = 0 ; size=0;}
+    { base_ptr = 0 ; }
 
     multiStoreRepI(const entitySet &p)
-    { index = 0; alloc_pointer = 0 ; base_ptr = 0 ; size=0; store_domain=p;}
+    { base_ptr = 0 ; store_domain=p;}
 
-    multiStoreRepI(const store<int> &sizes) {
-      index = 0 ; alloc_pointer=0 ; base_ptr = 0; allocate(sizes) ; }
+    multiStoreRepI(const store<int> &sizes) 
+    { base_ptr = 0; allocate(sizes) ; }
 
     void allocate(const store<int> &sizes) ;
     virtual void shift(int_type offset) ;
-    void multialloc(const store<int> &count, T ***index, T **alloc_pointer, T ***base_ptr, size_t &allocated_sz) ;
     void setSizes(const const_multiMap &mm) ;
     virtual ~multiStoreRepI() ;
     virtual void allocate(const entitySet &ptn) ;
@@ -119,7 +114,13 @@ namespace Loci {
     virtual void readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en, hid_t xfer_plsit_id) ;
     virtual void writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en,hid_t xfer_plsit_id) const ;
 #endif
-    T ** get_base_ptr() const { T **p = 0 ; if(alloc_id>=0) p = (T **)storeAllocateData[alloc_id].base_ptr; return p ; }
+    T ** get_base_ptr() const {
+      T **p = 0 ;
+      if(alloc_id>=0)
+	p = ((T **)storeAllocateData[alloc_id].alloc_ptr2) -
+	  storeAllocateData[alloc_id].base_offset ;
+      return p ;
+    }
     T *begin(int indx) { return base_ptr[indx] ; }
     T *end(int indx) { return base_ptr[indx+1] ; }
     const T *begin(int indx) const  { return base_ptr[indx] ; }
@@ -132,7 +133,7 @@ namespace Loci {
   template<class T> class multiStore : public store_instance {
     typedef multiStoreRepI<T> storeType ;
     T ** base_ptr ;
-    int size ;
+    //    int size ;
     multiStore(const multiStore<T> &var) {setRep(var.Rep()) ;}
     multiStore<T> & operator=(const multiStore<T> &str) {
       setRep(str.Rep()) ;
@@ -201,7 +202,7 @@ namespace Loci {
   template<class T> class const_multiStore : public store_instance {
     typedef multiStoreRepI<T> storeType ;
     T ** base_ptr ;
-    int size ;
+    //    int size ;
     const_multiStore(const const_multiStore<T> &var) {setRep(var.Rep()) ;}
     const_multiStore(const multiStore<T> &var) {setRep(var.Rep()) ;}
     const_multiStore<T> & operator=(const multiStore<T> &str) {

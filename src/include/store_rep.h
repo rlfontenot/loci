@@ -56,6 +56,31 @@ namespace Loci {
     entitySet allocset ;
     storeAllocateInfo():alloc_ptr1(0),alloc_ptr2(0),base_ptr(0),size(0),allocated_size(0),allocated(false) {allocset=EMPTY ;}
 
+    template<class T> void release() {
+      if(alloc_ptr1!=0) {
+#ifdef STORE_ALIGN_SIZE
+	// Call placement delete
+	if(!std::is_trivially_default_constructible<T>::value) {
+	  T *p = (T *) base_ptr ;
+	  for(size_t i=0;i<allocated_size;++i)
+	    p[i].~T() ;
+	}
+	free(alloc_ptr1) ;
+	if(alloc_ptr2 != 0)
+	  free(alloc_ptr2) ;
+#else
+	delete[] (T *)alloc_ptr1 ;
+	if(alloc_ptr2!=0)
+	  delete[] alloc_ptr2 ;
+#endif
+	alloc_ptr1 = 0 ;
+	alloc_ptr2 = 0 ;
+	base_ptr = 0 ;
+	base_offset = 0 ;
+	allocated_size = 0 ;
+      }
+    }
+
     template<class T> void allocBasic(const entitySet &eset, int sz) {
       // if the pass in is EMPTY, we delete the previous allocated memory
       // this equals to free the memory
@@ -150,27 +175,76 @@ namespace Loci {
       return ;
     }
 
-    template<class T> void release() {
-      if(alloc_ptr1!=0) {
-#ifdef STORE_ALIGN_SIZE
-	// Call placement delete
-	if(!std::is_trivially_default_constructible<T>::value) {
-	  T *p = (T *) base_ptr ;
-	  for(size_t i=0;i<allocated_size;++i)
-	    p[i].~T() ;
-	}
-	free(alloc_ptr1) ;
-#else
-	delete[] (T *)alloc_ptr1 ;
-#endif
-	alloc_ptr1 = 0 ;
-	base_ptr = 0 ;
-	base_offset = 0 ;
-	allocated_size = 0 ;
-      }
-    }
-      
+    // elist is the list of entities (in increasing order)
+    // clist is the list of size for each of these entities
+    // ptn is the final allocated size
+    template<class T> void allocMulti(const storeAllocateInfo &count,
+				      entitySet ptn) {
+      if(count.base_ptr ==0)
+	return ; // count must be valid
+      size_t sum = 0 ;
+      entitySet context = ptn & count.allocset ;
+      FORALL(context,ii) {
+	sum += ((int *)count.base_ptr)[ii-count.base_offset] ;
+      } ENDFORALL ;
 
+      size_t npntrs = 0 ;
+      if(ptn != EMPTY)
+	npntrs = (ptn.Max()-ptn.Min()+2) ; // Always allocate one more so
+      // we can get the size of the last element.
+      // Ok, alloc_ptr1 is the pointer allocated for the data
+      // alloc_ptr2 is the pointer allocated for the pointer array
+      // this will be used for accessing data in the multiStore
+      // The base_ptr will be used to call the in place constructor/destructor
+      // for the type allocation
+      T * tmp_alloc_ptr1 = 0 ;
+      T * tmp_base_ptr = 0 ;
+      T ** tmp_alloc_ptr2 = 0 ;
+      size_t tmp_allocated_sz = sum + 1 ; 
+      
+#ifdef STORE_ALIGN_SIZE
+      tmp_alloc_ptr1 = (T *) malloc(sizeof(T)*tmp_allocated_sz +(STORE_ALIGN_SIZE)) ;
+      tmp_base_ptr = tmp_alloc_ptr1 ;
+      T * tmp_base_algn = (T *) ((uintptr_t) tmp_base_ptr & ~(uintptr_t)(STORE_ALIGN_SIZE-1)) ;
+      if(tmp_base_ptr !=tmp_base_algn) 
+	tmp_base_ptr = (T *) ((uintptr_t) tmp_base_algn+(uintptr_t)STORE_ALIGN_SIZE) ;
+      // Call placement new
+      if(!std::is_trivially_default_constructible<T>::value) {
+	for(size_t i=0;i<tmp_allocated_sz;++i) {
+	  T * p = tmp_base_ptr + i ;
+	  new(p) T() ;
+	} ;
+      }
+      tmp_alloc_ptr2 = (T **) malloc(sizeof(T*)*npntrs) ;
+      int tmp_base_offset = ptn.Min() ;
+      if(ptn==EMPTY)
+	tmp_base_offset = 0 ;
+#else
+      tmp_alloc_ptr1 = new T[allocated_sz] ;
+      tmp_base_ptr = tmp_alloc_ptr1 ;
+      tmp_alloc_ptr2 = new (T *)[npntrs] ;
+#endif      
+      size_t loc = 0 ;
+      FORALL(ptn,ii) {
+	tmp_alloc_ptr2[ii-tmp_base_offset] = tmp_base_ptr+loc ;
+	if(count.allocset.inSet(ii))
+	  loc += ((int *)count.base_ptr)[ii-count.base_offset] ;
+	tmp_alloc_ptr2[ii-tmp_base_offset+1] = tmp_base_ptr+loc ;
+      } ENDFORALL ;
+
+      // release existing memory
+      release<T>() ;
+      
+      alloc_ptr1 = tmp_alloc_ptr1 ;
+      alloc_ptr2 = tmp_alloc_ptr2 ;
+      base_ptr = tmp_base_ptr ;
+      base_offset = tmp_base_offset ;
+      allocated_size = tmp_allocated_sz ;
+      size = -1 ;
+      allocset = ptn ;
+      return ;
+    }
+    
   } ;
 
 
@@ -234,10 +308,12 @@ namespace Loci {
   } ;
   class storeRep : public NPTR_type {
     int domainKeySpace ;
-  public:
+  protected:
     int alloc_id ;
+  public:
     storeRep() { domainKeySpace = 0 ; alloc_id = -1 ; }
     virtual ~storeRep() ;
+    int get_alloc_id() const { return alloc_id ; }
     virtual void allocate(const entitySet &p) = 0 ;
     // erase part of the domain, useful for dynamic containers,
     // default behavior is doing nothing.

@@ -35,14 +35,10 @@
 namespace Loci {
   class multiMapRepI : public MapRep {
     entitySet store_domain ;
-    int **index ;
-    int *alloc_pointer ;
-    int **base_ptr ;
+    Entity **base_ptr ;
   public:
-    multiMapRepI() { index = 0; alloc_pointer = 0 ; base_ptr = 0 ; }
+    multiMapRepI() { base_ptr = 0 ; }
     multiMapRepI(const store<int> &sizes) {
-      index = 0 ;
-      alloc_pointer = 0 ;
       base_ptr = 0 ;
       allocate(sizes) ; }
     void allocate(const store<int> &sizes) ;
@@ -83,11 +79,11 @@ namespace Loci {
     virtual void readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en, hid_t xfer_plist_id) ;
     virtual void writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en, hid_t xfer_plist_id) const ;
 #endif
-    int ** get_base_ptr() const { return base_ptr ; }
-    int *begin(int indx) { return base_ptr[indx] ; }
-    int *end(int indx) { return base_ptr[indx+1] ; }
-    const int *begin(int indx) const { return base_ptr[indx] ; }
-    const int *end(int indx) const { return base_ptr[indx+1] ; }
+    Entity ** get_base_ptr() const { return base_ptr ; }
+    Entity *begin(int indx) { return base_ptr[indx] ; }
+    Entity *end(int indx) { return base_ptr[indx+1] ; }
+    const Entity *begin(int indx) const { return base_ptr[indx] ; }
+    const Entity *end(int indx) const { return base_ptr[indx+1] ; }
     int vec_size(int indx) const { return end(indx)-begin(indx) ; }
     virtual DatatypeP getType() ;
     virtual frame_info get_frame_info() ;
@@ -100,34 +96,34 @@ namespace Loci {
   class multiMap : public store_instance {
     friend class const_multiMap ;
     typedef multiMapRepI MapType ;
-    int **base_ptr ;
+    Entity **base_ptr ;
   public:
 
     class arrayHelper {
-      int *first ;
-      int *last ;
+      Entity *first ;
+      Entity *last ;
     public:
-      arrayHelper(int *f, int *l) : first(f), last(l){}
+      arrayHelper(Entity *f, Entity *l) : first(f), last(l){}
       int size() { return last-first ; }
-      int &operator[](int indx) { return first[indx] ; }
-      int &operator[](size_t indx) { return first[indx] ; }
-      int &operator[](unsigned int indx) { return first[indx] ; }
-      int &operator[](unsigned char indx) { return first[indx] ; }
-      int *begin() { return first ; }
-      int *end() { return last; }
+      Entity &operator[](int indx) { return first[indx] ; }
+      Entity &operator[](size_t indx) { return first[indx] ; }
+      Entity &operator[](unsigned int indx) { return first[indx] ; }
+      Entity &operator[](unsigned char indx) { return first[indx] ; }
+      Entity *begin() { return first ; }
+      Entity *end() { return last; }
     } ;
     class arrayHelper_const {
-      const int *first ;
-      const int *last ;
+      const Entity *first ;
+      const Entity *last ;
     public:
-      arrayHelper_const(const int *f, const int *l) : first(f), last(l){}
+      arrayHelper_const(const Entity *f, const Entity *l) : first(f), last(l){}
       int size() { return last-first ; }
-      const int &operator[](int indx) { return first[indx] ; }
-      const int &operator[](size_t indx) { return first[indx] ; }
-      const int &operator[](unsigned int indx) { return first[indx] ; }
-      const int &operator[](unsigned char indx) { return first[indx] ; }
-      const int *begin() { return first ; }
-      const int *end() { return last; }
+      const Entity &operator[](Entity indx) { return first[indx] ; }
+      const Entity &operator[](size_t indx) { return first[indx] ; }
+      const Entity &operator[](unsigned int indx) { return first[indx] ; }
+      const Entity &operator[](unsigned char indx) { return first[indx] ; }
+      const Entity *begin() { return first ; }
+      const Entity *end() { return last; }
     } ;
         
     // These should be private, as they only perform a shallow copy,
@@ -204,10 +200,10 @@ namespace Loci {
     }
       
     int num_elems(int indx) const {return base_ptr[indx+1]-base_ptr[indx];}
-    int *begin(int indx) { return base_ptr[indx] ; }
-    int *end(int indx) { return base_ptr[indx+1] ; }
-    const int *begin(int indx) const { return base_ptr[indx] ; }
-    const int *end(int indx) const { return base_ptr[indx+1] ; }
+    Entity *begin(int indx) { return base_ptr[indx] ; }
+    Entity *end(int indx) { return base_ptr[indx+1] ; }
+    const Entity *begin(int indx) const { return base_ptr[indx] ; }
+    const Entity *end(int indx) const { return base_ptr[indx+1] ; }
     int vec_size(int indx) const { return end(indx)-begin(indx) ; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ; }
@@ -222,7 +218,7 @@ namespace Loci {
 
   class const_multiMap : public store_instance {
     typedef multiMapRepI MapType ;
-    const int * const * base_ptr ;
+    const Entity * const * base_ptr ;
     const_multiMap(const_multiMap &var) {  setRep(var.Rep()) ; }
     const_multiMap & operator=(const const_multiMap &str)
     { setRep(str.Rep()) ; return *this ;}
@@ -230,17 +226,17 @@ namespace Loci {
     { setRep(str.Rep()) ; return *this ;}
   public:
     class arrayHelper_const {
-      const int *first ;
-      const int *last ;
+      const Entity *first ;
+      const Entity *last ;
     public:
       arrayHelper_const(const int *f, const int *l) : first(f), last(l){}
       int size() { return last-first ; }
-      const int &operator[](int indx) { return first[indx] ; }
-      const int &operator[](size_t indx) { return first[indx] ; }
-      const int &operator[](unsigned int indx) { return first[indx] ; }
-      const int &operator[](unsigned char indx) { return first[indx] ; }
-      const int *begin() { return first ; }
-      const int *end() { return last; }
+      const Entity &operator[](int indx) { return first[indx] ; }
+      const Entity &operator[](size_t indx) { return first[indx] ; }
+      const Entity &operator[](unsigned int indx) { return first[indx] ; }
+      const Entity &operator[](unsigned char indx) { return first[indx] ; }
+      const Entity *begin() { return first ; }
+      const Entity *end() { return last; }
       
     } ;
 
