@@ -73,6 +73,8 @@ namespace Loci {
 
   store_ref::~store_ref() {}
 
+  int store_ref::get_alloc_id() const { return Rep()->get_alloc_id() ; }
+  
   void store_ref::allocate(const entitySet &ptn) {
     Rep()->allocate(ptn) ;
   }

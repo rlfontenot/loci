@@ -26,10 +26,13 @@
 
 namespace Loci {
   template<class T> void storeRepI<T>::allocate(const entitySet &eset) {
-    if(alloc_id < 0)
+    if(alloc_id < 0) {
       alloc_id = getStoreAllocateID() ;
-
-    storeAllocateData[alloc_id].template allocBasic<T>(eset,1) ;
+      storeAllocateData[alloc_id].template allocBasic<T>(eset,1) ;
+    } else if(eset != storeAllocateData[alloc_id].allocset) {
+      storeAllocateData[alloc_id].template allocBasic<T>(eset,1) ;
+    }      
+      
     store_domain = storeAllocateData[alloc_id].allocset ; ;
     dispatch_notify() ;
     return ;

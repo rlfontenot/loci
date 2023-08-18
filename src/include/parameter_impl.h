@@ -31,12 +31,14 @@ namespace Loci {
 
 
   template<class T> void paramRepI<T>::allocate(const entitySet &p) {
-    if(alloc_id < 0)
+    if(alloc_id < 0) {
       alloc_id = getStoreAllocateID() ;
 
-    entitySet single = interval(0,0) ;
-    storeAllocateData[alloc_id].template allocBasic<T>(single,1) ;
-    base_ptr = (T *)storeAllocateData[alloc_id].base_ptr ;
+      entitySet single = interval(0,0) ;
+      storeAllocateData[alloc_id].template allocBasic<T>(single,1) ;
+      base_ptr = (T *)storeAllocateData[alloc_id].base_ptr ;
+      *base_ptr = defaultData ;
+    }
     store_domain = p ;
     dispatch_notify();
     return ;

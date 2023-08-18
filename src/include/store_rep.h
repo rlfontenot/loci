@@ -313,7 +313,7 @@ namespace Loci {
   public:
     storeRep() { domainKeySpace = 0 ; alloc_id = -1 ; }
     virtual ~storeRep() ;
-    int get_alloc_id() const { return alloc_id ; }
+    virtual int get_alloc_id() const { return alloc_id ; }
     virtual void allocate(const entitySet &p) = 0 ;
     // erase part of the domain, useful for dynamic containers,
     // default behavior is doing nothing.
@@ -488,6 +488,7 @@ namespace Loci {
       return *this ;
     }
 
+    virtual int get_alloc_id() const ;
     virtual void allocate(const entitySet &ptn) ;
     virtual void shift(int_type offset) ;
     virtual storeRep *new_store(const entitySet &p) const ;
