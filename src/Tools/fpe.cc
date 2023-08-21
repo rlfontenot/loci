@@ -23,7 +23,14 @@
 #include <stdlib.h>
 
 #ifdef DARWIN
+#ifdef SYSTEM_ARM64
+#include <fenv.h>
+#include <iostream>
+#include <signal.h>
+#include <math.h>
+#else
 #include <xmmintrin.h>
+#endif
 #endif
 
 #ifdef SPARC
@@ -122,9 +129,37 @@ namespace Loci {
 
 namespace Loci {
 #ifdef DARWIN
+#ifdef SYSTEM_ARM64
+  static void
+  fpe_signal_handler( int sig, siginfo_t *sip, void *scp )
+  {
+    int fe_code = sip->si_code;
+
+    if (fe_code == ILL_ILLTRP)
+      std::cerr << "Illegal trap detected" << std::endl ;
+    else
+      std::cerr << "Code detected : " << fe_code << std::endl ;
+
+    debugger_();
+  }
+#endif
   void set_fpe_abort()
   {
+#ifdef SYSTEM_ARM64
+        fenv_t env;
+    fegetenv(&env);
+
+    env.__fpcr = env.__fpcr | __fpcr_trap_invalid;
+    fesetenv(&env);
+
+    struct sigaction act;
+    act.sa_sigaction = fpe_signal_handler ;
+    sigemptyset (&act.sa_mask);
+    act.sa_flags = SA_SIGINFO;
+    sigaction(SIGILL, &act, NULL);
+#else
     _MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() & ~_MM_MASK_INVALID) ;
+#endif
   }
 #else
   void set_fpe_abort()
