@@ -136,6 +136,10 @@
 #define SYSTEM_ITANIUM64
 #endif
 
+#if defined(LOCI_ARCH_arm64)
+#define SYSTEM_ARM64
+#endif
+
 #if defined(LOCI_SYS_SunOS)
 #undef SPARC
 #define SUN
