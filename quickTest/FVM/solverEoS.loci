@@ -1,0 +1,79 @@
+//#############################################################################
+//#
+//# Copyright 2015-2019, Mississippi State University
+//#
+//# This file is part of the flowPsi computational fluid dynamics solver.
+//#
+//# The flowPsi solver is free software: you can redistribute it and/or modify
+//# it under the terms of the GNU General Public License as published by
+//# the Free Software Foundation, either version 3 of the License, or
+//# (at your option) any later version.
+//#
+//# The flowPsi solver is distributed in the hope that it will be useful,
+//# but WITHOUT ANY WARRANTY; without even the implied warranty of
+//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//# GNU General Public License for more details.
+//#
+//# You should have received a copy of the GNU General Public License
+//# along with the flowPsi solver.  If not, see <http://www.gnu.org/licenses>
+//#
+//#############################################################################
+
+#include <Loci.h>
+#include "flowTypes.h"
+$include "flowPsi.lh"
+
+namespace flowPsi {
+  $rule default(molecularMass), comments("perfect gas mean molecular mass, default setting for air") {
+    $molecularMass = 28.96 ;
+  }
+  $rule default(gamma), comments("perfect gas isentropic index") {
+    $gamma = 1.4 ;
+  }
+  $rule singleton(Rtilde<-molecularMass) {
+    // Univeral Gas Constant
+    const double Rh = 8314.4621 ;
+    $Rtilde = Rh/$molecularMass ;
+  }
+
+  $rule default(p0),
+    comments("The background pressure used in gage pressure computations.  Pa = Pg+p0.") 
+  {
+    $p0.val = 0 ;
+  } 
+  
+  $rule singleton(Pambient<-p0) {
+    $Pambient = real($p0) ;
+  } 
+
+  
+  $rule pointwise(rho<-temperature,gagePressure,Rtilde,Pambient) {
+    $rho = ($gagePressure+$Pambient)/($Rtilde*$temperature) ;
+  }
+  $rule pointwise(rho_f<-temperature_f,gagePressure_f,Rtilde,Pambient) {
+    $rho_f = ($gagePressure_f+$Pambient)/($Rtilde*$temperature_f) ;
+  }
+  
+  $rule pointwise(pressure<-gagePressure,Pambient) {
+    $pressure = $gagePressure+$Pambient ;
+  }
+  $rule pointwise(pressure_f<-gagePressure_f,Pambient) {
+    $pressure_f = $gagePressure_f+$Pambient ;
+  }
+  
+  $rule pointwise(e_internal<-temperature,gamma,Rtilde) {
+    $e_internal = $Rtilde*$temperature/($gamma-1.) ;
+  }
+
+  $rule pointwise(soundSpeed<-temperature,gamma,Rtilde) {
+    $soundSpeed = sqrt($gamma*$Rtilde*$temperature) ;
+  }
+
+  $rule pointwise(soundSpeed_f<-temperature_f,gamma,Rtilde) {
+    $soundSpeed_f = sqrt($gamma*$Rtilde*$temperature_f) ;
+  }
+
+  $rule singleton(Cp<-Rtilde,gamma) {
+    $Cp = $Rtilde*$gamma/($gamma-1.0) ;
+  }
+}

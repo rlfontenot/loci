@@ -1,0 +1,180 @@
+//#############################################################################
+//#
+//# Copyright 2015-2019, Mississippi State University
+//#
+//# This file is part of the flowPsi computational fluid dynamics solver.
+//#
+//# The flowPsi solver is free software: you can redistribute it and/or modify
+//# it under the terms of the GNU General Public License as published by
+//# the Free Software Foundation, either version 3 of the License, or
+//# (at your option) any later version.
+//#
+//# The flowPsi solver is distributed in the hope that it will be useful,
+//# but WITHOUT ANY WARRANTY; without even the implied warranty of
+//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//# GNU General Public License for more details.
+//#
+//# You should have received a copy of the GNU General Public License
+//# along with the flowPsi solver.  If not, see <http://www.gnu.org/licenses>
+//#
+//#############################################################################
+
+#include <Loci.h>
+$include "flowPsi.lh"
+
+namespace flowPsi {
+  $type solution store<real> ;
+
+  $type timestepFinished param<bool> ;
+  $type stop_iter param<int> ;
+  $rule default(stop_iter) {
+    $stop_iter=1000 ;
+  }
+
+  $type stop_time param<TimeValue> ;
+  $rule default(stop_time) {
+    $stop_time = 1e30 ;
+  }
+  
+  $rule optional(cflmax) { }
+  
+  $rule singleton(plot_status{n=-1}),constraint(UNIVERSE) {
+    $plot_status{n=-1} = 0 ;
+  }
+
+  
+  $rule singleton(timestepFinished{n}<-$n{n},stop_iter,plot_status{n-1},stop_time,stime{n}) {
+    $timestepFinished{n} = (($$n{n}>$stop_iter+1) ||
+			    ($plot_status{n-1}>1) ||
+			    ($stime{n} > real($stop_time))) ;
+  }
+					    
+  $rule pointwise(solution<-gagePressure{n},temperature{n},u{n}),
+    constraint(geom_cells{n}),conditional(timestepFinished{n}),
+    inplace(solution|gagePressure{n}),prelude {} ;
+
+  
+
+  $type timeStepScheme param<string> ;
+  $rule default(timeStepScheme) { $timeStepScheme="explicit"; }
+  
+  $rule constraint(timeStepExplicit<-timeStepScheme) {
+    $timeStepExplicit = EMPTY ;
+
+    if($timeStepScheme == "explicit") 
+      $timeStepExplicit = ~EMPTY ;
+  }
+
+           
+      
+  $rule pointwise(gagePressure{n=0}<-gagePressure_ic) {
+    $gagePressure{n=0} = $gagePressure_ic ;
+  }
+
+  $rule pointwise(temperature{n=0}<-temperature_ic) {
+    $temperature{n=0} = $temperature_ic ;
+  }
+  
+  $rule pointwise(u{n=0}<-u_ic) {
+    $u{n=0} = $u_ic ;
+  }
+
+
+  $type ic_stime param<real> ; //computing time ;
+  $type ic_ncycle param<int> ; //starting cycle number ;
+  
+  $rule unit(ic_stime),constraint(UNIVERSE) {
+    $ic_stime = 0 ;
+  }
+
+  
+  $rule apply(ic_stime<-dtmax)[Loci::Maximum], prelude {
+  } ;
+  
+  $rule unit(ic_ncycle),constraint(UNIVERSE) {
+    $ic_ncycle = 0 ;
+  } ;
+  
+  $rule apply(ic_ncycle<-dtmax)[Loci::Maximum], prelude {
+  } ;
+
+  class ic_time_from_file : public singleton_rule {
+    const_param<std::string> icfile,modelName ;
+    param<real> stime ; //computing time ;
+    param<int> ncycle ; //starting cycle number ;
+  public:
+    ic_time_from_file() ;
+    virtual void compute(const sequence &seq) ;
+  } ;
+
+  ic_time_from_file::ic_time_from_file() {
+    name_store("icfile",icfile) ;
+    name_store("modelName",modelName) ;
+    name_store("icf_stime",stime) ;
+    name_store("icf_ncycle",ncycle) ;
+    input("icfile,modelName") ;
+    output("icf_stime,icf_ncycle") ;
+    disable_threading() ;
+  }
+
+  void ic_time_from_file::compute(const sequence &seq) {
+    if(Loci::GLOBAL_AND(seq==EMPTY))
+      return ;
+
+    string filename = *icfile + "flowVars_" + *modelName ;
+
+    hid_t file_id = Loci::hdf5OpenFile((filename).c_str(),
+                                       H5F_ACC_RDONLY, H5P_DEFAULT);
+    entitySet dom = ~EMPTY ;
+    
+    // Set up defaults
+    *stime = 0 ;
+    *ncycle = 0 ;
+    // Read in restart values
+    Loci::readContainer(file_id,"stime",stime.Rep(),dom) ;
+    Loci::readContainer(file_id,"ncycle",ncycle.Rep(),dom) ;
+    Loci::hdf5CloseFile(file_id) ;
+
+    if(*stime == 0)
+      *ncycle = 0 ;
+  }
+  register_rule<ic_time_from_file>    register_ic_time_from_file ;
+
+  $rule singleton(stime{n=0}<-ic_stime) {
+    $stime{n=0} = $ic_stime ;
+  }
+
+  $type icf_stime param<real> ;
+  $rule apply(ic_stime<-icf_stime)[Loci::Maximum],prelude {
+    *$ic_stime = *$icf_stime ;
+  } ;
+
+  $type ic_ncycle param<int> ;
+  $type icf_ncycle param<int> ;
+  
+  $rule apply(ic_ncycle<-icf_ncycle)[Loci::Maximum],prelude {
+    *$ic_ncycle = *$icf_ncycle ;
+  } ;
+
+  $rule singleton(ncycle{n=0}<-ic_ncycle) {
+    $ncycle{n=0} = $ic_ncycle ;
+  }
+
+
+  $rule default(dtmax), comments("setting of maximum timestep") {
+    $dtmax.val = 1.0 ;
+  }
+
+  $type dtcfl store<real> ;
+  $rule pointwise(dtcfl<-dtmax) {
+    $dtcfl = real($dtmax) ;
+  }
+
+  $rule pointwise(cflmax::dtcfl<-dtmax,cflpdt,cflmax) {
+    $dtcfl = real($dtmax) ;
+    $dtcfl = min($dtcfl,$cflmax/$cflpdt) ;
+  }
+    
+  
+
+}

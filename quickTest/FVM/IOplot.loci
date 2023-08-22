@@ -1,0 +1,379 @@
+//#############################################################################
+//#
+//# Copyright 2015, Mississippi State University
+//#
+//# This file is part of the flowPsi computational fluid dynamics solver.
+//#
+//# The flowPsi solver is free software: you can redistribute it and/or modify
+//# it under the terms of the GNU General Public License as published by
+//# the Free Software Foundation, either version 3 of the License, or
+//# (at your option) any later version.
+//#
+//# The flowPsi solver is distributed in the hope that it will be useful,
+//# but WITHOUT ANY WARRANTY; without even the implied warranty of
+//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//# GNU General Public License for more details.
+//#
+//# You should have received a copy of the GNU General Public License
+//# along with the flowPsi solver.  If not, see <http://www.gnu.org/licenses>
+//#
+//#############################################################################
+
+#include <Loci.h>
+#include <Tools/stream.h>
+#include "flowTypes.h"
+#include "flowPsiIO.h"
+
+#include <list>
+#include <string>
+#include <sstream>
+#include <stdlib.h>
+
+using std::string ;
+using std::list ;
+using std::pair ;
+$include "flowPsi.lh"
+
+namespace flowPsi {
+
+  $rule default(plot_modulo),
+    comments("Plot files are output indexed by the iteration number modulo this parameter. "), 
+    comments("A zero indicates that the files will be indexed only by iteration number.") 
+  {
+      $plot_modulo = 0 ;
+  } 
+
+  $rule default(plot_freq),
+    comments("Output plot files whenever the timestep number is divisible by this input.") 
+  {  $plot_freq=1000 ; }
+
+  $rule default(plot_output),comments("List extra optional variables to output in this input.") {
+    $plot_output.namelist = "" ;
+  }
+
+  $rule default(plot_output_exclusive), comments("List output variables here to disable default varaible outputs.") {
+    $plot_output_exclusive.namelist = "" ;
+  }    
+
+  $rule singleton(plot_postfix<-ncycle,plot_modulo),constraint(timeStepImplicit) {
+    $plot_postfix = "" ;
+    int cycle = $ncycle ;
+    if($plot_modulo != 0) 
+      cycle = cycle % $plot_modulo ;
+    ostringstream oss ;
+    oss << cycle ;
+    $plot_postfix = oss.str() ;
+  }
+  
+  variableOperatorList::listset *variableOperatorList::varlist = 0 ;
+  
+
+  void dump_scalar(const sequence &seq,const_store<float> &c2n,
+                   string plot_postfix,
+                   string modelName,
+                   string type,
+                   string sname) {
+
+    ostringstream oss ;
+    oss << "output/" << sname << "_" << type << "." << plot_postfix
+        << "_" << modelName ;
+    string filename = oss.str() ;
+#ifdef VERBOSE
+    if(Loci::MPI_rank == 0)
+      cout << "writing file " << filename << endl ;
+#endif
+
+
+   hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
+                                        H5P_DEFAULT, H5P_DEFAULT) ;
+
+   Loci::writeContainer(file_id,sname,c2n.Rep()) ;
+
+   Loci::hdf5CloseFile(file_id) ;
+  }
+  
+  scalar_node_output::scalar_node_output(const char *vname,
+                                         const char *valname) {
+    var_name = string(vname) ;
+    value_name = string(valname) ;
+    string var_name_time = var_name; 
+    string constraint_name = string("plotOutput_") + value_name ;
+    name_store(var_name_time, c2n) ;
+    name_store("modelName",modelName) ;
+    name_store("plot_postfix",plot_postfix) ;
+    name_store("OUTPUT",OUTPUT) ;
+    
+    conditional("do_plot") ;
+    constraint("pos") ;
+    input("modelName") ;
+    input("plot_postfix") ;
+    input(var_name_time);
+    constraint(constraint_name) ;
+    output("OUTPUT") ;
+  }
+  void scalar_node_output::compute(const sequence &seq) {
+
+    dump_scalar(seq,c2n,*plot_postfix,*modelName,"sca",value_name) ;
+  }	
+
+  class scalar_bndry_value : public pointwise_rule {
+    string var_name ;
+    string var_name_f ;
+    const_store<real> vn ;
+    const_Map ci ;
+    store<real> vn_f ;
+  public:
+    scalar_bndry_value(const char *vname, const char *vname_f) ;
+    void calculate (Entity fc) {
+      vn_f[fc] = vn[ci[fc]] ;
+    }
+    virtual void compute(const sequence &seq) ;
+  } ;
+  
+  scalar_bndry_value::scalar_bndry_value(const char *vname, const char *vname_f) {
+    var_name = string(vname) ;
+    var_name_f = string(vname_f) ;
+    string var_name_cell = var_name ;
+    string var_input = string("ci->") + var_name_cell ;
+    name_store(var_name_cell, vn) ;
+    name_store(var_name_f, vn_f) ;
+    name_store("ci",ci) ;
+    
+    input(var_input) ;
+    output(var_name_f) ;
+  }
+  void scalar_bndry_value::compute(const sequence &seq) {
+    do_loop(seq,this) ;
+  }	
+
+    void dump_vector(const sequence &seq,const_store<vector3d<float> > &c2n,
+                     string postfix,
+                     string modelName,
+                     string type,
+                     string sname) {
+    
+    ostringstream oss ;
+    
+    oss << "output/" << sname << "_" << type << "." << postfix
+        << "_" << modelName ;
+    string filename = oss.str() ;
+
+#ifdef VERBOSE
+    if(Loci::MPI_rank == 0)
+      cout << "writing file " << filename << endl ;
+#endif
+
+
+   hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
+                                        H5P_DEFAULT, H5P_DEFAULT) ;
+
+   Loci::writeContainer(file_id,sname,c2n.Rep()) ;
+
+   Loci::hdf5CloseFile(file_id) ;
+  }
+  
+  
+  vector_node_output::vector_node_output(const char *vname,
+                                         const char *valname) {
+    var_name = string(vname) ;
+    value_name = string(valname) ;
+    string var_name_time = var_name; 
+    string constraint_name = string("plotOutput_") + value_name ;
+    name_store(var_name_time, c2n) ;
+    name_store("plot_postfix",plot_postfix) ;
+    name_store("modelName",modelName) ;
+    input("modelName") ;
+    name_store("OUTPUT",OUTPUT) ;
+    
+    conditional("do_plot") ;
+    constraint("pos") ;
+    input("plot_postfix") ;
+    input(var_name_time);
+    constraint(constraint_name) ;
+    output("OUTPUT") ;
+  }
+  void vector_node_output::compute(const sequence &seq) {
+    dump_vector(seq,c2n,*plot_postfix,*modelName,
+                "vec",value_name) ;
+  }	
+
+
+  void dump_scalard(const sequence &seq,const_store<double> &c2n,
+                    string postfix,
+                   string modelName,
+                   string type,
+                   string sname) {
+    
+    ostringstream oss ;
+    oss << "output/" << sname << "_" << type << "." << postfix
+        << "_" << modelName ;
+    string filename = oss.str() ;
+
+#ifdef VERBOSE
+    if(Loci::MPI_rank == 0)
+      cout << "writing file " << filename << endl ;
+#endif
+
+
+   hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
+                                        H5P_DEFAULT, H5P_DEFAULT) ;
+
+   Loci::writeContainer(file_id,sname,c2n.Rep()) ;
+
+   Loci::hdf5CloseFile(file_id) ;
+  }
+  
+  OUTPUT_SCALAR_ALWAYS("cell2node(temperature)",t) ;
+  OUTPUT_SCALAR_ALWAYS("cell2node(gagePressure)",pg) ;
+  OUTPUT_SCALAR_ALWAYS("cell2node(rho)",r) ;
+  OUTPUT_SCALAR_ALWAYS("cell2node(soundSpeed)",a) ;
+  OUTPUT_VECTOR_ALWAYS("cell2node_v3d(u)",v) ;
+  OUTPUT_SCALAR("cell2nodeMin(dtau)",dt) ;
+  OUTPUT_VECTOR("cell2node_v3d(vort)",vorticity) ;
+
+  void solver_dump_var(const sequence &seq,
+                       Loci::storeRepP var,
+                       string postfix,
+                       string modelName,
+                       string type,
+                       string sname) {
+
+    
+    ostringstream oss ;
+    
+    oss << "output/" << sname << "_" << type << "." << postfix
+        << "_" << modelName ;
+    string filename = oss.str() ;
+
+#ifdef VERBOSE
+    if(Loci::MPI_rank == 0)
+      cout << "writing file " << filename << endl ;
+#endif
+
+
+   hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
+                                        H5P_DEFAULT, H5P_DEFAULT) ;
+
+   Loci::writeContainer(file_id,sname,var) ;
+
+   Loci::hdf5CloseFile(file_id) ;
+  }
+
+  $rule singleton(OUTPUT<-plot_postfix,modelName,Pambient),conditional(do_plot),
+    option(disable_threading) {
+    param<double> Pambient_copy ;
+    *Pambient_copy = realToDouble($Pambient) ;
+    solver_dump_var(seq,Pambient_copy.Rep(),$plot_postfix,$modelName,"par","Pambient") ;
+  }
+
+  dump_boundary_scalar::dump_boundary_scalar(const char *vname,
+                                        const char *valname) {
+    var_name = string(vname) ;
+    value_name = string(valname) ;
+    string constraint_name = string("plotOutput_") + value_name ;
+    name_store(var_name,var) ;
+    name_store("plot_postfix",plot_postfix) ;
+    name_store("OUTPUT",OUTPUT) ;
+    name_store("modelName",modelName) ;
+    conditional("do_boundary_plot") ;
+    input(var_name) ;
+    input("modelName") ;
+    input("plot_postfix") ;
+    constraint("ci->vol") ;
+    constraint(constraint_name) ;
+    output("OUTPUT") ;
+  }
+  void dump_boundary_scalar::compute(const sequence &seq) {
+    ostringstream oss ;
+    oss << "output/" + value_name + "_bnd." << *plot_postfix << "_" << *modelName ;
+    string filename = oss.str() ;
+
+    //    cout << "opening file " << filename << endl ;
+    entitySet set(seq) ;
+    hid_t file_id = Loci::createUnorderedFile(filename.c_str(),set) ;
+    Loci::writeUnorderedStore(file_id,var,set,value_name.c_str()) ;
+    Loci::closeUnorderedFile(file_id) ;
+  }	
+
+  OUTPUT_BNDRY_SCALAR("yplus_w",yplus,"AllViscousBCs")  ;
+  OUTPUT_BNDRY_SCALAR("wall_stress_mag",taumag,"AllViscousBCs") ;
+  OUTPUT_BNDRY_SCALAR("heatf",qdot,"AllViscousBCs") ;
+  OUTPUT_BNDRY_SCALAR("gagePressure_f",bpg,"ci") ;
+  OUTPUT_BNDRY_SCALAR("temperature_f",bt,"ci") ;
+  OUTPUT_BNDRY_SCALAR("rho_f",br,"ci") ;
+  OUTPUT_BNDRY_SCALAR("mdot_f",mdot,"ci") ;
+  dump_boundary_vector::dump_boundary_vector(const char *vname,
+                                        const char *valname) {
+    var_name = string(vname) ;
+    value_name = string(valname) ;
+    string constraint_name = string("plotOutput_") + value_name ;
+    name_store(var_name,var) ;
+    name_store("plot_postfix",plot_postfix) ;
+    name_store("OUTPUT",OUTPUT) ;
+    name_store("modelName",modelName) ;
+    conditional("do_boundary_plot") ;
+    input(var_name) ;
+    input("modelName") ;
+    input("plot_postfix") ;
+    constraint(constraint_name) ;
+    constraint("ci->vol") ;
+    output("OUTPUT") ;
+  }
+  void dump_boundary_vector::compute(const sequence &seq) {
+    ostringstream oss ;
+    oss << "output/" + value_name + "_bndvec." << *plot_postfix << "_" << *modelName ;
+    string filename = oss.str() ;
+
+    //    cout << "opening file " << filename << endl ;
+    entitySet set(seq) ;
+    hid_t file_id = Loci::createUnorderedFile(filename.c_str(),set) ;
+    Loci::writeUnorderedStore(file_id,var,set,value_name.c_str()) ;
+    Loci::closeUnorderedFile(file_id) ;
+  }	
+
+  OUTPUT_BNDRY_VECTOR("wall_stress",tau,"AllViscousBCs")  ;
+  OUTPUT_BNDRY_VECTOR("u_f",bv,"ci") ;
+  OUTPUT_BNDRY_VECTOR("us",gv,"ci") ;
+  OUTPUT_BNDRY_VECTOR("force_f",force,"AllWallBCs") ;
+
+  class dump_timestep_info : public singleton_rule {
+    const_param<int> ncycle ;
+    const_param<real> stime ;
+    const_param<string> plot_postfix ;
+    const_param<string> modelName ;
+    param<bool> OUTPUT ;
+  public:
+    dump_timestep_info() ;
+    virtual void compute(const sequence &seq) ;
+  } ;
+  
+  dump_timestep_info::dump_timestep_info() {
+    name_store("ncycle", ncycle) ;
+    name_store("stime", stime) ;
+    name_store("plot_postfix",plot_postfix) ;
+    name_store("OUTPUT",OUTPUT) ;
+    name_store("modelName",modelName) ;
+    conditional("do_plot") ;
+    constraint("pos") ;
+    input("modelName") ;
+    input("plot_postfix") ;
+    input("ncycle,stime");
+    output("OUTPUT") ;
+  }
+  void dump_timestep_info::compute(const sequence &seq) {
+    if(Loci::MPI_rank == 0) {
+      ostringstream oss ;
+    
+      oss << "output/" << "timestep" << "_" << "txt" << "." << *plot_postfix
+        << "_" << *modelName ;
+      string filename = oss.str() ;
+      std::ofstream file(filename.c_str(),std::ios::out) ;
+      // Add one to ncycle, because we are now at the end of the newton
+      // iteration, so the timestep should advance
+      file << *ncycle+1 << ' ' << *stime << endl ;
+    }
+  }	
+
+  register_rule<dump_timestep_info> register_dump_timestep_info ;
+}
+

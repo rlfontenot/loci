@@ -1,0 +1,279 @@
+//#############################################################################
+//#
+//# Copyright 2015, Mississippi State University
+//#
+//# This file is part of the flowPsi computational fluid dynamics solver.
+//#
+//# The flowPsi solver is free software: you can redistribute it and/or modify
+//# it under the terms of the GNU General Public License as published by
+//# the Free Software Foundation, either version 3 of the License, or
+//# (at your option) any later version.
+//#
+//# The flowPsi solver is distributed in the hope that it will be useful,
+//# but WITHOUT ANY WARRANTY; without even the implied warranty of
+//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//# GNU General Public License for more details.
+//#
+//# You should have received a copy of the GNU General Public License
+//# along with the flowPsi solver.  If not, see <http://www.gnu.org/licenses>
+//#
+//#############################################################################
+
+#include <Loci.h>
+#include <Tools/stream.h>
+#include "flowTypes.h"
+#include <string>
+#include <sstream>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+$include "flowPsi.lh"
+#define VERBOSE
+using std::vector ;
+
+namespace flowPsi {
+
+  void dump_pos(const sequence &seq,const_store<vector3d<double> > &pos,
+                string plot_postfix, string modelName) {
+    ostringstream oss ;
+
+    if(plot_postfix != "") 
+      oss << "output/grid_pos." << plot_postfix << "_" << modelName ;
+    else
+      oss << "output/grid_pos." << modelName ;
+      
+    string filename = oss.str() ;
+
+#ifdef VERBOSE
+    if(Loci::MPI_rank == 0)
+      cout << "writing file " << filename << endl ;
+#endif
+
+
+   hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
+                                        H5P_DEFAULT, H5P_DEFAULT) ;
+
+   Loci::writeContainer(file_id,"pos",pos.Rep()) ;
+
+   Loci::hdf5CloseFile(file_id) ;
+  }
+
+  void dump_pos(const sequence &seq,const_store<vector3d<Loci::FADd> > &pos,
+                string plot_postfix, string modelName) {
+    ostringstream oss ;
+
+    if(plot_postfix != "") 
+      oss << "output/grid_pos." << plot_postfix << "_" << modelName ;
+    else
+      oss << "output/grid_pos." << modelName ;
+      
+    string filename = oss.str() ;
+
+#ifdef VERBOSE
+    if(Loci::MPI_rank == 0)
+      cout << "writing file " << filename << endl ;
+#endif
+
+
+   hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
+                                        H5P_DEFAULT, H5P_DEFAULT) ;
+
+   store<vector3d<double> > pcopy ;
+   entitySet dom = pos.domain() ;
+   pcopy.allocate(dom) ;
+   FORALL(dom,ii) {
+     pcopy[ii] = realToDouble(pos[ii]) ;
+   } ENDFORALL ;
+   Loci::writeContainer(file_id,"pos",pcopy.Rep()) ;
+
+   Loci::hdf5CloseFile(file_id) ;
+  }
+
+  void dump_pos(const sequence &seq,const_store<vector3d<Loci::FAD2d> > &pos,
+                string plot_postfix, string modelName) {
+    ostringstream oss ;
+
+    if(plot_postfix != "") 
+      oss << "output/grid_pos." << plot_postfix << "_" << modelName ;
+    else
+      oss << "output/grid_pos." << modelName ;
+      
+    string filename = oss.str() ;
+
+#ifdef VERBOSE
+    if(Loci::MPI_rank == 0)
+      cout << "writing file " << filename << endl ;
+#endif
+
+
+   hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
+                                        H5P_DEFAULT, H5P_DEFAULT) ;
+
+   store<vector3d<double> > pcopy ;
+   entitySet dom = pos.domain() ;
+   pcopy.allocate(dom) ;
+   FORALL(dom,ii) {
+     pcopy[ii] = realToDouble(pos[ii]) ;
+   } ENDFORALL ;
+   Loci::writeContainer(file_id,"pos",pcopy.Rep()) ;
+
+   Loci::hdf5CloseFile(file_id) ;
+  }
+  
+
+  $type output_topo param<bool> ;
+  $type ncycle param<int> ;
+
+  
+  class output_grid_topology : public pointwise_rule {
+    param<bool> OUTPUT ;
+    const_multiMap upper,lower,boundary_map,face2node ;
+    const_store<flowPsi::vect3d> pos ;
+    const_Map ref ;
+    const_store<string> boundary_names ;
+    const_param<string> modelName ;
+    const_param<bool> firstPlot ;
+    const_param<string> plot_postfix ;
+  public:
+    output_grid_topology() {
+      name_store("OUTPUT",OUTPUT) ;
+      name_store("upper",upper) ;
+      name_store("lower",lower) ;
+      name_store("boundary_map",boundary_map) ;
+      name_store("face2node",face2node) ;
+      name_store("ref",ref) ;
+      name_store("boundary_names",boundary_names) ;
+      name_store("modelName",modelName) ;
+      name_store("pos",pos) ;
+      name_store("plot_postfix",plot_postfix) ;
+      input("plot_postfix") ;
+      input("modelName") ;
+      input("(upper,lower,boundary_map)->face2node->pos") ;
+      input("boundary_map->ref->boundary_names") ;
+      conditional("output_topo") ;
+      output("OUTPUT") ;
+      disable_threading() ;
+    }
+    
+    void compute(const sequence &seq) ;
+  } ;
+
+
+  void output_grid_topology::compute(const sequence &seq) {
+    string basename = *modelName + ".topo" ;
+    string filename = "output/"+basename ;
+
+    if(Loci::MPI_rank==0) {    
+      string topolink = (string("output/topo_file.") +
+			 *plot_postfix + string("_") + *modelName ) ;
+      ofstream file(topolink.c_str(),ios::trunc) ;
+      file << basename << endl ;
+      file.close() ;
+    }
+    //    if(*firstPlot) {
+    if(Loci::MPI_rank == 0)
+      cout << "writing grid topology file: " << basename << endl ;
+
+    Loci::parallelWriteGridTopology(filename.c_str(),
+				    upper.Rep(),lower.Rep(),
+				    boundary_map.Rep(),
+				    face2node.Rep(),
+				    ref.Rep(),
+				    boundary_names.Rep(),
+				    pos.Rep(),
+				    entitySet(seq)) ;
+  }
+
+
+  register_rule<output_grid_topology> register_output_grid_topology ;
+
+  
+  class output_grid_positions_topo: public pointwise_rule {
+    const_store<vector3d<real> > pos ;
+    const_param<string> plot_postfix ;
+    const_param<string> modelName ;
+    param<bool> OUTPUT ;
+  public:
+    output_grid_positions_topo() {
+      name_store("pos",pos) ;
+      name_store("modelName",modelName) ;
+      name_store("OUTPUT",OUTPUT) ;
+      name_store("plot_postfix",plot_postfix) ;
+      conditional("do_plot") ;
+      constraint("pos") ;
+      input("pos") ;
+      input("modelName") ;
+      input("plot_postfix") ;
+      output("OUTPUT") ;
+    }
+    void compute(const sequence &seq) {
+      dump_pos(seq,pos,string(""),*modelName) ;
+      if(Loci::MPI_rank==0) {
+	string filename = string("output/grid_pos.") +
+	  *plot_postfix + string("_") + *modelName ;
+	cout << "unlink filename = " << filename << endl ;
+	::unlink(filename.c_str()) ;
+      }
+    }
+  } ;
+  register_rule<output_grid_positions_topo> register_output_grid_positions_topo ;
+
+  
+  class output_grid_positions: public pointwise_rule {
+    const_store<vector3d<real> > pos ;
+    const_param<string> plot_postfix ;
+    const_param<string> modelName ;
+    const_param<int> hasMeshMotion ;
+    param<bool> OUTPUT ;
+  public:
+    output_grid_positions() {
+      name_store("pos",pos) ;
+      name_store("plot_postfix",plot_postfix) ;
+      name_store("modelName",modelName) ;
+      name_store("hasMeshMotion",hasMeshMotion) ;
+      name_store("OUTPUT",OUTPUT) ;
+      
+      conditional("do_plot") ;
+      constraint("pos") ;
+      input("pos") ;
+      input("plot_postfix") ;
+      input("modelName") ;
+      input("hasMeshMotion") ;
+      output("OUTPUT") ;
+    }
+    void compute(const sequence &seq) {
+      if(*hasMeshMotion!=0)
+        dump_pos(seq,pos,*plot_postfix,*modelName) ;
+    }
+  } ;
+  register_rule<output_grid_positions> register_output_grid_positions ;
+
+
+  $rule pointwise(OUTPUT<-area,facecenter,plot_postfix,modelName),
+  constraint(ci->vol),conditional(do_boundary_plot),
+  option(disable_threading) ,prelude {
+    ostringstream oss ;
+
+    oss << "output/bc_geom." << *$plot_postfix << "_" << *$modelName ;
+    string filename = oss.str() ;
+
+    entitySet set(seq) ;
+    hid_t file_id = Loci::createUnorderedFile(filename.c_str(),set) ;
+    Loci::writeUnorderedStore(file_id,$area,set,"area") ;
+    Loci::writeUnorderedStore(file_id,$facecenter,set,"facecenter") ;
+    Loci::closeUnorderedFile(file_id) ;
+  } ;
+
+}
+
+
+
+
+
+
+
+
+
+
+
