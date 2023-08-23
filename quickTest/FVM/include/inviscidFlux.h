@@ -22,7 +22,7 @@
 #include <flowTypes.h>
 
 namespace flowPsi {
-  inline void inviscidFlux(Loci::Array<real,5> &iflux,
+  inline void inviscidFlux(real iflux[],
 			   real pg, real T, vect3d U,
 			   vect3d an, real area,
 			   real pambient, real Rt, real gamma) {
@@ -45,13 +45,13 @@ namespace flowPsi {
     
 
 
-  void hllc_flux(Loci::Array<real,5> &iflux,
+  void hllc_flux(real iflux[],
 		 real pgl, real Tl, vect3d Ul,
 		 real pgr, real Tr, vect3d Ur,
 		 vect3d an, real area,
 		 real pambient, real Rt,real gamma) ;
 
-  inline void inviscidRiemannFlux(Loci::Array<real,5> &iflux,
+  inline void inviscidRiemannFlux(real iflux[],
 				  real pgl, real Tl, vect3d Ul,
 				  real pgr, real Tr, vect3d Ur,
 				  vect3d an, real area,

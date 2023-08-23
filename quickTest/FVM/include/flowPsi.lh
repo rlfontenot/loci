@@ -68,7 +68,7 @@ $type src store<Loci::Array<flowPsi::real,5> > ;
 // Right hand side of Newton method
 $type rhs store<Loci::Array<flowPsi::real,5> > ;
 // Inviscid Flux
-$type iflux store<Loci::Array<flowPsi::real,5> > ;
+$type iflux storeVec<real> ;
 
 
 // Low Speed Preconditioning Work

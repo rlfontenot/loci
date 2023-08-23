@@ -93,7 +93,9 @@ namespace flowPsi {
     $u_f = $ci->$u ;
   }
 
-  $rule pointwise(iflux<-leftsP(gagePressure,minPg),leftsP(temperature,Zero),leftv3d(u),gagePressure_f,temperature_f,u_f,area,Pambient,Rtilde,gamma),constraint(extrapolate_BC) {
+  $rule pointwise(iflux<-leftsP(gagePressure,minPg),leftsP(temperature,Zero),leftv3d(u),gagePressure_f,temperature_f,u_f,area,Pambient,Rtilde,gamma),constraint(extrapolate_BC), prelude {
+    $iflux.setVecSize(5) ;
+  } compute{
     const real Tl = $leftsP(temperature,Zero) ;
     const real Pgl = $leftsP(gagePressure,minPg) ;
     const vect3d ul = $leftv3d(u) ;
@@ -122,7 +124,9 @@ namespace flowPsi {
     $u_f = $ci->$u ;
   }
 
-  $rule pointwise(iflux<-leftsP(gagePressure,minPg),leftsP(temperature,Zero),leftv3d(u),gagePressure_f,temperature_f,u_f,area,Pambient,Rtilde,gamma),constraint(supersonicOutflow_BC) {
+  $rule pointwise(iflux<-leftsP(gagePressure,minPg),leftsP(temperature,Zero),leftv3d(u),gagePressure_f,temperature_f,u_f,area,Pambient,Rtilde,gamma),constraint(supersonicOutflow_BC), prelude {
+    $iflux.setVecSize(5) ;
+  } compute {
     const real Tl = $leftsP(temperature,Zero) ;
     const real Pgl = $leftsP(gagePressure,minPg) ;
     const vect3d ul = $leftv3d(u) ;
@@ -210,7 +214,10 @@ namespace flowPsi {
       BCErrorCode |= OUTFLOW_BECAME_INFLOW ;
   } 
 
-  $rule pointwise(iflux<-leftsP(gagePressure,minPg),leftsP(temperature,Zero),leftv3d(u),gagePressure_f,temperature_f,u_f,area,Pambient,Rtilde,gamma),constraint(outflow_BC) {
+  $rule pointwise(iflux<-leftsP(gagePressure,minPg),leftsP(temperature,Zero),leftv3d(u),gagePressure_f,temperature_f,u_f,area,Pambient,Rtilde,gamma),constraint(outflow_BC),
+    prelude {
+    $iflux.setVecSize(5) ;
+  } compute {
     const real Tl = $leftsP(temperature,Zero) ;
     const real Pgl = $leftsP(gagePressure,minPg) ;
     const vect3d ul = $leftv3d(u) ;

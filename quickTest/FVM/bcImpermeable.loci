@@ -62,7 +62,10 @@ namespace flowPsi {
     $temperature_f = $ci->$temperature ;
   }
   
-  $rule pointwise(iflux<-gagePressure_f, u_f, area),constraint(symmetry_BC) {
+  $rule pointwise(iflux<-gagePressure_f, u_f, area),constraint(symmetry_BC),
+    prelude {
+    $iflux.setVecSize(5) ;
+  } compute {
     $iflux[0] = 0 ;
     const real moment = $gagePressure_f*$area.sada ;
     $iflux[1] = $area.n.x*moment ;
@@ -87,7 +90,10 @@ namespace flowPsi {
     $temperature_f = $ci->$temperature ;
   }
   
-  $rule pointwise(iflux<-leftsP(gagePressure,minPg),leftsP(temperature,Zero),leftv3d(u), area,Pambient,Rtilde,gamma),constraint(reflecting_BC) {
+  $rule pointwise(iflux<-leftsP(gagePressure,minPg),leftsP(temperature,Zero),leftv3d(u), area,Pambient,Rtilde,gamma),constraint(reflecting_BC),
+    prelude {
+    $iflux.setVecSize(5) ;
+  } compute {
     const real Tl = $leftsP(temperature,Zero) ;
     const real Pgl = $leftsP(gagePressure,minPg) ;
     const vect3d ul = $leftv3d(u) ;

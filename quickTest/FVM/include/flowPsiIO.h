@@ -65,7 +65,7 @@ namespace flowPsi {
   class scalar_node_output : public Loci::pointwise_rule {
     std::string var_name ;
     std::string value_name ;
-    Loci::const_store<float> c2n ;
+    Loci::const_store<double> c2n ;
     Loci::const_param<std::string> plot_postfix ;
     Loci::const_param<std::string> modelName ;
     Loci::param<bool> OUTPUT ;
@@ -77,7 +77,7 @@ namespace flowPsi {
   class vector_node_output : public Loci::pointwise_rule {
     std::string var_name ;
     std::string value_name ;
-    Loci::const_store<vector3d<float> > c2n ;
+    Loci::const_store<vector3d<double> > c2n ;
     Loci::const_param<std::string> plot_postfix ;
     Loci::const_param<std::string> modelName ;
     Loci::param<bool> OUTPUT ;

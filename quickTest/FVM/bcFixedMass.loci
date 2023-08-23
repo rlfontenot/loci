@@ -94,7 +94,7 @@ namespace flowPsi {
     const vect3d n = area.n ;
 
     real T = Tin ; //first guess 
-    const int MAX_ITER = 1000 ;
+    const int MAX_ITER = 5 ;
     const real eps = Tin*1e-12 ; //for temperature 
     int iter ;
     real M ;
@@ -168,7 +168,9 @@ namespace flowPsi {
 
 
   $rule pointwise(iflux<-area,Pambient,gamma,Rtilde,temperature_f,gagePressure_f,u_f),
-    constraint(fixedMass_BC) {
+    constraint(fixedMass_BC),prelude {
+    $iflux.setVecSize(5) ;
+  } compute {
     inviscidFlux($iflux,$gagePressure_f,$temperature_f,$u_f,
 		 $area.n,$area.sada,$Pambient,$Rtilde,$gamma) ;
   } 

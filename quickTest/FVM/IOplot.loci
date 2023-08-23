@@ -55,20 +55,212 @@ namespace flowPsi {
     $plot_output_exclusive.namelist = "" ;
   }    
 
-  $rule singleton(plot_postfix<-ncycle,plot_modulo),constraint(timeStepImplicit) {
-    $plot_postfix = "" ;
-    int cycle = $ncycle ;
-    if($plot_modulo != 0) 
-      cycle = cycle % $plot_modulo ;
-    ostringstream oss ;
-    oss << cycle ;
-    $plot_postfix = oss.str() ;
+  $type c2nD_scalar_sum(X) store<double> ;
+
+  $rule unit(c2nD_scalar_sum(X) ), constraint(pos)  { $c2nD_scalar_sum(X) = 0 ; }
+
+  $type X store<real> ;
+
+  $rule apply((upper,lower,boundary_map)->face2node->c2nD_scalar_sum(X) <-
+	      (upper,lower,boundary_map)->face2node->pos,cellcenter,X)[Loci::Summation],
+    constraint(geom_cells) {
+    int sztot = 0 ;
+    
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      sztot += fi->$face2node.size() ;
+    
+    vector<Entity> node_list(sztot) ;
+    int cnt = 0 ;
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+
+    sort(node_list.begin(),node_list.end()) ;
+    vector<Entity>::iterator ne = unique(node_list.begin(),node_list.end()) ;
+    vector<Entity>::iterator ns = node_list.begin() ;
+
+    for(vector<int>::iterator vi = ns;vi!=ne;++vi) {
+      int nd = *vi ;
+      const real weight = 1./norm($*pos[nd]-$cellcenter) ;
+      join($*c2nD_scalar_sum(X)[nd],realToDouble($X*weight)) ;
+    }
+  } 
+
+  $type nodalw_sumD store<double> ;
+
+  $rule unit(nodalw_sumD), constraint(pos) {
+    $nodalw_sumD = 0 ;
   }
+
+  $rule apply((upper,lower,boundary_map)->face2node->nodalw_sumD<-(upper,lower,boundary_map)->face2node->nodalw_sumD,cellcenter,(upper,lower,boundary_map)->face2node->pos)[Loci::Summation],constraint(geom_cells) {
+    int sztot = 0 ;
+    
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      sztot += fi->$face2node.size() ;
+    
+    vector<Entity> node_list(sztot) ;
+    int cnt = 0 ;
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+
+    sort(node_list.begin(),node_list.end()) ;
+    vector<Entity>::iterator ne = unique(node_list.begin(),node_list.end()) ;
+    vector<Entity>::iterator ns = node_list.begin() ;
+    for(vector<Entity>::iterator vi = ns;vi!=ne;++vi) {
+      const real weight = 1./norm(vi->$pos-$cellcenter) ;
+      join(vi->$nodalw_sumD,realToDouble(weight)) ;
+    }
+
+  }
+
+
+$type cell2nodeD(X) store<double> ;
+  $rule pointwise(cell2nodeD(X)<-c2nD_scalar_sum(X),nodalw_sumD),constraint(pos) {
+    double rsum = 1./(double($nodalw_sumD)+1e-20) ;
+    $cell2nodeD(X) = $c2nD_scalar_sum(X)*rsum ;
+  }   
+
+  $type boundary_scalar_sumD(X) store<double> ;
+  $rule unit(boundary_scalar_sumD(X)), constraint(pos) {
+    $boundary_scalar_sumD(X) = 0 ;
+  }
+
+  $type X_f store<real> ;
+  $rule apply(face2node->boundary_scalar_sumD(X)<-
+	      face2node->pos,X_f,facecenter)[Loci::Summation],
+    constraint(ci->X,no_symmetry_BC) {
+    int fsz = $face2node.size() ;
+    for(int i=0;i<fsz;++i) {
+      const real weight = 1./norm($face2node[i]->$pos-$facecenter) ;
+      $face2node[i]->$boundary_scalar_sumD(X) += realToDouble($X_f*weight) ;
+    }
+  }
+
+  $type boundary_nodalw_sumD store<double> ;
   
+  $rule unit(boundary_nodalw_sumD),constraint(pos) {
+    $boundary_nodalw_sumD = 0 ;
+  }
+
+  $rule apply(face2node->boundary_nodalw_sumD<-face2node->pos,facecenter)[Loci::Summation],constraint(ci,no_symmetry_BC) {
+    int fsz = $face2node.size() ;
+    for(int i=0;i<fsz;++i) {
+      const real weight = 1./norm($face2node[i]->$pos-$facecenter) ;
+      $face2node[i]->$boundary_nodalw_sumD += realToDouble(weight) ;
+    }
+  }
+
+  $type boundary_node param<bool> ;
+
+$rule pointwise(boundary::cell2nodeD(X)<-boundary_scalar_sumD(X),boundary_nodalw_sumD),constraint(boundary_node) {
+      double rsum = 1./(double($boundary_nodalw_sumD)+1e-20) ;
+      $cell2nodeD(X) = $boundary_scalar_sumD(X)*rsum ;
+  }
+
+  $type c2nD_v3d_sum(X) store<vector3d<double> > ;
+  
+  $rule unit(c2nD_v3d_sum(X)),constraint(pos) {
+    $c2nD_v3d_sum(X) = vector3d<double>(0.,0.,0.) ;
+  }
+
+  $type X store<vect3d> ;
+  
+  $rule apply((upper,lower,boundary_map)->face2node->c2nD_v3d_sum(X)<-
+	      X,cellcenter,(upper,lower,boundary_map)->face2node->pos)[Loci::Summation],
+    constraint(geom_cells) {
+    int sztot = 0 ;
+    
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      sztot += fi->$face2node.size() ;
+    
+    vector<Entity> node_list(sztot) ;
+    int cnt = 0 ;
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+
+    sort(node_list.begin(),node_list.end()) ;
+    vector<Entity>::iterator ne = unique(node_list.begin(),node_list.end()) ;
+    vector<Entity>::iterator ns = node_list.begin() ;
+
+    for(vector<int>::iterator vi = ns;vi!=ne;++vi) {
+      int nd = *vi ;
+      const real weight = 1./norm($*pos[nd]-$cellcenter) ;
+      vector3d<double> v(realToDouble($X.x*weight),
+			realToDouble($X.y*weight),
+			realToDouble($X.z*weight)) ;
+      join($*c2nD_v3d_sum(X)[nd],v) ;
+    }
+  }
+
+  $type cell2nodeD_v3d(X) store<vector3d<double> > ;
+  $rule pointwise(cell2nodeD_v3d(X)<-c2nD_v3d_sum(X),nodalw_sumD) {
+    double rsum = 1./(double($nodalw_sumD)+1e-20) ;
+    $cell2nodeD_v3d(X) = $c2nD_v3d_sum(X)*rsum ;
+  }
+  $type boundary_v3d_sumD(X) store<vector3d<double> > ;
+  
+  $rule unit(boundary_v3d_sumD(X)),constraint(pos) {
+    $boundary_v3d_sumD(X) = vector3d<double>(0.0,0.0,0.0) ;
+  }
+
+  $type X_f store<vect3d> ;
+  
+  $rule apply(face2node->boundary_v3d_sumD(X)<-face2node->pos,X_f,facecenter)[Loci::Summation],constraint(ci,no_symmetry_BC) {
+    int fsz = $face2node.size();
+    for(int i=0;i<fsz;++i) {
+      const real weight = 1./norm($face2node[i]->$pos-$facecenter) ;
+      vector3d<double> v(realToDouble($X_f.x*weight),
+			realToDouble($X_f.y*weight),
+			realToDouble($X_f.z*weight)) ;
+      $face2node[i]->$boundary_v3d_sumD(X) += v ;
+    }
+  }
+
+  $rule pointwise(boundary::cell2nodeD_v3d(X)<-
+		  boundary_v3d_sumD(X),boundary_nodalw_sumD),
+    constraint(boundary_node) {
+      double rsum = 1./(double($boundary_nodalw_sumD)+1e-20) ;
+      $cell2nodeD_v3d(X) = $boundary_v3d_sumD(X)*rsum ;
+  }
+
+
+
   variableOperatorList::listset *variableOperatorList::varlist = 0 ;
   
 
-  void dump_scalar(const sequence &seq,const_store<float> &c2n,
+  void dump_scalar(const sequence &seq,const_store<double> &c2n,
                    string plot_postfix,
                    string modelName,
                    string type,
@@ -146,7 +338,7 @@ namespace flowPsi {
     do_loop(seq,this) ;
   }	
 
-    void dump_vector(const sequence &seq,const_store<vector3d<float> > &c2n,
+    void dump_vector(const sequence &seq,const_store<vector3d<double> > &c2n,
                      string postfix,
                      string modelName,
                      string type,
@@ -223,13 +415,11 @@ namespace flowPsi {
    Loci::hdf5CloseFile(file_id) ;
   }
   
-  OUTPUT_SCALAR_ALWAYS("cell2node(temperature)",t) ;
-  OUTPUT_SCALAR_ALWAYS("cell2node(gagePressure)",pg) ;
-  OUTPUT_SCALAR_ALWAYS("cell2node(rho)",r) ;
-  OUTPUT_SCALAR_ALWAYS("cell2node(soundSpeed)",a) ;
-  OUTPUT_VECTOR_ALWAYS("cell2node_v3d(u)",v) ;
-  OUTPUT_SCALAR("cell2nodeMin(dtau)",dt) ;
-  OUTPUT_VECTOR("cell2node_v3d(vort)",vorticity) ;
+  OUTPUT_SCALAR_ALWAYS("cell2nodeD(temperature)",t) ;
+  OUTPUT_SCALAR_ALWAYS("cell2nodeD(gagePressure)",pg) ;
+  OUTPUT_SCALAR_ALWAYS("cell2nodeD(rho)",r) ;
+  OUTPUT_SCALAR_ALWAYS("cell2nodeD(soundSpeed)",a) ;
+  OUTPUT_VECTOR_ALWAYS("cell2nodeD_v3d(u)",v) ;
 
   void solver_dump_var(const sequence &seq,
                        Loci::storeRepP var,
@@ -295,9 +485,6 @@ namespace flowPsi {
     Loci::closeUnorderedFile(file_id) ;
   }	
 
-  OUTPUT_BNDRY_SCALAR("yplus_w",yplus,"AllViscousBCs")  ;
-  OUTPUT_BNDRY_SCALAR("wall_stress_mag",taumag,"AllViscousBCs") ;
-  OUTPUT_BNDRY_SCALAR("heatf",qdot,"AllViscousBCs") ;
   OUTPUT_BNDRY_SCALAR("gagePressure_f",bpg,"ci") ;
   OUTPUT_BNDRY_SCALAR("temperature_f",bt,"ci") ;
   OUTPUT_BNDRY_SCALAR("rho_f",br,"ci") ;

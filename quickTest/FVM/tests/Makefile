@@ -1,7 +1,9 @@
 TEST_FILES=cylinder.test fixedMass.test  wedge.test shock_tube.test 
 
 
-include $(LOCI_BASE)/test.conf
+#include $(LOCI_BASE)/test.conf
+include ../../../test.conf
+#include test.conf
 
 default: TestResults
 
@@ -11,7 +13,7 @@ TestResults: $(TEST_FILES) FRC
 FRC:
 
 %.test : %.vars
-	FLOWTEST="$(FLOWTEST)" EXTRACT="$(EXTRACT)" NDIFF=$(LOCI_BASE)/quickTest/FVM/ndiff ./tests.sh $*.vars
+	FLOWTEST="$(FLOWTEST)" EXTRACT="$(EXTRACT)" NDIFF=../ndiff ./tests.sh $*.vars
 
 clean:
 	rm -fr TEST_* TestResults $(TEST_FILES)

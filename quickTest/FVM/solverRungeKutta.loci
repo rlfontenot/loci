@@ -65,6 +65,7 @@ namespace flowPsi {
   $rule singleton(dtRK{n,rk}<-dtRK{n,rk-1},dtStable{n,rk}, $rk{n,rk}),
     constraint(dtmax{n,rk},timeStepExplicit) {
     $dtRK{n,rk} = ($$rk{n,rk} == 0)?$dtStable{n,rk}:$dtRK{n,rk-1} ;
+//    cerr << "dtRK=" << $dtRK{n,rk} << endl ;
   }
 
   $rule unit(dtStable<-dtmax) {
