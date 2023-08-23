@@ -149,6 +149,20 @@ namespace flowPsi {
       $src[i] = 0 ;
   }
 
+//#define ALTERNATIVE
+#ifdef ALTERNATIVE
+  $rule apply(src<-(upper,lower,boundary_map)->iflux)[Loci::Summation],constraint(geom_cells) {
+    int usz = $upper.size() ;
+    for(int i=0;i<usz;++i)
+      $src -= $upper[i]->$iflux ;
+    int bsz = $boundary_map.size() ;
+    for(int i=0;i<bsz;++i)
+      $src -= $boundary_map[i]->$iflux ;
+    int lsz = $lower.size() ;
+    for(int i=0;i<lsz;++i)
+      $src += $lower[i]->$iflux ;
+  }
+#else
   // Inviscid flux contributions for interior faces
   $rule apply((cl,cr)->src<-iflux)[Loci::Summation], 
       constraint((cl,cr)->geom_cells) {
@@ -160,7 +174,7 @@ namespace flowPsi {
   $rule apply(cl->src<-iflux)[Loci::Summation],constraint(boundary_faces) {
     $cl->$src -= $iflux ;
   }
-  
+#endif
 
 
 }

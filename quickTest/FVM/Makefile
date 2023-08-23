@@ -15,7 +15,7 @@ include $(LOCI_BASE)/Loci.conf
 COPT= -g -O0
 
 default: fluidTest ndiff
-	$(MAKE) fluidTest ndiff
+	cd tests; $(MAKE) TestResults; cd ..
 
 fluidTest: $(OBJS)
 	$(LD) -o $(TARGET) $(OBJS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
