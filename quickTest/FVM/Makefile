@@ -24,7 +24,8 @@ ndiff: ndiff.o
 	$(LD) -o  ndiff ndiff.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
 clean:
-	rm -fr $(OBJS) $(TARGET) 
+	rm -fr $(OBJS) $(TARGET)
+	cd tests; $(MAKE) clean; cd ..
 
 # Junk files that are created while editing and running cases
 JUNK = $(wildcard *~) $(wildcard crash_dump.*)  core debug output $(wildcard *.o) ndiff
@@ -32,7 +33,8 @@ JUNK = $(wildcard *~) $(wildcard crash_dump.*)  core debug output $(wildcard *.o
 LOCI_INTERMEDIATE_FILES = $(subst .loci,.cc, $(wildcard *.loci) )
 
 distclean:
-	rm -fr $(OBJS) $(TARGET) $(JUNK) $(LOCI_INTERMEDIATE_FILES) $(DEPEND_FILES) 
+	rm -fr $(OBJS) $(TARGET) $(JUNK) $(LOCI_INTERMEDIATE_FILES) $(DEPEND_FILES)
+	cd tests; $(MAKE) distclean; cd ..
 
 DEPEND_FILES=$(subst .o,.d,$(OBJS))
 
