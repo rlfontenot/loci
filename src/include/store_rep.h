@@ -256,7 +256,8 @@ namespace Loci {
   
     
   
-  enum store_type { STORE, PARAMETER, MAP, CONSTRAINT, BLACKBOX } ;
+  enum store_type { STORE, PARAMETER, MAP, CONSTRAINT, BLACKBOX,
+                    GPUSTORE, GPUPARAMETER, GPUMAP} ;
 
   class Map ;
   class dMap ;
