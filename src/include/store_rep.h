@@ -559,7 +559,32 @@ namespace Loci {
     
   } ;
   typedef NPTR<store_ref> store_refP ;
-    
+
+  inline bool isSTORE(const storeRepP &rep) {
+    return (rep != 0 && ((rep->RepType() == Loci::STORE) ||
+			 (rep->RepType() == Loci::GPUSTORE))) ;
+  }
+  inline bool isMAP(const storeRepP &rep) {
+    return (rep != 0 && ((rep->RepType() == Loci::MAP) ||
+			 (rep->RepType() == Loci::GPUMAP))) ;
+  }
+  inline bool isPARAMETER(const storeRepP &rep) {
+    return (rep != 0 && ((rep->RepType() == Loci::PARAMETER) ||
+			 (rep->RepType() == Loci::GPUPARAMETER))) ;
+  }
+  inline bool isCONSTRAINT(const storeRepP &rep) {
+    return (rep != 0 && ((rep->RepType() == Loci::CONSTRAINT))) ;
+  }
+  inline bool isBLACKBOX(const storeRepP &rep) {
+    return (rep != 0 && ((rep->RepType() == Loci::BLACKBOX))) ;
+  }
+
+  inline bool isGPU(const storeRepP &rep) {
+    return (rep != 0 && ((rep->RepType() == Loci::GPUSTORE) ||
+			 (rep->RepType() == Loci::GPUMAP) ||
+			 (rep->RepType() == Loci::GPUPARAMETER) )) ;
+  }
+  
 }
 
 #endif
