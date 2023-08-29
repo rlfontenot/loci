@@ -290,6 +290,50 @@ if [ ! -h $fulltarget/lpp/variable.cc ] ; then
     echo ln -s $source/src/System/variable.cc $fulltarget/lpp/variable.cc
     ln -s $source/src/System/variable.cc $fulltarget/lpp/variable.cc
 fi
+
+echo "Linking quickTest directory files"
+
+mkdir -p $fulltarget/quickTest
+echo mkdir -p $fulltarget/quickTest
+mkdir -p $fulltarget/quickTest/Containers
+echo mkdir -p $fulltarget/quickTest/Containers
+mkdir -p $fulltarget/quickTest/FVM
+echo mkdir -p $fulltarget/quickTest/FVM
+pushd $source/quickTest/FVM
+for i in *.cc *.loci Makefile ; do
+    if [ -f $i ] ; then
+	if [ ! -h $fulltarget/quickTest/FVM/$i ] ; then
+	    echo ln -s $source/quickTest/FVM/$i $fulltarget/quickTest/FVM/$i
+	    ln -s $source/quickTest/FVM/$i $fulltarget/quickTest/FVM/$i
+	fi
+    fi
+done
+mkdir -p $fulltarget/quickTest/FVM/include
+pushd include
+for i in *.h *.lh ; do
+    if [ -f $i ] ; then
+	if [ ! -h $fulltarget/quickTest/FVM/include/$i ] ; then
+	    echo ln -s $source/quickTest/FVM/include/$i $fulltarget/quickTest/FVM/include/$i
+	    ln -s $source/quickTest/FVM/include/$i $fulltarget/quickTest/FVM/include/$i
+	fi
+    fi
+done
+popd
+mkdir -p $fulltarget/quickTest/FVM/tests
+pushd tests
+for i in *.dat *.txt *.vars *.vog *.sh Makefile   ; do
+    if [ -f $i ] ; then
+	if [ ! -h $fulltarget/quickTest/FVM/tests/$i ] ; then
+	    echo ln -s $source/quickTest/FVM/tests/$i $fulltarget/quickTest/FVM/tests/$i
+	    ln -s $source/quickTest/FVM/tests/$i $fulltarget/quickTest/FVM/tests/$i
+	fi
+    fi
+done
+
+
+popd
+
+
 #if [ ${DO_METIS_INSTALL} == 0 ]; then
 #make dummy metis directory
 #    mkdir -p $fulltarget/ParMetis-4.0
