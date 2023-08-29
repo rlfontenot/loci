@@ -128,7 +128,7 @@ namespace Loci {
               storeRepP srp = facts.get_variable(*vi) ;
               if(srp == 0)
                 continue ;
-              if(srp->RepType() == MAP)
+              if(isMAP(srp))
                 vs += variable(*vi,time_ident()) ;
             }
             if(vs != EMPTY)
@@ -216,7 +216,7 @@ namespace Loci {
 
 	  for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
 	    storeRepP p = facts.get_variable(*vi) ;
-	    if(p->RepType() ==  MAP) {      
+	    if(isMAP(p)) {      
 	      int kd = p->getDomainKeySpace() ;
 	      std::vector<entitySet> ptn = facts.get_init_ptn(kd) ;
 
@@ -252,9 +252,9 @@ namespace Loci {
       // entitySet referencedEntities ;
       // for(variableSet::const_iterator vi = vars.begin(); vi != vars.end(); ++vi) {
       // 	storeRepP tmp_sp = facts.get_variable(*vi) ;
-      // 	if(tmp_sp->RepType() == STORE || tmp_sp->RepType()==MAP)
+      // 	if(isSTORE(tmp_sp) || isMAP(tmp_sp))
       // 	  referencedEntities += tmp_sp->domain() ;
-      // 	if(tmp_sp->RepType() == MAP) {
+      // 	if(isMAP(tmp_sp)) {
       // 	  MapRepP tmp_mp = MapRepP(tmp_sp->getRep()) ;
       // 	  referencedEntities += tmp_mp->image(tmp_sp->domain()) ;
       // 	}
@@ -272,7 +272,7 @@ namespace Loci {
 	  if(i == 0) {
 	    for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
 	      storeRepP p = facts.get_variable(*vi) ;
-	      if(p->RepType() ==  MAP) {
+	      if(isMAP(p)) {
 		MapRepP mp =  MapRepP(p->getRep()) ;
 		domain += mp->domain();
 	      }
@@ -283,7 +283,7 @@ namespace Loci {
 
 	  for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
 	    storeRepP p = facts.get_variable(*vi) ;
-	    if(p->RepType() ==  MAP) {
+	    if(isMAP(p)) {
 	      MapRepP mp =  MapRepP(p->getRep()) ;
 	      image += mp->image(tmp);
 	    }
@@ -320,9 +320,9 @@ namespace Loci {
       // entitySet referencedEntities ;
       // for(variableSet::const_iterator vi = vars.begin(); vi != vars.end(); ++vi) {
       // 	storeRepP tmp_sp = facts.get_variable(*vi) ;
-      // 	if(tmp_sp->RepType() == STORE || tmp_sp->RepType()==MAP)
+      // 	if(isSTORE(tmp_sp) || isMAP(tmp_sp))
       // 	  referencedEntities += tmp_sp->domain() ;
-      // 	if(tmp_sp->RepType() == MAP) {
+      // 	if(isMAP(tmp_sp)) {
       // 	  MapRepP tmp_mp = MapRepP(tmp_sp->getRep()) ;
       // 	  referencedEntities += tmp_mp->image(tmp_sp->domain()) ;
       // 	}
@@ -337,7 +337,7 @@ namespace Loci {
 	  std::vector<entitySet>  tmp_preimage_vec(MPI_processes);
 	  for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
 	    storeRepP p = facts.get_variable(*vi) ;
-	    if(p->RepType() ==  MAP) {
+	    if(isMAP(p)) {
 	      MapRepP mp =  MapRepP(p->getRep()) ;
 	      for(int j = 0; j < MPI_processes; j++) {
 		tmp_preimage_vec[j] += mp->preimage(preimage_vec[j]).second;
@@ -381,7 +381,7 @@ namespace Loci {
 	  for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
 
 	    storeRepP p = facts.get_variable(*vi) ;
-	    if(p->RepType() ==  MAP) {
+	    if(isMAP(p)) {
 	      entitySet tmp_dom = p->domain() ;
 	      MapRepP mp =  MapRepP(p->getRep()) ;
 	      entitySet glob_dom = collectSet(tmp_dom,locdom,MPI_COMM_WORLD)
@@ -415,9 +415,9 @@ namespace Loci {
     // entitySet referencedEntities ;
     // for(variableSet::const_iterator vi = tmp_vars.begin(); vi != tmp_vars.end(); ++vi) {
     //   storeRepP tmp_sp = facts.get_variable(*vi) ;
-    //   if(tmp_sp->RepType() == STORE || tmp_sp->RepType() == MAP)
+    //   if(isSTORE(tmp_sp) || isMAP(tmp_sp))
     // 	referencedEntities += tmp_sp->domain() ;
-    //   if(tmp_sp->RepType() == MAP) {
+    //   if(isMAP(tmp_sp)) {
     // 	MapRepP tmp_mp = MapRepP(tmp_sp->getRep()) ;
     // 	referencedEntities += tmp_mp->image(tmp_sp->domain()) ;
     //   }
@@ -437,7 +437,7 @@ namespace Loci {
           facts.replace_fact(*vi,tmp) ;
         }
       }
-      if(tmp_sp->RepType() == MAP) {
+      if(isMAP(tmp_sp)) {
 	MapRepP tmp_mp = MapRepP(tmp_sp->getRep()) ;
 	int kd_domain = tmp_sp->getDomainKeySpace() ;
 	int kd_range = tmp_mp->getRangeKeySpace() ;

@@ -410,7 +410,7 @@ namespace Loci {
     variableSet non_stores ;
     for(vi=var_requests.begin();vi!=var_requests.end();++vi) {
       storeRepP sp = facts.get_variable(*vi) ;
-      if(sp->RepType() != STORE)
+      if(!isSTORE(sp))
         non_stores += *vi ;
     }
     var_requests -= non_stores ;

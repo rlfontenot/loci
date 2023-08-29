@@ -372,15 +372,15 @@ namespace Loci {
     std::map<variable,sched_info>::const_iterator mi ;
     for(mi=vmap.begin();mi!=vmap.end();++mi) {
       storeRepP sp = facts.get_variable(mi->first) ;
-      if(sp->RepType() == MAP)
+      if(isMAP(sp))
 	s << " Container = MAP " << endl ;
-      else if(sp->RepType() == STORE)
+      else if(isSTORE(sp))
 	s << " Container = STORE " << endl ;
-      else if(sp->RepType() == PARAMETER)
+      else if(isPARAMETER(sp))
 	s << " Container = PARAMETER " << endl ;
-      else if(sp->RepType() == BLACKBOX)
+      else if(isBLACKBOX(sp))
 	s << " Container = BLACKBOX " << endl;
-      else if(sp->RepType() == CONSTRAINT)
+      else if(isCONSTRAINT(sp))
 	s << " Container = CONSTRAINT " << endl ;
       
       //      double size = 0 ;

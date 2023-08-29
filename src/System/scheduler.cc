@@ -824,7 +824,7 @@ namespace Loci {
       //then that map may not have expanded enough to include necessrary existence.
       //For regular execution it won't affect the schedule but for duplication of work,
       //it is required for saving communication.
-      if(vp->RepType() == MAP) {
+      if(isMAP(vp)) {
 	if(facts.isDistributed()) {
 	  entitySet exist = scheds.variable_existence(*vi);
 	  exist = fill_entitySet(exist, facts);
@@ -832,7 +832,7 @@ namespace Loci {
 	}
       }
       if(variable(*vi).time().level_name() == "*" ) {
-	if(vp->RepType() == STORE) {
+	if(isSTORE(vp)) {
 	  ostringstream oss ;
 	  oss << "source(" <<"EMPTY"<<')' ;
 	  oss << ",target(" << *vi << ')' ;
@@ -1575,7 +1575,7 @@ bool operator <(const timingData &d) const {
       //then that map may not have expanded enough to include necessrary
       //existence. For regular execution it won't affect the schedule but
       //for duplication of work, it is required for saving communication.
-      if(vp->RepType() == MAP) {
+      if(isMAP(vp)) {
 	if(facts.isDistributed()) {
 	  entitySet exist = scheds.variable_existence(*vi);
 	  exist = fill_entitySet(exist, facts);
@@ -1583,7 +1583,7 @@ bool operator <(const timingData &d) const {
 	}
       }
       if(variable(*vi).time().level_name() == "*" ) {
-	if(vp->RepType() == STORE) {
+	if(isSTORE(vp)) {
 	  ostringstream oss ;
 	  oss << "source(" <<"EMPTY"<<')' ;
 	  oss << ",target(" << *vi << ')' ;

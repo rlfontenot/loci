@@ -368,7 +368,7 @@ namespace Loci
       //Setup local facts input variables(types only no allocation)
       for (variableSet::const_iterator vi = in.begin (); vi != in.end (); ++vi) {
         storeRepP store_ptr = rp->get_store (*vi);
-        if ((store_ptr != 0) && store_ptr->RepType () == Loci::STORE) {
+        if (isSTORE(store_ptr)) {
           backup_facts.create_fact (*vi, store_ptr->new_store (EMPTY));
         } else {
           backup_facts.create_fact (*vi, facts.get_variable (*vi));
@@ -425,7 +425,7 @@ namespace Loci
     //Setup local facts input variables(types only no allocation)
     for (variableSet::const_iterator vi = in.begin (); vi != in.end (); ++vi) {
       storeRepP store_ptr = rp->get_store (*vi);
-      if ((store_ptr != 0) && store_ptr->RepType () == Loci::STORE) {
+      if (isSTORE(store_ptr)) {
         inputs += *vi;
         local_facts.create_fact (*vi, store_ptr->new_store (EMPTY));
       } else {

@@ -76,11 +76,11 @@ namespace Loci {
       storeRepP p = facts.get_variable(*vi) ;
 
       if(p->getDomainKeySpace() == kd) {
-	if((p->RepType() == MAP)) {
+	if(isMAP(p)) {
 	  entitySet tmp = dist_collect_entitySet(p->domain(), ptn) ;
 	  vm[*vi] = tmp ;
 	  total_entities += tmp ;
-	} else if((p->RepType() == STORE)) {
+	} else if(isSTORE(p)) {
 	  entitySet tmp = dist_collect_entitySet(p->domain(), ptn) ;
 	  vm[*vi] = tmp ;
 	  total_entities += tmp ;
@@ -95,7 +95,7 @@ namespace Loci {
     }
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
       storeRepP p = facts.get_variable(*vi) ;
-      if((p->RepType() == MAP)) {
+      if(isMAP(p)) {
         // Add any map image that refers to entities not already identified.
         MapRepP mp = MapRepP(p->getRep()) ;
 

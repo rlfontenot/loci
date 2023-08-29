@@ -463,7 +463,7 @@ namespace Loci {
       if((mi=var_table.find(*si)) != var_table.end()) {
         switch(rule_impl_class) {
         case POINTWISE:
-          if(mi->second->Rep()->RepType() != STORE &&
+          if(!isSTORE(mi->second->Rep()) &&
              ((si->get_info()).name != "OUTPUT")) {
             cerr << "-------------------------------------------------"<<endl;
             cerr << "Pointwise rule should have targets of store type."<<endl;
@@ -477,7 +477,7 @@ namespace Loci {
           break;
         case DEFAULT:
         case OPTIONAL:
-          if(mi->second->Rep()->RepType() != PARAMETER) {
+          if(!isPARAMETER(mi->second->Rep())) {
             cerr << "-------------------------------------------------"<<endl;
             cerr << "Default and optional rule should have targets" << endl;
             cerr << " of param. Perhaps this rule should be a" << endl;
@@ -489,7 +489,7 @@ namespace Loci {
           }
           break ;
         case DELETION:
-          if(mi->second->Rep()->RepType() != PARAMETER) {
+	  if(!isPARAMETER(mi->second->Rep())) {
             cerr << "-------------------------------------------------"<<endl ;
             cerr << "Deletion rule should have only one target of " << endl ;
             cerr << "parameter. Error occured for rule "<<get_name()<<endl ;
@@ -535,8 +535,8 @@ namespace Loci {
           }
           break ;
         case SINGLETON:
-          if(mi->second->Rep()->RepType() != PARAMETER &&
-	     mi->second->Rep()->RepType() != BLACKBOX) {
+          if(!isPARAMETER(mi->second->Rep()) &&
+	     !isBLACKBOX(mi->second->Rep())) {
             cerr << "-------------------------------------------------"<<endl;
             cerr << "Singleton rule should have targets of param or" << endl;
             cerr << "blackbox type.  Perhaps this rule should be a" << endl;
@@ -548,9 +548,9 @@ namespace Loci {
           }
           for(sri=read_set.begin();sri!=read_set.end();++sri) {
             if((mi=var_table.find(*sri)) != var_table.end() &&
-               mi->second->Rep()->RepType() != PARAMETER &&
-               mi->second->Rep()->RepType() != MAP &&
-	       mi->second->Rep()->RepType() != BLACKBOX) {
+               !isPARAMETER(mi->second->Rep()) &&
+               !isMAP(mi->second->Rep()) &&
+	       !isBLACKBOX(mi->second->Rep())) {
             cerr << "-------------------------------------------------"<<endl;
             cerr << "Singleton rule should have sources of param or" << endl;
 	    cerr << "blackbox type.  Perhaps this rule should be a" << endl;
@@ -634,7 +634,7 @@ namespace Loci {
         if(srp == 0)
           continue ;
         // see if it is a Map
-        if(srp->RepType() != MAP)
+        if(!isMAP(srp))
           continue ;
         // it is a map, we need to create a constraint
         // and replace it in the rule
@@ -978,7 +978,7 @@ namespace Loci {
         cerr << "unable to access variable " << *i << endl ;
         cerr << " error occured in rule " ;
         rule_impl->Print(cerr) ;
-      } else if(rule_impl->get_store(*i)->RepType()==PARAMETER) {
+      } else if(isPARAMETER(rule_impl->get_store(*i))) {
         if(i!=tvars.begin() && !output_is_parameter) {
           cerr << "can't mix parameters and stores in target" << endl
                << "error occured in rule ";

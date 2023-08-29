@@ -1218,7 +1218,7 @@ namespace Loci {
     for (variableSet::const_iterator vi=targets.begin();
         vi!=targets.end();++vi) {
       storeRepP tr = ti->get_store(*vi);
-      if (tr->RepType() == PARAMETER) {
+      if (isPARAMETER(tr)) {
         threadable = false;
         break;
       }
@@ -1558,7 +1558,7 @@ namespace Loci {
     variable target = *(apply.targets().begin()) ;
     storeRepP target_rep = facts.get_variable(target) ;
     FATAL(target_rep == 0) ;
-    if(target_rep->RepType() == Loci::PARAMETER) {
+    if(isPARAMETER(target_rep)) {
       executeP execute =
         new execute_dynamic_applyrule_param(apply,unit_tag,
                                             space,facts,scheds) ;
@@ -2255,7 +2255,7 @@ namespace Loci {
     } else {
       target = *(vmsi->var.begin()) ;
       target_rep = tagp->get_store(target) ;
-      if(target_rep->RepType() != PARAMETER) {
+      if(!isPARAMETER(target_rep)) {
         cerr << "Error: key destruction rule can only have one"
              << " target of parameter<bool>! Offending rule: "
              << rule_tag << endl ;

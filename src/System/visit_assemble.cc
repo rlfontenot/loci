@@ -188,7 +188,7 @@ namespace Loci {
         debugout << "dumping variable " << v << endl ;
         storeRepP st = facts.get_variable(v) ;
         storeRepP sc = st ;
-        if(st->RepType() == STORE) {
+        if(isSTORE(st)) {
           ostringstream oss ;
           oss << "dump_vars/"<<v ;
           if(dump_var_lookup.find(v) ==dump_var_lookup.end())
@@ -502,18 +502,18 @@ namespace Loci {
         if(join_op != 0) {
           storeRepP sp = join_op->getTargetRep() ;
           /* old code
-             if(sp->RepType() == PARAMETER) {
+             if(isPARAMETER(sp)) {
              dag_comp.push_back(new reduce_param_compiler(xi->first,unit_rule,
              join_op)) ;
              }
           */
           if(sp!=0) {
-            if(sp->RepType()== PARAMETER) {
+            if(isPARAMETER(sp)) {
               reduce_var_vector.push_back(xi->first) ;
               unit_rule_vector.push_back(unit_rule) ;
               join_op_vector.push_back(join_op) ;
             } else {
-              warn(sp->RepType()!=STORE) ;
+              warn(!isSTORE(sp)) ;
 #ifdef VERBOSE
               debugout << "reduce_store_compiler("
                        << xi->first << ","
@@ -873,7 +873,7 @@ namespace Loci {
                 for(variableSet::const_iterator vi2=targets.begin();
                     vi2!=targets.end();++vi2) {
                   storeRepP srp = facts.get_variable(*vi2) ;
-                  if(srp != 0 && srp->RepType() == Loci::STORE) {
+                  if(isSTORE(srp)) {
                     has_alloc = true ;
                     break ;
                   }
@@ -927,7 +927,7 @@ namespace Loci {
               for(variableSet::const_iterator vi2=targets.begin();
                   vi2!=targets.end();++vi2) {
                 storeRepP srp = facts.get_variable(*vi2) ;
-                if(srp != 0 && srp->RepType() == Loci::STORE) {
+                if(isSTORE(srp)) {
                   ++local_num_del ;
                   break ; // !!!!!!!!!!!!!!modified!!!!!!!!!!!!!!!
                 }
@@ -943,7 +943,7 @@ namespace Loci {
               for(variableSet::const_iterator vi2=targets.begin();
                   vi2!=targets.end();++vi2) {
                 storeRepP srp = facts.get_variable(*vi2) ;
-                if(srp != 0 && srp->RepType() == Loci::STORE) {
+                if(isSTORE(srp)) {
                   ++local_num_alloc ;
                   break ; // !!!!!!!!!!!!!!modified!!!!!!!!!!!!!!!
                 }
@@ -992,7 +992,7 @@ namespace Loci {
           for(variableSet::const_iterator vi2=targets.begin();
               vi2!=targets.end();++vi2) {
             storeRepP srp = facts.get_variable(*vi2) ;
-            if(srp != 0 && srp->RepType() == Loci::STORE) {
+            if(isSTORE(srp)) {
               digraph::vertexSet nextv = gr[vi2->ident()] ;
               local_out_edges += nextv.size() ;
             }
@@ -1317,7 +1317,7 @@ namespace Loci {
             for(variableSet::const_iterator invi=tvars.begin();
                 invi!=tvars.end();++invi) {
               storeRepP srp = facts.get_variable(*invi) ;
-              if(srp != 0 && srp->RepType() == Loci::STORE) {
+              if(isSTORE(srp)) {
                 ++a ;
                 break ;
               }
@@ -1331,7 +1331,7 @@ namespace Loci {
             for(variableSet::const_iterator invi=tvars.begin();
                 invi!=tvars.end();++invi) {
               storeRepP srp = facts.get_variable(*invi) ;
-              if(srp != 0 && srp->RepType() == Loci::STORE) {
+              if(isSTORE(srp)) {
                 ++d ;
                 break ;
               }
@@ -1341,7 +1341,7 @@ namespace Loci {
         for(variableSet::const_iterator vari=targets.begin() ;
             vari!=targets.end();++vari) {
           storeRepP srp = facts.get_variable(*vari) ;
-          if(srp != 0 && srp->RepType() == Loci::STORE) {
+          if(isSTORE(srp)) {
             digraph::vertexSet nxv = gr[vari->ident()] ;
             o += nxv.size() ;
           }

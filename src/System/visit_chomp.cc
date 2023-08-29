@@ -694,7 +694,7 @@ namespace Loci {
       
       storeRepP srp = facts.get_variable(*vi) ;
 
-      if(srp == 0 || srp->RepType() != Loci::STORE) {
+      if(!isSTORE(srp)) {
         bad_vars += *vi ;
         continue ;
       }
@@ -1203,12 +1203,12 @@ namespace Loci {
         if(join_op != 0) {
           storeRepP sp = join_op->getTargetRep() ;
           if(sp!=0) {
-            if(sp->RepType()== PARAMETER) {
+            if(isPARAMETER(sp)) {
               reduce_var_vector.push_back(xi->first) ;
               unit_rule_vector.push_back(unit_rule) ;
               join_op_vector.push_back(join_op) ;
             } else {
-              WARN(sp->RepType()!=STORE) ;
+              WARN(!isSTORE(sp)) ;
               chc.
                 old_chomp_comp.
                 push_back(make_pair(fake,

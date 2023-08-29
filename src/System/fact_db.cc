@@ -230,7 +230,7 @@ namespace Loci {
     if((vmj = fmap.find(s)) != fmap.end()) {
       fact_info &finfo = vmj->second ;
       if((finfo.data_rep->domain() != EMPTY &&
-          finfo.data_rep->RepType() != PARAMETER)) {
+          !isPARAMETER(finfo.data_rep->getRep()))) {
         cerr << "unable to define synonym variable " << synonym
              << " when variable already created in db. "  << endl ;
         cerr << "variable v = " << v << endl ;
@@ -250,7 +250,7 @@ namespace Loci {
   
   void fact_db::update_fact(variable v, storeRepP st) {
     //if st is STORE or MAP, update maximum_allocated
-    if(st->RepType() == Loci::MAP || st->RepType() == Loci::STORE) {
+    if(isMAP(st) || isSTORE(st)) {
       int max_val = st->domain().Max() ;
       if(gmax_alloc.size()==0)
 	getKeyDomain("Main") ;
@@ -284,7 +284,7 @@ namespace Loci {
   
   void fact_db::create_pure_fact(const variable& v, storeRepP st) {
     
-    if(st->RepType() == Loci::MAP || st->RepType() == Loci::STORE) {
+    if(isMAP(st) || isSTORE(st)) {
       int max_val = st->domain().Max() ;
       if(gmax_alloc.size()==0)
 	getKeyDomain("Main") ;
@@ -926,7 +926,7 @@ namespace Loci {
     entitySet dom, total, unused ;
     for(mi = fmap.begin(); mi != fmap.end(); ++mi) {
       fact_info &finfo = mi->second ;
-      if(finfo.data_rep->RepType() == STORE) {
+      if(isSTORE(finfo.data_rep->getRep())) {
 	dom = finfo.data_rep->domain() ;
 	total = interval(dom.Min(), dom.Max()) ;
 	unused = total - dom ;
@@ -936,7 +936,7 @@ namespace Loci {
     }
     for(mi = fmap.begin(); mi != fmap.end(); ++mi) {
       fact_info &finfo = mi->second ;
-      if(finfo.data_rep->RepType() == STORE) {
+      if(isSTORE(finfo.data_rep->getRep())) {
 	dom = finfo.data_rep->domain() ;
 	double size = finfo.data_rep->pack_size(dom) ;
 	total = interval(dom.Min(), dom.Max()) ;
@@ -984,7 +984,7 @@ namespace Loci {
 	  // For universal set, keep set universal
 	  facts.replace_fact(*vi,p->freeze()) ;
 	  p = facts.get_variable(*vi) ;
-	} else if(p->RepType() != Loci::MAP) {
+	} else if(!isMAP(p)) {
 	  int kd = p->getDomainKeySpace() ;
 	  entitySet rdom = p->domain() & df->g2lv[kd].domain() ;
 	  storeRepP fp = (p->remap(df->g2lv[kd]))->freeze() ;
@@ -1012,7 +1012,7 @@ namespace Loci {
 	if(p->domain() == ~EMPTY) {
 	  // For universal set, keep set universal
 	  facts.update_fact(*vi,p->freeze()) ;
-	} else if(p->RepType() != Loci::MAP) {
+	} else if(!isMAP(p)) {
 	  facts.update_fact(*vi,(p->remap(remap))->freeze()) ;
 	} else {
 	  MapRepP mp = MapRepP(p->getRep()) ;
@@ -1090,7 +1090,7 @@ namespace Loci {
        
     for(variableSet::const_iterator vi = vars.begin(); vi != vars.end(); ++vi) {
       storeRepP  p = get_variable(*vi) ;
-      if(p->RepType() == STORE) {
+      if(isSTORE(p)) {
         writeContainer(file_id,variable(*vi).get_info().name,p,*this) ;
       }
     }
@@ -1105,7 +1105,7 @@ namespace Loci {
     file_id =  hdf5OpenFile(filename,  H5F_ACC_RDONLY, H5P_DEFAULT);
     for(variableSet::const_iterator vi = vars.begin(); vi != vars.end(); ++vi) {
       storeRepP  p = get_variable(*vi) ;
-      if(p->RepType() == STORE) {
+      if(isSTORE(p)) {
         readContainer(file_id,variable(*vi).get_info().name,p,EMPTY,*this) ;
       }
     }

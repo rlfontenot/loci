@@ -259,7 +259,7 @@ namespace Loci {
 		scheds.add_policy(*vi, sched_db::NEVER);
 	    }
 	    else if(r.get_info().rule_impl->get_rule_class() == rule_impl::UNIT) {
-	      if(reduction_duplication && facts.get_variable(*vi)->RepType() != Loci::PARAMETER){
+	      if(reduction_duplication && !isPARAMETER(facts.get_variable(*vi))) {
 		if(!use_duplicate_model)
 		  scheds.add_policy(*vi, sched_db::ALWAYS);
 		else
@@ -626,7 +626,7 @@ namespace Loci {
     FATAL(targets.size() != 1) ;
     variable tvar = *(targets.begin()) ;
 
-    if(facts.get_variable(tvar)->RepType() == Loci::PARAMETER)
+    if(isPARAMETER(facts.get_variable(tvar)))
       tvarmap[tvar] = scheds.variable_existence(tvar) ;
     else
       tvarmap[tvar] = scheds.get_variable_request(unit_tag,tvar) ;
@@ -2438,7 +2438,7 @@ namespace Loci {
           LociAppAllocRequestBeanCounting -= packsize ;
           LociAppFreeRequestBeanCounting -= packsize ;
         }
-	if(srp->RepType() == Loci::STORE) {
+	if(isSTORE(srp)) {
 
 	  entitySet tmp = interval(alloc_dom.Min(), alloc_dom.Max()) ;
 	  if(verbose && tmp.size() >= 2*srp->domain().size() )

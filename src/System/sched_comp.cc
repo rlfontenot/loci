@@ -854,7 +854,7 @@ namespace Loci {
 #ifdef DIAGNOSTICS
     for(vi=vars.begin();vi!=vars.end();++vi) {
       storeRepP srp = facts.get_variable(*vi) ;
-      if(srp->RepType() == Loci::STORE) {
+      if(isSTORE(srp)) {
 	dom = v_requests[*vi] ;
 	total = interval(dom.Min(), dom.Max()) ;
 	unused = total - dom ;
@@ -864,7 +864,7 @@ namespace Loci {
     }
     for(vi=vars.begin();vi!=vars.end();++vi) {
       storeRepP srp = facts.get_variable(*vi) ;
-      if(srp->RepType() == Loci::STORE) {
+      if(isSTORE(srp)) {
 	dom = v_requests[*vi] ;
 	double size, wasted_space ;
 	total = interval(dom.Min(), dom.Max()) ;
@@ -927,7 +927,7 @@ namespace Loci {
             }
           }
         }
-	if(srp->RepType() == Loci::STORE) {
+	if(isSTORE(srp)) {
 	  entitySet tmp = interval(alloc_dom.Min(), alloc_dom.Max()) ;
 	  if(verbose && tmp.size() >= 2*srp->domain().size())
 	    Loci::debugout << "Variable = " << *vi << "  more than twice the space allocated :  allocated over " << alloc_dom << " size = " << tmp.size()  << "  while domain is only  " << srp->domain() << " size = " << srp->domain().size() << endl ;
@@ -1453,7 +1453,7 @@ namespace Loci {
               if(!has_map) {
                 storeRepP srp ;
                 srp = ri->get_info().rule_impl->get_store(*vi) ;
-                if(srp->RepType() == Loci::MAP)
+                if(isMAP(srp))
                   has_map = true ;
               }
             }
@@ -1617,7 +1617,7 @@ namespace Loci {
               }
             // we do not need to remap any maps from local -> global
             // because they are generated in the global numbering
-            if(srp->RepType() == Loci::MAP)
+            if(isMAP(srp))
               facts.create_intensional_fact(*vi2,srp) ;
             else
               facts.create_intensional_fact(*vi2,srp->remap(dl2g)) ;
