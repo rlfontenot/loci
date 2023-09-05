@@ -94,7 +94,7 @@ namespace Loci {
                                             variable(tl,i->second))) ;
       return res ;
     }
-    
+
     variableSet rename_set(const variableSet &vset,
                            const std::map<variable, variable> &rvm ) {
       typedef std::map<variable, variable>::const_iterator map_iter ;
@@ -105,7 +105,7 @@ namespace Loci {
 	if(mi != rvm.end())
 	  res += mi->second ;
 	else
-	  res += *i ; 
+	  res += *i ;
       }
       return res ;
     }
@@ -117,28 +117,28 @@ namespace Loci {
         res.mapping.push_back(rename_set(*i,rvm)) ;
       res.var = rename_set(in.var,rvm) ;
       for(vector<pair<variable, variable> >::const_iterator
-            i=in.assign.begin();i!=in.assign.end();++i) {        
+            i=in.assign.begin();i!=in.assign.end();++i) {
 	variable v1, v2 ;
 	std::map<variable, variable>::const_iterator mi = rvm.find(i->first) ;
-	if(mi != rvm.end()) 
+	if(mi != rvm.end())
 	  v1 = mi->second ;
-	else 
+	else
 	  v1 = i->first ;
-	
+
 	mi = rvm.find(i->second) ;
-	if(mi != rvm.end()) 
+	if(mi != rvm.end())
 	  v2 = mi->second ;
-	else 
+	else
 	  v2 = i->second ;
 
 	res.assign.push_back(std::make_pair(v1, v2)) ;
       }
-      
+
       return res ;
-    } 
-    
+    }
+
   }
-  
+
   string rule_impl::info::rule_identifier() const {
     ostringstream ss ;
     ss << targets << "<-" << sources ;
@@ -153,7 +153,7 @@ namespace Loci {
         ss << "," ;
       ss << "DYNAMIC_CONSTRAINT(" << dynamic_constraints << ")" ;
     }
-    
+
     if(conditionals != EMPTY)
       ss << ",CONDITIONAL(" << conditionals << ")" ;
     return ss.str() ;
@@ -172,7 +172,7 @@ namespace Loci {
         input += i->mapping[j] ;
       input += i->var ;
     }
-    for(i=targets.begin();i!=targets.end();++i) 
+    for(i=targets.begin();i!=targets.end();++i)
       for(size_t j=0;j<i->mapping.size();++j)
         input += i->mapping[j] ;
 
@@ -182,13 +182,13 @@ namespace Loci {
   variableSet rule_impl::info::output_vars() const {
     variableSet output ;
     set<vmap_info>::const_iterator i ;
-        
+
     for(i=targets.begin();i!=targets.end();++i)
       output += i->var ;
 
     return output ;
   }
-    
+
   rule_impl::rule_impl() {
     name = "UNNAMED" ;
     rule_impl_class = UNKNOWN ;
@@ -223,20 +223,20 @@ namespace Loci {
 
   rule_implP rule_impl::add_namespace(const string& n) const {
     rule_implP with_namespace = new_rule_impl();
-    
+
     variableSet vars = with_namespace->get_var_list() ;
     std::map<variable,variable> new_vars;
     for(variableSet::variableSetIterator i=vars.begin();i!=vars.end();++i) {
       new_vars[*i] = i->add_namespace(n);
     }
-    
+
     with_namespace->rename_vars(new_vars);
     return with_namespace ;
   }
-  
+
   namespace {
     inline void fill_descriptors(set<vmap_info> &v, const exprList &in) {
-            
+
       for(exprList::const_iterator i = in.begin();i!=in.end();++i) {
         vmap_info di(*i) ;
         if(v.find(di) != v.end()) {
@@ -257,7 +257,7 @@ namespace Loci {
       virtual CPTR<joiner> get_joiner() { return CPTR<joiner>(0) ; }
     } ;
   }
-   
+
   void rule_impl::source(const string &invar) {
     exprP p = expression::create(invar) ;
     try {
@@ -299,13 +299,13 @@ namespace Loci {
     for(SI si = sip.first; si != sip.second; ++si) {
       fatal(si == var_table.end()) ;
       si->second->setRep(p) ;
-    } 
+    }
   }
 
   storeRepP rule_impl::get_store(variable v) const {
     //Print(cout) ;
     typedef storeIMap::const_iterator SI ;
-    
+
     std::pair<SI, SI> sip = var_table.equal_range(v) ;
     SI sp = sip.first ;
     if(sip.first == sip.second) {
@@ -314,19 +314,19 @@ namespace Loci {
           vmsi!=rule_info.targets.end();
           ++vmsi) {
         for(size_t i=0;i<vmsi->assign.size();++i) {
-            if(vmsi->assign[i].first == v) {
-              sip = var_table.equal_range(vmsi->assign[i].second) ;
-              sp = sip.first ;
-              if(sip.first != sip.second) 
-                return sp->second->Rep() ;
-            }
-          }
+	  if(vmsi->assign[i].first == v) {
+	    sip = var_table.equal_range(vmsi->assign[i].second) ;
+	    sp = sip.first ;
+	    if(sip.first != sip.second)
+	      return sp->second->Rep() ;
+	  }
+	}
       }
       return storeRepP(0) ;
     }
     return sp->second->Rep() ;
   }
-  
+
   void rule_impl::prot_rename_vars(std::map<variable,variable>  &rvm){
 #ifdef VERBOSE
     debugout << " ***********************************************" << endl ;
@@ -343,7 +343,7 @@ namespace Loci {
     }
     debugout << endl ;
 #endif
-    typedef storeIMap::iterator smap_iter ; 
+    typedef storeIMap::iterator smap_iter ;
     typedef std::map<variable, variable>::const_iterator map_iter ;
     storeIMap tmp_var_table ;
     for(smap_iter si = var_table.begin(); si != var_table.end(); ++si) {
@@ -358,7 +358,7 @@ namespace Loci {
 	}
       } else {
 #ifdef VERBOSE
-        debugout << "not renaming " << si->first 
+        debugout << "not renaming " << si->first
                  << " [" << si->first.ident() << ','
                  << si->first.time().ident() << "]" << endl ;
 #endif
@@ -368,7 +368,7 @@ namespace Loci {
     var_table.swap(tmp_var_table) ;
     std::set<vmap_info>::const_iterator i ;
     std::set<vmap_info> tmp ;
-    for(i = rule_info.sources.begin(); i != rule_info.sources.end(); ++i) 
+    for(i = rule_info.sources.begin(); i != rule_info.sources.end(); ++i)
       tmp.insert(rename_vmap_info(*i, rvm)) ;
     rule_info.sources.swap(tmp) ;
     tmp.clear() ;
@@ -388,7 +388,7 @@ namespace Loci {
 
       if(mi != rvm.end()) {
 	ParametricVariable = mi->second ;
-      } 
+      }
     }
 
 #ifdef VERBOSE
@@ -397,18 +397,18 @@ namespace Loci {
     debugout << " *************************************************" << endl ;
 #endif
   }
-  
+
   void rule_impl::name_store(const string &nm, store_instance &si) {
     variable v(expression::create(nm)) ;
     var_table.insert(std::pair<const variable, store_instance *>(v,&si)) ;
   }
-  
-  
+
+
   bool rule_impl::check_perm_bits() const {
-    
+
     variableSet read_set,write_set ;
     set<vmap_info>::const_iterator i ;
-    
+
     for(i=rule_info.sources.begin();i!=rule_info.sources.end();++i){
       for(size_t j=0;j<i->mapping.size();++j)
         read_set += i->mapping[j] ;
@@ -421,9 +421,9 @@ namespace Loci {
       for(size_t j=0;j<i->assign.size();++j) {
         write_set -= i->assign[j].first ;
         write_set += i->assign[j].second ;
-      }                
+      }
     }
-        
+
     bool retval = true ;
     for(storeIMap::const_iterator i=var_table.begin();
         i!=var_table.end();++i) {
@@ -448,7 +448,7 @@ namespace Loci {
         retval = false ;
       }
     }
-    
+
     variableSet::const_iterator si,sri ;
     for(si=read_set.begin();si!=read_set.end();++si) {
       if(var_table.find(*si) == var_table.end()) {
@@ -551,20 +551,20 @@ namespace Loci {
                !isPARAMETER(mi->second->Rep()) &&
                !isMAP(mi->second->Rep()) &&
 	       !isBLACKBOX(mi->second->Rep())) {
-            cerr << "-------------------------------------------------"<<endl;
-            cerr << "Singleton rule should have sources of param or" << endl;
-	    cerr << "blackbox type.  Perhaps this rule should be a" << endl;
-	    cerr << "pointwise_rule, or apply_rule."<< endl ;
-            cerr << "Error occured for rule " << get_name() 
-                 << " and variable " << *sri << endl ;
-            cerr << "-------------------------------------------------"<<endl;
-            retval = false ;
+	      cerr << "-------------------------------------------------"<<endl;
+	      cerr << "Singleton rule should have sources of param or" << endl;
+	      cerr << "blackbox type.  Perhaps this rule should be a" << endl;
+	      cerr << "pointwise_rule, or apply_rule."<< endl ;
+	      cerr << "Error occured for rule " << get_name()
+		   << " and variable " << *sri << endl ;
+	      cerr << "-------------------------------------------------"<<endl;
+	      retval = false ;
             }
           }
           if(si->get_info().priority.size() != 0) {
             cerr << "-------------------------------------------------"<<endl;
             cerr << "Singleton rule cannot use priority override" << endl;
-            cerr << "Error occured for rule " << get_name() 
+            cerr << "Error occured for rule " << get_name()
                  << " and variable " << *si << endl ;
             cerr << "-------------------------------------------------"<<endl;
 
@@ -585,7 +585,7 @@ namespace Loci {
 
   void rule_impl::initialize(fact_db &facts) {
     storeIMap::iterator sp ;
-    
+
     for(sp=var_table.begin();sp!=var_table.end();++sp) {
       storeRepP srp = facts.get_variable(sp->first) ;
       if(srp == 0) {
@@ -608,10 +608,10 @@ namespace Loci {
     // to an std::set data-structure is always const (regardless
     // of "const_iterator" or "iterator"), we'll actually need to
     // insert a new vmap_info and erase the original one instead.
-    
+
     // check to see if the constraints are Maps
     vector<vmap_info> new_vmap_info ;
-    
+
     set<vmap_info>::iterator si=rule_info.constraints.begin() ;
     set<vmap_info>::iterator si_bak ;
 
@@ -664,7 +664,7 @@ namespace Loci {
         for(variableSet::const_iterator vi=maps.begin();
             vi!=maps.end();++vi)
           nv.var -= *vi ;
-        
+
         for(variableSet::const_iterator vi=new_constraints.begin();
             vi!=new_constraints.end();++vi)
           nv.var += *vi ;
@@ -683,14 +683,14 @@ namespace Loci {
     for(vector<vmap_info>::const_iterator vi=new_vmap_info.begin();
         vi!=new_vmap_info.end();++vi)
       rule_info.constraints.insert(*vi) ;
-    
+
   }
 
   void
   rule_impl::split_constraints(const variableSet& dc) {
 
     vector<vmap_info> new_constraints ;
-    
+
     set<vmap_info>::iterator si=rule_info.constraints.begin() ;
     set<vmap_info>::iterator si_bak ;
 
@@ -736,15 +736,15 @@ namespace Loci {
     rule_info.constraints.insert(new_constraints.begin(),
                                  new_constraints.end()) ;
   }
-  
-  
+
+
   variableSet rule_impl::get_var_list() {
     storeIMap::iterator sp ;
     set<vmap_info>::const_iterator i ;
     variableSet vset ;
     for(sp = var_table.begin(); sp != var_table.end(); ++sp)
       vset += sp->first ;
-    
+
     for(i=rule_info.sources.begin();i!=rule_info.sources.end();++i) {
       for(vector<variableSet>::const_iterator vi = i->mapping.begin();
 	  vi != i->mapping.end(); ++vi)
@@ -780,10 +780,10 @@ namespace Loci {
       }
     }
     vset += rule_info.conditionals ;
-    
+
     return vset ;
-}
-  
+  }
+
   void rule_impl::set_variable_times(time_ident tl) {
     set<vmap_info>::const_iterator i ;
     set<vmap_info> tmp ;
@@ -819,7 +819,7 @@ namespace Loci {
     for(sp=var_table.begin();sp!=var_table.end();++sp)
       sp->second->setRep(f.get_store(sp->first)) ;
   }
-  
+
   void rule_impl::Print(ostream &s) const {
     s << "------------------------------------------------" << endl;
     s << "--- rule " << get_name() << ", class = " ;
@@ -866,18 +866,18 @@ namespace Loci {
     s << "rule_info.targets = " << rule_info.targets << endl ;
     s << "rule_info.constraints = " << rule_info.constraints << endl ;
     s << "rule_info.conditionals = " << rule_info.conditionals << endl ;
-    
-    typedef storeIMap::const_iterator smap_iter ; 
+
+    typedef storeIMap::const_iterator smap_iter ;
     for(smap_iter si = var_table.begin(); si != var_table.end(); ++si) {
-      s << "var_table[" << si->first << "]  = " << endl ; 
+      s << "var_table[" << si->first << "]  = " << endl ;
       std::pair<smap_iter, smap_iter> sip = var_table.equal_range(si->first) ;
       for(smap_iter i = sip.first; i != sip.second; ++i) {
 	storeRepP sp = (i->second)->Rep() ;
       }
     }
-    
+
     s << "------------------------------------------------" << endl;
-    
+
   }
 
   vector<string>
@@ -889,7 +889,7 @@ namespace Loci {
   }
 
   rule::rule_db *rule::rdb = 0 ;
- 
+
 
   rule::info::info(const rule_implP &fp) {
     rule_impl = fp ;
@@ -899,10 +899,10 @@ namespace Loci {
     rule_ident.append(impl_name) ;
     rule_ident.append("#") ;
     rule_ident.append(desc.rule_identifier()) ;
-    
+
     set<vmap_info>::const_iterator i ;
     variableSet svars,tvars,tvar_types ;
-    for(i=desc.sources.begin();i!=desc.sources.end();++i) { 
+    for(i=desc.sources.begin();i!=desc.sources.end();++i) {
       for(size_t j=0;j<(*i).mapping.size();++j) {
         source_vars += (*i).mapping[j] ;
         map_vars += (*i).mapping[j] ;
@@ -928,7 +928,7 @@ namespace Loci {
         variableSet v = (*i).var ;
         for(variableSet::const_iterator vi=v.begin();vi!=v.end();++vi) {
           bool t = true ;
-          for(size_t k=0;k<(*i).assign.size();++k) 
+          for(size_t k=0;k<(*i).assign.size();++k)
             if(*vi == (*i).assign[k].first) {
               tvar_types += (*i).assign[k].second ;
               t = false ;
@@ -938,7 +938,7 @@ namespace Loci {
         }
       } else
         tvar_types += (*i).var ;
-      
+
       target_vars += (*i).var ;
       tvars += (*i).var ;
     }
@@ -953,7 +953,7 @@ namespace Loci {
     }
     int target_offset = 0 ;
     bool target_asgn = 0;
-      
+
     for(variableSet::const_iterator i=tvars.begin();i!=tvars.end();++i) {
       if(i==tvars.begin()) {
         target_time = (*i).get_info().time_id ;
@@ -968,8 +968,8 @@ namespace Loci {
                << endl ;
           rule_impl->Print(cerr) ;
         }
-    }            
-    
+    }
+
     output_is_parameter = false ;
     for(variableSet::const_iterator
           i=tvar_types.begin();i!=tvar_types.end();++i) {
@@ -993,12 +993,12 @@ namespace Loci {
         }
       }
     }
-    
+
     source_level = source_time ;
     target_level = target_time ;
 
     rule_class = TIME_SPECIFIC ;
-    
+
     if(source_time == target_time) {
       if(source_time == time_ident())
         rule_class = GENERIC ;
@@ -1010,7 +1010,7 @@ namespace Loci {
       cerr << "unable to infer time hierarchy from rule :" << endl ;
       rule_impl->Print(cerr) ;
     }
-    
+
     time_advance = false ;
     if(1 == target_offset)
       time_advance = true ;
@@ -1021,7 +1021,7 @@ namespace Loci {
       cerr << "invalid target offset in rule "
            << rule_impl->get_name() << endl;
   }
-  
+
   rule::info::info(const info &fi, time_ident tl) {
     if(fi.rule_class == INTERNAL) {
       *this = fi ;
@@ -1050,7 +1050,7 @@ namespace Loci {
       constraint_vars = variableSet() ;
 
       variableSet svars,tvars ;
-      for(i=desc.sources.begin();i!=desc.sources.end();++i) { 
+      for(i=desc.sources.begin();i!=desc.sources.end();++i) {
         for(size_t j=0;j<(*i).mapping.size();++j) {
           source_vars += (*i).mapping[j] ;
           map_vars += (*i).mapping[j] ;
@@ -1075,16 +1075,16 @@ namespace Loci {
         target_vars += (*i).var ;
         tvars += (*i).var ;
       }
-      
+
       time_ident source_time,target_time ;
-      
+
       for(variableSet::const_iterator i=svars.begin();i!=svars.end();++i) {
         source_time =  source_time.before((*i).get_info().time_id)
           ?(*i).get_info().time_id:source_time ;
       }
       int target_offset = 0 ;
       bool target_asgn = 0 ;
-      
+
       for(variableSet::const_iterator i=tvars.begin();i!=tvars.end();++i) {
         if(i==tvars.begin()) {
           target_time = (*i).get_info().time_id ;
@@ -1100,26 +1100,26 @@ namespace Loci {
                  << endl ;
             rule_impl->Print(cerr) ;
           }
-      }            
-      
+      }
+
       source_level = source_time ;
       target_level = target_time ;
-      
+
       time_advance = false ;
       if(1 == target_offset)
         time_advance = true ;
-      
-      return ; 
+
+      return ;
     }
     rule_impl = fi.rule_impl->new_rule_impl() ;
     //rule_impl->set_variable_times(tl) ;
     variableSet vset = rule_impl->get_var_list() ;
     std::map<variable, variable> rm ;
     for(variableSet::const_iterator vsi = vset.begin(); vsi != vset.end(); ++vsi) {
-    rm[variable(*vsi)] = variable(variable(*vsi), tl) ;
+      rm[variable(*vsi)] = variable(variable(*vsi), tl) ;
     }
     rule_impl->rename_vars(rm) ;
-    
+
     warn(fi.rule_class != GENERIC) ;
     source_level = tl ;
     target_level = tl ;
@@ -1128,10 +1128,10 @@ namespace Loci {
     time_advance = false ;
     desc = rule_impl->get_info() ;
     rule_ident = desc.rule_identifier() ;
-      
+
     set<vmap_info>::const_iterator i ;
     variableSet svars,tvars ;
-    for(i=desc.sources.begin();i!=desc.sources.end();++i) { 
+    for(i=desc.sources.begin();i!=desc.sources.end();++i) {
       for(size_t j=0;j<(*i).mapping.size();++j) {
         source_vars += (*i).mapping[j] ;
         map_vars += (*i).mapping[j] ;
@@ -1156,7 +1156,7 @@ namespace Loci {
       target_vars += (*i).var ;
       tvars += (*i).var ;
     }
-      
+
   }
 
   // prepend time_ident to the info
@@ -1188,7 +1188,7 @@ namespace Loci {
       constraint_vars = variableSet() ;
 
       variableSet svars,tvars ;
-      for(i=desc.sources.begin();i!=desc.sources.end();++i) { 
+      for(i=desc.sources.begin();i!=desc.sources.end();++i) {
         for(size_t j=0;j<(*i).mapping.size();++j) {
           source_vars += (*i).mapping[j] ;
           map_vars += (*i).mapping[j] ;
@@ -1213,16 +1213,16 @@ namespace Loci {
         target_vars += (*i).var ;
         tvars += (*i).var ;
       }
-      
+
       time_ident source_time,target_time ;
-      
+
       for(variableSet::const_iterator i=svars.begin();i!=svars.end();++i) {
         source_time =  source_time.before((*i).get_info().time_id)
           ?(*i).get_info().time_id:source_time ;
       }
       int target_offset = 0 ;
       bool target_asgn = 0 ;
-      
+
       for(variableSet::const_iterator i=tvars.begin();i!=tvars.end();++i) {
         if(i==tvars.begin()) {
           target_time = (*i).get_info().time_id ;
@@ -1238,16 +1238,16 @@ namespace Loci {
                  << endl ;
             rule_impl->Print(cerr) ;
           }
-      }            
-      
+      }
+
       source_level = source_time ;
       target_level = target_time ;
-      
+
       time_advance = false ;
       if(1 == target_offset)
         time_advance = true ;
-      
-      return ; 
+
+      return ;
     }
     rule_impl = fi.rule_impl->new_rule_impl() ;
     //rule_impl->set_variable_times(tl) ;
@@ -1259,7 +1259,7 @@ namespace Loci {
     }
 
     rule_impl->rename_vars(rm) ;
-    
+
     //warn(fi.rule_class != GENERIC) ;
     //source_level = prepend_time(tl,source_level) ;
     //target_level = prepend_time(tl,target_level) ;
@@ -1270,10 +1270,10 @@ namespace Loci {
     //time_advance = false ;
     desc = rule_impl->get_info() ;
     rule_ident = desc.rule_identifier() ;
-      
+
     set<vmap_info>::const_iterator i ;
     variableSet svars,tvars ;
-    for(i=desc.sources.begin();i!=desc.sources.end();++i) { 
+    for(i=desc.sources.begin();i!=desc.sources.end();++i) {
       for(size_t j=0;j<(*i).mapping.size();++j) {
         source_vars += (*i).mapping[j] ;
         map_vars += (*i).mapping[j] ;
@@ -1307,7 +1307,7 @@ namespace Loci {
     }
     int target_offset = 0 ;
     bool target_asgn = 0 ;
-    
+
     for(variableSet::const_iterator i=tvars.begin();i!=tvars.end();++i) {
       if(i==tvars.begin()) {
         target_time = (*i).get_info().time_id ;
@@ -1323,10 +1323,10 @@ namespace Loci {
                << endl ;
           rule_impl->Print(cerr) ;
         }
-    }                  
+    }
     source_level = source_time ;
     target_level = target_time ;
-    
+
     time_advance = false ;
     if(1 == target_offset)
       time_advance = true ;
@@ -1343,11 +1343,11 @@ namespace Loci {
       return rule(rp) ;
     }else {
       rule::info newinfo = get_info() ;
-      
+
       std::set<vmap_info>::const_iterator i ;
       std::set<vmap_info> tmp ;
       for(i = newinfo.desc.sources.begin();
-          i != newinfo.desc.sources.end(); ++i) 
+          i != newinfo.desc.sources.end(); ++i)
         tmp.insert(rename_vmap_info(*i, rvm)) ;
       newinfo.desc.sources.swap(tmp) ;
       tmp.clear() ;
@@ -1366,7 +1366,7 @@ namespace Loci {
       newinfo.rule_impl = new NULL_RULE_IMPL ;
       newinfo.rule_ident = newinfo.internal_qualifier + ":"
         + newinfo.desc.rule_identifier() ;
-      
+
       newinfo.source_vars = variableSet() ;
       newinfo.target_vars = variableSet() ;
       newinfo.map_vars = variableSet() ;
@@ -1374,7 +1374,7 @@ namespace Loci {
 
       variableSet svars,tvars ;
       for(i=newinfo.desc.sources.begin();
-          i!=newinfo.desc.sources.end();++i) { 
+          i!=newinfo.desc.sources.end();++i) {
         for(size_t j=0;j<(*i).mapping.size();++j) {
           newinfo.source_vars += (*i).mapping[j] ;
           newinfo.map_vars += (*i).mapping[j] ;
@@ -1401,16 +1401,16 @@ namespace Loci {
         newinfo.target_vars += (*i).var ;
         tvars += (*i).var ;
       }
-      
+
       time_ident source_time,target_time ;
-      
+
       for(variableSet::const_iterator i=svars.begin();i!=svars.end();++i) {
         source_time =  source_time.before((*i).get_info().time_id)
           ?(*i).get_info().time_id:source_time ;
       }
       int target_offset = 0 ;
       bool target_asgn = 0 ;
-      
+
       for(variableSet::const_iterator i=tvars.begin();i!=tvars.end();++i) {
         if(i==tvars.begin()) {
           target_time = (*i).get_info().time_id ;
@@ -1426,11 +1426,11 @@ namespace Loci {
                  << endl ;
             newinfo.rule_impl->Print(cerr) ;
           }
-      }            
-      
+      }
+
       newinfo.source_level = source_time ;
       newinfo.target_level = target_time ;
-      
+
       newinfo.time_advance = false ;
       if(1 == target_offset)
         newinfo.time_advance = true ;
@@ -1461,9 +1461,9 @@ namespace Loci {
     int myId = rdb->query_name(name);
     rule myRule(myId);
     return myRule;
-    
+
   }
-  
+
   namespace {
     // utility function
     inline variableSet get_rule_var_list(const rule& r) {
@@ -1474,7 +1474,7 @@ namespace Loci {
       }else{
         vset = r.get_rule_implP()->get_var_list() ;
       }
-      
+
       return vset ;
     }
   } // end of unnamed namespace
@@ -1483,10 +1483,10 @@ namespace Loci {
   rule promote_rule(const rule& r, const time_ident& t) {
     std::map<variable,variable> rvm ;
     variableSet vset = get_rule_var_list(r) ;
-    
+
     for(variableSet::const_iterator vi=vset.begin();
         vi!=vset.end(); ++vi) {
-      rvm[*vi] = variable(*vi,t) ; 
+      rvm[*vi] = variable(*vi,t) ;
     }
     return r.rename_vars(rvm) ;
   }
@@ -1495,29 +1495,29 @@ namespace Loci {
   rule prepend_rule(const rule& r, const time_ident& t) {
     std::map<variable,variable> rvm ;
     variableSet vset = get_rule_var_list(r) ;
-    
+
     for(variableSet::const_iterator vi=vset.begin();
         vi!=vset.end(); ++vi) {
-      rvm[*vi] = variable(t,*vi) ; 
+      rvm[*vi] = variable(t,*vi) ;
     }
     return r.rename_vars(rvm) ;
   }
-  
+
   rule_implP rule_impl::new_rule_impl() const {
     cerr << "rule_impl::new_rule_impl() was called:" << endl
-         << "this rule should never be called, use copy_rule_impl<> to"<< endl 
+         << "this rule should never be called, use copy_rule_impl<> to"<< endl
          << "generate a copyable rule" << endl ;
     abort() ;
     return new NULL_RULE_IMPL ;
   }
-  
+
   void rule_impl::rename_vars(std::map<variable,variable> &rvm) {
-    cerr << "rule_impl::rename_vars(std::map<variable,variable> &rv) was called:" << endl << "this rule should never be called, use copy_rule_impl<> to"<< endl 
+    cerr << "rule_impl::rename_vars(std::map<variable,variable> &rv) was called:" << endl << "this rule should never be called, use copy_rule_impl<> to"<< endl
          << "rename the variables" << endl ;
     abort() ;
   }
-    
-    
+
+
 
   rule::info::info(const string &s) {
     rule_class = rule::INTERNAL ;
@@ -1549,17 +1549,17 @@ namespace Loci {
         cerr << "rule was given " << s << endl ;
         Loci::Abort() ;
       }
-            
-          
+
+
     }
 
     rule_impl = new NULL_RULE_IMPL ;
-      
+
     rule_ident = internal_qualifier + ":" + desc.rule_identifier() ;
-    
+
     set<vmap_info>::const_iterator i ;
     variableSet svars,tvars ;
-    for(i=desc.sources.begin();i!=desc.sources.end();++i) { 
+    for(i=desc.sources.begin();i!=desc.sources.end();++i) {
       for(size_t j=0;j<(*i).mapping.size();++j) {
         source_vars += (*i).mapping[j] ;
         map_vars += (*i).mapping[j] ;
@@ -1577,23 +1577,23 @@ namespace Loci {
     }
     source_vars += desc.conditionals ;
     for(i=desc.targets.begin();i!=desc.targets.end();++i) {
-      for(size_t j=0;j<(*i).mapping.size();++j) { 
+      for(size_t j=0;j<(*i).mapping.size();++j) {
         source_vars += (*i).mapping[j] ;
         map_vars += (*i).mapping[j] ;
       }
       target_vars += (*i).var ;
       tvars += (*i).var ;
     }
-    
+
     time_ident source_time,target_time ;
-    
+
     for(variableSet::const_iterator i=svars.begin();i!=svars.end();++i) {
       source_time =  source_time.before((*i).get_info().time_id)
         ?(*i).get_info().time_id:source_time ;
     }
     int target_offset = 0 ;
     bool target_asgn = 0 ;
-      
+
     for(variableSet::const_iterator i=tvars.begin();i!=tvars.end();++i) {
       if(i==tvars.begin()) {
         target_time = (*i).get_info().time_id ;
@@ -1609,8 +1609,8 @@ namespace Loci {
                << endl ;
           rule_impl->Print(cerr) ;
         }
-    }            
-      
+    }
+
     source_level = source_time ;
     target_level = target_time ;
 
@@ -1621,20 +1621,20 @@ namespace Loci {
     if(target_offset > 2)
       cerr << "invalid target offset in rule "
            << rule_impl->get_name() << endl;
-    
+
   }
-    
+
   ostream &ruleSet::Print(ostream &s) const {
-    for(ruleSet::const_iterator i=begin();i!=end();++i) 
+    for(ruleSet::const_iterator i=begin();i!=end();++i)
       s << *i << endl ;
     return s;
   }
   //Definition of global rule lists
   register_rule_impl_list register_rule_list ;
   rule_impl_list global_rule_list ;
-  
+
   std::string register_module::load_nspace() const { return string("") ; }
-  
+
   rule_impl_list::~rule_impl_list() {
     rule_list_ent *p,*v ;
     for(p=list;p!=0;p=v) {
@@ -1654,7 +1654,7 @@ namespace Loci {
     rule_list_ent *flp = new rule_list_ent(p,list) ;
     list = flp ;
   }
-  
+
   void rule_impl_list::copy_rule_list(const rule_impl_list& rl) {
     rule_list_ent *p, *v ;
     for(p = rl.list; p != 0; p=v) {
@@ -1669,10 +1669,10 @@ namespace Loci {
       v = p->next ;
     }
   }
-  
+
   //Declaration of static variable global_list
   rule_impl_list::rule_list_ent *register_rule_impl_list::global_list = 0 ;
-  
+
   register_rule_impl_list::~register_rule_impl_list() {
     rule_list_ent *p,*v ;
     for(p=global_list;p!=0;p=v) {
@@ -1688,22 +1688,22 @@ namespace Loci {
     }
     global_list = 0 ;
   }
-   bool register_rule_impl_list::empty() {
-     return (global_list == 0) ;
-   }
+  bool register_rule_impl_list::empty() {
+    return (global_list == 0) ;
+  }
   void register_rule_impl_list::push_rule(register_rule_type *p) {
     rule_list_ent *flp = new rule_list_ent(p,global_list) ;
     global_list = flp ;
   }
-  
+
   const ruleSet rule_db::EMPTY_RULE ;
 
   void rule_db::add_rule(const rule_implP &fp) {
     // Check for rule consistency
     fp->check_perm_bits() ;
     add_rule(rule(fp)) ;
-  }    
-  
+  }
+
   void rule_db::add_rule(rule f) {
     string fname = f.get_info().rule_impl->get_name() ;
     rule_map_type::const_iterator fmti = name2rule.find(fname) ;
@@ -1715,8 +1715,8 @@ namespace Loci {
     if(f.get_info().rule_impl->get_rule_class() == rule_impl::DEFAULT) {
       if(default_rules.inSet(f)) {
         cerr << "Warning, adding duplicate rule to rule database"
-             << endl 
-             << " Rule = " << f << endl ;        
+             << endl
+             << " Rule = " << f << endl ;
       }else
         default_rules += f ;
       return ;
@@ -1724,16 +1724,16 @@ namespace Loci {
     if(f.get_info().rule_impl->get_rule_class() == rule_impl::OPTIONAL) {
       if(optional_rules.inSet(f)) {
         cerr << "Warning, adding duplicate rule to rule database"
-             << endl 
-             << " Rule = " << f << endl ;        
+             << endl
+             << " Rule = " << f << endl ;
       }else
         optional_rules += f ;
       return ;
     }
-    
+
     if(known_rules.inSet(f)) {
       cerr << "Warning, adding duplicate rule to rule database"
-           << endl 
+           << endl
            << " Rule = " << f << endl ;
     } else {
       // Now link all rule sources
@@ -1749,7 +1749,7 @@ namespace Loci {
         }
         trgt2rule[v] += f ;
       }
-      if(svars == EMPTY) 
+      if(svars == EMPTY)
         cerr << "WARNING, rule " << f << " has no sources" << endl ;
       if(tvars == EMPTY)
         cerr << "WARNING, rule " << f << " has no targets" << endl ;
@@ -1758,14 +1758,14 @@ namespace Loci {
       known_rules += f ;
     }
   }
-  
+
   void rule_db::add_rules(rule_impl_list &gfl) {
-    for(rule_impl_list::iterator i=gfl.begin();i!=gfl.end();++i) 
+    for(rule_impl_list::iterator i=gfl.begin();i!=gfl.end();++i)
       if(!(i.get_p())->rr->is_module_rule())
 	add_rule(*i) ;
   }
   void rule_db::add_rules(register_rule_impl_list &gfl) {
-    for(rule_impl_list::iterator i=gfl.begin();i!=gfl.end();++i) 
+    for(rule_impl_list::iterator i=gfl.begin();i!=gfl.end();++i)
       if(!(i.get_p())->rr->is_module_rule())
 	add_rule(*i) ;
   }
@@ -1802,7 +1802,7 @@ namespace Loci {
     }
     keyspace2rule[f.get_info().rule_impl->get_keyspace_tag()] -= f ;
   }
-  
+
   void rule_db::remove_rules(const ruleSet& rs) {
     for(ruleSet::const_iterator ri=rs.begin();ri!=rs.end();++ri)
       remove_rule(*ri) ;
