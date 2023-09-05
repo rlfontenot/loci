@@ -2490,9 +2490,7 @@ namespace Loci {
   //Output: true if sucess
   bool readFVMGrid(fact_db &facts, string filename) {
     double t1 = MPI_Wtime() ;
-    //	timer_token read_file_timer = new timer_token;
-    //	if(collect_perf_data)
-    //		read_file_timer = perfAnalysis->start_timer("Reading in FVM Grid");
+
     REPORTMEM() ;
     vector<entitySet> local_nodes;
     vector<entitySet> local_cells;
@@ -2929,8 +2927,7 @@ namespace Loci {
       oss << "volumeTag(" << volTags[i].first << ")" ;
       facts.create_fact(oss.str(),Tag) ;
     }
-    //	if(collect_perf_data)
-    //		perfAnalysis->stop_timer(read_file_timer);
+
     double t2 = MPI_Wtime() ;
     debugout << "Time to read in file '" << filename << ", is " << t2-t1
              << endl ;
