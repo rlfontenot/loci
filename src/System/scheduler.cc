@@ -684,22 +684,9 @@ namespace Loci {
     clean_graph(gr,given,target) ;
   }
 
-  template<class MULTIMAP>
-  void write_out_mmap(const MULTIMAP& m, char* s) {
-    ofstream o(s,std::ios::out) ;
-    for(entitySet::const_iterator ei=m.domain().begin();
-        ei!=m.domain().end();++ei) {
-      o << *ei << " --> " ;
-      for(int i=0;i<m.num_elems(*ei);++i)
-        o << m[*ei][i] << " " ;
-      o << endl ;
-    }
-    o.close() ;
-  }
-
+  extern rule_db rename_gpu_containers(fact_db  &facts,
+				       const rule_db &rdb) ;
 #define ENABLE_RELATION_GEN
-  //#define ENABLE_DYNAMIC_SCHEDULING
-  //#define ENABLE_DYNAMIC_SCHEDULING_2
   executeP create_execution_schedule(const rule_db &rdb,
                                      fact_db &facts,
                                      sched_db &scheds,
@@ -709,8 +696,13 @@ namespace Loci {
     parVars += facts.get_extensional_facts() ;
     rule_db par_rdb ;
     par_rdb = parametric_rdb(rdb,parVars) ;
+    // Not sure exactly why we need this, perhaps this is used by the
+    // dynamic execution feature?  CHEM passes quicktest without
+    // it.
     par_rdb = replace_map_constraints(facts,par_rdb) ;
 
+    // Rename gpu containers and insert
+    par_rdb = rename_gpu_containers(facts,par_rdb) ;
     ////////////////decorate the dependency graph/////////////////////
     //if(Loci::MPI_rank==0)
     //cout << "decorating dependency graph to include allocation..." << endl ;
@@ -724,18 +716,12 @@ namespace Loci {
     // then we need to perform global -> local renumbering
     if(facts.is_distributed_start()) {
       if((MPI_processes > 1))
-        get_clone(facts, rdb) ;
+        get_clone(facts, par_rdb) ;
       else
         Loci::serial_freeze(facts) ;
     } else {
       Loci::serial_freeze(facts) ;
     }
-
-#ifdef ENABLE_DYNAMIC_SCHEDULING_2
-    if(Loci::MPI_rank==0)
-      cout << "dynamic scheduling2..." << endl ;
-    dynamic_scheduling2(par_rdb,facts,target) ;
-#endif
 
     // then we can generate the dependency graph
     variableSet given = facts.get_typed_variables() ;
@@ -773,11 +759,6 @@ namespace Loci {
       }
     }
     ////////////////////////////////////////////////////////////////////////
-#ifdef ENABLE_DYNAMIC_SCHEDULING
-    if(Loci::MPI_rank==0)
-      cout << "dynamic scheduling..." << endl ;
-    dynamic_scheduling(gr,facts,given,target) ;
-#endif
 
     ////////////////////
     //prune_graph(gr,given,target,facts) ;
@@ -1704,9 +1685,6 @@ bool operator <(const timingData &d) const {
     facts.setupDefaults(rdb) ;
     stopWatch sw ;
     sw.start() ;
-    //    timer_token execute_query_timer = new timer_token;
-    //    if(collect_perf_data)
-    //      execute_query_timer = perfAnalysis->start_timer("Execute Query");
 
     try {
       if(MPI_rank == 0) {
@@ -1877,8 +1855,6 @@ bool operator <(const timingData &d) const {
 
       timeProf.PrintSummary(debugout) ;
 
-      //      if(collect_perf_data)
-      //        perfAnalysis->stop_timer(execute_schedule_timer);
 
       /*
 #ifdef USE_PAPI
@@ -2254,17 +2230,10 @@ bool operator <(const timingData &d) const {
       cerr << "Unknown Exception Caught" << endl ;
       Loci::Abort() ;
     }
-    //	if(collect_perf_data)
-    //		perfAnalysis->stop_timer(execute_query_timer);
 
     debugout << "Time to execute query for '" << query << "' is " << sw.stop()
              << endl ;
 
-    //	if(collect_perf_data) {
-    //		if(MPI_rank == 0)
-    //			cout << "printing performance analysis data to perfAnalysis-*" << endl;
-    //		perfAnalysis->create_report();
-    //	 }
     return true ;
 
   }
