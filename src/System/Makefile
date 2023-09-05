@@ -43,7 +43,7 @@ OBJS = Loci_version.o  Initialize.o Loci_Datatypes.o variable.o \
        visit_chomp.o dynamic_exec.o multiStoreIO.o mpi_containerIO.o\
        dist_tools.o distribute_io.o distribute_container.o dist_internal.o \
        FVMGridReader.o FVMGridWriter.o FVMStuff.o kd_tree.o pnn.o orb.o \
-       keyspace.o interpolate_tools.o thread.o
+       keyspace.o interpolate_tools.o thread.o gpusupport.o
 
 COPT = $(CC_LIB_FLAGS) $(CC_OPTIMIZE) -DLOCI_RPATH=\"$(LOCI_RPATH)\"
 #COPT = $(CC_LIB_FLAGS) $(COPTLESS) -DLOCI_RPATH=\"$(LOCI_RPATH)\"
