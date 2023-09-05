@@ -196,6 +196,22 @@ namespace Loci {
     return(traits_type::get_type()) ;
   }
   //**************************************************************************/
+  // Code to copy from cpu container to gpu container
+  template<class T> 
+  void gpuparamRepI<T>::copyFrom(const storeRepP &p, entitySet set)  {
+    const_param<T> v(p) ;
+    T *data = get_param() ;
+    *data = *v ;
+  }
+  
+  // code to copy from gpu container to cpu container
+  template<class T>
+  void gpuparamRepI<T>::copyTo(storeRepP &p, entitySet set) const {
+    param<T> v(p) ;
+    const T *data = get_param() ;
+    *v = data ;
+  }
+  
   template<class T>
   void gpuparamRepI<T>::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &eset)
   {

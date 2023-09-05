@@ -35,6 +35,7 @@
 
 #include <DMap.h>
 #include <store_rep.h>
+#include <gpurep.h>
 #include <data_traits.h>
 #include <sstream>
 #include <hdf5_readwrite.h>
@@ -46,8 +47,13 @@ namespace Loci {
   extern int MPI_processes;
   extern int MPI_rank ;
 
-  template<class T> class gpustoreRepI : public storeRep {
+  template<class T> class gpustoreRepI : public gpuRep {
     entitySet store_domain ;
+    // Code to copy from cpu container to gpu container
+    virtual void copyFrom(const storeRepP &p, entitySet set) ;
+    // code to copy from gpu container to cpu container
+    virtual void copyTo(storeRepP &p, entitySet set) const ;
+
     void hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, frame_info &fi, entitySet &usr);
     void hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER g, const entitySet &en) const;
 #ifdef H5_HAVE_PARALLEL

@@ -33,6 +33,7 @@
 #include <mpi.h>
 #include <Tools/debug.h>
 #include <store_rep.h>
+#include <gpurep.h>
 //#include <distribute.h>
 #include <data_traits.h>
 //#include <gstore_rep.h>
@@ -40,11 +41,17 @@
 
 namespace Loci {
   
-  template<class T> class gpuparamRepI : public storeRep {
+  template<class T> class gpuparamRepI : public gpuRep {
     entitySet store_domain ;
     T defaultData ;
     T *base_ptr ;
+
     
+    // Code to copy from cpu container to gpu container
+    virtual void copyFrom(const storeRepP &p, entitySet set) ;
+    // code to copy from gpu container to cpu container
+    virtual void copyTo(storeRepP &p, entitySet set) const ;
+
     void hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER g, frame_info &fi, const entitySet &en);
     void hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset,hsize_t dimension, const char* name, USER_DEFINED_CONVERTER g, frame_info &fi, const entitySet &en);
 

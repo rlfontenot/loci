@@ -25,6 +25,26 @@
 #include <DStore_def.h>
 
 namespace Loci {
+  // Code to copy from cpu container to gpu container
+  template<class T> 
+  void gpustoreRepI<T>::copyFrom(const storeRepP &p, entitySet set)  {
+    const_store<T> v(p) ;
+    T *base_ptr = get_base_ptr() ;
+    FORALL(set,ii) {
+      base_ptr[ii] = v[ii] ;
+    } ENDFORALL ;
+  }
+  
+  // code to copy from gpu container to cpu container
+  template<class T>
+  void gpustoreRepI<T>::copyTo(storeRepP &p, entitySet set) const {
+    store<T> v(p) ;
+    const T *base_ptr = get_base_ptr() ;
+    FORALL(set,ii) {
+      v[ii] = base_ptr[ii] ;
+    } ENDFORALL ;
+  }
+
   template<class T> void gpustoreRepI<T>::allocate(const entitySet &eset) {
     if(alloc_id < 0) {
       alloc_id = getStoreAllocateID() ;
