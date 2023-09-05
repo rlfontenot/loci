@@ -9,7 +9,7 @@ of standard functions (but with enhanced functionality).
 
 \date Started 11/1/99
 \author George
-\version $Id: string.c 10711 2011-08-31 22:23:04Z karypis $
+\version $Id: string.c,v 1.2 2015/07/20 20:36:49 lush Exp $
 */
 /************************************************************************/
 
@@ -496,19 +496,19 @@ strptime() function. The format that gk_str2time() understands is
         it returns -1.
 */
 /*************************************************************************/
-time_t gk_str2time(char *str)
-{
-  struct tm time;
-  time_t rtime;
+/* time_t gk_str2time(char *str) */
+/* { */
+/*   struct tm time; */
+/*   time_t rtime; */
 
-  memset(&time, '\0', sizeof(time));
+/*   memset(&time, '\0', sizeof(time)); */
   
-  if (strptime(str, "%m/%d/%Y %H:%M:%S", &time) == NULL)
-    return -1;
+/*   if (strptime(str, "%m/%d/%Y %H:%M:%S", &time) == NULL) */
+/*     return -1; */
 
-  rtime = mktime(&time);
-  return (rtime < 0 ? 0 : rtime);
-}
+/*   rtime = mktime(&time); */
+/*   return (rtime < 0 ? 0 : rtime); */
+/* } */
 #endif
 
 
