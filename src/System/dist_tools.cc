@@ -574,9 +574,7 @@ namespace Loci {
 
     variableSet vars = facts.get_typed_variables() ;
     double start = MPI_Wtime() ;
-    //    timer_token creating_initial_info_timer = new timer_token;
-    //	if(collect_perf_data)
-    //		creating_initial_info_timer = perfAnalysis->start_timer("Create initial info");
+
     int myid = MPI_rank ;
     int size = 0 ;
     Map l2g ;
@@ -716,22 +714,17 @@ namespace Loci {
 
 
     debugout << "time setting up send and recieve info = " << s.stop() << endl ;
-    //	if(collect_perf_data)
-    //		perfAnalysis->stop_timer(creating_initial_info_timer);
+
     double end_time =  MPI_Wtime() ;
     debugout << "  Time taken for creating initial info =  " << end_time - start << endl ;
 
     start = MPI_Wtime() ;
-    //    timer_token reordering_timer = new timer_token;
-    //	if(collect_perf_data)
-    //		reordering_timer = perfAnalysis->start_timer("Reordering");
+
     //----------------------------------------------------------------------
     // reorder facts to local numbering
     reorder_facts(facts, df->g2lv[0]) ; 
 
     //----------------------------------------------------------------------
-    //	if(collect_perf_data)
-    //		perfAnalysis->stop_timer(reordering_timer);
     end_time =  MPI_Wtime() ;
     debugout << "  Time taken for reordering =  " << end_time - start << endl ;
 
