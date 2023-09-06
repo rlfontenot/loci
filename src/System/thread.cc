@@ -766,42 +766,6 @@ namespace Loci {
       }
     }
 
-    // // randomly assigns entities to threads
-    // int psize = cells.size() ;
-    // int div = psize/thread_num ;
-    // int rem = psize%thread_num ;
-    // ptn.resize(thread_num);
-
-    // vector<int> all_dist(psize);
-    // int idx=0;
-    // for(int p=0;p<thread_num;++p) {
-    //   for(int k=0;k<div;++k,++idx)
-    //     all_dist[idx] = p;
-    //   if(rem > 0) {
-    //     all_dist[idx] = p;
-    //     ++idx;
-    //     --rem;
-    //   }
-    // }
-    // random_shuffle(all_dist.begin(),all_dist.end());
-    // idx = 0;
-    // for(entitySet::const_iterator ei=whole_entities.begin();
-    //     ei!=whole_entities.end();++ei,++idx) {
-    //   ptn[all_dist[idx]] += *ei;
-    // }
-
-    // sequentially cut the entities
-    // entitySet::const_iterator ei = all.begin();
-    // for(int p=0;p<thread_num;++p) {
-    //   entitySet& sp = ptn[p];
-    //   for(int k=0;k<div;++k,++ei)
-    //     sp += *ei;
-    //   if(rem > 0) {
-    //     sp += *ei;
-    //     ++ei;
-    //     --rem;
-    //   }
-    // }
   }
 
   ThreadPartition_simple::~ThreadPartition_simple()

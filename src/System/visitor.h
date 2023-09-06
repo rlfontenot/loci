@@ -902,29 +902,6 @@ namespace Loci {
     std::map<variable, std::set<std::string> > drule_ctrl ;
   } ;
 
-  // this visitor will create the compiler nodes in the graph
-  // that does the dynamic clone region invalidation
-  class DynamicCloneInvalidatorVisitor: public visitor {
-  public:
-    DynamicCloneInvalidatorVisitor
-    (fact_db& fd,
-     const std::map<variable,std::string>& sc,
-     const std::map<variable,std::set<std::string> >& sac) ;
-    virtual ~DynamicCloneInvalidatorVisitor() {}
-    virtual void visit(loop_compiler& lc) ;
-    virtual void visit(dag_compiler& dc) ;
-    virtual void visit(conditional_compiler& cc) ;
-  private:
-    void
-    edit_graph(digraph& gr, rulecomp_map& rcm) ;
-    
-    fact_db& facts ;
-    std::map<variable, std::string> self_clone ;
-    std::map<variable, std::set<std::string> > shadow_clone ;
-    variableSet self_clone_vars ;
-    variableSet shadow_clone_vars ;
-    variableSet clone_vars ;
-  } ;
 
   // overload "<<" to print out an std::map
   template<typename T1, typename T2>

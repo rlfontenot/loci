@@ -1905,13 +1905,6 @@ namespace Loci {
       for(size_t j=0;j<send_info[i].second.size();++j) {
 	storeRepP sp = send_vars[i][j] ; //facts.get_variable(send_info[i].second[j].v) ;
         s_size[i] += sp->pack_size(send_info[i].second[j].set) ;
-	/*
-	  #ifdef DEBUG
-	  entitySet rem = send_info[i].second[j].set - sp->domain() ;
-	  if(rem != EMPTY)
-          debugout << "variable " << send_info[i].second[j].v << " not allocated, but sending for entities " << rem << endl ;
-	  #endif
-	*/
       }
       if((s_size[i] > maxs_size[i]) || (s_size[i] == sizeof(int))) {
 	if(s_size[i] > maxs_size[i])
@@ -2320,29 +2313,17 @@ namespace Loci {
       std::list<comm_info> plist = scheds.get_comm_info_list(barrier_vars, facts, sched_db::BARRIER_PLIST);
       
       CPTR<execute_list> el = new execute_list ;
-      //       executeP tmp ;
-      //       int cnt = 0 ;
+
       execute_comm2::inc_comm_step() ;
       if(!plist.empty()) {
-        //tmp = new execute_comm(plist, facts);
-        //cnt++ ;
         executeP tmp2 = new execute_comm2(plist, facts) ;
         el->append_list(tmp2) ;
-        //el->append_list(tmp) ;
       }
       execute_comm2::inc_comm_step() ;
       if(!clist.empty()) {
-        //tmp = new execute_comm(clist, facts);
-        //cnt++ ;
         executeP tmp2 = new execute_comm2(clist, facts) ;
         el->append_list(tmp2) ;
-        //el->append_list(tmp) ;
       }
-      // if(cnt == 0)
-      //   return executeP(0) ;
-      // if(cnt == 1)
-      //   return tmp ;
-      // return executeP(el) ;
       return executeP(el) ;
     }
     ostringstream oss ;
@@ -2739,13 +2720,8 @@ namespace Loci {
   void execute_memProfileFree::execute(fact_db& facts, sched_db &scheds) {
     for(variableSet::const_iterator vi=vars.begin();
         vi!=vars.end();++vi) {
-      //cerr<<"memory profiling (free) on: "<<*vi<<endl;
       storeRepP srp = facts.get_variable(*vi) ;
       entitySet alloc_dom = srp->domain() ;
-
-      //double currmen = currentMem() ;
-      //if(currmen > LociAppPeakMemory)
-      //LociAppPeakMemory = currmen ;
 
       int packsize = srp->pack_size(alloc_dom) ;
       LociAppFreeRequestBeanCounting += packsize ;

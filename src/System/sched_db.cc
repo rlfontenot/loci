@@ -95,15 +95,8 @@ namespace Loci {
   }
   /*! since free_set is never assigned, else block will never be executed, commented out here */
   void sched_db::install_sched_data(variable v, sched_data data) {
-    // if(free_set == EMPTY) {
     sched_infov.push_back(data) ;
     install_sched_info(v,sched_info(sched_infov.size()-1)) ;
-    //} else {
-    //int val = *(free_set.begin()) ;
-    // free_set -= val ;
-    //sched_infov[val] = data ;
-    //install_sched_info(v,sched_info(val)) ;
-    // }
   }
   sched_db::sched_info &sched_db::get_sched_info(variable v) {
     vmap_type::iterator mi = vmap.find(remove_synonym(v)) ;
@@ -111,16 +104,6 @@ namespace Loci {
       return get_sched_info(variable("EMPTY")) ; /*! assume variable("EMPTY") will be definitely in vmap, other infinite loop*/  
     return mi->second ;
   }
-  /* variable_is_fact_at() is commented out because it's never used*/
-  //  void sched_db::variable_is_fact_at(variable v,entitySet s, fact_db &facts) {/*! ??? and it's never used*/
-  //     sched_info &fi = get_sched_info(v) ;
-  //     fi.fact_installed += s ;
-  //     fi.existence += s ;
-  //     variableSet aliases = sched_infov[fi.sched_info_ref].aliases ;
-  //     aliases -= v ;
-  //     for(variableSet::const_iterator vi=aliases.begin();vi!=aliases.end();++vi) 
-  //       get_sched_info(v).fact_installed -= s ;/*! should v be vi? */
-  //   }
 
   void sched_db::set_variable_rotations(variableSet vars) {
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {

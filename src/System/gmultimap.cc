@@ -411,80 +411,6 @@ namespace Loci {
   {
     warn(true) ;
   } 
-
-
-  //this is the working version with std::map
-  // //**************************************************************************/
-  
-  // void gMultiMapRepI::inplace_compose(const gMap &newmap,  MPI_Comm comm) 
-  // {
-   
-  //   //check if expand is needed
-  //   gEntitySet old_dom = newmap.domain();
-  //   gEntitySet dom = image();
-    
-  //   gEntitySet out_dom = dom -  old_dom;
-  //   int need_expand = (out_dom == GEMPTY ? 0:1);
-  //   bool global_need_expand = GLOBAL_OR(need_expand, comm);
-  //   std::map<gEntity, gEntity> amap;
-  //   if(global_need_expand){
-  //     std::vector<gEntitySet> old_ptn = g_all_collect_vectors<gEntity>(old_dom, comm) ;
-  //     gMap temp;
-  //     temp.setRep(newmap.expand(dom, old_ptn, comm));
-  //     for(gMap::const_iterator itr = temp.begin(); itr!=temp.end(); itr++)
-  //       amap[itr->first] = itr->second;
-  //   }else{
-  //     for(gMap::const_iterator itr = newmap.begin(); itr!=newmap.end(); itr++)
-  //       amap[itr->first] = itr->second;
-  //   }
- 
-  //   for( iterator itr1 = begin(); itr1 != end(); itr1++){
-  //     itr1->second = amap[itr1->second];
-  //   }
-  //  Print(debugout);
-  // }
-
-  // //**************************************************************************/
-  
-  // gStoreRepP gMultiMapRepI::recompose(const gMap &newmap,  MPI_Comm comm) 
-  // {
-   
-  //   //check if expand is needed
-  //   gEntitySet old_dom = newmap.domain();
-  //   gEntitySet dom = image();
-    
-  //   gEntitySet out_dom = dom -  old_dom;
-  //   int need_expand = (out_dom == GEMPTY ? 0:1);
-  //   bool global_need_expand = GLOBAL_OR(need_expand, comm);
-  //   std::map<gEntity, gEntity> amap;
-  //   if(global_need_expand){
-  //     std::vector<gEntitySet> old_ptn = g_all_collect_vectors<gEntity>(old_dom, comm) ;
-  //     gMap temp;
-  //     temp.setRep(newmap.expand(dom, old_ptn, comm));
-  //     for(gMap::const_iterator itr = temp.begin(); itr!=temp.end(); itr++)
-  //       amap[itr->first] = itr->second;
-  //   }else{
-  //     for(gMap::const_iterator itr = newmap.begin(); itr!=newmap.end(); itr++)
-  //       amap[itr->first] = itr->second;
-  //   }
-
-  //   gMultiMap result;
-  //   for( iterator itr1 = begin(); itr1 != end(); itr1++){
-  //     result.insert(itr1->first, amap[itr1->second]);
-  //   }
-  //   result.local_sort();
-  //   result.set_domain_space(domain_space);
-  //   result.set_image_space(image_space);
-  //   return result.Rep();
-  // }
-
-
-
-
-
-
-
-
   
   //**************************************************************************/
 
@@ -735,78 +661,6 @@ namespace Loci {
       if(global_preimage.inSet(itr->first)) input.push_back( pair<gEntity,gEntity>(itr->first, itr->second));
     }
  
-    // // Sort input according to second field
-    // sort(input.begin(),input.end(),fieldSort2) ;
-    // // Now count what we will be sending
-    // vector<int> send_sz(MPI_processes) ;
-    // for(int i=0;i<MPI_processes;++i)
-    //   send_sz[i] = 0 ;
-    // int current_p = 0 ;
-    // for(gMultiMap::const_iterator itr=input.begin();itr != input.end(); itr++) {
-    //   gEntity to = itr->second ;
-    //   if(!init_ptn[current_p].inSet(to)){
-    //     for(int j=0;j<MPI_processes;++j){
-    //       if(init_ptn[j].inSet(to)) {
-    //         current_p = j ;
-    //         break ;
-    //       }
-    //     }
-    //   }
-     
-    //   send_sz[current_p] += 2 ;
-    // }
-
-    // // transfer recv sizes
-    // vector<int> recv_sz(MPI_processes) ;
-    // MPI_Alltoall(&send_sz[0],1,MPI_INT,
-    //              &recv_sz[0],1,MPI_INT,
-    //              MPI_COMM_WORLD) ;
-    // int size_send = 0 ;
-    // int size_recv = 0 ;
-    // for(int i=0;i<MPI_processes;++i) {
-     
-    //   size_send += send_sz[i] ;
-    //   size_recv += recv_sz[i] ;
-    // }
-    
-    
-    // gEntity *send_store = new gEntity[size_send] ;
-    // gEntity *recv_store = new gEntity[size_recv] ;
-    // int *send_displacement = new int[MPI_processes] ;
-    // int *recv_displacement = new int[MPI_processes] ;
-
-    // send_displacement[0] = 0 ;
-    // recv_displacement[0] = 0 ;
-    // for(int i = 1; i <  MPI_processes; ++i) {
-    //   send_displacement[i] = send_displacement[i-1] + send_sz[i-1] ;
-    //   recv_displacement[i] = recv_displacement[i-1] + recv_sz[i-1] ;
-    // }
-
-    // current_p = 0 ;
-    // vector<int> offsets(MPI_processes) ;
-    // for(int i=0;i<MPI_processes;++i)
-    //   offsets[i] = 0 ;
-    // for(vector<pair<gEntity,gEntity> >::const_iterator itr=input.begin();itr != input.end(); itr++) {
-    //   gEntity to = itr->second ;
-    //   gEntity from = itr->first ;
-    //   if(!init_ptn[current_p].inSet(to)){
-    //     for(int j=0;j<MPI_processes;++j){
-    //       if(init_ptn[j].inSet(to)) {
-    //         current_p = j ;
-    //         break ;
-    //       }
-    //     }
-    //   }
-    //   send_store[send_displacement[current_p]+offsets[current_p]++] = to ;
-    //   send_store[send_displacement[current_p]+offsets[current_p]++] = from ;
-    // }
-
-    
-  
-    // MPI_Alltoallv(send_store,&send_sz[0], send_displacement , MPI_GENTITY_TYPE,
-    //               recv_store, &recv_sz[0], recv_displacement, MPI_GENTITY_TYPE,
-    //               MPI_COMM_WORLD) ;  
-
 
     vector<gEntity> recv_store;
     distributed_inverse_map<gEntity>(recv_store,
@@ -824,13 +678,6 @@ namespace Loci {
       if(local_input_image.inSet(indx))result.insert(indx, refer);
     }
     
-    /*
-      delete[] recv_displacement ;
-      delete[] send_displacement ;
-      delete[] recv_store ;
-      delete[] send_store ;
-    */
-   
     result.local_sort();
     result.set_vdom(local_input_image - result.domain());
     result.set_domain_space(domain_space);

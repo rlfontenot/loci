@@ -317,16 +317,7 @@ namespace Loci {
       std::vector<entitySet> ptn = facts.get_init_ptn(0) ;// FIX THIS
       entitySet context;
       variableSet vars = facts.get_typed_variables() ;
-      // entitySet referencedEntities ;
-      // for(variableSet::const_iterator vi = vars.begin(); vi != vars.end(); ++vi) {
-      // 	storeRepP tmp_sp = facts.get_variable(*vi) ;
-      // 	if(isSTORE(tmp_sp) || isMAP(tmp_sp))
-      // 	  referencedEntities += tmp_sp->domain() ;
-      // 	if(isMAP(tmp_sp)) {
-      // 	  MapRepP tmp_mp = MapRepP(tmp_sp->getRep()) ;
-      // 	  referencedEntities += tmp_mp->image(tmp_sp->domain()) ;
-      // 	}
-      // }
+
       std::set<std::vector<variableSet> >::const_iterator smi ;
       for(smi = maps.begin(); smi != maps.end(); ++smi) {
 	std::vector<entitySet>  preimage_vec = all_collect_vectors(domain);

@@ -41,7 +41,6 @@ namespace Loci {
       MPI_Comm_rank(comm,&prank) ;
       MPI_Comm_size(comm,&pnum) ;
       
-      //    std::vector<int> vec_size = all_collect_sizes(dom_size,comm) ;
       hsize_t dimension = 0 ;
       hid_t dataset = 0;
       hid_t dataspace = 0;
@@ -108,15 +107,12 @@ namespace Loci {
   
       dataset = H5Dopen(group_id, name,H5P_DEFAULT) ;
       dataspace = H5Dget_space(dataset) ;
-      // H5Sget_simple_extent_dims(dataspace, &dimension, NULL) ;
-  
-      //int dim = dimension ;
     
       int rank = 1 ;
       hid_t datatype = H5T_NATIVE_INT ;
     
       std::vector<int> sizes = all_collect_sizes(dom_size,comm) ;
-      //int total_size = dom_size;//don't need to be max size
+
       int *tmp_int = new int[dom_size] ;
 
    

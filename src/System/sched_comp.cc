@@ -347,13 +347,6 @@ namespace Loci {
                                rotlv.get_overlap_rotvars()) ;
     top_down_visit(dkv) ;
 
-    // Obsoleted, no longer needed any more, to be deleted
-//     // insert rule that invalidates the dynamic clones
-//     DynamicCloneInvalidatorVisitor dciv(facts,
-//                                         dkv.get_self_clone(),
-//                                         dkv.get_shadow_clone()) ;
-//     top_down_visit(dciv) ;
-
     // insert rule that redistribute dynamic keyspaces
 
 #ifdef COMPILE_PROGRESS

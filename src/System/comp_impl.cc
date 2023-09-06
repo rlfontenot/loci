@@ -2031,18 +2031,7 @@ namespace Loci {
         expand_control_vars += scheds.get_rotations(*vi) ;
       }
       space->add_control_vars(expand_control_vars) ;
-      // // we will also expand the keyspace tunnel
-      // variableSet tunnels = space->get_tunnels() ;
-      // variableSet expand_tunnels ;
-      // for(variableSet::const_iterator vi=tunnels.begin();
-      //     vi!=tunnels.end();++vi) {
-      //   expand_tunnels += *vi ;
-      //   expand_tunnels += scheds.get_aliases(*vi) ;
-      //   expand_tunnels += scheds.get_antialiases(*vi) ;
-      //   expand_tunnels += scheds.get_synonyms(*vi) ;
-      //   expand_tunnels += scheds.get_rotations(*vi) ;
-      // }
-      // space->reset_tunnels(expand_tunnels) ;
+
       // integraty check for this keyspace
       string err ;
       if(!space->integrity_check(err)) {
@@ -2539,14 +2528,6 @@ namespace Loci {
       sw_erase.start() ;
 #endif
     }
-
-    // // give a warning if context is very large
-    // if(context.size() > large_context_size) {
-    //   if(space->get_comm_rank() == 0)
-    //     cerr << "Warning: dynamic rule: " << rule_tag
-    //          << " executing over a very large context, potentially"
-    //          << " fatal to memory allocation" << endl ;
-    // }
 
     // targets don't need to be allocated
 

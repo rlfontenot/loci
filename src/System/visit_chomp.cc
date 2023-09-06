@@ -76,31 +76,6 @@ namespace Loci {
       return targets ;
     }
 
-    // UNUSED
-    // given a contrete rule, return all the targets
-    // that do not have maps
-//     inline variableSet non_map_targets(const rule& r) {
-//       const rule_impl::info& rinfo = r.get_info().desc ;
-//       std::set<vmap_info>::const_iterator si ;
-//       variableSet targets ;
-//       for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
-//         if(si->mapping.empty())
-//           targets += si->var ;
-//       }
-//       return targets ;
-//     }
-    
-//     inline variableSet non_map_targets(const ruleSet::const_iterator& ri) {
-//       const rule_impl::info& rinfo = ri->get_info().desc ;
-//       std::set<vmap_info>::const_iterator si ;
-//       variableSet targets ;
-//       for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
-//         if(si->mapping.empty())
-//           targets += si->var ;
-//       }
-//       return targets ;
-//     }
-
     // return the vertexSet of the rule's sources, targets
     // and the rule itself
     inline digraph::vertexSet get_rule_vertexSet(const rule& r) {
@@ -275,42 +250,6 @@ namespace Loci {
 
     // this function merges two chomping graphs and
     // returns the new resulting graph
-
-
-    // UNUSED
-    // this function works the same as the above one (gen_tmp_graph)
-    // we will have to repeat until no new internal variables are
-    // introduced into the new graph
-//     digraph merge_2_graphs(const digraph& gr1, const digraph& gr2,
-//                            const digraph& gr) {
-//       digraph grt = gr.transpose() ;
-//       digraph::vertexSet graph_vertices ;
-//       graph_vertices += gr1.get_all_vertices() ;
-//       graph_vertices += gr2.get_all_vertices() ;
-//       variableSet cur_internal_vars, new_internal_vars ;
-//       cur_internal_vars += get_internal_vars(gr1) ;
-//       cur_internal_vars += get_internal_vars(gr2) ;
-//       digraph new_gr ;
-      
-//       while(true) {
-//         new_gr = gr.subgraph(graph_vertices) ;
-//         new_internal_vars = get_internal_vars(new_gr) ;
-//         variableSet diff = variableSet(new_internal_vars - cur_internal_vars) ;
-//         if(diff == EMPTY)
-//           break ;
-//         // then bring in any relevant rules
-//         ruleSet addon_rules ;
-//         for(variableSet::const_iterator vi=diff.begin();
-//             vi!=diff.end();++vi) {
-//           addon_rules += extract_rules(gr[vi->ident()]) ;
-//           addon_rules += extract_rules(grt[vi->ident()]) ;
-//         }
-//         addon_rules -= extract_rules(new_gr.get_all_vertices()) ;
-//         graph_vertices += get_ruleSet_vertexSet(addon_rules) ;
-//         cur_internal_vars = new_internal_vars ;
-//       }
-//       return new_gr ;
-//     }
 
 
     //////////////////////////////////////////////////

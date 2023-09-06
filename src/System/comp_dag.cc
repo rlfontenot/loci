@@ -52,26 +52,6 @@ namespace Loci {
     ////////////////////
   }
 
-  /* compile() method has been removed from the rule_compiler class
-     hierarchy, this one exists here just for the DEBUG code reference.
-     we may later move it into the visitor class.
-     
-  void dag_compiler::compile() {
-#ifdef DEBUG
-    // sanity check, all vertices should be scheduled
-    digraph::vertexSet allvertices ;
-    for(size_t i=0;i< dag_sched.size();++i) 
-      allvertices += dag_sched[i] ;
-    warn(allvertices != dag_gr.get_all_vertices()) ;
-    if(allvertices != dag_gr.get_all_vertices()) {
-      digraph::vertexSet leftout = allvertices ^ dag_gr.get_all_vertices() ;
-      cerr << "leftout rules= " << extract_rules(leftout) << endl ;
-      cerr << "leftout vars = " << extract_vars(leftout) << endl ;
-    }
-#endif    
-  }
-  */
-  
   void dag_compiler::accept(visitor& v) {
     v.visit(*this) ;
   }

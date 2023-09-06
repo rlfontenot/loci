@@ -165,16 +165,6 @@ namespace Loci {
     stopWatch stot ;
     stot.start() ;
 
-    // if(total_domain == EMPTY) {
-    //   // call the compute() method at least once
-    //   vector<pair<int,rule_implP> >::iterator vri ;
-    //   for(vri=chomp_compP.begin();vri!=chomp_compP.end();++vri) {
-    //     vri->second->compute(sequence(EMPTY)) ;
-    //   }
-    //   timer.addTime(stot.stop(),1) ;
-    //   return ;
-    // }
-
     {
       entitySet first_alloc =
         entitySet(interval(total_domain.Min(),
@@ -440,14 +430,7 @@ namespace Loci {
 	bool output_mapping; 
         exec_seq = process_applyrule_requests(r,mi->second,output_mapping, facts,scheds) ;
       }
-      // if the exec_seq is empty, we need to take off
-      // the corresponding rule from the list
-      //if(exec_seq.size() == 0) {
-      //                continue ;
-      //}
-      //if(GLOBAL_AND(exec_seq.size()==0)) {
-      //        continue ;
-      //      }
+
       new_chomp_comp.push_front(*ri) ;
       rule_seq.push_front(exec_seq) ;
     }

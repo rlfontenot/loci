@@ -94,18 +94,6 @@ namespace Loci {
       keyspace[mi->first] = mi->second->new_keyspace() ;
     }      
     
-    // we cannot clone keyspace because copying
-    // keyspace is an ill operation as some critical
-    // structures will be lost
-    
-    // std::map<std::string,KeySpaceP>& ks = keyspace ;
-    // ks.clear() ;
-    // const std::map<std::string,KeySpaceP>& fks = f.keyspace ;
-    // for(std::map<std::string,KeySpaceP>::const_iterator
-    //       mi=fks.begin();mi!=fks.end();++mi) {
-    //   ks[mi->first] = mi->second->clone_keyspace() ;
-    // }
-    
     // here is something very important, we'll need to
     // assign the current fact_db's synonym record to
     // all the keyspaces here

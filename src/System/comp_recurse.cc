@@ -64,9 +64,9 @@ namespace Loci {
     if(facts.isDistributed()) {
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
       variableSet recurse_vars = variableSet(impl.sources() & impl.targets()) ;
-      //std::vector<std::pair<variable,entitySet> > pre_send_entities =
+
       barrier_existential_rule_analysis(recurse_vars,facts, scheds) ;
-      //scheds.update_barrier_send_entities(pre_send_entities);
+
       my_entities = d->my_entities ;
     }
     entitySet sources = ~EMPTY ;
@@ -1001,10 +1001,8 @@ namespace Loci {
       
       execute_comm2::inc_comm_step() ;
       if(!post_clist.empty()) {
-        //executeP exec_comm = new execute_comm(post_clist, facts);
         executeP exec_comm2 = new execute_comm2(post_clist, facts);
         el->append_list(exec_comm2) ;
-        //el->append_list(exec_comm) ;
       }
       // Make sure to request any variables communicated so that
       // the space is allocated.  This is a hack that should be

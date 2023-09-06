@@ -236,13 +236,6 @@ namespace Loci {
     std::map<rule,fcontrol > control_set ;
     std::list<std::vector<std::pair<variable,entitySet> > > recurse_send_entities ;
     std::map<variable,std::vector<std::list<comm_info> > > send_req_var ;
-    // std::list<std::list<comm_info> > recurse_clist ;//never used 
-    // std::list<std::list<comm_info> > recurse_plist ;//never used
-	
-    // std::vector<std::pair<variable,entitySet> > pre_send_entities ;
-    //std::list<comm_info> pre_clist ;
-    //std::list<comm_info> post_clist ;
-    //std::list<comm_info> pre_plist ;
   public:
     int cid ; //id number of this compiler
     recurse_compiler(rulecomp_map &rp, ruleSet rs, int id) : rule_process(rp),cid(id)
