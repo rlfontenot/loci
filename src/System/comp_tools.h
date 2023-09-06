@@ -34,7 +34,7 @@
 #include <vector>
 #include <map>
 #include <deque>
-
+#include <gpurep.h>
 #include <mpi.h>
 using std::vector;
 
@@ -525,6 +525,29 @@ namespace Loci {
     virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
     virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
   } ;
+
+  class gpu2cpu_compiler : public rule_compiler {
+    rule r ;
+  public:
+    gpu2cpu_compiler(rule rin)
+    { r = rin; }
+    virtual void accept(visitor& v) {}
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
+  } ;
+
+  class cpu2gpu_compiler : public rule_compiler {
+    rule r ;
+  public:
+    cpu2gpu_compiler(rule rin)
+    { r = rin; }
+    virtual void accept(visitor& v) {}
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
+  } ;
+
   
   class execute_msg : public execute_modules {
     std::string msg ;
@@ -536,7 +559,34 @@ namespace Loci {
     virtual void dataCollate(collectData &data_collector) const {}
   } ;
 
- 
+  class execute_gpu2cpu_copy: public execute_modules {
+    rule r ;
+    gpuRepP gpuvar ;
+    storeRepP cpuvar ;
+    entitySet copyset ;
+  public:
+    execute_gpu2cpu_copy(rule rin, gpuRepP vgpu, storeRepP vcpu,entitySet s) :
+      r(rin),gpuvar(vgpu),cpuvar(vcpu),copyset(s) {}
+    virtual void execute(fact_db &facts, sched_db &scheds) ;
+    virtual void Print(std::ostream &s) const ;
+    virtual string getName() {return "execute_gpu2cpu";};
+    virtual void dataCollate(collectData &data_collector) const ;
+  } ;
+
+  class execute_cpu2gpu_copy: public execute_modules {
+    rule r ;
+    gpuRepP gpuvar ;
+    storeRepP cpuvar ;
+    entitySet copyset ;
+  public:
+    execute_cpu2gpu_copy(rule rin, gpuRepP vgpu, storeRepP vcpu, entitySet s) :
+      r(rin),gpuvar(vgpu),cpuvar(vcpu),copyset(s) {}
+    virtual void execute(fact_db &facts, sched_db &scheds) ;
+    virtual void Print(std::ostream &s) const ;
+    virtual string getName() {return "execute_cpu2gpu";};
+    virtual void dataCollate(collectData &data_collector) const ;
+  } ;
+
 
   class execute_comm : public execute_modules {
     std::vector<std::pair<int,std::vector<send_var_info> > > send_info ;

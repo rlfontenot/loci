@@ -138,7 +138,8 @@ namespace Loci {
     schedule . This routine returns a set of entities such that the
     rule can be applied over those entities. */
   void existential_rule_analysis(rule r, fact_db &facts, sched_db &scheds) {
-    FATAL(r.type() == rule::INTERNAL) ;
+    // Currently this is being used by the cpu2gpu and gpu2cpu internal rules
+    //    FATAL(r.type() == rule::INTERNAL) ;
     entitySet sources = ~EMPTY ;
     entitySet constraints = ~EMPTY ;
     entitySet my_entities = ~EMPTY ;
@@ -377,7 +378,8 @@ namespace Loci {
   entitySet process_rule_requests(rule r, fact_db &facts, sched_db &scheds) {
     // Internal rules should be handling the appropriate rule requests via
     // their associated compiler.
-    FATAL(r.type() == rule::INTERNAL) ;
+    // This is currently being used by the cpu2gpu and gpu2cpu internal rules
+    //    FATAL(r.type() == rule::INTERNAL) ;
 
     // First we get the target variables of this rule ;
     variableSet targets = r.targets() ;

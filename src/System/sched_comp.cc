@@ -181,6 +181,10 @@ namespace Loci {
             rule_process[*ri] = new generalize_compiler(*ri) ;
           else if(ri->get_info().qualifier() == "priority")
             rule_process[*ri] = new priority_compiler(*ri) ;
+	  else if(ri->get_info().qualifier() == "gpu2cpu") 
+	    rule_process[*ri] = new gpu2cpu_compiler(*ri) ;
+	  else if(ri->get_info().qualifier() == "cpu2gpu")
+	    rule_process[*ri] = new cpu2gpu_compiler(*ri) ;
           else if(ri->get_info().qualifier() == "ALLOCATE")
             rule_process[*ri] = new allocate_var_compiler(ri->targets()) ;
           else
