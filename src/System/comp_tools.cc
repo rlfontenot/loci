@@ -45,21 +45,11 @@ using std::ostringstream ;
 #include "dist_tools.h"
 #include "loci_globs.h"
 
-#ifdef HAS_MALLINFO
-// for the mallinfo function
-#include <malloc.h>
-#endif
-
 
 namespace {
     // memory profile function
   double currentMem(void) {
-#ifdef HAS_MALLINFO
-    struct mallinfo info = mallinfo() ;
-    return double(info.arena)+double(info.hblkhd) ;
-#else
-    return 0 ;
-#endif
+    return ::Loci::getmaxrss() ;
   }
 }
 

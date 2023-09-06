@@ -38,12 +38,6 @@
 #include <mpi.h>
 using std::vector;
 
-#ifdef HAS_MALLINFO
-// for the mallinfo function
-#include <malloc.h>
-#endif
-
-
 namespace Loci {
 
   bool rule_has_mapping_in_output(rule r);
@@ -689,13 +683,7 @@ namespace Loci {
 	virtual string getName() {return "execute_memProfileAlloc";};	
     // memory profile function
     int currentMem(void) {
-#ifdef HAS_MALLINFO
-      struct mallinfo info = mallinfo() ;
-      return info.arena+info.hblkhd ;
-#else
-      cerr << "memProfile not implemented" << endl;
-      return 0 ;
-#endif
+      return ::Loci::getmaxrss() ;
     }    
     virtual void dataCollate(collectData &data_collector) const ;
   } ;
@@ -709,13 +697,7 @@ namespace Loci {
 	virtual string getName() {return "execute_memProfileFree";};
     // memory profile function
     int currentMem(void) {
-#ifdef HAS_MALLINFO
-      struct mallinfo info = mallinfo() ;
-      return info.arena+info.hblkhd ;
-#else
-      cerr << "memProfile not implemented" << endl ;
-      return 0 ;
-#endif
+      return ::Loci::getmaxrss() ;
     }    
     virtual void dataCollate(collectData &data_collector) const ;
   } ;

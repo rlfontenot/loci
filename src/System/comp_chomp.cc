@@ -35,10 +35,6 @@ using std::set;
 #include <sstream>
 using std::ostringstream ;
 
-#ifdef HAS_MALLINFO
-// for the mallinfo function
-#include <malloc.h>
-#endif
 
 namespace Loci {
   extern int current_rule_id ;
@@ -54,13 +50,7 @@ namespace Loci {
   namespace {
     // memory profile function
     int currentMem(void) {
-#ifdef HAS_MALLINFO
-      struct mallinfo info = mallinfo() ;
-      return info.arena+info.hblkhd ;
-#else
-      cerr << "currentMem not supported" << endl ;
-      return 0 ;
-#endif
+      return ::Loci::getmaxrss() ;
     }
   }
 

@@ -27,9 +27,6 @@
 #include <gparameter.h>
 #include <fact_db.h>
 #include <gconstraint.h>
-#ifdef HAS_MALLINFO
-#include <malloc.h>
-#endif
 
 #include <Tools/tools.h>
 #include <list>
@@ -60,18 +57,7 @@ typedef double metisreal_t ;
 namespace Loci{
   extern bool load_cell_weights ;
   extern string cell_weight_file ;
-#ifdef MEMDIAG
-  void *memtop =0;
 
-  class beginexec {
-  public:
-    beginexec() {
-      memtop = sbrk(0) ;
-    }
-  } ;
-
-  beginexec hackit;
-#endif
   extern void ORBPartition(const vector<vector3d<float> > &pnts,
                            vector<int> &procid,
                            MPI_Comm comm) ;
