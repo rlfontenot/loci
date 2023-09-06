@@ -237,7 +237,7 @@ namespace Loci {
   void multiStoreRepI<T>::copy(storeRepP &st, const entitySet &context) 
   {
     const_multiStore<T> s(st) ;
-    fatal(alloc_pointer == 0) ;
+    fatal(base_ptr == 0) ;
     fatal((context - domain()) != EMPTY) ;
     fatal((context - s.domain()) != EMPTY) ;
     store<int> count ;
