@@ -32,15 +32,14 @@
 
 namespace Loci {
 
-  // The integer version of image_section.
-  entitySet image_section(const int *start, const int *end) ;
+  class gpuMapRep : public MapRep {
+  public:
+    gpuMapRep() {}
+    ~gpuMapRep() {}
+    virtual void copyFrom(const storeRepP &fromMap, entitySet set) = 0 ;
+  } ;
 
-#ifdef ENTITY
-  // The Entity version of image_section.
-  entitySet image_section(const Entity *start, const Entity *end);
-#endif
-  
-  class gpuMapRepI : public MapRep {
+  class gpuMapRepI : public gpuMapRep {
     entitySet store_domain ;
     Entity *base_ptr ;
   public:
@@ -90,8 +89,12 @@ namespace Loci {
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
     virtual DatatypeP getType() ;
     virtual frame_info get_frame_info() ;
+    virtual void copyFrom(const storeRepP &fromMap, entitySet set)  ;
+    virtual store_type RepType() const ;
   } ;
   
+  typedef NPTR<gpuMapRep> gpuMapRepP ;
+
   class gpuMap : public store_instance {
     friend class const_gpuMap ;
     typedef gpuMapRepI MapType ;

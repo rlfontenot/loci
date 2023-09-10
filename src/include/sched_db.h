@@ -61,7 +61,7 @@ namespace Loci {
       sched_data() {} 
       sched_data(variable v, storeRepP &st)
       { aliases += v ; 
-	ismap = (st->RepType() == Loci::MAP);
+	ismap = (st->RepType() == Loci::MAP || st->RepType() == Loci::GPUMAP) ;
 	if(ismap) minfo = MapRepP(st->getRep()) ; }
     } ;
     
