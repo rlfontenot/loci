@@ -35,6 +35,8 @@
 #include <map>
 #include <deque>
 #include <gpurep.h>
+#include <gpuMap.h>
+
 #include <mpi.h>
 using std::vector;
 
@@ -535,6 +537,16 @@ namespace Loci {
     virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
   } ;
 
+  class map2gpu_compiler : public rule_compiler {
+    rule r ;
+  public:
+    map2gpu_compiler(rule rin)
+    { r = rin; }
+    virtual void accept(visitor& v) {}
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
+  } ;
   
   class execute_msg : public execute_modules {
     std::string msg ;
@@ -574,6 +586,19 @@ namespace Loci {
     virtual void dataCollate(collectData &data_collector) const ;
   } ;
 
+  class execute_map2gpu_copy: public execute_modules {
+    rule r ;
+    gpuMapRepP gpuvar ;
+    storeRepP cpuvar ;
+    entitySet copyset ;
+  public:
+    execute_map2gpu_copy(rule rin, gpuMapRepP vgpu, storeRepP vcpu, entitySet s) :
+      r(rin),gpuvar(vgpu),cpuvar(vcpu),copyset(s) {}
+    virtual void execute(fact_db &facts, sched_db &scheds) ;
+    virtual void Print(std::ostream &s) const ;
+    virtual string getName() {return "execute_map2gpu";};
+    virtual void dataCollate(collectData &data_collector) const ;
+  } ;
 
   class execute_comm : public execute_modules {
     std::vector<std::pair<int,std::vector<send_var_info> > > send_info ;

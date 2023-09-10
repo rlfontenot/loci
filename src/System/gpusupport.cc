@@ -450,6 +450,18 @@ namespace Loci {
     frame_info fi ;
     return fi ;
    }
+  void gpuMapRepI::copyFrom(const storeRepP &p, entitySet set) {
+    const_Map m ;
+    m.setRep(p) ;
+    gpuMap to(getRep()) ;
+    FORALL(set,ii) {
+      to[ii] = m[ii] ;
+    } ENDFORALL ;
+  }
+
+  store_type gpuMapRepI::RepType() const  {
+    return GPUMAP ;
+  }
   
   void gpuMapRepI::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &usr_eset){
     warn(true) ; 
@@ -515,6 +527,7 @@ namespace Loci {
 
     variableSet gpuInputs ;
     variableSet gpuOutputs ;
+    variableSet gpuMaps ;
     variableSet inputs ;
     variableSet outputs ;
     ruleSet rset = rdb.all_rules() ;
@@ -535,7 +548,7 @@ namespace Loci {
 	    targets.end(); ++vsi) {
 	storeRepP sp = rp->get_store(*vsi) ;
 	if(isGPU(sp)) {
-	  gpuOutputs += *vsi ;
+	    gpuOutputs += *vsi ;
 	  hasGPUVar = true ;
 	  vm[*vsi] = makeGPUVAR(*vsi) ;
 	} else {
@@ -548,7 +561,10 @@ namespace Loci {
 	    sources.end(); ++vsi) {
 	storeRepP sp = rp->get_store(*vsi) ;
 	if(isGPU(sp)) {
-	  gpuInputs += *vsi ;
+	  if(isMAP(sp))
+	    gpuMaps += *vsi ;
+	  else
+	    gpuInputs += *vsi ;
 	  hasGPUVar = true ;
 	  vm[*vsi] = makeGPUVAR(*vsi) ;
 	} else {
@@ -559,7 +575,7 @@ namespace Loci {
       }
       if(hasGPUVar) {
 	if(hasCPUVar) {
-	  cerr << "warning, rule " << *rsi << " contains both cpu and gpu containers" << endl ;
+	  cerr << "WARNING: rule " << *rsi << " contains both cpu and gpu containers! ---------" << endl ;
 	}
 	rp->rename_vars(vm) ;
 	gpu_rdb.add_rule(rule(rp)) ;
@@ -570,6 +586,7 @@ namespace Loci {
     }
    
 
+    cout << "gpuMaps = " << gpuMaps << endl ;
     //    cout << "inputs = " << inputs << endl ;
     //    cout << "outputs = " << outputs << endl ;
     //    cout << "gpuInputs = " << gpuInputs << endl ;
@@ -580,6 +597,10 @@ namespace Loci {
     for(variableSet::const_iterator vsi = cpu2gpu.begin(); vsi !=
 	  cpu2gpu.end(); ++vsi) {
       gpu_rdb.add_rule(create_rule(*vsi,makeGPUVAR(*vsi),"cpu2gpu")) ;
+    }
+    for(variableSet::const_iterator vsi = gpuMaps.begin(); vsi !=
+	  gpuMaps.end(); ++vsi) {
+      gpu_rdb.add_rule(create_rule(*vsi,makeGPUVAR(*vsi),"map2gpu")) ;
     }
     variableSet gpu2cpu = gpuOutputs ;
     gpuOutputs -= gpuInputs ;
@@ -598,11 +619,20 @@ namespace Loci {
   }
 
   void gpu2cpu_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
-    existential_rule_analysis(r,facts, scheds) ;
+    //    existential_rule_analysis(r,facts, scheds) ;
+    variable vin = *r.sources().begin() ;
+    variable vout = *r.targets().begin() ;
+
+    entitySet dom = scheds.variable_existence(vin) ;
+    scheds.set_existential_info(vout,r,dom) ;
   }
 
   void gpu2cpu_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
-    entitySet exec_seq = process_rule_requests(r,facts, scheds) ;
+    variable vin = *r.sources().begin() ;
+    variable vout = *r.targets().begin() ;
+    entitySet exec_seq = scheds.get_variable_request(r,vout) ;
+    scheds.variable_request(vin,exec_seq) ;
+    //entitySet exec_seq = process_rule_requests(r,facts, scheds) ;
     scheds.update_exec_seq(r, exec_seq);
   }
 
@@ -619,11 +649,20 @@ namespace Loci {
   }
 
   void cpu2gpu_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
-    existential_rule_analysis(r,facts, scheds) ;
+    variable vin = *r.sources().begin() ;
+    variable vout = *r.targets().begin() ;
+
+    entitySet dom = scheds.variable_existence(vin) ;
+    scheds.set_existential_info(vout,r,dom) ;
+    //    existential_rule_analysis(r,facts, scheds) ;
   }
 
   void cpu2gpu_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
-    entitySet exec_seq = process_rule_requests(r,facts, scheds) ;
+    variable vin = *r.sources().begin() ;
+    variable vout = *r.targets().begin() ;
+    entitySet exec_seq = scheds.get_variable_request(r,vout) ;
+    scheds.variable_request(vin,exec_seq) ;
+    //    entitySet exec_seq = process_rule_requests(r,facts, scheds) ;
     scheds.update_exec_seq(r, exec_seq);
   }
 
@@ -635,11 +674,34 @@ namespace Loci {
     gpuRepP gp = gpuRepP(p) ; 
     variable vcpu = *r.sources().begin() ;
     storeRepP cp = facts.get_variable(vcpu);
-
+    
     executeP execute = executeP(new execute_cpu2gpu_copy(r,gp,cp,exec_seq)) ;
     return execute;
   }
 
+  void map2gpu_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
+    //    existential_rule_analysis(r,facts, scheds) ;
+    scheds.synonym_variable(*r.sources().begin(),*r.targets().begin()) ;
+  }
+
+  void map2gpu_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
+    //    entitySet exec_seq = process_rule_requests(r,facts, scheds) ;
+    //    scheds.update_exec_seq(r, exec_seq);
+  }
+
+  executeP map2gpu_compiler::
+  create_execution_schedule(fact_db &facts,sched_db &scheds) {
+    entitySet exec_seq = scheds.get_exec_seq(r) ;
+    variable vgpu = *r.targets().begin() ;
+    MapRepP p = MapRepP(facts.get_variable(vgpu)->getRep()) ;
+    gpuMapRepP gp = gpuMapRepP(p) ; 
+    variable vcpu = *r.sources().begin() ;
+    storeRepP sp = facts.get_variable(vcpu) ;
+    exec_seq = sp->domain() ;
+    executeP execute = executeP(new execute_map2gpu_copy(r,gp,sp,exec_seq)) ;
+    return execute;
+  }
+  
   void execute_gpu2cpu_copy::execute(fact_db &facts, sched_db &scheds) {
     gpuvar->copyTo(cpuvar,copyset) ;
   }
@@ -658,7 +720,7 @@ namespace Loci {
     //    ostringstream oss ;
     //    oss << "rule: "<<rule_tag ;
     //
-    //    data_collector.accumulateTime(timer,EXEC_COMPUTATION,oss.str()) ;
+    //    data_collector.accumulateTime(timer,EXEC_COMPUTATION,osstr()) ;
   }
 
   void execute_cpu2gpu_copy::execute(fact_db &facts, sched_db &scheds) {
@@ -676,6 +738,29 @@ namespace Loci {
   }
 
   void execute_cpu2gpu_copy::dataCollate(collectData &data_collector) const {
+    //    ostringstream oss ;
+    //    oss << "rule: "<<rule_tag ;
+    //
+    //    data_collector.accumulateTime(timer,EXEC_COMPUTATION,oss.str()) ;
+  }
+
+  void execute_map2gpu_copy::execute(fact_db &facts, sched_db &scheds) {
+    cerr << "copy map r=" << r << " set=" << copyset << endl ;
+    gpuvar->allocate(copyset) ;
+    gpuvar->copyFrom(cpuvar,copyset) ;
+  }
+
+  void execute_map2gpu_copy::Print(ostream &s) const {
+    printIndent(s) ;
+    s << r << " over sequence " ;
+    if(verbose || copyset.num_intervals() < 4) {
+      s << copyset << endl ;
+    } else {
+      s << "[ ... ], l=" << copyset.size() << endl ;
+    }
+  }
+
+  void execute_map2gpu_copy::dataCollate(collectData &data_collector) const {
     //    ostringstream oss ;
     //    oss << "rule: "<<rule_tag ;
     //
