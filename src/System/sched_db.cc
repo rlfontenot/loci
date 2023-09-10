@@ -111,6 +111,40 @@ namespace Loci {
     }
   }
   
+  void sched_db::alias_variable(variable v, variable alias) {
+
+    if(all_vars.inSet(v)) {
+      if(all_vars.inSet(alias)) {
+        if(MPI_processes == 1) {
+          cerr << "alias already in fact_db!" << endl ;
+          cerr << "error found in alias_variable("<<v<<","<< alias<<")" << endl ;
+        } else {
+          debugout << "alias already in fact_db!" << endl ;
+          debugout << "error found in alias_variable("<<v<<","<< alias<<")" << endl ;
+        }
+	detected_errors = true ;
+        return ;
+      }
+      
+      int ref = get_sched_info(v).sched_info_ref ;
+      sched_infov[ref].aliases += alias ;
+      install_sched_info(alias,sched_info(ref)) ;
+      ref = get_sched_info(alias).sched_info_ref ;
+      sched_infov[ref].antialiases += v ;
+      
+    } else if(all_vars.inSet(alias)) {
+      alias_variable(alias,v) ;
+    } else {
+      if(MPI_processes == 1)
+        cerr << "neither variable " << v << ", nor " << alias << " exist in db, cannot create alias" << endl ;
+      else
+        debugout << "neither variable " << v << ", nor " << alias << " exist in db, cannot create alias" << endl ;
+        
+      detected_errors = true ;
+    }
+    
+  }
+
   void sched_db::alias_variable(variable v, variable alias, fact_db &facts) {
 
     facts.synonym_variable(v,alias) ;
@@ -147,6 +181,29 @@ namespace Loci {
     
   }
   
+  void sched_db::synonym_variable(variable v, variable synonym) {
+    v = remove_synonym(v) ;
+    vmap_type::iterator vmi ;
+    if((vmi = vmap.find(synonym)) != vmap.end()) {
+      if(MPI_processes == 1) {
+        cerr << "synonym already in fact_db!" << endl ;
+        cerr << "error found in synonym_variable("<<v<<","<<synonym<<")"<<endl;
+      } else {
+        debugout << "synonym already in fact_db!" << endl ;
+        debugout << "error found in synonym_variable("<<v<<","<<synonym<<")"<<endl;
+      }
+      //      detected_errors = true ;
+      //      return ;
+    }
+
+    sched_info &vfinfo = get_sched_info(v) ;
+    
+    vfinfo.synonyms += synonym ;
+    synonyms[synonym] = v ;
+    all_vars += synonym ;
+    sched_info &sfinfo = get_sched_info(synonym) ;
+    sfinfo.synonyms += v ;
+  }
   
   void sched_db::synonym_variable(variable v, variable synonym, fact_db &facts) {
     facts.synonym_variable(v, synonym) ;

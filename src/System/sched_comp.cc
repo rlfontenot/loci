@@ -185,6 +185,8 @@ namespace Loci {
 	    rule_process[*ri] = new gpu2cpu_compiler(*ri) ;
 	  else if(ri->get_info().qualifier() == "cpu2gpu")
 	    rule_process[*ri] = new cpu2gpu_compiler(*ri) ;
+	  else if(ri->get_info().qualifier() == "map2gpu")
+	    rule_process[*ri] = new map2gpu_compiler(*ri) ;
           else if(ri->get_info().qualifier() == "ALLOCATE")
             rule_process[*ri] = new allocate_var_compiler(ri->targets()) ;
           else
