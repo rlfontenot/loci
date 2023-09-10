@@ -41,7 +41,6 @@ namespace Loci {
 #endif
   
   class Map ;
-  class multiMap ;
   
   class MapRepI : public MapRep {
     entitySet store_domain ;
