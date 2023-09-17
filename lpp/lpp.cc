@@ -1366,7 +1366,6 @@ public:
   typedef CPTR<AST_type> ASTP ;
   typedef std::list<ASTP> ASTList ;
   enum elementType {
-		    OP_BRACEBLOCK,
 		    OP_SCOPE=0x000,
 		    OP_AT=0x080, // For using @ to separate namespaces
 		    // Traditional C operators
@@ -1377,7 +1376,8 @@ public:
 		    OP_LT = 0x600, OP_GT, OP_GE, OP_LE,
 		    OP_EQUAL = 0x700, OP_NOT_EQUAL, 
 		    OP_AND=0x800, OP_EXOR=0x900, OP_OR=0xa00,
-		    OP_LOGICAL_AND=0xb00, OP_LOGICAL_OR=0xc00, 
+		    OP_LOGICAL_AND=0xb00, OP_LOGICAL_OR=0xc00,
+		    OP_TERTIARY,
 		    OP_ASSIGN=0xd00,
 		    OP_TIMES_ASSIGN,
 		    OP_DIVIDE_ASSIGN,
@@ -1395,16 +1395,21 @@ public:
 		    // terminal for empty statement
 		    OP_NIL=0x1000,
 		    // terminals for variable name, function, array or name{args}
-		    OP_INCREMENT,OP_DECREMENT,OP_COMMENT,
+		    OP_INCREMENT,OP_DECREMENT,
+		    OP_POSTINCREMENT, OP_POSTDECREMENT,
+		    OP_COMMENT,
+		    OP_BRACEBLOCK,
 		    OP_NAME, OP_FUNC, OP_ARRAY, OP_NAME_BRACE, OP_FUNC_BRACE,
 		    // terminal for string, integer, or unspecified error condition
 		    OP_STRING, OP_NUMBER, OP_ERROR,
 		    // Unary operations
 		    OP_UNARY_PLUS, OP_UNARY_MINUS, OP_NOT, OP_TILDE,
 		    OP_AMPERSAND, OP_DOLLAR, OP_STAR,
+		    OP_GROUP,OP_GROUP_ERROR,
 		    OP_OPENPAREN,OP_CLOSEPAREN,OP_OPENBRACKET,OP_CLOSEBRACKET,
 		    OP_OPENBRACE,OP_CLOSEBRACE,
 		    OP_LOCI_DIRECTIVE,OP_LOCI_VARIABLE,OP_LOCI_CONTAINER,
+		    OP_TERM, OP_SPECIAL,
 		    TK_BRACEBLOCK=0x2000,
 		    TK_SCOPE,
 		    TK_AT, // For using @ to separate namespaces
@@ -1440,7 +1445,7 @@ public:
 		    TK_STRING, TK_NUMBER, TK_ERROR,
 		    // Unary operations
 		    TK_UNARY_PLUS, TK_UNARY_MINUS, TK_NOT, TK_TILDE,
-		    TK_AMPERSAND, TK_STAR,
+		    TK_QUESTION, TK_AMPERSAND, TK_STAR,
 		    TK_OPENPAREN,TK_CLOSEPAREN,TK_OPENBRACKET,TK_CLOSEBRACKET,
 		    TK_OPENBRACE,TK_CLOSEBRACE,
 		    TK_LOCI_DIRECTIVE,TK_LOCI_VARIABLE,TK_LOCI_CONTAINER,
@@ -1476,7 +1481,7 @@ public:
     if(line != lineno) {
       cout << endl ;
       
-      if(line > 0 && line+1 != lineno) {
+      if(line < 0 || line+1 != lineno) {
 	cout << "#line " << lineno << endl ;
       }
       line = lineno ;
@@ -1484,6 +1489,17 @@ public:
     s <<text << ' ' ;
   }
 
+} ;
+
+class AST_SimpleStatement: public AST_type {
+public:
+  AST_SimpleStatement(ASTP e, ASTP t) : exp(e),Terminal(t) {}
+  ASTP exp ;
+  ASTP Terminal ;
+  void DiagPrint(ostream  &s, int &line) const {
+    exp->DiagPrint(s,line) ;
+    Terminal->DiagPrint(s,line) ;
+  }
 } ;
 
 class AST_Block : public AST_type {
@@ -1495,22 +1511,225 @@ public:
   }
 } ;
 
-class AST_declaration : public AST_type {
+class AST_typeDecl : public AST_type {
 public:
   ASTList type_decl ;
-  ASTList decls ;
   void DiagPrint(ostream &s, int &lineno) const {
     for(ASTList::const_iterator ii=type_decl.begin();ii!=type_decl.end();++ii)
       (*ii)->DiagPrint(s,lineno) ;
-    for(ASTList::const_iterator ii=decls.begin();ii!=decls.end();++ii)
-      (*ii)->DiagPrint(s,lineno) ;
+  }
+} ;
+  
+class AST_declaration : public AST_type {
+public:
+  ASTP type_decl ;
+  ASTP decls ;
+  void DiagPrint(ostream &s, int &lineno) const {
+    type_decl->DiagPrint(s,lineno) ;
+    decls->DiagPrint(s,lineno) ;
   }
 } ;
 
+string OPtoString(AST_type::elementType val) {
+  switch(val) {
+  case AST_type::OP_SCOPE:
+    return string("::") ;
+  case AST_type::OP_AT:
+    return string("@") ;
+  case AST_type::OP_ARROW:
+    return string("->") ;
+  case AST_type::OP_TIMES:
+    return string("*") ;
+  case AST_type::OP_DIVIDE:
+    return string("/") ;
+  case AST_type::OP_MODULUS:
+    return string("%") ;
+  case AST_type::OP_PLUS:
+    return string("+") ;
+  case AST_type::OP_MINUS:
+    return string("-") ;
+  case AST_type::OP_SHIFT_RIGHT:
+    return string(">>") ;
+  case AST_type::OP_SHIFT_LEFT:
+    return string("<<") ;
+  case AST_type::OP_LT:
+    return string("<") ;
+  case AST_type::OP_GT:
+    return string(">") ;
+  case AST_type::OP_GE:
+    return string(">=") ;
+  case AST_type::OP_LE:
+    return string("<=") ;
+  case AST_type::OP_EQUAL:
+    return string("==") ;
+  case AST_type::OP_NOT_EQUAL:
+    return string("!=") ;
+  case AST_type::OP_AND:
+    return string("&") ;
+  case AST_type::OP_EXOR:
+    return string("^") ;
+  case AST_type::OP_OR:
+    return string("|") ;
+  case AST_type::OP_LOGICAL_AND:
+    return string("&&") ;
+  case AST_type::OP_LOGICAL_OR:
+    return string("||") ;
+  case AST_type::OP_ASSIGN:
+    return string("=") ;
+  case AST_type::OP_TIMES_ASSIGN:
+    return string("*=") ;
+  case AST_type::OP_DIVIDE_ASSIGN:
+    return string("/=") ;
+  case AST_type::OP_MODULUS_ASSIGN:
+    return string("%=") ;
+  case AST_type::OP_PLUS_ASSIGN:
+    return string("+=") ;
+  case AST_type::OP_MINUS_ASSIGN:
+    return string("-=") ;
+  case AST_type::OP_SHIFT_LEFT_ASSIGN:
+    return string("<<=") ;
+  case AST_type::OP_SHIFT_RIGHT_ASSIGN:
+    return string(">>=") ;
+  case AST_type::OP_AND_ASSIGN:
+    return string("&=") ;
+  case AST_type::OP_OR_ASSIGN:
+    return string("|=") ;
+  case AST_type::OP_EXOR_ASSIGN:
+    return string("^=") ;
+  case AST_type::OP_COMMA:
+    return string(",") ;
+  case AST_type::OP_DOT:
+    return string(".") ;
+  case AST_type::OP_COLON:
+    return string(":") ;
+  case AST_type::OP_SEMICOLON:
+    return string(";") ;
+  case AST_type::OP_INCREMENT:
+    return string(" ++") ;
+  case AST_type::OP_DECREMENT:
+    return string(" --") ;
+  case AST_type::OP_POSTINCREMENT:
+    return string("++ ") ;
+  case AST_type::OP_POSTDECREMENT:
+    return string("-- ") ;
+  case AST_type::OP_UNARY_PLUS:
+    return string("+") ;
+  case AST_type::OP_UNARY_MINUS:
+    return string("-") ;
+  case AST_type::OP_NOT:
+    return string("!") ;
+  case AST_type::OP_TILDE:
+    return string("~") ;
+  case AST_type::OP_AMPERSAND:
+    return string("&") ;
+  case AST_type::OP_TERTIARY:
+    return string("?") ;
+  case AST_type::OP_DOLLAR:
+    return string("$") ;
+  case AST_type::OP_STAR:
+    return string("*") ;
+  default:
+    return string("/*error*/") ;
+  }
+  return string("/*error*/") ;
+}
+
 class AST_exprOper : public AST_type {
 public:
-  CPTR<AST_Token> oper ;
   ASTList terms ;
+  void DiagPrint(ostream &s, int &lineno) const {
+    switch (nodeType) {
+    case OP_GROUP:
+      s << '(' ;
+      for(ASTList::const_iterator ii=terms.begin();ii!=terms.end();++ii)
+	(*ii)->DiagPrint(s,lineno) ;
+      s << ')' ;
+      break ;
+    case OP_FUNC:
+      {
+	ASTList::const_iterator ii=terms.begin() ;
+	(*ii)->DiagPrint(s,lineno) ;
+	++ii ;
+	s << '(' ;
+	(*ii)->DiagPrint(s,lineno) ;
+	s << ')' ;
+	++ii ;
+	if(ii!=terms.end()) {
+	  cerr << "syntax error" ;
+	  (*ii)->DiagPrint(cerr,lineno) ;
+	}
+      }
+      break ;
+    case OP_ARRAY:
+      {
+	ASTList::const_iterator ii=terms.begin() ;
+	(*ii)->DiagPrint(s,lineno) ;
+	++ii ;
+	s << '[' ;
+	(*ii)->DiagPrint(s,lineno) ;
+	s << ']' ;
+	++ii ;
+	if(ii!=terms.end()) {
+	  cerr << "syntax error" ;
+	  (*ii)->DiagPrint(cerr,lineno) ;
+	}
+      }
+      break ;
+    case OP_TERTIARY:
+      {
+	ASTList::const_iterator ii=terms.begin() ;
+	(*ii)->DiagPrint(s,lineno) ;
+	++ii ;
+	s << '?' ;
+	(*ii)->DiagPrint(s,lineno) ;
+	s << ':' ;
+	if(ii==terms.end()) {
+	  cerr << "syntax error on tertiary operator" << endl ;
+	} else
+	  ++ii ;
+	(*ii)->DiagPrint(s,lineno) ;
+
+      }
+      break ;
+      
+    case OP_UNARY_PLUS:
+    case OP_UNARY_MINUS:
+    case OP_NOT:
+    case OP_AMPERSAND:
+    case OP_STAR:
+    case OP_INCREMENT:
+    case OP_DECREMENT:
+      {
+	string op = OPtoString(nodeType) ;
+	s << op ;
+	for(ASTList::const_iterator ii=terms.begin();ii!=terms.end();++ii)
+	  (*ii)->DiagPrint(s,lineno) ;
+      }
+      break ;
+    case OP_POSTINCREMENT:
+    case OP_POSTDECREMENT:
+      {
+	string op = OPtoString(nodeType) ;
+	for(ASTList::const_iterator ii=terms.begin();ii!=terms.end();++ii)
+	  (*ii)->DiagPrint(s,lineno) ;
+	s << op ;
+      }
+      break ;
+    default:
+      {
+	//	s << "[" ;
+	string op = OPtoString(nodeType) ;
+	for(ASTList::const_iterator ii=terms.begin();ii!=terms.end();) {
+	  (*ii)->DiagPrint(s,lineno) ;
+	  ++ii ;
+	  if(ii != terms.end())
+	    s << op ;
+	}
+	//	s << "]" ;
+      }
+      break ;
+    }
+  }
 } ;
 
 class AST_term : public AST_type {
@@ -1532,6 +1751,79 @@ public:
   }
 } ;
 
+class AST_ifStatement : public AST_type {
+public:
+  ASTP iftok ;
+  ASTP conditional ;
+  ASTP ifblock ;
+  ASTP elseblock ;
+  AST_ifStatement(ASTP tok, ASTP C, ASTP IF, ASTP ELSE):
+    iftok(tok),conditional(C),ifblock(IF),elseblock(ELSE) {} 
+  void DiagPrint(ostream&s, int &lineno) const {
+    iftok->DiagPrint(s,lineno) ;
+    s << "(" ;
+    conditional->DiagPrint(s,lineno) ;
+    s << ")" ;
+    ifblock->DiagPrint(s,lineno) ;
+    if(elseblock != 0) {
+      s << " else " ;
+      elseblock->DiagPrint(s,lineno) ;
+    }
+  }
+} ;
+class AST_loopStatement : public AST_type {
+public:
+  ASTP loop ;
+  ASTP initializer ;
+  ASTP conditional ;
+  ASTP advance ;
+  ASTP body ;
+  AST_loopStatement(ASTP L, ASTP I, ASTP C, ASTP A, ASTP B):
+    loop(L),initializer(I),conditional(C),advance(A),body(B) {}
+  AST_loopStatement(ASTP L, ASTP C, ASTP B):
+    loop(L),initializer(0),conditional(C),advance(0),body(B) {}
+  void DiagPrint(ostream&s, int &lineno) const {
+    loop->DiagPrint(s,lineno) ;
+    if(loop->nodeType == AST_type::TK_FOR) {
+      s << "(" ;
+      initializer->DiagPrint(s,lineno) ;
+      s << ";" ;
+      conditional->DiagPrint(s,lineno) ;
+      s << ";" ;
+      advance->DiagPrint(s,lineno) ;
+      s << ")" ;
+      body->DiagPrint(s,lineno) ;
+    } else if(loop->nodeType == AST_type::TK_WHILE) {
+      s << "(" ;
+      conditional->DiagPrint(s,lineno) ;
+      s << ")" ;
+      body->DiagPrint(s,lineno) ;
+    } else {
+      body->DiagPrint(s,lineno) ;
+      s << "while(" ;
+      conditional->DiagPrint(s,lineno) ;
+      s << ") ;" ;
+    }
+  }
+} ;
+  
+class AST_switchStatement : public AST_type {
+public:
+  ASTP statement ;
+  ASTP conditional ;
+  ASTList body ;
+  AST_switchStatement() {}
+  void DiagPrint(ostream&s, int &lineno) const {
+    statement->DiagPrint(s,lineno) ;
+    s << "(" ;
+    conditional->DiagPrint(s,lineno) ;
+    s << ") {" ;
+    for(ASTList::const_iterator ii=body.begin();ii!=body.end();++ii)
+      (*ii)->DiagPrint(s,lineno) ;
+    s << "}" ;
+    
+  }
+} ;
 
 vector<CPTR<AST_Token> >  tokenStack ;
 
@@ -1540,30 +1832,20 @@ inline void pushToken(CPTR<AST_Token> &pt) {
 }
 
 extern CPTR<AST_Token> getToken(std::istream &is, int &linecount) ;
-
-bool isTerm(std::istream &is, int &linecount) {
-  CPTR<AST_Token> token = getToken(is,linecount) ;
-  bool term = false ;
-  switch(token->nodeType) {
-  case AST_type::TK_STRING:
-  case AST_type::TK_NAME:
-  case AST_type::TK_NUMBER:
-  case AST_type::TK_TRUE:
-  case AST_type::TK_FALSE:
-  case AST_type::TK_LOCI_VARIABLE:
-  case AST_type::TK_LOCI_CONTAINER:
-    term = true ;
-    break ;
-  default:
-    term = false ;
-  }    
-  pushToken(token) ;
-  return term ;
+bool isTerm(AST_type::elementType e) {
+  return ((e == AST_type::TK_STRING) ||
+	  (e == AST_type::TK_NAME) ||
+	  (e == AST_type::TK_NUMBER) ||
+	  (e == AST_type::TK_TRUE) ||
+	  (e == AST_type::TK_FALSE) ||
+	  (e == AST_type::TK_LOCI_VARIABLE) ||
+	  (e == AST_type::TK_LOCI_CONTAINER) ) ;
 }
 
 AST_type::ASTP parseTerm(std::istream &is, int &linecount) {
   CPTR<AST_Token> token = getToken(is,linecount) ;
   CPTR<AST_term> info = new AST_term ;
+  info->nodeType = AST_type::OP_TERM ;
   info->term = AST_type::ASTP(token) ;
   info->TermType = AST_term::TERM_INVALID ;
   switch(token->nodeType) {
@@ -1828,6 +2110,7 @@ CPTR<AST_Token> getToken(std::istream &is, int &linecount) {
   CPTR<AST_Token> AST_data = new AST_Token() ;
   AST_data->lineno = linecount ;
   AST_data->text += is.get() ;
+  AST_data->nodeType = AST_type::TK_ERROR ;
   switch(AST_data->text[0]) {
   case '+':
     if(is.peek()=='+') {
@@ -2017,6 +2300,9 @@ CPTR<AST_Token> getToken(std::istream &is, int &linecount) {
   case '~':
     AST_data->nodeType = AST_type::TK_TILDE ;
     return AST_data ;
+  case '?':
+    AST_data->nodeType = AST_type::TK_QUESTION ;
+    return AST_data ;
   case '"':
     while(is.peek() != '"' && !is.eof() && !is.fail()) {
       AST_data->text += is.get() ;
@@ -2130,42 +2416,439 @@ CPTR<AST_Token> getToken(std::istream &is, int &linecount) {
 
 AST_type::ASTP parseBlock(std::istream &is, int &linecount) ;
 
-AST_type::ASTP parseExpression(std::istream &is, int &linecount) {
+AST_type::ASTP parseOperator(std::istream &is, int &linecount) {
   CPTR<AST_Token> openToken = getToken(is,linecount) ;
-  AST_type::ASTP term1 =0;
   switch(openToken->nodeType) {
-  case AST_type::TK_OPENPAREN:
-    pushToken(openToken) ;
-    return parseBlock(is,linecount) ;
-  
-  case AST_type::TK_PLUS:
-  case AST_type::TK_MINUS:
+  case AST_type::TK_SCOPE:
+    openToken->nodeType = AST_type::OP_SCOPE ;
+    return AST_type::ASTP(openToken) ;
+    //-----------------------------------
+    // For using @ to separate namespaces
+  case AST_type::TK_AT:
+    openToken->nodeType = AST_type::OP_AT ;
+    return AST_type::ASTP(openToken) ;
+    //-----------------------------------
+    // Traditional C operators
+  case AST_type::TK_ARROW:
+    openToken->nodeType = AST_type::OP_ARROW ;
+    return AST_type::ASTP(openToken) ;
   case AST_type::TK_TIMES:
+    openToken->nodeType = AST_type::OP_TIMES ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_DIVIDE:
+    openToken->nodeType = AST_type::OP_DIVIDE ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_MODULUS:
+    openToken->nodeType = AST_type::OP_MODULUS ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_PLUS:
+    openToken->nodeType = AST_type::OP_PLUS ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_MINUS:
+    openToken->nodeType = AST_type::OP_MINUS ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_SHIFT_RIGHT:
+    openToken->nodeType = AST_type::OP_SHIFT_RIGHT ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_SHIFT_LEFT:
+    openToken->nodeType = AST_type::OP_SHIFT_LEFT ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_LT:
+    openToken->nodeType = AST_type::OP_LT ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_GT:
+    openToken->nodeType = AST_type::OP_GT ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_GE:
+    openToken->nodeType = AST_type::OP_GE ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_LE:
+    openToken->nodeType = AST_type::OP_LE ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_EQUAL:
+    openToken->nodeType = AST_type::OP_EQUAL ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_NOT_EQUAL:
+    openToken->nodeType = AST_type::OP_NOT_EQUAL ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_AND:
+    openToken->nodeType = AST_type::OP_AND ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_EXOR:
+    openToken->nodeType = AST_type::OP_EXOR ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_OR:
+    openToken->nodeType = AST_type::OP_OR ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_LOGICAL_AND:
+    openToken->nodeType = AST_type::OP_LOGICAL_AND;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_LOGICAL_OR:
+    openToken->nodeType = AST_type::OP_LOGICAL_OR ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_ASSIGN:
+    openToken->nodeType = AST_type::OP_ASSIGN ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_TIMES_ASSIGN:
+    openToken->nodeType = AST_type::OP_TIMES_ASSIGN ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_DIVIDE_ASSIGN:
+    openToken->nodeType = AST_type::OP_DIVIDE_ASSIGN ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_MODULUS_ASSIGN:
+    openToken->nodeType = AST_type::OP_MODULUS_ASSIGN ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_PLUS_ASSIGN:
+    openToken->nodeType = AST_type::OP_PLUS_ASSIGN ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_MINUS_ASSIGN:
+    openToken->nodeType = AST_type::OP_MINUS_ASSIGN ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_SHIFT_LEFT_ASSIGN:
+    openToken->nodeType = AST_type::OP_SHIFT_LEFT_ASSIGN ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_SHIFT_RIGHT_ASSIGN:
+    openToken->nodeType = AST_type::OP_SHIFT_RIGHT_ASSIGN ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_AND_ASSIGN:
+    openToken->nodeType = AST_type::OP_AND_ASSIGN ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_OR_ASSIGN:
+    openToken->nodeType = AST_type::OP_OR_ASSIGN ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_EXOR_ASSIGN:
+    openToken->nodeType = AST_type::OP_EXOR_ASSIGN ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_COMMA:
+    openToken->nodeType = AST_type::OP_COMMA ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_QUESTION:
+    openToken->nodeType = AST_type::OP_TERTIARY ;
+    return AST_type::ASTP(openToken) ;
+  case AST_type::TK_DOT:
+    openToken->nodeType = AST_type::OP_DOT ;
+    return AST_type::ASTP(openToken) ;
   default:
-    break ;
+    pushToken(openToken) ;
+    return AST_type::ASTP(0) ;
   }
-  return AST_type::ASTP(openToken) ;
-    
+}
 
+bool checkUnaryToken(AST_type::elementType e) {
+  return (e == AST_type::TK_PLUS ||
+	  e == AST_type::TK_MINUS ||
+	  e == AST_type::TK_NOT ||
+	  e == AST_type::TK_AND ||
+	  e == AST_type::TK_TIMES ||
+	  e == AST_type::TK_INCREMENT ||
+	  e == AST_type::TK_DECREMENT) ;
+}
+
+AST_type::elementType unaryOperator(AST_type::elementType e) {
+  switch(e) {
+  case AST_type::TK_PLUS:
+    return AST_type::OP_UNARY_PLUS ;
+  case AST_type::TK_MINUS:
+    return AST_type::OP_UNARY_MINUS ;
+  case AST_type::TK_NOT:
+    return AST_type::OP_NOT ;
+  case AST_type::TK_AND:
+    return AST_type::OP_AMPERSAND ;
+  case AST_type::TK_TIMES:
+    return AST_type::OP_STAR ;
+  case AST_type::TK_INCREMENT:
+    return AST_type::OP_INCREMENT ;
+  case AST_type::TK_DECREMENT:
+    return AST_type::OP_DECREMENT ;
+  default:
+    return AST_type::OP_ERROR ;
+  }
+}
+
+bool checkPostFixToken(AST_type::elementType e) {
+  return (e == AST_type::TK_INCREMENT ||
+	  e == AST_type::TK_DECREMENT) ;
+}
+  
+AST_type::elementType postFixOperator(AST_type::elementType e) {
+  switch(e) {
+  case AST_type::TK_INCREMENT:
+    return AST_type::OP_POSTINCREMENT ;
+  case AST_type::TK_DECREMENT:
+    return AST_type::OP_POSTDECREMENT ;
+  default:
+    return AST_type::OP_ERROR ;
+  }
+  return AST_type::OP_ERROR ;
+}
+extern AST_type::ASTP parseExpression(std::istream &is, int &linecount) ;
+
+AST_type::ASTP applyPostFixOperator(AST_type::ASTP expr,
+				    std::istream &is, int &linecount) {
+  CPTR<AST_Token> openToken = getToken(is,linecount) ;
+  if(checkPostFixToken(openToken->nodeType)) {
+    CPTR<AST_exprOper> post = new AST_exprOper ;
+    post->nodeType = postFixOperator(openToken->nodeType) ;
+    post->terms.push_back(expr) ;
+    return AST_type::ASTP(post) ;
+  }
+  if(openToken->nodeType == AST_type::TK_OPENBRACKET) {
+    AST_type::ASTP index = parseExpression(is,linecount) ;
+    openToken = getToken(is,linecount) ;
+    if(openToken->nodeType != AST_type::TK_CLOSEBRACKET) {
+      pushToken(openToken) ;
+      cerr << "syntax error line " << linecount << endl ;
+    }
+    CPTR<AST_exprOper> array = new AST_exprOper ;
+    array->nodeType = AST_type::OP_ARRAY ;
+    array->terms.push_back(expr) ;
+    array->terms.push_back(index) ;
+    return AST_type::ASTP(array) ;
+  }
+  pushToken(openToken) ;
+    
+  return expr ;
+}
+
+
+AST_type::ASTP parseExpressionPartial(std::istream &is, int &linecount) {
+  CPTR<AST_Token> openToken = getToken(is,linecount) ;
+  if(openToken->nodeType == AST_type::TK_OPENPAREN) {
+    AST_type::ASTP exp = parseExpression(is,linecount) ;
+    CPTR<AST_Token> closeToken = getToken(is,linecount) ;
+    CPTR<AST_exprOper> group = new AST_exprOper ;
+    group->nodeType = AST_type::OP_GROUP ;
+    group->terms.push_back(AST_type::ASTP(exp)) ;
+    if(closeToken->nodeType != AST_type::TK_CLOSEPAREN) {
+      pushToken(closeToken) ;
+      group->nodeType=AST_type::OP_GROUP_ERROR ;
+    }
+    return applyPostFixOperator(AST_type::ASTP(group),is,linecount) ;
+  }
+  if(checkUnaryToken(openToken->nodeType)) {
+    //check for unary operators
+    AST_type::ASTP expr = parseExpressionPartial(is,linecount) ;
+    if(expr!= 0) {
+      CPTR<AST_exprOper> unary = new AST_exprOper ;
+      unary->nodeType = unaryOperator(openToken->nodeType) ;
+      unary->terms.push_back(expr) ;
+      return AST_type::ASTP(unary) ;
+    }
+  }
+  if(isTerm(openToken->nodeType)) {
+    pushToken(openToken) ;
+    AST_type::ASTP exp = parseTerm(is,linecount);
+
+    openToken = getToken(is,linecount) ;
+    //    if(checkPostFixToken(openToken->nodeType)) {
+    //      CPTR<AST_exprOper> post = new AST_exprOper ;
+    //      post->nodeType = postFixOperator(openToken->nodeType) ;
+    //      post->terms.push_back(AST_type::ASTP(exp)) ;
+    //      return AST_type::ASTP(post) ;
+    //    }
+    if(openToken->nodeType == AST_type::TK_OPENPAREN) {
+      // Function
+      AST_type::ASTP args = parseExpression(is,linecount) ;
+      CPTR<AST_Token> closeToken = getToken(is,linecount) ;
+      CPTR<AST_exprOper> func = new AST_exprOper ;
+      func->nodeType = AST_type::OP_FUNC ;
+      func->terms.push_back(AST_type::ASTP(exp)) ;
+      func->terms.push_back(args) ;
+      if(closeToken->nodeType != AST_type::TK_CLOSEPAREN) {
+	CPTR<AST_Token> err = new AST_Token ;
+	*err = *closeToken ;
+	err->nodeType = AST_type::OP_ERROR ;
+	func->terms.push_back(AST_type::ASTP(err)) ;
+	pushToken(closeToken) ;
+      }
+      return applyPostFixOperator(AST_type::ASTP(func),is,linecount) ;
+    }
+    pushToken(openToken) ;
+    return applyPostFixOperator(exp,is,linecount) ;
+    //    return exp ;
+  }
+  pushToken(openToken) ;
+  return 0 ;
+}
+  
+
+
+AST_type::ASTP parseExpression(std::istream &is, int &linecount) {
+  AST_type::ASTP expr = parseExpressionPartial(is,linecount) ;
+  if(expr == 0) // If no valid expression then return null
+    return expr ;
+  vector<CPTR<AST_exprOper> > exprStack ;
+  {
+    CPTR<AST_exprOper> tmp = new AST_exprOper ;
+    tmp->nodeType = AST_type::OP_NIL ;
+    tmp->terms.push_back(expr) ;
+    exprStack.push_back(tmp) ;
+  }
+  const unsigned int mask = ~0x7f ;
+  // After getting the first term we are in a loop of searching for operators
+  do {
+    // binary operator check
+    AST_type::ASTP op = parseOperator(is, linecount) ;
+    if(op == 0)
+      break ;
+    
+    expr = parseExpressionPartial(is,linecount) ;
+    
+    if(expr == 0) {
+      cerr << "expecting expression after binary operator" << endl ;
+    }
+    
+    if(exprStack.back()->nodeType == AST_type::OP_NIL) {
+      // If no operator is parsed yet, we just get started and initilize
+      // the left branch
+      exprStack.back()->nodeType = op->nodeType ;
+      exprStack.back()->terms.push_back(expr) ;
+    } else {
+      // Now we reorder the tree based on operator precedence
+      while(exprStack.size() >1 &&
+	    ((op->nodeType&mask) >= (mask&exprStack.back()->nodeType))) {
+	exprStack.pop_back() ;
+      }
+      if(op->nodeType == exprStack.back()->nodeType) {
+	// If operator is the same, just chain the terms
+	exprStack.back()->terms.push_back(expr) ;
+      } else if(((op->nodeType)&mask) < ((exprStack.back()->nodeType)&mask)) {
+        // if operator is lower precedence
+	CPTR<AST_exprOper> np = new AST_exprOper ;
+	np->nodeType = op->nodeType ;
+	np->terms.push_back(exprStack.back()->terms.back()) ;
+	np->terms.push_back(expr) ;
+	exprStack.back()->terms.back() = AST_type::ASTP(np) ;
+	if(op->nodeType == AST_type::OP_TERTIARY ) {
+	  CPTR<AST_Token> op2 = getToken(is,linecount) ;
+	  if(op2->nodeType == AST_type::TK_COLON) {
+	    expr = parseExpressionPartial(is,linecount) ;
+	    np->terms.push_back(expr) ;
+	  } else {
+	    pushToken(op2) ;
+	    cerr << "syntax error parsing tertiary operator" << endl ;
+	  }
+	}
+	exprStack.push_back(np) ;
+      } else {
+	if(op->nodeType == AST_type::OP_TERTIARY) {
+	  cerr << "unexpected TERTIARY operator!" << endl ;
+	} 
+	CPTR<AST_exprOper> np = new AST_exprOper ;
+	np->nodeType = op->nodeType ;
+	np->terms.push_back(AST_type::ASTP(exprStack.back())) ;
+	np->terms.push_back(expr) ;
+	exprStack.back() = np ;
+      }
+    }
+  } while(true) ;
+
+  return AST_type::ASTP(exprStack.front()) ;
 }
 
 AST_type::ASTP parseDeclaration(std::istream &is, int &linecount) ;
+AST_type::ASTP parseStatement(std::istream &is, int &linecount) ;
 AST_type::ASTP parseLoopStatement(std::istream &is, int &linecount) ;
 AST_type::ASTP parseIfStatement(std::istream &is, int &linecount) ;
+
 AST_type::ASTP parseSwitchStatement(std::istream &is, int &linecount)  ;
 
+AST_type::ASTP parseCaseStatement(std::istream &is, int &linecount) {
+  CPTR<AST_Token> token = getToken(is,linecount) ;
+  if(token->nodeType != AST_type::TK_CASE &&
+     token->nodeType != AST_type::TK_DEFAULT) {
+    cerr << "internal error parsing switch statement on line " << linecount
+	 << endl ;
+  }
+  CPTR<AST_Block> AST_data = new AST_Block ;
+  AST_data->nodeType = AST_type::TK_CASE ;
+  AST_data->elements.push_back(AST_type::ASTP(token)) ;
+  if(token->nodeType == AST_type::TK_CASE ) {
+    AST_type::ASTP expr = parseExpression(is,linecount) ;
+    AST_data->elements.push_back(expr) ;
+  }
+  
+  token = getToken(is,linecount) ;
+  if(token->nodeType != AST_type::TK_COLON) {
+    cerr << "syntax error on case statement, line = " << linecount << endl ;
+  }
+  
+  AST_data->elements.push_back(AST_type::ASTP(token)) ;
+  return AST_type::ASTP(AST_data) ;
+}
+
 AST_type::ASTP parseSwitchStatement(std::istream &is, int &linecount)  {
-  return AST_type::ASTP(getToken(is,linecount)) ;
+  CPTR<AST_Token> token = getToken(is,linecount) ;
+  CPTR<AST_switchStatement> sw = new AST_switchStatement ;
+  sw->nodeType = AST_type::TK_SWITCH ;
+  sw->statement = AST_type::ASTP(token) ;
+  token = getToken(is,linecount) ;
+  if(token->nodeType != AST_type::TK_OPENPAREN) {
+    cerr << "syntax error, switch statement should have parenthesis around input" << endl ; ;
+  }
+  AST_type::ASTP conditional = parseExpression(is,linecount) ;
+  token = getToken(is,linecount) ;
+  if(token->nodeType != AST_type::TK_CLOSEPAREN) {
+    cerr << "syntax error, switch statement should have parenthesis around input" << endl ; ;
+  }
+  token = getToken(is,linecount) ;
+  if(token->nodeType != AST_type::TK_OPENBRACE) {
+    cerr << "syntax error, switch statement missing open brace, line = " << linecount << endl ;
+  }
+  sw->conditional = conditional ;
+  token = getToken(is,linecount) ;
+  while(token->nodeType != AST_type::TK_CLOSEBRACE &&
+	token->nodeType != AST_type::TK_ERROR) {
+    if(token->nodeType == AST_type::TK_CASE ||
+       token->nodeType == AST_type::TK_DEFAULT) {
+      pushToken(token) ;
+      sw->body.push_back(parseCaseStatement(is,linecount)) ;
+    } else {
+      pushToken(token) ;
+      sw->body.push_back(parseStatement(is,linecount)) ;
+    }
+    token = getToken(is,linecount) ;
+  }
+  
+  
+  return AST_type::ASTP(sw) ;
+
 }
 
 AST_type::ASTP parseIfStatement(std::istream &is, int &linecount)  {
-  return AST_type::ASTP(getToken(is,linecount)) ;
-}
+  CPTR<AST_Token> token = getToken(is,linecount) ;
+  if(token->nodeType != AST_type::TK_IF) {
+    cerr << "unexpected error in parseIfStatement" << endl ;
+    return AST_type::ASTP(token) ;
+  }
+  AST_type::ASTP iftok = AST_type::ASTP(token) ;
+  token = getToken(is,linecount) ;
+  if(token->nodeType != AST_type::TK_OPENPAREN) {
+    cerr << "syntax error, line=" << linecount << " parsing if statement" << endl ;
+    return AST_type::ASTP(token) ;
+  }
 
-AST_type::ASTP parseLoopStatement(std::istream &is, int &linecount) {
-  return AST_type::ASTP(getToken(is,linecount)) ;
-}
-bool isTypeDecl(AST_type::ASTP p) {
+  AST_type::ASTP conditional = parseExpression(is,linecount) ;
+  token = getToken(is,linecount) ;
+  if(token->nodeType != AST_type::TK_CLOSEPAREN) {
+    cerr << "syntax error, line=" << linecount << " missing closing paren" << endl ;
+    return AST_type::ASTP(token) ;
+  }
+  
+  AST_type::ASTP body = parseStatement(is,linecount) ;
+
+  AST_type::ASTP ebody = 0 ;
+  token = getToken(is,linecount) ;
+  
+  if(token->nodeType == AST_type::TK_ELSE) {
+    ebody = parseStatement(is,linecount) ;
+  } else {
+    pushToken(token) ;
+  }
+  return AST_type::ASTP(new AST_ifStatement(iftok, conditional,body,ebody)) ;
+}			 
+
+bool isTypeDecl(CPTR<AST_Token> p) {
   switch(p->nodeType) {
   case AST_type::TK_CHAR:
   case AST_type::TK_FLOAT:
@@ -2182,38 +2865,152 @@ bool isTypeDecl(AST_type::ASTP p) {
   }
 }
 
-AST_type::ASTP parseDeclaration(std::istream &is, int &linecount) {
 
-  CPTR<AST_Token> openToken = getToken(is,linecount) ;
-  cout << "parsing declaration" << endl ;
+AST_type::ASTP parseLoopStatement(std::istream &is, int &linecount) {
+  CPTR<AST_Token> token = getToken(is,linecount) ;
+  AST_type::ASTP loop = AST_type::ASTP(token) ;
+  switch(token->nodeType) {
+  case AST_type::TK_FOR:
+    {
+      token = getToken(is,linecount) ;
+      if(token->nodeType != AST_type::TK_OPENPAREN) {
+	cerr << "syntax error, expecting '(' in for loop on line" << linecount << endl ;
+	return loop ;
+      }
+      token = getToken(is,linecount) ;
+      AST_type::ASTP initializer = 0 ;
+      if(isTypeDecl(token)) {
+	pushToken(token) ;
+	initializer = parseDeclaration(is,linecount) ;
+      } else {
+	pushToken(token) ;
+	initializer = parseExpression(is,linecount) ;
+      }
+      token = getToken(is,linecount) ;
+      if(token->nodeType != AST_type::TK_SEMICOLON) {
+	cerr << "syntax error after initializer in for loop, line " << linecount << endl ;
+      }
+      AST_type::ASTP conditional = parseExpression(is,linecount) ;
+      token = getToken(is,linecount) ;
+      if(token->nodeType != AST_type::TK_SEMICOLON) {
+	cerr << "syntax error after conditional in for loop, line " << linecount << endl ;
+	return loop ;
+      }
+      AST_type::ASTP advance = parseExpression(is,linecount) ;
+      token = getToken(is,linecount) ;
+      if(token->nodeType != AST_type::TK_CLOSEPAREN) {
+	cerr << "syntax error findng close paren in for loop, line " << linecount << endl ;
+	return loop ;
+      }
+      AST_type::ASTP body = parseStatement(is,linecount) ;
+      return AST_type::ASTP(new AST_loopStatement(loop,initializer,conditional, advance, body)) ;
+    }
+    break ;
+  case AST_type::TK_WHILE:
+    {
+      token = getToken(is,linecount) ;
+      if(token->nodeType != AST_type::TK_OPENPAREN) {
+	cerr << "syntax error, expecting '(' in for loop on line" << linecount << endl ;
+	return loop ;
+      }
+      AST_type::ASTP conditional = parseExpression(is,linecount) ;
+      token = getToken(is,linecount) ;
+      if(token->nodeType != AST_type::TK_CLOSEPAREN) {
+	cerr << "syntax error findng close paren in for loop, line " << linecount << endl ;
+	return loop ;
+      }
+      AST_type::ASTP body = parseStatement(is,linecount) ;
+      return AST_type::ASTP(new AST_loopStatement(loop,conditional, body)) ;
+    }
+    break ;
+  case AST_type::TK_DO:
+    {
+      AST_type::ASTP body = parseStatement(is,linecount) ;
+      token = getToken(is,linecount) ;
+      if(token->nodeType != AST_type::TK_WHILE) {
+	cerr << "syntax error in do loop, expecting while, line " << linecount << endl ;
+	return loop ;
+      }
+      token = getToken(is,linecount) ;
+      if(token->nodeType != AST_type::TK_OPENPAREN) {
+	cerr << "syntax error in do loop, expecting '(', line " << linecount << endl ;
+	return loop ;
+      }
+      AST_type::ASTP conditional = parseExpression(is,linecount) ;
+      token = getToken(is,linecount) ;
+      if(token->nodeType != AST_type::TK_CLOSEPAREN) {
+	cerr << "syntax error in do loop, expecting ')', line " << linecount << endl ;
+      }
+      token = getToken(is,linecount) ;
+      
+      if(token->nodeType != AST_type::TK_SEMICOLON) {
+	cerr << "syntax error in do loop, expecting ';', line " << linecount << endl ;
+      }
+      
+      return AST_type::ASTP(new AST_loopStatement(loop,conditional, body)) ;
+    }
+    break ;
+  default:
+    return loop ;
+  }
   
-  CPTR<AST_declaration> AST_data = new AST_declaration ;
+  return AST_type::ASTP(getToken(is,linecount)) ;
+}
 
-  AST_data->type_decl.push_back(AST_type::ASTP(openToken)) ;
+AST_type::ASTP parseType(std::istream &is, int &linecount) {
+  //  cout << "parsing type" << endl ;
+  
+  CPTR<AST_typeDecl> AST_data = new AST_typeDecl ;
 
-  CPTR<AST_type> token = AST_type::ASTP(getToken(is,linecount)) ;
+  CPTR<AST_Token> token = getToken(is,linecount) ;
   while(isTypeDecl(token)) {
-    AST_data->type_decl.push_back(token) ;
-    token = AST_type::ASTP(getToken(is,linecount)) ;
+    AST_data->type_decl.push_back(AST_type::ASTP(token)) ;
+    token = getToken(is,linecount) ;
   }
-  while(token->nodeType != AST_type::TK_SEMICOLON) { // This needs to be fixed
-    AST_data->decls.push_back(token) ;
-    token = AST_type::ASTP(getToken(is,linecount)) ;
-  }
-  AST_data->decls.push_back(token) ;
-  
+  pushToken(token) ;
   
   return AST_type::ASTP(AST_data) ;
 }
 
+AST_type::ASTP parseDeclaration(std::istream &is, int &linecount) {
+
+  //  cout << "parsing declaration" << endl ;
+  
+  CPTR<AST_declaration> AST_data = new AST_declaration ;
+
+  AST_data->type_decl = parseType(is,linecount) ;
+  AST_data->decls = parseExpression(is,linecount) ;
+  
+  return AST_type::ASTP(AST_data) ;
+}
+
+AST_type::ASTP parseSpecialControlStatement(std::istream &is, int &linecount) {
+  
+  CPTR<AST_Block> AST_data = new AST_Block ;
+  AST_data->nodeType = AST_type::OP_SPECIAL ;
+  CPTR<AST_Token> token = getToken(is,linecount) ;
+  AST_data->elements.push_back(AST_type::ASTP(token)) ;
+  token = getToken(is,linecount) ;
+  if(token->nodeType != AST_type::TK_SEMICOLON) {
+    if(AST_data->elements.back()->nodeType == AST_type::TK_RETURN) {
+      pushToken(token) ;
+      AST_type::ASTP exp = parseExpression(is,linecount) ;
+      AST_data->elements.push_back(exp) ;
+      token = getToken(is,linecount) ;
+      if(token->nodeType != AST_type::TK_SEMICOLON)
+	cerr << "expected semicolon on return statement, line=" << linecount
+	     << endl ;
+    } else
+      cerr << "syntax error near line " << linecount << endl ;
+  }
+  AST_data->elements.push_back(AST_type::ASTP(token)) ;
+
+  return AST_type::ASTP(AST_data) ;
+}
+
 AST_type::ASTP parseStatement(std::istream &is, int &linecount) {
-  cout << "parsing statement, firstToken = "  ;
   CPTR<AST_Token> firstToken = getToken(is,linecount) ;
   
-  int line=-1 ;
-  cout << firstToken->nodeType  << " " ;
-  firstToken->DiagPrint(cout,line) ;
-  cout << endl ;
   switch(firstToken->nodeType) {
   case AST_type::TK_OPENBRACE:
   case AST_type::TK_OPENPAREN:
@@ -2241,9 +3038,25 @@ AST_type::ASTP parseStatement(std::istream &is, int &linecount) {
   case AST_type::TK_SWITCH:
     pushToken(firstToken) ;
     return parseSwitchStatement(is,linecount) ;
+  case AST_type::TK_BREAK:
+  case AST_type::TK_CONTINUE:
+  case AST_type::TK_RETURN:
+    pushToken(firstToken) ;
+    return parseSpecialControlStatement(is,linecount) ;
   case AST_type::TK_SEMICOLON:
     return AST_type::ASTP(firstToken) ;
-    
+  case AST_type::TK_NAME:
+    {
+      pushToken(firstToken) ;
+      AST_type::ASTP exp = parseExpression(is,linecount) ;
+      AST_type::ASTP term = AST_type::ASTP(getToken(is,linecount)) ;
+      if(term->nodeType != AST_type::TK_SEMICOLON) {
+	cerr << "syntax error, linecount = " << linecount << endl ;
+      }
+      AST_type::ASTP stat = new AST_SimpleStatement(exp,term) ;
+      return stat ;
+    }
+  
   default:
     break ;
   }
@@ -2290,7 +3103,7 @@ void parseFile::setup_Test(std::ostream &outputFile) {
   if(token->nodeType == AST_type::TK_OPENBRACE) {
     pushToken(token) ;
     CPTR<AST_type> ap = parseBlock(is,line_no) ;
-    outputFile << "Parsed TEST:" << endl ;
+    //    outputFile << "Parsed TEST:" << endl ;
     int lineno=-1 ;
     ap->DiagPrint(outputFile,lineno) ;
   }
