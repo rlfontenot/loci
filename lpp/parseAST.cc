@@ -48,6 +48,12 @@ using std::cout ;
 using std::vector ;
 using namespace Loci ;
 
+static int parseIDctr = 0 ;
+AST_type::AST_type() {
+  nodeType = OP_ERROR ;
+  id = parseIDctr++ ;
+}
+
 void AST_Token::accept(AST_visitor &v) {  v.visit(*this) ; }
 
 void AST_syntaxError::accept(AST_visitor &v) {  v.visit(*this) ; }
@@ -377,7 +383,13 @@ AST_type::ASTP applyPostFixOperator(AST_type::ASTP expr,
     CPTR<AST_exprOper> post = new AST_exprOper ;
     post->nodeType = postFixOperator(openToken->nodeType) ;
     post->terms.push_back(expr) ;
-    return AST_type::ASTP(post) ;
+    openToken = getToken(is,linecount) ;
+    pushToken(openToken) ;
+    if(checkPostFixToken(openToken->nodeType) ||
+       openToken->nodeType == AST_type::TK_OPENBRACKET)
+      return applyPostFixOperator(AST_type::ASTP(post),is,linecount,typemap) ;
+    else
+      return AST_type::ASTP(post) ;
   }
   if(openToken->nodeType == AST_type::TK_OPENBRACKET) {
     AST_type::ASTP index = parseExpression(is,linecount,typemap) ;
@@ -390,7 +402,14 @@ AST_type::ASTP applyPostFixOperator(AST_type::ASTP expr,
     array->nodeType = AST_type::OP_ARRAY ;
     array->terms.push_back(expr) ;
     array->terms.push_back(index) ;
-    return AST_type::ASTP(array) ;
+    
+    openToken = getToken(is,linecount) ;
+    pushToken(openToken) ;
+    if(checkPostFixToken(openToken->nodeType) ||
+       openToken->nodeType == AST_type::TK_OPENBRACKET)
+      return applyPostFixOperator(AST_type::ASTP(array),is,linecount,typemap) ;
+    else
+      return AST_type::ASTP(array) ;
   }
   pushToken(openToken) ;
     
@@ -420,7 +439,7 @@ AST_type::ASTP parseExpressionPartial(std::istream &is, int &linecount, const va
       CPTR<AST_exprOper> unary = new AST_exprOper ;
       unary->nodeType = unaryOperator(openToken->nodeType) ;
       unary->terms.push_back(expr) ;
-      return AST_type::ASTP(unary) ;
+      return applyPostFixOperator(AST_type::ASTP(unary),is,linecount,typemap) ;
     }
   }
   if(isTerm(openToken->nodeType)) {
@@ -526,7 +545,7 @@ AST_type::ASTP parseExpression(std::istream &is, int &linecount,const varmap &ty
     }
   } while(true) ;
 
-  return AST_type::ASTP(exprStack.front()) ;
+  return applyPostFixOperator(AST_type::ASTP(exprStack.front()),is,linecount,typemap) ;
 }
 
 
@@ -915,11 +934,13 @@ AST_type::ASTP parseStatement(std::istream &is, int &linecount, const varmap &ty
   case AST_type::TK_TIMES:
   case AST_type::TK_INCREMENT:
   case AST_type::TK_DECREMENT:
+  case AST_type::TK_LOCI_VARIABLE:
     {
       AST_type::ASTP exp = parseExpression(is,linecount,typemap) ;
 
       CPTR<AST_Token> termToken = getToken(is,linecount) ;
       AST_type::ASTP term = AST_type::ASTP(termToken) ;
+      
       if(term->nodeType != AST_type::TK_SEMICOLON) {
 	pushToken(termToken) ;
 	return AST_type::ASTP(new AST_syntaxError("Expecting ';' ",
@@ -1023,6 +1044,14 @@ void AST_errorCheck::visit(AST_syntaxError &s) {
   error_count++ ;
 }  
 
+void AST_collectAccessInfo::visit(AST_Token &s) {
+  if(s.nodeType == AST_type::TK_LOCI_VARIABLE) {
+    Loci::variable v(s.text) ;
+    accessed += v ;
+    id2var[s.id] = v ;
+  }
+}
+
 void AST_simplePrint::visit(AST_exprOper &s) {
   switch (s.nodeType) {
   case AST_type::OP_GROUP:
@@ -1115,7 +1144,6 @@ void AST_simplePrint::visit(AST_exprOper &s) {
     break ;
   default:
     {
-      //	s << "[" ;
       string op = OPtoString(s.nodeType) ;
       for(AST_type::ASTList::iterator ii=s.terms.begin();ii!=s.terms.end();) {
 	if(*ii != 0)
@@ -1124,7 +1152,6 @@ void AST_simplePrint::visit(AST_exprOper &s) {
 	if(ii != s.terms.end())
 	  out << op ;
       }
-      //	s << "]" ;
     }
     break ;
   }

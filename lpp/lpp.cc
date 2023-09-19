@@ -1725,6 +1725,28 @@ void parseFile::setup_cudaRule(std::ostream &outputFile) {
     }
     local_type_map[*vi] = mi->second ;
   }
+  
+  //  process_Calculate(outputFile,vnames,validate_set) ;
+  varmap typemap ;
+  typemap["vect3d"] = varinfo(true,false) ;
+
+  if(is.peek() != '{')
+    throw parseError("syntax error, expecting '{'") ;
+  CPTR<AST_type> ap = parseBlock(is,line_no,typemap) ;
+  //    outputFile << "Parsed TEST:" << endl ;
+  AST_errorCheck syntaxChecker ;
+  ap->accept(syntaxChecker) ;
+  //  if(syntaxChecker.hasErrors())
+  //    throw parseError("syntax error") ;
+
+  AST_collectAccessInfo varaccess ;
+  ap->accept(varaccess) ;
+  cout << "variables = " << varaccess.accessed << endl ;
+  AST_simplePrint printer(outputFile) ;
+  ap->accept(printer) ;
+
+  
+
 
   if(!prettyOutput)
     outputFile << "namespace {" ;
@@ -1909,8 +1931,8 @@ void parseFile::setup_cudaRule(std::ostream &outputFile) {
   }
 
   
-  if(use_compute && is.peek() != '{')
-    throw parseError("syntax error, expecting '{'") ;
+  //  if(use_compute && is.peek() != '{')
+  //    throw parseError("syntax error, expecting '{'") ;
 
   bool sized_outputs = false;
   variableSet outsmi = outs ;
@@ -1923,9 +1945,8 @@ void parseFile::setup_cudaRule(std::ostream &outputFile) {
   if(sized_outputs)
     throw parseError("cuda rules currently incompatible with storeVec, storemat or multiStore types") ;
 
-
-  if(use_compute)
-    process_Calculate(outputFile,vnames,validate_set) ;
+  //  if(use_compute)
+  //    process_Calculate(outputFile,vnames,validate_set) ;
 
   outputFile <<   "    void compute(const Loci::sequence &seq) { " << endl ;
   syncFile(outputFile) ;

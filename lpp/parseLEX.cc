@@ -84,7 +84,6 @@ CPTR<AST_Token> getNumberToken(std::istream &is, int &linecount) {
   }
   if((is.peek() >= '0' && is.peek() <='9')) {
     AST_data->nodeType = AST_type::TK_NUMBER ;
-    string numberdata ;
     if(is.peek() == '0' && !hasPoint) {
       // This path is either binary, octal, or hexidecimal
       numberdata += is.get() ;
@@ -116,17 +115,20 @@ CPTR<AST_Token> getNumberToken(std::istream &is, int &linecount) {
 	AST_data->text = numberdata ;
 	return AST_data ;
       }
-      // octal number
-      while(is.peek() >= '0' && is.peek() <= '7') {
-	numberdata += is.get() ;
+      if(is.peek() >= '0' && is.peek() <= '9') { // octal number
+	cout << "is.peek() = " << is.peek() << endl ;
+	// octal number
+	while(is.peek() >= '0' && is.peek() <= '7') {
+	  numberdata += is.get() ;
+	}
+	if(is.peek() >= '8' && is.peek() <='9')
+	  AST_data->nodeType = AST_type::TK_ERROR ;
+	while(is.peek() == 'l' || is.peek() =='L' ||
+	      is.peek() == 'u' || is.peek() =='U')
+	  numberdata += is.get() ;
+	AST_data->text = numberdata ;
+	return AST_data ;
       }
-      if(is.peek() >= '8' && is.peek() <='9')
-	AST_data->nodeType = AST_type::TK_ERROR ;
-      while(is.peek() == 'l' || is.peek() =='L' ||
-	    is.peek() == 'u' || is.peek() =='U')
-	numberdata += is.get() ;
-      AST_data->text = numberdata ;
-      return AST_data ;
     }
     while(is.peek() >= '0' && is.peek() <= '9') {
       numberdata += is.get() ;
@@ -294,6 +296,9 @@ CPTR<AST_Token> getToken(std::istream &is, int &linecount) {
     AST_data->text = get_name(is) ;
     AST_data->lineno = linecount ;
     AST_data->nodeType = findToken(AST_data->text) ;
+#ifdef VERBOSE
+    cerr << "get token NAME("<< AST_data->text<< ")" << endl ;
+#endif
     return AST_data ;
   }
   if(is.peek() == '.' || (is.peek() >= '0' && is.peek() <='9')) {
@@ -308,45 +313,75 @@ CPTR<AST_Token> getToken(std::istream &is, int &linecount) {
     if(is.peek()=='+') {
       AST_data->text += is.get() ;
       AST_data->nodeType = AST_type::TK_INCREMENT ;
+#ifdef VERBOSE
+      cerr << "get token OPER("<< AST_data->text<< ")" << endl ;
+#endif
       return AST_data ;
     }
     if(is.peek()=='=') {
       AST_data->text += is.get() ;
       AST_data->nodeType = AST_type::TK_PLUS_ASSIGN ;
+#ifdef VERBOSE
+      cerr << "get token OPER("<< AST_data->text<< ")" << endl ;
+#endif
       return AST_data ;
     }
     AST_data->nodeType = AST_type::TK_PLUS ;
+#ifdef VERBOSE
+      cerr << "get token OPER("<< AST_data->text<< ")" << endl ;
+#endif
     return AST_data ;
   case '-':
     if(is.peek()=='-') {
       AST_data->text += is.get() ;
       AST_data->nodeType = AST_type::TK_DECREMENT ;
+#ifdef VERBOSE
+      cerr << "get token OPER("<< AST_data->text<< ")" << endl ;
+#endif
       return AST_data ;
     }
     if(is.peek()=='=') {
       AST_data->text += is.get() ;
       AST_data->nodeType = AST_type::TK_MINUS_ASSIGN ;
+#ifdef VERBOSE
+      cerr << "get token OPER("<< AST_data->text<< ")" << endl ;
+#endif
       return AST_data ;
     }
     if(is.peek()=='>') {
       AST_data->text += is.get() ;
       AST_data->nodeType = AST_type::TK_ARROW ;
+#ifdef VERBOSE
+      cerr << "get token OPER("<< AST_data->text<< ")" << endl ;
+#endif
       return AST_data ;
     }      
     AST_data->nodeType = AST_type::TK_MINUS ;
+#ifdef VERBOSE
+      cerr << "get token OPER("<< AST_data->text<< ")" << endl ;
+#endif
     return AST_data ;
   case '*':
     if(is.peek()=='=') {
       AST_data->text += is.get() ;
       AST_data->nodeType = AST_type::TK_TIMES_ASSIGN ;
+#ifdef VERBOSE
+      cerr << "get token OPER("<< AST_data->text<< ")" << endl ;
+#endif
       return AST_data ;
     }
     AST_data->nodeType = AST_type::TK_TIMES ;
+#ifdef VERBOSE
+    cerr << "get token OPER("<< AST_data->text<< ")" << endl ;
+#endif
     return AST_data ;
   case '/':
     if(is.peek()=='=') {
       AST_data->text += is.get() ;
       AST_data->nodeType = AST_type::TK_DIVIDE_ASSIGN ;
+#ifdef VERBOSE
+      cerr << "get token OPER("<< AST_data->text<< ")" << endl ;
+#endif
       return AST_data ;
     }
     if(is.peek()=='/') {
@@ -355,6 +390,9 @@ CPTR<AST_Token> getToken(std::istream &is, int &linecount) {
 	AST_data->text += is.get() ;
       }
       AST_data->nodeType = AST_type::TK_COMMENT ;
+#ifdef VERBOSE
+      cerr << "get token COMMENT("<< AST_data->text<< ")" << endl ;
+#endif
       return AST_data ;
     }
     if(is.peek()=='*') {
@@ -367,6 +405,9 @@ CPTR<AST_Token> getToken(std::istream &is, int &linecount) {
 	  if(is.peek() == '/') {
 	    AST_data->text = is.get() ;
 	    AST_data->nodeType=AST_type::TK_COMMENT ;
+#ifdef VERBOSE
+	    cerr << "get token COMMENT("<< AST_data->text<< ")" << endl ;
+#endif
 	    return AST_data ;
 	  }
 	} else {
@@ -376,87 +417,150 @@ CPTR<AST_Token> getToken(std::istream &is, int &linecount) {
 	}
       }
       AST_data->nodeType=AST_type::TK_ERROR ;
+#ifdef VERBOSE
+      cerr << "get token ERROR("<< AST_data->text<< ")" << endl ;
+#endif
       return AST_data ;
     }
     AST_data->nodeType = AST_type::TK_DIVIDE ;
+#ifdef VERBOSE
+    cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
     return AST_data ;
   case '%':
     if(is.peek()=='=') {
       AST_data->text += is.get() ;
       AST_data->nodeType = AST_type::TK_MODULUS_ASSIGN ;
+#ifdef VERBOSE
+      cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
       return AST_data ;
     }
     AST_data->nodeType = AST_type::TK_MODULUS ;
+#ifdef VERBOSE
+    cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
     return AST_data ;
   case ',':
     AST_data->nodeType = AST_type::TK_COMMA ;
+#ifdef VERBOSE
+    cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
     return AST_data ;
   case '@':
     AST_data->nodeType = AST_type::TK_AT ;
+#ifdef VERBOSE
+    cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
     return AST_data ;
   case '&':
     if(is.peek() == '&' ) {
       AST_data->text += is.get() ;
       AST_data->nodeType = AST_type::TK_LOGICAL_AND ;
+#ifdef VERBOSE
+      cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
       return AST_data ;
     }
     if(is.peek() == '=' ) {
       AST_data->text += is.get() ;
       AST_data->nodeType = AST_type::TK_AND_ASSIGN ;
+#ifdef VERBOSE
+      cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
       return AST_data ;
     }
     AST_data->nodeType = AST_type::TK_AND ;
+#ifdef VERBOSE
+    cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
     return AST_data ;
   case '|':
     if(is.peek() != '|') {
       AST_data->text += is.get() ;
       AST_data->nodeType = AST_type::TK_LOGICAL_OR ;
+#ifdef VERBOSE
+      cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
       return AST_data ;
     }
     if(is.peek() == '=' ) {
       AST_data->text += is.get() ;
       AST_data->nodeType = AST_type::TK_OR_ASSIGN ;
+#ifdef VERBOSE
+      cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
       return AST_data ;
     }
     AST_data->nodeType = AST_type::TK_OR ;
+#ifdef VERBOSE
+    cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
     return AST_data ;
   case '^':
     if(is.peek() == '=') {
       AST_data->text += is.get() ;
       AST_data->nodeType = AST_type::TK_EXOR_ASSIGN ;
+#ifdef VERBOSE
+      cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
       return AST_data ;
     }
     AST_data->nodeType = AST_type::TK_EXOR ;
+#ifdef VERBOSE
+    cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
     return AST_data ;
   case '=':
     if(is.peek() == '=') {
       AST_data->text += is.get() ;
       AST_data->nodeType = AST_type::TK_EQUAL ;
+#ifdef VERBOSE
+      cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
       return AST_data ;
     }
     AST_data->nodeType = AST_type::TK_ASSIGN ;
+#ifdef VERBOSE
+    cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
     return AST_data ;
   case '!':
     if(is.peek() == '=') {
       AST_data->text += is.get() ;
       AST_data->nodeType = AST_type::TK_NOT_EQUAL ;
+#ifdef VERBOSE
+      cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
       return AST_data ;
     }
     AST_data->nodeType = AST_type::TK_NOT ;
+#ifdef VERBOSE
+    cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
     return AST_data ;
   case ':':
     if(is.peek() == ':') {
       AST_data->text += is.get() ;
       AST_data->nodeType = AST_type::TK_SCOPE ;
+#ifdef VERBOSE
+      cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
       return AST_data ;
     }
 
     AST_data->nodeType = AST_type::TK_COLON ;
+#ifdef VERBOSE
+    cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
     return AST_data ;
   case '<':
     if(is.peek() == '=') {
       AST_data->text += is.get() ;
       AST_data->nodeType = AST_type::TK_LE ;
+#ifdef VERBOSE
+      cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
       return AST_data ;
     }
     if(is.peek() == '<') {
@@ -464,17 +568,29 @@ CPTR<AST_Token> getToken(std::istream &is, int &linecount) {
       if(is.peek() == '=') {
 	AST_data->text += is.get() ;
 	AST_data->nodeType = AST_type::TK_SHIFT_LEFT_ASSIGN ;
+#ifdef VERBOSE
+	cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
 	return AST_data ;
       }
       AST_data->nodeType = AST_type::TK_SHIFT_LEFT ;
+#ifdef VERBOSE
+      cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
       return AST_data ;
     }
     AST_data->nodeType = AST_type::TK_LT ;
+#ifdef VERBOSE
+    cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
     return AST_data ;
   case '>':
     if(is.peek() == '=') {
       AST_data->text += is.get() ;
       AST_data->nodeType = AST_type::TK_GE ;
+#ifdef VERBOSE
+      cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
       return AST_data ;
     }
     if(is.peek() == '>') {
@@ -482,18 +598,33 @@ CPTR<AST_Token> getToken(std::istream &is, int &linecount) {
       if(is.peek() == '=') {
 	AST_data->text += is.get() ;
 	AST_data->nodeType = AST_type::TK_SHIFT_RIGHT_ASSIGN ;
+#ifdef VERBOSE
+	cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
 	return AST_data ;
       }
       AST_data->nodeType = AST_type::TK_SHIFT_RIGHT ;
+#ifdef VERBOSE
+      cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
       return AST_data ;
     }
     AST_data->nodeType = AST_type::TK_GT ;
+#ifdef VERBOSE
+    cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
     return AST_data ;
   case '~':
     AST_data->nodeType = AST_type::TK_TILDE ;
+#ifdef VERBOSE
+    cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
     return AST_data ;
   case '?':
     AST_data->nodeType = AST_type::TK_QUESTION ;
+#ifdef VERBOSE
+    cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
     return AST_data ;
   case '"':
     while(is.peek() != '"' && !is.eof() && !is.fail()) {
@@ -502,6 +633,9 @@ CPTR<AST_Token> getToken(std::istream &is, int &linecount) {
     if(is.peek() == '"') {
       AST_data->text += is.get() ;
       AST_data->nodeType = AST_type::TK_STRING ;
+#ifdef VERBOSE
+      cerr << "get token STRING("<< AST_data->text<< ")" << endl ;
+#endif
       return AST_data ;
     }
     break ;
@@ -512,29 +646,53 @@ CPTR<AST_Token> getToken(std::istream &is, int &linecount) {
     if(is.peek() == '\'') {
       AST_data->text += is.get() ;
       AST_data->nodeType = AST_type::TK_STRING ;
+#ifdef VERBOSE
+      cerr << "get token STRING("<< AST_data->text<< ")" << endl ;
+#endif
       return AST_data ;
     }
     break ;
   case ';':
     AST_data->nodeType = AST_type::TK_SEMICOLON ;
+#ifdef VERBOSE
+    cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
     return AST_data ;
   case '(':
     AST_data->nodeType = AST_type::TK_OPENPAREN ;
+#ifdef VERBOSE
+    cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
     return AST_data ;
   case ')':
     AST_data->nodeType = AST_type::TK_CLOSEPAREN ;
+#ifdef VERBOSE
+    cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
     return AST_data ;
   case '[':
     AST_data->nodeType = AST_type::TK_OPENBRACKET ;
+#ifdef VERBOSE
+    cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
     return AST_data ;
   case ']':
     AST_data->nodeType = AST_type::TK_CLOSEBRACKET ;
+#ifdef VERBOSE
+    cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
     return AST_data ;
   case '{':
     AST_data->nodeType = AST_type::TK_OPENBRACE ;
+#ifdef VERBOSE
+    cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
     return AST_data ;
   case '}':
     AST_data->nodeType = AST_type::TK_CLOSEBRACE ;
+#ifdef VERBOSE
+    cerr << "get token OP("<< AST_data->text<< ")" << endl ;
+#endif
     return AST_data ;
   case '$':
     // Now we have a Loci variable or a Loci command
@@ -555,6 +713,9 @@ CPTR<AST_Token> getToken(std::istream &is, int &linecount) {
       }
       AST_data->text += is.get() ;
       AST_data->nodeType = AST_type::TK_LOCI_DIRECTIVE ;
+#ifdef VERBOSE
+      cerr << "get token DIRECTIVE("<< AST_data->text<< ")" << endl ;
+#endif
       return AST_data ;
     }
     AST_data->nodeType = AST_type::TK_LOCI_VARIABLE ;
@@ -597,11 +758,17 @@ CPTR<AST_Token> getToken(std::istream &is, int &linecount) {
       }
 
     }
+#ifdef VERBOSE
+    cerr << "get token VAR("<< AST_data->text<< ")" << endl ;
+#endif
     return AST_data ;
   } 
      
       
   AST_data->nodeType = AST_type::TK_ERROR ;
+#ifdef VERBOSE
+  cerr << "get token ERR("<< AST_data->text<< ")" << endl ;
+#endif
   return AST_data ;
 
 }

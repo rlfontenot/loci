@@ -24,6 +24,8 @@ using std::endl ;
 using std::cerr ;
 using std::cout ;
 
+#include "variable.h"
+
 // Setup for facilties for parsing and creating abstract syntax trees (AST)
 
 class AST_visitor ;
@@ -41,6 +43,7 @@ typedef map<std::string,varinfo> varmap ;
 class AST_type : public CPTR_type {
 public:
   virtual ~AST_type() {}
+  AST_type() ;
   typedef CPTR<AST_type> ASTP ;
   typedef std::vector<ASTP> ASTList ;
   enum elementType {
@@ -150,6 +153,7 @@ public:
 		    TK_SENTINEL 
 		    
   } ;
+  int id ;
   elementType nodeType ;
   virtual void accept(AST_visitor &v) = 0 ;
   
@@ -272,7 +276,17 @@ class AST_simplePrint : public AST_visitor {
   virtual void visit(AST_exprOper &)  ;
   virtual void visit(AST_Token &) ;
 } ;
+
+class AST_collectAccessInfo: public AST_visitor {
+public:
+  Loci::variableSet accessed ;
+  Loci::variableSet writes ;
+  std::map<int,Loci::variable> id2var ;
+  AST_collectAccessInfo() {} ;
+  virtual void visit(AST_Token &) ;
+} ;
   
+
 extern AST_type::ASTP parseExpression(std::istream &is, int &linecount,const varmap &typemap) ;
 extern AST_type::ASTP parseExpressionPartial(std::istream &is, int &linecount,const varmap &typemap) ;
 extern AST_type::ASTP parseDeclaration(std::istream &is, int &linecount, const varmap &typemap) ;
