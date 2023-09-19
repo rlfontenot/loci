@@ -11,6 +11,9 @@ using std::vector ;
 #include <string>
 using std::string ;
 
+#include <map>
+using std::map ;
+
 #include <iostream>
 using std::istream ;
 using std::ifstream ;
@@ -23,12 +26,23 @@ using std::cout ;
 
 // Setup for facilties for parsing and creating abstract syntax trees (AST)
 
+class AST_visitor ;
+
+struct varinfo {
+  bool isType ;
+  bool isTemplate ;
+varinfo(): isType(true), isTemplate(false) {}
+varinfo(bool v, bool t) : isType(v),isTemplate(t) {}
+} ;
+
+typedef map<std::string,varinfo> varmap ;
 
 // Abstract Syntax Tree
 class AST_type : public CPTR_type {
 public:
+  virtual ~AST_type() {}
   typedef CPTR<AST_type> ASTP ;
-  typedef std::list<ASTP> ASTList ;
+  typedef std::vector<ASTP> ASTList ;
   enum elementType {
 		    OP_SCOPE=0x000,
 		    OP_AT=0x080, // For using @ to separate namespaces
@@ -129,54 +143,66 @@ public:
 		    TK_UNION,TK_TYPENAME,TK_TEMPLATE,TK_TYPEDEF,
 		    TK_VIRTUAL,TK_VOID,TK_TRY,TK_CATCH,TK_THROW,
 		    TK_IF,TK_ELSE,TK_GOTO,TK_NEW,TK_DELETE,
+		    ND_SYNTAXERR,
+		    ND_CTRL_IF,ND_CTRL_FOR,ND_CTRL_WHILE, ND_CTRL_DO,
+		    ND_CTRL_SWITCH, ND_SIMPLE_STATEMENT,ND_BLOCK,
+		    ND_DECL,ND_TERMINAL,
 		    TK_SENTINEL 
 		    
   } ;
   elementType nodeType ;
-  virtual void DiagPrint(ostream &s, int &line) const = 0 ;
+  virtual void accept(AST_visitor &v) = 0 ;
   
 } ;
 
 extern std::string OPtoString(AST_type::elementType val) ;
 
-  class AST_Token : public AST_type {
+class AST_syntaxError: public AST_type {
+ public:
+  string error ;
+  int lineno ;
+ AST_syntaxError(string e,int l) :error(e),lineno(l)
+    {nodeType=AST_type::ND_SYNTAXERR;}
+  void accept(AST_visitor &v) ;
+} ;
+  
+class AST_Token : public AST_type {
 public:
   string text ;
   int lineno ;
-  void DiagPrint(ostream &s, int &line) const ;
+  void accept(AST_visitor &v) ;
+  AST_Token() {nodeType = AST_type::OP_ERROR; }
 } ;
 
 class AST_SimpleStatement: public AST_type {
 public:
-  AST_SimpleStatement(ASTP e, ASTP t) : exp(e),Terminal(t) {}
+  AST_SimpleStatement(ASTP e, ASTP t) : exp(e),Terminal(t)
+    {nodeType = AST_type::ND_SIMPLE_STATEMENT ;}
   ASTP exp ;
   ASTP Terminal ;
-  void DiagPrint(ostream  &s, int &line) const ;
+  void accept(AST_visitor &v) ;
 } ;
 
 class AST_Block : public AST_type {
 public:
   ASTList elements ;
-  void DiagPrint(ostream &s, int &lineno) const ;
+  void accept(AST_visitor &v) ;
+  AST_Block() {nodeType = AST_type::ND_BLOCK; }
 } ;
 
-class AST_typeDecl : public AST_type {
-public:
-  ASTList type_decl ;
-  void DiagPrint(ostream &s, int &lineno) const ;
-} ;
-  
 class AST_declaration : public AST_type {
 public:
-  ASTP type_decl ;
+  ASTList type_decl ;
   ASTP decls ;
-  void DiagPrint(ostream &s, int &lineno) const ;
+  void accept(AST_visitor &v) ;
+  AST_declaration() { nodeType = AST_type::ND_DECL; }
 } ;
 
 class AST_exprOper : public AST_type {
 public:
   ASTList terms ;
-  void DiagPrint(ostream &s, int &lineno) const ;
+  void accept(AST_visitor &v) ;
+  AST_exprOper() {nodeType = AST_type::OP_ERROR; }
 } ;
 
 class AST_term : public AST_type {
@@ -193,53 +219,68 @@ public:
   } ;
   TermTypes TermType ;
   ASTP term ;
-  void DiagPrint(ostream&s, int &lineno) const ;
+  void accept(AST_visitor &v) ;
+  AST_term() {nodeType = AST_type::ND_TERMINAL; }
 } ;
 
-class AST_ifStatement : public AST_type {
-public:
-  ASTP iftok ;
-  ASTP conditional ;
-  ASTP ifblock ;
-  ASTP elseblock ;
- AST_ifStatement(ASTP tok, ASTP C, ASTP IF, ASTP ELSE):
-  iftok(tok),conditional(C),ifblock(IF),elseblock(ELSE) {} 
-  void DiagPrint(ostream&s, int &lineno) const ;
+class AST_controlStatement: public AST_type {
+ public:
+  ASTP controlType ;
+  ASTList parts ;
+  void accept(AST_visitor &v) ;
+  AST_controlStatement() {nodeType = AST_type::OP_ERROR; }
+  void constructIf(ASTP tok, ASTP C, ASTP IFBLOCK, ASTP ELSE, ASTP ELSEBLOCK) {
+    nodeType = AST_type::ND_CTRL_IF ;
+    controlType = tok ;
+    parts.push_back(C) ;
+    parts.push_back(IFBLOCK) ;
+    if(ELSE != 0) {
+      parts.push_back(ELSE) ;
+      parts.push_back(ELSEBLOCK) ;
+    }
+  }
 } ;
 
-class AST_loopStatement : public AST_type {
-public:
-  ASTP loop ;
-  ASTP initializer ;
-  ASTP conditional ;
-  ASTP advance ;
-  ASTP body ;
- AST_loopStatement(ASTP L, ASTP I, ASTP C, ASTP A, ASTP B):
-  loop(L),initializer(I),conditional(C),advance(A),body(B) {}
- AST_loopStatement(ASTP L, ASTP C, ASTP B):
-  loop(L),initializer(0),conditional(C),advance(0),body(B) {}
 
-  void DiagPrint(ostream&s, int &lineno) const ;
+class AST_visitor {
+ public :
+  virtual ~AST_visitor() {} ;
+  virtual void visit(AST_SimpleStatement &)  ;
+  virtual void visit(AST_Block &)  ;
+  virtual void visit(AST_declaration &)  ;
+  virtual void visit(AST_exprOper &)  ;
+  virtual void visit(AST_controlStatement &) ;
+  virtual void visit(AST_term &) ;
+  virtual void visit(AST_Token &) {}
+  virtual void visit(AST_syntaxError &) {}
+} ;
+
+class AST_errorCheck : public AST_visitor {
+ public:
+  int error_count ;
+  AST_errorCheck() {error_count = 0  ; }
+  bool hasErrors() const {return error_count != 0; }
+  virtual ~AST_errorCheck() {}
+  virtual void visit(AST_syntaxError &) ;
+} ;
+
+class AST_simplePrint : public AST_visitor {
+  ostream &out ;
+  int lineno ;
+ public:
+ AST_simplePrint(ostream &s, int line=-1): out(s),lineno(line) {} ;
+  virtual void visit(AST_exprOper &)  ;
+  virtual void visit(AST_Token &) ;
 } ;
   
-class AST_switchStatement : public AST_type {
-public:
-  ASTP statement ;
-  ASTP conditional ;
-  ASTList body ;
-  AST_switchStatement() {}
-
-  void DiagPrint(ostream&s, int &lineno) const ;
-} ;
-
-extern AST_type::ASTP parseExpression(std::istream &is, int &linecount) ;
-extern AST_type::ASTP parseExpressionPartial(std::istream &is, int &linecount) ;
-extern AST_type::ASTP parseDeclaration(std::istream &is, int &linecount) ;
-extern AST_type::ASTP parseStatement(std::istream &is, int &linecount) ;
-extern AST_type::ASTP parseLoopStatement(std::istream &is, int &linecount) ;
-extern AST_type::ASTP parseIfStatement(std::istream &is, int &linecount) ;
-extern AST_type::ASTP parseSwitchStatement(std::istream &is, int &linecount)  ;
-extern AST_type::ASTP parseBlock(std::istream &is, int &linecount) ;
+extern AST_type::ASTP parseExpression(std::istream &is, int &linecount,const varmap &typemap) ;
+extern AST_type::ASTP parseExpressionPartial(std::istream &is, int &linecount,const varmap &typemap) ;
+extern AST_type::ASTP parseDeclaration(std::istream &is, int &linecount, const varmap &typemap) ;
+extern AST_type::ASTP parseStatement(std::istream &is, int &linecount, const varmap &typemap) ;
+extern AST_type::ASTP parseLoopStatement(std::istream &is, int &linecount,const varmap &typemap) ;
+extern AST_type::ASTP parseIfStatement(std::istream &is, int &linecount, const varmap &typemap) ;
+extern AST_type::ASTP parseSwitchStatement(std::istream &is, int &linecount,const varmap &typemap)  ;
+extern AST_type::ASTP parseBlock(std::istream &is, int &linecount,const varmap &typemap) ;
 extern AST_type::ASTP parseTerm(std::istream &is, int &linecount) ;
 extern CPTR<AST_Token> getToken(std::istream &is, int &linecount) ;
 extern void pushToken(CPTR<AST_Token> &pt) ;
