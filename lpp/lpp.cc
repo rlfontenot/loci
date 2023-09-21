@@ -1725,27 +1725,39 @@ void parseFile::setup_cudaRule(std::ostream &outputFile) {
     }
     local_type_map[*vi] = mi->second ;
   }
-  
+
+#ifdef HACK
   //  process_Calculate(outputFile,vnames,validate_set) ;
   varmap typemap ;
   typemap["vect3d"] = varinfo(true,false) ;
 
   if(is.peek() != '{')
     throw parseError("syntax error, expecting '{'") ;
+
   CPTR<AST_type> ap = parseBlock(is,line_no,typemap) ;
   //    outputFile << "Parsed TEST:" << endl ;
   AST_errorCheck syntaxChecker ;
   ap->accept(syntaxChecker) ;
-  //  if(syntaxChecker.hasErrors())
-  //    throw parseError("syntax error") ;
+  if(syntaxChecker.hasErrors())
+    throw parseError("syntax error") ;
 
   AST_collectAccessInfo varaccess ;
   ap->accept(varaccess) ;
   cout << "variables = " << varaccess.accessed << endl ;
-  AST_simplePrint printer(outputFile) ;
-  ap->accept(printer) ;
+  cout << "write variables = " << varaccess.writes << endl ;
 
   
+  AST_simplePrint printer(outputFile) ;
+
+  for(auto i = varaccess.id2var.begin();i!=varaccess.id2var.end();++i)
+    printer.id2rename[i->first] = vnames[i->second]+"[_e_]" ;
+  for(auto i = varaccess.id2vmap.begin();i!=varaccess.id2vmap.end();++i) {
+    
+  }
+
+  ap->accept(printer) ;
+
+#endif
 
 
   if(!prettyOutput)
@@ -1769,12 +1781,24 @@ void parseFile::setup_cudaRule(std::ostream &outputFile) {
   }
   variableSet ins = input ;
   ins -= outs ;
+  map<variable,string> typetable ;
   for(vi=ins.begin();vi!=ins.end();++vi) {
     map<variable,pair<string,string> >::const_iterator mi ;
     if((mi = local_type_map.find(*vi)) == local_type_map.end()) {
       cerr << "unknown type for variable " << *vi << endl ;
       throw parseError("untyped Loci variable") ;
     }
+    if(mi->second.first == "Map") {
+      typetable[*vi] = "int" ;
+    } else {
+      string scratch = mi->second.second ;
+      if(scratch.size() > 2) {
+	typetable[*vi] = scratch.substr(1,scratch.size()-3) ;
+      } else {
+	cerr << "unexpected loci variable type!" << endl ;
+      }
+    }
+	  
     if(!prettyOutput) 
       outputFile << "    Loci::const_gpu" << mi->second.first <<  mi->second.second ;
     else 
@@ -1787,6 +1811,16 @@ void parseFile::setup_cudaRule(std::ostream &outputFile) {
     if((mi = local_type_map.find(*vi)) == local_type_map.end()) {
       cerr << "unknown type for variable " << *vi << endl ;
       throw parseError("untyped Loci variable") ;
+    }
+    if(mi->second.first == "Map") {
+      typetable[*vi] = "int" ;
+    } else {
+      string scratch = mi->second.second ;
+      if(scratch.size() > 2) {
+	typetable[*vi] = scratch.substr(1,scratch.size()-3) ;
+      } else {
+	cerr << "unexpected loci variable type!" << endl ;
+      }
     }
     if(!prettyOutput)
       outputFile << "    Loci::gpu" << mi->second.first <<  mi->second.second ;
@@ -1948,18 +1982,175 @@ void parseFile::setup_cudaRule(std::ostream &outputFile) {
   //  if(use_compute)
   //    process_Calculate(outputFile,vnames,validate_set) ;
 
-  outputFile <<   "    void compute(const Loci::sequence &seq) { " << endl ;
+  outputFile <<   "    void compute(const Loci::sequence &seq) ;" << endl ;
   syncFile(outputFile) ;
-  if(use_compute) {
-    outputFile <<   "      do_loop(seq,this) ;" << endl ;
-    syncFile(outputFile) ;
-  }
-  outputFile <<   "    }" << endl ;
-  syncFile(outputFile) ;
-
   outputFile <<   "} ;" << endl ;
   syncFile(outputFile) ;
 
+  //  process_Calculate(outputFile,vnames,validate_set) ;
+  varmap typemap ;
+  typemap["vect3d"] = varinfo(true,false) ;
+
+  if(is.peek() != '{')
+    throw parseError("syntax error, expecting '{'") ;
+
+  int startline = line_no ;
+  CPTR<AST_type> ap = parseBlock(is,line_no,typemap) ;
+  //    outputFile << "Parsed TEST:" << endl ;
+  
+  AST_errorCheck syntaxChecker ;
+  ap->accept(syntaxChecker) ;
+  if(syntaxChecker.hasErrors())
+
+
+    throw parseError("syntax error") ;
+
+  
+  AST_collectAccessInfo varaccess ;
+  ap->accept(varaccess) ;
+  //  cout << "variables = " << varaccess.accessed << endl ;
+  //  cout << "write variables = " << varaccess.writes << endl ;
+
+  variableSet readvars ;
+  variableSet writevars ;
+  
+  for(auto i=varaccess.accessed.begin();i!=varaccess.accessed.end();++i) {
+    readvars += i->var ;
+    for(int j=0;j<i->mapping.size();++j)
+      readvars += i->mapping[j] ;
+  }
+  for(auto i=varaccess.writes.begin();i!=varaccess.writes.end();++i) {
+    writevars += i->var ;
+    for(int j=0;j<i->mapping.size();++j)
+      readvars += i->mapping[j] ;
+  }
+
+  readvars -= writevars ;
+  
+  // Now remove and save the open and close braces in the parseBlock
+  CPTR<AST_Block> bigblock = CPTR<AST_Block>(ap) ;
+  CPTR<AST_type> open = bigblock->elements[0] ;
+  int bsz = bigblock->elements.size() ;
+  CPTR<AST_type> close = bigblock->elements[bsz-1] ;
+  for(int i=0;i<bsz-1;++i)
+    bigblock->elements[i] = bigblock->elements[i+1] ;
+  bigblock->elements.pop_back() ;
+  bigblock->elements.pop_back() ;
+  
+  AST_simplePrint printer(outputFile,-1,prettyOutput) ;
+
+  for(auto i = varaccess.id2var.begin();i!=varaccess.id2var.end();++i)
+    printer.id2rename[i->first] = vnames[i->second]+"[_e_]" ;
+
+  map<string,string> maplist ;
+  for(auto i = varaccess.id2vmap.begin();i!=varaccess.id2vmap.end();++i) {
+    string mapaccess = vnames[*(i->second.var.begin())] ;
+    string mapvar ;
+    string mapsurrogate = "M_";
+    mapaccess += "[" ;
+    for(auto j = i->second.mapping.rbegin(); j!=i->second.mapping.rend();++j) {
+      mapvar += vnames[*(j->begin())]+"[" ;
+      string mv = vnames[*(j->begin())] ;
+      if(prettyOutput)
+	mapsurrogate += mv ;
+      else
+	mapsurrogate += mv.substr(2,mv.size()-2) ;
+    }
+    mapvar += "_e_" ;
+    for(auto j = i->second.mapping.rbegin(); j!=i->second.mapping.rend();++j) 
+      mapvar +="]" ;
+    maplist[mapsurrogate] = mapvar ;
+    mapaccess += mapsurrogate + "]" ;
+
+    printer.id2rename[i->first] = mapaccess ;
+  }
+
+  if(!prettyOutput)
+    outputFile << "#line " << startline << endl ;
+  outputFile << "__global__" << endl ;
+  if(!prettyOutput)
+    outputFile << "#line " << startline << endl ;
+  outputFile << class_name << "_kernel(" ;
+  for(auto i=writevars.begin();i!=writevars.end();) {
+    outputFile << typetable[*i]<< " *" << vnames[*i] ;
+    ++i ;
+    if(i!=writevars.end())
+      outputFile << "," ;
+  }
+  if(readvars!=EMPTY)
+    outputFile << "," ;
+  for(auto i=readvars.begin();i!=readvars.end();) {
+    outputFile << "const " << typetable[*i] << " *" << vnames[*i] ;
+    ++i ;
+    if(i!=readvars.end())
+      outputFile << "," ;
+  }
+  outputFile << ", int _start_, int _end_, int _blksz_)" << endl ;
+
+  open->accept(printer) ;
+
+  if(!prettyOutput)
+    outputFile << endl << "#line " << printer.lineno  << endl ;
+  outputFile << "   int _e_ = _start_+blockIdx.x*_blksz_+threadIdx.x ;" <<endl;
+  if(!prettyOutput)
+    outputFile << "#line " << printer.lineno  << endl ;
+  outputFile << "   if(_e_ <= _end_) {" << endl ;
+  if(!prettyOutput)
+    outputFile <<  "#line " << printer.lineno  ;
+  outputFile << endl << "  int " ;
+  for(auto i=maplist.begin();i!=maplist.end();) {
+    outputFile << i->first << "=" << i->second ;
+    ++i ;
+    if(i!=maplist.end())
+      outputFile << "," ;
+  }
+  outputFile << ";" ;
+
+  
+  ap->accept(printer) ;
+
+  close->accept(printer) ;  
+  close->accept(printer) ;
+  outputFile << endl ;
+  syncFile(outputFile) ;
+  outputFile << "void " << class_name << "::compute(const Loci::sequence &seq) {" << endl ;
+  syncFile(outputFile) ;
+  outputFile << "  const int NTHREADS=64 ;" << endl ;
+  syncFile(outputFile) ;
+  outputFile << "  const int ni = seq.num_intervals() ;"<< endl ;
+  syncFile(outputFile) ;
+  outputFile << "  for(int i=0;i<ni;++i) {" << endl ;
+  syncFile(outputFile) ;
+  outputFile << "    const Loci::int_type i1 = seq[i].first ;" << endl ;
+  syncFile(outputFile) ;
+  outputFile << "    const Loci::int_type i2 = seq[i].second  ;" << endl ; 
+  syncFile(outputFile) ;
+  outputFile << "    const Loci::int_type start = min(i1,i2) ;" << endl ;
+  syncFile(outputFile) ;
+  outputFile << "    const Loci::int_type stop = max(i1,i2) ;" << endl ;
+  syncFile(outputFile) ;
+  outputFile << "    const int nblks = (stop-start+nblks)/nblks ;" << endl ;
+  syncFile(outputFile) ;
+  outputFile <<"    " <<class_name << "_kernel<<<nblks,NTHREADS>>>(";
+  for(auto i=writevars.begin();i!=writevars.end();) {
+    outputFile << vnames[*i] << ".ptr()";
+    ++i ;
+    if(i!=writevars.end())
+      outputFile << "," ;
+  }
+  if(readvars!=EMPTY)
+    outputFile << "," ;
+  for(auto i=readvars.begin();i!=readvars.end();) {
+    outputFile <<vnames[*i]<< ".ptr()" ;
+    ++i ;
+    if(i!=readvars.end())
+      outputFile << "," ;
+  }
+  outputFile << ",start, stop, NTHREADS) ;" << endl ;
+  syncFile(outputFile) ;
+  outputFile << "}" << endl;
+  syncFile(outputFile) ;
+  
   if(!prettyOutput)
     outputFile << "Loci::register_rule<"<<class_name<<"> register_"<<class_name
                << " ;" << endl ;
@@ -1973,6 +2164,7 @@ void parseFile::setup_cudaRule(std::ostream &outputFile) {
     syncFile(outputFile) ;
   }
 
+  
   if(!use_prelude && sized_outputs && (rule_type != "apply")) 
     throw parseError("need prelude to size output type!") ;
 }

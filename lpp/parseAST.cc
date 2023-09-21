@@ -66,36 +66,19 @@ void AST_declaration::accept(AST_visitor &v) {  v.visit(*this) ; }
 
 void AST_exprOper::accept(AST_visitor &v) {  v.visit(*this) ; }
 
-void AST_term::accept(AST_visitor &v) {  v.visit(*this) ; }
-
 void AST_controlStatement::accept(AST_visitor &v) {  v.visit(*this) ; }
 
 AST_type::ASTP parseTerm(std::istream &is, int &linecount) {
   CPTR<AST_Token> token = getToken(is,linecount) ;
-  CPTR<AST_term> info = new AST_term ;
-  info->nodeType = AST_type::OP_TERM ;
-  info->term = AST_type::ASTP(token) ;
-  info->TermType = AST_term::TERM_INVALID ;
   switch(token->nodeType) {
   case AST_type::TK_NAME:
-    info->TermType = AST_term::TERM_VARIABLE ;
-    return AST_type::ASTP(info) ;
-  case AST_type::TK_NUMBER:
-    info->TermType = AST_term::TERM_NUMBER ;
-    return AST_type::ASTP(info) ;
-  case AST_type::TK_STRING:
-    info->TermType = AST_term::TERM_STRING ;
-    return AST_type::ASTP(info) ;
   case AST_type::TK_TRUE:
   case AST_type::TK_FALSE:
-    info->TermType = AST_term::TERM_BOOLEAN ;
-    return AST_type::ASTP(info) ;
+  case AST_type::TK_NUMBER:
+  case AST_type::TK_STRING:
   case AST_type::TK_LOCI_VARIABLE:
-    info->TermType = AST_term::TERM_LOCIVARIABLE ;
-    return AST_type::ASTP(info) ;
   case AST_type::TK_LOCI_CONTAINER:
-    info->TermType = AST_term::TERM_LOCICONTAINER ;
-    return AST_type::ASTP(info) ;
+    return AST_type::ASTP(token) ;
   default:
     return AST_type::ASTP(0) ;
   }
@@ -668,7 +651,7 @@ bool isTypeDecl(CPTR<AST_Token> p, const varmap &typemap) {
     return true ;
   case AST_type::TK_NAME:
     {
-      varmap::const_iterator t = typemap.find(p->text) ;
+      auto t = typemap.find(p->text) ;
       if(t == typemap.end())
 	return false ;
       return t->second.isType ;
@@ -972,12 +955,6 @@ AST_type::ASTP parseBlock(std::istream &is, int &linecount,const varmap &typemap
   case AST_type::TK_OPENBRACE:
     closeType = AST_type::TK_CLOSEBRACE ;
     break ;
-  case AST_type::TK_OPENBRACKET:
-    closeType = AST_type::TK_CLOSEBRACKET ;
-    break ;
-  case AST_type::TK_OPENPAREN:
-    closeType = AST_type::TK_CLOSEPAREN ;
-    break ;
   default:
     return AST_type::ASTP(openToken) ;
   }
@@ -1031,9 +1008,6 @@ void AST_visitor::visit(AST_controlStatement &s) {
       (*ii)->accept(*this) ;
   }
 }
-void AST_visitor::visit(AST_term &s) {
-  s.term->accept(*this) ;
-}
 
 void AST_errorCheck::visit(AST_syntaxError &s) {
   if(fileNameStack.size() > 0) {
@@ -1046,13 +1020,114 @@ void AST_errorCheck::visit(AST_syntaxError &s) {
 
 void AST_collectAccessInfo::visit(AST_Token &s) {
   if(s.nodeType == AST_type::TK_LOCI_VARIABLE) {
-    Loci::variable v(s.text) ;
-    accessed += v ;
+    Loci::variable v(s.text.substr(1,s.text.size()-1)) ;
+    vmap_info vmap ;
+    vmap.var += v ;
+    accessed.insert(vmap) ;
     id2var[s.id] = v ;
   }
 }
+AST_type::ASTP getArrayVar(AST_type::ASTP expr) {
+  while(expr->nodeType == AST_type::OP_ARRAY) {
+    CPTR<AST_exprOper> p(expr) ;
+    expr = AST_type::ASTP(p->terms.front()) ;
+  }
+  return expr ;
+}
+bool isExprLociVariable(AST_type::ASTP expr) {
+  expr = getArrayVar(expr) ;
+  
+  return(expr->nodeType == AST_type::TK_LOCI_VARIABLE) ;
+}
 
+  
+void AST_collectAccessInfo::visit(AST_exprOper &s) {
+  switch(s.nodeType) {
+  case AST_type::OP_ASSIGN:
+  case AST_type::OP_TIMES_ASSIGN:
+  case AST_type::OP_DIVIDE_ASSIGN:
+  case AST_type::OP_MODULUS_ASSIGN:
+  case AST_type::OP_PLUS_ASSIGN:
+  case AST_type::OP_MINUS_ASSIGN:
+  case AST_type::OP_SHIFT_LEFT_ASSIGN:
+  case AST_type::OP_SHIFT_RIGHT_ASSIGN:
+  case AST_type::OP_AND_ASSIGN:
+  case AST_type::OP_OR_ASSIGN:
+  case AST_type::OP_EXOR_ASSIGN:
+    {
+      AST_type::ASTList::iterator ii=s.terms.begin();
+      AST_collectAccessInfo first ;
+      if(ii!=s.terms.end() && *ii != 0)
+	(*ii)->accept(first) ;
+      for(std::set<Loci::vmap_info>::iterator fi=first.accessed.begin();
+	  fi!= first.accessed.end();++fi)
+	writes.insert(*fi) ;
+      for(auto mi=first.id2var.begin();mi!=first.id2var.end();++mi)
+	id2var[mi->first] = mi->second ;
+      for(auto mi=first.id2vmap.begin();mi!=first.id2vmap.end();++mi)
+	id2vmap[mi->first] = mi->second ;
+      for(++ii;ii!=s.terms.end();++ii)
+	if(*ii != 0) 
+	(*ii)->accept(*this) ;
+    }
+    break ;
+  case AST_type::OP_ARROW:
+    {
+      // Work on this to fill in the maps
+      bool allLociVars = true ;
+      for(auto ii=s.terms.begin();ii!=s.terms.end();++ii)
+	if(*ii != 0) 
+	  allLociVars = allLociVars && isExprLociVariable(*ii) ;
+      if(allLociVars) {
+	Loci::vmap_info vm ;
+	
+	for(auto ii=s.terms.begin();ii!=s.terms.end();++ii)
+	  if(*ii != 0) {
+	    AST_type::ASTP vp = getArrayVar(*ii) ;
+	    CPTR<AST_Token> tok(vp) ;
+	    
+	    Loci::variable v(tok->text.substr(1,tok->
+text.size()-1)) ;
+	    variableSet vset ;
+	    vset += v ;
+	    if(ii+1 == s.terms.end()) {
+	      vm.var += vset ;
+	    } else {
+	      vm.mapping.push_back(vset) ;
+	    }
+	  }
+	id2vmap[s.id] = vm ;
+	accessed.insert(vm) ;
+	AST_collectAccessInfo base ;
+	for(auto ii=s.terms.begin();ii!=s.terms.end();++ii)
+	  if(*ii != 0)
+	    (*ii)->accept(base) ;
+	for(auto mi=base.id2var.begin();mi!=base.id2var.end();++mi)
+	  id2var[mi->first] = mi->second ;
+	for(auto mi=base.id2vmap.begin();mi!=base.id2vmap.end();++mi)
+	  id2vmap[mi->first] = mi->second ;
+
+      } else {
+	for(auto ii=s.terms.begin();ii!=s.terms.end();++ii)
+	  if(*ii != 0)
+	    (*ii)->accept(*this) ;
+      }
+    }
+    break ;
+  default:
+    for(AST_type::ASTList::iterator ii=s.terms.begin();ii!=s.terms.end();++ii)
+      if(*ii != 0)
+	(*ii)->accept(*this) ;
+    break ;
+  }
+}
+  
 void AST_simplePrint::visit(AST_exprOper &s) {
+  auto t = id2rename.find(s.id) ;
+  if(t != id2rename.end()) {
+    out << t->second ;
+    return ;
+  }
   switch (s.nodeType) {
   case AST_type::OP_GROUP:
     out << '(' ;
@@ -1160,10 +1235,15 @@ void AST_simplePrint::visit(AST_exprOper &s) {
 void AST_simplePrint::visit(AST_Token &s) {
   if(lineno != s.lineno) {
     cout << endl ;
-    if(lineno < 0 || lineno+1 != s.lineno)
-      out << "#line " << s.lineno << endl ;
+    if(!prettyPrint)
+      if(lineno < 0 || lineno+1 != s.lineno)
+	out << "#line " << s.lineno << endl ;
 
     lineno = s.lineno ;
   }
-  out <<s.text << ' ' ;
+  auto t = id2rename.find(s.id) ;
+  if(t != id2rename.end()) {
+    out << t->second ;
+  } else
+    out <<s.text << ' ' ;
 }

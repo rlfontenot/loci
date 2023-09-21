@@ -209,24 +209,6 @@ public:
   AST_exprOper() {nodeType = AST_type::OP_ERROR; }
 } ;
 
-class AST_term : public AST_type {
-public:
-  enum TermTypes {
-		 TERM_NUMBER,
-		 TERM_STRING,
-		 TERM_BOOLEAN,
-		 TERM_VARIABLE,
-		 TERM_LOCIVARIABLE,
-		 TERM_LOCICONTAINER,
-		 TERM_INVALID
-		 
-  } ;
-  TermTypes TermType ;
-  ASTP term ;
-  void accept(AST_visitor &v) ;
-  AST_term() {nodeType = AST_type::ND_TERMINAL; }
-} ;
-
 class AST_controlStatement: public AST_type {
  public:
   ASTP controlType ;
@@ -254,7 +236,6 @@ class AST_visitor {
   virtual void visit(AST_declaration &)  ;
   virtual void visit(AST_exprOper &)  ;
   virtual void visit(AST_controlStatement &) ;
-  virtual void visit(AST_term &) ;
   virtual void visit(AST_Token &) {}
   virtual void visit(AST_syntaxError &) {}
 } ;
@@ -269,20 +250,24 @@ class AST_errorCheck : public AST_visitor {
 } ;
 
 class AST_simplePrint : public AST_visitor {
+ public:
   ostream &out ;
   int lineno ;
- public:
- AST_simplePrint(ostream &s, int line=-1): out(s),lineno(line) {} ;
+  map<int,std::string> id2rename ;
+  bool prettyPrint ;
+  AST_simplePrint(ostream &s, int line=-1,bool pp=true): out(s),lineno(line),prettyPrint(pp) {} 
   virtual void visit(AST_exprOper &)  ;
   virtual void visit(AST_Token &) ;
 } ;
 
 class AST_collectAccessInfo: public AST_visitor {
 public:
-  Loci::variableSet accessed ;
-  Loci::variableSet writes ;
+  std::set<Loci::vmap_info> accessed ;
+  std::set<Loci::vmap_info> writes ;
   std::map<int,Loci::variable> id2var ;
+  std::map<int,Loci::vmap_info> id2vmap ;
   AST_collectAccessInfo() {} ;
+  virtual void visit(AST_exprOper &) ;
   virtual void visit(AST_Token &) ;
 } ;
   
