@@ -27,6 +27,7 @@
 #include <constraint.h>
 #include <new>
 #include "comp_tools.h"
+#include <gpurep.h>
 #include "gpuMap.h"
 
 using std::bad_alloc ;
@@ -54,17 +55,52 @@ using std::ostream ;
 ///////////////////////////////////
 
 namespace Loci {
+  std::vector<GPUstoreAllocateInfo> GPUstoreAllocateData ;
+  std::vector<int> GPUstoreAllocateFreeList ;
+
+  int getGPUStoreAllocateID() {
+    // allocate slot in storeAllocateData
+    int id = GPUstoreAllocateData.size() ;
+    if(!GPUstoreAllocateFreeList.empty()) {
+      id = GPUstoreAllocateFreeList.back() ;
+      GPUstoreAllocateFreeList.pop_back() ;
+    } else {
+      GPUstoreAllocateData.push_back(GPUstoreAllocateInfo()) ;
+    }
+    GPUstoreAllocateData[id].alloc_ptr1 = 0 ;
+    GPUstoreAllocateData[id].alloc_ptr2 = 0 ;
+    GPUstoreAllocateData[id].base_ptr = 0 ;
+    GPUstoreAllocateData[id].base_offset = 0 ;
+    GPUstoreAllocateData[id].size = 0 ;
+    GPUstoreAllocateData[id].allocated_size = 0 ;
+    GPUstoreAllocateData[id].allocated = true ;
+    GPUstoreAllocateData[id].allocset = EMPTY ;
+    return id ;
+  }
+    
+  void releaseGPUStoreAllocateID(int id) {
+    GPUstoreAllocateData[id].alloc_ptr1 = 0 ;
+    GPUstoreAllocateData[id].alloc_ptr2 = 0 ;
+    GPUstoreAllocateData[id].base_ptr = 0 ;
+    GPUstoreAllocateData[id].base_offset = 0 ;
+    GPUstoreAllocateData[id].size = 0 ;
+    GPUstoreAllocateData[id].allocated_size = 0 ;
+    GPUstoreAllocateData[id].allocated = false ;
+    GPUstoreAllocateData[id].allocset = EMPTY ;
+    GPUstoreAllocateFreeList.push_back(id) ;
+  }
+
   using std::pair ;
   using std::make_pair ;
   
   void gpuMapRepI::allocate(const entitySet &ptn) {
     if(alloc_id < 0)
-      alloc_id = getStoreAllocateID() ;
+      alloc_id = getGPUStoreAllocateID() ;
 
-    storeAllocateData[alloc_id].template allocBasic<Entity>(ptn,1) ;
-    store_domain = storeAllocateData[alloc_id].allocset ;
-    base_ptr = (((Entity *) storeAllocateData[alloc_id].base_ptr) -
-		storeAllocateData[alloc_id].base_offset) ;
+    GPUstoreAllocateData[alloc_id].template allocBasic<Entity>(ptn,1) ;
+    store_domain = GPUstoreAllocateData[alloc_id].allocset ;
+    base_ptr = (((Entity *) GPUstoreAllocateData[alloc_id].base_ptr) -
+		GPUstoreAllocateData[alloc_id].base_offset) ;
       
     dispatch_notify() ;
     return ;
@@ -72,8 +108,8 @@ namespace Loci {
 
   gpuMapRepI::~gpuMapRepI() {
     if(alloc_id>=0) {
-      storeAllocateData[alloc_id].template release<Entity>() ;
-      releaseStoreAllocateID(alloc_id) ;
+      GPUstoreAllocateData[alloc_id].template release<Entity>() ;
+      releaseGPUStoreAllocateID(alloc_id) ;
       alloc_id = -1 ;
     }
   }
@@ -450,13 +486,23 @@ namespace Loci {
     frame_info fi ;
     return fi ;
    }
+
   void gpuMapRepI::copyFrom(const storeRepP &p, entitySet set) {
-    const_Map m ;
+    int setivals = set.num_intervals() ;
+    Map m ;
     m.setRep(p) ;
-    gpuMap to(getRep()) ;
-    FORALL(set,ii) {
-      to[ii] = m[ii] ;
-    } ENDFORALL ;
+    Entity *gpu_base_ptr = get_base_ptr() ;
+    for(int i=0;i<setivals;++i) {
+      int start = set[i].first ;
+      int end = set[i].second ;
+      int sz = end-start+1 ;
+      cudaError_t err = cudaMemcpy(gpu_base_ptr+start,&m[start],sizeof(int)*sz,
+			       cudaMemcpyHostToDevice) ;
+      if(err!= cudaSuccess) {
+	cerr << "cudaMemcpy failed in gpuMapRepI::copyFrom" << endl ;
+	Loci::Abort() ;
+      }
+    }
   }
 
   store_type gpuMapRepI::RepType() const  {

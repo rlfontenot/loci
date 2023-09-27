@@ -1467,6 +1467,7 @@ namespace Loci {
       KeySpaceP kp = mi->second ;
       if(kp->get_dynamism() != DYNAMIC)
         continue ;
+#ifdef DYNAMICSCHEDULING
       // finally we have a rule in a dynamic keyspace
       // we need to replace the rule compiler with a
       // corresponding dynamic_impl_compiler
@@ -1888,6 +1889,7 @@ namespace Loci {
         }
         // end of var processing
       } // end of targets
+#endif      
     }
   }
 

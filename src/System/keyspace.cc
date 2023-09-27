@@ -349,6 +349,7 @@ namespace Loci {
 
   void KeySpace::
   set_dcontrol() const {
+#ifdef DYNAMICSCHEDULING
     for(map<variable,set<string> >::const_iterator
           mi=dcontrol_map.begin();mi!=dcontrol_map.end();++mi) {
       const variable& var = mi->first ;
@@ -403,6 +404,9 @@ namespace Loci {
         dcrep->add_drule(drm) ;
       } // end for(drules)
     }
+#else
+    Loci::Abort() ;
+#endif
   }
 
   // definition of global key space list

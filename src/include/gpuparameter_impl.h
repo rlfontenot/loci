@@ -32,11 +32,11 @@ namespace Loci {
 
   template<class T> void gpuparamRepI<T>::allocate(const entitySet &p) {
     if(alloc_id < 0) {
-      alloc_id = getStoreAllocateID() ;
+      alloc_id = getGPUStoreAllocateID() ;
 
       entitySet single = interval(0,0) ;
-      storeAllocateData[alloc_id].template allocBasic<T>(single,1) ;
-      base_ptr = (T *)storeAllocateData[alloc_id].base_ptr ;
+      GPUstoreAllocateData[alloc_id].template allocBasic<T>(single,1) ;
+      base_ptr = (T *)GPUstoreAllocateData[alloc_id].base_ptr ;
       *base_ptr = defaultData ;
     }
     store_domain = p ;
@@ -64,8 +64,8 @@ namespace Loci {
 
   template<class T> gpuparamRepI<T>::~gpuparamRepI() {
     if(alloc_id>=0) {
-      storeAllocateData[alloc_id].template release<T>() ;
-      releaseStoreAllocateID(alloc_id) ;
+      GPUstoreAllocateData[alloc_id].template release<T>() ;
+      releaseGPUStoreAllocateID(alloc_id) ;
       alloc_id = -1 ;
     }
     return ;
@@ -646,11 +646,14 @@ namespace Loci {
 
     return np.Rep() ;
   }
+
+#ifdef DYNAMICSCHEDULING
   template<class T> storeRepP gpuparamRepI<T>::
   redistribute_omd(const std::vector<entitySet>& dom_ptn,
                    const dMap& remap, MPI_Comm comm) {
     return redistribute(dom_ptn,remap,comm) ;
   }
+#endif
   //***************************************************************************
 
 }

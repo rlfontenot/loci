@@ -68,6 +68,20 @@ namespace Loci {
     virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
     virtual void unpack(void *ptr, int &loc, int &size,  const sequence &seq)  ;
     
+#ifdef DYNAMICSCHEDULING
+    // this version of pack/unpack uses a remap during the process
+    // mainly for maps images to transform to another numbering scheme
+    // default behavior is to ignore the remaps
+    virtual void pack(void* ptr, int& loc,
+                      int& size, const entitySet& e, const Map& remap) {
+      pack(ptr,loc,size,e) ;
+    }
+    virtual void unpack(void* ptr, int& loc,
+                        int& size, const sequence& seq, const dMap& remap) {
+      unpack(ptr,loc,size,seq) ;
+    }
+#endif
+    
     virtual entitySet domain() const ;
 
     virtual entitySet image(const entitySet &domain) const ;
@@ -88,6 +102,20 @@ namespace Loci {
     virtual storeRepP thaw() ;
     virtual DatatypeP getType() ;
     virtual frame_info get_frame_info() ;
+#ifdef DYNAMICSCHEDULING
+    virtual storeRepP freeze(const entitySet& es) const {
+      std::cerr << "storeRep.freeze(e) is not implemented yet"
+                << std::endl ;
+      abort() ;
+      return storeRepP(0) ;
+    }
+    virtual storeRepP thaw(const entitySet& es) const {
+      std::cerr << "storeRep.freeze(e) is not implemented yet"
+                << std::endl ;
+      abort() ;
+      return storeRepP(0) ;
+    }
+#endif
   } ;
 
   template<int M> class const_MapVec ;

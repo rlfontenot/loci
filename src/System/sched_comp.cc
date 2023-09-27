@@ -192,6 +192,7 @@ namespace Loci {
           else
             rule_process[*ri] = new error_compiler ;
         } else {
+#ifdef DYNAMICSCHEDULING
           if(ri->get_info().rule_impl->get_rule_class()
              == rule_impl::INSERTION) // an insertion rule
             rule_process[*ri] = new insertion_rule_compiler(*ri) ;
@@ -201,7 +202,9 @@ namespace Loci {
           else if(ri->get_info().rule_impl->get_rule_class()
                   == rule_impl::ERASE) // a erase rule
             rule_process[*ri] = new erase_rule_compiler(*ri) ;
-          else if(ri->get_info().rule_impl->get_rule_class()
+          else
+#endif
+	    if(ri->get_info().rule_impl->get_rule_class()
                   == rule_impl::CONSTRAINT_RULE) // a constraint rule
             rule_process[*ri] = new constraint_compiler(*ri) ;
           else if(ri->get_info().rule_impl->get_rule_class()

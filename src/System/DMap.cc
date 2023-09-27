@@ -343,10 +343,15 @@ namespace Loci {
     dMap new_map ;
     new_map.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
     MapRepP(new_map.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
+#ifdef DYNAMICSCHEDULING
     fill_store2(getRep(), 0, new_map.Rep(), &remap, send, recv, comm) ;
+#else
+    Loci::Abort();
+#endif
     return new_map.Rep() ;
   }
 
+#ifdef DYNAMICSCHEDULING
   storeRepP dMapRepI::
   redistribute_omd(const std::vector<entitySet>& dom_ptn,
                    const dMap& remap, MPI_Comm comm) {
@@ -359,7 +364,8 @@ namespace Loci {
     fill_store_omd(getRep(), 0, new_map.Rep(), &remap, send, recv, comm) ;
     return new_map.Rep() ;
   }
-
+#endif
+  
   // ******************************************************************/
   storeRepP dMapRepI::freeze() {
     Map m ;
@@ -463,6 +469,7 @@ namespace Loci {
                 &position, MPI_COMM_WORLD) ;
   }
   
+#ifdef DYNAMICSCHEDULING
   void dMapRepI::pack(void *outbuf, int &position,
                       int &outcount, const entitySet &eset, const Map& remap) 
   {
@@ -472,7 +479,7 @@ namespace Loci {
       MPI_Pack(&img,1,MPI_INT,outbuf,outcount,&position,MPI_COMM_WORLD) ;
     }
   }
-  
+#endif  
   //**************************************************************************/
 
   void dMapRepI::unpack(void *inbuf, int &position, int &insize, const sequence &seq) 
@@ -483,6 +490,7 @@ namespace Loci {
 		  1, MPI_INT, MPI_COMM_WORLD) ;
   }
   
+#ifdef DYNAMICSCHEDULING
   void dMapRepI::unpack(void *inbuf, int &position,
                         int &insize, const sequence &seq, const dMap& remap) 
   {
@@ -495,6 +503,7 @@ namespace Loci {
     for(ci=seq.begin();ci!=seq.end();++ci)
       attrib_data[*ci] = remap[attrib_data[*ci]] ;
   }
+#endif
   
   //**************************************************************************/
   

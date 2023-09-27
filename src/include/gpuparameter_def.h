@@ -92,9 +92,11 @@ namespace Loci {
     virtual storeRepP
     redistribute(const std::vector<entitySet>& dom_ptn,
                  const dMap& remap, MPI_Comm comm=MPI_COMM_WORLD) ;
+#ifdef DYNAMICSCHEDULING
     virtual storeRepP
     redistribute_omd(const std::vector<entitySet>& dom_ptn,
                      const dMap& remap, MPI_Comm comm=MPI_COMM_WORLD) ;
+#endif
     virtual void shift(int_type offset) ;
     virtual ~gpuparamRepI() ;
     virtual store_type RepType() const ;
@@ -222,9 +224,9 @@ namespace Loci {
     virtual ~const_gpuparam() ;
 
     const_gpuparam & operator=(const_gpuparam<T> &p)
-    { setRep(p.Rep) ; return *this ;}
+    { setRep(p.Rep()) ; return *this ;}
     const_gpuparam & operator=(gpuparam<T> &p)
-    { setRep(p.Rep) ; return *this ;}
+    { setRep(p.Rep()) ; return *this ;}
     const_gpuparam & operator=(storeRepP p)
     { setRep(p) ; return *this ;}
 

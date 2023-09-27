@@ -641,11 +641,13 @@ namespace Loci {
 
     return np.Rep() ;
   }
+#ifdef DYNAMICSCHEDULING
   template<class T> storeRepP paramRepI<T>::
   redistribute_omd(const std::vector<entitySet>& dom_ptn,
                    const dMap& remap, MPI_Comm comm) {
     return redistribute(dom_ptn,remap,comm) ;
   }
+#endif
   //***************************************************************************
 
 }

@@ -148,6 +148,7 @@ namespace Loci {
     virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
   } ;
   
+#ifdef DYNAMICSCHEDULING
   // rule compiler for rule intended to be evaluated at runtime.
   // example rules are those that may reside in a totally dynamic
   // keyspace
@@ -173,7 +174,8 @@ namespace Loci {
     virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
     virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
   } ;
-
+#endif
+  
   // rule compiler for single rule recursion
   class impl_recurse_compiler : public rule_compiler {
     rule impl ;  // rule to implement
@@ -383,6 +385,7 @@ namespace Loci {
     virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
   } ;
   
+#ifdef DYNAMICSCHEDULING
   // dynamic apply rule compiler 
   class dynamic_apply_compiler : public rule_compiler {
     rule apply, unit_tag ;  // rule to apply
@@ -481,7 +484,8 @@ namespace Loci {
     virtual executeP create_execution_schedule(fact_db &facts,
                                                sched_db &scheds) ;
   } ;
-
+#endif
+  
   class promote_compiler : public rule_compiler {
     rule r ;
   public:

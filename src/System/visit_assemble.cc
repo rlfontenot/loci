@@ -528,6 +528,7 @@ namespace Loci {
       if(reduce_var_vector.size() != 0)  
         dag_comp.push_back(new reduce_param_compiler(reduce_var_vector, unit_rule_vector, join_op_vector));
 
+#ifdef DYNAMICSCHEDULING
       // check for dynamic clone invalidator first
       for(variableSet::const_iterator dci=dvars.begin();
           dci!=dvars.end();++dci) {
@@ -602,7 +603,6 @@ namespace Loci {
 
         dag_comp.push_back(new keyspace_dist_compiler(keyspace_dist)) ;
       }
-      
       if(check_dump_vars.ok()) {
         if(all_vars != EMPTY) 
           dag_comp.push_back(new dump_vars_compiler(all_vars)) ;
@@ -629,6 +629,7 @@ namespace Loci {
               (new keyspace_dist_compiler(rp->gather_keyspace_dist())) ;
         }
       }
+#endif      
     }
   }
 

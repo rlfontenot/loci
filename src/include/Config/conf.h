@@ -21,6 +21,8 @@
 #ifndef LOCI_CONFIGURATION_INCLUDE
 #define LOCI_CONFIGURATION_INCLUDE
 
+#define DYNAMICSCHEDULING
+
 #ifdef restrict
 #undef restrict
 #endif

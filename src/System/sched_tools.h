@@ -282,6 +282,7 @@ namespace Loci {
     virtual void reset_ctrl() { dflag = true ; }
   } ;
 
+  
   class execute_dynamic_applyrule : public execute_drule_module {
   protected:
     rule_implP rp ;
@@ -415,7 +416,7 @@ namespace Loci {
     virtual string getName() {return "execute_init_keyspace" ;}
     virtual void dataCollate(collectData& data_collector) const ;
   } ;
-
+  
   class execute_insertion: public execute_modules {
     rule rule_tag ;
     insertion_rule_interfaceP rp ;

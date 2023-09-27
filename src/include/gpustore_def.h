@@ -95,7 +95,6 @@ namespace Loci {
     virtual storeRepP remap(const dMap &m) const ;
     virtual storeRepP freeze() ;
     virtual storeRepP thaw() ;
-    virtual storeRepP thaw(const entitySet& es) const ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
     virtual void gather(const dMap &m, storeRepP &st,
                         const entitySet &context) ;
@@ -121,12 +120,35 @@ namespace Loci {
     T * get_base_ptr() const {
       T *p = 0 ;
       if(alloc_id>=0)
-	p= (((T *)storeAllocateData[alloc_id].base_ptr) -
-	    storeAllocateData[alloc_id].base_offset) ;
+	p= (((T *)GPUstoreAllocateData[alloc_id].base_ptr) -
+	    GPUstoreAllocateData[alloc_id].base_offset) ;
       return p;
     }
     virtual DatatypeP getType() ;
     virtual frame_info get_frame_info() ;
+    
+#ifdef DYNAMICSCHEDULING
+    virtual storeRepP freeze(const entitySet& es) const {
+      std::cerr << "storeRep.freeze(e) is not implemented yet"
+                << std::endl ;
+      abort() ;
+      return storeRepP(0) ;
+    }
+    virtual storeRepP thaw(const entitySet& es) const {
+      std::cerr << "storeRep.freeze(e) is not implemented yet"
+                << std::endl ;
+      abort() ;
+      return storeRepP(0) ;
+    }
+    virtual void pack(void* ptr, int& loc,
+                      int& size, const entitySet& e, const Map& remap) {
+      pack(ptr,loc,size,e) ;
+    }
+    virtual void unpack(void* ptr, int& loc,
+                        int& size, const sequence& seq, const dMap& remap) {
+      unpack(ptr,loc,size,seq) ;
+    }
+#endif
   } ;
 
   template<class T> class gpustore : public store_instance {

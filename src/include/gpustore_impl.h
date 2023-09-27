@@ -24,43 +24,68 @@
 #include <store_def.h>
 #include <DStore_def.h>
 
+#ifdef USE_CUDA_RT
+#include <cuda_runtime_api.h>
+#endif
+
 namespace Loci {
   // Code to copy from cpu container to gpu container
   template<class T> 
   void gpustoreRepI<T>::copyFrom(const storeRepP &p, entitySet set)  {
-    const_store<T> v(p) ;
-    T *base_ptr = get_base_ptr() ;
-    FORALL(set,ii) {
-      base_ptr[ii] = v[ii] ;
-    } ENDFORALL ;
+    int setivals = set.num_intervals() ;
+    store<T> v(p) ;
+    T *gpu_base_ptr = get_base_ptr() ;
+    for(int i=0;i<setivals;++i) {
+      int start = set[i].first ;
+      int end = set[i].second ;
+      int sz = end-start+1 ;
+      cudaError_t err = cudaMemcpy(gpu_base_ptr+start,&v[start],sizeof(T)*sz,
+			       cudaMemcpyHostToDevice) ;
+      if(err!= cudaSuccess) {
+	cerr << "cudaMemcpy failed in gpuMapRepI::copyFrom" << endl ;
+	Loci::Abort() ;
+      }
+    }
+    //    FORALL(set,ii) {
+    //      base_ptr[ii] = v[ii] ;
+    //    } ENDFORALL ;
   }
   
   // code to copy from gpu container to cpu container
   template<class T>
   void gpustoreRepI<T>::copyTo(storeRepP &p, entitySet set) const {
+    int setivals = set.num_intervals() ;
     store<T> v(p) ;
-    const T *base_ptr = get_base_ptr() ;
-    FORALL(set,ii) {
-      v[ii] = base_ptr[ii] ;
-    } ENDFORALL ;
+    const T *gpu_base_ptr = get_base_ptr() ;
+    for(int i=0;i<setivals;++i) {
+      int start = set[i].first ;
+      int end = set[i].second ;
+      int sz = end-start+1 ;
+      cudaError_t err = cudaMemcpy(&v[start],gpu_base_ptr+start,sizeof(T)*sz,
+			       cudaMemcpyDeviceToHost) ;
+      if(err!= cudaSuccess) {
+	cerr << "cudaMemcpy failed in gpuMapRepI::copyFrom" << endl ;
+	Loci::Abort() ;
+      }
+    }
   }
 
   template<class T> void gpustoreRepI<T>::allocate(const entitySet &eset) {
     if(alloc_id < 0) {
-      alloc_id = getStoreAllocateID() ;
-      storeAllocateData[alloc_id].template allocBasic<T>(eset,1) ;
-    } else if(eset != storeAllocateData[alloc_id].allocset) {
-      storeAllocateData[alloc_id].template allocBasic<T>(eset,1) ;
+      alloc_id = getGPUStoreAllocateID() ;
+      GPUstoreAllocateData[alloc_id].template allocBasic<T>(eset,1) ;
+    } else if(eset != GPUstoreAllocateData[alloc_id].allocset) {
+      GPUstoreAllocateData[alloc_id].template allocBasic<T>(eset,1) ;
     }      
       
-    store_domain = storeAllocateData[alloc_id].allocset ; ;
+    store_domain = GPUstoreAllocateData[alloc_id].allocset ; ;
     dispatch_notify() ;
     return ;
   }
 
   template<class T> void gpustoreRepI<T>::shift(int_type offset) {
     store_domain >>= offset ;
-    storeAllocateData[alloc_id].base_offset += offset ;
+    GPUstoreAllocateData[alloc_id].base_offset += offset ;
     dispatch_notify() ;
   }
 
@@ -106,8 +131,8 @@ namespace Loci {
 
   template<class T>  gpustoreRepI<T>::~gpustoreRepI() {
     if(alloc_id>=0) {
-      storeAllocateData[alloc_id].template release<T>() ;
-      releaseStoreAllocateID(alloc_id) ;
+      GPUstoreAllocateData[alloc_id].template release<T>() ;
+      releaseGPUStoreAllocateID(alloc_id) ;
       alloc_id = -1 ;
     }
   }
@@ -178,24 +203,6 @@ namespace Loci {
     return ds.Rep() ;
   }
 
-  template<class T> storeRepP
-  gpustoreRepI<T>::thaw(const entitySet& es) const {
-    entitySet shared = domain() & es ;
-    entitySet out = es - domain() ;
-
-    dstore<T> ds ;
-    T *base_ptr = get_base_ptr() ;
-    for(entitySet::const_iterator ei=shared.begin();
-        ei!=shared.end();++ei)
-      ds[*ei] = base_ptr[*ei] ;
-
-    Entity c = *domain().begin() ;
-    for(entitySet::const_iterator ei=out.begin();
-        ei!=out.end();++ei)
-      ds[*ei] = base_ptr[c] ;
-    
-    return ds.Rep() ;
-  }
   
   template<class T> void gpustoreRepI<T>::copy(storeRepP &st, const entitySet &context)  {
     const_gpustore<T> s(st) ;

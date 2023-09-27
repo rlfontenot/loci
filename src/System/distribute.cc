@@ -1380,6 +1380,7 @@ namespace Loci {
     }
   }
 
+#ifdef DYNAMICSCHEDULING
   void
   fill_store(storeRepP src, const Map* src_pack,
              storeRepP dst, const dMap* dst_unpack,
@@ -1672,7 +1673,7 @@ namespace Loci {
 
     fill_store(src, src_pack, dst, dst_unpack, send, recv, comm) ;
   }
-
+  
   void
   reduce_store(storeRepP src, const Map* src_pack,
                storeRepP dst, const dMap* dst_unpack,
@@ -2280,6 +2281,7 @@ namespace Loci {
     return unpack_domain ;
     // end of function fill_store2
   }
+
 
   entitySet
   expand_store2(storeRepP src,
@@ -2923,6 +2925,6 @@ namespace Loci {
     return unpack_domain ;
     // end of function fill_store_omd
   }
-  
+#endif  
   // ... the end of file ...
 } 

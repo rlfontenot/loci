@@ -85,9 +85,11 @@ namespace Loci {
     virtual storeRepP
     redistribute(const std::vector<entitySet>& dom_ptn,
                  const dMap& remap, MPI_Comm comm=MPI_COMM_WORLD) ;
+#ifdef DYNAMICSCHEDULING
     virtual storeRepP
     redistribute_omd(const std::vector<entitySet>& dom_ptn,
                      const dMap& remap, MPI_Comm comm=MPI_COMM_WORLD) ;
+#endif
     virtual void shift(int_type offset) ;
     virtual ~paramRepI() ;
     virtual store_type RepType() const ;
@@ -116,6 +118,28 @@ namespace Loci {
     T *get_param() { return base_ptr ; }
     virtual DatatypeP getType() ;
     virtual frame_info get_frame_info() ;
+#ifdef DYNAMICSCHEDULING
+    virtual storeRepP freeze(const entitySet& es) const {
+      std::cerr << "storeRep.freeze(e) is not implemented yet"
+                << std::endl ;
+      abort() ;
+      return storeRepP(0) ;
+    }
+    virtual storeRepP thaw(const entitySet& es) const {
+      std::cerr << "storeRep.freeze(e) is not implemented yet"
+                << std::endl ;
+      abort() ;
+      return storeRepP(0) ;
+    }
+    virtual void pack(void* ptr, int& loc,
+                      int& size, const entitySet& e, const Map& remap) {
+      pack(ptr,loc,size,e) ;
+    }
+    virtual void unpack(void* ptr, int& loc,
+                        int& size, const sequence& seq, const dMap& remap) {
+      unpack(ptr,loc,size,seq) ;
+    }
+#endif
   } ;
 
  
@@ -215,9 +239,9 @@ namespace Loci {
     virtual ~const_param() ;
 
     const_param & operator=(const_param<T> &p)
-    { setRep(p.Rep) ; return *this ;}
+    { setRep(p.Rep()) ; return *this ;}
     const_param & operator=(param<T> &p)
-    { setRep(p.Rep) ; return *this ;}
+    { setRep(p.Rep()) ; return *this ;}
     const_param & operator=(storeRepP p)
     { setRep(p) ; return *this ;}
 

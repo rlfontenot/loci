@@ -126,6 +126,7 @@ namespace Loci {
                std::vector<P2pCommInfo>& send,
                std::vector<P2pCommInfo>& recv) ;
 
+#ifdef DYNAMICSCHEDULING
   // given a communication structure on every process,
   // this function fulfills the data communication.
   // each process fills the "dst" store with the data that
@@ -251,6 +252,7 @@ namespace Loci {
                CPTR<joiner> join_op,
                const std::vector<entitySet>& dst_ptn, MPI_Comm comm) ;
 
+#endif
   // this function provides a way to determine if an execution 
   // thread is the leading execution unit in the system.  for threads,
   // this is similar to determine if the calling process is ranked 0

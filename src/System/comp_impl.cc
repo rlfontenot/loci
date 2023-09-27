@@ -116,6 +116,7 @@ namespace Loci {
   int current_rule_id = 0 ;
   int rule_count = 0;
 
+#ifdef DYNAMICSCHEDULING
   // implementation of execute_dynamic_rule
   namespace {
     variableSet
@@ -851,7 +852,7 @@ namespace Loci {
 
     return context ;
   }
-  
+
   execute_dynamic_rule::
   execute_dynamic_rule(rule r, KeySpaceP kp,
                        fact_db& facts, sched_db& scheds) {
@@ -1080,6 +1081,7 @@ namespace Loci {
 
     data_collector.accumulateTime(timer,EXEC_COMPUTATION,oss.str()) ;
   }
+#endif
   
   execute_rule::execute_rule(rule fi, sequence seq, fact_db &facts, const sched_db &scheds)  {
     rp = fi.get_rule_implP() ;
@@ -1245,6 +1247,7 @@ namespace Loci {
     return exec_rule;
   }
 
+#ifdef DYNAMICSCHEDULING
   void
   dynamic_impl_compiler::
   set_var_existence(fact_db& facts, sched_db& scheds) {
@@ -1280,7 +1283,8 @@ namespace Loci {
     executeP execute = new execute_dynamic_rule(impl,space,facts,scheds) ;
     return execute ;
   }
-
+  
+  
   // execute_dynamic_applyrule module implementation
   execute_dynamic_applyrule::
   execute_dynamic_applyrule(rule a, rule u, KeySpaceP kp,
@@ -1466,7 +1470,12 @@ namespace Loci {
     storeRepP target_rep_local ;
     if(output_cross_space) {
       // initialize the unit value by using the proper thaw method
+#ifdef DYNAMICSCHEDULING
       target_rep_local = target_rep_in_facts->thaw(target_var_exist) ;
+#else
+      cerr << "dynamic schduling feature not enabled" << endl ;
+      Abort() ;
+#endif
     } else {
       target_rep_local = target_rep_in_facts ;
       // again, we don't want to allocate the targets
@@ -1998,6 +2007,7 @@ namespace Loci {
     oss << "keyspace distribution: (" << space_names << ")" ;
     data_collector.accumulateTime(timer,EXEC_COMMUNICATION,oss.str()) ;
   }
+#endif
 
   // execute_keyspace_init module
   execute_init_keyspace::
@@ -2117,6 +2127,8 @@ namespace Loci {
     executeP execute = new execute_rule(impl, ~EMPTY, facts, scheds);
     return execute;
   }
+
+#ifdef DYNAMICSCHEDULING
 
   // here comes the insertion and deletion rule impls
   executeP insertion_rule_compiler::
@@ -2643,7 +2655,7 @@ namespace Loci {
     oss << "Reset Drule control flag by: " << var ;
     data_collector.accumulateTime(timer,EXEC_CONTROL,oss.str()) ;
   }
-  
+#endif  
 
   ///////////////////////////////////////////////
   // Lets set up some common super rule functions

@@ -85,12 +85,26 @@ namespace Loci {
     virtual void writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name,  entitySet& en, hid_t xfer_plist_id) const ;
 #endif    
 
-    Entity * get_base_ptr() const { Entity * p = 0 ; if(alloc_id>=0) p = ((Entity *)storeAllocateData[alloc_id].base_ptr) -storeAllocateData[alloc_id].base_offset ; return p ; }
+    Entity * get_base_ptr() const { Entity * p = 0 ; if(alloc_id>=0) p = ((Entity *)GPUstoreAllocateData[alloc_id].base_ptr) -GPUstoreAllocateData[alloc_id].base_offset ; return p ; }
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
     virtual DatatypeP getType() ;
     virtual frame_info get_frame_info() ;
     virtual void copyFrom(const storeRepP &fromMap, entitySet set)  ;
     virtual store_type RepType() const ;
+#ifdef DYNAMICSCHEDULING
+    virtual storeRepP freeze(const entitySet& es) const {
+      std::cerr << "storeRep.freeze(e) is not implemented yet"
+                << std::endl ;
+      abort() ;
+      return storeRepP(0) ;
+    }
+    virtual storeRepP thaw(const entitySet& es) const {
+      std::cerr << "storeRep.freeze(e) is not implemented yet"
+                << std::endl ;
+      abort() ;
+      return storeRepP(0) ;
+    }
+#endif
   } ;
   
   typedef NPTR<gpuMapRep> gpuMapRepP ;
