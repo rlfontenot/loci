@@ -161,6 +161,7 @@ namespace Loci {
     }
     int getRangeKeySpace() const { return MapRepP(Rep())->getRangeKeySpace() ; }
     void setRangeKeySpace(int v) { MapRepP(Rep())->setRangeKeySpace(v) ; }
+    Entity *ptr() { return base_ptr ; }
   } ;
 
   inline std::ostream & operator<<(std::ostream &s, const gpuMap &m)
@@ -201,6 +202,7 @@ namespace Loci {
     const Entity &operator[](size_t indx) const { return const_elem(indx) ; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
     int getRangeKeySpace() const { return MapRepP(Rep())->getRangeKeySpace() ; }
+    const Entity *ptr() const { return base_ptr ; }
   } ;
 
   inline std::ostream & operator<<(std::ostream &s, const const_gpuMap &m)

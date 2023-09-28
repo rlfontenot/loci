@@ -171,6 +171,7 @@ namespace Loci {
     T &operator*() { return *data ; }
     const T &operator*() const { return *data ; }
 
+    T *ptr() { return data ; }
     T &operator[](int indx) {
 #ifdef BOUNDS_CHECK
       fatal(data == NULL) ;
@@ -239,6 +240,7 @@ namespace Loci {
 
     const T & restrict operator*() const { return *data ; }
 
+    const T *ptr() const { return data ; }
     const T & restrict operator[](int indx) const {
 #ifdef BOUNDS_CHECK
       fatal(data == NULL) ;

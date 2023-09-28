@@ -170,6 +170,7 @@ namespace Loci {
     entitySet domain() const { return Rep()->domain(); }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ;}
+    T *ptr() { return base_ptr ; }
     T &elem(int indx) {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL);
@@ -211,6 +212,7 @@ namespace Loci {
     const_gpustore<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
     entitySet domain() const { return Rep()->domain(); }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
+    const T *ptr() const { return base_ptr ; }
 #ifdef BOUNDS_CHECK
     const T &elem(Entity indx) const {
       fatal(base_ptr==NULL);
