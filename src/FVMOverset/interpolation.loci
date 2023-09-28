@@ -222,7 +222,7 @@ namespace Loci {
     real_t d2 = dot(vd,vd) ;
     for(int i=1;i<sz;++i) {
       vd = $face2node[i-1]->$pos-$face2node[i]->$pos ;
-      max(d2,dot(vd,vd)) ;
+      d2 = max(d2,dot(vd,vd)) ;
     }
     join($cl->$cellSize2,realToFloat(d2)) ;
     join($cr->$cellSize2,realToFloat(d2)) ;
