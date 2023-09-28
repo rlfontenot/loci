@@ -271,7 +271,6 @@ namespace Loci {
   }
   
   void fact_db::create_pure_fact(const variable& v, storeRepP st) {
-    
     if(isMAP(st) || isSTORE(st)) {
       int max_val = st->domain().Max() ;
       if(gmax_alloc.size()==0)
@@ -733,10 +732,10 @@ namespace Loci {
       }
       std::map<variable, fact_info>::iterator fmi = fmap.find(v) ;
       if(fmi == fmap.end()) { // does not exist, so install
+	//	srp->allocate(~EMPTY) ;
 	create_fact(v,srp) ;
 	rp->set_store(mi->second.first,srp) ;
         rp->compute(sequence(EMPTY)) ;
-
       }
     }
   }

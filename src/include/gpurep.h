@@ -81,26 +81,30 @@ namespace Loci {
 	       << endl ;
 	  Loci::Abort() ;
 	}
-	
+
+#ifdef USE_CUDA_RT
 	cudaError_t err = cudaFree(alloc_ptr1) ;
 	if(err!= cudaSuccess) {
 	  cerr << "cudaFree  failed" << endl ;
 	  cerr << "error = " << cudaGetErrorString(err) << endl;
 	  Loci::Abort() ;
 	}
-
+#else
+	free(alloc_ptr1) ;
+#endif
 	if(alloc_ptr2 != 0) {
+#ifdef USE_CUDA_RT
 	  err = cudaFree(alloc_ptr2) ;
 	  if(err!= cudaSuccess) {
 	    cerr << "cudaFree  failed" << endl ;
 	    cerr << "error = " << cudaGetErrorString(err) << endl;
 	    Loci::Abort() ;
 	  }
+#else
+	  free(alloc_ptr2) ;
+#endif
 	}
 
-	//	free(alloc_ptr1) ;
-	//	if(alloc_ptr2 != 0)
-	//	  free(alloc_ptr2) ;
 	alloc_ptr1 = 0 ;
 	alloc_ptr2 = 0 ;
 	base_ptr = 0 ;
@@ -121,12 +125,18 @@ namespace Loci {
 	    Loci::Abort() ;
 	  }
 	  //	  free(alloc_ptr1) ;
+
+#ifdef USE_CUDA_RT
 	  cudaError_t err = cudaFree(alloc_ptr1) ;
 	  if(err!= cudaSuccess) {
 	    cerr << "cudaFree  failed" << endl ;
 	    cerr << "error = " << cudaGetErrorString(err) << endl;
 	    Loci::Abort() ;
 	  }
+#else
+	  free(alloc_ptr1) ;
+#endif
+	  
 	}
 	alloc_ptr1 = 0 ;
 	base_ptr = 0 ;
@@ -157,7 +167,8 @@ namespace Loci {
       entitySet ecommon = allocset & eset ;
 
       size_t alloc_size = (new_range_max-new_range_min+1)*sz ;
-      //      T * tmp_alloc_pointer = (T *) malloc(sizeof(T)*(alloc_size)+(STORE_ALIGN_SIZE)) ;
+
+#ifdef USE_CUDA_RT
       T *tmp_alloc_pointer  ;
       cudaError_t err = cudaMalloc((void **) &tmp_alloc_pointer,sizeof(T)*alloc_size) ;
       if(err!= cudaSuccess) {
@@ -165,7 +176,9 @@ namespace Loci {
 	cerr << "error = " << cudaGetErrorString(err) << endl;
 	Loci::Abort() ;
       }
-      
+#else      
+      T * tmp_alloc_pointer = (T *) malloc(sizeof(T)*(alloc_size)+(STORE_ALIGN_SIZE)) ;
+#endif
       T* tmp_base_ptr = tmp_alloc_pointer ; 
       T* tmp_base_algn = (T *) ((uintptr_t) tmp_base_ptr ) ;
       if(tmp_base_ptr !=tmp_base_algn) 
@@ -194,13 +207,16 @@ namespace Loci {
 	Loci::Abort() ;
       }
       if(alloc_ptr1) {
+#ifdef USE_CUDA_RT
 	cudaError_t err = cudaFree(alloc_ptr1) ;
 	if(err!= cudaSuccess) {
 	  cerr << "cudaFree  failed" << endl ;
 	  cerr << "error = " << cudaGetErrorString(err) << endl;
 	  Loci::Abort() ;
 	}
-      	//free(alloc_ptr1) ;
+#else
+      	free(alloc_ptr1) ;
+#endif
       }
       alloc_ptr1 = tmp_alloc_pointer ;
       base_ptr = tmp_base_ptr ;

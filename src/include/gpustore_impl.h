@@ -39,12 +39,14 @@ namespace Loci {
       int start = set[i].first ;
       int end = set[i].second ;
       int sz = end-start+1 ;
+#ifdef USE_CUDA_RT
       cudaError_t err = cudaMemcpy(gpu_base_ptr+start,&v[start],sizeof(T)*sz,
 			       cudaMemcpyHostToDevice) ;
       if(err!= cudaSuccess) {
 	cerr << "cudaMemcpy failed in gpuMapRepI::copyFrom" << endl ;
 	Loci::Abort() ;
       }
+#endif
     }
     //    FORALL(set,ii) {
     //      base_ptr[ii] = v[ii] ;
@@ -61,12 +63,14 @@ namespace Loci {
       int start = set[i].first ;
       int end = set[i].second ;
       int sz = end-start+1 ;
+#ifdef USE_CUDA_RT
       cudaError_t err = cudaMemcpy(&v[start],gpu_base_ptr+start,sizeof(T)*sz,
 			       cudaMemcpyDeviceToHost) ;
       if(err!= cudaSuccess) {
 	cerr << "cudaMemcpy failed in gpuMapRepI::copyFrom" << endl ;
 	Loci::Abort() ;
       }
+#endif
     }
   }
 

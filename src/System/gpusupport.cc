@@ -488,6 +488,7 @@ namespace Loci {
    }
 
   void gpuMapRepI::copyFrom(const storeRepP &p, entitySet set) {
+#ifdef US_CUDA_RT
     int setivals = set.num_intervals() ;
     Map m ;
     m.setRep(p) ;
@@ -496,13 +497,16 @@ namespace Loci {
       int start = set[i].first ;
       int end = set[i].second ;
       int sz = end-start+1 ;
+
       cudaError_t err = cudaMemcpy(gpu_base_ptr+start,&m[start],sizeof(int)*sz,
 			       cudaMemcpyHostToDevice) ;
       if(err!= cudaSuccess) {
 	cerr << "cudaMemcpy failed in gpuMapRepI::copyFrom" << endl ;
 	Loci::Abort() ;
       }
+
     }
+#endif
   }
 
   store_type gpuMapRepI::RepType() const  {
