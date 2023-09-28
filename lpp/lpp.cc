@@ -1760,8 +1760,8 @@ void parseFile::setup_cudaRule(std::ostream &outputFile) {
 #endif
 
 
-  if(!prettyOutput)
-    outputFile << "namespace {" ;
+  //  if(!prettyOutput)
+  //    outputFile << "namespace {" ;
   outputFile << "class " << class_name << " : public Loci::" << rule_type << "_rule" ;
   if(rule_type == "pointwise") {
     for(variableSet::const_iterator vi=output.begin();vi!=output.end();++vi) {
@@ -2016,12 +2016,12 @@ void parseFile::setup_cudaRule(std::ostream &outputFile) {
   
   for(auto i=varaccess.accessed.begin();i!=varaccess.accessed.end();++i) {
     readvars += i->var ;
-    for(int j=0;j<i->mapping.size();++j)
+    for(size_t j=0;j<i->mapping.size();++j)
       readvars += i->mapping[j] ;
   }
   for(auto i=varaccess.writes.begin();i!=varaccess.writes.end();++i) {
     writevars += i->var ;
-    for(int j=0;j<i->mapping.size();++j)
+    for(size_t j=0;j<i->mapping.size();++j)
       readvars += i->mapping[j] ;
   }
 
@@ -2070,7 +2070,7 @@ void parseFile::setup_cudaRule(std::ostream &outputFile) {
   outputFile << "__global__" << endl ;
   if(!prettyOutput)
     outputFile << "#line " << startline << endl ;
-  outputFile << class_name << "_kernel(" ;
+  outputFile << "void "<< class_name << "_kernel(" ;
   for(auto i=writevars.begin();i!=writevars.end();) {
     outputFile << typetable[*i]<< " *" << vnames[*i] ;
     ++i ;
@@ -2096,16 +2096,17 @@ void parseFile::setup_cudaRule(std::ostream &outputFile) {
     outputFile << "#line " << printer.lineno  << endl ;
   outputFile << "   if(_e_ <= _end_) {" << endl ;
   if(!prettyOutput)
-    outputFile <<  "#line " << printer.lineno  ;
-  outputFile << endl << "  int " ;
-  for(auto i=maplist.begin();i!=maplist.end();) {
-    outputFile << i->first << "=" << i->second ;
-    ++i ;
-    if(i!=maplist.end())
-      outputFile << "," ;
+    outputFile <<  "#line " << printer.lineno << endl  ;
+  if(!maplist.empty()) {
+    outputFile << "  int " ;
+    for(auto i=maplist.begin();i!=maplist.end();) {
+      outputFile << i->first << "=" << i->second ;
+      ++i ;
+      if(i!=maplist.end())
+	outputFile << "," ;
+    }
+    outputFile << ";" ;
   }
-  outputFile << ";" ;
-
   
   ap->accept(printer) ;
 
@@ -2129,7 +2130,7 @@ void parseFile::setup_cudaRule(std::ostream &outputFile) {
   syncFile(outputFile) ;
   outputFile << "    const Loci::int_type stop = max(i1,i2) ;" << endl ;
   syncFile(outputFile) ;
-  outputFile << "    const int nblks = (stop-start+nblks)/nblks ;" << endl ;
+  outputFile << "    const int nblks = (stop-start+NTHREADS)/NTHREADS ;" << endl ;
   syncFile(outputFile) ;
   outputFile <<"    " <<class_name << "_kernel<<<nblks,NTHREADS>>>(";
   for(auto i=writevars.begin();i!=writevars.end();) {
@@ -2148,7 +2149,9 @@ void parseFile::setup_cudaRule(std::ostream &outputFile) {
   }
   outputFile << ",start, stop, NTHREADS) ;" << endl ;
   syncFile(outputFile) ;
-  outputFile << "}" << endl;
+  outputFile << "}" << endl; // end of for loop
+  syncFile(outputFile) ;
+  outputFile << "}" << endl; // end of compute method
   syncFile(outputFile) ;
   
   if(!prettyOutput)
@@ -2159,10 +2162,10 @@ void parseFile::setup_cudaRule(std::ostream &outputFile) {
                << " ;" << endl ;
   syncFile(outputFile) ;
 
-  if(!prettyOutput) {
-    outputFile << "}" << endl ;
-    syncFile(outputFile) ;
-  }
+  //  if(!prettyOutput) {
+  //    outputFile << "}" << endl ;
+  //    syncFile(outputFile) ;
+  //  }
 
   
   if(!use_prelude && sized_outputs && (rule_type != "apply")) 

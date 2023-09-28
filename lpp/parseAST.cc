@@ -648,6 +648,7 @@ bool isTypeDecl(CPTR<AST_Token> p, const varmap &typemap) {
   case AST_type::TK_SIGNED:
   case AST_type::TK_UNSIGNED:
   case AST_type::TK_CONST:
+  case AST_type::TK_AUTO:
     return true ;
   case AST_type::TK_NAME:
     {
@@ -878,6 +879,7 @@ AST_type::ASTP parseStatement(std::istream &is, int &linecount, const varmap &ty
   case AST_type::TK_SIGNED:
   case AST_type::TK_UNSIGNED:
   case AST_type::TK_CONST:
+  case AST_type::TK_AUTO:
     return parseDeclaration(is,linecount,typemap) ;
   case AST_type::TK_FOR:
   case AST_type::TK_WHILE:
@@ -893,6 +895,29 @@ AST_type::ASTP parseStatement(std::istream &is, int &linecount, const varmap &ty
     return parseSpecialControlStatement(is,linecount,typemap) ;
   case AST_type::TK_NAME:
     {
+      CPTR<AST_Token> tok1 = getToken(is,linecount) ;
+      CPTR<AST_Token> tok2 = getToken(is,linecount) ;
+      switch(tok2->nodeType) {
+      case AST_type::TK_CHAR:
+      case AST_type::TK_FLOAT:
+      case AST_type::TK_DOUBLE:
+      case AST_type::TK_INT:
+      case AST_type::TK_BOOL:
+      case AST_type::TK_SHORT:
+      case AST_type::TK_LONG:
+      case AST_type::TK_SIGNED:
+      case AST_type::TK_UNSIGNED:
+      case AST_type::TK_CONST:
+      case AST_type::TK_AUTO:
+      case AST_type::TK_NAME:
+	pushToken(tok2) ;
+	pushToken(tok1) ;
+	return parseDeclaration(is,linecount,typemap) ;
+      default:
+	pushToken(tok2) ;
+	pushToken(tok1) ;
+	break ;
+      }
       if(isTypeDecl(firstToken,typemap))
 	return parseDeclaration(is,linecount,typemap) ;
       
@@ -1234,7 +1259,7 @@ void AST_simplePrint::visit(AST_exprOper &s) {
 
 void AST_simplePrint::visit(AST_Token &s) {
   if(lineno != s.lineno) {
-    cout << endl ;
+    out << endl ;
     if(!prettyPrint)
       if(lineno < 0 || lineno+1 != s.lineno)
 	out << "#line " << s.lineno << endl ;
