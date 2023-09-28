@@ -27,8 +27,7 @@
 
 #ifndef GPARAMETER_H
 #define GPARAMETER_H
-#include <parameter_def.h>
+#include <parameter.h>
 #include <gparameter_def.h>
-#include <parameter_impl.h>
 #include <gparameter_impl.h>
 #endif
