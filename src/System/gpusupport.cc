@@ -488,7 +488,7 @@ namespace Loci {
    }
 
   void gpuMapRepI::copyFrom(const storeRepP &p, entitySet set) {
-#ifdef US_CUDA_RT
+#ifdef USE_CUDA_RT
     int setivals = set.num_intervals() ;
     Map m ;
     m.setRep(p) ;
@@ -498,7 +498,7 @@ namespace Loci {
       int end = set[i].second ;
       int sz = end-start+1 ;
 
-      cudaError_t err = cudaMemcpy(gpu_base_ptr+start,&m[start],sizeof(int)*sz,
+      cudaError_t err = cudaMemcpy(gpu_base_ptr+start,&m[start],sizeof(Entity)*sz,
 			       cudaMemcpyHostToDevice) ;
       if(err!= cudaSuccess) {
 	cerr << "cudaMemcpy failed in gpuMapRepI::copyFrom" << endl ;
@@ -731,6 +731,7 @@ namespace Loci {
 
   void map2gpu_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
     //    existential_rule_analysis(r,facts, scheds) ;
+    cerr << "synonym variable in map2gpu_compiler, r=" << r << endl ;
     scheds.synonym_variable(*r.sources().begin(),*r.targets().begin()) ;
   }
 
@@ -795,7 +796,7 @@ namespace Loci {
   }
 
   void execute_map2gpu_copy::execute(fact_db &facts, sched_db &scheds) {
-    cerr << "copy map r=" << r << " set=" << copyset << endl ;
+    //    cerr << "copy map r=" << r << " set=" << copyset << endl ;
     gpuvar->allocate(copyset) ;
     gpuvar->copyFrom(cpuvar,copyset) ;
   }
