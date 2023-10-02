@@ -1726,39 +1726,6 @@ void parseFile::setup_cudaRule(std::ostream &outputFile) {
     local_type_map[*vi] = mi->second ;
   }
 
-#ifdef HACK
-  //  process_Calculate(outputFile,vnames,validate_set) ;
-  varmap typemap ;
-  typemap["vect3d"] = varinfo(true,false) ;
-
-  if(is.peek() != '{')
-    throw parseError("syntax error, expecting '{'") ;
-
-  CPTR<AST_type> ap = parseBlock(is,line_no,typemap) ;
-  //    outputFile << "Parsed TEST:" << endl ;
-  AST_errorCheck syntaxChecker ;
-  ap->accept(syntaxChecker) ;
-  if(syntaxChecker.hasErrors())
-    throw parseError("syntax error") ;
-
-  AST_collectAccessInfo varaccess ;
-  ap->accept(varaccess) ;
-  cout << "variables = " << varaccess.accessed << endl ;
-  cout << "write variables = " << varaccess.writes << endl ;
-
-  
-  AST_simplePrint printer(outputFile) ;
-
-  for(auto i = varaccess.id2var.begin();i!=varaccess.id2var.end();++i)
-    printer.id2rename[i->first] = vnames[i->second]+"[_e_]" ;
-  for(auto i = varaccess.id2vmap.begin();i!=varaccess.id2vmap.end();++i) {
-    
-  }
-
-  ap->accept(printer) ;
-
-#endif
-
 
   //  if(!prettyOutput)
   //    outputFile << "namespace {" ;
@@ -1958,7 +1925,7 @@ void parseFile::setup_cudaRule(std::ostream &outputFile) {
   outputFile <<   "    }" << endl ;
   syncFile(outputFile) ;
 
-  bool use_compute = true ;
+  //  bool use_compute = true ;
 
   if(use_prelude) {
     throw parseError("prelude not compatible with cuda rules") ;
@@ -2000,11 +1967,13 @@ void parseFile::setup_cudaRule(std::ostream &outputFile) {
   
   AST_errorCheck syntaxChecker ;
   ap->accept(syntaxChecker) ;
-  if(syntaxChecker.hasErrors())
-
-
+  if(syntaxChecker.hasErrors()) {
+#ifdef VERBOSE
+    AST_simplePrint printer(cerr,-1,false) ;
+    ap->accept(printer) ;
+#endif
     throw parseError("syntax error") ;
-
+  }
   
   AST_collectAccessInfo varaccess ;
   ap->accept(varaccess) ;

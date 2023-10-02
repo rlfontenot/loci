@@ -18,6 +18,7 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
+//#define VERBOSE
 #include "lpp.h"
 #include "parseAST.h"
 #include <ctype.h>
@@ -53,6 +54,9 @@ using namespace Loci ;
 vector<CPTR<AST_Token> >  tokenStack ;
 
 void pushToken(CPTR<AST_Token> &pt) {
+#ifdef VERBOSE
+  cerr << "pushing token " << pt->text << endl ;
+#endif
   tokenStack.push_back(pt) ;
 }
 
@@ -355,7 +359,16 @@ CPTR<AST_Token> getToken(std::istream &is, int &linecount) {
       cerr << "get token OPER("<< AST_data->text<< ")" << endl ;
 #endif
       return AST_data ;
-    }      
+    }
+//     if(is.peek() >= '0' && is.peek() <='9') {
+//       // this is a number
+//       CPTR<AST_Token> num = getNumberToken(is,linecount) ;
+//       num->text = string("-")+num->text ;
+// #ifdef VERBOSE
+//       cerr << "get token NUM(" << num->text << ")"<< endl ;
+// #endif
+//       return num ;
+//     }
     AST_data->nodeType = AST_type::TK_MINUS ;
 #ifdef VERBOSE
       cerr << "get token OPER("<< AST_data->text<< ")" << endl ;
@@ -731,6 +744,7 @@ CPTR<AST_Token> getToken(std::istream &is, int &linecount) {
       while(!is.fail() && !is.eof() &&
 	    ((is.peek() >='a' && is.peek() <='z') ||
 	     (is.peek() >='A' && is.peek() <='Z') ||
+	     (is.peek() >='0' && is.peek() <='9') ||
 	     is.peek() == '_' || is.peek() == '@' ||
 	     is.peek() == '(' || is.peek() == '{')) {
 	if(is.peek() == '(') {

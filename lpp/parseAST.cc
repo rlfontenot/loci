@@ -18,6 +18,8 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
+//#define VERBOSE
+
 #include "lpp.h"
 #include "parseAST.h"
 #include <ctype.h>
@@ -70,6 +72,9 @@ void AST_controlStatement::accept(AST_visitor &v) {  v.visit(*this) ; }
 
 AST_type::ASTP parseTerm(std::istream &is, int &linecount) {
   CPTR<AST_Token> token = getToken(is,linecount) ;
+#ifdef VERBOSE
+  cerr << "in parseTerm, token = " << token->text << endl ;
+#endif
   switch(token->nodeType) {
   case AST_type::TK_NAME:
   case AST_type::TK_TRUE:
@@ -177,7 +182,7 @@ string OPtoString(AST_type::elementType val) {
     return string("~") ;
   case AST_type::OP_AMPERSAND:
     return string("&") ;
-  case AST_type::OP_TERTIARY:
+  case AST_type::OP_TERNARY:
     return string("?") ;
   case AST_type::OP_DOLLAR:
     return string("$") ;
@@ -194,6 +199,9 @@ string OPtoString(AST_type::elementType val) {
 
 AST_type::ASTP parseOperator(std::istream &is, int &linecount) {
   CPTR<AST_Token> openToken = getToken(is,linecount) ;
+#ifdef VERBOSE
+  cerr << "in parseOperator, token = " << openToken->text << endl ;
+#endif
   switch(openToken->nodeType) {
   case AST_type::TK_SCOPE:
     openToken->nodeType = AST_type::OP_SCOPE ;
@@ -299,7 +307,10 @@ AST_type::ASTP parseOperator(std::istream &is, int &linecount) {
     openToken->nodeType = AST_type::OP_COMMA ;
     return AST_type::ASTP(openToken) ;
   case AST_type::TK_QUESTION:
-    openToken->nodeType = AST_type::OP_TERTIARY ;
+#ifdef VERBOSE
+    cerr << "returning OP_TERNARY" << endl ;
+#endif
+    openToken->nodeType = AST_type::OP_TERNARY ;
     return AST_type::ASTP(openToken) ;
   case AST_type::TK_DOT:
     openToken->nodeType = AST_type::OP_DOT ;
@@ -362,6 +373,9 @@ AST_type::ASTP applyPostFixOperator(AST_type::ASTP expr,
 				    std::istream &is, int &linecount,
 				    const varmap &typemap) {
   CPTR<AST_Token> openToken = getToken(is,linecount) ;
+#ifdef VERBOSE
+  cerr << "in applyPostFixOperator, token = " << openToken->text << endl ;
+#endif
   if(checkPostFixToken(openToken->nodeType)) {
     CPTR<AST_exprOper> post = new AST_exprOper ;
     post->nodeType = postFixOperator(openToken->nodeType) ;
@@ -402,6 +416,9 @@ AST_type::ASTP applyPostFixOperator(AST_type::ASTP expr,
 
 AST_type::ASTP parseExpressionPartial(std::istream &is, int &linecount, const varmap &typemap) {
   CPTR<AST_Token> openToken = getToken(is,linecount) ;
+#ifdef VERBOSE
+  cerr << "in parseExpressionPartial, token = " << openToken->text << endl ;
+#endif
   if(openToken->nodeType == AST_type::TK_OPENPAREN) {
     AST_type::ASTP exp = parseExpression(is,linecount,typemap) ;
     CPTR<AST_Token> closeToken = getToken(is,linecount) ;
@@ -459,6 +476,9 @@ AST_type::ASTP parseExpressionPartial(std::istream &is, int &linecount, const va
 
 
 AST_type::ASTP parseExpression(std::istream &is, int &linecount,const varmap &typemap) {
+#ifdef VERBOSE
+  cerr << "in parseExpression"<< endl ;
+#endif
   AST_type::ASTP expr = parseExpressionPartial(is,linecount,typemap) ;
   if(expr == 0) // If no valid expression then return null
     return expr ;
@@ -476,8 +496,11 @@ AST_type::ASTP parseExpression(std::istream &is, int &linecount,const varmap &ty
     AST_type::ASTP op = parseOperator(is, linecount) ;
     if(op == 0)
       break ;
-    
-    expr = parseExpressionPartial(is,linecount,typemap) ;
+
+    if(op->nodeType == AST_type::OP_TERNARY ) 
+      expr = parseExpression(is,linecount,typemap) ;
+    else
+      expr = parseExpressionPartial(is,linecount,typemap) ;
     
     if(expr == 0) {
       return AST_type::ASTP(new AST_syntaxError("Expecting expression after binary operator",linecount)) ;
@@ -492,6 +515,11 @@ AST_type::ASTP parseExpression(std::istream &is, int &linecount,const varmap &ty
       // Now we reorder the tree based on operator precedence
       while(exprStack.size() >1 &&
 	    ((op->nodeType&mask) >= (mask&exprStack.back()->nodeType))) {
+#ifdef VERBOSE
+	if(op->nodeType == AST_type::OP_TERNARY) {
+	  cerr << "popping stack when OP_TERNARY" << endl ;
+	}
+#endif
 	exprStack.pop_back() ;
       }
       if(op->nodeType == exprStack.back()->nodeType) {
@@ -504,25 +532,39 @@ AST_type::ASTP parseExpression(std::istream &is, int &linecount,const varmap &ty
 	np->terms.push_back(exprStack.back()->terms.back()) ;
 	np->terms.push_back(expr) ;
 	exprStack.back()->terms.back() = AST_type::ASTP(np) ;
-	if(op->nodeType == AST_type::OP_TERTIARY ) {
+	if(op->nodeType == AST_type::OP_TERNARY ) {
 	  CPTR<AST_Token> op2 = getToken(is,linecount) ;
+#ifdef VERBOSE
+	  cerr << " detected OP_TERNARY, op2 =" << op2->text << endl ;
+#endif
 	  if(op2->nodeType == AST_type::TK_COLON) {
 	    expr = parseExpressionPartial(is,linecount,typemap) ;
 	    np->terms.push_back(expr) ;
 	  } else {
 	    pushToken(op2) ;
-	    return AST_type::ASTP(new AST_syntaxError("expecting ':' in tertiary operatpr",op2->lineno)) ;
+	    return AST_type::ASTP(new AST_syntaxError("expecting ':' in tertiary operator",op2->lineno)) ;
 	  }
 	}
 	exprStack.push_back(np) ;
       } else {
-	if(op->nodeType == AST_type::OP_TERTIARY) {
-	  return AST_type::ASTP(new AST_syntaxError("unexpected '?' operator",linecount)) ;
-	} 
 	CPTR<AST_exprOper> np = new AST_exprOper ;
 	np->nodeType = op->nodeType ;
 	np->terms.push_back(AST_type::ASTP(exprStack.back())) ;
 	np->terms.push_back(expr) ;
+	if(op->nodeType == AST_type::OP_TERNARY) {
+	  CPTR<AST_Token> op2 = getToken(is,linecount) ;
+	  if(op2->nodeType != AST_type::TK_COLON) {
+	    pushToken(op2) ;
+	    expr = AST_type::ASTP(new AST_syntaxError("unexpected ':' in tertiary operator",linecount)) ;
+	  } else {
+	    expr = parseExpressionPartial(is,linecount,typemap) ;
+	  }
+	  np->terms.push_back(expr) ;
+#ifdef VERBOSE
+	  cerr << " processed OP_TERNARY" << endl ;
+#endif
+	  
+	} 
 	exprStack.back() = np ;
       }
     }
@@ -534,6 +576,9 @@ AST_type::ASTP parseExpression(std::istream &is, int &linecount,const varmap &ty
 
 AST_type::ASTP parseCaseStatement(std::istream &is, int &linecount,const varmap &typemap) {
   CPTR<AST_Token> token = getToken(is,linecount) ;
+#ifdef VERBOSE
+  cerr << "in parseCaseStatement, token = " << token->text << endl ;
+#endif
   if(token->nodeType != AST_type::TK_CASE &&
      token->nodeType != AST_type::TK_DEFAULT) {
     cerr << "internal error parsing switch statement on line " << linecount
@@ -559,6 +604,9 @@ AST_type::ASTP parseCaseStatement(std::istream &is, int &linecount,const varmap 
 
 AST_type::ASTP parseSwitchStatement(std::istream &is, int &linecount, const varmap &typemap)  {
   CPTR<AST_Token> token = getToken(is,linecount) ;
+#ifdef VERBOSE
+  cerr << "in parseSwitchStatement, token = " << token->text << endl ;
+#endif
   AST_type::ASTP switchtok(token) ;
   CPTR<AST_controlStatement> ctrl = new AST_controlStatement ;
   ctrl->controlType = AST_type::ASTP(token) ;
@@ -603,6 +651,9 @@ AST_type::ASTP parseSwitchStatement(std::istream &is, int &linecount, const varm
 
 AST_type::ASTP parseIfStatement(std::istream &is, int &linecount, const varmap &typemap)  {
   CPTR<AST_Token> token = getToken(is,linecount) ;
+#ifdef VERBOSE
+  cerr << "in parseIfStatement, token = " << token->text << endl ;
+#endif
   if(token->nodeType != AST_type::TK_IF) {
     pushToken(token) ;
     return AST_type::ASTP(new AST_syntaxError("confused in if statement",token->lineno)) ;
@@ -665,6 +716,9 @@ bool isTypeDecl(CPTR<AST_Token> p, const varmap &typemap) {
 
 AST_type::ASTP parseLoopStatement(std::istream &is, int &linecount,const varmap &typemap) {
   CPTR<AST_Token> token = getToken(is,linecount) ;
+#ifdef VERBOSE
+  cerr << "in parseLoopStatement, token = " << token->text << endl ;
+#endif
   AST_type::ASTP loop = AST_type::ASTP(token) ;
   CPTR<AST_controlStatement> ctrl = new AST_controlStatement ;
   ctrl->controlType = loop ;
@@ -810,6 +864,9 @@ AST_type::ASTP parseType(std::istream &is, int &linecount, const varmap &typemap
   CPTR<AST_declaration> AST_data = new AST_declaration ;
 
   CPTR<AST_Token> token = getToken(is,linecount) ;
+#ifdef VERBOSE
+  cerr << "in parseType, token = " << token->text << endl ;
+#endif
   while(isTypeDecl(token,typemap)) {
     AST_data->type_decl.push_back(AST_type::ASTP(token)) ;
     token = getToken(is,linecount) ;
@@ -826,6 +883,9 @@ AST_type::ASTP parseDeclaration(std::istream &is, int &linecount,const varmap &t
   CPTR<AST_declaration> AST_data = new AST_declaration ;
 
   CPTR<AST_Token> token = getToken(is,linecount) ;
+#ifdef VERBOSE
+  cerr << "in parseDeclaration, token = " << token->text << endl ;
+#endif
   while(isTypeDecl(token,typemap)) {
     AST_data->type_decl.push_back(AST_type::ASTP(token)) ;
     token = getToken(is,linecount) ;
@@ -841,6 +901,9 @@ AST_type::ASTP parseSpecialControlStatement(std::istream &is, int &linecount,con
   CPTR<AST_Block> AST_data = new AST_Block ;
   AST_data->nodeType = AST_type::OP_SPECIAL ;
   CPTR<AST_Token> token = getToken(is,linecount) ;
+#ifdef VERBOSE
+  cerr << "in parseSpecialControlStatement, token = " << token->text << endl ;
+#endif
   AST_data->elements.push_back(AST_type::ASTP(token)) ;
   token = getToken(is,linecount) ;
   if(token->nodeType != AST_type::TK_SEMICOLON) {
@@ -865,7 +928,10 @@ AST_type::ASTP parseSpecialControlStatement(std::istream &is, int &linecount,con
 
 AST_type::ASTP parseStatement(std::istream &is, int &linecount, const varmap &typemap) {
   CPTR<AST_Token> firstToken = getToken(is,linecount) ;
-  
+
+#ifdef VERBOSE
+  cerr << "in parseStatement, token = " << firstToken->text << endl ;
+#endif
   pushToken(firstToken) ;
   switch(firstToken->nodeType) {
   case AST_type::TK_OPENBRACE:
@@ -974,6 +1040,9 @@ AST_type::ASTP parseStatement(std::istream &is, int &linecount, const varmap &ty
 
 AST_type::ASTP parseBlock(std::istream &is, int &linecount,const varmap &typemap) {
   CPTR<AST_Token> openToken = getToken(is,linecount) ;
+#ifdef VERBOSE
+  cerr << "in parseBlock, token = " << openToken->text << endl ;
+#endif
 
   AST_type::elementType closeType = AST_type::TK_CLOSEBRACE ;
   switch(openToken->nodeType) {
@@ -1197,7 +1266,7 @@ void AST_simplePrint::visit(AST_exprOper &s) {
       }
     }
     break ;
-  case AST_type::OP_TERTIARY:
+  case AST_type::OP_TERNARY:
     {
       AST_type::ASTList::iterator ii=s.terms.begin() ;
       if(*ii != 0)
