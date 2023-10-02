@@ -37,7 +37,7 @@ namespace Loci {
       entitySet single = interval(0,0) ;
       GPUstoreAllocateData[alloc_id].template allocBasic<T>(single,1) ;
       base_ptr = (T *)GPUstoreAllocateData[alloc_id].base_ptr ;
-      *base_ptr = defaultData ;
+      //      *base_ptr = defaultData ;
     }
     store_domain = p ;
     dispatch_notify();
@@ -200,16 +200,30 @@ namespace Loci {
   template<class T> 
   void gpuparamRepI<T>::copyFrom(const storeRepP &p, entitySet set)  {
     const_param<T> v(p) ;
-    T *data = get_param() ;
-    *data = *v ;
+    T *gpu_base_ptr = get_param() ;
+#ifdef USE_CUDA_RT
+    cudaError_t err = cudaMemcpy(gpu_base_ptr,&(*v),sizeof(T),
+				 cudaMemcpyHostToDevice) ;
+    if(err!= cudaSuccess) {
+      cerr << "cudaMemcpy failed in gpuMapRepI::copyFrom" << endl ;
+      Loci::Abort() ;
+    }
+#endif
   }
   
   // code to copy from gpu container to cpu container
   template<class T>
   void gpuparamRepI<T>::copyTo(storeRepP &p, entitySet set) const {
     param<T> v(p) ;
-    const T *data = get_param() ;
-    *v = data ;
+    const T *gpu_base_ptr = get_param() ;
+#ifdef USE_CUDA_RT
+    cudaError_t err = cudaMemcpy(&(*v),gpu_base_ptr,sizeof(T),
+				 cudaMemcpyDeviceToHost) ;
+    if(err!= cudaSuccess) {
+      cerr << "cudaMemcpy failed in gpuMapRepI::copyFrom" << endl ;
+      Loci::Abort() ;
+    }
+#endif
   }
   
   template<class T>
