@@ -33,9 +33,12 @@
 namespace Loci {
 
   class gpuMapRep : public MapRep {
+  protected:
+    MapRepP defermap ;
   public:
-    gpuMapRep() {}
+    gpuMapRep() {defermap = 0 ;}
     ~gpuMapRep() {}
+    void setDeferMap(MapRepP dm) { defermap = dm ; }
     virtual void copyFrom(const storeRepP &fromMap, entitySet set) = 0 ;
   } ;
 

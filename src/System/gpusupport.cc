@@ -123,6 +123,8 @@ namespace Loci {
     return sp ;
   }
   storeRepP gpuMapRepI::MapRemap(const dMap &dm, const dMap &rm) const {
+    cerr << "remap should not be called for gpuMap" << endl ;
+    debugger_() ;
     entitySet newdomain = dm.domain() & domain() ;
     pair<entitySet,entitySet> mappimage = preimage(rm.domain()) ;
     newdomain &= mappimage.first ;
@@ -143,6 +145,10 @@ namespace Loci {
   }
 
   void gpuMapRepI::compose(const dMap &m, const entitySet &context) {
+    cerr << "compose should not be called for gpuMap" << endl ;
+    debugger_() ;
+
+
     fatal((context-store_domain) != EMPTY) ;
     fatal((image(context)-m.domain()) != EMPTY) ;
     FORALL(context,i) {
@@ -151,6 +157,8 @@ namespace Loci {
   }
 
   void gpuMapRepI::copy(storeRepP &st, const entitySet &context) {
+    cerr << "copy should not be called for gpuMap" << endl ;
+    debugger_() ;
     const_Map s(st) ;
     fatal((context-domain()) != EMPTY) ;
     fatal((context-s.domain()) != EMPTY) ;
@@ -160,6 +168,8 @@ namespace Loci {
   }
 
   void gpuMapRepI::gather(const dMap &m, storeRepP &st, const entitySet &context) {
+    cerr << "gather should not be called for gpuMap" << endl ;
+    debugger_() ;
     const_Map s(st) ;
     fatal(base_ptr == 0 && context != EMPTY) ;
     fatal((m.image(context) - s.domain()) != EMPTY) ; 
@@ -170,6 +180,8 @@ namespace Loci {
   }
 
   void gpuMapRepI::scatter(const dMap &m,storeRepP &st, const entitySet &context) {
+    cerr << "scatter should not be called for gpuMap" << endl ;
+    debugger_() ;
     const_Map s(st) ;
     fatal(base_ptr == 0 && context != EMPTY) ;
     fatal((context - s.domain()) != EMPTY) ;
@@ -200,6 +212,8 @@ namespace Loci {
   
   void gpuMapRepI::pack(void *outbuf, int &position, int &outcount, const entitySet &eset) 
   {
+    cerr << "pack should not be called for gpuMap" << endl ;
+    debugger_() ;
     for( size_t i = 0; i < eset.num_intervals(); i++) {
       const Loci::int_type begin = eset[i].first ;
       int t = eset[i].second - eset[i].first + 1 ;
@@ -211,6 +225,8 @@ namespace Loci {
   void gpuMapRepI::pack(void *outbuf, int &position,
                      int &outcount, const entitySet &eset, const Map& remap) 
   {
+    cerr << "pack should not be called for gpuMap" << endl ;
+    debugger_() ;
     for( size_t i = 0; i < eset.num_intervals(); i++) {
       const Loci::int_type begin = eset[i].first ;
       int t = eset[i].second - eset[i].first + 1 ;
@@ -224,6 +240,8 @@ namespace Loci {
   
   void gpuMapRepI::unpack(void *inbuf, int &position, int &insize, const sequence &seq) {
 
+    cerr << "unpack should not be called for gpuMap" << endl ;
+    debugger_() ;
     for(size_t i = 0; i < seq.num_intervals(); ++i) {
       if(seq[i].first > seq[i].second) {
         const Loci::int_type stop = seq[i].second ;
@@ -242,6 +260,8 @@ namespace Loci {
   void gpuMapRepI::unpack(void *inbuf, int &position,
                        int &insize, const sequence &seq, const dMap& remap) {
 
+    cerr << "pack should not be called for gpuMap" << endl ;
+    debugger_() ;
     for(size_t i = 0; i < seq.num_intervals(); ++i) {
       if(seq[i].first > seq[i].second) {
         const Loci::int_type stop = seq[i].second ;
@@ -264,170 +284,39 @@ namespace Loci {
   }
 
   entitySet gpuMapRepI::domain() const {
+    //    return defermap->domain() ;
     return store_domain ;
   }
 
   entitySet gpuMapRepI::image(const entitySet &domain) const {
-    entitySet d = domain & store_domain ;
-    entitySet codomain ;
-    if(d.num_intervals() < IMAGE_THRESHOLD) {
-      for(size_t i=0;i<d.num_intervals();++i)
-        codomain += image_section(base_ptr+d[i].first,
-                                  base_ptr+(d[i].second+1)) ;
-    } else {
-      std::vector<int> img(d.size()) ;
-      std::vector<int>::iterator ins = img.begin() ;
-      for(size_t i=0;i<d.num_intervals();++i)
-        for(int j=d[i].first;j!=d[i].second+1;++j) {
-          *ins = base_ptr[j] ;
-          ++ins ;
-        }
-      std::sort(img.begin(),img.end()) ;
-      std::vector<int>::iterator uend = std::unique(img.begin(),img.end());
-      for(ins=img.begin();ins!=uend;++ins)
-        codomain += *ins ;
-    }
-      
-    return codomain ;
+    return defermap->image(domain) ;
   }
 
   pair<entitySet,entitySet>
   gpuMapRepI::preimage(const entitySet &codomain) const  {
-    entitySet domain ;
-    FORALL(store_domain,i) {
-      if(codomain.inSet(base_ptr[i]))
-        domain += i ;
-    } ENDFORALL ;
-    return make_pair(domain,domain) ;
+    return defermap->preimage(codomain) ;
   }
   
   storeRepP gpuMapRepI::expand(entitySet &out_of_dom, std::vector<entitySet> &ptn) {
-    storeRepP sp ;
-    int *recv_count = new int[MPI_processes] ;
-    int *send_count = new int[MPI_processes] ;
-    int *send_displacement = new int[MPI_processes] ;
-    int *recv_displacement = new int[MPI_processes] ;
-    entitySet::const_iterator ei ;
-    std::vector<int>::const_iterator vi ;
-    int size_send = 0 ;
-    std::vector<std::vector<int> > copy(MPI_processes), send_clone(MPI_processes) ;
-    for(int i = 0; i < MPI_processes; ++i) {
-      entitySet tmp = out_of_dom & ptn[i] ;
-      for(ei = tmp.begin(); ei != tmp.end(); ++ei)
-	copy[i].push_back(*ei) ;
-      std::sort(copy[i].begin(), copy[i].end()) ;
-      send_count[i] = copy[i].size() ;
-      size_send += send_count[i] ; 
-    }
-    int *send_buf = new int[size_send] ;
-    MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
-		 MPI_COMM_WORLD) ; 
-    size_send = 0 ;
-    for(int i = 0; i < MPI_processes; ++i)
-      size_send += recv_count[i] ;
-    
-    int *recv_buf = new int[size_send] ;
-    size_send = 0 ;
-    for(int i = 0; i < MPI_processes; ++i)
-      for(vi = copy[i].begin(); vi != copy[i].end(); ++vi) {
-	send_buf[size_send] = *vi ;
-	++size_send ;
-      }
-    send_displacement[0] = 0 ;
-    recv_displacement[0] = 0 ;
-    for(int i = 1; i < MPI_processes; ++i) {
-      send_displacement[i] = send_displacement[i-1] + send_count[i-1] ;
-      recv_displacement[i] = recv_displacement[i-1] + recv_count[i-1] ;
-    }
-    MPI_Alltoallv(send_buf,send_count, send_displacement , MPI_INT,
-		  recv_buf, recv_count, recv_displacement, MPI_INT,
-		  MPI_COMM_WORLD) ;  
-    for(int i = 0; i < MPI_processes; ++i) {
-      for(int j = recv_displacement[i]; j <
-	    recv_displacement[i]+recv_count[i]; ++j) 
-	send_clone[i].push_back(recv_buf[j]) ;
-      std::sort(send_clone[i].begin(), send_clone[i].end()) ;
-    }
-    
-    std::vector<HASH_MAP(int, int) > map_entities(MPI_processes) ;
-    for(int i = 0; i < MPI_processes; ++i) 
-      for(vi = send_clone[i].begin(); vi != send_clone[i].end(); ++vi) 
-	if(store_domain.inSet(*vi))
-	  (map_entities[i])[*vi] = base_ptr[*vi] ;
-    
-    size_send = 0 ;
-    for(int i = 0; i < MPI_processes; ++i) {
-      send_count[i] = 2 * map_entities[i].size() ;
-      size_send += send_count[i] ;
-    }
-    int *send_map = new int[size_send] ;
-    MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
-		 MPI_COMM_WORLD) ; 
-    size_send = 0 ;
-    for(int i = 0; i < MPI_processes; ++i)
-      size_send += recv_count[i] ;
-    int *recv_map = new int[size_send] ;
-    size_send = 0 ;
-    for(int i = 0; i < MPI_processes; ++i) 
-      for(HASH_MAP(int, int)::const_iterator miv = map_entities[i].begin(); miv != map_entities[i].end(); ++miv) {
-	send_map[size_send] = miv->first ;
-	++size_send ;
-	send_map[size_send] = miv->second ;
-	++size_send ;
-      }
-    send_displacement[0] = 0 ;
-    recv_displacement[0] = 0 ;
-    for(int i = 1; i < MPI_processes; ++i) {
-      send_displacement[i] = send_displacement[i-1] + send_count[i-1] ;
-      recv_displacement[i] = recv_displacement[i-1] + recv_count[i-1] ;
-    }
-    MPI_Alltoallv(send_map,send_count, send_displacement , MPI_INT,
-		  recv_map, recv_count, recv_displacement, MPI_INT,
-		  MPI_COMM_WORLD) ;  
-    HASH_MAP(int, int) hm ;
-    for(int i = 0; i < MPI_processes; ++i) {
-      for(int j = recv_displacement[i]; j <
-	    recv_displacement[i]+recv_count[i]-1; j+=2) {
-	hm[recv_map[j]] = recv_map[j+1];
-      }
-    }
-    Map dm ;
-    dm.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
-    MapRepP(dm.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
-    
-    entitySet tm = store_domain + out_of_dom ;
-    dm.allocate(tm) ;
-    for(ei = store_domain.begin(); ei != store_domain.end(); ++ei)
-      dm[*ei] = base_ptr[*ei] ;
-    for(HASH_MAP(int, int)::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi) 
-      dm[hmi->first] = hmi->second ;
-    sp = dm.Rep() ;
-    delete [] send_buf ;
-    delete [] recv_buf ;
-    delete [] send_map ;
-    delete [] recv_map ;
-    delete [] recv_count ;
-    delete [] send_count ;
-    delete [] send_displacement ;
-    delete [] recv_displacement ;
-    return sp ;
+    cerr << "expand should not be called for gpuMap" << endl ;
+    debugger_() ;
+    return getRep() ;
   }
 
   storeRepP gpuMapRepI::freeze() {
+    cerr << "freeze should not be called for gpuMap" << endl ;
+    debugger_() ;
     return getRep() ;
   }
   
   storeRepP gpuMapRepI::thaw() {
-    
-    dMap dm ;
-    dm.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
-    MapRepP(dm.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
-    FORALL(store_domain,i) {
-      dm[i] = base_ptr[i] ;
-    } ENDFORALL ;
-    return dm.Rep() ;
+    cerr << "thaw should not be called for gpuMap" << endl ;
+    debugger_() ;
+    return getRep() ;
   }
   storeRepP gpuMapRepI::get_map() {
+    cerr << "get_map should not be called for gpuMap" << endl ;
+    debugger_() ;
     store<int> sizes ;
     sizes.allocate(store_domain) ;
     FORALL(store_domain,i) {
@@ -444,6 +333,8 @@ namespace Loci {
   }
     
   std::ostream &gpuMapRepI::Print(std::ostream &s) const {
+    cerr << "Print should not be called for gpuMap" << endl ;
+    debugger_() ;
     s << '{' << domain() << std::endl ;
     FORALL(domain(),ii) {
       s << base_ptr[ii] << std::endl ;
@@ -454,6 +345,8 @@ namespace Loci {
 
 
   std::istream &gpuMapRepI::Input(std::istream &s) {
+    cerr << "Input should not be called for gpuMap" << endl ;
+    debugger_() ;
     entitySet e ;
     char ch ;
     
@@ -482,6 +375,8 @@ namespace Loci {
   }
 
   frame_info gpuMapRepI::get_frame_info() {
+    cerr << "get_frame_info should not be called for gpuMap" << endl ;
+    debugger_() ;
     warn(true) ;
     frame_info fi ;
     return fi ;
@@ -731,8 +626,18 @@ namespace Loci {
 
   void map2gpu_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
     //    existential_rule_analysis(r,facts, scheds) ;
-    cerr << "synonym variable in map2gpu_compiler, r=" << r << endl ;
-    scheds.synonym_variable(*r.sources().begin(),*r.targets().begin()) ;
+    //    cerr << "synonym variable in map2gpu_compiler, r=" << r << endl ;
+    variable cpumap = *r.sources().begin() ;
+    variable gpumap = *r.targets().begin() ;
+
+    NPTR<gpuMapRep> gpurep = NPTR<gpuMapRep>(facts.get_variable(gpumap)->getRep()) ;
+    MapRepP cpurep = MapRepP(facts.get_variable(cpumap)->getRep()) ;
+    //    cerr << "cpumap = " << cpumap << " gpumap = " << gpumap
+    //	 << " cpuptr=" << ((cpurep!=0)?"exist":"zero") 
+    //	 << " gpuptr=" << ((gpurep!=0)?"exist":"zero") << endl ;
+    
+    
+    gpurep->setDeferMap(cpurep) ;
   }
 
   void map2gpu_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
