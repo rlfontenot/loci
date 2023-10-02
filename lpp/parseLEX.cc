@@ -489,7 +489,7 @@ CPTR<AST_Token> getToken(std::istream &is, int &linecount) {
 #endif
     return AST_data ;
   case '|':
-    if(is.peek() != '|') {
+    if(is.peek() == '|') {
       AST_data->text += is.get() ;
       AST_data->nodeType = AST_type::TK_LOGICAL_OR ;
 #ifdef VERBOSE

@@ -2008,8 +2008,17 @@ void parseFile::setup_cudaRule(std::ostream &outputFile) {
   
   AST_simplePrint printer(outputFile,-1,prettyOutput) ;
 
-  for(auto i = varaccess.id2var.begin();i!=varaccess.id2var.end();++i)
-    printer.id2rename[i->first] = vnames[i->second]+"[_e_]" ;
+  for(auto i = varaccess.id2var.begin();i!=varaccess.id2var.end();++i) {
+    string ot = local_type_map[i->second].first ;
+    if(ot == "param") {
+      printer.id2rename[i->first] = string("(*") +vnames[i->second]+")" ;
+    } else if(ot == "store" || ot == "Map") {
+      printer.id2rename[i->first] = vnames[i->second]+"[_e_]" ;
+    } else  {
+      cerr << "Warning: type " << ot << " not supported in cuda rule" << endl ;
+      printer.id2rename[i->first] = vnames[i->second]+"[_e_]" ;
+    }
+  }
 
   map<string,string> maplist ;
   for(auto i = varaccess.id2vmap.begin();i!=varaccess.id2vmap.end();++i) {
