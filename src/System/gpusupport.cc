@@ -512,7 +512,7 @@ namespace Loci {
 	    gpuInputs += *vsi ;
 	  hasGPUVar = true ;
 	  vm[*vsi] = makeGPUVAR(*vsi) ;
-	} else {
+	} else if(sp != 0) {
 	  inputs += *vsi ;
 	  hasCPUVar = true ;
 	  vm[*vsi] = *vsi ;
@@ -531,7 +531,8 @@ namespace Loci {
     }
    
 
-    cout << "gpuMaps = " << gpuMaps << endl ;
+    if(gpuMaps != EMPTY && MPI_rank==0)
+      cout << "gpuMaps = " << gpuMaps << endl ;
     //    cout << "inputs = " << inputs << endl ;
     //    cout << "outputs = " << outputs << endl ;
     //    cout << "gpuInputs = " << gpuInputs << endl ;
