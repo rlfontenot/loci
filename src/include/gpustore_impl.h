@@ -329,8 +329,18 @@ namespace Loci {
     for( size_t i = 0; i < eset.num_intervals(); i++) {
       const Loci::int_type begin = eset[i].first ;
       int t = eset[i].second - eset[i].first + 1 ;
-      MPI_Pack( &base_ptr[begin], t*sizeof(T), MPI_BYTE, outbuf,outcount,
-                &position, MPI_COMM_WORLD) ;
+
+#ifdef USE_CUDA_RT
+      cudaError_t err = cudaMemcpy(((char *)outbuf)+position,base_ptr+begin,
+				   sizeof(T)*t,cudaMemcpyDeviceToHost) ;
+      if(err!= cudaSuccess) {
+	cerr << "cudaMemcpy failed in gpustoreRepI::packdata" << endl ;
+	Loci::Abort() ;
+      }
+#endif
+      position += t*sizeof(T) ;
+      //      MPI_Pack( &base_ptr[begin], t*sizeof(T), MPI_BYTE, outbuf,outcount,
+      //                &position, MPI_COMM_WORLD) ;
     }
   }
 
@@ -412,17 +422,37 @@ namespace Loci {
     for(size_t i = 0; i < seq.num_intervals(); ++i) {
       if(seq[i].first > seq[i].second) {
         const Loci::int_type stop = seq[i].second ;
-        for(Loci::int_type indx = seq[i].first; indx != stop-1; --indx)
-          MPI_Unpack( inbuf, insize, &position, &base_ptr[indx],
-                      sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ;
+        for(Loci::int_type indx = seq[i].first; indx != stop-1; --indx) {
+#ifdef USE_CUDA_RT
+	  cudaError_t err = cudaMemcpy(base_ptr+indx,(char*)inbuf+position, 
+				       sizeof(T),cudaMemcpyHostToDevice) ;
+	  if(err!= cudaSuccess) {
+	    cerr << "cudaMemcpy failed in gpustoreRepI::unpackdata" << endl ;
+	    Loci::Abort() ;
+	  }
+	  position += sizeof(T) ;
+	  //          MPI_Unpack( inbuf, insize, &position, &base_ptr[indx],
+	  //                      sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ;
+#endif
+	}
       } else {
-        Loci::int_type indx = seq[i].first ;
-        int t = seq[i].second - seq[i].first + 1 ;
-        MPI_Unpack( inbuf, insize, &position, &base_ptr[indx],
-                    t*sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ;
+	Loci::int_type indx = seq[i].first ;
+	int t = seq[i].second - seq[i].first + 1 ;
+#ifdef USE_CUDA_RT
+	cudaError_t err = cudaMemcpy(base_ptr+indx, (char*)inbuf+position,
+				     t*sizeof(T),cudaMemcpyHostToDevice) ;
+	if(err!= cudaSuccess) {
+	  cerr << "cudaMemcpy failed in gpustoreRepI::unpackdata" << endl ;
+	  Loci::Abort() ;
+	}
+	position += t*sizeof(T) ;
+	//        MPI_Unpack( inbuf, insize, &position, &base_ptr[indx],
+	//                    t*sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ;
+#endif
       }
     }
   }
+    
   //*********************************************************************/
   template <class T>
   inline void gpustoreRepI<T>::unpackdata( USER_DEFINED_CONVERTER c, void *inbuf,
