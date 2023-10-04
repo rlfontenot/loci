@@ -486,6 +486,8 @@ namespace Loci {
       cudaDeviceProp prop ;
       cudaGetDeviceProperties(&prop, dev) ;
       debugout << "Device " << dev << " compute capability: " << prop.major << "." << prop.minor << endl ;
+    } else {
+      debugout << "devCount=" << devCount << endl ;
     }
   
     MPI_Comm_free(&comm) ;

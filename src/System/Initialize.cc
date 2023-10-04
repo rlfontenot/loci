@@ -409,9 +409,6 @@ namespace Loci {
     MPI_Init(argc, argv) ;
 #endif
 
-#ifdef USE_CUDA_RT
-    setCudaDevice() ;
-#endif
     
     create_mpi_info(&PHDF5_MPI_Info) ;
 #ifndef MPI_STUBB
@@ -492,19 +489,6 @@ namespace Loci {
 
     MPI_Comm_size(MPI_COMM_WORLD, &MPI_processes) ;
     MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank) ;
-
-    // Find number of mpi processes per host
-    {
-      long hid = gethostid() ;
-      vector<long> host_list(MPI_processes) ;
-      MPI_Allgather(&hid,1,MPI_LONG,&host_list[0],1,MPI_LONG,MPI_COMM_WORLD) ;
-      int cnt = 0 ;
-      for(int i=0;i<MPI_processes;++i)
-	if(hid == host_list[i])
-	  cnt++ ;
-      MPI_processes_per_host = cnt ;
-      debugout << "mpi processes per host = " << cnt << endl ;
-    }
 
     int sprng_seed = 985456376 ;
     int sprng_gtype = SPRNG_LFG ; // sprng generator type
@@ -853,6 +837,24 @@ namespace Loci {
         debugout.open(filename.c_str(),ios::out) ;
       } else {
         debugout.open("/dev/null",ios::out) ;
+      }
+    
+
+#ifdef USE_CUDA_RT
+      setCudaDevice() ;
+#endif
+    
+      // Find number of mpi processes per host
+      {
+	long hid = gethostid() ;
+	vector<long> host_list(MPI_processes) ;
+	MPI_Allgather(&hid,1,MPI_LONG,&host_list[0],1,MPI_LONG,MPI_COMM_WORLD) ;
+	int cnt = 0 ;
+	for(int i=0;i<MPI_processes;++i)
+	  if(hid == host_list[i])
+	    cnt++ ;
+	MPI_processes_per_host = cnt ;
+	debugout << "mpi processes per host = " << cnt << endl ;
       }
 
       init_sprng(sprng_gtype,sprng_seed,SPRNG_DEFAULT) ;
