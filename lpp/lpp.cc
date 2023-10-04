@@ -1364,27 +1364,6 @@ std::vector<list<variable> > expand_mapping(std::vector<variableSet> vset) {
 }
 
 
-
-void parseFile::setup_Test(std::ostream &outputFile) {
-  CPTR<AST_Token> token = getToken(is,line_no) ;
-  if(token->nodeType == AST_type::TK_OPENBRACE) {
-    pushToken(token) ;
-    varmap typemap ;
-    typemap["vect3d"] = varinfo(true,false) ;
-    
-    CPTR<AST_type> ap = parseBlock(is,line_no,typemap) ;
-    //    outputFile << "Parsed TEST:" << endl ;
-    AST_errorCheck syntaxChecker ;
-    ap->accept(syntaxChecker) ;
-    if(syntaxChecker.hasErrors())
-      throw parseError("syntax error") ;
-      
-    AST_simplePrint printer(outputFile) ;
-    ap->accept(printer) ;
-  }
-}
-
-
 void parseFile::setup_cudaRule(std::ostream &outputFile) {
   killsp() ;
   string rule_type ;
@@ -2017,7 +1996,7 @@ void parseFile::setup_cudaRule(std::ostream &outputFile) {
     } else if(ot == "store" || ot == "Map") {
       printer.id2rename[i->first] = vnames[i->second]+"[_e_]" ;
     } else  {
-      cerr << "Warning: type " << ot << " not supported in cuda rule" << endl ;
+      cerr << "Warning: type " << ot << " for variable " << i->second << " not supported in cuda rule" << endl ;
       printer.id2rename[i->first] = vnames[i->second]+"[_e_]" ;
     }
   }
@@ -2838,6 +2817,8 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
     throw parseError("need prelude to size output type!") ;
 }
 
+extern bool no_cuda ;
+
 void parseFile::processFile(string file, ostream &outputFile) {
   bool error = false ;
   filename = file ;
@@ -2883,9 +2864,10 @@ void parseFile::processFile(string file, ostream &outputFile) {
           } else if(key == "rule") {
             setup_Rule(outputFile) ;
 	  } else if(key == "cudarule") {
-            setup_cudaRule(outputFile) ;
-	  } else if(key == "test") {
-	    setup_Test(outputFile) ;
+	    if(no_cuda)
+	      setup_Rule(outputFile) ;
+	    else
+	      setup_cudaRule(outputFile) ;
           } else if(key == "include") {
             killsp() ;
             if(!is_string(is)) {
