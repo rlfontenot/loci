@@ -493,6 +493,8 @@ namespace Loci {
     MPI_Comm_free(&comm) ;
   
     return dev;
+#else
+    return -1 ;
 #endif
   }
 
