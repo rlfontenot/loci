@@ -1844,6 +1844,8 @@ void parseFile::setup_cudaRule(std::ostream &outputFile) {
     outputFile <<  "\") ;" << endl ;
     syncFile(outputFile) ;
   }
+  outputFile << "disable_threading() ;" << endl ;
+  syncFile(outputFile) ;
   //  outputFile <<   "       output(\"" << heads << "\") ;" << endl ;
   //  syncFile(outputFile) ;
 
