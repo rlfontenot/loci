@@ -85,10 +85,11 @@ int main(int argc, char *argv[]) {
         cout << "Loci version: " << version() << endl ;
       } else if(argv[i][1] == 'V') {
         cout << "Loci version: " << version() << endl ;
+      } else if(argv[i][1] == 'D') {
+	// ignore this option
       } else {
-	cerr << "Unknown option " << argv[i] << endl ;
-	Usage(argc,argv) ;
-	exit(-1) ;
+	cerr << "Warning: Unknown option " << argv[i] << endl ;
+	//	exit(-1) ;
       }
     } else {
       if(file_given == true) {
