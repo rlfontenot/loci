@@ -102,7 +102,6 @@ using std::ostream ;
 using std::ofstream ;
 using std::string ;
 using std::ostringstream ;
-using std::cout ;
 using std::vector ;
 
 namespace Loci {
@@ -319,6 +318,10 @@ extern "C" {
 namespace Loci {
   extern   void register_closing_function(void (*fptr)(int code)) ;
 
+#ifdef USE_CUDA_RT
+  extern int setCudaDevice() ;
+#endif
+
   void closeoutMPI(int code) {
     if(code == -1) {
       int MPI_rank ;
@@ -406,6 +409,10 @@ namespace Loci {
     MPI_Init(argc, argv) ;
 #endif
 
+#ifdef USE_CUDA_RT
+    setCudaDevice() ;
+#endif
+    
     create_mpi_info(&PHDF5_MPI_Info) ;
 #ifndef MPI_STUBB
     {

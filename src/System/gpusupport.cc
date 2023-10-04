@@ -459,6 +459,41 @@ namespace Loci {
     }
   }
 
+  int setCudaDevice() {
+#ifdef USE_CUDA_RT
+    int worldRank, rank;
+    MPI_Comm comm;
+  
+    MPI_Comm_rank(MPI_COMM_WORLD, &worldRank);
+  
+    MPI_Comm_split_type(
+			MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comm
+			);
+  
+    MPI_Comm_rank(comm, &rank);
+  
+    pid_t pid = getpid();
+  
+    int dev = -1, devCount = 0;
+    cudaGetDeviceCount(&devCount);
+  
+    if(devCount > 0) {
+      dev = rank%devCount;
+      debugout << "MPI rank to device mapping: MPI rank = " << worldRank << ", Local rank = " << rank << " CUDA device = "<< dev<<  ", Process id = "<< pid << endl ;
+
+      cudaSetDevice(dev);
+    
+      cudaDeviceProp prop ;
+      cudaGetDeviceProperties(&prop, dev) ;
+      debugout << "Device " << dev << " compute capability: " << prop.major << "." << prop.minor << endl ;
+    }
+  
+    MPI_Comm_free(&comm) ;
+  
+    return dev;
+#endif
+  }
+
   inline variable makeGPUVAR(variable v) {
     variable::info vinfo = v.get_info() ;
     string vname = string("__GPU__") + vinfo.name ;
