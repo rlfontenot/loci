@@ -177,7 +177,7 @@ exportPostProcessorFiles(string casename, string iteration) const {
   string filename ;
   
   size_t npnts = 0 ;//in voluem parts and in surface parts
-  size_t ntets = 0, nprsm = 0, npyrm = 0, nhexs = 0, ngen = 0 ;
+  size_t ntets = 0, nprsm = 0, npyrm = 0, nhexs = 0 ; //, ngen = 0 ;
   
   
   vector<vector<int> > part_nodes ;
@@ -224,7 +224,7 @@ exportPostProcessorFiles(string casename, string iteration) const {
       nprsm += volumePartList[i]->getNumPrsm();
       nhexs += volumePartList[i]->getNumHexs();
       npyrm += volumePartList[i]->getNumPyrm();
-      ngen += volumePartList[i]->getNumGenc();
+      //      ngen += volumePartList[i]->getNumGenc();
     }    
     for(size_t i =0;i<surfacePartList.size();++i) {
       vector<string> nscalars = surfacePartList[i]->getNodalScalarVars() ;

@@ -758,10 +758,12 @@ void DC_flush_range(
 {
 #if CACHEWRITES
     int n = 0;
-    struct DISK_CACHE_NODE *prev, *node = disk_cache;
+    //    struct DISK_CACHE_NODE *prev ;
+    struct DISK_CACHE_NODE  *node = disk_cache;
+
 
     while (node) {
-	prev = node;
+      //	prev = node;
 	if (ADFI_is_same_file(node->index, index) &&
 	    node->block >= start_block && node->block <= end_block)
 	    n++;

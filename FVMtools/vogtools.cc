@@ -558,7 +558,7 @@ namespace VOG {
     entitySet nodes, faces,cells ;
     //    vector<entitySet> ptn = getDist(nodes,faces,cells,
     //                                    pos,cl,cr,face2node);
-    vector<entitySet> nptn = getNodesDist(nodes,pos) ;
+    //    vector<entitySet> nptn = getNodesDist(nodes,pos) ;
     vector<entitySet> fptn = getFacesDist(faces,face2node) ;
     vector<entitySet> cptn = getCellsDist(cells,cl,cr) ;
     entitySet loc_faces = faces & fptn[MPI_rank] ;

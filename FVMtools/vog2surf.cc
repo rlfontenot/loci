@@ -89,6 +89,7 @@ struct surface_info {
 
 
 void readSurfaces(string filename,
+		  vector<string> &surfnames,
 		  vector<surface_info> &surf_list,
 		  vector<vector3d<double> > &pos,
                   vector<int>& node_map) {
@@ -105,6 +106,12 @@ void readSurfaces(string filename,
   for(size_t i=0;i<boundary_ids.size();++i)
     surf_id[boundary_ids[i].first] = boundary_ids[i].second ;
 
+  if(surfnames.size() == 0) {
+    for(size_t i=0;i<boundary_ids.size();++i)
+      surfnames.push_back(boundary_ids[i].second) ;
+  }
+  
+  
   hid_t input_fid ; 
   input_fid = H5Fopen(filename.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT);
   if(input_fid <= 0) {
@@ -545,6 +552,7 @@ void writeSurfaces(string filename,
 int main(int ac, char *av[]) {
   using Loci::entitySet ;
   using Loci::vector3d ;
+  vector<string> bclist ;
   Loci::Init(&ac, &av) ;
   if(Loci::MPI_processes > 1) {
     cerr << "vog2surf is not parallel! Run on only one processor!" << endl ;
@@ -607,8 +615,8 @@ int main(int ac, char *av[]) {
   
   vector<surface_info> tmp_surf ;
   vector<vector3d<double> > tmp_p ;
-   vector<int> tmp_map;
-  readSurfaces(file_input,tmp_surf,tmp_p,tmp_map) ;
+  vector<int> tmp_map;
+  readSurfaces(file_input,bclist,tmp_surf,tmp_p,tmp_map) ;
 
 
   

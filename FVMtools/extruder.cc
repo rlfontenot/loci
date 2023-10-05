@@ -438,7 +438,7 @@ int main(int ac, char *av[]) {
     int of1 = (j-1)*npnts ;
     int of2 = j*npnts ;
     int cof = (j-1)*nfaces ;
-    int cnt = 0;
+    //    int cnt = 0;
     for(int i=0;i<emsz;i+=2) {
       if(edge_map_bpairs[i] == 0) {
 	// all extruded faces are quads
@@ -450,8 +450,8 @@ int main(int ac, char *av[]) {
 	c1 += (c1<0)?0:cof ;
 	c2 += (c2<0)?0:cof ;
 	ofile << c1 << ' ' << c2 << endl ;
-      } else
-	cnt++ ;
+      } //else
+	//	cnt++ ;
     }
 
     for(size_t i=0;i<edgepairs.size();++i) {
