@@ -354,10 +354,10 @@ namespace Loci {
 
     entitySet odom = entitySet(seq) ;
     entitySet dom ;
-    int xclude = 0 ;
+//    int xclude = 0 ;
     FORALL(odom,fc) {
       if($iblank[$ci[fc]] > 2) {
-        xclude++ ;
+//        xclude++ ;
       } else
         dom += fc ;
     } ENDFORALL ;

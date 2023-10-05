@@ -843,11 +843,15 @@ namespace Loci {
       MPI_Bcast(&nclusters,1,MPI_LONG,0,MPI_COMM_WORLD) ;
 
     vector<long> cluster_dist(MPI_processes,0) ;
+#ifdef DEBUG
     long sum = 0 ;
+#endif
     for(int i=0;i<MPI_processes;++i) {
       cluster_dist[i] = nclusters/MPI_processes +
         ((nclusters%MPI_processes)>i?1:0);
+#ifdef DEBUG
       sum += cluster_dist[i] ;
+#endif
     }
     FATAL(sum != nclusters) ;
     REPORTMEM() ;
@@ -2303,14 +2307,14 @@ namespace Loci {
       wavg = wmax+1 ;
     }
     double w_low = 0, w_high = 0 ;
-    int c_low = 0, c_high=0 ;
+    //    int c_low = 0, c_high=0 ;
     for(size_t ii=0;ii<key_list.size();++ii) {
       if(key_list[ii].weight<=wavg) {
 	w_low += key_list[ii].weight ;
-	c_low++ ;
+	//	c_low++ ;
       } else {
 	w_high += key_list[ii].weight ;
-	c_high++ ;
+	//	c_high++ ;
       }
     }
     // Partition low processors
@@ -2345,7 +2349,7 @@ namespace Loci {
       } else {
 	procs[ii] = max(0,min(MPI_processes-1,int(floor(w_high/sumw_high_pp)))) ;
 	w_high += key_list[ii].weight ;
-	c_high++ ;
+	//	c_high++ ;
       }
     }
     vector<double> wsump(MPI_processes,0) ;

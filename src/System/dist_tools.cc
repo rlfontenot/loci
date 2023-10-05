@@ -466,7 +466,9 @@ namespace Loci {
       if(multilevel_duplication) {
 	entitySet mySet = ptn[MPI_rank];
 	bool continue_adding = true;
+#ifdef VERBOSE
 	int num_levels = 1;
+#endif
 	do{
 	  mySet += dist_special_expand_map(facts.global_comp_entities,
 					   facts, context_maps) ;
@@ -476,7 +478,9 @@ namespace Loci {
 	    continue_adding = false;
 	  else {
 	    facts.global_comp_entities += added_entities;
+#ifdef VERBOSE
 	    num_levels++;
+#endif
 	  }
 	}while(continue_adding);
 	facts.global_comp_entities += mySet;

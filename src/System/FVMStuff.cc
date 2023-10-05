@@ -505,7 +505,7 @@ namespace Loci{
     int nhexs = 0 ;
     int nprsm = 0 ;
     int npyrm = 0 ;
-    int ngnrl = 0 ;
+    //    int ngnrl = 0 ;
     
     // Classify Cells
     FORALL(localCells,cc) {
@@ -533,7 +533,8 @@ namespace Loci{
       case 3:
         npyrm++ ; break ;
       default:
-        ngnrl++ ;
+	//        ngnrl++ ;
+	break ;
       }
     } ENDFORALL ;
 
