@@ -134,9 +134,9 @@ namespace Loci {
     }
   } ;
 
-  bool readFVMGrid(fact_db &facts, std::string filename) ;
+  bool readFVMGrid(fact_db &facts, std::string filename,storeRepP cellwts=0) ;
   
-  bool setupFVMGrid(fact_db &facts, std::string filename) ;
+  bool setupFVMGrid(fact_db &facts, std::string filename,storeRepP cellwts=0) ;
   bool setupFVMGridWithWeightInStore(fact_db &facts, std::string filename, storeRepP cellwt );
   bool setupFVMGridWithWeightInFile(fact_db &facts, std::string filename, std::string weightfile);
 

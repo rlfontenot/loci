@@ -87,7 +87,7 @@ namespace Loci {
   extern bool use_sfc_partition ;
   extern bool load_cell_weights ;
   extern string cell_weight_file ;
-  extern storeRepP cell_weight_store ; 
+  //  extern storeRepP cell_weight_store ; 
   //Following assumption is needed for the next three functions
   //Assumption: We follow the convention that boundary cells are always on right side
   //of a face.
@@ -1081,7 +1081,8 @@ namespace Loci {
 #ifdef LOCI_USE_METIS
   vector<entitySet> newMetisPartitionOfCells(const vector<entitySet> &local_cells,
                                              const Map &cl, const Map &cr,
-					     const store<string> &boundary_tags) {
+					     const store<string> &boundary_tags,
+					     storeRepP cell_weight_store) {
     entitySet dom = cl.domain() & cr.domain() ;
     entitySet refset = boundary_tags.domain() ;
     entitySet bcfaces = cr.preimage(refset).first ;
@@ -2234,8 +2235,8 @@ namespace Loci {
 		    MPI_COMM_WORLD) ;
       MPI_Allreduce(&(pminl.x),&(pmin.x),3,MPI_FLOAT,MPI_MIN,
 		    MPI_COMM_WORLD) ;
-      double s = 4e-9/max(max(max(pmax.x-pmin.x,1e-3f),pmax.y-pmin.y),
-			  pmax.z-pmin.y) ;
+      double s = 4e9/max(max(max(pmax.x-pmin.x,1e-3f),pmax.y-pmin.y),
+			  pmax.z-pmin.z) ;
 
       for(int i=0;i<fsz;++i) {
 	IntCoord3 p ;
@@ -2287,7 +2288,9 @@ namespace Loci {
       key_list[i].weight = fweight[i] ;
       i++ ;
     } ENDFORALL ;
+
     Loci::parSampleSort(key_list,MPI_COMM_WORLD) ;
+
     // Now analyze weights to see if we need to do weighted partitions
     double wsuml = 0, usuml = 0, wmaxl = 0 ;
     for(size_t ii=0;ii<key_list.size();++ii) {
@@ -2301,6 +2304,7 @@ namespace Loci {
     MPI_Allreduce(&wmaxl,&wmax,1,MPI_DOUBLE,MPI_MAX, MPI_COMM_WORLD) ;
 
     double wavg = wsum/usum ;
+
     if(wavg*2.5 > wmax) {
       // low standard deviation, make outlier set zero size
       // (note outliers are those that are greater than the mean)
@@ -2317,6 +2321,7 @@ namespace Loci {
 	//	c_high++ ;
       }
     }
+
     // Partition low processors
     vector<double> w_lowv(MPI_processes) ;
     MPI_Allgather(&w_low,1,MPI_DOUBLE,&w_lowv[0],1,MPI_DOUBLE,
@@ -2372,6 +2377,7 @@ namespace Loci {
       splitters[i].first  = foffsets[i+1] ;
       splitters[i].second = -1 ;
     }
+    
     sort(proc_pairs.begin(),proc_pairs.end(),firstCompare) ;
     parSplitSort(proc_pairs,splitters,firstCompare,MPI_COMM_WORLD) ;
     vector<int> fprocmap(fdom.size()) ;
@@ -2492,7 +2498,7 @@ namespace Loci {
   //Description: Reads grid structures in the fact database
   //Input: facts and grid file name
   //Output: true if sucess
-  bool readFVMGrid(fact_db &facts, string filename) {
+  bool readFVMGrid(fact_db &facts, string filename, storeRepP cellwts) {
     double t1 = MPI_Wtime() ;
 
     REPORTMEM() ;
@@ -2588,6 +2594,42 @@ namespace Loci {
 
     vector<entitySet> cell_ptn,face_ptn,node_ptn ;
 
+    if(cellwts == 0 && load_cell_weights) {
+      // check if the file exists
+      store<int> cell_weights ;
+      int file_exists = 1 ;
+      if(Loci::MPI_rank == 0) {
+	struct stat buf ;
+	if(stat(cell_weight_file.c_str(),&buf) == -1 ||
+	   !S_ISREG(buf.st_mode))
+	  file_exists = 0 ;
+      }
+      MPI_Bcast(&file_exists,1,MPI_INT,0,MPI_COMM_WORLD) ;
+      
+      if(file_exists == 1) {
+	debugout << "reading cell weights" << endl ;
+	if(Loci::MPI_rank == 0) {
+	  std::cout << "Space Filling Curve partition reading additional cell weights from: "
+		    << cell_weight_file << std::endl ;
+	}
+	
+	// create a hdf5 handle
+	hid_t file_id = Loci::hdf5OpenFile(cell_weight_file.c_str(),
+					   H5F_ACC_RDONLY, H5P_DEFAULT) ;
+	if(file_id < 0) {
+	  std::cerr << "...file reading failed..., Aborting" << std::endl ;
+	  Loci::Abort() ;
+	}
+	
+	// read
+	
+	
+	readContainerRAW(file_id,"cellweight", cell_weights.Rep(),
+			 MPI_COMM_WORLD) ;
+	Loci::hdf5CloseFile(file_id) ;
+	cellwts = cell_weights.Rep() ;
+      }
+    }
     if(use_orb_partition) {
       ORB_Partition_Mesh(local_nodes, local_faces, local_cells,
                          t_pos, tmp_cl, tmp_cr, tmp_face2node,
@@ -2596,58 +2638,22 @@ namespace Loci {
     } else if(use_sfc_partition) {
       store<int> cell_weights ;
       // read in additional vertex weights if any
-      if(load_cell_weights) {
-	// check if the file exists
-	int file_exists = 1 ;
-	if(Loci::MPI_rank == 0) {
-	  struct stat buf ;
-	  if(stat(cell_weight_file.c_str(),&buf) == -1 ||
-	     !S_ISREG(buf.st_mode))
-	    file_exists = 0 ;
-	}
-	MPI_Bcast(&file_exists,1,MPI_INT,0,MPI_COMM_WORLD) ;
+      if(cellwts != 0){
+	//	  debugout << "getting cell_weights_store" << endl ;
+	entitySet dom = local_cells[MPI_rank];
+	cell_weights.allocate(dom);
+	redistribute_cell_weight(cellwts, cell_weights.Rep());
 	
-	if(file_exists == 1) {
-	  debugout << "reading cell weights" << endl ;
-	  if(Loci::MPI_rank == 0) {
-	    std::cout << "Space Filling Curve partition reading additional cell weights from: "
-		      << cell_weight_file << std::endl ;
-	  }
-	    
-	  // create a hdf5 handle
-	  hid_t file_id = Loci::hdf5OpenFile(cell_weight_file.c_str(),
-					     H5F_ACC_RDONLY, H5P_DEFAULT) ;
-	  if(file_id < 0) {
-	    std::cerr << "...file reading failed..., Aborting" << std::endl ;
-	    Loci::Abort() ;
-	  }
-            
-	  // read
-	   
-	  
-	  readContainerRAW(file_id,"cellweight", cell_weights.Rep(),
-			   MPI_COMM_WORLD) ;
-	  Loci::hdf5CloseFile(file_id) ;
-	} else if(cell_weight_store != 0){
-	  debugout << "getting cell_weights_store" << endl ;
-	  entitySet dom = local_cells[MPI_rank];
-	  cell_weights.allocate(dom);
-	  redistribute_cell_weight(cell_weight_store, cell_weights.Rep());
-	}
-          
-	if(file_exists == 1 || cell_weight_store != 0){ 
+	int offset = local_cells[Loci::MPI_rank].Min()-cell_weights.domain().Min() ;
+	
+	storeRepP sp = cell_weights.Rep();
+	sp->shift(offset) ;
 
-	  int offset = local_cells[Loci::MPI_rank].Min()-cell_weights.domain().Min() ;
-
-	  storeRepP sp = cell_weights.Rep();
-	  sp->shift(offset) ;
-
-	  
-	  if(cell_weights.domain() != local_cells[Loci::MPI_rank]) {
-	    cerr << "cell_weights=" << cell_weights.domain() << ", local_cells = " << local_cells[Loci::MPI_rank] << endl ;
-	    cerr << "cell weights partition inconsistent!" << endl ;
-	    Loci::Abort() ;
-	  }
+	
+	if(cell_weights.domain() != local_cells[Loci::MPI_rank]) {
+	  cerr << "cell_weights=" << cell_weights.domain() << ", local_cells = " << local_cells[Loci::MPI_rank] << endl ;
+	  cerr << "cell weights partition inconsistent!" << endl ;
+	  Loci::Abort() ;
 	}
       }
       SFC_Partition_Mesh(local_nodes, local_faces, local_cells,
@@ -2670,7 +2676,7 @@ namespace Loci {
       if(useMetis) {
 
 #ifdef LOCI_USE_METIS
-        cell_ptn = newMetisPartitionOfCells(local_cells,tmp_cl,tmp_cr,tmp_boundary_tags) ;
+        cell_ptn = newMetisPartitionOfCells(local_cells,tmp_cl,tmp_cr,tmp_boundary_tags,cellwts) ;
 #else
 	if(MPI_rank==0) {
           debugout << "METIS disabled:: Using simple partition" << endl ;
@@ -2680,118 +2686,89 @@ namespace Loci {
       } else {
         cell_ptn = vector<entitySet>(MPI_processes) ;
         cell_ptn[MPI_rank] = local_cells[MPI_rank] ;
+	store<int> cell_weights ;
 	// read in additional vertex weights if any
-	if(load_cell_weights) {
-	  // check if the file exists
-	  int file_exists = 1 ;
-	  if(Loci::MPI_rank == 0) {
-	    struct stat buf ;
-	    if(stat(cell_weight_file.c_str(),&buf) == -1 ||
-	       !S_ISREG(buf.st_mode))
-	      file_exists = 0 ;
-	  }
-	  MPI_Bcast(&file_exists,1,MPI_INT,0,MPI_COMM_WORLD) ;
-          store<int> cell_weights ;
-          
-	  if(file_exists == 1) {
-	    if(Loci::MPI_rank == 0) {
-	      std::cout << "simple partition reading additional cell weights from: "
-			<< cell_weight_file << std::endl ;
-	    }
-	    
-	    // create a hdf5 handle
-	    hid_t file_id = Loci::hdf5OpenFile(cell_weight_file.c_str(),
-					       H5F_ACC_RDONLY, H5P_DEFAULT) ;
-	    if(file_id < 0) {
-	      std::cerr << "...file reading failed..., Aborting" << std::endl ;
-	      Loci::Abort() ;
-	    }
-            
-	    // read
-	   
-	    
-	    readContainerRAW(file_id,"cellweight", cell_weights.Rep(),
-			     MPI_COMM_WORLD) ;
-            Loci::hdf5CloseFile(file_id) ;
-          }else if(cell_weight_store != 0){
-            entitySet dom = local_cells[MPI_rank];
-            cell_weights.allocate(dom);
-            redistribute_cell_weight(cell_weight_store, cell_weights.Rep());
-          }
-          
-          if(file_exists == 1 || cell_weight_store != 0){ 
+	if(cellwts != 0){
+	  entitySet dom = local_cells[MPI_rank];
+	  cell_weights.allocate(dom);
+	  redistribute_cell_weight(cellwts, cell_weights.Rep());
+	} else {
+	  entitySet dom = local_cells[MPI_rank];
+	  cell_weights.allocate(dom) ;
+	  FORALL(dom,ii) {
+	    cell_weights[ii] = 1 ;
+	  } ENDFORALL ;
+	}
 
-	    int offset = local_cells[Loci::MPI_rank].Min()-cell_weights.domain().Min() ;
+	int offset = local_cells[Loci::MPI_rank].Min()-cell_weights.domain().Min() ;
 
-	    storeRepP sp = cell_weights.Rep();
-	    sp->shift(offset) ;
-	    
-	    if(cell_weights.domain() != local_cells[Loci::MPI_rank]) {
-	      cerr << "cell_weights=" << cell_weights.domain() << ", local_cells = " << local_cells[Loci::MPI_rank] << endl ;
-	      cerr << "cell weights partition inconsistent!" << endl ;
-	      Loci::Abort() ;
-	    }
+	storeRepP sp = cell_weights.Rep();
+	sp->shift(offset) ;
+	
+	if(cell_weights.domain() != local_cells[Loci::MPI_rank]) {
+	  cerr << "cell_weights=" << cell_weights.domain() << ", local_cells = " << local_cells[Loci::MPI_rank] << endl ;
+	  cerr << "cell weights partition inconsistent!" << endl ;
+	  Loci::Abort() ;
+	}
         
 
-	    int tot_weight1 = 0 ;
-	    int tot_weight2 = 0 ;
+	int tot_weight1 = 0 ;
+	int tot_weight2 = 0 ;
 	    
-	    cell_ptn[MPI_rank] = EMPTY ;
-	    entitySet dom = cell_weights.domain() ;
-	    FORALL(dom,i) {
-	      if(cell_weights[i] <= 1)
-		tot_weight1++ ;
-	      else
-		tot_weight2 += cell_weights[i] ;
-	    } ENDFORALL ;
-	    vector<int> pweights1(MPI_processes,0) ;
-	    MPI_Allgather(&tot_weight1,1,MPI_INT,&pweights1[0],1,MPI_INT,
-			  MPI_COMM_WORLD) ;
-	    vector<int> pweights2(MPI_processes,0) ;
-	    MPI_Allgather(&tot_weight2,1,MPI_INT,&pweights2[0],1,MPI_INT,
-			  MPI_COMM_WORLD) ;
-	    
-	    vector<int> woffsets1(MPI_processes+1,0) ;
-	    vector<int> woffsets2(MPI_processes+1,0) ;
-	    for(int i=0;i<MPI_processes;++i) {
-	      woffsets1[i+1] = pweights1[i]+woffsets1[i] ;
-	      woffsets2[i+1] = pweights2[i]+woffsets2[i] ;
-	    }
-
-	    // compute the weight per processor
-	    int wpp1 = ((woffsets1[MPI_processes]+MPI_processes-1)/MPI_processes) ;
-	    int wpp2 = ((woffsets2[MPI_processes]+MPI_processes-1)/MPI_processes) ;
-	    // Now compute local weighted sums
-	    int ncel = dom.size() ;
-	    vector<int> wts1(tot_weight1+1, woffsets1[MPI_rank]) ;
-	    vector<int> wts2(ncel-tot_weight1+1,woffsets2[MPI_rank]) ;
-	    int cnt1 = 0 ;
-	    int cnt2 = 0 ;
-	    FORALL(dom,i) {
-	      if(cell_weights[i] <= 1) {
-		wts1[cnt1+1] = wts1[cnt1]+1 ;
-		cnt1++ ;
-	      } else { 
-		wts2[cnt2+1] = wts2[cnt2]+cell_weights[i] ;
-		cnt2++ ;
-	      }
-	    } ENDFORALL ;
-
-	    entitySet pdom = local_cells[MPI_rank] ;
-	    cnt1 = 0 ;
-	    cnt2 = 0 ;
-	    FORALL(dom,i) {
-	      if(cell_weights[i] <= 1) {
-		cell_ptn[wts1[cnt1]/wpp1] += i ;
-		cnt1++ ;
-	      } else {
-		cell_ptn[wts2[cnt2]/wpp2] += i ;
-		cnt2++ ;
-	      }
-	    } ENDFORALL ;
-	  }
-	  
+	cell_ptn[MPI_rank] = EMPTY ;
+	entitySet dom = cell_weights.domain() ;
+	FORALL(dom,i) {
+	  if(cell_weights[i] <= 1)
+	    tot_weight1++ ;
+	  else
+	    tot_weight2 += cell_weights[i] ;
+	} ENDFORALL ;
+	vector<int> pweights1(MPI_processes,0) ;
+	MPI_Allgather(&tot_weight1,1,MPI_INT,&pweights1[0],1,MPI_INT,
+		      MPI_COMM_WORLD) ;
+	vector<int> pweights2(MPI_processes,0) ;
+	MPI_Allgather(&tot_weight2,1,MPI_INT,&pweights2[0],1,MPI_INT,
+		      MPI_COMM_WORLD) ;
+	
+	vector<int> woffsets1(MPI_processes+1,0) ;
+	vector<int> woffsets2(MPI_processes+1,0) ;
+	for(int i=0;i<MPI_processes;++i) {
+	  woffsets1[i+1] = pweights1[i]+woffsets1[i] ;
+	  woffsets2[i+1] = pweights2[i]+woffsets2[i] ;
 	}
+
+	// compute the weight per processor
+	int wpp1 = ((woffsets1[MPI_processes]+MPI_processes-1)/MPI_processes) ;
+	int wpp2 = ((woffsets2[MPI_processes]+MPI_processes-1)/MPI_processes) ;
+	// Now compute local weighted sums
+	int ncel = dom.size() ;
+	vector<int> wts1(tot_weight1+1, woffsets1[MPI_rank]) ;
+	vector<int> wts2(ncel-tot_weight1+1,woffsets2[MPI_rank]) ;
+	int cnt1 = 0 ;
+	int cnt2 = 0 ;
+	FORALL(dom,i) {
+	  if(cell_weights[i] <= 1) {
+	    wts1[cnt1+1] = wts1[cnt1]+1 ;
+	    cnt1++ ;
+	  } else { 
+	    wts2[cnt2+1] = wts2[cnt2]+cell_weights[i] ;
+	    cnt2++ ;
+	  }
+	} ENDFORALL ;
+
+	entitySet pdom = local_cells[MPI_rank] ;
+	cnt1 = 0 ;
+	cnt2 = 0 ;
+	FORALL(dom,i) {
+	  if(cell_weights[i] <= 1) {
+	    cell_ptn[wts1[cnt1]/wpp1] += i ;
+	    cnt1++ ;
+	  } else {
+	    cell_ptn[wts2[cnt2]/wpp2] += i ;
+	    cnt2++ ;
+	  }
+	} ENDFORALL ;
+	  
       }
 
       REPORTMEM() ;
@@ -3044,7 +3021,7 @@ namespace Loci {
     facts.create_fact("interior_faces",interior_faces) ;
   }
 
-  bool setupFVMGrid(fact_db &facts, string filename) {
+  bool setupFVMGrid(fact_db &facts, string filename, storeRepP cellwts) {
     if(!readFVMGrid(facts,filename))
       return false ;
 
@@ -3086,29 +3063,51 @@ namespace Loci {
                                 
   bool setupFVMGridWithWeightInFile(fact_db &facts, string filename, string weightfile) {
     // if(MPI_rank==0)std::cout<<" using setupFVMGridWithWeight" << std::endl;
-    bool orig_load_cell_weights = load_cell_weights;
-    string orig_cell_weight_file = cell_weight_file;
-    storeRepP orig_cell_weight_store = cell_weight_store ;
-    cell_weight_store = 0;
-    load_cell_weights = true;
-    cell_weight_file = weightfile;
+    storeRepP cellwts = 0 ;
+
+
+    // check if the file exists
+    int file_exists = 1 ;
+    if(Loci::MPI_rank == 0) {
+      struct stat buf ;
+      if(stat(weightfile.c_str(),&buf) == -1 ||
+	 !S_ISREG(buf.st_mode))
+	file_exists = 0 ;
+    }
+    MPI_Bcast(&file_exists,1,MPI_INT,0,MPI_COMM_WORLD) ;
+      
+    if(file_exists == 1) {
+      store<int> cell_weights ;
+      if(Loci::MPI_rank == 0) {
+	std::cout << "setupFVMGridWithWeightInFile(): reading cell weights from: "
+		  << weightfile << std::endl ;
+      }
+        
+      // create a hdf5 handle
+      hid_t file_id = Loci::hdf5OpenFile(weightfile.c_str(),
+					 H5F_ACC_RDONLY, H5P_DEFAULT) ;
+      if(file_id < 0) {
+	std::cerr << "...file reading failed..., Aborting" << std::endl ;
+	Loci::Abort() ;
+      }
+      
+      readContainerRAW(file_id,"cellweights", cell_weights.Rep(),
+		       MPI_COMM_WORLD) ;
+      
+      Loci::hdf5CloseFile(file_id) ;
+      cellwts = cell_weights.Rep() ;
+    }
     
-    if(!readFVMGrid(facts,filename)) {
-      load_cell_weights = orig_load_cell_weights;
-      cell_weight_file = orig_cell_weight_file;  
-      cell_weight_store = orig_cell_weight_store ;
+    if(!readFVMGrid(facts,filename,cellwts)) {
       return false ;
     }
-    cell_weight_store = 0;
+
     REPORTMEM() ;
     create_face_info(facts) ;
     
     create_ref(facts) ;
     create_ghost_cells(facts) ;
     
-    load_cell_weights = orig_load_cell_weights;
-    cell_weight_file = orig_cell_weight_file;  
-    cell_weight_store = orig_cell_weight_store ;
     return true ;
   }
 
@@ -3116,19 +3115,7 @@ namespace Loci {
  
   bool setupFVMGridWithWeightInStore(fact_db &facts, string filename, storeRepP cellwt ) {
     //if(MPI_rank==0)std::cout<<" using setupFVMGridWithWeightInStore" << std::endl;
-    bool orig_load_cell_weights = load_cell_weights;
-    string orig_cell_weight_file = cell_weight_file;
-    storeRepP orig_cell_weight_store = cell_weight_store ;
-
-    cell_weight_file = "";
-    cell_weight_store = cellwt;
-
-    load_cell_weights = false;
-    
-    if(!readFVMGrid(facts,filename)) {
-      load_cell_weights = orig_load_cell_weights;
-      cell_weight_file = orig_cell_weight_file;  
-      cell_weight_store = orig_cell_weight_store ;
+    if(!readFVMGrid(facts,filename,cellwt)) {
       return false ;
     }
     
@@ -3138,14 +3125,7 @@ namespace Loci {
     create_ref(facts) ;
     create_ghost_cells(facts) ;
 
-    load_cell_weights = orig_load_cell_weights;
-    cell_weight_file = orig_cell_weight_file;  
-    cell_weight_store = orig_cell_weight_store ;
     return true ;
   }
-
-
-  
-
 
 }

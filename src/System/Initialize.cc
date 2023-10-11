@@ -217,7 +217,6 @@ namespace Loci {
   // partitioning routine
   bool load_cell_weights = false ;
   string cell_weight_file ;
-  storeRepP cell_weight_store = 0;
   
   // flag to indicate whether multithreading is used for each type of rules
   bool threading_pointwise = false;
