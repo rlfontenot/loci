@@ -2366,12 +2366,16 @@ namespace Loci{
     Map cl,cr ;
     cl = facts.get_variable("cl") ;
     cr = facts.get_variable("cr") ;
-    entitySet cdom = cl.image(*faces)+cr.image(*faces) ;
-    entitySet global_geom_cells = collectSet(*geom_cells,cdom,MPI_COMM_WORLD) ;
-    
+    //entitySet cdom = all_collect_entitySet(cl.image(*faces)+cr.image(*faces)) ;
+    //entitySet global_geom_cells = collectSet(*geom_cells,cdom,MPI_COMM_WORLD) ;
+    // Note, all_collect_entitySet has the potential to be inefficient,
+    // but not in the present case.  These low level utilities need to be
+    // rethought.
+    entitySet global_geom_cells = all_collect_entitySet(*geom_cells) ;
     multiMap lower,upper,boundary_map ;
     distributed_inverseMap(upper, cl, global_geom_cells, global_interior_faces,
                            facts,0) ; // FIX THIS
+    
     distributed_inverseMap(lower, cr, global_geom_cells, global_interior_faces,
                            facts,0) ;
     distributed_inverseMap(boundary_map, cl, global_geom_cells,
