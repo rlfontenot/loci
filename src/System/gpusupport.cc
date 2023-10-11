@@ -586,7 +586,8 @@ namespace Loci {
       //	cout << "COLLAPSE: " << *rsi << endl ;
       //      }      
     }
-    cout << "gpu looping vars = " << loopVarBase <<endl ;
+    if(MPI_rank == 0 && loopVarBase!=EMPTY)
+      cout << "gpu looping vars = " << loopVarBase <<endl ;
     ruleSet processed ;
 
     variableSet cpu2gpu = gpuInputs ;
