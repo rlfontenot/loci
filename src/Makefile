@@ -72,7 +72,7 @@ FRC :
 FVMMod: library lpp
 	cd FVMMod; $(MAKE) LOCI_BASE="$(LOCI_BASE)" default
 
-FVMAdapt: library
+FVMAdapt: library lpp
 	cd FVMAdapt; $(MAKE) LOCI_BASE="$(LOCI_BASE)" all
 
 FVMOverset: library lpp
