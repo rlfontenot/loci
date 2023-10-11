@@ -2353,8 +2353,8 @@ namespace Loci {
 		    MPI_COMM_WORLD) ;
       MPI_Allreduce(&(pminl.x),&(pmin.x),3,MPI_FLOAT,MPI_MIN,
 		    MPI_COMM_WORLD) ;
-      double s = 4e-9/max(max(max(pmax.x-pmin.x,1e-3f),pmax.y-pmin.y),
-			  pmax.z-pmin.y) ;
+      double s = 4e9/max(max(max(pmax.x-pmin.x,1e-3f),pmax.y-pmin.y),
+			  pmax.z-pmin.z) ;
 
       for(int i=0;i<fsz;++i) {
 	IntCoord3 p ;
