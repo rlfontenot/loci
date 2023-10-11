@@ -162,42 +162,88 @@ vector<VOG::BC_descriptor> readCFDppTags(string filename) {
   if(file.fail()) {
     return bcs ;
   }
-  eatComments(file) ;
-  string command ;
-  int nbcs = 0 ;
-  file >> command >> nbcs ;
-  if(command != "mbcons") {
-    cerr << "Boundary condition file format error!" << endl
-	 << "Expecting 'mbcons' got '"<<command << "'" << endl ;
-    return bcs ;
-  }
-
-  for(int i=0;i<nbcs;++i) {
-    eatComments(file) ;
-    eatSpace(file) ;
-
-    int id, field2, field3, field4 ;
-    string name ;
-    file >> id >> field2 >> field3 >> field4 >> name ;
-
-    string tmp = name ;
-    size_t nsz = name.size() ;
-    if(!(name[0] >= 'a' && name[0] <= 'z') &&
-       !(name[0] >= 'A' && name[0] <= 'Z'))
-      name[0] = '_' ;
-    for(size_t i=1;i<nsz;++i) 
-      if(!(name[i] >= 'a' && name[i] <= 'z') &&
-	 !(name[i] >= 'A' && name[i] <= 'Z') &&
-	 !(name[i] >= '0' && name[i] <= '9'))
-	name[i] = '_' ;
-    if(tmp != name) 
-      cerr << "Renaming tag '" << tmp << "' to '" << name << "'!" << endl ;
+  string firstline;
+  getline(file,firstline);
+  if(firstline.find("ANSA") != string::npos) {
+    //ANSA generated bc file 
+    file.seekg(0); //rewind
+    int nlines=0;
+    string tmpstr;
+    while(getline(file,tmpstr)){
+       nlines++;
+    }
+    int nbcs=(nlines-2)/2;
+    cout<<"ANSA File with # BCs = "<<nbcs<<std::endl;
+    file.clear();
+    file.seekg(0,std::ios::beg);
+    getline(file,tmpstr);
+    getline(file,tmpstr);
+    string name;
+    for(int i=0;i<nbcs;++i){
+      getline(file,name);
+      cout<<name<<endl;
+      int id, field2, field3, field4 ;
+      file >> id >> field2 >> field3 >> field4;
+      getline(file,tmpstr);//read cr lf
+      name.erase(0,1);//name has # in front - remove
+      string tmp = name ;
+      size_t nsz = name.size() ;
+      if(!(name[0] >= 'a' && name[0] <= 'z') &&
+         !(name[0] >= 'A' && name[0] <= 'Z'))
+          name[0] = '_' ;
+      for(size_t i=1;i<nsz;++i) 
+        if(!(name[i] >= 'a' && name[i] <= 'z') &&
+	         !(name[i] >= 'A' && name[i] <= 'Z') &&
+	         !(name[i] >= '0' && name[i] <= '9'))
+	          name[i] = '_' ;
+      if(tmp != name) 
+        cerr << "Renaming tag '" << tmp << "' to '" << name << "'!" << endl ;
         
-    VOG::BC_descriptor BC ;
-    BC.id = id ;
-    BC.name = name ;
-    BC.Trans = false ;
-    bcs.push_back(BC) ;
+      VOG::BC_descriptor BC ;
+      BC.id = id ;
+      BC.name = name ;
+      BC.Trans = false ;
+      bcs.push_back(BC) ;
+    }
+  }
+  else {
+    eatComments(file) ;
+    string command ;
+    int nbcs = 0 ;
+    file >> command >> nbcs ;
+    if(command != "mbcons") {
+      cerr << "Boundary condition file format error!" << endl
+	     << "Expecting 'mbcons' got '"<<command << "'" << endl ;
+      return bcs ;
+    }
+
+    for(int i=0;i<nbcs;++i) {
+      eatComments(file) ;
+      eatSpace(file) ;
+
+      int id, field2, field3, field4 ;
+      string name ;
+      file >> id >> field2 >> field3 >> field4 >> name ;
+
+      string tmp = name ;
+      size_t nsz = name.size() ;
+      if(!(name[0] >= 'a' && name[0] <= 'z') &&
+         !(name[0] >= 'A' && name[0] <= 'Z'))
+          name[0] = '_' ;
+      for(size_t i=1;i<nsz;++i) 
+        if(!(name[i] >= 'a' && name[i] <= 'z') &&
+	         !(name[i] >= 'A' && name[i] <= 'Z') &&
+	         !(name[i] >= '0' && name[i] <= '9'))
+	          name[i] = '_' ;
+      if(tmp != name) 
+        cerr << "Renaming tag '" << tmp << "' to '" << name << "'!" << endl ;
+        
+      VOG::BC_descriptor BC ;
+      BC.id = id ;
+      BC.name = name ;
+      BC.Trans = false ;
+      bcs.push_back(BC) ;
+    }
   }
   return bcs ;
 }
@@ -292,7 +338,7 @@ int main(int ac, char* av[]) {
   }
 
 
-  FILE *NFP=0,*CFP,*BFP ;
+  FILE *NFP,*CFP,*BFP ;
   int mnodes = 0 ;
   const int R = MPI_rank ;
   const int P = MPI_processes ;
