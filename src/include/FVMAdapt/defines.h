@@ -435,7 +435,8 @@ namespace Loci {
                                  Map& tmp_cr,
                                  multiMap& tmp_face2node,
                                  std::vector<pair<int,string> >& boundary_ids,
-                                 std::vector<pair<string,entitySet> >& volTags ) ;
+                                 std::vector<pair<string,entitySet> >& volTags,
+				 Loci::storeRepP cellwts = 0) ;
   
   
   inline std::ostream &operator <<(std::ostream &s, const std::vector<std::pair<int32,int32> > &v) {

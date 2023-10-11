@@ -215,7 +215,8 @@ namespace Loci {
 #ifdef LOCI_USE_METIS
   vector<entitySet> AdaptMetisPartitionOfCells(const vector<entitySet> &local_cells,
                                                const Map &cl, const Map &cr,
-                                               const store<string> &boundary_tags) {
+                                               const store<string> &boundary_tags,
+					       storeRepP cellwts) {
     entitySet dom = cl.domain() & cr.domain() ;
     entitySet refset = boundary_tags.domain() ;
     entitySet bcfaces = cr.preimage(refset).first ;
@@ -313,7 +314,9 @@ namespace Loci {
     idx_t numflag = 0 ;
     idx_t options = 0 ;
 
-    Loci::storeRepP ptr = getCellPartitionWeights(local_cells[MPI_rank]) ;
+    //    Loci::storeRepP ptr = getCellPartitionWeights(local_cells[MPI_rank]) ;
+    Loci::storeRepP ptr = cellwts ;
+    
     if(ptr != 0) {
       store<int> cell_weights ;
       cell_weights = ptr ;
@@ -667,8 +670,8 @@ namespace Loci{
                     Map& tmp_cr,
                     multiMap& tmp_face2node,
                     vector<pair<int,string> >& boundary_ids,
-                    vector<pair<string,entitySet> >& volTags
-                    ) {
+                    vector<pair<string,entitySet> >& volTags,
+                    storeRepP cellwts) {
     double t1 = MPI_Wtime() ;
     // Identify boundary tags
     if(Loci::MPI_processes == 1) {
@@ -803,17 +806,22 @@ namespace Loci{
 
     vector<entitySet> cell_ptn,face_ptn,node_ptn ;
 
+    store<int> cell_weights ;
+    if(cellwts != 0)
+      cell_weights = cellwts ;
+    else {
+      Loci::storeRepP ptr = getCellPartitionWeights(local_cells[MPI_rank]) ;
+      if(ptr != 0) {
+	cell_weights = ptr ;
+      }
+    }
+
     if(use_orb_partition) {
       ORB_Partition_Mesh(local_nodes, local_faces, local_cells,
                          t_pos, tmp_cl, tmp_cr, tmp_face2node,
 			 tmp_boundary_tags,
                          cell_ptn,face_ptn,node_ptn) ;
     } else if(use_sfc_partition) {
-      store<int> cell_weights ;
-      Loci::storeRepP ptr = getCellPartitionWeights(local_cells[MPI_rank]) ;
-      if(ptr != 0) {
-	cell_weights = ptr ;
-      }
       SFC_Partition_Mesh(local_nodes, local_faces, local_cells,
                          t_pos, tmp_cl, tmp_cr, tmp_face2node,
 			 tmp_boundary_tags,
@@ -834,7 +842,10 @@ namespace Loci{
       if(useMetis) {
 
 #ifdef LOCI_USE_METIS
-        cell_ptn = AdaptMetisPartitionOfCells(local_cells,tmp_cl,tmp_cr,tmp_boundary_tags) ;
+	if(cellwts == 0)
+	  cellwts = getCellPartitionWeights(local_cells[MPI_rank]) ;
+	
+        cell_ptn = AdaptMetisPartitionOfCells(local_cells,tmp_cl,tmp_cr,tmp_boundary_tags,cellwts) ;
 #else
 	if(MPI_rank==0) {
           debugout << "METIS disabled:: Using simple partition" << endl ;
@@ -845,7 +856,10 @@ namespace Loci{
         cell_ptn = vector<entitySet>(MPI_processes) ;
         cell_ptn[MPI_rank] = local_cells[MPI_rank] ;
 	// read in additional vertex weights if any
-	Loci::storeRepP ptr = getCellPartitionWeights(local_cells[MPI_rank]) ;
+	Loci::storeRepP ptr = cellwts ;
+	if(ptr == 0)
+	  ptr = getCellPartitionWeights(local_cells[MPI_rank]) ;
+       
 	if(ptr != 0) {
           store<int> cell_weights ;
 	  cell_weights = ptr ;
@@ -1093,7 +1107,8 @@ namespace Loci{
                                  Map& tmp_cr,
                                  multiMap& tmp_face2node,
                                  vector<pair<int,string> >& boundary_ids,
-                                 vector<pair<string,entitySet> >& volTags ) {
+                                 vector<pair<string,entitySet> >& volTags,
+				 storeRepP cellwts) {
        
     if(!inputFVMGrid(facts,
                      local_nodes,
@@ -1104,7 +1119,7 @@ namespace Loci{
                      tmp_cr,
                      tmp_face2node,
                      boundary_ids,
-                     volTags))
+                     volTags,cellwts))
       return false ;
     REPORTMEM() ;
 
