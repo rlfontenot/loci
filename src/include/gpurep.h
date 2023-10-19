@@ -71,7 +71,7 @@ namespace Loci {
     size_t allocated_size ;
     bool allocated ;
     entitySet allocset ;
-    GPUstoreAllocateInfo():alloc_ptr1(0),alloc_ptr2(0),base_ptr(0),size(0),allocated_size(0),allocated(false) {allocset=EMPTY ;}
+    GPUstoreAllocateInfo():alloc_ptr1(0),alloc_ptr2(0),base_ptr(0),base_offset(0),size(0),allocated_size(0),allocated(false) {allocset=EMPTY ;}
 
     template<class T> void release() {
       if(alloc_ptr1!=0) {
