@@ -816,147 +816,82 @@ namespace Loci{
       }
     }
 
-    if(use_orb_partition) {
+    enum {ORB=0,SFC=1,SIMPLE=2,GRAPH=3} partitioner_type = GRAPH ;
+    if(use_orb_partition)
+      partitioner_type = ORB ;
+    if(use_sfc_partition)
+      partitioner_type = SFC ;
+    if(use_simple_partition) 
+      partitioner_type = SIMPLE ;
+
+    if(partitioner_type == GRAPH) {
+      int lcpp = local_cells[MPI_rank].size() ;
+      int mincpp = lcpp ;
+      MPI_Allreduce(&lcpp,&mincpp,1,MPI_INT,MPI_MIN,MPI_COMM_WORLD) ;
+      if(mincpp < 384) {
+	partitioner_type = SFC ; // Space filling curve partitioner
+	debugout << "switching from metis to space filling curve partitioner"
+		 << " mincpp = " << mincpp << endl ;
+      }
+#ifndef LOCI_USE_METIS
+      partitioner_type = SFC ; // Space filling curve partitioner if METIS
+      // not available
+#endif
+    }
+    switch(partitioner_type) {
+    case ORB:
       ORB_Partition_Mesh(local_nodes, local_faces, local_cells,
-                         t_pos, tmp_cl, tmp_cr, tmp_face2node,
+			 t_pos, tmp_cl, tmp_cr, tmp_face2node,
 			 tmp_boundary_tags,
-                         cell_ptn,face_ptn,node_ptn) ;
-    } else if(use_sfc_partition) {
+			 cell_ptn,face_ptn,node_ptn) ;
+      break ;
+    case SFC:
       SFC_Partition_Mesh(local_nodes, local_faces, local_cells,
-                         t_pos, tmp_cl, tmp_cr, tmp_face2node,
+			 t_pos, tmp_cl, tmp_cr, tmp_face2node,
 			 tmp_boundary_tags,
 			 cell_weights,
-                         cell_ptn,face_ptn,node_ptn) ;
-    } else {
-      // Partition Cells
-      bool useMetis = !use_simple_partition ;
-      
-      // If the number of cells per processor is too thin, metis
-      // no longer is an effective partitioner, so switch to the 
-      // simple partitioner instead
-      if(local_cells[0].size() < 450)  {
-	if(useMetis && MPI_rank==0) 
-	  debugout << "switching to simple partition due to small number of cells per proc!"<< endl ;
-	useMetis = false ;
-      }
-      if(useMetis) {
-
-#ifdef LOCI_USE_METIS
-	if(cellwts == 0)
-	  cellwts = getCellPartitionWeights(local_cells[MPI_rank]) ;
-	
-        cell_ptn = AdaptMetisPartitionOfCells(local_cells,tmp_cl,tmp_cr,tmp_boundary_tags,cellwts) ;
-#else
-	if(MPI_rank==0) {
-          debugout << "METIS disabled:: Using simple partition" << endl ;
-          useMetis = false ;
-        }
-#endif
-      } else {
-        cell_ptn = vector<entitySet>(MPI_processes) ;
+			 cell_ptn,face_ptn,node_ptn) ;
+      break ;
+    case SIMPLE: // Simple partition
+      {
+	cell_ptn = vector<entitySet>(MPI_processes) ;
         cell_ptn[MPI_rank] = local_cells[MPI_rank] ;
-	// read in additional vertex weights if any
-	Loci::storeRepP ptr = cellwts ;
-	if(ptr == 0)
-	  ptr = getCellPartitionWeights(local_cells[MPI_rank]) ;
-       
-	if(ptr != 0) {
-          store<int> cell_weights ;
-	  cell_weights = ptr ;
+	REPORTMEM() ;
+	face_ptn = partitionFaces(cell_ptn,tmp_cl,tmp_cr,tmp_boundary_tags) ;
+	REPORTMEM() ;
 
-	  if(cell_weights.domain() != local_cells[Loci::MPI_rank]) {
-	    cerr << "cell_weights=" << cell_weights.domain() << ", local_cells = " << local_cells[Loci::MPI_rank] << endl ;
-	    cerr << "cell weights partition inconsistent!" << endl ;
-	    Loci::Abort() ;
-	  }
-        
-
-	  int tot_weight1 = 0 ;
-	  int tot_weight2 = 0 ;
-	    
-	  cell_ptn[MPI_rank] = EMPTY ;
-	  entitySet dom = cell_weights.domain() ;
-	  FORALL(dom,i) {
-	    if(cell_weights[i] <= 1)
-	      tot_weight1++ ;
-	    else
-	      tot_weight2 += cell_weights[i] ;
-	  } ENDFORALL ;
-	  vector<int> pweights1(MPI_processes,0) ;
-	  MPI_Allgather(&tot_weight1,1,MPI_INT,&pweights1[0],1,MPI_INT,
-			MPI_COMM_WORLD) ;
-	  vector<int> pweights2(MPI_processes,0) ;
-	  MPI_Allgather(&tot_weight2,1,MPI_INT,&pweights2[0],1,MPI_INT,
-			MPI_COMM_WORLD) ;
-	  
-	  vector<int> woffsets1(MPI_processes+1,0) ;
-	  vector<int> woffsets2(MPI_processes+1,0) ;
-	  for(int i=0;i<MPI_processes;++i) {
-	    woffsets1[i+1] = pweights1[i]+woffsets1[i] ;
-	    woffsets2[i+1] = pweights2[i]+woffsets2[i] ;
-	  }
-	  
-	  // compute the weight per processor
-	  int wpp1 = ((woffsets1[MPI_processes])/MPI_processes) ;
-	  int rpp1 = ((woffsets1[MPI_processes])%MPI_processes) ;
-	  int wpp2 = ((woffsets2[MPI_processes])/MPI_processes) ;
-	  int rpp2 = ((woffsets2[MPI_processes])%MPI_processes) ;
-	  vector<int> splits1(MPI_processes),splits2(MPI_processes) ;
-	  int tot1 = 0 ;
-	  int tot2 = 0 ;
-	  for(int i=0;i<MPI_processes;++i) {
-	    splits1[i] = tot1 + wpp1 + ((i<rpp1)?1:0) ;
-	    tot1 += splits1[i] ;
-	    splits2[i] = tot2 + wpp2 + ((1<rpp2)?1:0) ;
-	    tot2 += splits2[i] ;
-	  }
-	  
-	  // Now compute local weighted sums
-	  int ncel = dom.size() ;
-	  vector<int> wts1(tot_weight1+1, woffsets1[MPI_rank]) ;
-	  vector<int> wts2(ncel-tot_weight1+1,woffsets2[MPI_rank]) ;
-	  int cnt1 = 0 ;
-	  int cnt2 = 0 ;
-	  FORALL(dom,i) {
-	    if(cell_weights[i] <= 1) {
-	      wts1[cnt1+1] = wts1[cnt1]+1 ;
-	      cnt1++ ;
-	    } else { 
-	      wts2[cnt2+1] = wts2[cnt2]+cell_weights[i] ;
-	      cnt2++ ;
-	    }
-	  } ENDFORALL ;
-
-	  entitySet pdom = local_cells[MPI_rank] ;
-	  cnt1 = 0 ;
-	  cnt2 = 0 ;
-	  int p1 = 0 ;
-	  int p2 = 0 ;
-	  
-	  FORALL(dom,i) {
-	    if(cell_weights[i] <= 1) {
-	      while(wts1[i] >= splits1[p1] && p1 < MPI_processes)
-		p1++ ;
-	      cell_ptn[p1] += i ;
-	      cnt1++ ;
-	    } else {
-	      while(wts2[i] >= splits2[p2] && p2 < MPI_processes)
-		p2++ ;
-	      cell_ptn[p2] += i ;
-	      cnt2++ ;
-	    }
-	  } ENDFORALL ;
-	}
+	node_ptn = partitionNodes(face_ptn,
+				  MapRepP(tmp_face2node.Rep()),
+                                t_pos.domain()) ;
 	
       }
-      REPORTMEM() ;
-      face_ptn = partitionFaces(cell_ptn,tmp_cl,tmp_cr,tmp_boundary_tags) ;
-      REPORTMEM() ;
-      
-      node_ptn = partitionNodes(face_ptn,
-				MapRepP(tmp_face2node.Rep()),
-				t_pos.domain()) ;
+      break ;
+    case GRAPH: // METIS partition
+      {
+        cell_ptn = AdaptMetisPartitionOfCells(local_cells,tmp_cl,tmp_cr,tmp_boundary_tags,cellwts) ;
+	//        cell_ptn = newMetisPartitionOfCells(local_cells,tmp_cl,tmp_cr,tmp_boundary_tags,cellwts) ;
+	REPORTMEM() ;
+	face_ptn = partitionFaces(cell_ptn,tmp_cl,tmp_cr,tmp_boundary_tags) ;
+	REPORTMEM() ;
+
+	node_ptn = partitionNodes(face_ptn,
+				  MapRepP(tmp_face2node.Rep()),
+				  t_pos.domain()) ;
+      }
+      break ;
+    default: // SFC partition no weight balance
+      {
+	store<int> cell_weights ;
+
+	SFC_Partition_Mesh(local_nodes, local_faces, local_cells,
+			   t_pos, tmp_cl, tmp_cr, tmp_face2node,
+			   tmp_boundary_tags,
+			   cell_weights,
+			   cell_ptn,face_ptn,node_ptn) ;
+      }
+      break ;
     }
+
     vector<entitySet> bcsurf_ptn(MPI_processes) ;
     entitySet refset = tmp_boundary_tags.domain() ;
       
