@@ -207,6 +207,8 @@ namespace Loci {
 #endif /* ifndef LOCI_USE_METIS */
   bool use_orb_partition = false ;
   
+  int metis_cpp_threshold = 384 ;
+
   extern int factdb_allocated_base ;
 
   string PFS_Script ; // Parallel File System Striping Script
@@ -624,6 +626,9 @@ namespace Loci {
 #endif
 	  i++ ;
 	  use_parallel_io = false ;
+	} else if(!strcmp((*argv)[i],"--metis_cpp_threshold")) {
+            metis_cpp_threshold = atoi((*argv)[i+1]);
+	    i+=2;
         } else if(!strcmp((*argv)[i],"--simple_partition")) {
           use_simple_partition = true ; //  partition domain using n/p cuts
           i++ ;
