@@ -77,7 +77,8 @@ typedef double metisreal_t ;
 #endif
 #endif
 namespace Loci {
-
+  extern int metis_cpp_threshold ;
+  
   storeRepP mapCellPartitionWeights(storeRepP wptr,
 				    storeRepP c2p_ptr,
 				    entitySet localcelldom) {
@@ -1226,7 +1227,7 @@ namespace Loci{
       int lcpp = local_cells[MPI_rank].size() ;
       int mincpp = lcpp ;
       MPI_Allreduce(&lcpp,&mincpp,1,MPI_INT,MPI_MIN,MPI_COMM_WORLD) ;
-      if(mincpp < 384) {
+      if(mincpp < metis_cpp_threshold) {
 	partitioner_type = SFC ; // Space filling curve partitioner
 	debugout << "switching from metis to space filling curve partitioner"
 		 << " mincpp = " << mincpp << endl ;
