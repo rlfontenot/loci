@@ -42,6 +42,7 @@
 
 #include "FVMAdapt/defines.h"
 #include "FVMAdapt/dataxferDB.h"
+#include "FVMAdapt/gridInterface.h"
 
 using std::cerr;
 using std::cout;
@@ -76,6 +77,405 @@ typedef double metisreal_t ;
 #endif
 #endif
 namespace Loci {
+  extern int metis_cpp_threshold ;
+  
+  storeRepP mapCellPartitionWeights(storeRepP wptr,
+				    storeRepP c2p_ptr,
+				    entitySet localcelldom) {
+    if(wptr == 0)
+      return wptr ;
+    store<int> cell_weights_parent ;
+    cell_weights_parent = wptr ;
+
+    store<pair<int,int> > c2pset ;
+    if(c2p_ptr == 0)
+      return wptr ;
+    c2pset = c2p_ptr ;
+    entitySet domc2p = c2pset.domain() ;
+    int r = Loci::MPI_rank ;
+    int p = Loci::MPI_processes ;
+     
+    int minParent = std::numeric_limits<int>::max() ;
+    int minTarget = std::numeric_limits<int>::max() ;
+    FORALL(domc2p,ii) {
+      minParent = min(minParent,c2pset[ii].second) ;
+      minTarget = min(minTarget,c2pset[ii].first) ;
+    } ENDFORALL ;
+    
+    int parentOffset = minParent ;
+    int targetOffset = minTarget ;
+    MPI_Allreduce(&minParent,&parentOffset,1,MPI_INT,MPI_MIN,
+		  MPI_COMM_WORLD) ;
+    MPI_Allreduce(&minTarget,&targetOffset,1,MPI_INT,MPI_MIN,
+		  MPI_COMM_WORLD) ;
+    int sz = domc2p.size() ;
+    vector<pair<int,int> > p2c(sz) ;
+    int cnt = 0 ;
+    FORALL(domc2p,ii) {
+      p2c[cnt].first = c2pset[ii].second-parentOffset ;
+      p2c[cnt].second = c2pset[ii].first-targetOffset ;
+      cnt++ ;;
+    } ENDFORALL ;
+    
+    sort(p2c.begin(),p2c.end()) ;
+    
+    // Now distribute c2p to processors in parent file ordering
+    entitySet cwdom = cell_weights_parent.domain() ;
+    int cwsz = cwdom.size() ;
+    vector<int> parentsizes(p) ;
+    MPI_Allgather(&cwsz,1,MPI_INT,&parentsizes[0],1,MPI_INT,
+		  MPI_COMM_WORLD) ;
+    vector<int> parentoffsets(p+1,0) ;
+    for(int i=0;i<p;++i)
+      parentoffsets[i+1] = parentoffsets[i]+parentsizes[i] ;
+    
+    vector<pair<int,int> > splits(p-1) ;
+    for(int i=0;i<p-1;++i)
+      splits[i] = pair<int,int>(parentoffsets[i+1],-1) ;
+
+    Loci::parSplitSort(p2c,splits,MPI_COMM_WORLD) ;
+
+    int psz = p2c.size() ;
+
+    vector<pair<int,int> > cell2weights(psz) ;
+    entitySet::const_iterator ii = cwdom.begin() ;
+    cnt = parentoffsets[r] ;
+    int mincell = p2c[0].second ;
+    int cnt2 = 0 ;
+    for(int i=0;i<psz;) {
+      while(i<psz && p2c[i].first == cnt) {
+	mincell = min(mincell,p2c[i].second) ;
+	cell2weights[cnt2] =pair<int,int>(p2c[i].second,
+					  cell_weights_parent[*ii]) ;
+	cnt2++ ;
+	i++ ;
+      }
+      cnt++ ;
+      ii++ ;
+    }
+    int mincell_global =mincell ;
+    MPI_Allreduce(&mincell,&mincell_global,1,MPI_INT,MPI_MIN,MPI_COMM_WORLD) ;
+
+    int dmsz = localcelldom.size() ;
+    vector<int> cellsizes(p) ;
+    MPI_Allgather(&dmsz,1,MPI_INT,&cellsizes[0],1,MPI_INT,
+		  MPI_COMM_WORLD) ;
+    parentoffsets[0] = mincell_global ;
+    for(int i=0;i<p;++i)
+      parentoffsets[i+1] = parentoffsets[i]+cellsizes[i] ;
+    
+    for(int i=0;i<p-1;++i)
+      splits[i] = pair<int,int>(parentoffsets[i+1],-1) ;
+
+
+    sort(cell2weights.begin(),cell2weights.end()) ;
+    Loci::parSplitSort(cell2weights,splits,MPI_COMM_WORLD) ;
+
+    store<int> cellweightschild ;
+    cellweightschild.allocate(localcelldom) ;
+    cnt = 0;
+
+    FORALL(localcelldom,ii) {
+      cellweightschild[ii] = cell2weights[cnt].second ;
+      cnt++ ;
+    } ENDFORALL ;
+    return cellweightschild.Rep() ;
+  }
+
+
+  void onlineRefineMesh(Loci::CPTR<refinedGridData> &gridDataP,
+			rule_db &refmesh_rdb,
+			int adaptmode,
+			int level,
+			storeRepP tags,
+			string casename  ) {
+    gridDataP = new(refinedGridData) ;
+      
+        
+    Loci::debugout<< " running refinement in adaptcycle" << endl;
+    
+    // This is the name of the mesh file that you want to read in.
+    string meshFile = casename+".vog";
+           
+    //otherwise, restart is false
+    bool firstlevel = (level>0) ;
+    // Setup the rule database.
+    // Add all registered rules.  
+    rule_db refine_rules;
+    refine_rules = refmesh_rdb ;
+      
+    // Setup the refine_fact database.
+    fact_db refine_facts;
+      
+    // Read in the mesh file.
+    Loci::storeRepP cellwt = Loci::DataXFER_DB.getItem("cellweights") ;
+    if(!Loci::setupFVMGridWithWeightInStore(refine_facts,meshFile, cellwt)) {
+      std::cerr << "unable to read grid file '" << meshFile << "'" << std::endl ;
+      Loci::Abort() ;
+    }
+    Loci::DataXFER_DB.deleteItem("cellweights") ;
+
+      
+    blackbox<vector<pair<string, entitySet> > > origVolTags ;
+    origVolTags.Rep()->allocate(~EMPTY) ;
+    if(MPI_rank==0){
+      hid_t file_id = Loci::hdf5OpenFile(meshFile.c_str(),
+					 H5F_ACC_RDONLY,H5P_DEFAULT) ;
+    
+      Loci::readVolTags(file_id,*origVolTags);
+      Loci::hdf5CloseFile(file_id) ;
+    }
+    refine_facts.create_fact("volTagInput",origVolTags) ;
+     
+    //Setup Loci datastructures
+    Loci::createLowerUpper(refine_facts) ;
+    Loci::createEdgesPar(refine_facts) ;
+    Loci::parallelClassifyCell(refine_facts);
+       
+      
+    //this is a dummy parameter to trick Loci scheduler
+    param<bool> beginWithMarker;
+    *beginWithMarker = true;
+    refine_facts.create_fact("beginWithMarker",beginWithMarker) ; 
+      
+    param<std::string> plan_outDB_par ;
+    *plan_outDB_par = "nextPlan" ;
+    refine_facts.create_fact("plan_outDB_par",plan_outDB_par) ;
+  
+    if(tags != 0) {
+      store<char> tag_info ;
+      tag_info = tags ;
+      Loci::entitySet dom = tag_info.domain() ;
+      vector<char> tagset(dom.size()) ;
+      int cnt = 0 ;
+      FORALL(dom,ii) {
+	tagset[cnt] = tag_info[ii] ;
+	cnt++ ;
+      } ENDFORALL ;
+      blackbox<vector<char> > inputTagsData ;
+      inputTagsData.set_entitySet(~EMPTY) ;
+      (*inputTagsData).swap(tagset) ;
+      refine_facts.create_fact("inputCellTagsData",inputTagsData) ;
+      Loci::DataXFER_DB.deleteItem("refineTag") ;
+    }
+
+
+    if(firstlevel){
+      param<std::string> parent_planfile_par ;
+      *parent_planfile_par = "currentPlan" ;
+      refine_facts.create_fact("parent_planDB_par",parent_planfile_par) ;
+    }
+      
+    gridDataP->boundary_ids.clear();
+    Loci::readBCfromVOG(meshFile, gridDataP->boundary_ids);
+
+      
+                              
+    //parameters to identify different options
+    if(firstlevel){
+      param<std::string> planfile_par ;
+      *planfile_par = "currentPlan" ;
+      refine_facts.create_fact("planDB_par",planfile_par) ;
+    
+      param<int> restart_tag_par;
+      *restart_tag_par = 1;
+      refine_facts.create_fact("restart_tag_par",restart_tag_par);
+    }else{
+      param<int> norestart_tag_par;
+      *norestart_tag_par = 1;
+      refine_facts.create_fact("norestart_tag_par",norestart_tag_par);
+    }
+  
+    param<int> split_mode_par;
+    *split_mode_par = adaptmode;
+    refine_facts.create_fact("split_mode_par", split_mode_par);
+        
+    {
+      param<std::string> cellweight_outDB_par;
+      *cellweight_outDB_par = "cellweights";
+      refine_facts.create_fact("cellweight_outDB_par",cellweight_outDB_par);
+        
+      if(!Loci::makeQuery(refine_rules,refine_facts,
+			  "cellplan_output,cellweight_output,cell2parent_DB,inner_nodes,fine_faces,volTag_blackbox")) {
+	std::cerr << "adapt query failed!" << std::endl;
+	Loci::Abort();
+      }
+    }
+      
+    Loci::DataXFER_DB.deleteItem("currentPlan") ;
+    Loci::storeRepP newPlan = Loci::DataXFER_DB.getItem("nextPlan") ;
+    Loci::DataXFER_DB.insertItem("currentPlan",newPlan) ;
+    Loci::DataXFER_DB.deleteItem("nextPlan") ;
+	
+    store<Loci::FineNodes> inner_nodes;
+    inner_nodes = refine_facts.get_variable("inner_nodes");
+        
+       
+    int num_nodes;
+    createVOGNode(gridDataP->new_pos,
+		  inner_nodes,
+		  num_nodes,
+		  refine_facts,
+		  gridDataP->local_nodes
+		  );
+    if(Loci::MPI_rank ==0)
+      cerr<< "num_nodes: " << num_nodes << " in adaptcycle" << endl;
+        
+    store<Loci::FineFaces> fine_faces;
+    fine_faces = refine_facts.get_variable("fine_faces");
+        
+    int num_faces = 0;
+    int num_cells = 0;
+      
+    createVOGFace( num_nodes,
+		   fine_faces,
+		   refine_facts,
+		   num_faces,
+		   num_cells,
+		   gridDataP->new_cl,
+		   gridDataP->new_cr,
+		   gridDataP->new_face2node,
+		   gridDataP->local_faces,
+		   gridDataP->local_cells
+		   );
+
+    //update volume tags
+    {
+      blackbox<std::vector<std::pair<std::string, entitySet> > > volTag_blackbox;
+      volTag_blackbox = refine_facts.get_variable("volTag_blackbox"); 
+      gridDataP->volTags =  *volTag_blackbox;
+    }
+
+    if(Loci::MPI_rank==0){
+      cerr<< "num_faces: " << num_faces << " in adaptcycle" <<endl;
+      cerr<< "num_cells: " << num_cells << " in adaptcycle" << endl;
+    }
+  }
+
+  void initializeGridFromPlan(Loci::CPTR<refinedGridData> &gridDataP,
+			      int &level,
+			      rule_db &refmesh_rdb,
+			      string casename, string weightfile,
+			      string restartplanfile) {
+    string meshFile = casename+".vog";
+    // Setup the rule database.
+    // Add all registered rules.  
+    rule_db refine_rules;
+    refine_rules = refmesh_rdb ;
+	  
+    // Setup the refine_fact database.
+    fact_db refine_facts;
+	  
+    if(Loci::MPI_rank == 0) 
+      cout <<"reading in meshfile: " 
+	   << meshFile << " for chem run" << std::endl;
+	    
+    // Read in the mesh file.
+    if(!Loci::setupFVMGridWithWeightInFile(refine_facts,meshFile, weightfile)) {
+      std::cerr << "unable to read mesh file '" << meshFile << "'" << std::endl ;
+      Loci::Abort() ;
+    }
+          
+    //Setup Loci datastructures
+    Loci::createLowerUpper(refine_facts) ;
+    Loci::createEdgesPar(refine_facts) ;
+    Loci::parallelClassifyCell(refine_facts);
+    blackbox<vector<pair<string, entitySet> > > origVolTags ;
+    origVolTags.Rep()->allocate(~EMPTY) ;
+    if(MPI_rank==0){
+      hid_t file_id = Loci::hdf5OpenFile(meshFile.c_str(),
+					 H5F_ACC_RDONLY,H5P_DEFAULT) ;
+	    
+      Loci::readVolTags(file_id,*origVolTags);
+      Loci::hdf5CloseFile(file_id) ;
+    }
+    refine_facts.create_fact("volTagInput",origVolTags) ;
+	  
+    if(Loci::MPI_rank == 0) 
+      cout <<"reading in cellplan file: " 
+	   << restartplanfile << std::endl;
+	  
+    hid_t file_id = Loci::hdf5OpenFile(restartplanfile.c_str(),
+				       H5F_ACC_RDONLY,H5P_DEFAULT) ;
+	  
+    store<std::vector<char> > cellPlan ;
+    param<int> refineLevel ;
+    hid_t group_id = 0 ;
+    if(Loci::MPI_rank == 0)
+      group_id = H5Gopen(file_id,"refineLevel",H5P_DEFAULT) ;
+	    
+    Loci::read_parameter(group_id,refineLevel.Rep(),MPI_COMM_WORLD) ;
+    if(Loci::MPI_rank == 0) {
+      H5Gclose(group_id) ;
+      group_id = H5Gopen(file_id,"cellPlan",H5P_DEFAULT) ;
+      cout << "restart refine level = " << *refineLevel << endl ;
+    }
+    level = *refineLevel ;
+    int offset = 0; 
+    Loci::read_store(group_id,cellPlan.Rep(),offset,MPI_COMM_WORLD) ;//read in file numbering store, simplePartition
+    cellPlan.Rep()->shift(offset) ;
+    if(Loci::MPI_rank == 0) {
+      H5Gclose(group_id) ;
+    }
+    Loci::hdf5CloseFile(file_id) ;
+
+    //finish reading currentPlan
+    //inserting currentPlan into DataXFER_DB
+    Loci::DataXFER_DB.insertItem("currentPlan",cellPlan.Rep()) ;
+    param<std::string> balanced_planDB_par ;
+    *balanced_planDB_par = "currentPlan" ;
+    refine_facts.create_fact("balanced_planDB_par",balanced_planDB_par) ;
+	      
+    if(!Loci::makeQuery(refine_rules,refine_facts,
+			"inner_nodes,fine_faces,volTag_blackbox")) {
+      std::cerr << "adapt query failed!" << std::endl;
+      Loci::Abort();
+    }
+       
+    store<Loci::FineNodes> inner_nodes;
+    inner_nodes = refine_facts.get_variable("inner_nodes");
+
+	  
+    gridDataP = new(refinedGridData) ;
+    gridDataP->boundary_ids.clear();
+    Loci::readBCfromVOG(meshFile, gridDataP->boundary_ids); 
+       
+    int num_nodes;
+    createVOGNode(gridDataP->new_pos,
+		  inner_nodes,
+		  num_nodes,
+		  refine_facts,
+		  gridDataP->local_nodes
+		  );
+    if(Loci::MPI_rank ==0)cerr<< "num_nodes: " << num_nodes << " before chem run" <<  endl;
+        
+    store<Loci::FineFaces> fine_faces;
+    fine_faces = refine_facts.get_variable("fine_faces");
+	      
+    int num_faces = 0;
+    int num_cells = 0;
+	      
+    createVOGFace( num_nodes,
+		   fine_faces,
+		   refine_facts,
+		   num_faces,
+		   num_cells,
+		   gridDataP->new_cl,
+		   gridDataP->new_cr,
+		   gridDataP->new_face2node,
+		   gridDataP->local_faces,
+		   gridDataP->local_cells
+		   );
+
+    if(Loci::MPI_rank ==0)cerr<< "num_faces: " << num_faces << " before chem run" <<  endl;
+    if(Loci::MPI_rank ==0)cerr<< "num_cells: " << num_cells << " before chem run" <<  endl;
+              
+    {
+      blackbox<std::vector<std::pair<std::string, entitySet> > > volTag_blackbox;
+      volTag_blackbox = refine_facts.get_variable("volTag_blackbox"); 
+      gridDataP->volTags =  *volTag_blackbox;
+    }
+  }
 
   extern bool use_simple_partition ;
   extern bool use_orb_partition ;
@@ -212,6 +612,192 @@ namespace Loci {
 
 
 #ifdef LOCI_USE_METIS
+  vector<entitySet> AdaptMetisPartitionOfCells(const vector<entitySet> &local_cells,
+                                               const Map &cl, const Map &cr,
+                                               const store<string> &boundary_tags,
+					       storeRepP cellwts) {
+    entitySet dom = cl.domain() & cr.domain() ;
+    entitySet refset = boundary_tags.domain() ;
+    entitySet bcfaces = cr.preimage(refset).first ;
+    dom -= bcfaces ;
+    int cnt = dom.size() ;
+    
+    vector<pair<int,int> > rawMap(cnt*2) ;
+    int j = 0 ;
+    entitySet::const_iterator ei ;
+    for(ei=dom.begin();ei!=dom.end();++ei) {
+      rawMap[j++] = pair<int,int>(cl[*ei],cr[*ei]) ;
+      rawMap[j++] = pair<int,int>(cr[*ei],cl[*ei]) ;
+    }
+
+    sort(rawMap.begin(),rawMap.end()) ;
+
+    multiMap cell2cell ;
+    entitySet all_cells ;
+    for(int i=0;i<MPI_processes;++i)
+      all_cells += local_cells[i] ;
+
+    distributed_inverseMap(cell2cell,rawMap, all_cells,all_cells,local_cells) ;
+
+    vector<pair<int,int> >().swap(rawMap) ; // Free up memory from rawMap
+    int count = 0 ;
+    idx_t size_map = local_cells[Loci::MPI_rank].size() ;
+    vector<idx_t> size_adj(size_map) ;
+    count = 0 ;
+    for(entitySet::const_iterator ei = local_cells[Loci::MPI_rank].begin(); ei != local_cells[Loci::MPI_rank].end(); ++ei) {
+      size_adj[count] = cell2cell[*ei].size() ;
+      ++count ;
+    }
+
+    vector<idx_t> part(size_map) ;
+    vector<idx_t> xadj(size_map+1) ;
+    idx_t edgecut ;
+    vector<idx_t> vdist(Loci::MPI_processes + 1) ;
+    int cmin = local_cells[0].Min();
+    for(int i = 0; i < Loci::MPI_processes; i++) {
+      cmin = min(local_cells[i].Min(), cmin);
+    }
+    
+    // check local_cells to be consistent with parmetis partitioning
+    for(int i=0;i<Loci::MPI_processes;++i) {
+      if(local_cells[i].size() == 0 ||
+         (int)local_cells[i].size() != local_cells[i].Max()-local_cells[i].Min()+1) {
+        cerr << "invalid local cell set, p=" << i
+             << ", local_cells=" << local_cells[i] << endl ;
+      }
+      if(i>0 && local_cells[i-1].Max()+1 != local_cells[i].Min()) {
+        cerr << "gap between processors in cell numbering" << endl ;
+      }
+    }
+    
+      
+    
+    edgecut = 0 ;
+    xadj[0] = 0 ;
+    for(idx_t i = 0; i < size_map; ++i)
+      xadj[i+1] = xadj[i] + size_adj[i] ;
+
+    idx_t min_size = size_adj[0] ;
+    for(idx_t i = 0; i < size_map; ++i)
+      min_size = min(min_size,size_adj[i]) ;
+    if(min_size == 0) 
+      cerr << "cell with no adjacency!" << endl ;
+    
+    idx_t tot = xadj[size_map] ;
+    vector<idx_t> adjncy(tot) ;
+    count = 0 ;
+    for(entitySet::const_iterator ei = local_cells[Loci::MPI_rank].begin(); ei != local_cells[Loci::MPI_rank].end(); ++ei) {
+      size_t sz = cell2cell[*ei].size() ;
+      for(size_t i = 0; i != sz; ++i)        {
+	adjncy[count] = cell2cell[*ei][i] - cmin ;
+	count ++ ;
+      }
+    }
+    cell2cell.setRep(multiMap().Rep()) ;// Free up memory from multiMap
+
+    vdist[0] = 0 ;
+    for(int i = 1; i <= Loci::MPI_processes; ++i)
+      vdist[i] = vdist[i-1] + local_cells[i-1].size() ;
+    idx_t top = vdist[Loci::MPI_processes] ;
+    
+    bool trouble = false ;
+    for(idx_t i=0;i<tot;++i)
+      if(adjncy[i] >= top)
+        trouble = true ;
+    if(trouble)
+      cerr << "adjacency list contains out of bounds reference" << endl ;
+    
+    MPI_Comm mc = MPI_COMM_WORLD ;
+    idx_t nparts = Loci::MPI_processes ; // number of partitions
+    idx_t wgtflag = 0 ;
+    idx_t numflag = 0 ;
+    idx_t options = 0 ;
+
+    //    Loci::storeRepP ptr = getCellPartitionWeights(local_cells[MPI_rank]) ;
+    Loci::storeRepP ptr = cellwts ;
+    
+    if(ptr != 0) {
+      store<int> cell_weights ;
+      cell_weights = ptr ;
+        
+      // compute necessary ParMETIS data-structure
+      wgtflag = 2 ;           // weights on the vertices only
+      idx_t ncon = 2 ;          // number of weights per vertex
+      idx_t tpwgts_len = ncon*nparts ;
+      vector<metisreal_t> tpwgts(tpwgts_len) ;
+      
+      for(idx_t i=0;i<tpwgts_len;++i)
+	tpwgts[i] = 1.0 / double(nparts) ;
+      
+      vector<metisreal_t> ubvec(ncon) ;
+      for(idx_t i=0;i<ncon;++i)
+	ubvec[i] = 1.05 ;     // as recommended by the ParMETIS manual
+      
+      // now construct the vertex weights
+      vector<idx_t> vwgt(ncon*size_map) ;
+      int cnt = 0 ;
+      for(entitySet::const_iterator
+	    ei=local_cells[Loci::MPI_rank].begin();
+	  ei!=local_cells[Loci::MPI_rank].end();++ei,cnt+=ncon) {
+	// first weight for cell is 1 (the cell computation)
+	vwgt[cnt] = 1 ;
+	// the second weight is from the store cell_weights[*ei]
+	vwgt[cnt+1] = cell_weights[*ei] ;
+      }
+
+      // now call the ParMETIS routine (V3)
+      ParMETIS_V3_PartKway(&vdist[0],&xadj[0],&adjncy[0],&vwgt[0],NULL,
+			   &wgtflag,&numflag,&ncon,&nparts,
+			   &tpwgts[0],&ubvec[0],&options,&edgecut,&part[0],
+			   &mc) ;
+      
+    } else {
+      //      idx_t ncon = 1 ;
+      idx_t ncon = 2 ;
+      idx_t tpwgts_len = ncon*nparts ;
+      vector<metisreal_t> tpwgts(tpwgts_len) ;
+      for(idx_t i=0;i<tpwgts_len;++i)
+        tpwgts[i] = 1.0 / double(nparts) ;
+
+      vector<metisreal_t> ubvec(ncon) ;
+      for(idx_t i=0;i<ncon;++i)
+	ubvec[i] = 1.05 ;     // as recommended by the ParMETIS manual
+      wgtflag = 2 ;
+      // now construct the vertex weights
+      vector<idx_t> vwgt(ncon*size_map) ;
+
+      int cnt = 0 ;
+      for(int i=0;i<size_map;++i) {
+	// first weight for cell is 1 (the cell computation)
+	vwgt[cnt] = 1 ;
+	// the second weight is from the store cell_weights[*ei]
+	vwgt[cnt+1] =  size_adj[i] ;
+	cnt += ncon ;
+      }
+      ParMETIS_V3_PartKway(&vdist[0],&xadj[0],&adjncy[0],&vwgt[0],NULL,
+                           &wgtflag,&numflag,&ncon,&nparts,
+                           &tpwgts[0],&ubvec[0],&options,&edgecut,
+                           &part[0],&mc) ;
+    }
+
+    if(Loci::MPI_rank == 0)
+      Loci::debugout << " Parmetis Edge cut   " <<  edgecut << endl ;
+
+    //find the partition ptn given by Metis
+    vector<entitySet> ptn ;
+
+    for(int i = 0; i < Loci::MPI_processes; ++i)
+      ptn.push_back(EMPTY) ;
+    cmin = local_cells[Loci::MPI_rank].Min() ;
+    for(int i=0;i<size_map;++i) {
+      ptn[part[i]] += i + cmin ;
+    }
+   
+    return ptn;
+
+  }
+#endif /* LOCI_USE_METIS */
+#ifdef LOCI_USE_METISOLD
   vector<entitySet> AdaptMetisPartitionOfCells(const vector<entitySet> &local_cells,
                                                const Map &cl, const Map &cr,
                                                const store<string> &boundary_tags) {
@@ -666,7 +1252,8 @@ namespace Loci{
                     Map& tmp_cr,
                     multiMap& tmp_face2node,
                     vector<pair<int,string> >& boundary_ids,
-                    vector<pair<string,entitySet> >& volTags
+                    vector<pair<string,entitySet> >& volTags,
+		    storeRepP cellwts
                     ) {
     double t1 = MPI_Wtime() ;
     // Identify boundary tags
@@ -802,127 +1389,214 @@ namespace Loci{
 
     vector<entitySet> cell_ptn,face_ptn,node_ptn ;
 
-    if(use_orb_partition) {
-      ORB_Partition_Mesh(local_nodes, local_faces, local_cells,
-                         t_pos, tmp_cl, tmp_cr, tmp_face2node,
-			 tmp_boundary_tags,
-                         cell_ptn,face_ptn,node_ptn) ;
-    } else if(use_sfc_partition) {
-      store<int> cell_weights ;
+    store<int> cell_weights ;
+    if(cellwts != 0)
+      cell_weights = cellwts ;
+    else {
       Loci::storeRepP ptr = getCellPartitionWeights(local_cells[MPI_rank]) ;
       if(ptr != 0) {
 	cell_weights = ptr ;
       }
+    }
+
+    enum {ORB=0,SFC=1,SIMPLE=2,GRAPH=3} partitioner_type = GRAPH ;
+    if(use_orb_partition)
+      partitioner_type = ORB ;
+    if(use_sfc_partition)
+      partitioner_type = SFC ;
+    if(use_simple_partition) 
+      partitioner_type = SIMPLE ;
+
+    if(partitioner_type == GRAPH) {
+      int lcpp = local_cells[MPI_rank].size() ;
+      int mincpp = lcpp ;
+      MPI_Allreduce(&lcpp,&mincpp,1,MPI_INT,MPI_MIN,MPI_COMM_WORLD) ;
+      if(mincpp < metis_cpp_threshold) {
+	partitioner_type = SFC ; // Space filling curve partitioner
+	debugout << "switching from metis to space filling curve partitioner"
+		 << " mincpp = " << mincpp << endl ;
+      }
+#ifndef LOCI_USE_METIS
+      partitioner_type = SFC ; // Space filling curve partitioner if METIS
+      // not available
+#endif
+    }
+    switch(partitioner_type) {
+    case ORB:
+      ORB_Partition_Mesh(local_nodes, local_faces, local_cells,
+			 t_pos, tmp_cl, tmp_cr, tmp_face2node,
+			 tmp_boundary_tags,
+			 cell_ptn,face_ptn,node_ptn) ;
+      break ;
+    case SFC:
       SFC_Partition_Mesh(local_nodes, local_faces, local_cells,
-                         t_pos, tmp_cl, tmp_cr, tmp_face2node,
+			 t_pos, tmp_cl, tmp_cr, tmp_face2node,
 			 tmp_boundary_tags,
 			 cell_weights,
-                         cell_ptn,face_ptn,node_ptn) ;
-    } else {
-      // Partition Cells
-      bool useMetis = !use_simple_partition ;
-      
-      // If the number of cells per processor is too thin, metis
-      // no longer is an effective partitioner, so switch to the 
-      // simple partitioner instead
-      if(local_cells[0].size() < 450)  {
-	if(useMetis && MPI_rank==0) 
-	  debugout << "switching to simple partition due to small number of cells per proc!"<< endl ;
-	useMetis = false ;
-      }
-      if(useMetis) {
-
-#ifdef LOCI_USE_METIS
-        cell_ptn = AdaptMetisPartitionOfCells(local_cells,tmp_cl,tmp_cr,tmp_boundary_tags) ;
-#else
-	if(MPI_rank==0) {
-          debugout << "METIS disabled:: Using simple partition" << endl ;
-          useMetis = false ;
-        }
-#endif
-      } else {
-        cell_ptn = vector<entitySet>(MPI_processes) ;
+			 cell_ptn,face_ptn,node_ptn) ;
+      break ;
+    case SIMPLE: // Simple partition
+      {
+	cell_ptn = vector<entitySet>(MPI_processes) ;
         cell_ptn[MPI_rank] = local_cells[MPI_rank] ;
-	// read in additional vertex weights if any
-	Loci::storeRepP ptr = getCellPartitionWeights(local_cells[MPI_rank]) ;
-	if(ptr != 0) {
-          store<int> cell_weights ;
-	  cell_weights = ptr ;
+	REPORTMEM() ;
+	face_ptn = partitionFaces(cell_ptn,tmp_cl,tmp_cr,tmp_boundary_tags) ;
+	REPORTMEM() ;
 
-	  if(cell_weights.domain() != local_cells[Loci::MPI_rank]) {
-	    cerr << "cell_weights=" << cell_weights.domain() << ", local_cells = " << local_cells[Loci::MPI_rank] << endl ;
-	    cerr << "cell weights partition inconsistent!" << endl ;
-	    Loci::Abort() ;
-	  }
-        
-
-	  int tot_weight1 = 0 ;
-	  int tot_weight2 = 0 ;
-	    
-	  cell_ptn[MPI_rank] = EMPTY ;
-	  entitySet dom = cell_weights.domain() ;
-	  FORALL(dom,i) {
-	    if(cell_weights[i] <= 1)
-	      tot_weight1++ ;
-	    else
-	      tot_weight2 += cell_weights[i] ;
-	  } ENDFORALL ;
-	  vector<int> pweights1(MPI_processes,0) ;
-	  MPI_Allgather(&tot_weight1,1,MPI_INT,&pweights1[0],1,MPI_INT,
-			MPI_COMM_WORLD) ;
-	  vector<int> pweights2(MPI_processes,0) ;
-	  MPI_Allgather(&tot_weight2,1,MPI_INT,&pweights2[0],1,MPI_INT,
-			MPI_COMM_WORLD) ;
-	  
-	  vector<int> woffsets1(MPI_processes+1,0) ;
-	  vector<int> woffsets2(MPI_processes+1,0) ;
-	  for(int i=0;i<MPI_processes;++i) {
-	    woffsets1[i+1] = pweights1[i]+woffsets1[i] ;
-	    woffsets2[i+1] = pweights2[i]+woffsets2[i] ;
-	  }
-	  
-	  // compute the weight per processor
-	  int wpp1 = ((woffsets1[MPI_processes]+MPI_processes-1)/MPI_processes) ;
-	  int wpp2 = ((woffsets2[MPI_processes]+MPI_processes-1)/MPI_processes) ;
-	  // Now compute local weighted sums
-	  int ncel = dom.size() ;
-	  vector<int> wts1(tot_weight1+1, woffsets1[MPI_rank]) ;
-	  vector<int> wts2(ncel-tot_weight1+1,woffsets2[MPI_rank]) ;
-	  int cnt1 = 0 ;
-	  int cnt2 = 0 ;
-	  FORALL(dom,i) {
-	    if(cell_weights[i] <= 1) {
-	      wts1[cnt1+1] = wts1[cnt1]+1 ;
-	      cnt1++ ;
-	    } else { 
-	      wts2[cnt2+1] = wts2[cnt2]+cell_weights[i] ;
-	      cnt2++ ;
-	    }
-	  } ENDFORALL ;
-
-	  entitySet pdom = local_cells[MPI_rank] ;
-	  cnt1 = 0 ;
-	  cnt2 = 0 ;
-	  FORALL(dom,i) {
-	    if(cell_weights[i] <= 1) {
-	      cell_ptn[wts1[cnt1]/wpp1] += i ;
-	      cnt1++ ;
-	    } else {
-	      cell_ptn[wts2[cnt2]/wpp2] += i ;
-	      cnt2++ ;
-	    }
-	  } ENDFORALL ;
-	}
+	node_ptn = partitionNodes(face_ptn,
+				  MapRepP(tmp_face2node.Rep()),
+                                t_pos.domain()) ;
 	
       }
-      REPORTMEM() ;
-      face_ptn = partitionFaces(cell_ptn,tmp_cl,tmp_cr,tmp_boundary_tags) ;
-      REPORTMEM() ;
-      
-      node_ptn = partitionNodes(face_ptn,
-				MapRepP(tmp_face2node.Rep()),
-				t_pos.domain()) ;
+      break ;
+    case GRAPH: // METIS partition
+      {
+        cell_ptn = AdaptMetisPartitionOfCells(local_cells,tmp_cl,tmp_cr,tmp_boundary_tags,cellwts) ;
+	//        cell_ptn = newMetisPartitionOfCells(local_cells,tmp_cl,tmp_cr,tmp_boundary_tags,cellwts) ;
+	REPORTMEM() ;
+	face_ptn = partitionFaces(cell_ptn,tmp_cl,tmp_cr,tmp_boundary_tags) ;
+	REPORTMEM() ;
+
+	node_ptn = partitionNodes(face_ptn,
+				  MapRepP(tmp_face2node.Rep()),
+				  t_pos.domain()) ;
+      }
+      break ;
+    default: // SFC partition no weight balance
+      {
+	store<int> cell_weights ;
+
+	SFC_Partition_Mesh(local_nodes, local_faces, local_cells,
+			   t_pos, tmp_cl, tmp_cr, tmp_face2node,
+			   tmp_boundary_tags,
+			   cell_weights,
+			   cell_ptn,face_ptn,node_ptn) ;
+      }
+      break ;
     }
+//     vector<entitySet> cell_ptn,face_ptn,node_ptn ;
+
+//     if(use_orb_partition) {
+//       ORB_Partition_Mesh(local_nodes, local_faces, local_cells,
+//                          t_pos, tmp_cl, tmp_cr, tmp_face2node,
+// 			 tmp_boundary_tags,
+//                          cell_ptn,face_ptn,node_ptn) ;
+//     } else if(use_sfc_partition) {
+//       store<int> cell_weights ;
+//       Loci::storeRepP ptr = getCellPartitionWeights(local_cells[MPI_rank]) ;
+//       if(ptr != 0) {
+// 	cell_weights = ptr ;
+//       }
+//       SFC_Partition_Mesh(local_nodes, local_faces, local_cells,
+//                          t_pos, tmp_cl, tmp_cr, tmp_face2node,
+// 			 tmp_boundary_tags,
+// 			 cell_weights,
+//                          cell_ptn,face_ptn,node_ptn) ;
+//     } else {
+//       // Partition Cells
+//       bool useMetis = !use_simple_partition ;
+      
+//       // If the number of cells per processor is too thin, metis
+//       // no longer is an effective partitioner, so switch to the 
+//       // simple partitioner instead
+//       if(local_cells[0].size() < 450)  {
+// 	if(useMetis && MPI_rank==0) 
+// 	  debugout << "switching to simple partition due to small number of cells per proc!"<< endl ;
+// 	useMetis = false ;
+//       }
+//       if(useMetis) {
+
+// #ifdef LOCI_USE_METIS
+//         cell_ptn = AdaptMetisPartitionOfCells(local_cells,tmp_cl,tmp_cr,tmp_boundary_tags) ;
+// #else
+// 	if(MPI_rank==0) {
+//           debugout << "METIS disabled:: Using simple partition" << endl ;
+//           useMetis = false ;
+//         }
+// #endif
+//       } else {
+//         cell_ptn = vector<entitySet>(MPI_processes) ;
+//         cell_ptn[MPI_rank] = local_cells[MPI_rank] ;
+// 	// read in additional vertex weights if any
+// 	Loci::storeRepP ptr = getCellPartitionWeights(local_cells[MPI_rank]) ;
+// 	if(ptr != 0) {
+//           store<int> cell_weights ;
+// 	  cell_weights = ptr ;
+
+// 	  if(cell_weights.domain() != local_cells[Loci::MPI_rank]) {
+// 	    cerr << "cell_weights=" << cell_weights.domain() << ", local_cells = " << local_cells[Loci::MPI_rank] << endl ;
+// 	    cerr << "cell weights partition inconsistent!" << endl ;
+// 	    Loci::Abort() ;
+// 	  }
+        
+
+// 	  int tot_weight1 = 0 ;
+// 	  int tot_weight2 = 0 ;
+	    
+// 	  cell_ptn[MPI_rank] = EMPTY ;
+// 	  entitySet dom = cell_weights.domain() ;
+// 	  FORALL(dom,i) {
+// 	    if(cell_weights[i] <= 1)
+// 	      tot_weight1++ ;
+// 	    else
+// 	      tot_weight2 += cell_weights[i] ;
+// 	  } ENDFORALL ;
+// 	  vector<int> pweights1(MPI_processes,0) ;
+// 	  MPI_Allgather(&tot_weight1,1,MPI_INT,&pweights1[0],1,MPI_INT,
+// 			MPI_COMM_WORLD) ;
+// 	  vector<int> pweights2(MPI_processes,0) ;
+// 	  MPI_Allgather(&tot_weight2,1,MPI_INT,&pweights2[0],1,MPI_INT,
+// 			MPI_COMM_WORLD) ;
+	  
+// 	  vector<int> woffsets1(MPI_processes+1,0) ;
+// 	  vector<int> woffsets2(MPI_processes+1,0) ;
+// 	  for(int i=0;i<MPI_processes;++i) {
+// 	    woffsets1[i+1] = pweights1[i]+woffsets1[i] ;
+// 	    woffsets2[i+1] = pweights2[i]+woffsets2[i] ;
+// 	  }
+	  
+// 	  // compute the weight per processor
+// 	  int wpp1 = ((woffsets1[MPI_processes]+MPI_processes-1)/MPI_processes) ;
+// 	  int wpp2 = ((woffsets2[MPI_processes]+MPI_processes-1)/MPI_processes) ;
+// 	  // Now compute local weighted sums
+// 	  int ncel = dom.size() ;
+// 	  vector<int> wts1(tot_weight1+1, woffsets1[MPI_rank]) ;
+// 	  vector<int> wts2(ncel-tot_weight1+1,woffsets2[MPI_rank]) ;
+// 	  int cnt1 = 0 ;
+// 	  int cnt2 = 0 ;
+// 	  FORALL(dom,i) {
+// 	    if(cell_weights[i] <= 1) {
+// 	      wts1[cnt1+1] = wts1[cnt1]+1 ;
+// 	      cnt1++ ;
+// 	    } else { 
+// 	      wts2[cnt2+1] = wts2[cnt2]+cell_weights[i] ;
+// 	      cnt2++ ;
+// 	    }
+// 	  } ENDFORALL ;
+
+// 	  entitySet pdom = local_cells[MPI_rank] ;
+// 	  cnt1 = 0 ;
+// 	  cnt2 = 0 ;
+// 	  FORALL(dom,i) {
+// 	    if(cell_weights[i] <= 1) {
+// 	      cell_ptn[wts1[cnt1]/wpp1] += i ;
+// 	      cnt1++ ;
+// 	    } else {
+// 	      cell_ptn[wts2[cnt2]/wpp2] += i ;
+// 	      cnt2++ ;
+// 	    }
+// 	  } ENDFORALL ;
+// 	}
+	
+//       }
+//       REPORTMEM() ;
+//       face_ptn = partitionFaces(cell_ptn,tmp_cl,tmp_cr,tmp_boundary_tags) ;
+//       REPORTMEM() ;
+      
+//       node_ptn = partitionNodes(face_ptn,
+// 				MapRepP(tmp_face2node.Rep()),
+// 				t_pos.domain()) ;
+//     }
     vector<entitySet> bcsurf_ptn(MPI_processes) ;
     entitySet refset = tmp_boundary_tags.domain() ;
       
@@ -1063,6 +1737,21 @@ namespace Loci{
     
   }
 
+  bool inputFVMGrid(fact_db &facts,
+                    vector<entitySet>& local_nodes,
+                    vector<entitySet>& local_faces,
+                    vector<entitySet>& local_cells,
+                    store<vector3d<double> >& t_pos,
+                    Map& tmp_cl,
+                    Map& tmp_cr,
+                    multiMap& tmp_face2node,
+                    vector<pair<int,string> >& boundary_ids,
+                    vector<pair<string,entitySet> >& volTags
+                    ) {
+    return inputFVMGrid(facts, local_nodes, local_faces, local_cells,
+			t_pos, tmp_cl, tmp_cr, tmp_face2node,
+			boundary_ids, volTags, 0) ;
+  }
   
   bool setupFVMGridFromContainer(fact_db &facts,
                                  vector<entitySet>& local_nodes,
