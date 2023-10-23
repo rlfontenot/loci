@@ -174,6 +174,7 @@ namespace Loci {
                                   *Loci::exec_current_fact_db) ;
   }
  
+  void read_parameter(hid_t group_id, storeRepP qrep, MPI_Comm comm) ;
   //-----------------------------------------------------------------------
   void writeContainerRAW(hid_t file_id, std::string vname,
                          storeRepP var, MPI_Comm comm) ;

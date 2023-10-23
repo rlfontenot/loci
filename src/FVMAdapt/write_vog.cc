@@ -42,6 +42,7 @@
 
 #include "FVMAdapt/defines.h"
 #include "FVMAdapt/dataxferDB.h"
+#include "FVMAdapt/gridInterface.h"
 
 using std::cerr;
 using std::cout;
@@ -77,6 +78,403 @@ typedef double metisreal_t ;
 #endif
 namespace Loci {
 
+  storeRepP mapCellPartitionWeights(storeRepP wptr,
+				    storeRepP c2p_ptr,
+				    entitySet localcelldom) {
+    if(wptr == 0)
+      return wptr ;
+    store<int> cell_weights_parent ;
+    cell_weights_parent = wptr ;
+
+    store<pair<int,int> > c2pset ;
+    if(c2p_ptr == 0)
+      return wptr ;
+    c2pset = c2p_ptr ;
+    entitySet domc2p = c2pset.domain() ;
+    int r = Loci::MPI_rank ;
+    int p = Loci::MPI_processes ;
+     
+    int minParent = std::numeric_limits<int>::max() ;
+    int minTarget = std::numeric_limits<int>::max() ;
+    FORALL(domc2p,ii) {
+      minParent = min(minParent,c2pset[ii].second) ;
+      minTarget = min(minTarget,c2pset[ii].first) ;
+    } ENDFORALL ;
+    
+    int parentOffset = minParent ;
+    int targetOffset = minTarget ;
+    MPI_Allreduce(&minParent,&parentOffset,1,MPI_INT,MPI_MIN,
+		  MPI_COMM_WORLD) ;
+    MPI_Allreduce(&minTarget,&targetOffset,1,MPI_INT,MPI_MIN,
+		  MPI_COMM_WORLD) ;
+    int sz = domc2p.size() ;
+    vector<pair<int,int> > p2c(sz) ;
+    int cnt = 0 ;
+    FORALL(domc2p,ii) {
+      p2c[cnt].first = c2pset[ii].second-parentOffset ;
+      p2c[cnt].second = c2pset[ii].first-targetOffset ;
+      cnt++ ;;
+    } ENDFORALL ;
+    
+    sort(p2c.begin(),p2c.end()) ;
+    
+    // Now distribute c2p to processors in parent file ordering
+    entitySet cwdom = cell_weights_parent.domain() ;
+    int cwsz = cwdom.size() ;
+    vector<int> parentsizes(p) ;
+    MPI_Allgather(&cwsz,1,MPI_INT,&parentsizes[0],1,MPI_INT,
+		  MPI_COMM_WORLD) ;
+    vector<int> parentoffsets(p+1,0) ;
+    for(int i=0;i<p;++i)
+      parentoffsets[i+1] = parentoffsets[i]+parentsizes[i] ;
+    
+    vector<pair<int,int> > splits(p-1) ;
+    for(int i=0;i<p-1;++i)
+      splits[i] = pair<int,int>(parentoffsets[i+1],-1) ;
+
+    Loci::parSplitSort(p2c,splits,MPI_COMM_WORLD) ;
+
+    int psz = p2c.size() ;
+
+    vector<pair<int,int> > cell2weights(psz) ;
+    entitySet::const_iterator ii = cwdom.begin() ;
+    cnt = parentoffsets[r] ;
+    int mincell = p2c[0].second ;
+    int cnt2 = 0 ;
+    for(int i=0;i<psz;) {
+      while(i<psz && p2c[i].first == cnt) {
+	mincell = min(mincell,p2c[i].second) ;
+	cell2weights[cnt2] =pair<int,int>(p2c[i].second,
+					  cell_weights_parent[*ii]) ;
+	cnt2++ ;
+	i++ ;
+      }
+      cnt++ ;
+      ii++ ;
+    }
+    int mincell_global =mincell ;
+    MPI_Allreduce(&mincell,&mincell_global,1,MPI_INT,MPI_MIN,MPI_COMM_WORLD) ;
+
+    int dmsz = localcelldom.size() ;
+    vector<int> cellsizes(p) ;
+    MPI_Allgather(&dmsz,1,MPI_INT,&cellsizes[0],1,MPI_INT,
+		  MPI_COMM_WORLD) ;
+    parentoffsets[0] = mincell_global ;
+    for(int i=0;i<p;++i)
+      parentoffsets[i+1] = parentoffsets[i]+cellsizes[i] ;
+    
+    for(int i=0;i<p-1;++i)
+      splits[i] = pair<int,int>(parentoffsets[i+1],-1) ;
+
+
+    sort(cell2weights.begin(),cell2weights.end()) ;
+    Loci::parSplitSort(cell2weights,splits,MPI_COMM_WORLD) ;
+
+    store<int> cellweightschild ;
+    cellweightschild.allocate(localcelldom) ;
+    cnt = 0;
+
+    FORALL(localcelldom,ii) {
+      cellweightschild[ii] = cell2weights[cnt].second ;
+      cnt++ ;
+    } ENDFORALL ;
+    return cellweightschild.Rep() ;
+  }
+
+
+  void onlineRefineMesh(Loci::CPTR<refinedGridData> &gridDataP,
+			rule_db &refmesh_rdb,
+			int adaptmode,
+			int level,
+			storeRepP tags,
+			string casename  ) {
+    gridDataP = new(refinedGridData) ;
+      
+        
+    Loci::debugout<< " running refinement in adaptcycle" << endl;
+    
+    // This is the name of the mesh file that you want to read in.
+    string meshFile = casename+".vog";
+           
+    //otherwise, restart is false
+    bool firstlevel = (level>0) ;
+    // Setup the rule database.
+    // Add all registered rules.  
+    rule_db refine_rules;
+    refine_rules = refmesh_rdb ;
+      
+    // Setup the refine_fact database.
+    fact_db refine_facts;
+      
+    // Read in the mesh file.
+    Loci::storeRepP cellwt = Loci::DataXFER_DB.getItem("cellweights") ;
+    if(!Loci::setupFVMGridWithWeightInStore(refine_facts,meshFile, cellwt)) {
+      std::cerr << "unable to read grid file '" << meshFile << "'" << std::endl ;
+      Loci::Abort() ;
+    }
+    Loci::DataXFER_DB.deleteItem("cellweights") ;
+
+      
+    blackbox<vector<pair<string, entitySet> > > origVolTags ;
+    origVolTags.Rep()->allocate(~EMPTY) ;
+    if(MPI_rank==0){
+      hid_t file_id = Loci::hdf5OpenFile(meshFile.c_str(),
+					 H5F_ACC_RDONLY,H5P_DEFAULT) ;
+    
+      Loci::readVolTags(file_id,*origVolTags);
+      Loci::hdf5CloseFile(file_id) ;
+    }
+    refine_facts.create_fact("volTagInput",origVolTags) ;
+     
+    //Setup Loci datastructures
+    Loci::createLowerUpper(refine_facts) ;
+    Loci::createEdgesPar(refine_facts) ;
+    Loci::parallelClassifyCell(refine_facts);
+       
+      
+    //this is a dummy parameter to trick Loci scheduler
+    param<bool> beginWithMarker;
+    *beginWithMarker = true;
+    refine_facts.create_fact("beginWithMarker",beginWithMarker) ; 
+      
+    param<std::string> plan_outDB_par ;
+    *plan_outDB_par = "nextPlan" ;
+    refine_facts.create_fact("plan_outDB_par",plan_outDB_par) ;
+  
+    if(tags != 0) {
+      store<char> tag_info ;
+      tag_info = tags ;
+      Loci::entitySet dom = tag_info.domain() ;
+      vector<char> tagset(dom.size()) ;
+      int cnt = 0 ;
+      FORALL(dom,ii) {
+	tagset[cnt] = tag_info[ii] ;
+	cnt++ ;
+      } ENDFORALL ;
+      blackbox<vector<char> > inputTagsData ;
+      inputTagsData.set_entitySet(~EMPTY) ;
+      (*inputTagsData).swap(tagset) ;
+      refine_facts.create_fact("inputCellTagsData",inputTagsData) ;
+      Loci::DataXFER_DB.deleteItem("refineTag") ;
+    }
+
+
+    if(firstlevel){
+      param<std::string> parent_planfile_par ;
+      *parent_planfile_par = "currentPlan" ;
+      refine_facts.create_fact("parent_planDB_par",parent_planfile_par) ;
+    }
+      
+    gridDataP->boundary_ids.clear();
+    Loci::readBCfromVOG(meshFile, gridDataP->boundary_ids);
+
+      
+                              
+    //parameters to identify different options
+    if(firstlevel){
+      param<std::string> planfile_par ;
+      *planfile_par = "currentPlan" ;
+      refine_facts.create_fact("planDB_par",planfile_par) ;
+    
+      param<int> restart_tag_par;
+      *restart_tag_par = 1;
+      refine_facts.create_fact("restart_tag_par",restart_tag_par);
+    }else{
+      param<int> norestart_tag_par;
+      *norestart_tag_par = 1;
+      refine_facts.create_fact("norestart_tag_par",norestart_tag_par);
+    }
+  
+    param<int> split_mode_par;
+    *split_mode_par = adaptmode;
+    refine_facts.create_fact("split_mode_par", split_mode_par);
+        
+    {
+      param<std::string> cellweight_outDB_par;
+      *cellweight_outDB_par = "cellweights";
+      refine_facts.create_fact("cellweight_outDB_par",cellweight_outDB_par);
+        
+      if(!Loci::makeQuery(refine_rules,refine_facts,
+			  "cellplan_output,cellweight_output,cell2parent_DB,inner_nodes,fine_faces,volTag_blackbox")) {
+	std::cerr << "adapt query failed!" << std::endl;
+	Loci::Abort();
+      }
+    }
+      
+    Loci::DataXFER_DB.deleteItem("currentPlan") ;
+    Loci::storeRepP newPlan = Loci::DataXFER_DB.getItem("nextPlan") ;
+    Loci::DataXFER_DB.insertItem("currentPlan",newPlan) ;
+    Loci::DataXFER_DB.deleteItem("nextPlan") ;
+	
+    store<Loci::FineNodes> inner_nodes;
+    inner_nodes = refine_facts.get_variable("inner_nodes");
+        
+       
+    int num_nodes;
+    createVOGNode(gridDataP->new_pos,
+		  inner_nodes,
+		  num_nodes,
+		  refine_facts,
+		  gridDataP->local_nodes
+		  );
+    if(Loci::MPI_rank ==0)
+      cerr<< "num_nodes: " << num_nodes << " in adaptcycle" << endl;
+        
+    store<Loci::FineFaces> fine_faces;
+    fine_faces = refine_facts.get_variable("fine_faces");
+        
+    int num_faces = 0;
+    int num_cells = 0;
+      
+    createVOGFace( num_nodes,
+		   fine_faces,
+		   refine_facts,
+		   num_faces,
+		   num_cells,
+		   gridDataP->new_cl,
+		   gridDataP->new_cr,
+		   gridDataP->new_face2node,
+		   gridDataP->local_faces,
+		   gridDataP->local_cells
+		   );
+
+    //update volume tags
+    {
+      blackbox<std::vector<std::pair<std::string, entitySet> > > volTag_blackbox;
+      volTag_blackbox = refine_facts.get_variable("volTag_blackbox"); 
+      gridDataP->volTags =  *volTag_blackbox;
+    }
+
+    if(Loci::MPI_rank==0){
+      cerr<< "num_faces: " << num_faces << " in adaptcycle" <<endl;
+      cerr<< "num_cells: " << num_cells << " in adaptcycle" << endl;
+    }
+  }
+
+  void initializeGridFromPlan(Loci::CPTR<refinedGridData> &gridDataP,
+			      int &level,
+			      rule_db &refmesh_rdb,
+			      string casename, string weightfile,
+			      string restartplanfile) {
+    string meshFile = casename+".vog";
+    // Setup the rule database.
+    // Add all registered rules.  
+    rule_db refine_rules;
+    refine_rules = refmesh_rdb ;
+	  
+    // Setup the refine_fact database.
+    fact_db refine_facts;
+	  
+    if(Loci::MPI_rank == 0) 
+      cout <<"reading in meshfile: " 
+	   << meshFile << " for chem run" << std::endl;
+	    
+    // Read in the mesh file.
+    if(!Loci::setupFVMGridWithWeightInFile(refine_facts,meshFile, weightfile)) {
+      std::cerr << "unable to read mesh file '" << meshFile << "'" << std::endl ;
+      Loci::Abort() ;
+    }
+          
+    //Setup Loci datastructures
+    Loci::createLowerUpper(refine_facts) ;
+    Loci::createEdgesPar(refine_facts) ;
+    Loci::parallelClassifyCell(refine_facts);
+    blackbox<vector<pair<string, entitySet> > > origVolTags ;
+    origVolTags.Rep()->allocate(~EMPTY) ;
+    if(MPI_rank==0){
+      hid_t file_id = Loci::hdf5OpenFile(meshFile.c_str(),
+					 H5F_ACC_RDONLY,H5P_DEFAULT) ;
+	    
+      Loci::readVolTags(file_id,*origVolTags);
+      Loci::hdf5CloseFile(file_id) ;
+    }
+    refine_facts.create_fact("volTagInput",origVolTags) ;
+	  
+    if(Loci::MPI_rank == 0) 
+      cout <<"reading in cellplan file: " 
+	   << restartplanfile << std::endl;
+	  
+    hid_t file_id = Loci::hdf5OpenFile(restartplanfile.c_str(),
+				       H5F_ACC_RDONLY,H5P_DEFAULT) ;
+	  
+    store<std::vector<char> > cellPlan ;
+    param<int> refineLevel ;
+    hid_t group_id = 0 ;
+    if(Loci::MPI_rank == 0)
+      group_id = H5Gopen(file_id,"refineLevel",H5P_DEFAULT) ;
+	    
+    Loci::read_parameter(group_id,refineLevel.Rep(),MPI_COMM_WORLD) ;
+    if(Loci::MPI_rank == 0) {
+      H5Gclose(group_id) ;
+      group_id = H5Gopen(file_id,"cellPlan",H5P_DEFAULT) ;
+      cout << "restart refine level = " << *refineLevel << endl ;
+    }
+    level = *refineLevel ;
+    int offset = 0; 
+    Loci::read_store(group_id,cellPlan.Rep(),offset,MPI_COMM_WORLD) ;//read in file numbering store, simplePartition
+    cellPlan.Rep()->shift(offset) ;
+    if(Loci::MPI_rank == 0) {
+      H5Gclose(group_id) ;
+    }
+    Loci::hdf5CloseFile(file_id) ;
+
+    //finish reading currentPlan
+    //inserting currentPlan into DataXFER_DB
+    Loci::DataXFER_DB.insertItem("currentPlan",cellPlan.Rep()) ;
+    param<std::string> balanced_planDB_par ;
+    *balanced_planDB_par = "currentPlan" ;
+    refine_facts.create_fact("balanced_planDB_par",balanced_planDB_par) ;
+	      
+    if(!Loci::makeQuery(refine_rules,refine_facts,
+			"inner_nodes,fine_faces,volTag_blackbox")) {
+      std::cerr << "adapt query failed!" << std::endl;
+      Loci::Abort();
+    }
+       
+    store<Loci::FineNodes> inner_nodes;
+    inner_nodes = refine_facts.get_variable("inner_nodes");
+
+	  
+    gridDataP = new(refinedGridData) ;
+    gridDataP->boundary_ids.clear();
+    Loci::readBCfromVOG(meshFile, gridDataP->boundary_ids); 
+       
+    int num_nodes;
+    createVOGNode(gridDataP->new_pos,
+		  inner_nodes,
+		  num_nodes,
+		  refine_facts,
+		  gridDataP->local_nodes
+		  );
+    if(Loci::MPI_rank ==0)cerr<< "num_nodes: " << num_nodes << " before chem run" <<  endl;
+        
+    store<Loci::FineFaces> fine_faces;
+    fine_faces = refine_facts.get_variable("fine_faces");
+	      
+    int num_faces = 0;
+    int num_cells = 0;
+	      
+    createVOGFace( num_nodes,
+		   fine_faces,
+		   refine_facts,
+		   num_faces,
+		   num_cells,
+		   gridDataP->new_cl,
+		   gridDataP->new_cr,
+		   gridDataP->new_face2node,
+		   gridDataP->local_faces,
+		   gridDataP->local_cells
+		   );
+
+    if(Loci::MPI_rank ==0)cerr<< "num_faces: " << num_faces << " before chem run" <<  endl;
+    if(Loci::MPI_rank ==0)cerr<< "num_cells: " << num_cells << " before chem run" <<  endl;
+              
+    {
+      blackbox<std::vector<std::pair<std::string, entitySet> > > volTag_blackbox;
+      volTag_blackbox = refine_facts.get_variable("volTag_blackbox"); 
+      gridDataP->volTags =  *volTag_blackbox;
+    }
+  }
 
   extern bool use_simple_partition ;
   extern bool use_orb_partition ;
