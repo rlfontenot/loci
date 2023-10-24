@@ -446,6 +446,18 @@ namespace Loci {
                                  multiMap& tmp_face2node,
                                  std::vector<pair<int,string> >& boundary_ids,
                                  std::vector<pair<string,entitySet> >& volTags ) ;
+
+  bool setupFVMGridFromContainer(fact_db &facts,
+                                 std::vector<entitySet>& local_nodes,
+                                 std::vector<entitySet>& local_faces,
+                                 std::vector<entitySet>& local_cells,
+                                 store<vector3d<double> >& t_pos,
+                                 Map& tmp_cl,
+                                 Map& tmp_cr,
+                                 multiMap& tmp_face2node,
+                                 std::vector<pair<int,string> >& boundary_ids,
+                                 std::vector<pair<string,entitySet> >& volTags,
+				 storeRepP cellptn) ;
   
   
   inline std::ostream &operator <<(std::ostream &s, const std::vector<std::pair<int32,int32> > &v) {

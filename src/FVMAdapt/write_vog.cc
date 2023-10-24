@@ -1784,6 +1784,40 @@ namespace Loci{
 
     return true ;
   }
+
+  bool setupFVMGridFromContainer(fact_db &facts,
+                                 vector<entitySet>& local_nodes,
+                                 vector<entitySet>& local_faces,
+                                 vector<entitySet>& local_cells,
+                                 store<vector3d<double> >& t_pos,
+                                 Map& tmp_cl,
+                                 Map& tmp_cr,
+                                 multiMap& tmp_face2node,
+                                 vector<pair<int,string> >& boundary_ids,
+                                 vector<pair<string,entitySet> >& volTags,
+				 storeRepP cellptr) {
+       
+    REPORTMEM() ;
+    if(!inputFVMGrid(facts,
+                     local_nodes,
+                     local_faces,
+                     local_cells,
+                     t_pos,
+                     tmp_cl,
+                     tmp_cr,
+                     tmp_face2node,
+                     boundary_ids,
+                     volTags,
+		     cellptr))
+      return false ;
+
+    create_face_info(facts) ;
+    create_ref(facts) ;
+    create_ghost_cells(facts) ;
+    REPORTMEM() ;
+
+    return true ;
+  }
 }
 
 
