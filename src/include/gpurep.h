@@ -117,6 +117,8 @@ namespace Loci {
       // if the pass in is EMPTY, we delete the previous allocated memory
       // this equals to free the memory
       if( eset == EMPTY ) {
+	// just return instead of releasing memory
+	return ;
 	if(alloc_ptr1 != 0) {
 	  // Call placement delete
 	  if(!std::is_trivially_default_constructible<T>::value) {
