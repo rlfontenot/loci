@@ -164,15 +164,33 @@
 #endif
 
 #ifdef LINUX
+#if defined(__GNUC__)
+#if (__GNUC__ < 11)
 #define HAS_MALLINFO
+#endif
+#else
+#define HAS_MALLINFO
+#endif
 #endif
 
 #ifdef SPARC
+#if defined(__GNUC__)
+#if (__GNUC__ < 11)
 #define HAS_MALLINFO
+#endif
+#else
+#define HAS_MALLINFO
+#endif
 #endif
 
 #ifdef SGI
+#if defined(__GNUC__)
+#if (__GNUC__ < 11)
 #define HAS_MALLINFO
+#endif
+#else
+#define HAS_MALLINFO
+#endif
 #endif
 
 #endif
