@@ -3004,7 +3004,19 @@ namespace Loci {
   }
 
   bool setupFVMGrid(fact_db &facts, string filename, storeRepP cellwts) {
-    if(!readFVMGrid(facts,filename))
+    if(!readFVMGrid(facts,filename,cellwts))
+      return false ;
+
+    REPORTMEM() ;
+    create_face_info(facts) ;
+
+    create_ref(facts) ;
+    create_ghost_cells(facts) ;
+
+    return true ;
+  }
+  bool setupFVMGrid(fact_db &facts, string filename) {
+    if(!readFVMGrid(facts,filename,0))
       return false ;
 
     REPORTMEM() ;
