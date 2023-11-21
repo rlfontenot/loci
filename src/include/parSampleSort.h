@@ -415,20 +415,7 @@ namespace Loci {
   }
 
   template <class T> void parSampleSort(std::vector<T> &list, MPI_Comm comm) {
-    // First sort list locally
-    std::sort(list.begin(),list.end()) ;
-
-    int p = 0 ;
-    MPI_Comm_size(comm,&p) ;
-
-    if(p == 1) // if serial run, we are finished
-      return ;
-
-    std::vector<T> splitters ;
-
-    parGetSplitters(splitters,list,comm) ;
-
-    parSplitSort(list,splitters,comm) ;
+    return parSampleSort(list, std::less<T>(), comm) ;
   }
 
 }
