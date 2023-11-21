@@ -33,6 +33,10 @@
 #define PETSC_37_API
 #endif
 
+#if ((PETSC_VERSION_MAJOR > 3) || (PETSC_VERSION_MAJOR == 3) && (PETSC_VERSION_MINOR > 16))
+#define PETSC_317_API
+#endif
+
 
 
 // Force key petsc functions to load. (Helps when using static libraries)
@@ -405,7 +409,11 @@ namespace Loci {
     PetscOptionsSetValue("-options_left","false") ;
 #endif
     PetscPopErrorHandler() ;
+#ifdef PETSC_317_API
+    PetscPushErrorHandler(PetscIgnoreErrorHandler,PETSC_NULLPTR) ;
+#else
     PetscPushErrorHandler(PetscIgnoreErrorHandler,PETSC_NULL) ;
+#endif
 #else
     MPI_Init(argc, argv) ;
 #endif
