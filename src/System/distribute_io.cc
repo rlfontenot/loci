@@ -678,10 +678,12 @@ namespace Loci {
     }
 
     void write_storeS(hid_t group_id, storeRepP qrep, entitySet dom, int offset, MPI_Comm comm) {
+#ifdef io_performance
       MPI_Barrier(MPI_COMM_WORLD);
       Loci::stopWatch s;
       s.start();
-
+#endif
+      
       int prank = 0 ;
       int np = 0 ;
       MPI_Comm_rank(comm,&prank) ;
@@ -844,9 +846,11 @@ namespace Loci {
 #ifndef H5_HAVE_PARALLEL
       write_storeS(group_id, qrep, dom, offset, comm) ;
 #else
+#ifdef io_performance
       MPI_Barrier(MPI_COMM_WORLD);
       Loci::stopWatch s;
       s.start();
+#endif
       int prank = 0 ;
       int np = 0 ;
       MPI_Comm_rank(comm,&prank) ;
@@ -916,6 +920,7 @@ namespace Loci {
       if(dimension != 0) {
         // First write local data
         hid_t dataspace =  H5Screate_simple(rank, &dimension, NULL) ;
+
         DatatypeP dp = qrep->getType() ;
         hid_t datatype = dp->get_hdf5_type() ;
 #ifdef H5_USE_16_API
@@ -924,10 +929,10 @@ namespace Loci {
         hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
 #endif
         
-        
         H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
         dimension = count ;
         hid_t xfer_plist = create_xfer_plist(Loci::hdf5_const::dxfer_coll_type);
+
         qrep->writehdf5P(group_id, dataspace, dataset, dimension, "data", dom, xfer_plist) ;
         H5Pclose(xfer_plist);
         H5Dclose(dataset) ;
