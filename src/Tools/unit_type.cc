@@ -131,6 +131,10 @@ namespace Loci {
     {"tesla","kilogram/second/second/ampere",1},
     {"T","kilogram/second/second/ampere",1},
 
+    {"siemens","second*second*second*ampere*ampere/kilogram/meter/meter",1},
+    {"S","second*second*second*ampere*ampere/kilogram/meter/meter",1},
+    {"ohm","kilogram*meter*meter/second/second/second/ampere/ampere",1},
+
     {"Hz",  "second/second/second",1},
     {"kHz", "second/second/second",1e3},
     {"MHz", "second/second/second",1e6},
