@@ -90,9 +90,6 @@ namespace Loci{
     g2f = df->g2fv[0].Rep() ;// FIX THIS
 
     entitySet gnodes = l2g.image(nodes&l2g.domain()) ;
-    entitySet gset = findBoundingSet(gnodes) ;
-
-    int minNode = gset.Min() ;
 
     Map newnum ;
     newnum.allocate(nodes) ;
@@ -100,6 +97,11 @@ namespace Loci{
     // Expand g2f to include clone regions
     entitySet out_of_dom = gnodes - init_ptn[MPI_rank] ;
     g2f.setRep(MapRepP(g2f.Rep())->expand(out_of_dom, init_ptn)) ;
+
+    entitySet fnodes = g2f.image(gnodes) ;
+    int minNode_local = fnodes.Min() ;
+    int minNode = minNode_local ;
+    MPI_Allreduce(&minNode_local,&minNode,1,MPI_INT,MPI_MIN,MPI_COMM_WORLD) ;
 
     FORALL(nodes,i) {
       newnum[i] = g2f[l2g[i]]-minNode+1 ;
@@ -504,6 +506,7 @@ namespace Loci{
     const_Map ref(refRep) ;
 
     store<int> elem_type ;
+    localCells &= lower.domain() ;
     elem_type.allocate(localCells) ;
 
     int ntets = 0 ;
