@@ -493,6 +493,7 @@ namespace Loci {
         here in parallel version, each process performs parallel writing directly
         this function is called when use_parallel_io is true
       */
+
       int mpi_size;
       int mpi_rank;
       MPI_Comm_rank(prime_comm, &mpi_rank);
@@ -500,46 +501,11 @@ namespace Loci {
 
       //serial version
       if(mpi_size==1){//this code probably never used
-        hsize_t array_size_combined = v.size() ;
-        if(array_size_combined == 0)
-          return ;
-
-        int rank = 1 ;
-        hsize_t dimension = array_size_combined ;
-        hid_t dataspace = H5Screate_simple(rank,&dimension,NULL) ;
-
-        typedef data_schema_traits<T> traits_type ;
-        DatatypeP dp = traits_type::get_type() ;
-
-#ifdef H5_INTERFACE_1_6_4
-        hsize_t start = 0 ;
-#else
-        hssize_t start = 0 ;
-#endif
-        hsize_t stride = 1 ;
-        hsize_t count = v.size() ;
-        hid_t datatype = dp->get_hdf5_type() ;
-
-        hid_t dataset = H5Dcreate(group_id,element_name,datatype,
-                                  dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) ;
-
-        if(count != 0) {
-          H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
-                              &start, &stride, &count, NULL) ;
-          hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
-
-          H5Dwrite(dataset,datatype,memspace,dataspace,H5P_DEFAULT, &v[0]) ;
-          H5Sclose(memspace) ;
-        }
-        H5Dclose(dataset) ;
-        H5Sclose(dataspace) ;
-        H5Tclose(datatype) ;
-        return;
+	std::cerr << "parallel unordered vector write on 1 mpi rank!" << std::endl ;
+	std::cerr << "THIS SHOULD NOT HAPPEN" << std::endl ;
+	Loci::Abort() ;
       }
 
-      //    Loci::stopWatch s;
-      //    s.start();
-    
       //each process figure out the size and the start position to write
       int local_size = v.size() ; //my size to write
       hsize_t rsize = local_size; //individual size for each process 
@@ -554,8 +520,9 @@ namespace Loci {
       }
       hsize_t array_size = pdispls[mpi_size-1]+prime_count[mpi_size-1] ; //size of the whole dataset
 
-      if(array_size == 0)
+      if(array_size == 0) {
         return ;
+      }
 
 
       //create dataset collectively
@@ -568,11 +535,18 @@ namespace Loci {
       hsize_t stride = 1 ;
      
       hid_t datatype = dp->get_hdf5_type() ;
-      hid_t dataset = H5Dcreate2(group_id,element_name,datatype,
-                                 dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) ;
+#ifdef H5_USE_16_API
+      hid_t dataset = H5Dcreate(group_id, element_name, datatype, dataspace, H5P_DEFAULT) ;
+#else
+      hid_t dataset = H5Dcreate(group_id, element_name, datatype, dataspace, H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
+#endif
       //choose a hyperslab
-      herr_t ret = H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
-                                       &start,&stride,&rsize, NULL) ;
+      herr_t ret = 0;
+      if(rsize == 0 )
+	ret =H5Sselect_none(dataspace) ;
+      else
+	ret = H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
+				  &start,&stride,&rsize, NULL) ;
       if(ret<0) {
         cerr << "H5Sselect_hyperslab failed in writeUnorderedVector" << endl ;
       }
@@ -589,12 +563,9 @@ namespace Loci {
       //close everything
       H5Pclose(xfer_plist) ;
       H5Sclose(memspace) ;
+      H5Dclose(dataset) ;
       H5Sclose(dataspace) ;
       H5Tclose(datatype) ;
-      H5Dclose(dataset) ;
-
-      //    double wall_time = s.stop();
-      //    if(mpi_rank == 0) std::cout << "parallel time to write " << element_name << "  " << wall_time << endl; 
     }
 
     //-----------------------------------------------------------------------  
