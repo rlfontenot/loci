@@ -2781,7 +2781,7 @@ namespace Loci {
 	// read
 	
 	
-	readContainerRAW(file_id,"cellweight", cell_weights.Rep(),
+	readContainerRAW(file_id,"cellweights", cell_weights.Rep(),
 			 MPI_COMM_WORLD) ;
 	Loci::hdf5CloseFile(file_id) ;
 	cellwts = cell_weights.Rep() ;
