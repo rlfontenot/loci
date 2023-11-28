@@ -794,9 +794,11 @@ namespace Loci {
 #ifndef H5_HAVE_PARALLEL
       write_storeS(group_id, qrep, dom, offset, comm) ;
 #else
+#ifdef io_performance
       MPI_Barrier(MPI_COMM_WORLD);
       Loci::stopWatch s;
       s.start();
+#endif
       int prank = 0 ;
       int np = 0 ;
       MPI_Comm_rank(comm,&prank) ;
@@ -877,9 +879,11 @@ namespace Loci {
         H5Sclose(dataspace) ;
         H5Tclose(datatype) ;
       }
+#ifdef io_performance
       MPI_Barrier(MPI_COMM_WORLD);
       double wall_time = s.stop();
-      if(prank == 0) std::cerr << "                                                    parallel time to write_store "  << "  " << wall_time << endl; 
+      if(prank == 0) std::cerr << "                                                    parallel time to write_store "  << "  " << wall_time << endl;
+#endif
 #endif
     }
 
