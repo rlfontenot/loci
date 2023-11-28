@@ -126,11 +126,14 @@ namespace Loci {
     {"pascal","kilogram*meter/second/second/meter/meter",1},
     {"Pa","kilogram*meter/second/second/meter/meter",1},
 
-
     {"volt","kilogram*meter*meter/second/second/second/ampere",1},
     {"V","kilogram*meter*meter/second/second/second/ampere",1},
     {"tesla","kilogram/second/second/ampere",1},
     {"T","kilogram/second/second/ampere",1},
+
+    {"siemens","second*second*second*ampere*ampere/kilogram/meter/meter",1},
+    {"S","second*second*second*ampere*ampere/kilogram/meter/meter",1},
+    {"ohm","kilogram*meter*meter/second/second/second/ampere/ampere",1},
 
     {"Hz",  "second/second/second",1},
     {"kHz", "second/second/second",1e3},
