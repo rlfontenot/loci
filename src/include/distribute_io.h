@@ -548,8 +548,8 @@ namespace Loci {
       hsize_t stride = 1 ;
      
       hid_t datatype = dp->get_hdf5_type() ;
-      hid_t dataset = H5Dcreate2(group_id,element_name,datatype,
-                                 dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) ;
+      hid_t dataset = H5Dcreate(group_id,element_name,datatype,
+				dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) ;
       //choose a hyperslab
       herr_t ret = H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
                                        &start,&stride,&rsize, NULL) ;
@@ -573,8 +573,6 @@ namespace Loci {
       H5Tclose(datatype) ;
       H5Dclose(dataset) ;
 
-      //    double wall_time = s.stop();
-      //    if(mpi_rank == 0) std::cout << "parallel time to write " << element_name << "  " << wall_time << endl; 
     }
 
     //-----------------------------------------------------------------------  

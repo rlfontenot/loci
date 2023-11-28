@@ -718,8 +718,8 @@ namespace Loci {
       datatype = dp->get_hdf5_type() ;
       WARN(datatype<0) ;
 
-      dataset = H5Dcreate2(group_id,"data",datatype,
-                           dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) ;
+      dataset = H5Dcreate(group_id,"data",datatype,
+			  dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) ;
 
       WARN(dataset<0) ;
 
