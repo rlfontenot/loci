@@ -449,7 +449,7 @@ void Usage() {
        <<  endl ;
   cout << "  -g <inputfile>           | Specify input grid filename " << endl
        << "  -o <outputfile>          | Specify output grid filename" << endl
-       << "  -r <value>               | Specify radius of sphere" << endl
+       << "  -not                     | complement the geometry defn" << endl 
        << "  -tag <tagfile>           | Specify nodal cut tag filename " <<endl
        << "  -sphere <args>           | Specify sphere geometry" << endl
        << "  -cylinder <args>         | Specify cylinder geometry" << endl
@@ -570,7 +570,7 @@ int main(int ac, char *av[]) {
   vector<geoInfo> vecGeoInfo ;
   
   bool tag_opt = false;
-  
+  bool complement_geom = false ;
   for(int i=1;i<ac;++i) {
     string opt = av[i] ;
     bool parsed = false ;
@@ -582,6 +582,10 @@ int main(int ac, char *av[]) {
       }
     }
     
+    if(opt == "-not") {
+      complement_geom = true ;
+      parsed = true ;
+    }
     if(opt == "-sphere") {
       bool haspt = false ;
       bool hasr = false ;
@@ -878,6 +882,9 @@ int main(int ac, char *av[]) {
       bool cut = !inGeom ;
       
       nodestat[i] = nodestat[i] & cut ;
+      if(complement_geom) {
+	nodestat[i] = !nodestat[i] ;
+      }
     }
   }
   
