@@ -69,7 +69,7 @@ namespace Loci{
   //assume the union of nodes on all processors will be either all the nodes,
   //all the faces, or all the cells. i.e., one interval in file numbering
   storeRepP get_node_remap(fact_db &facts,entitySet nodes) {
-
+    REPORTMEM() ;
     if(MPI_processes == 1) {
       int minNode = nodes.Min() ;
       
@@ -78,6 +78,7 @@ namespace Loci{
       FORALL(nodes,nd) {
         nm[nd] = nd - minNode + 1 ;
       } ENDFORALL ;
+      REPORTMEM() ;
       return nm.Rep() ;
     }
     
@@ -89,9 +90,6 @@ namespace Loci{
     g2f = df->g2fv[0].Rep() ;// FIX THIS
 
     entitySet gnodes = l2g.image(nodes&l2g.domain()) ;
-    entitySet gset = findBoundingSet(gnodes) ;
-
-    int minNode = gset.Min() ;
 
     Map newnum ;
     newnum.allocate(nodes) ;
@@ -100,9 +98,15 @@ namespace Loci{
     entitySet out_of_dom = gnodes - init_ptn[MPI_rank] ;
     g2f.setRep(MapRepP(g2f.Rep())->expand(out_of_dom, init_ptn)) ;
 
+    entitySet fnodes = g2f.image(gnodes) ;
+    int minNode_local = fnodes.Min() ;
+    int minNode = minNode_local ;
+    MPI_Allreduce(&minNode_local,&minNode,1,MPI_INT,MPI_MIN,MPI_COMM_WORLD) ;
+
     FORALL(nodes,i) {
       newnum[i] = g2f[l2g[i]]-minNode+1 ;
     } ENDFORALL ;
+    REPORTMEM() ;
     return newnum.Rep() ;
   }
 
