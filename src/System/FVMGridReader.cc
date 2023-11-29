@@ -2317,29 +2317,37 @@ namespace Loci {
     cell_ptn = tmp ;
     face_ptn = tmp ;
     node_ptn = tmp ;
-
-    
     entitySet fdom = face2node.domain() ;
-    const int fsz = fdom.size();
+    entitySet bcdom = boundary_tags.domain() ;
+    entitySet bfdom = Loci::MapRepP(cr.Rep())->preimage(bcdom).first ;
+    entitySet ifdom = fdom - bfdom ;
 
+    // First we will partition the interior faces as this is what we really
+    // need to balance across processors.  ifdom is the set of interior
+    // faces in the mesh
+
+    const int fsz = fdom.size();
+    const int ifsz = ifdom.size() ;
     vector<HilbertCode> fhcode(fdom.size()) ;
     //----------------------------------------------------------------------
     // Compute face Hilbert Code
     //----------------------------------------------------------------------
-    { dstore<vector3d<float> > tmp_pos ;
+    {
+      // First find a crude face center to use with the hilbert code encoding
+      dstore<vector3d<float> > tmp_pos ;
       FORALL(pos.domain(),pi) {
 	tmp_pos[pi] = vector3d<float>(realToFloat(pos[pi].x),
 				      realToFloat(pos[pi].y),
 				      realToFloat(pos[pi].z)) ;
       } ENDFORALL ;
       entitySet total_dom =
-	Loci::MapRepP(face2node.Rep())->image(fdom) + pos.domain() ;
+	Loci::MapRepP(face2node.Rep())->image(ifdom) + pos.domain() ;
       Loci::storeRepP sp = tmp_pos.Rep() ;
       vector<entitySet> ptn = local_nodes ;
       fill_clone(sp,total_dom,ptn) ;
       int i=0 ;
       vector<vector3d<float> > fcenter(fsz) ;
-      FORALL(fdom,fc) {
+      FORALL(ifdom,fc) {
 	int sz = face2node[fc].size() ;
 	vector3d<float> pnt(0.,0.,0.) ;
 	for(int ii=0;ii<sz;++ii)
@@ -2347,8 +2355,9 @@ namespace Loci {
 	pnt *= 1./float(sz) ;
 	fcenter[i++] = pnt ;
       } ENDFORALL ;
+      // Find bounding box for mesh points
       vector3d<float> pmaxl(-1e30,-1e30,-1e30),pminl(1e30,1e30,1e30) ;
-      for(int i=0;i<fsz;++i) {
+      for(int i=0;i<ifsz;++i) {
 	pmaxl.x = max(pmaxl.x,fcenter[i].x) ;
 	pmaxl.y = max(pmaxl.y,fcenter[i].y) ;
 	pmaxl.z = max(pmaxl.z,fcenter[i].z) ;
@@ -2361,10 +2370,14 @@ namespace Loci {
 		    MPI_COMM_WORLD) ;
       MPI_Allreduce(&(pminl.x),&(pmin.x),3,MPI_FLOAT,MPI_MIN,
 		    MPI_COMM_WORLD) ;
+      // compute scaling factor so that we can scale the floating
+      // point numbers to cover the integers
       double s = 4e9/max(max(max(pmax.x-pmin.x,1e-3f),pmax.y-pmin.y),
 			  pmax.z-pmin.z) ;
 
-      for(int i=0;i<fsz;++i) {
+      // For all interior faces compute the Hilbert key (the position along
+      // the Hilbert space filling curve)
+      for(int i=0;i<ifsz;++i) {
 	IntCoord3 p ;
 	p[0] = (unsigned int)(s*(fcenter[i].x-pmin.x)) ;
 	p[1] = (unsigned int)(s*(fcenter[i].y-pmin.y)) ;
@@ -2372,9 +2385,10 @@ namespace Loci {
 	fhcode[i] = hilbert_encode(p) ;
       }      
     }
-    vector<int  > fweight(fdom.size(),1) ;
+    vector<int  > fweight(ifdom.size(),1) ;
     //----------------------------------------------------------------------
-    // Compute face weight
+    // Compute face weight (from cell weights) to be used by a
+    // weighted partitioning
     //----------------------------------------------------------------------
     entitySet cdom = cell_weights.domain() ;
     if(cdom != EMPTY) {
@@ -2396,28 +2410,23 @@ namespace Loci {
       total_dom &= interval(mincg,maxcg) ;
       Loci::storeRepP sp = cell_weights_tmp.Rep() ;
       vector<entitySet> ptn = local_cells ;
+      // gather weights from other processors so we can use the cl and
+      // cr maps
       fill_clone(sp,total_dom,ptn) ;
-      int i=0 ;
-      FORALL(fdom,fc) {
-	int w = cell_weights_tmp[cl[fc]] ;
-	if(cr[fc] >= mincg && cr[fc] <=maxcg) {
-	  w = max(w,cell_weights_tmp[cr[fc]]) ;
-	}
+      int i = 0; 
+      FORALL(ifdom,fc) {
+	// the face weight will be the maximum of the to cell weights
+	int w = max(cell_weights_tmp[cl[fc]],cell_weights_tmp[cr[fc]]) ;
 	fweight[i++] = w ;
       } ENDFORALL ;
     }
 
     // Sort according to Hilbert Key
-    vector<SFC_Key> key_list(fdom.size()) ;
-    vector<int> fszlist(MPI_processes,0) ;
-    MPI_Allgather(&fsz,1,MPI_INT,&fszlist[0],1,MPI_INT,MPI_COMM_WORLD) ;
-    vector<int> foffsets(MPI_processes,0) ;
-    for(int i=1;i<MPI_processes;++i)
-      foffsets[i] = foffsets[i-1]+fszlist[i-1] ;
+    vector<SFC_Key> key_list(ifdom.size()) ;
     int i=0;
-    FORALL(fdom,fc) {
+    FORALL(ifdom,fc) {
       key_list[i].key = fhcode[i] ;
-      key_list[i].fid = foffsets[MPI_rank]+i ;
+      key_list[i].fid = fc ;
       key_list[i].weight = fweight[i] ;
       i++ ;
     } ENDFORALL ;
@@ -2425,6 +2434,8 @@ namespace Loci {
     Loci::parSampleSort(key_list,MPI_COMM_WORLD) ;
 
     // Now analyze weights to see if we need to do weighted partitions
+    // If we have a large spread of weights, then divide into large and small
+    // weights and balance each weight class
     double wsuml = 0, usuml = 0, wmaxl = 0 , wminl = 1e30 ;
     for(size_t ii=0;ii<key_list.size();++ii) {
       usuml += 1.0 ;
@@ -2440,11 +2451,6 @@ namespace Loci {
 
     double wavg = wsum/usum ;
 
-    //    if(wavg*2.5 > wmax) {
-      // low standard deviation, make outlier set zero size
-      // (note outliers are those that are greater than the mean)
-    //      wavg = wmax+1 ;
-    //    }
     debugout << "wavg=" << wavg << ", wmax=" << wmax << ", wmin=" << wmin<<endl ;
     double w_low = 0, w_high = 0 ;
     double c_low = 0, c_high=0 ;
@@ -2489,6 +2495,9 @@ namespace Loci {
     double sumw_high_pp = tot_sumw_high/double(MPI_processes) ;
 
     vector<int> procs(key_list.size()) ;
+    // processors are assigned for the low and high groups by simple
+    // algebraic mapping of the summed weights partitioned so that a
+    // equal weight is assigned to each group.
     w_low = proc_sumw_low ;
     w_high = proc_sumw_high ;
     for(size_t ii=0;ii<key_list.size();++ii) {
@@ -2524,53 +2533,48 @@ namespace Loci {
       debugout << " " << csumr[i] ;
     debugout << endl ;
 
+    // compute interior face to processor mapping
     vector<pair<int,int> > proc_pairs(key_list.size()) ;
-    for(size_t ii=0;ii<key_list.size();++ii)
+    for(size_t ii=0;ii<key_list.size();++ii) 
       proc_pairs[ii] = pair<int,int>(key_list[ii].fid,procs[ii]) ;
+
+    // Now we need to sort the data back to the processor that owns
+    // the corresponding face
+    int fmin = fdom.Min() ;
+    vector<int> fsplits(MPI_processes) ;
+    MPI_Allgather(&fmin,1,MPI_INT,&fsplits[0],1,MPI_INT,MPI_COMM_WORLD) ;
     vector<pair<int,int> > splitters(MPI_processes-1) ;
     for(int i=0;i<MPI_processes-1;++i) {
-      splitters[i].first  = foffsets[i+1] ;
+      splitters[i].first  = fsplits[i+1] ;
       splitters[i].second = -1 ;
     }
     
     sort(proc_pairs.begin(),proc_pairs.end(),firstCompare) ;
     parSplitSort(proc_pairs,splitters,firstCompare,MPI_COMM_WORLD) ;
-    vector<int> fprocmap(fdom.size()) ;
 
-    for(int i=0;i<fsz;++i)
-      fprocmap[i] = proc_pairs[i].second ;
-    
-    
-    i=0 ;
-    // Create face_ptn ;
-    FORALL(fdom,fc) {
-      face_ptn[fprocmap[i++]] += fc ;
-    } ENDFORALL ;
-
-    // Now find node_ptn and cell_ptn that best matches the face partition
+    // We now have a partition of faces to processors for interior faces,
+    // we use this to develop a cell partition through processor affinity
     vector<pair<int,pair<int,int> > > scratchPad ;
-    i=0 ;
-    FORALL(fdom,fc) {
-      pair<int,int> p2i(fprocmap[i++],1) ;
-      int sz = face2node[fc].size() ;
-      for(int ii=0;ii<sz;++ii)
-        scratchPad.push_back(pair<int,pair<int,int> >(face2node[fc][ii],p2i)) ;
-    } ENDFORALL ;
-
-    assignOwner(scratchPad,local_nodes,node_ptn) ;
-
-
-    entitySet refset = boundary_tags.domain() ;
-    scratchPad.clear() ;
-    i=0 ;
-    FORALL(fdom,fc) {
-      pair<int,int> p2i(fprocmap[i++],1) ;
+    for(int i=0;i<ifsz;++i) {
+      int fc = proc_pairs[i].first ;
+      pair<int,int> p2i(proc_pairs[i].second,1) ;
       scratchPad.push_back(pair<int,pair<int,int> >(cl[fc],p2i)) ;
-      if(!refset.inSet(cr[fc]))
-        scratchPad.push_back(pair<int,pair<int,int> >(cr[fc],p2i)) ;
-    } ENDFORALL ;
+      scratchPad.push_back(pair<int,pair<int,int> >(cr[fc],p2i)) ;
+    }
 
+    // We then use this to assign processors to cells (cells will go to the
+    // processor with the most faces belonging to a particular processor with
+    // tie breaking to try to balance load)
     assignOwner(scratchPad,local_cells,cell_ptn) ;
+
+    // We now have a partition of cells, use this to obtain the
+    // face and node partitions
+
+    face_ptn = partitionFaces(cell_ptn,cl,cr,boundary_tags) ;
+    
+    node_ptn = partitionNodes(face_ptn,
+			      MapRepP(face2node.Rep()),
+			      pos.domain()) ;
   }
   
     
