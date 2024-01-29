@@ -2091,7 +2091,7 @@ void parseFile::setup_cudaRule(std::ostream &outputFile) {
   syncFile(outputFile) ;
   outputFile << "    const int nblks = (stop-start+NTHREADS)/NTHREADS ;" << endl ;
   syncFile(outputFile) ;
-  outputFile <<"    " <<class_name << "_kernel<<<nblks,NTHREADS>>>(";
+  outputFile <<"    " <<class_name << "_kernel<<<nblks,NTHREADS,0,Loci::getGPUStream()>>>(";
   for(auto i=writevars.begin();i!=writevars.end();) {
     outputFile << vnames[*i] << ".ptr()";
     ++i ;
