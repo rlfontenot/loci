@@ -629,7 +629,9 @@ namespace Loci {
 	  int num = atoi((*argv)[i+1]) ;
 	  i+=2 ;
 	  num = max(1,min(8,num)) ;
+#ifdef USE_CUDA_RT
 	  MAXGPUStreamAlloc = 1<<num ;
+#endif
 	} else if(!strcmp((*argv)[i],"--metis_cpp_threshold")) {
             metis_cpp_threshold = atoi((*argv)[i+1]);
 	    i+=2;
