@@ -47,6 +47,26 @@
 #endif
 
 namespace Loci {
+
+#ifdef USE_CUDA_RT
+
+  extern int MAXGPUStreamAlloc ;
+  extern int GPUStreamAlloc ;
+
+  inline int getGPUStreamID() {
+    int retval = GPUStreamAlloc ;
+    GPUStreamAlloc = (retval + 1) & (MAXGPUStreamAlloc-1) ;
+    return retval ;
+  }
+  
+  extern cudaStream_t streamSet[] ;
+
+  inline cudaStream_t &getGPUStream() {
+    return streamSet[getGPUStreamID()] ;
+  }
+  
+#endif
+  
   class gpuRep : public storeRep {
   public:
     gpuRep() { } ;
@@ -178,6 +198,7 @@ namespace Loci {
 	cerr << "error = " << cudaGetErrorString(err) << endl;
 	Loci::Abort() ;
       }
+      cudaDeviceSynchronize() ;
 #else      
       T * tmp_alloc_pointer = (T *) malloc(sizeof(T)*(alloc_size)+(STORE_ALIGN_SIZE)) ;
 #endif

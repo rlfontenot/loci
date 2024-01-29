@@ -625,6 +625,11 @@ namespace Loci {
 #endif
 	  i++ ;
 	  use_parallel_io = false ;
+	} else if(!strcmp((*argv)[i],"--max_gpu_stream")) {
+	  int num = atoi((*argv)[i+1]) ;
+	  i+=2 ;
+	  num = max(1,min(8,num)) ;
+	  MAXGPUStreamAlloc = 1<<num ;
 	} else if(!strcmp((*argv)[i],"--metis_cpp_threshold")) {
             metis_cpp_threshold = atoi((*argv)[i+1]);
 	    i+=2;

@@ -562,6 +562,16 @@ namespace Loci {
     virtual void dataCollate(collectData &data_collector) const {}
   } ;
 
+  class execute_gpuSync: public execute_modules {
+    variableSet vars ;
+  public:
+    execute_gpuSync(variableSet v) : vars(v) {}
+    virtual void execute(fact_db &facts, sched_db &scheds) ;
+    virtual void Print(std::ostream &s) const ;
+    virtual string getName() { return "execute_gpuSync" ; }
+    virtual void dataCollate(collectData &data_collector) const {}
+  } ;
+  
   class execute_gpu2cpu_copy: public execute_modules {
     rule r ;
     gpuRepP gpuvar ;

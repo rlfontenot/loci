@@ -208,6 +208,7 @@ namespace Loci {
       cerr << "cudaMemcpy failed in gpuMapRepI::copyFrom" << endl ;
       Loci::Abort() ;
     }
+    cudaDeviceSynchronize() ;
 #endif
   }
   
@@ -217,6 +218,7 @@ namespace Loci {
     param<T> v(p) ;
     const T *gpu_base_ptr = get_param() ;
 #ifdef USE_CUDA_RT
+    cudaDeviceSynchronize() ;
     cudaError_t err = cudaMemcpy(&(*v),gpu_base_ptr,sizeof(T),
 				 cudaMemcpyDeviceToHost) ;
     if(err!= cudaSuccess) {

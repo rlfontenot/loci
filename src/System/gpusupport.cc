@@ -395,6 +395,7 @@ namespace Loci {
 
       cudaError_t err = cudaMemcpy(gpu_base_ptr+start,&m[start],sizeof(Entity)*sz,
 			       cudaMemcpyHostToDevice) ;
+      cudaDeviceSynchronize() ;
       if(err!= cudaSuccess) {
 	cerr << "cudaMemcpy failed in gpuMapRepI::copyFrom" << endl ;
 	Loci::Abort() ;
@@ -459,6 +460,12 @@ namespace Loci {
     }
   }
 
+#ifdef USE_CUDA_RT
+  int MAXGPUStreamAlloc = 1<<3;
+  int GPUStreamAlloc = 0 ;
+  
+  cudaStream_t streamSet[256] ;
+#endif
   int setCudaDevice() {
 #ifdef USE_CUDA_RT
     int worldRank, rank;
@@ -491,7 +498,12 @@ namespace Loci {
     }
   
     MPI_Comm_free(&comm) ;
-  
+
+    debugout << "Initializing CUDA Streams #" << MAXGPUStreamAlloc << endl ;
+    for(int i=0;i<MAXGPUStreamAlloc;++i) {
+      //      cerr << "creating stream " << i << endl ;
+      cudaStreamCreate(&streamSet[i]) ;
+    }
     return dev;
 #else
     return -1 ;
@@ -802,7 +814,15 @@ namespace Loci {
     executeP execute = executeP(new execute_map2gpu_copy(r,gp,sp,exec_seq)) ;
     return execute;
   }
-  
+
+  void execute_gpuSync::execute(fact_db &facts, sched_db &scheds) {
+#ifdef USE_CUDA_RT
+    cudaDeviceSynchronize() ;
+#endif
+  }
+  void execute_gpuSync::Print(ostream &s) const {
+    s << "GPU Sync: " << vars << endl ;
+  }
   void execute_gpu2cpu_copy::execute(fact_db &facts, sched_db &scheds) {
     gpuvar->copyTo(cpuvar,copyset) ;
   }

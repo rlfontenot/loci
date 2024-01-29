@@ -46,6 +46,7 @@ namespace Loci {
 	cerr << "cudaMemcpy failed in gpuMapRepI::copyFrom" << endl ;
 	Loci::Abort() ;
       }
+      cudaDeviceSynchronize() ;
 #endif
     }
     //    FORALL(set,ii) {
@@ -64,6 +65,7 @@ namespace Loci {
       int end = set[i].second ;
       int sz = end-start+1 ;
 #ifdef USE_CUDA_RT
+      cudaDeviceSynchronize() ;
       cudaError_t err = cudaMemcpy(&v[start],gpu_base_ptr+start,sizeof(T)*sz,
 			       cudaMemcpyDeviceToHost) ;
       if(err!= cudaSuccess) {
@@ -326,6 +328,9 @@ namespace Loci {
                                      const entitySet &eset )
   {
     T *base_ptr = get_base_ptr() ;
+#ifdef USE_CUDA_RT
+    cudaDeviceSynchronize() ;
+#endif
     for( size_t i = 0; i < eset.num_intervals(); i++) {
       const Loci::int_type begin = eset[i].first ;
       int t = eset[i].second - eset[i].first + 1 ;
@@ -342,6 +347,10 @@ namespace Loci {
       //      MPI_Pack( &base_ptr[begin], t*sizeof(T), MPI_BYTE, outbuf,outcount,
       //                &position, MPI_COMM_WORLD) ;
     }
+#ifdef USE_CUDA_RT
+    cudaDeviceSynchronize() ;
+#endif
+    
   }
 
   //*******************************************************************/
@@ -451,6 +460,10 @@ namespace Loci {
 #endif
       }
     }
+#ifdef USE_CUDA_RT
+    cudaDeviceSynchronize() ;
+#endif
+    
   }
     
   //*********************************************************************/
