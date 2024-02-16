@@ -1183,4 +1183,165 @@ namespace Loci {
       $limiterv(X)[j] = limi ;
     }
   }
+
+  //-------------------------------------------------------------------
+  // alternate stencil version
+
+  $type X store<real> ;
+  $type X_f store<real> ;
+  $type cellStencil multiMap ;
+
+  $rule pointwise(stencil::limiters(X)<-cellcenter,X,grads(X),firstOrderCells,
+		  Kl,vol,grid_vol,
+		  cellStencil->(cellcenter,X),
+		  boundary_map->X_f,boundary_map->facecenter),
+      constraint(geom_cells,V2_limiter) {
+    const real Xcc = $X ;
+    const vect3d cctr = $cellcenter ;
+
+    real refsq = Xcc*Xcc ;
+    int numrefs = 1 ;
+    
+    real qmax = Xcc ;
+    real qmin = qmax ;
+    const vect3d Xgr = $grads(X) ;
+
+    const int ssz = $cellStencil.size() ;
+    numrefs += ssz ;
+    for(int i=0;i<ssz;++i) {
+      const real Xi = $cellStencil[i]->$X ;
+      refsq += Xi*Xi ;
+      qmin = min(qmin,Xi) ;
+      qmax = max(qmax,Xi) ;
+    }
+    const int bsz = $boundary_map.size() ;
+    numrefs += bsz ;
+    for(int i=0;i<bsz;++i) {
+      const real Xi = $boundary_map[i]->$X_f ;
+      refsq += Xi*Xi ;
+      qmin = min(qmin,Xi) ;
+      qmax = max(qmax,Xi) ;
+    }      
+
+    const real ref = 1e-20+sqrt(refsq)/numrefs ;
+    const real Kl3 = $Kl*$Kl*$Kl*6./(M_PI*$grid_vol) ;
+    const real epsilon2 = Kl3*$vol*ref*ref ;
+    
+    real limi = ($firstOrderCells != 0)?0.0:1.0 ;
+
+    for(int i=0;i<ssz;++i) {
+      const vect3d drl = $cellStencil[i]->$cellcenter - cctr ;
+      real qdif = -dot(Xgr,drl) ;
+      limi = min(limi,vlimit(Xcc,qmin,qmax,qdif,epsilon2,ref)) ;
+    }
+
+    $limiters(X) = limi ;
+  }
+
+  $type X store<vect3d> ;
+  $type X_f store<vect3d> ;
+  
+  $rule pointwise(stencil::limiterv3d(X)<-cellcenter,X,gradv3d(X),firstOrderCells,
+		  Kl,vol,grid_vol,
+		  cellStencil->(X,cellcenter),
+		  boundary_map->X_f,boundary_map->facecenter),
+      constraint(geom_cells,V2_limiter) {
+    const vect3d Xcc = $X ;
+    real refsq = dot(Xcc,Xcc) ;
+    int numrefs = 1 ;
+    vect3d qmax = Xcc ;
+    vect3d qmin = qmax ;
+    const tens3d Xgr = $gradv3d(X) ;
+
+    const int ssz = $cellStencil.size() ;
+    numrefs += ssz ;
+    for(int i=0;i<ssz;++i) {
+      const vect3d Xi = $cellStencil[i]->$X ;
+      refsq += dot(Xi,Xi) ;
+      qmin.x = min(qmin.x,Xi.x) ;
+      qmax.x = max(qmax.x,Xi.x) ;
+      qmin.y = min(qmin.y,Xi.y) ;
+      qmax.y = max(qmax.y,Xi.y) ;
+      qmin.z = min(qmin.z,Xi.z) ;
+      qmax.z = max(qmax.z,Xi.z) ;
+    }
+    const int bsz = $boundary_map.size() ;
+    numrefs += bsz ;
+    for(int i=0;i<bsz;++i) {
+      const vect3d Xi = $boundary_map[i]->$X_f ;
+      refsq += dot(Xi,Xi) ;
+      qmin.x = min(qmin.x,Xi.x) ;
+      qmax.x = max(qmax.x,Xi.x) ;
+      qmin.y = min(qmin.y,Xi.y) ;
+      qmax.y = max(qmax.y,Xi.y) ;
+      qmin.z = min(qmin.z,Xi.z) ;
+      qmax.z = max(qmax.z,Xi.z) ;
+    }      
+    
+    const real ref = 1e-20+sqrt(refsq)/numrefs ;
+    const real Kl3 = $Kl*$Kl*$Kl*6./(M_PI*$grid_vol) ;
+    const real epsilon2 = Kl3*$vol*ref*ref ;
+
+    vect3d limi = ($firstOrderCells != 0)?vect3d(0.,0.,0.):vect3d(1.,1.,1.) ;
+
+    for(int i=0;i<ssz;++i) {
+      const vect3d drl = $cellStencil[i]->$cellcenter - $cellcenter ;
+      real qdifx = -dot(Xgr.x,drl) ;
+      limi.x = min(limi.x,vlimit(Xcc.x,qmin.x,qmax.x,qdifx,epsilon2,ref)) ;
+      real qdify = -dot(Xgr.y,drl) ;
+      limi.y = min(limi.y,vlimit(Xcc.y,qmin.y,qmax.y,qdify,epsilon2,ref)) ;
+      real qdifz = -dot(Xgr.z,drl) ;
+      limi.z = min(limi.z,vlimit(Xcc.z,qmin.z,qmax.z,qdifz,epsilon2,ref)) ;
+    }
+
+    $limiterv3d(X) = limi ;
+  }
+  
+  $type X storeVec<real> ;
+  $type X_f storeVec<real> ;
+  $rule pointwise(stencil::limiterv(X)<-cellcenter,X,gradv(X),firstOrderCells,
+		  Kl,vol,grid_vol,
+		  cellStencil->(X,cellcenter),
+		  boundary_map->X_f,boundary_map->facecenter),
+    constraint(geom_cells,V2_limiter),prelude {
+    $limiterv(X).setVecSize($X.vecSize()) ;
+  } compute {
+    const int vs = $*X.vecSize() ;
+    real ref = 0.0 ;
+    for(int j=0;j<vs;++j)
+      ref += fabs($X[j]) ;
+    ref = max(ref,real_t(1e-5)) ;
+    const real Kl3 = $Kl*$Kl*$Kl*6./(M_PI*$grid_vol) ;
+    const real epsilon2 = Kl3*$vol*ref*ref ;
+    
+    for(int j=0;j<vs;++j) {
+      const real Xcc = $X[j] ;
+      real qmax = Xcc ;
+      real qmin = qmax ;
+      const vect3d Xgr = $gradv(X)[j] ;
+
+      const int ssz = $cellStencil.size() ;
+      for(int i=0;i<ssz;++i) {
+	const real Xi = $cellStencil[i]->$X[j] ;
+	qmin = min(qmin,Xi) ;
+	qmax = max(qmax,Xi) ;
+      }
+      const int bsz = $boundary_map.size() ;
+      for(int i=0;i<bsz;++i) {
+	const real Xi = $boundary_map[i]->$X_f[j] ;
+	qmin = min(qmin,Xi) ;
+	qmax = max(qmax,Xi) ;
+      }      
+      
+      real limi = ($firstOrderCells != 0)?0.0:1.0 ;
+
+      for(int i=0;i<ssz;++i) {
+	const vect3d drl = $cellStencil[i]->$cellcenter - $cellcenter ;
+	real qdif = -dot(Xgr,drl) ;
+	limi = min(limi,vlimit(Xcc,qmin,qmax,qdif,epsilon2,ref)) ;
+      }
+      
+      $limiterv(X)[j] = limi ;
+    }
+  }
 }
