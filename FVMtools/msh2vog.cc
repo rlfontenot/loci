@@ -182,6 +182,18 @@ int main(int ac, char *av[]) {
   if(!isdigit(Lref[0])) {
     Lref = string("1") + Lref ;
   }
+  Loci::UNIT_type tp ;
+  istringstream iss(Lref) ;
+  iss >> tp ;
+
+  double posScale = tp.get_value_in("meter") ;
+
+  if(Loci::MPI_rank == 0) {
+    cout << "input grid file units = " << tp ;
+    if(posScale != 1.0)
+      cout << " = " << posScale << " meters " ;
+    cout << endl ;
+  }
 
   string filename = av[1] ;
   filename += ".msh" ;
@@ -950,7 +962,7 @@ int main(int ac, char *av[]) {
   entitySet nodes = interval(0,numNodes-1) ;
   pos.allocate(nodes) ;
   for(size_t i=0;i<numNodes;++i)
-    pos[i] = vpos[i] ;
+    pos[i] = vpos[i]*posScale ;
 
   vector<pair<int,string> > surf_ids ;
   for(std::map<int,string>::const_iterator mi=surfIds.begin();mi!=surfIds.end();++mi) {
