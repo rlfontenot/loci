@@ -714,24 +714,6 @@ esac
 
 echo >> sys.conf
 
-case "$ARCH" in
-    Linux)
-    USEMAKE=make
-    ;;
-    Darwin)
-    USEMAKE=make
-    ;;
-    CYGWIN*)
-    USEMAKE=make
-    ;;
-    *)
-    USEMAKE=gmake
-    ;;
-esac    
-echo MAKE =$USEMAKE >> sys.conf 
-
-echo >> sys.conf
-
 echo "##############################################" >> sys.conf
 echo "# No need to change things below this line" >> sys.conf
 
@@ -752,14 +734,13 @@ mv sys.conf ${OBJDIR}/sys.conf
 
 # Make makefile
 echo "default:" > Makefile
-echo "	cd ${OBJDIR}; $USEMAKE" >> Makefile
+echo "	cd ${OBJDIR}; \$(MAKE)" >> Makefile
 echo "install:" >> Makefile
-echo "	cd ${OBJDIR}; $USEMAKE install" >> Makefile
+echo "	cd ${OBJDIR}; \$(MAKE) install" >> Makefile
 echo "clean:" >> Makefile
-echo "	cd ${OBJDIR}; $USEMAKE clean" >> Makefile
+echo "	cd ${OBJDIR}; \$(MAKE) clean" >> Makefile
 echo "distclean:" >> Makefile
 echo "	rm -fr ${OBJDIR} copy.out Makefile" >> Makefile
-
 
 echo 
 echo
