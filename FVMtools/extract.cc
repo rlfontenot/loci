@@ -172,7 +172,9 @@ void Usage(int ac, char *av[]) {
        << "  -inc <value> : value to increment between iterations for averaging" << endl 
        << endl ;
   cout << "extra options for controlling extract" << endl
-       << "   -dir <directory> : change extract directory from default 'output'"
+       << "   -dir <directory> : change extract directory from default 'output'" << endl
+       << "   -skipPartDirs    : do not process the data in the part sub-directories, if present" << endl
+       << "                    : default is to process the data in the part sub-directories, if present"
 
        << endl << endl ;
   cout << "example:  to extract OH species from time step 50 of ssme simulation for visualization with 2dgv use:" << endl
@@ -2941,6 +2943,7 @@ int main(int ac, char *av[]) {
   string casename ;
   bool found_casename = false ;
   bool found_iteration = false ;
+  bool skip_part_dirs = false;
   string iteration ;
   vector<string> variables ;
   vector<string> boundaries ;
@@ -3099,6 +3102,9 @@ int main(int ac, char *av[]) {
       } else if(!strcmp(av[i],"-end")) {
         ++i ;
         end_iter = atoi(av[i]) ;
+      } else if(!strcmp(av[i],"-skipPartDirs") ||
+		!strcmp(av[i],"-onlyvolume") ) {
+        skip_part_dirs = true ;
       } else {
         cerr << "unknown option " << av[i] << endl ;
         Usage(ac,av) ;
@@ -3151,7 +3157,7 @@ int main(int ac, char *av[]) {
       string vtype ;
       string searchHeader = casename+"_SURF." ;
       string filesub = filename.substr(0,searchHeader.size()) ;
-      if(searchHeader == filesub) {
+      if(searchHeader == filesub && !skip_part_dirs) {
 	size_t len = filename.size()-searchHeader.size() ;
 	string partname = filename.substr(searchHeader.size(),len) ;
 	string filecheck = output_dir + "/" + filename + "/topo_file." + iteration ;
@@ -3241,7 +3247,7 @@ int main(int ac, char *av[]) {
 	string dirname = output_dir+"/"+casename+"_SURF."+partlist[i] ;
 	DIR *dp = opendir(dirname.c_str()) ;
 	// Look in output directory and find all variables
-	if(dp == 0) {
+	if(dp == 0 || skip_part_dirs) {
 	  continue ;
 	}
 	dirent *entry = readdir(dp) ;
@@ -3610,13 +3616,17 @@ int main(int ac, char *av[]) {
       for(size_t i=0;i<partlist.size();++i) {
 	string name = partlist[i] ;
 	string dir = output_dir + "/" + casename + "_SURF." + name ;
-	surfacePartP sp = new surfacePart(name,dir,iteration,variables) ;
-	if(sp->fail()) {
+        if (skip_part_dirs) {
 	  volsearch.insert(name) ;
-	} else {
-	  cout << "part: " << name << endl ;
-	  parts.push_back(sp) ;
-	}
+        } else {
+	  surfacePartP sp = new surfacePart(name,dir,iteration,variables) ;
+	  if(sp->fail()) {
+	    volsearch.insert(name) ;
+	  } else {
+            cout << "part: " << name << endl ;
+	    parts.push_back(sp) ;
+	  }
+        }
       }
       if(!volsearch.empty()) {
 	vector<surfacePartP> volSurface ;
