@@ -85,6 +85,9 @@ ugrid2cgns.o: ugrid2cgns.cc
 #ugrid2cgns.o:
 #	$(CC) $(COPTLESS) -c $(DEFINES) ugrid2cgns.c
 
+extract.o: extract.cc
+	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) $(TEC360INCLUDE) -c extract.cc
+
 extract_cgns.o: extract_cgns.cc
 	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) -c extract_cgns.cc
 
