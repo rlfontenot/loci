@@ -90,7 +90,7 @@ namespace flowPsi {
   $rule singleton(stime_remain{n=0}<-ic_stime,plot_interval),
   constraint(timeStepExplicit) {
     $stime_remain{n=0} = $ic_stime ;
-    $stime_remain{n=0} -= floor($ic_stime/$plot_interval)*$plot_interval ;
+    $stime_remain{n=0} -= floor($ic_stime/real($plot_interval))*real($plot_interval) ;
   }
 
   $rule singleton(stime_remain{n,rk=0}<-stime_remain{n}),
@@ -118,7 +118,7 @@ namespace flowPsi {
       real t1 = *$stime_remain ;
       real pi = (*$plot_interval)>0?(*$plot_interval):(*$dtmax)*1000.0 ;
       real t2 = pi ;
-      join(*$dtStable,max(t2-t1,1e-30)) ;
+      join(*$dtStable,max<real>(t2-t1,1e-30)) ;
   } ;                                                
 
 
