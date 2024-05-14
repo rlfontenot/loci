@@ -299,6 +299,17 @@ mkdir -p $fulltarget/quickTest/Containers
 echo mkdir -p $fulltarget/quickTest/Containers
 mkdir -p $fulltarget/quickTest/FVM
 echo mkdir -p $fulltarget/quickTest/FVM
+pushd $source/quickTest/Containers
+for i in *.cc *.loci Makefile ; do
+    if [ -f $i ] ; then
+	if [ ! -h $fulltarget/quickTest/Containers/$i ] ; then
+	    echo ln -s $source/quickTest/Containers/$i $fulltarget/quickTest/Containers/$i
+	    ln -s $source/quickTest/Containers/$i $fulltarget/quickTest/Containers/$i
+	fi
+    fi
+done
+popd
+
 pushd $source/quickTest/FVM
 for i in *.cc *.loci Makefile ; do
     if [ -f $i ] ; then
@@ -329,10 +340,8 @@ for i in *.dat *.txt *.vars *.vog *.sh Makefile   ; do
 	fi
     fi
 done
-
-
 popd
-
+popd
 
 #if [ ${DO_METIS_INSTALL} == 0 ]; then
 #make dummy metis directory

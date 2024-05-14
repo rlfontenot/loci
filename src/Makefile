@@ -80,6 +80,10 @@ FVMOverset: library lpp
 
 JUNK =
 
+
+test:
+	cd quickTest; $(MAKE) LOCI_BASE="$(LOCI_BASE)" 
+
 clean:
 	rm -f $(JUNK)
 	$(MAKE) -C Tools clean LOCI_BASE="$(LOCI_BASE)" 
@@ -90,6 +94,7 @@ clean:
 	$(MAKE) -C FVMMod clean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C FVMAdapt clean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C FVMOverset clean LOCI_BASE="$(LOCI_BASE)"
+	$(MAKE) -C quickTest clean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C lpp clean LOCI_BASE="$(LOCI_BASE)"
 
 distclean:
@@ -102,5 +107,6 @@ distclean:
 	$(MAKE) -C FVMMod distclean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C FVMAdapt distclean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C FVMOverset distclean LOCI_BASE="$(LOCI_BASE)"
+	$(MAKE) -C quickTest distclean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C lpp distclean LOCI_BASE="$(LOCI_BASE)"
 

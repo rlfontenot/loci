@@ -1,12 +1,12 @@
 default:
-	cd FVM; $(MAKE) ; cd ..
-	cd Containers; $(MAKE) ; cd ..
+	cd FVM; $(MAKE) LOCI_BASE=$(LOCI_BASE); cd ..
+	cd Containers; $(MAKE) LOCI_BASE=$(LOCI_BASE); cd ..
 
 clean:
-	cd FVM; $(MAKE) clean; cd ..
-	cd Containers; $(MAKE) clean; cd ..
+	cd FVM; $(MAKE) LOCI_BASE=$(LOCI_BASE) clean; cd ..
+	cd Containers; $(MAKE) LOCI_BASE=$(LOCI_BASE) clean; cd ..
 
 distclean:
-	cd FVM; $(MAKE) distclean; cd ..
-	cd Containers; $(MAKE) distclean; cd ..
+	cd FVM; $(MAKE) LOCI_BASE=$(LOCI_BASE) distclean; cd ..
+	cd Containers; $(MAKE) LOCI_BASE=$(LOCI_BASE) distclean; cd ..
 
