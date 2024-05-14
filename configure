@@ -49,6 +49,8 @@ H5PATH=/notinstalled/hdf5
 
 CGNSPATH=none
 TEC360PATH=none
+TEC360TYPE=0
+TECIOPATH=none
 
 find_exec() {
     RETURN_VALUE=0
@@ -203,6 +205,29 @@ while [ $# -ne 0 ]; do
 	    CGNSPATH=${tmp#--with-cgns\=}
 	    ;;
 
+	--w-tecio)
+	    TECIOPATH=find
+	    ;;
+	--tecio-dir)
+	    shift
+	    TECIOPATH=$1
+	    ;;
+	--tecio-dir\=*)
+	    tmp=$1
+	    TECIOPATH=${tmp#--tecio-dir\=}
+	    ;;
+	--with-tecio)
+	    shift
+	    TECIOPATH=$1
+	    ;;
+	--with-tecio\=*)
+	    tmp=$1
+	    TECIOPATH=${tmp#--with-tec360\=}
+	    ;;
+	--tecio-dir)
+	    shift
+	    TECIOPATH=$1
+	    ;;
 	--tec360-dir)
 	    shift
 	    TEC360PATH=$1
@@ -528,14 +553,34 @@ if [ ! -d $CGNSPATH/include ]; then
     fi
 fi
 
-if [ ! -f $TEC360PATH/lib/libtecio.a ]; then
-    find_lib tecio
-    if [ $RETURN_VALUE != 0 ]; then
-	TEC360PATH=${RETURN_VALUE%/lib*} 
-	echo Found tecplot360 IO libraries in $TEC360PATH
-    fi
+if [ $TECIOPATH != "none" ] ; then
+  if [ ! -f $TECIOPATH/bin/libtecio.so ] ; then
+    echo "Could not find libtecio.so at $TECIOPATH"
+  else
+    echo "Using dynamic tecio library at: $TECIOPATH"
+    TEC360TYPE=2
+  fi
+else
+  echo "TECIOPATH == none"
 fi
 
+if [ $TEC360PATH != "none" ] ; then
+    if [ ! -f $TEC360PATH/lib/libtecio.a ]; then
+	find_lib tecio
+	if [ $RETURN_VALUE != 0 ]; then
+	    echo $RETURN_VALUE
+	    TEC360PATH=${RETURN_VALUE%/lib*} 
+	    if [ -e $TEC360PATH/libtecio.a ] ; then
+		echo "Static Library"
+		TEC360TYPE=1
+	    elif [ -e $TEC360PATH/libtecio.so ] ; then
+		echo "Dynamic Library"
+		TEC360TYPE=2
+	    fi
+	    echo Found tecplot360 IO libraries in $TEC360PATH
+	fi
+    fi
+fi
 
 if [ -d $CGNSPATH/include ]; then
     echo Using CGNS library found in $CGNSPATH
@@ -556,6 +601,10 @@ if [ -f $TEC360PATH/lib/libtecio.a ]; then
     echo Using TECPLOT native IO library found in $TEC360PATH
     echo TEC360INCLUDE = -I$TEC360PATH/include -DUSE_NATIVE_TECPLOT >> sys.conf
     echo TEC360LIB = $TEC360PATH/lib/libtecio.a >> sys.conf
+elif [ -f $TECIOPATH/bin/libtecio.so ] ; then
+    echo "Using TECPLOT IO library found in $TECIOPATH"
+    echo TEC360INCLUDE = -I$TECIOPATH/include -DUSE_NATIVE_TECPLOT >> sys.conf
+    echo TEC360LIB = -L${TECIOPATH}/bin -ltecio >> sys.conf
 else
     echo Note: TECPLOT native IO library not found, older ascii format will be used instead.
     echo If you expected to include TECPLOT support, use --with-tec360 to specify where
