@@ -179,4 +179,17 @@
 	Added volt, tesla, siemens and ohm to the unit type facilities
 
 	Fixed issue with the parallel sorting algorithm
+//-----------------------------------------------------------------------------
+	Version V 4.0 p9 -> V 4.0 p10
+
+	Improved configure for tecplot support
+
+	Improved configure script to generate top level Makefile support for parallel make
+
+	Changed limiter to be consistent for full and stable stencils.
+
+	Added option -skipPartDirs to give users the ability to ignore surface part data files on extract.
+
+	Added unit scaling to msh2vog gmsh format converter.
+
 	
