@@ -295,6 +295,8 @@ echo "Linking quickTest directory files"
 
 mkdir -p $fulltarget/quickTest
 echo mkdir -p $fulltarget/quickTest
+ln -s $source/quickTest/Makefile $fulltarget/quickTest/Makefile
+cp $source/quickTest/test.conf $fulltarget/quickTest/test.conf
 mkdir -p $fulltarget/quickTest/Containers
 echo mkdir -p $fulltarget/quickTest/Containers
 mkdir -p $fulltarget/quickTest/FVM
