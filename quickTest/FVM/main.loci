@@ -253,8 +253,6 @@ int main(int ac, char *av[]) {
   if(!stat("stop",&statbuf))
     ::unlink("stop") ;
   
-  // set up floating point exception handlers
-  set_fpe_abort() ;
   
 
   if(ac <= 1 && !input_desc) {
@@ -511,6 +509,9 @@ int main(int ac, char *av[]) {
 
   // Create execution schedule that derives the variable named 'solution'
   // from the database of facts using the rule database rdb.
+
+  // set up floating point exception handlers
+//  set_fpe_abort() ;
 
   if(!Loci::makeQuery(rdb,facts,query)) {
     cerr << "query failed!" << endl ;
