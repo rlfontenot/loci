@@ -1738,7 +1738,8 @@ namespace Loci{
         }
         if(ol.optionExists("center")) {
 	  //          get_vect3dOption(ol,"center","m",pi.center,*Lref) ;
-	  ol.getOptionUnits("center","m",pi.center,*Lref) ;
+	  double Lr = realToDouble(*Lref) ;
+	  ol.getOptionUnits("center","m",pi.center,Lr) ;
         }
         if(ol.optionExists("vector")) {
 	  //          get_vect3d(ol,"vector",pi.v) ;
@@ -1747,7 +1748,8 @@ namespace Loci{
         }
         if(ol.optionExists("translate")) {
           // get_vect3dOption(ol,"translate","m",pi.translate,*Lref) ;
-	  ol.getOptionUnits("translate","m",pi.translate,*Lref) ;
+	  double Lr = realToDouble(*Lref) ;
+	  ol.getOptionUnits("translate","m",pi.translate,Lr) ;
         }
         if(ol.optionExists("rotate")) {
           ol.getOptionUnits("rotate","radians",pi.angle) ;

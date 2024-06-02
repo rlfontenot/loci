@@ -37,9 +37,7 @@ namespace fitfunction {
   using std::cerr ;
   using std::min ;
   using std::max ;
-  using Loci::real_t ;
   using Loci::realToDouble ;
-  using Loci::realToFloat ;
 
   struct spline_segments {
     double y0,y1,a,b ;
