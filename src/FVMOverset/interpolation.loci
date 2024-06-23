@@ -109,7 +109,7 @@ namespace Loci {
     
     int ncnt = offsets[r] ;
     FORALL(dom,i) {
-      ip.pos[ncnt] = pnts[i] ;
+      ip.pos[ncnt] = realToDouble(pnts[i]) ;
       ip.posid[ncnt] = i ;
       ncnt++ ;
     } ENDFORALL ;
@@ -218,10 +218,11 @@ namespace Loci {
 
   $rule apply((cl,cr)->cellSize2<-face2node->pos)[Loci::Maximum],constraint((cl,cr)->geom_cells) {
     int sz = $face2node.size() ;
-    vector3d<real_t>  vd = $face2node[0]->$pos-$face2node[sz-1]->$pos ;
-    real_t d2 = dot(vd,vd) ;
+    vector3d<double>  vd = realToDouble($face2node[0]->$pos-
+					$face2node[sz-1]->$pos) ;
+    double d2 = dot(vd,vd) ;
     for(int i=1;i<sz;++i) {
-      vd = $face2node[i-1]->$pos-$face2node[i]->$pos ;
+      vd = realToDouble($face2node[i-1]->$pos-$face2node[i]->$pos) ;
       d2 = max(d2,dot(vd,vd)) ;
     }
     join($cl->$cellSize2,realToFloat(d2)) ;
@@ -365,14 +366,14 @@ namespace Loci {
     // Decompose points into a set of bounding boxes
     int sz = dom.size() ;
     vector<Loci::kdTree::KDTree<float>::coord_info> pbox(sz) ;
-    vector<vector3d<real_t> > ndelta(sz) ;
+    vector<vector3d<double> > ndelta(sz) ;
     int cnt =0 ;
     double delta_stencil = 0 ;
     FORALL(dom,fc) {
-      const vector3d<real_t>  fcenter = $facecenter[fc] ;
-      pbox[cnt].coords[0] = realToFloat(fcenter.x) ;
-      pbox[cnt].coords[1] = realToFloat(fcenter.y) ;
-      pbox[cnt].coords[2] = realToFloat(fcenter.z) ;
+      const vector3d<double>  fcenter = realToDouble($facecenter[fc]) ;
+      pbox[cnt].coords[0] = fcenter.x ;
+      pbox[cnt].coords[1] = fcenter.y ;
+      pbox[cnt].coords[2] = fcenter.z ;
       delta_stencil = max(delta_stencil,
                           double($stencilSizer->getSpacing(pbox[cnt].coords))) ;
       pbox[cnt].id = fc ;
@@ -410,14 +411,14 @@ namespace Loci {
 
     for(size_t i=0;i<pbox.size();++i) {
       int fc = pbox[i].id ;
-      vector3d<real_t>  fcenter = $facecenter[fc] ;
+      vector3d<double>  fcenter = realToDouble($facecenter[fc]) ;
         
-      vector3d<real_t>  n = $area[fc].n ;
+      vector3d<double>  n = realToDouble($area[fc].n) ;
       // compute local stencil distance as either the normal projected
       // distance from this side of the face to the interior cell, or
       // to the closest projected point found from the other side,
       // whichever is largest
-      real_t locdist = norm(fcenter-$cellcenter[$ci[fc]]) ;
+      double locdist = norm(fcenter-realToDouble($cellcenter[$ci[fc]])) ;
       ndelta[i] = n*locdist ;
     }
 
@@ -458,7 +459,7 @@ namespace Loci {
     communicateBoxPoints(loc_pbox,box_sp,box_tp,b_sizes,
                          send_block_id,recv_block_id,pbox,boxes,
                          MPI_COMM_WORLD) ;
-    vector<vector<vector3d<real_t> > > loc_ndelta ;
+    vector<vector<vector3d<double> > > loc_ndelta ;
     communicateBoxPoints(loc_ndelta,box_sp,box_tp,b_sizes,
                          send_block_id,recv_block_id,ndelta,boxes,
                          MPI_COMM_WORLD) ;
@@ -493,7 +494,7 @@ namespace Loci {
 #endif
     // Now we build the stencils
     vector< vector<Array<int,4> > >    stencil_block(recv_block_id.size()) ;
-    vector< vector<Array<real_t,4> > >   weights_block(recv_block_id.size()) ;
+    vector< vector<Array<double,4> > >   weights_block(recv_block_id.size()) ;
 
     int st_error = 0 ;
     int st_warnings = 0 ;
@@ -502,7 +503,7 @@ namespace Loci {
       int bk = recv_block_id[i] ;
       int ssz = loc_pbox[i].size() ; // Search points for block bk
 
-      store<vector3d<real_t> > loc ;
+      store<vector3d<double> > loc ;
       store<int> ids ;
       int tsz = recv_targets[bk].size() ;
       entitySet locdom = interval(0,tsz-1) ;
@@ -522,7 +523,7 @@ namespace Loci {
 #endif
 
       vector<Array<int,4> > tmp1(ssz*2) ;
-      vector<Array<real_t,4> > tmp2(ssz*2) ;
+      vector<Array<double,4> > tmp2(ssz*2) ;
       stencil_block[i].swap(tmp1) ;
       weights_block[i].swap(tmp2) ;
       for(int j=0;j<ssz;++j) {
@@ -533,27 +534,27 @@ namespace Loci {
       for(int j=0;j<ssz;++j) {
 
         
-	vector3d<real_t>  fcenter(loc_pbox[i][j].coords[0],
+	vector3d<double>  fcenter(loc_pbox[i][j].coords[0],
                        loc_pbox[i][j].coords[1],
                        loc_pbox[i][j].coords[2]) ;
-        real_t dnorm = norm(loc_ndelta[i][j]) ;
-        real_t dval = dnorm ;
-        vector3d<real_t>  n = (1./dnorm)*loc_ndelta[i][j] ;
+        double dnorm = norm(loc_ndelta[i][j]) ;
+        double dval = dnorm ;
+        vector3d<double>  n = (1./dnorm)*loc_ndelta[i][j] ;
         int xnd = - 1;
         {
           bool invalid_stencil=true ;
           vector<int> neighbors = get_stencil(stree,fcenter,delta_stencil*2) ;
-          real_t mdist = 1e33 ;
-          real_t mind = 1e33 ;
+          double mdist = 1e33 ;
+          double mind = 1e33 ;
           for(size_t k=0;k<neighbors.size();++k) {
             int nd = neighbors[k] ;
 
             if(nd > 0) {
-              vector3d<real_t>  pt = loc[nd] ;
-              real_t dp = dot(pt-fcenter,n) ;
+              vector3d<double>  pt = loc[nd] ;
+              double dp = dot(pt-fcenter,n) ;
               if(dp > 0) {
                 invalid_stencil = false ;
-                real_t d = norm(pt-fcenter) ;
+                double d = norm(pt-fcenter) ;
                 if(d < mind) {
                   mind = d ;
                   xnd = nd ;
@@ -585,9 +586,9 @@ namespace Loci {
             }
             int id = stree.find_closest_box(ccenter,box) ;
             if(id >=0 && id != std::numeric_limits<int>::max()) {
-              vector3d<real_t>  pt = loc[id] ;
+              vector3d<double>  pt = loc[id] ;
               invalid_stencil = false ;
-              real_t d = norm(pt-fcenter) ;
+              double d = norm(pt-fcenter) ;
               mind = d ;
               xnd = id ;
               mdist = min(mdist,d) ;
@@ -601,10 +602,10 @@ namespace Loci {
             dval = max(dnorm,mdist) ;
         }
 
-        real_t locdist = dval*1.05 ; // Saftey factor to ensure proper upwinding
+        double locdist = dval*1.05 ; // Saftey factor to ensure proper upwinding
 
-        vector3d<real_t>  prr = fcenter+n*(locdist*3.) ;
-        vector3d<real_t>  pr  = fcenter+n*locdist ;
+        vector3d<double>  prr = fcenter+n*(locdist*3.) ;
+        vector3d<double>  pr  = fcenter+n*locdist ;
         // right stencil
         {
           vector<int> ntmp = get_stencil(stree,pr,delta_stencil*2.0) ;
@@ -614,10 +615,10 @@ namespace Loci {
               neighbors.push_back(ntmp[k]) ;
           }
           // compute stencil weights
-          vector<real_t> w  ;
+          vector<double> w  ;
           stencil_weights(w,neighbors,loc,pr) ;
 
-          real_t w_tot = 0 ;
+          double w_tot = 0 ;
           for(size_t k=0;k<neighbors.size();++k) {
             if(dot(n,loc[neighbors[k]]-fcenter) < 0)
               w_tot += w[k] ;
@@ -630,7 +631,7 @@ namespace Loci {
               w_tot += w[k] ;
             }
             if(w_tot != 0) {
-              real_t rw_tot = 1./w_tot ;
+              double rw_tot = 1./w_tot ;
               for(size_t k=0;k<neighbors.size();++k) 
                 w[k] = w[k]*rw_tot ;
             }
@@ -662,7 +663,7 @@ namespace Loci {
             Loci::debugout << "face cr suboptimal stencil, delta = " << delta_stencil << endl ;
           }
           Array<int,4> st ;
-          Array<real_t,4> wt ;
+          Array<double,4> wt ;
           int nsz = neighbors.size() ;
 
           if(nsz > 0) {
@@ -696,11 +697,11 @@ namespace Loci {
 
 
           // compute stencil weights
-          vector<real_t> w  ;
+          vector<double> w  ;
           stencil_weights(w,neighbors,loc,prr) ;
 
 
-          real_t w_tot = 0 ;
+          double w_tot = 0 ;
           for(size_t k=0;k<neighbors.size();++k) {
             if(dot(n,loc[neighbors[k]]-fcenter) < 0)
               w_tot += w[k] ;
@@ -715,7 +716,7 @@ namespace Loci {
             if(w_tot == 0) 
               st_warnings++ ;
             else  {
-              real_t rw_tot = 1./w_tot ;
+              double rw_tot = 1./w_tot ;
               for(size_t k=0;k<neighbors.size();++k) 
                 w[k] = w[k]*rw_tot ;
             }
@@ -727,7 +728,7 @@ namespace Loci {
           }
 
           Array<int,4> st ;
-          Array<real_t,4> wt ;
+          Array<double,4> wt ;
           int nsz = neighbors.size() ;
 
           // If degenerate, then switch to first order
@@ -849,7 +850,7 @@ namespace Loci {
     }
 
     // Send weights
-    vector<Array<real_t,4> > weight_rcv ;
+    vector<Array<double,4> > weight_rcv ;
     //    returnBlockData(weight_rcv,weights_block,3,boxes,
     returnBlockData(weight_rcv,weights_block,2,boxes,
                     box_sp,box_tp,b_sizes,send_block_id,recv_block_id,
@@ -897,7 +898,7 @@ namespace Loci {
 		    $interpolateFaceStencil->send_info,
 		    $interpolateFaceStencil->req_sizes,
 		    $interpolateFaceStencil->snd_sizes)  ;
-    const vector<Array<real_t,4> > &weights = $interpolateFaceStencil->weights ;
+    const vector<Array<double,4> > &weights = $interpolateFaceStencil->weights ;
     const vector<Array<int,4> > &stencils = $interpolateFaceStencil->stencils ;
 
     FORALL(dom,fc) {
@@ -952,7 +953,7 @@ namespace Loci {
                       $interpolateFaceStencil->send_info,
                       $interpolateFaceStencil->req_sizes,
                       $interpolateFaceStencil->snd_sizes)  ;
-      const vector<Array<real_t,4> > &weights 
+      const vector<Array<double,4> > &weights 
 	= $interpolateFaceStencil->weights ;
       const vector<Array<int,4> > &stencils 
 	= $interpolateFaceStencil->stencils ;
@@ -1033,7 +1034,7 @@ namespace Loci {
 		    $interpolateFaceStencil->send_info,
 		    $interpolateFaceStencil->req_sizes,
 		    $interpolateFaceStencil->snd_sizes)  ;
-    const vector<Array<real_t,4> > &weights 
+    const vector<Array<double,4> > &weights 
       = $interpolateFaceStencil->weights ;
     const vector<Array<int,4> > &stencils 
       = $interpolateFaceStencil->stencils ;
@@ -1115,7 +1116,7 @@ namespace Loci {
 		    $interpolateFaceStencil->req_sizes,
 		    $interpolateFaceStencil->snd_sizes)  ;
 
-    const vector<Array<real_t,4> > &weights = $interpolateFaceStencil->weights ;
+    const vector<Array<double,4> > &weights = $interpolateFaceStencil->weights ;
     const vector<Array<int,4> > &stencils = $interpolateFaceStencil->stencils ;
     store<int> ids ;
 
@@ -1123,7 +1124,7 @@ namespace Loci {
       int cnt = slookup[fc]*2 ;
       int cl =  cnt ;
       
-      real_t w=-1 ;
+      double w=-1 ;
       $interpolateConnectCell[fc] = -1 ;
       for(int i=0;i<4;++i)
 	if(weights[cl][i] > w) {
@@ -1280,7 +1281,7 @@ namespace Loci {
 
     // Now we build the stencils
     vector< vector<Array<int,4> > >    stencil_block(recv_block_id.size()) ;
-    vector< vector<Array<real_t,4> > > weights_block(recv_block_id.size()) ;
+    vector< vector<Array<double,4> > > weights_block(recv_block_id.size()) ;
 
     int st_error = 0 ;
     int st_warning = 0 ;
@@ -1291,7 +1292,7 @@ namespace Loci {
       int bk = recv_block_id[i] ;
       int ssz = loc_pbox[i].size() ; // Search points for block bk
 
-      store<vector3d<real_t> > loc ;
+      store<vector3d<double> > loc ;
       store<int> ids ;
       int tsz = recv_targets[bk].size() ;
       entitySet locdom = interval(0,tsz-1) ;
@@ -1320,7 +1321,7 @@ namespace Loci {
 #endif
 
       vector<Array<int,4> > tmp1(ssz) ;
-      vector<Array<real_t,4> > tmp2(ssz) ;
+      vector<Array<double,4> > tmp2(ssz) ;
       stencil_block[i].swap(tmp1) ;
       weights_block[i].swap(tmp2) ;
       delta_stencil = 0 ;
@@ -1331,14 +1332,14 @@ namespace Loci {
 
       delta_stencil *= 5.1 ;
       for(int j=0;j<ssz;++j) {
-	vector3d<real_t>  pnt(loc_pbox[i][j].coords[0],
-		   loc_pbox[i][j].coords[1],
-		   loc_pbox[i][j].coords[2]) ;
+	vector3d<double>  pnt(loc_pbox[i][j].coords[0],
+			      loc_pbox[i][j].coords[1],
+			      loc_pbox[i][j].coords[2]) ;
         
 	vector<int> neighbors = get_stencil(stree,pnt,delta_stencil) ;
 
         if(neighbors.size() < 1) {
-          real_t scale = 2.0 ;
+          double scale = 2.0 ;
           do {
             neighbors = get_stencil(stree,pnt,delta_stencil*scale) ;
             scale = scale * 2.0 ;
@@ -1355,7 +1356,7 @@ namespace Loci {
         
           
 	// compute stencil weights
-	vector<real_t> w  ;
+	vector<double> w  ;
 	stencil_weights(w,neighbors,loc,pnt) ;
         if(neighbors.size() ==0) {
           neighbors.push_back(stree.find_closest(loc_pbox[i][j].coords)) ;
@@ -1472,7 +1473,7 @@ namespace Loci {
     }
 
     // Send weights
-    vector<Array<real_t,4> > weight_rcv ;
+    vector<Array<double,4> > weight_rcv ;
     returnBlockData(weight_rcv,weights_block,1,boxes,
                     box_sp,box_tp,b_sizes,send_block_id,recv_block_id,
                     MPI_COMM_WORLD) ;
@@ -1520,7 +1521,7 @@ namespace Loci {
 		    $interpolateCellStencil->send_info,
 		    $interpolateCellStencil->req_sizes,
 		    $interpolateCellStencil->snd_sizes)  ;
-    const vector<Array<real_t,4> > &weights = $interpolateCellStencil->weights ;
+    const vector<Array<double,4> > &weights = $interpolateCellStencil->weights ;
     const vector<Array<int,4> > &stencils = $interpolateCellStencil->stencils ;
 
     FORALL(dom,cc) {
@@ -1611,7 +1612,7 @@ namespace Loci {
 		    $interpolateCellStencil->send_info,
 		    $interpolateCellStencil->req_sizes,
 		    $interpolateCellStencil->snd_sizes)  ;
-    const vector<Array<real_t,4> > &weights = $interpolateCellStencil->weights ;
+    const vector<Array<double,4> > &weights = $interpolateCellStencil->weights ;
     const vector<Array<int,4> > &stencils = $interpolateCellStencil->stencils ;
 
     FORALL(dom,cc) {
@@ -1702,7 +1703,7 @@ namespace Loci {
 		    $interpolateCellStencil->send_info,
 		    $interpolateCellStencil->req_sizes,
 		    $interpolateCellStencil->snd_sizes)  ;
-    const vector<Array<real_t,4> > &weights = $interpolateCellStencil->weights ;
+    const vector<Array<double,4> > &weights = $interpolateCellStencil->weights ;
     const vector<Array<int,4> > &stencils = $interpolateCellStencil->stencils ;
 
     
@@ -1819,7 +1820,7 @@ namespace Loci {
 		    $interpolateCellStencil->send_info,
 		    $interpolateCellStencil->req_sizes,
 		    $interpolateCellStencil->snd_sizes)  ;
-    const vector<Array<real_t,4> > &weights = $interpolateCellStencil->weights ;
+    const vector<Array<double,4> > &weights = $interpolateCellStencil->weights ;
     const vector<Array<int,4> > &stencils = $interpolateCellStencil->stencils ;
       
       
@@ -1829,7 +1830,7 @@ namespace Loci {
       int co = cnt ;
       
       // Weighted sum interpolation
-      real_t w=-1 ;
+      double w=-1 ;
       for(int j=0;j<4;++j)
 	if(weights[co][j] > w) {
 	  w = weights[co][j] ;

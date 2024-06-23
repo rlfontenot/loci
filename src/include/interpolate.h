@@ -34,16 +34,44 @@
 #endif
 
 namespace Loci {
+
   std::vector<int> get_stencil(const Loci::kdTree::KDTree<float> &kd,
-                               vector3d<real_t> pnt,
-                               real_t delta) ;
+				 kdTree::coord3df ccenter,
+				 double delta) ;
   std::vector<int> get_stencil(const Loci::kdTree::KDTree<double> &kd,
-                               vector3d<real_t> pnt,
-                               real_t delta) ;
-  void stencil_weights(std::vector<real_t> &w,
+				 kdTree::coord3d ccenter,
+				 double delta) ;
+
+  /*  template<class T> inline std::vector<int>
+  get_stencil(const Loci::kdTree::KDTree<float> &kd,
+	      vector3d<T> pnt,
+	      double deltai) {
+    kdTree::coord3df ccenter ;
+    ccenter[0] = realToFloat(pnt.x) ;
+    ccenter[1] = realToFloat(pnt.y) ;
+    ccenter[2] = realToFloat(pnt.z) ;
+    double delta = deltai ;
+    return get_stencil_i(kd,ccenter,delta) ;
+  }
+    
+ 
+  template<class T> inline std::vector<int>
+  get_stencil(const Loci::kdTree::KDTree<double> &kd,
+	      vector3d<T> pnt,
+	      double deltai) {
+    kdTree::coord3d ccenter ;
+    ccenter[0] = realToDouble(pnt.x) ;
+    ccenter[1] = realToDouble(pnt.y) ;
+    ccenter[2] = realToDouble(pnt.z) ;
+    double delta = deltai ;
+    return get_stencil_i(kd,ccenter,delta) ;
+  }
+  */
+  
+  void stencil_weights(std::vector<double> &w,
                        std::vector<int> &neighbors,
-                       const store<vector3d<real_t> > &loc,
-                       vector3d<real_t> ipnt) ;
+                       const store<vector3d<double> > &loc,
+                       vector3d<double> ipnt) ;
 
   int collectPointsSizes(const Loci::kdTree::KDTree<float> &kd,
 			 Loci::kdTree::KDTree<float>::bounds bnd) ;
@@ -51,11 +79,11 @@ namespace Loci {
   void getStencilBoundingBox2(Loci::kdTree::KDTree<float>::bounds &bnd,
 			      double &delta,
 			      const Loci::kdTree::KDTree<float> &kd,
-			      const vector3d<real_t> pnts[],
+			      const vector3d<double> pnts[],
                               int start, int end) ;
   void getStencilBoundingBox(Loci::kdTree::KDTree<float>::bounds &bnd,
                              double &delta,
-                             const const_store<vector3d<real_t> > &pnts,
+                             const const_store<vector3d<double> > &pnts,
                              entitySet dom) ;
   void collectPoints(std::vector<Loci::kdTree::KDTree<float>::coord_info> &pout,
                      const Loci::kdTree::KDTree<float> &kd,
@@ -71,11 +99,29 @@ namespace Loci {
   void remapStencil(std::vector<Array<int,4> > &stencils,
                     const std::vector<int> &access,
                     const store<int> &ids) ;
-  void sendStencilData(storeVec<real_t> &stencilData,
-                       const_storeVec<real_t> &sourceData,
-                       const std::vector<int> &send_info,
-                       const std::vector<int> &req_sizes_in,
-                       const std::vector<int> &snd_sizes_in) ;
+
+  void sendStencilData(storeVec<double> &stencilData,
+		       const_storeVec<double> &sourceData,
+		       const std::vector<int> &send_info,
+		       const std::vector<int> &req_sizes_in,
+		       const std::vector<int> &snd_sizes_in) ;
+  void sendStencilData(storeVec<FADd> &stencilData,
+                       const_storeVec<FADd> &sourceData,
+                       const vector<int> &send_info,
+                       const vector<int> &req_sizes_in,
+                       const vector<int> &snd_sizes_in) ;
+  void sendStencilData(storeVec<MFADd> &stencilData,
+                       const_storeVec<MFADd> &sourceData,
+                       const vector<int> &send_info,
+                       const vector<int> &req_sizes_in,
+                       const vector<int> &snd_sizes_in) ;
+  
+  void sendStencilData(storeVec<FAD2d> &stencilData,
+                       const_storeVec<FAD2d> &sourceData,
+                       const vector<int> &send_info,
+                       const vector<int> &req_sizes_in,
+                       const vector<int> &snd_sizes_in) ;
+
   template <class T>
   void sendStencilData(store<T> &stencilData,
                        const_store<T> &sourceData,

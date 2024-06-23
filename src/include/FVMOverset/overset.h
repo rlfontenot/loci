@@ -178,7 +178,7 @@ namespace Loci {
   class interpolate_points {
   public:
     Loci::kdTree::KDTree<float> *kd ;
-    store<vector3d<real_t> > pos ;
+    store<vector3d<double> > pos ;
     store<int> posid ;
     std::vector<int> distribution ;
     interpolate_points &operator=(const interpolate_points &in) {
@@ -228,7 +228,7 @@ namespace Loci {
   } ;
 
   struct stencil_info {
-    std::vector<Loci::Array<real_t,4> > weights ;
+    std::vector<Loci::Array<double,4> > weights ;
     std::vector<Loci::Array<int ,4> > stencils ;
     std::vector<int> send_info, req_sizes, snd_sizes ;
     Loci::storeRepP slookup ;

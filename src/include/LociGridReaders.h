@@ -197,8 +197,34 @@ namespace Loci {
                    int max_alloc, std::string filename) ;
 
   void setupOverset(fact_db &facts) ;
-  void setupPosAutoDiff(fact_db &facts) ;
-  void setupPosAutoDiff(fact_db &facts,std::string filename) ;
+
+  template < class T> inline void setupPosAutoDiff(fact_db &facts, T val) {
+#if defined(USE_AUTODIFF) || defined(MULTIFAD)
+    store<vector3d<T> > pout ;
+    {
+      store<vector3d<double> > pin ;
+      pin.setRep(facts.get_fact("pos")) ;
+    
+      entitySet dom = pin.domain() ;
+      pout.allocate(dom) ;
+      FORALL(dom,ii) {
+	pout[ii] = vector3d<T>(pin[ii].x,
+			       pin[ii].y,
+			       pin[ii].z) ;
+      } ENDFORALL ;
+    }
+    facts.replace_fact("pos",pout.Rep()) ;
+#endif
+  }
+
+  template<class T> inline void setupPosAutoDiff(fact_db &facts,
+						 std::string filename,
+						 T val) {
+#if defined(USE_AUTODIFF) || defined(MULTIFAD)
+    setupPosAutoDiff(facts,val) ;
+#endif
+  }
+
 
 } 
 

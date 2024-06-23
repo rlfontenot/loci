@@ -293,7 +293,8 @@ namespace flowPsi {
     FLOWPSI = ~EMPTY ;
     facts.create_fact("FLOWPSI",FLOWPSI) ;  
 #ifdef USE_AUTODIFF
-    setupPosAutoDiff(facts) ;
+    Loci::real_t val=1.0 ;
+    setupPosAutoDiff(facts,val) ;
 #endif
   }
 }

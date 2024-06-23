@@ -1506,7 +1506,7 @@ namespace Loci{
           tot += tmp_pos[face2node[*ei][i]] ;
         }
         tot *= double(1)/double(sz) ;
-	vector3d<real_t> totr(tot.x,tot.y,tot.z) ;
+	vector3d<double> totr(tot.x,tot.y,tot.z) ;
 	totr = tran.transform(totr) ;
         p1center[*ei] = realToDouble(totr) ;
       }
@@ -1654,7 +1654,7 @@ namespace Loci{
       throw(StringError("boundary_conditions not found in setupBoundaryConditions! Is vars file read?")) ;
     bc_info = tmp ;
     
-    param<real_t> Lref ;
+    param<double> Lref ;
     *Lref = 1.0 ;
     storeRepP p = facts.get_variable("Lref") ;
     if(p != 0)
@@ -1893,9 +1893,9 @@ namespace Loci{
   // remove self2self references
   // Convert resulting structure to multiMap
 
-  void getFaceCenter(fact_db &facts, dstore<vector3d<real_t> > &fcenter, dstore<real_t> &area, dstore<vector3d<real_t> > &normal) {
+  void getFaceCenter(fact_db &facts, dstore<vector3d<double> > &fcenter, dstore<double> &area, dstore<vector3d<double> > &normal) {
     // Compute face centers
-    store<vector3d<real_t> > pos ;
+    store<vector3d<double> > pos ;
     pos = facts.get_variable("pos") ;
 
     multiMap face2node ;
@@ -1905,7 +1905,7 @@ namespace Loci{
 
     entitySet out_of_dom = f2n_image - pos.domain() ;
 
-    dstore<vector3d<real_t> > tmp_pos ;
+    dstore<vector3d<double> > tmp_pos ;
     FORALL(pos.domain(), pi) {
       tmp_pos[pi] = pos[pi] ;
     } ENDFORALL ;
@@ -1926,38 +1926,38 @@ namespace Loci{
 
     FORALL(fdom,fc) {
       int fsz = face2node[fc].size() ;
-      vector3d<real_t>  center = vector3d<real_t> (0,0,0) ;
-      real_t wsum = 0 ;
+      vector3d<double>  center = vector3d<double> (0,0,0) ;
+      double wsum = 0 ;
 	
       for(int i=1;i<fsz;++i) {
-	real_t len = norm(tmp_pos[face2node[fc][i-1]]-tmp_pos[face2node[fc][i]]) ;
-	vector3d<real_t>  eloc = 0.5*(tmp_pos[face2node[fc][i-1]]+tmp_pos[face2node[fc][i]]) ;
+	double len = norm(tmp_pos[face2node[fc][i-1]]-tmp_pos[face2node[fc][i]]) ;
+	vector3d<double>  eloc = 0.5*(tmp_pos[face2node[fc][i-1]]+tmp_pos[face2node[fc][i]]) ;
 	center += len*eloc ;
 	wsum += len ;
       }
-      real_t lenr = norm(tmp_pos[face2node[fc][0]]-tmp_pos[face2node[fc][fsz-1]]) ;
-      vector3d<real_t>  elocr = 0.5*(tmp_pos[face2node[fc][0]]+tmp_pos[face2node[fc][fsz-1]]) ;
+      double lenr = norm(tmp_pos[face2node[fc][0]]-tmp_pos[face2node[fc][fsz-1]]) ;
+      vector3d<double>  elocr = 0.5*(tmp_pos[face2node[fc][0]]+tmp_pos[face2node[fc][fsz-1]]) ;
       center += lenr*elocr ;
       wsum += lenr ;
       center *= 1./wsum ;
       fcenter[fc] = center ;
       if(exact) {	
 	// Iterate to find exact centroid that is on the face
-	vector3d<real_t>  tmpcenter = center ;
+	vector3d<double>  tmpcenter = center ;
 	const int NITER=4 ;
 	for(int iter=0;iter<NITER;++iter) {
     
 	  // compute centroid using triangles formed by wireframe centroid
-	  vector3d<real_t>  centroidsum(0.0,0.0,0.0) ;
-	  real_t facearea = 0 ;
+	  vector3d<double>  centroidsum(0.0,0.0,0.0) ;
+	  double facearea = 0 ;
 	  for(int i=0;i<fsz;++i) {
 	    int n1 = i ;
 	    int n2 = (i+1==fsz)?0:i+1 ;
-	    vector3d<real_t>  p1 = tmp_pos[face2node[fc][n1]] ;
-	    vector3d<real_t>  p2 = tmp_pos[face2node[fc][n2]] ;
+	    vector3d<double>  p1 = tmp_pos[face2node[fc][n1]] ;
+	    vector3d<double>  p2 = tmp_pos[face2node[fc][n2]] ;
 	    
-	    const vector3d<real_t>  t_centroid = (p1 + p2 + tmpcenter)/3.0 ;
-	    const real_t t_area = 0.5*norm(cross(p1-tmpcenter,p2-tmpcenter)) ;
+	    const vector3d<double>  t_centroid = (p1 + p2 + tmpcenter)/3.0 ;
+	    const double t_area = 0.5*norm(cross(p1-tmpcenter,p2-tmpcenter)) ;
 	    centroidsum += t_area*t_centroid ;
 	    facearea += t_area ;
 	  }
@@ -1965,27 +1965,27 @@ namespace Loci{
 	}
 	fcenter[fc] = tmpcenter ;
       }
-      vector3d<real_t> facearea = vector3d<real_t>(0,0,0) ;
-      vector3d<real_t>  tmpcenter = fcenter[fc] ;
+      vector3d<double> facearea = vector3d<double>(0,0,0) ;
+      vector3d<double>  tmpcenter = fcenter[fc] ;
       for(int i=0;i<fsz;++i) {
 	int n1 = i ;
 	int n2 = (i+1==fsz)?0:i+1 ;
-	vector3d<real_t>  p1 = tmp_pos[face2node[fc][n1]] ;
-	vector3d<real_t>  p2 = tmp_pos[face2node[fc][n2]] ;
+	vector3d<double>  p1 = tmp_pos[face2node[fc][n1]] ;
+	vector3d<double>  p2 = tmp_pos[face2node[fc][n2]] ;
 	
 	facearea += cross(p1-tmpcenter,p2-tmpcenter) ;
       }
-      real_t nfacearea = norm(facearea) ;
+      double nfacearea = norm(facearea) ;
       area[fc] = 0.5*nfacearea ;
       normal[fc] = (1./nfacearea)*facearea ;
     } ENDFORALL ;
   }
 
-  void getCellCenter(fact_db &facts, dstore<vector3d<real_t> > &fcenter,
-		     dstore<vector3d<real_t> > &fnormal,
-		     dstore<vector3d<real_t> > &ccenter) {
+  void getCellCenter(fact_db &facts, dstore<vector3d<double> > &fcenter,
+		     dstore<vector3d<double> > &fnormal,
+		     dstore<vector3d<double> > &ccenter) {
 
-    dstore<real_t> area ;
+    dstore<double> area ;
     getFaceCenter(facts,fcenter,area,fnormal) ;
     multiMap upper,lower,boundary_map ;
     upper = facts.get_variable("upper") ;
@@ -2010,32 +2010,32 @@ namespace Loci{
 	fill_clone(sp, out_of_dom, init_ptn) ;
       }
     }
-    dstore<vector3d<real_t> > wccenter ;
+    dstore<vector3d<double> > wccenter ;
     // compute wireframe centroid
     FORALL(cells,cc) {
-      vector3d<real_t>  csum = vector3d<real_t> (0,0,0) ;
-      real_t wsum = 0 ;
+      vector3d<double>  csum = vector3d<double> (0,0,0) ;
+      double wsum = 0 ;
       int lsz = lower[cc].size() ;
       for(int i=0;i<lsz;++i) {
 	int f = lower[cc][i] ;
-	real_t w = area[f] ;
-	vector3d<real_t>  v = fcenter[f] ;
+	double w = area[f] ;
+	vector3d<double>  v = fcenter[f] ;
 	csum += w*v ;
 	wsum += w ;
       }
       int usz = upper[cc].size() ;
       for(int i=0;i<usz;++i) {
 	int f = upper[cc][i] ;
-	real_t w = area[f] ;
-	vector3d<real_t>  v = fcenter[f] ;
+	double w = area[f] ;
+	vector3d<double>  v = fcenter[f] ;
 	csum += w*v ;
 	wsum += w ;
       }
       int bsz = boundary_map[cc].size() ;
       for(int i=0;i<bsz;++i) {
 	int f = boundary_map[cc][i] ;
-	real_t w = area[f] ;
-	vector3d<real_t>  v = fcenter[f] ;
+	double w = area[f] ;
+	vector3d<double>  v = fcenter[f] ;
 	csum += w*v ;
 	wsum += w ;
       }
@@ -2165,9 +2165,9 @@ namespace Loci{
     distributed_inverseMap(cellStencil,c2c,geom_cells,geom_cells,ptn) ;
 
     // Now downselect cells
-    dstore<vector3d<real_t> > fcenter ;
-    dstore<vector3d<real_t> > fnormal ;
-    dstore<vector3d<real_t> > ccenter ;
+    dstore<vector3d<double> > fcenter ;
+    dstore<vector3d<double> > fnormal ;
+    dstore<vector3d<double> > ccenter ;
     getCellCenter(facts, fcenter, fnormal, ccenter) ;
 
     entitySet cells = cellStencil.domain() ;
@@ -2193,8 +2193,8 @@ namespace Loci{
     FORALL(cells,cc) {
       int csz = cellStencil[cc].size() ;
       int bsz = boundary_map[cc].size() ; ;
-      vector3d<real_t>  ccent = ccenter[cc] ;
-      vector<vector3d<real_t> > cdirs(csz+bsz) ;
+      vector3d<double>  ccent = ccenter[cc] ;
+      vector<vector3d<double> > cdirs(csz+bsz) ;
       for(int i=0;i<csz;++i) {
 	cdirs[i] = ccenter[cellStencil[cc][i]]-ccent ;
 	cdirs[i] *= 1./norm(cdirs[i]) ;
@@ -2207,14 +2207,14 @@ namespace Loci{
       vector<int> flags(csz+bsz,0) ;
       int lsz = lower[cc].size() ;
       for(int i=0;i<lsz;++i) {
-	vector3d<real_t>  dir = fcenter[lower[cc][i]] -ccent;
+	vector3d<double>  dir = fcenter[lower[cc][i]] -ccent;
 	dir *= 1./norm(dir) ;
 	int minid = 0 ;
 	int maxid = 0 ;
-	real_t minval = dot(dir,cdirs[0]) ;
-	real_t maxval = minval ;
+	double minval = dot(dir,cdirs[0]) ;
+	double maxval = minval ;
 	for(int j=1;j<csz+bsz;++j) {
-	  real_t v = dot(dir,cdirs[j]) ;
+	  double v = dot(dir,cdirs[j]) ;
 	  if(minval < v) {
 	    minid = j ;
 	    minval = v ;
@@ -2232,7 +2232,7 @@ namespace Loci{
 	minval = dot(dir,cdirs[0]) ;
 	maxval = minval ;
 	for(int j=1;j<csz+bsz;++j) {
-	  real_t v = dot(dir,cdirs[j]) ;
+	  double v = dot(dir,cdirs[j]) ;
 	  if(minval < v) {
 	    minid = j ;
 	    minval = v ;
@@ -2247,14 +2247,14 @@ namespace Loci{
       }
       int usz = upper[cc].size() ;
       for(int i=0;i<usz;++i) {
-	vector3d<real_t>  dir = fcenter[upper[cc][i]] -ccent;
+	vector3d<double>  dir = fcenter[upper[cc][i]] -ccent;
 	dir *= 1./norm(dir) ;
 	int minid = 0 ;
 	int maxid = 0 ;
-	real_t minval = dot(dir,cdirs[0]) ;
-	real_t maxval = minval ;
+	double minval = dot(dir,cdirs[0]) ;
+	double maxval = minval ;
 	for(int j=1;j<csz+bsz;++j) {
-	  real_t v = dot(dir,cdirs[j]) ;
+	  double v = dot(dir,cdirs[j]) ;
 	  if(minval < v) {
 	    minid = j ;
 	    minval = v ;
@@ -2272,7 +2272,7 @@ namespace Loci{
 	minval = dot(dir,cdirs[0]) ;
 	maxval = minval ;
 	for(int j=1;j<csz+bsz;++j) {
-	  real_t v = dot(dir,cdirs[j]) ;
+	  double v = dot(dir,cdirs[j]) ;
 	  if(minval < v) {
 	    minid = j ;
 	    minval = v ;
@@ -2287,14 +2287,14 @@ namespace Loci{
       }
 
       for(int i=0;i<bsz;++i) {
-	vector3d<real_t>  dir = fcenter[boundary_map[cc][i]] -ccent;
+	vector3d<double>  dir = fcenter[boundary_map[cc][i]] -ccent;
 	dir *= 1./norm(dir) ;
 	int minid = 0 ;
 	int maxid = 0 ;
-	real_t minval = dot(dir,cdirs[0]) ;
-	real_t maxval = minval ;
+	double minval = dot(dir,cdirs[0]) ;
+	double maxval = minval ;
 	for(int j=1;j<csz+bsz;++j) {
-	  real_t v = dot(dir,cdirs[j]) ;
+	  double v = dot(dir,cdirs[j]) ;
 	  if(minval < v) {
 	    minid = j ;
 	    minval = v ;
@@ -2312,7 +2312,7 @@ namespace Loci{
 	minval = dot(dir,cdirs[0]) ;
 	maxval = minval ;
 	for(int j=1;j<csz+bsz;++j) {
-	  real_t v = dot(dir,cdirs[i]) ;
+	  double v = dot(dir,cdirs[i]) ;
 	  if(minval < v) {
 	    minid = j ;
 	    minval = v ;
@@ -3377,26 +3377,6 @@ namespace Loci{
     
   } // end of createEdgesPar
 
-  void setupPosAutoDiff(fact_db &facts) {
-#if defined(USE_AUTODIFF) || defined(MULTIFAD)
-    
-    store<vector3d<Loci::real_t> > pout ;
-    {
-      store<vector3d<double> > pin ;
-      pin.setRep(facts.get_fact("pos")) ;
-    
-      entitySet dom = pin.domain() ;
-      pout.allocate(dom) ;
-      FORALL(dom,ii) {
-	pout[ii] = vector3d<Loci::real_t>(pin[ii].x,
-					  pin[ii].y,
-					  pin[ii].z) ;
-      } ENDFORALL ;
-    }
-    facts.replace_fact("pos",pout.Rep()) ;
-#endif
-  }
-
 
   void setupOverset(fact_db &facts) {
     using namespace Loci ;
@@ -3545,9 +3525,4 @@ namespace Loci{
   }    
 
   
-  void setupPosAutoDiff(fact_db &facts, std::string filename) {
-#if defined(USE_AUTODIFF) || defined(MULTIFAD)
-    setupPosAutoDiff(facts) ;
-#endif
-  }
 }

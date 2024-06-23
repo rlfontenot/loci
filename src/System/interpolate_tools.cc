@@ -24,17 +24,14 @@
 namespace Loci {
   using std::vector ;
   using std::pair ;
-  typedef vector3d<real_t> vect3d ;
+  typedef vector3d<double> vect3d ;
  
   // Compute stencil using nearest point in 8 octants
-  vector<int> get_stencil(const kdTree::KDTree<float> &kd,vect3d pnt,
-                          real_t deltai) {
+  vector<int> get_stencil(const kdTree::KDTree<float> &kd,
+			  kdTree::coord3df ccenter,
+			  double deltai) {
     vector<int> neighbors(8) ;
-    kdTree::coord3df ccenter ;
-    ccenter[0] = realToFloat(pnt.x) ;
-    ccenter[1] = realToFloat(pnt.y) ;
-    ccenter[2] = realToFloat(pnt.z) ;
-    double delta = 1.4142*realToDouble(deltai) ;
+    double delta = 1.4142*deltai ;
     double rmin = delta*delta ; // Note rmin is radius squared.
     double rmin_ref = rmin ;
     
@@ -134,16 +131,12 @@ namespace Loci {
     return neighbors ;
   }
 
-  // Compute stencil using nearest point in 8 octants (real_t precision)
-  vector<int> get_stencil(const kdTree::KDTree<double> &kd,vect3d pnt,
-                          real_t deltai) {
+  // Compute stencil using nearest point in 8 octants 
+  vector<int> get_stencil(const kdTree::KDTree<double> &kd,
+			    kdTree::coord3d ccenter,
+			    double deltai) {
     vector<int> neighbors(8) ;
-    kdTree::coord3d ccenter ;
-    ccenter[0] = realToFloat(pnt.x) ;
-    ccenter[1] = realToFloat(pnt.y) ;
-    ccenter[2] = realToFloat(pnt.z) ;
-
-    double delta = 1.4142*realToDouble(deltai) ;
+    double delta = 1.4142*deltai ;
     double rmin = delta*delta ; // Note rmin is radius squared.
     double rmin_ref = rmin ;
     
@@ -275,7 +268,7 @@ namespace Loci {
   //                   5----------4
   //
   
-  void stencil_weights(std::vector<real_t> &w,
+  void stencil_weights(std::vector<double> &w,
                        std::vector<int> &neighbors,
                        const store<vect3d> &loc,
                        vect3d ipnt) {
@@ -285,7 +278,7 @@ namespace Loci {
     if(sz == 0 ) 
       return ;
     if(sz == 1) {
-      vector<real_t> W(1) ;
+      vector<double> W(1) ;
       W[0] = 1.0 ;
       w.swap(W) ;
       return ;
@@ -297,7 +290,7 @@ namespace Loci {
           {0, 7, 5}, {1, 4, 6}, {2, 5, 7}, {3, 6, 4} } ;
 
     int corner = -1 ;
-    real_t dist = 1e33 ;
+    double dist = 1e33 ;
     for(int i=0;i<8;++i) {
       const int p0 = neighbors[i] ;
       const int p1 = neighbors[corner_tets[i][0]] ;
@@ -310,7 +303,7 @@ namespace Loci {
         vect3d v2 = loc[p3]-loc[p2] ;
         vect3d vp = ipnt-loc[p2] ;
         if(dot(vp,cross(v1,v2)) < 0.0) {
-            real_t sum = dot(vp,vp) ;
+            double sum = dot(vp,vp) ;
             vp = ipnt - loc[i] ;
             sum += dot(vp,vp) ;
             vp = ipnt - loc[p1] ;
@@ -355,7 +348,7 @@ namespace Loci {
       p2 = neighbors[5] ;
       p3 = neighbors[7] ;
       if(p0 >=0 && p1 >= 0 && p2 >= 0 && p3 >= 0) {
-        real_t dist2 =
+        double dist2 =
           dot(ipnt-loc[p0],ipnt-loc[p0])+
           dot(ipnt-loc[p1],ipnt-loc[p1])+
           dot(ipnt-loc[p2],ipnt-loc[p2])+
@@ -374,7 +367,7 @@ namespace Loci {
       // and modify stencil to only include the four points that define
       // the bounding tetrahedra.
       vector<int> N(4) ;
-      vector<real_t> W(4) ;
+      vector<double> W(4) ;
       N[0] = t0 ;
       N[1] = t1 ;
       N[2] = t2 ;
@@ -385,14 +378,14 @@ namespace Loci {
       vect3d v3 = loc[N[3]]-v0 ;
       vect3d vc = ipnt-v0 ;
       
-      real_t w3 = dot(cross(v2,v1),vc) ;
-      real_t w2 = dot(cross(vc,v1),v3) ;
-      real_t w1 = dot(cross(v2,vc),v3) ;
-      real_t vol = dot(cross(v2,v1),v3) ;
-      real_t w0 = vol-w1-w2-w3 ;
+      double w3 = dot(cross(v2,v1),vc) ;
+      double w2 = dot(cross(vc,v1),v3) ;
+      double w1 = dot(cross(v2,vc),v3) ;
+      double vol = dot(cross(v2,v1),v3) ;
+      double w0 = vol-w1-w2-w3 ;
       if(vol >= 1e-30 && w0>=0.0 && w1>= 0.0 && w2 >= 0.0 && w3 >= 0.0 ) {
-        real_t rvol = 1./(vol) ;
-        real_t aspect6 = dist*dist*dist*rvol*rvol ;
+        double rvol = 1./(vol) ;
+        double aspect6 = dist*dist*dist*rvol*rvol ;
         if(aspect6 < 1.6e10) { // aspect ratio less than 50
           W[0] = w0*rvol ;
           W[1] = w1*rvol ;
@@ -410,13 +403,13 @@ namespace Loci {
     // Got here, so it means we are degenerate.
     int nt[8] ;
     sz = 0 ;
-    real_t mind = 1e30 ;
+    double mind = 1e30 ;
     for(int i=0;i<8;++i)
       if(neighbors[i] >= 0) {
 	nt[sz] = neighbors[i] ;
 	sz++ ;
 	vect3d dv = ipnt-loc[neighbors[i]] ;
-	const real_t d = dot(dv,dv) ;
+	const double d = dot(dv,dv) ;
 	if(d<mind) {
 	  mind = d ;
 	  swap(nt[sz-1],nt[0]) ;
@@ -424,14 +417,14 @@ namespace Loci {
       }
     if(sz == 0) {
       vector<int> N ;
-      vector<real_t> W ;
+      vector<double> W ;
       neighbors.swap(N) ;
       w.swap(W) ;
       return ;
     }
     if(sz == 1) {
       vector<int> N(1) ;
-      vector<real_t> W(1) ;
+      vector<double> W(1) ;
       N[0] = nt[0] ;
       W[0] = 1.0 ;
       neighbors.swap(N) ;
@@ -445,24 +438,24 @@ namespace Loci {
     int n1=-1, n2 = -1 ;
     for(int i=1;i<sz;++i) {
       const vect3d v1 = loc[nt[i]]-v0 ;
-      const real_t d1 = dot(loc[nt[i]]-ipnt,loc[nt[i]]-ipnt) ;
+      const double d1 = dot(loc[nt[i]]-ipnt,loc[nt[i]]-ipnt) ;
       for(int j=i+1;j<sz;++j) {
         const vect3d dv = loc[nt[j]]-ipnt;
         const vect3d v2 = loc[nt[j]]-v0 ;
-        const real_t d2 = dot(dv,dv) ;
+        const double d2 = dot(dv,dv) ;
         // find smallest perimiter
         if(mind > d1+d2) {
           const vect3d n = cross(v1,v2) ; // Compute face normal
-          const real_t a2 = dot(n,n) ;
-          const real_t d = dot(vc,n) ; // projected distance to triangle
-          const real_t ra2 = 1./(a2+1e-60) ;
+          const double a2 = dot(n,n) ;
+          const double d = dot(vc,n) ; // projected distance to triangle
+          const double ra2 = 1./(a2+1e-60) ;
           // Compute projected point on triangle plane
           vect3d pnt = (vc-d*ra2*n) ;
           // Now check to see if pnt is in triangle
           // Compute barycentric coordinates and make sure all are positive
-          real_t c1 = dot(n,cross(v1,pnt)) ;
-          real_t c2 = dot(n,cross(pnt,v2)) ;
-          real_t c3 = dot(n,cross(v1-pnt,v2-pnt)) ;
+          double c1 = dot(n,cross(v1,pnt)) ;
+          double c2 = dot(n,cross(pnt,v2)) ;
+          double c3 = dot(n,cross(v1-pnt,v2-pnt)) ;
       
           if(c1 >= 0. && c2 >= 0. && c3 >= 0.) {
             mind = d1+d2 ;
@@ -482,19 +475,19 @@ namespace Loci {
       vect3d v1 = loc[nt[1]]-v0 ;
       vect3d v2 = loc[nt[2]]-v0 ;
       vect3d n = cross(v1,v2) ;
-      real_t ra2 = 1./(dot(n,n)+1e-30) ;
-      real_t d = dot(vc,n) ; // projected distance to triangle
+      double ra2 = 1./(dot(n,n)+1e-30) ;
+      double d = dot(vc,n) ; // projected distance to triangle
       vect3d pnt = (vc-d*ra2*n) ;
-      real_t w2 = dot(n,cross(v1,pnt)) ;
-      real_t w1 = dot(n,cross(pnt,v2)) ;
-      real_t w0 = dot(n,cross(v1-pnt,v2-pnt)) ;
+      double w2 = dot(n,cross(v1,pnt)) ;
+      double w1 = dot(n,cross(pnt,v2)) ;
+      double w0 = dot(n,cross(v1-pnt,v2-pnt)) ;
       if(w1>=0 && w2>=0 && w0 >=0 && w0+w1+w2 > 1e-30) {
 	vector<int> N(3) ;
-	vector<real_t> W(3) ;
+	vector<double> W(3) ;
 	N[0] = nt[0] ;
 	N[1] = nt[1] ;
 	N[2] = nt[2] ;
-        real_t wsr = 1./(w0+w1+w2) ;
+        double wsr = 1./(w0+w1+w2) ;
 	W[0] = w0*wsr ;
 	W[1] = w1*wsr ;
 	W[2] = w2*wsr ;
@@ -510,7 +503,7 @@ namespace Loci {
     mind = dot(ipnt-loc[nt[1]],ipnt-loc[nt[1]]) ;
     for(int i=2;i<sz;++i) {
       vect3d dv = ipnt-loc[nt[i]] ;
-      const real_t d = dot(dv,dv) ;
+      const double d = dot(dv,dv) ;
       if(d<mind) {
         mind = d ;
         swap(nt[i],nt[1]) ;
@@ -518,11 +511,11 @@ namespace Loci {
     }
     // compute weights
     vector<int> N(2) ;
-    vector<real_t> W(2) ;
+    vector<double> W(2) ;
     N[0] = nt[0] ;
     N[1] = nt[1] ;
     vect3d v1 = loc[nt[1]]-v0 ;
-    W[1] = max(real_t(0.0),min(real_t(1.0),dot(vc,v1)/(dot(v1,v1)+1e-30))) ;
+    W[1] = max(double(0.0),min(double(1.0),dot(vc,v1)/(dot(v1,v1)+1e-30))) ;
     W[0] = 1.-W[1] ;
     w.swap(W) ;
     neighbors.swap(N) ;
@@ -558,7 +551,7 @@ namespace Loci {
   void getStencilBoundingBox2(kdTree::KDTree<float>::bounds &bnd,
 			      double &delta,
 			      const kdTree::KDTree<float> &kd,
-			      const vector3d<real_t> pnts[],int start, int end) {
+			      const vector3d<double> pnts[],int start, int end) {
     double deltain = delta ;
     for(int d=0;d<3;++d) {
       bnd.minc[d] = .25*std::numeric_limits<float>::max() ;
@@ -649,7 +642,7 @@ namespace Loci {
 
   void getStencilBoundingBox(kdTree::KDTree<float>::bounds &bnd,
                              double &delta,
-                             const const_store<vector3d<real_t> > &pnts,
+                             const const_store<vector3d<double> > &pnts,
                              entitySet dom) {
     //    MEMORY_PROFILE(getStencilBoundingBoxBegin) ;
     for(int d=0;d<3;++d) {
