@@ -1,0 +1,9 @@
+[submodule "ext/ParMETIS"]
+	path = ext/ParMETIS
+	url = https://github.com/KarypisLab/ParMETIS
+[submodule "ext/GKlib"]
+	path = ext/GKlib
+	url = https://github.com/KarypisLab/GKlib.git
+[submodule "ext/METIS"]
+	path = ext/METIS
+	url = https://github.com/KarypisLab/METIS.git

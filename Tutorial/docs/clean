@@ -1,1 +1,1 @@
-\rm -rf *.dvi *.log *.aux *_cc.tex *~ Makefile_ex.tex *.bbl *.blg *.toc 
+rm -rf *.dvi *.log *.aux *_cpp.tex *~ Makefile_ex.tex *.bbl *.blg *.toc 

@@ -1,0 +1,524 @@
+/** ****************************************************************************
+ * @file      qn2cminmax.cc
+ * @authors   Ed Luke (MS State)
+ *            Raymond Fontenot (CFDRC)
+ * @date      LICENSE Date: 12-30-2023
+ * @copyright MS State/CFDRC
+ * @brief     Cell min/max and related rules for limiters, cell 2 node mapping
+ * @details   This file is a part of the Loci Framework, a free software.
+ * You can redistribute it and/or modify it under the terms of the Lesser
+ * GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * The Loci Framework is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * Lesser GNU General Public License for more details.
+ *
+ * You should have received a copy of the Lesser GNU General Public License
+ * along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
+ ******************************************************************************/
+#include <Loci.h>
+$include "FVM.lh"
+$include "FVMMod/limiter.lh"
+$include "FVMMod/spatialFilter.lh"
+
+namespace Loci {
+typedef vector3d<real_t> vect3d;
+typedef tensor3d<real_t> tens3d;
+typedef real_t real;
+
+
+$type X store<real>;
+
+// initialize with the average nodal value
+/** ****************************************************************************
+ * @brief Initialization of cell 2 node max/min for scalars
+ * @retval cell2nodemaxmins  [-] scalar mapping
+ ******************************************************************************/
+$rule unit(cell2nodemaxmins(X)),constraint(pos)
+{
+  $cell2nodemaxmins(X).max = -std::numeric_limits<real>::max();
+  $cell2nodemaxmins(X).min = std::numeric_limits<real>::max();
+}
+
+/** ****************************************************************************
+ * @brief Build map at faces for cell 2 node max/min for scalars, left
+ * @retval face2node->cell2nodemaxmins(X)  [-] face mapping for max/mins
+ * @param  face2node->pos                  [-] nodal locations
+ * @param  cl->X                           [-] state on left
+ ******************************************************************************/
+$rule apply(face2node->cell2nodemaxmins(X)<-face2node->pos,cl->X)[MaxMin],
+      constraint(cl->geom_cells)
+{
+  int nnf = $face2node.size();
+  stenMaxMinNorm xi;
+  real xv = $cl->$X;
+  xi.max = xv;
+  xi.min = xv;
+  for(int i=0;i<nnf;++i)
+  {
+    // Find the min/max
+    join($face2node[i]->$cell2nodemaxmins(X),xi);
+  }
+}
+
+/** ****************************************************************************
+ * @brief Build map at faces for cell 2 node max/min for scalars, right
+ * @retval face2node->cell2nodemaxmins(X)  [-] face mapping for max/mins
+ * @param  face2node->pos                  [-] nodal locations
+ * @param  cr->X                           [-] state on right
+ ******************************************************************************/
+$rule apply(face2node->cell2nodemaxmins(X)<-face2node->pos,cr->(X))[MaxMin],
+      constraint(cr->geom_cells)
+{
+  int nnf = $face2node.size();
+  stenMaxMinNorm xi;
+  real xv = $cr->$X;
+  xi.max = xv;
+  xi.min = xv;
+  for(int i=0;i<nnf;++i)
+  {
+    // Find the min/max
+    join($face2node[i]->$cell2nodemaxmins(X),xi);
+  }
+}
+
+$type X_f store<real>;
+ /** ****************************************************************************
+ * @brief Build map at faces for cell 2 node max/min for scalars, boundary
+ * @retval face2node->cell2nodemaxmins(X)  [-] face mapping for max/mins
+ * @param  face2node->pos                  [-] nodal locations
+ * @param  X_f                             [-] state on boundary face
+ ******************************************************************************/
+$rule apply(face2node->cell2nodemaxmins(X)<-face2node->pos,X_f)[MaxMin],
+      constraint(X_f)
+{
+  int nnf = $face2node.size();
+  stenMaxMinNorm xi;
+  real xf = $X_f;
+  xi.max = xf;
+  xi.min = xf;
+  for(int i=0;i<nnf;++i)
+  {
+    // Find the min/max
+    join($face2node[i]->$cell2nodemaxmins(X),xi);
+  }
+}
+
+ /** ****************************************************************************
+ * @brief Initialize map for faces from cell 2 node max/min for scalars
+ * @retval cell2facemaxmins(X)             [-] face mapping for max/mins
+ ******************************************************************************/
+$rule unit(cell2facemaxmins(X)),constraint((cr,cl)->geom_cells)
+{
+  $cell2facemaxmins(X).max = 0.0;
+  $cell2facemaxmins(X).min = 0.0;
+}
+
+/** ****************************************************************************
+ * @brief Build map at faces from cell 2 node max/min for scalars
+ * @retval cell2facemaxmins(X)             [-] face average
+ * @param  face2node->cell2nodemaxmins(X)  [-] face mapping for max/mins
+ ******************************************************************************/
+$rule apply(cell2facemaxmins(X)<-face2node->cell2nodemaxmins(X))[SumMaxMin]
+{
+  int nnf = $face2node.size();
+  for(int i = 0;i<nnf;i++)
+  {
+    join($cell2facemaxmins(X),$face2node[i]->$cell2nodemaxmins(X));
+  }
+  $cell2facemaxmins(X).max /= nnf;
+  $cell2facemaxmins(X).min /= nnf;
+}
+
+/** ****************************************************************************
+ * @brief Initialize map for node to cell max/min for scalars
+ * @retval node2cellmaxmins(X)             [-] cell mapping for max/mins
+ ******************************************************************************/
+$rule unit(node2cellmaxmins(X)<-X),constraint(geom_cells)
+{
+  $node2cellmaxmins(X).max = $X;
+  $node2cellmaxmins(X).min = $X;
+}
+
+/** ****************************************************************************
+ * @brief Build map at faces from cell 2 node max/min for scalars, left
+ * @retval cl->node2cellmaxmins(X)         [-] cell mapped max/min
+ * @param  face2node->cell2nodemaxmins(X)  [-] face mapping for max/mins
+ ******************************************************************************/
+$rule apply(cl->node2cellmaxmins(X)<-face2node->cell2nodemaxmins(X))[MaxMin],
+      constraint(cl->geom_cells),parametric(node2cellmaxmins(X))
+{
+  int nnf = $face2node.size();
+  stenMaxMinNorm xi;
+  for(int i=0;i<nnf;++i)
+  {
+    xi = $face2node[i]->$cell2nodemaxmins(X);
+    join($cl->$node2cellmaxmins(X),xi);
+  }
+}
+
+/** ****************************************************************************
+ * @brief Build map at faces for cell 2 node max/min for scalars, right
+ * @retval  cr->node2cellmaxmins(X)         [-] cell mapped max/min
+ * @param  face2node->cell2nodemaxmins(X)  [-] face mapping for max/mins
+ ******************************************************************************/
+$rule apply(cr->node2cellmaxmins(X)<-face2node->cell2nodemaxmins(X))[MaxMin],
+      constraint(cr->geom_cells),parametric(node2cellmaxmins(X))
+{
+  int nnf = $face2node.size();
+  stenMaxMinNorm xi;
+  for(int i=0;i<nnf;++i)
+  {
+    xi = $face2node[i]->$cell2nodemaxmins(X);
+    join($cr->$node2cellmaxmins(X),xi);
+  }
+}
+
+//////////////////////////////////////////////////////////////////////
+$type X store<vect3d>;
+/** ****************************************************************************
+ * @brief Initialization of cell 2 node max/min for vect3d
+ * @retval cell2nodemaxminv3d  [-] vect3d mapping
+ ******************************************************************************/
+$rule unit(cell2nodemaxminv3d(X)),constraint(pos)
+{
+  real mx = std::numeric_limits<real>::max();
+  $cell2nodemaxminv3d(X).max = vect3d(-mx,-mx,-mx);
+  $cell2nodemaxminv3d(X).min = vect3d(mx,mx,mx);
+}
+/** ****************************************************************************
+ * @brief Build map at faces for cell 2 node max/min for vect3d, left
+ * @retval face2node->cell2nodemaxminv3d(X)  [-] face mapping for max/mins
+ * @param  face2node->pos                  [-] nodal locations
+ * @param  cl->X                           [-] state on left
+ ******************************************************************************/
+$rule apply(face2node->cell2nodemaxminv3d(X)<-face2node->pos,cl->(X))[MaxMinV3D],
+      constraint(cl->geom_cells)
+{
+  int nnf = $face2node.size();
+  vect3d xv = $cl->$X;
+  stenMaxMinNormv3d xi;
+  xi.max = xv;
+  xi.min = xi.max;
+  for(int i=0;i<nnf;++i)
+  {
+    int j = (i>1)?(i-1):nnf-1;
+    join($face2node[i]->$cell2nodemaxminv3d(X),xi);
+  }
+}
+/** ****************************************************************************
+ * @brief Build map at faces for cell 2 node max/min for vect3d, right
+ * @retval face2node->cell2nodemaxminv3d(X)  [-] face mapping for max/mins
+ * @param  face2node->pos                  [-] nodal locations
+ * @param  cr->X                           [-] state on right
+ ******************************************************************************/
+$rule apply(face2node->cell2nodemaxminv3d(X)<-face2node->pos,cr->(X))[MaxMinV3D],
+      constraint(cr->geom_cells)
+{
+  int nnf = $face2node.size();
+  vect3d xv = $cr->$X;
+  stenMaxMinNormv3d xi;
+  xi.max = xv;
+  xi.min = xi.max;
+  for(int i=0;i<nnf;++i)
+  {
+    int j = (i>1)?(i-1):nnf-1;
+    join($face2node[i]->$cell2nodemaxminv3d(X),xi);
+  }
+}
+
+$type X_f store<vect3d>;
+/** ****************************************************************************
+ * @brief Build map at faces for cell 2 node max/min for vect3d, boundary
+ * @retval face2node->cell2nodemaxminv3d(X)  [-] face mapping for max/mins
+ * @param  face2node->pos                    [-] nodal locations
+ * @param  X_f                               [-] state on boundary face
+ ******************************************************************************/
+$rule apply(face2node->cell2nodemaxminv3d(X)<-face2node->pos,X_f)[MaxMinV3D],
+      constraint(X_f)
+{
+  int nnf = $face2node.size();
+  vect3d xf = $X_f;
+  stenMaxMinNormv3d xi;
+  xi.max = xf;
+  xi.min = xi.max;
+  for(int i=0;i<nnf;++i)
+  {
+    int j = (i>1)?(i-1):nnf-1;
+    // set value from face
+    join($face2node[i]->$cell2nodemaxminv3d(X),xi);
+  }
+}
+
+/** ****************************************************************************
+ * @brief Initialize map for faces from cell 2 node max/min for vect3d
+ * @retval cell2facemaxminv3d(X)             [-] face mapping for max/mins
+ ******************************************************************************/
+$rule unit(cell2facemaxminv3d(X)),constraint((cr,cl)->geom_cells)
+{
+  $cell2facemaxminv3d(X).max = vect3d(0,0,0);
+  $cell2facemaxminv3d(X).min = vect3d(0,0,0);
+}
+
+/** ****************************************************************************
+ * @brief Build map at faces from cell 2 node max/min for scalars
+ * @retval cell2facemaxminv3d(X)             [-] face average
+ * @param  face2node->cell2nodemaxminv3d(X)  [-] face mapping for max/mins
+ * @param  face2node->pos                    [-] nodal locations
+ ******************************************************************************/
+$rule apply(cell2facemaxminv3d(X)<-face2node->cell2nodemaxminv3d(X))[SumMaxMin]
+{
+  int nnf = $face2node.size();
+  for(int i = 0;i<nnf;i++){
+    join($cell2facemaxminv3d(X),$face2node[i]->$cell2nodemaxminv3d(X));
+  }
+  $cell2facemaxminv3d(X).max /= nnf;
+  $cell2facemaxminv3d(X).min /= nnf;
+}
+
+/** ****************************************************************************
+ * @brief Initialize map for node to cell max/min for vect3d
+ * @retval node2cellmaxminv3d(X)             [-] cell mapping for max/mins
+ ******************************************************************************/
+$rule unit(node2cellmaxminv3d(X)<-X),constraint(geom_cells)
+{
+  $node2cellmaxminv3d(X).max = $X;
+  $node2cellmaxminv3d(X).min = $X;
+}
+
+/** ****************************************************************************
+ * @brief Build map at faces for cell 2 node max/min for vect3d, left
+ * @retval cl->node2cellmaxminv3d(X)           [-] cell mapped max/min
+ * @retval face2node->cell2nodemaxminv3d(X)  [-] face mapping for max/mins
+ * @param  face2node->pos                    [-] nodal locations
+ ******************************************************************************/
+$rule apply(cl->node2cellmaxminv3d(X)<-face2node->(cell2nodemaxminv3d(X)))[MaxMinV3D],
+      constraint(cl->geom_cells)
+{
+  int nnf = $face2node.size();
+  stenMaxMinNormv3d xi;
+  for(int i=0;i<nnf;++i)
+  {
+    int j = (i>1)?(i-1):nnf-1;
+    xi = $face2node[i]->$cell2nodemaxminv3d(X);
+    join($cl->$node2cellmaxminv3d(X),xi);
+  }
+}
+
+/** ****************************************************************************
+ * @brief Build map at faces for cell 2 node max/min for vect3d, right
+ * @retval  cr->node2cellmaxmins(X)         [-] cell mapped max/min
+ * @param face2node->cell2nodemaxminv3d(X)  [-] face mapping for max/mins
+ ******************************************************************************/
+$rule apply(cr->node2cellmaxminv3d(X)<-face2node->cell2nodemaxminv3d(X))[MaxMinV3D],
+      constraint(cr->geom_cells)
+{
+  int nnf = $face2node.size();
+  stenMaxMinNormv3d xi;
+  for(int i=0;i<nnf;++i)
+  {
+    int j = (i>1)?(i-1):nnf-1;
+    xi = $face2node[i]->$cell2nodemaxminv3d(X);
+    join($cr->$node2cellmaxminv3d(X),xi);
+  }
+}
+
+//////////////////////////////////////////////////////////////////////
+$type X storeVec<real>;
+$type vecSize(X) param<int>;
+
+/** ****************************************************************************
+ * @brief Initialization of cell 2 node max/min for vector
+ * @retval cell2nodemaxminv  [-] scalar mapping
+ * @param  vecSize(X)        [-] size accessor for vector
+ ******************************************************************************/
+$rule unit(cell2nodemaxminv(X)<-vecSize(X)),
+      constraint(pos),prelude
+{
+  $cell2nodemaxminv(X).setVecSize(*$vecSize(X));
+} compute {
+  int sz = $vecSize(X);
+  for(int i=0;i<sz;i++)
+  {
+    $cell2nodemaxminv(X)[i].max = -std::numeric_limits<real>::max();
+    $cell2nodemaxminv(X)[i].min = std::numeric_limits<real>::max();
+  }
+}
+
+/** ****************************************************************************
+ * @brief Build map at faces for cell 2 node max/min for vector, left
+ * @retval face2node->cell2nodemaxminv(X)  [-] face mapping for max/mins
+ * @param  face2node->pos                  [-] nodal locations
+ * @param  cl->X                           [-] state on left
+ * @param  vecSize(X)                      [-] size accessor for vector
+ ******************************************************************************/
+$rule apply(face2node->cell2nodemaxminv(X)<-face2node->pos,cl->X,vecSize(X))[MaxMinv],
+      constraint(cl->geom_cells)
+{
+  int nnf = $face2node.size();
+  int sz = $vecSize(X);
+  for(int i=0;i<nnf;++i)
+  {
+    for(int k=0;k<sz;++k)
+    {
+      real xv = $cl->$X[k];
+      $face2node[i]->$cell2nodemaxminv(X)[k].max = max($face2node[i]->$cell2nodemaxminv(X)[k].max,xv);
+      $face2node[i]->$cell2nodemaxminv(X)[k].min = min($face2node[i]->$cell2nodemaxminv(X)[k].min,xv);
+    }
+  }
+}
+
+/** ****************************************************************************
+ * @brief Build map at faces for cell 2 node max/min for vector, right
+ * @retval face2node->cell2nodemaxminv(X)  [-] face mapping for max/mins
+ * @param  face2node->pos                  [-] nodal locations
+ * @param  cr->X                           [-] state on right
+ * @param  vecSize(X)                      [-] size accessor for vector
+ ******************************************************************************/
+$rule apply(face2node->cell2nodemaxminv(X)<-face2node->(pos),cr->(X),vecSize(X))[MaxMinv],
+      constraint(cr->geom_cells)
+{
+  int nnf = $face2node.size();
+  int sz = $vecSize(X);
+  for(int i=0;i<nnf;++i)
+  {
+    for(int k=0;k<sz;++k)
+    {
+      real xv = $cr->$X[k];
+      real xi = xv;
+      $face2node[i]->$cell2nodemaxminv(X)[k].max = max($face2node[i]->$cell2nodemaxminv(X)[k].max,xi);
+      $face2node[i]->$cell2nodemaxminv(X)[k].min = min($face2node[i]->$cell2nodemaxminv(X)[k].min,xi);
+    }
+  }
+}
+
+$type X_f storeVec<real>;
+/** ****************************************************************************
+ * @brief Build map at faces for cell 2 node max/min for vector, boundary
+ * @retval face2node->cell2nodemaxmins(X)  [-] face mapping for max/mins
+ * @param  face2node->pos                  [-] nodal locations
+ * @param  X_f                             [-] state on boundary face
+ * @param  vecSize(X)                      [-] size accessor for vector
+ ******************************************************************************/
+$rule apply(face2node->cell2nodemaxminv(X)<-face2node->(pos),X_f,vecSize(X))[MaxMinv],
+      constraint(X_f)
+{
+  int nnf = $face2node.size();
+  int sz = $vecSize(X);
+  for(int i=0;i<nnf;++i)
+  {
+    for(int k=0;k<sz;++k)
+    {
+      real xv = $X_f[k];
+      real xi = xv;
+      $face2node[i]->$cell2nodemaxminv(X)[k].max = max($face2node[i]->$cell2nodemaxminv(X)[k].max,xi);
+      $face2node[i]->$cell2nodemaxminv(X)[k].min = min($face2node[i]->$cell2nodemaxminv(X)[k].min,xi);
+    }
+  }
+}
+
+/** ****************************************************************************
+ * @brief Initialize map for faces from cell 2 node max/min for vector
+ * @retval cell2facemaxminv(X)             [-] face mapping for max/mins
+ * @param  vecSize(X)                      [-] size accessor for vector
+ ******************************************************************************/
+$rule unit(cell2facemaxminv(X)<-vecSize(X)),
+      constraint((cr,cl)->geom_cells),prelude
+{
+    $cell2facemaxminv(X).setVecSize(*$vecSize(X));
+} compute {
+  int sz = $vecSize(X);
+  for(int i=0;i<sz;i++)
+  {
+    $cell2facemaxminv(X)[i].max = 0.0;
+    $cell2facemaxminv(X)[i].min = 0.0;
+  }
+}
+
+/** ****************************************************************************
+ * @brief Build map at faces from cell 2 node max/min for scalars
+ * @retval cell2facemaxminv(X)             [-] face average
+ * @param  face2node->cell2nodemaxminv(X)  [-] face mapping for max/mins
+ * @param  vecSize(X)                      [-] size accessor for vector
+ ******************************************************************************/
+$rule apply(cell2facemaxminv(X)<-vecSize(X),face2node->cell2nodemaxminv(X))[SumMaxMinv]
+{
+  int nnf = $face2node.size();
+  int sz = $vecSize(X);
+  for(int i=0;i<nnf;++i)
+  {
+    for(int k=0;k<sz;++k)
+    {
+      $cell2facemaxminv(X)[k].max += $face2node[i]->$cell2nodemaxminv(X)[k].max;
+      $cell2facemaxminv(X)[k].min += $face2node[i]->$cell2nodemaxminv(X)[k].min;
+    }
+  }
+  for(int k=0;k<sz;++k)
+  {
+    $cell2facemaxminv(X)[k].max /= nnf;
+    $cell2facemaxminv(X)[k].min /= nnf;
+  }
+}
+
+/** ****************************************************************************
+ * @brief Initialize map for node to cell max/min for vector
+ * @retval node2cellmaxmins(X)             [-] cell mapping for max/mins
+ * @param  vecSize(X)                      [-] size accessor for vector
+ ******************************************************************************/
+$rule unit(node2cellmaxminv(X)<-vecSize(X),X),constraint(geom_cells), prelude
+{
+  $node2cellmaxminv(X).setVecSize(*$vecSize(X));
+} compute  {
+  int sz = $vecSize(X);
+  for(int i=0;i<sz;i++){
+    $node2cellmaxminv(X)[i].max = $X[i];
+    $node2cellmaxminv(X)[i].min = $X[i];
+  }
+}
+
+/** ****************************************************************************
+ * @brief Build map at faces from cell 2 node max/min for vector, left
+ * @retval cl->node2cellmaxminv(X)         [-] cell mapped max/min
+ * @param  face2node->cell2nodemaxminv(X)  [-] face mapping for max/mins
+ * @param  vecSize(X)                      [-] size accessor for vector
+ ******************************************************************************/
+$rule apply(cl->node2cellmaxminv(X)<-face2node->(cell2nodemaxminv(X)),vecSize(X))[MaxMinv],
+      constraint(cl->geom_cells),parametric(node2cellmaxminv(X))
+{
+  int nnf = $face2node.size();
+  int sz = $vecSize(X);
+  for(int i=0;i<nnf;++i)
+  {
+    for(int k=0;k<sz;++k)
+    {
+      stenMaxMinNorm xi = $face2node[i]->$cell2nodemaxminv(X)[k];
+      $cl->$node2cellmaxminv(X)[k].max = max($cl->$node2cellmaxminv(X)[k].max,xi.max);
+      $cl->$node2cellmaxminv(X)[k].min = min($cl->$node2cellmaxminv(X)[k].min,xi.min);
+    }
+  }
+}
+
+/** ****************************************************************************
+ * @brief Build map at faces for cell 2 node max/min for vector, right
+ * @retval  cr->node2cellmaxminv(X)         [-] cell mapped max/min
+ * @param  face2node->cell2nodemaxminv(X)   [-] face mapping for max/mins
+ * @param  vecSize(X)                      [-] size accessor for vector
+ ******************************************************************************/
+$rule apply(cr->node2cellmaxminv(X)<-face2node->(cell2nodemaxminv(X)),vecSize(X))[MaxMinv],
+      constraint(cr->geom_cells),parametric(node2cellmaxminv(X))
+{
+  int nnf = $face2node.size();
+  int sz = $vecSize(X);
+  for(int i=0;i<nnf;++i)
+  {
+    for(int k=0;k<sz;++k)
+    {
+      stenMaxMinNorm xi = $face2node[i]->$cell2nodemaxminv(X)[k];
+      $cr->$node2cellmaxminv(X)[k].max = max($cr->$node2cellmaxminv(X)[k].max,xi.max);
+      $cr->$node2cellmaxminv(X)[k].min = min($cr->$node2cellmaxminv(X)[k].min,xi.min);
+    }
+  }
+}
+}

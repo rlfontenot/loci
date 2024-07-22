@@ -22,23 +22,17 @@
 
 LD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:$LD_LIBRARY_PATH:/:/usr:/usr/local:/opt:/opt/local
 PETSC_BASE=$PETSC_DIR
-if [ -e ParMetis-4.0/metis.h ] ; then
-INSTALL_METIS=1
-USE_METIS=1
-METIS_BASE="\$(LOCI_BASE)/ParMetis-4.0"
-METIS_LIBS="-lparmetis -lmetis -lgk"
-METIS_INCLUDE="-I\$(METIS_BASE) -DLOCI_USE_METIS"
-else
-INSTALL_METIS=0
-USE_METIS=0
-METIS_BASE=
-METIS_LIBS=
-METIS_INCLUDE=
-fi
 
 set +e
 set -u
 set -f
+HOST_NAME=`hostname | tr -d [0-9]`
+
+# This is used to check if we are using SUSE on Cray systems
+OS_NAME=`cat /etc/os-release | grep "ID=" | cut -d'"' -f2`
+OS_NAME=($OS_NAME)
+
+PRT="[0;33;1m"
 
 
 if [ "$PETSC_BASE" == "" ]; then
@@ -50,32 +44,41 @@ CGNSPATH=none
 TEC360PATH=none
 TEC360TYPE=0
 TECIOPATH=none
+PARMETIS_BASE=none
+METIS_BASE=none
+GKLIB_BASE=none
+INSTALL_PARMETIS=1
+INSTALL_METIS=1
+INSTALL_GKLIB=1
+USE_PARMETIS=1
+USE_METIS=1
+USE_GKLIB=1
 
 find_exec() {
-    RETURN_VALUE=0
-    for i in ${PATH//:/ }; do
-	if [ -e $i/$1 ]; then 
-	    RETURN_VALUE=$i
-	    break ;
-	fi
-    done
+  RETURN_VALUE=0
+  for i in ${PATH//:/ }; do
+    if [ -e $i/$1 ]; then
+      RETURN_VALUE=$i
+      break ;
+    fi
+  done
 }
 
 find_lib() {
     RETURN_VALUE=0
     for i in ${LD_LIBRARY_PATH//:/ }; do
-	if [ -e $i/lib$1.a ]; then
-	    RETURN_VALUE=$i
-	    break;
-	fi
-	if [ -e $i/lib$1.so ]; then
-	    RETURN_VALUE=$i
-	    break ;
-	fi
-	if [ -e $i/lib$1.dylib ]; then
-	    RETURN_VALUE=$i
-	    break ;
-	fi
+      if [ -e $i/lib$1.a ]; then
+        RETURN_VALUE=$i
+        break;
+      fi
+      if [ -e $i/lib$1.so ]; then
+        RETURN_VALUE=$i
+        break ;
+      fi
+      if [ -e $i/lib$1.dylib ]; then
+        RETURN_VALUE=$i
+        break ;
+      fi
     done
 }
 
@@ -95,7 +98,7 @@ esac
 NO_MPI=0
 NO_MPI_DRIVER=0
 
-PREFIX=/usr/local
+PREFIX=\$LOCI_BASE
 if [ $# -eq 0 ]; then
     echo "*******************************************************************************"
     echo "** NOTICE!!!!"
@@ -108,222 +111,242 @@ if [ $# -eq 0 ]; then
 fi
 
 MPI_BASE=/notselected
+FAD_OPTS=/notselected
 
-while [ $# -ne 0 ]; do 
+while [ $# -ne 0 ]; do
     case "$1" in
-	--prefix)
-	    shift
-	    PREFIX=$1
-	    ;;
-	--prefix\=*)
-	    tmp=$1
-	    PREFIX=${tmp#--prefix\=}
-	    ;;
-	--petsc-dir)
-	    shift
-	    PETSC_BASE=$1
-	    ;;
-	--petsc-dir\=*)
-	    tmp=$1
-	    PETSC_BASE=${tmp#--petsc-dir\=}
-	    ;;
-	--with-petsc)
-	    shift
-	    PETSC_BASE=$1
-	    ;;
-	--with-petsc\=*)
-	    tmp=$1
-	    PETSC_BASE=${tmp#--with-petsc\=}
-	    ;;
-	--no-metis)
-	    METIS_BASE=""
-	    METIS_LIBS=""
-	    METIS_INCLUDE=""
-	    INSTALL_METIS=0
-	    USE_METIS=0
-	    ;;
-	--nometis)
-	    METIS_BASE=""
-	    METIS_LIBS=""
-	    METIS_INCLUDE=""
-	    INSTALL_METIS=0
-	    USE_METIS=0
-	    ;;
-	--with-metis)
-	    shift
-	    METIS_BASE=$1
-	    INSTALL_METIS=0
-	    ;;
-	--with-metis\=*)
-	    tmp=$1
-	    METIS_BASE=${tmp#--with-metis\=}
-	    INSTALL_METIS=0
-	    ;;
-	--hdf5-dir)
-	    shift
-	    H5PATH=$1
-	    ;;
-	--hdf5-dir\=*)
-	    tmp=$1
-	    H5PATH=${tmp#--hdf5-dir\=}
-	    ;;
-	--with-hdf5)
-	    shift
-	    H5PATH=$1
-	    ;;
-	--with-hdf5\=*)
-	    tmp=$1
-	    H5PATH=${tmp#--with-hdf5\=}
-	    ;;
+      --prefix)
+        shift
+        PREFIX=$1
+        ;;
+      --prefix\=*)
+        tmp=$1
+        PREFIX=${tmp#--prefix\=}
+        ;;
+      --petsc-dir)
+        shift
+        PETSC_BASE=$1
+        ;;
+      --petsc-dir\=*)
+        tmp=$1
+        PETSC_BASE=${tmp#--petsc-dir\=}
+        ;;
+      --with-petsc)
+        shift
+        PETSC_BASE=$1
+        ;;
+      --with-petsc\=*)
+        tmp=$1
+        PETSC_BASE=${tmp#--with-petsc\=}
+        ;;
+      --no-metis)
+        PARMETIS_BASE=""
+        PARMETIS_LDFLAGS=""
+        PARMETIS_LDLIBS=""
+        PARMETIS_DEFINE=""
+        PARMETIS_INCLUDE=""
+        INSTALL_PARMETIS=0
+        USE_PARMETIS=0
+        ;;
+      --nometis)
+        PARMETIS_BASE=""
+        PARMETIS_LDFLAGS=""
+        PARMETIS_LDLIBS=""
+        PARMETIS_DEFINE=""
+        PARMETIS_INCLUDE=""
+        INSTALL_PARMETIS=0
+        USE_PARMETIS=0
+        ;;
+      --with-metis)
+        shift
+        PARMETIS_BASE=$1
+        INSTALL_PARMETIS=0
+        ;;
+      --with-metis\=*)
+        tmp=$1
+        PARMETIS_BASE=${tmp#--with-metis\=}
+        INSTALL_PARMETIS=0
+        ;;
+      --hdf5-dir)
+        shift
+        H5PATH=$1
+        ;;
+      --hdf5-dir\=*)
+        tmp=$1
+        H5PATH=${tmp#--hdf5-dir\=}
+        ;;
+      --with-hdf5)
+        shift
+        H5PATH=$1
+        ;;
+      --with-hdf5\=*)
+        tmp=$1
+        H5PATH=${tmp#--with-hdf5\=}
+        ;;
 
-	--cgns-dir)
-	    shift
-	    CGNSPATH=$1
-	    ;;
-	--cgns-dir\=*)
-	    tmp=$1
-	    CGNSPATH=${tmp#--cgns-dir\=}
-	    ;;
-	--with-cgns)
-	    shift
-	    CGNSPATH=$1
-	    ;;
-	--with-cgns\=*)
-	    tmp=$1
-	    CGNSPATH=${tmp#--with-cgns\=}
-	    ;;
+      --cgns-dir)
+        shift
+        CGNSPATH=$1
+        ;;
+      --cgns-dir\=*)
+        tmp=$1
+        CGNSPATH=${tmp#--cgns-dir\=}
+        ;;
+      --with-cgns)
+        shift
+        CGNSPATH=$1
+        ;;
+      --with-cgns\=*)
+        tmp=$1
+        CGNSPATH=${tmp#--with-cgns\=}
+        ;;
 
-	--w-tecio)
-	    TECIOPATH=find
-	    ;;
-	--tecio-dir)
-	    shift
-	    TECIOPATH=$1
-	    ;;
-	--tecio-dir\=*)
-	    tmp=$1
-	    TECIOPATH=${tmp#--tecio-dir\=}
-	    ;;
-	--with-tecio)
-	    shift
-	    TECIOPATH=$1
-	    ;;
-	--with-tecio\=*)
-	    tmp=$1
-	    TECIOPATH=${tmp#--with-tec360\=}
-	    ;;
-	--tecio-dir)
-	    shift
-	    TECIOPATH=$1
-	    ;;
+      --w-tecio)
+        TECIOPATH=find
+        ;;
+      --tecio-dir)
+        shift
+        TECIOPATH=$1
+        ;;
+      --tecio-dir\=*)
+        tmp=$1
+        TECIOPATH=${tmp#--tecio-dir\=}
+        ;;
+      --with-tecio)
+        shift
+        TECIOPATH=$1
+        ;;
+      --with-tecio\=*)
+        tmp=$1
+        TECIOPATH=${tmp#--with-tec360\=}
+        ;;
+      --tecio-dir)
+        shift
+        TECIOPATH=$1
+        ;;
 
-	--tec360-dir)
-	    shift
-	    TEC360PATH=$1
-	    ;;
-	--tec360-dir\=*)
-	    tmp=$1
-	    TEC360PATH=${tmp#--tec360-dir\=}
-	    ;;
-	--with-tec360)
-	    shift
-	    TEC360PATH=$1
-	    ;;
-	--with-tec360\=*)
-	    tmp=$1
-	    TEC360PATH=${tmp#--with-tec360\=}
-	    ;;
+      --tec360-dir)
+        shift
+        TEC360PATH=$1
+        ;;
+      --tec360-dir\=*)
+        tmp=$1
+        TEC360PATH=${tmp#--tec360-dir\=}
+        ;;
+      --with-tec360)
+        shift
+        TEC360PATH=$1
+        ;;
+      --with-tec360\=*)
+        tmp=$1
+        TEC360PATH=${tmp#--with-tec360\=}
+        ;;
 
-	--mpi-dir)
-	    shift
-	    MPI_BASE=$1
-	    ;;
-	--mpi-dir\=*)
-	    tmp=$1
-	    MPI_BASE=${tmp#--mpi-dir\=}
-	    ;;
-	--with-mpi)
-	    shift
-	    MPI_BASE=$1
-	    ;;
-	--with-mpi\=*)
-	    tmp=$1
-	    MPI_BASE=${tmp#--with-mpi\=}
-	    ;;
-        --no-mpi-driver)
-	    NO_MPI_DRIVER=1
-	    ;;
-	--compiler)
-	    shift
-	    COMPILER=$1
-	    ;;
-	--compiler\=*)
-	    tmp=$1
-	    COMPILER=${tmp#--compiler\=}
-	    ;;
-	--obj-dir)
-	    shift
-	    OBJDIR=$1
-	    ;;
-	--obj-dir\=*)
-	    tmp=$1
-	    OBJDIR=${tmp#--obj-dir\=}
-	    ;;
-	--nompi)
-	   NO_MPI=1
-	   ;;
-	 --help)
-	    echo "configure usage:"
-	    echo "./configure <options>"
-	    echo "where <options> may include"
-	    echo "  --prefix <install directory>    : tell configure where to install Loci."
-	    echo "  --with-hdf5 <HDF5 directory>     : tell configure where to find HDF5 package."
-	    echo "  --with-cgns <CGNS directory>     : tell configure where to find CGNS package."
-	    echo "  --with-tec360 <tec360 directory> : tell configure where to find TECIO package."
-	    echo "  --with-mpi <MPI directory>      : tell configure where to find MPI package."
-	    echo "  --nompi                         : tell configure to build without using MPI"
-	    echo "  --with-petsc <PETSc directory>  : tell configure where to find PETSc package."
-	    echo "  --with-metis <parMETIS dir>     : tell configure where to find alternative    Parallel METIS package."
-	    echo "  --no-metis                      : tell configure not to install or use metis"
-	    echo "  --compiler <compiler name>      : tell configure what compiler to use"
-	    echo "  --obj-dir <OBJDIR name>         : tell configure where to put object files"
-	    echo "  --help                          : output this help information"
-	    exit -1
-	    ;;
-	    
-	*)
-	    echo configure option \'$1\' not understood!
-	    echo use ./configure --help to see correct usage!
-	    exit -1 
-            break
-            ;;
+      --mpi-dir)
+        shift
+        MPI_BASE=$1
+        ;;
+      --mpi-dir\=*)
+        tmp=$1
+        MPI_BASE=${tmp#--mpi-dir\=}
+        ;;
+      --with-mpi)
+        shift
+        MPI_BASE=$1
+        ;;
+      --with-mpi\=*)
+        tmp=$1
+        MPI_BASE=${tmp#--with-mpi\=}
+        ;;
+      --no-mpi-driver)
+        NO_MPI_DRIVER=1
+        ;;
+      --compiler)
+        shift
+        COMPILER=$1
+        ;;
+      --compiler\=*)
+        tmp=$1
+        COMPILER=${tmp#--compiler\=}
+        ;;
+      --obj-dir)
+        shift
+        OBJDIR=$1
+        ;;
+      --obj-dir\=*)
+        tmp=$1
+        OBJDIR=${tmp#--obj-dir\=}
+        ;;
+      --nompi)
+        NO_MPI=1
+        ;;
+      --fad-der)
+        shift
+        FAD_OPTS=$1
+        ;;
+      --fad-der\=*)
+        tmp=$1
+        FAD_OPTS=${tmp#--fad-der\=}
+        ;;
+      --mfad-size)
+        shift
+        MFAD_SIZE=$1
+        ;;
+      --mfad-size\=*)
+        tmp=$1
+        MFAD_SIZE=${tmp#--mfad-size\=}
+        ;;
+      --help)
+        echo "configure usage:"
+        echo "./configure <options>"
+        echo "where <options> may include"
+        echo "  --prefix <install directory>     : Tell configure where to install Loci."
+        echo "  --with-hdf5 <HDF5 directory>     : Tell configure where to find HDF5 package."
+        echo "  --with-cgns <CGNS directory>     : Tell configure where to find CGNS package."
+        echo "  --with-tec360 <tec360 directory> : Tell configure where to find TECIO package."
+        echo "  --with-mpi <MPI directory>       : Tell configure where to find MPI package."
+        echo "  --nompi                          : Tell configure to build without using MPI"
+        echo "  --with-petsc <PETSc directory>   : Tell configure where to find PETSc package."
+        echo "  --with-metis <parMETIS dir>      : Tell configure where to find alternative "
+        echo "                                     Parallel METIS package."
+        echo "  --no-metis                       : Tell configure not to install or use metis"
+        echo "  --compiler <compiler name>       : Tell configure what compiler to use"
+        echo "  --obj-dir <OBJDIR name>          : Tell configure where to put object files"
+        echo "  --fad-der <number>               : Configures level of FAD derivative (1 or 2)"
+        echo "  --mfad-size <number>             : Configures multi-fad size"
+        echo "  --help                           : output this help information"
+        exit -1
+        ;;
+
+      *)
+        echo configure option \'$1\' not understood!
+        echo use ./configure --help to see correct usage!
+        exit -1
+        break
+        ;;
     esac
     shift
 done
 
-if [ ${INSTALL_METIS} == 0 ] ; then
-GKLIB=""
-if [ -f ${METIS_BASE}/lib/libgk.so ] ; then
-    GKLIB="-lgk"
-fi
-if [ -f ${METIS_BASE}/lib/libgk.a ] ; then
-    GKLIB="-lgk"
-fi
-if [ -f ${METIS_BASE}/lib/libgk.dylib ] ; then
-    GKLIB="-lgk"
-fi
-if [ ${USE_METIS} == 0 ] ; then
-METIS_LIBS=""
-METIS_INCLUDE=""
-else
-METIS_LIBS="-L\$(METIS_BASE)/lib -lparmetis -lmetis $GKLIB"
-METIS_INCLUDE="-I\$(METIS_BASE)/include -DLOCI_USE_METIS"
-fi
+
+# Check for debug variable and print to screen. Set to 7 if doesn't exist.
+if [[ ${LOCI_DEBUG-7} -eq 0 || ${LOCI_DEBUG-7} -eq 1 || ${LOCI_DEBUG-7} -eq 2 || \
+      ${LOCI_DEBUG-7} -eq 3 ]]; then
+  echo -e "Compiling in \e[0;31;1m\"DEBUG\"\e[0m Mode."
 fi
 
-echo Setup for compiler \"$COMPILER\".
+
+case "${OS_NAME[1]}" in
+    sles)
+      COMPILER=CC_suse
+      ;;
+    *)
+      ;;
+esac
+
+echo -e "Setup for compiler \e$PRT\"$COMPILER\"\e[0m."
 #setup install directory
-echo INSTALL_DIR=$PREFIX > sys.conf
+echo -e "LOCI_BASE\t=\t$PREFIX" > sys.conf
 echo >> sys.conf
 
 #setup MPI
@@ -333,61 +356,63 @@ MPIEXEC=mpirun
 if [ $MPI_BASE == "/notselected" ]; then
     find_exec mpirun
     if [ $RETURN_VALUE == 0 ]; then
-	find_exec mpiexec
-	MPIEXEC=mpiexec
+      find_exec mpiexec
+      MPIEXEC=mpiexec
     fi
     MPI_PATH=$RETURN_VALUE
     if [ $MPI_PATH == 0 ]; then
-	HAS_MPI=0
-	MPI_PATH="/usr"
+      HAS_MPI=0
+      MPI_PATH="/usr"
     fi
     MPI_C_COMPILER=none
-    MPI_CPP_COMPILER=none
-    MPI_F90_COMPILER=none
-    
+    MPI_CXX_COMPILER=none
+    MPI_FC_COMPILER=none
+
     if [ $NO_MPI_DRIVER == 0 ]; then
-	if [ -e $MPI_PATH/mpicc ]; then
-	    MPI_C_COMPILER=mpicc
-	fi
-	if [ -e $MPI_PATH/mpif90 ]; then
-	    MPI_F90_COMPILER=mpif90
-	fi
-	if [ -e $MPI_PATH/mpic++ ]; then
-	    MPI_CPP_COMPILER=mpic++
-	else
-	    if [ -e $MPI_PATH/mpicxx ]; then
-		MPI_CPP_COMPILER=mpicxx
-	    else
-		if [ -e $MPI_PATH/mpiCC ]; then
-		    MPI_CPP_COMPILER=mpiCC
-		fi
-	    fi
-	fi
+      if [ -e $MPI_PATH/mpicc ]; then
+        MPI_C_COMPILER=mpicc
+      fi
+      if [ -e $MPI_PATH/mpif90 ]; then
+        MPI_FC_COMPILER=mpif90
+      fi
+      if [ -e $MPI_PATH/mpic++ ]; then
+        MPI_CXX_COMPILER=mpic++
+      else
+        if [ -e $MPI_PATH/mpicxx ]; then
+          MPI_CXX_COMPILER=mpicxx
+        else
+          if [ -e $MPI_PATH/mpiCC ]; then
+            MPI_CXX_COMPILER=mpiCC
+          fi
+        fi
+      fi
     fi
 
     MPI_BASE=`echo $MPI_PATH | sed "s/\/.[a-zA-Z0-9]*$//"`
 else
     MPI_PATH=$MPI_BASE/bin
     MPI_C_COMPILER=none
-    MPI_CPP_COMPILER=none
-    MPI_F90_COMPILER=none
-    
-    if [ -e $MPI_PATH/mpicc ]; then
-	MPI_C_COMPILER=mpicc
-    fi
-    if [ -e $MPI_PATH/mpif90 ]; then
-	MPI_F90_COMPILER=mpif90
-    fi
-    if [ -e $MPI_PATH/mpic++ ]; then
-	MPI_CPP_COMPILER=mpic++
-    else
-	if [ -e $MPI_PATH/mpicxx ]; then
-	    MPI_CPP_COMPILER=mpicxx
-	else
-	    if [ -e $MPI_PATH/mpiCC ]; then
-		MPI_CPP_COMPILER=mpiCC
-	    fi
-	fi
+    MPI_CXX_COMPILER=none
+    MPI_FC_COMPILER=none
+
+    if [ $HOST_NAME != "pfe" ]; then
+      if [ -e $MPI_PATH/mpicc ]; then
+        MPI_C_COMPILER=mpicc
+      fi
+      if [ -e $MPI_PATH/mpif90 ]; then
+        MPI_FC_COMPILER=mpif90
+      fi
+      if [ -e $MPI_PATH/mpic++ ]; then
+        MPI_CXX_COMPILER=mpic++
+      else
+        if [ -e $MPI_PATH/mpicxx ]; then
+            MPI_CXX_COMPILER=mpicxx
+        else
+          if [ -e $MPI_PATH/mpiCC ]; then
+            MPI_CXX_COMPILER=mpiCC
+          fi
+        fi
+      fi
     fi
 fi
 
@@ -396,7 +421,13 @@ MPI_LIBRARY=""
 if [ -e $MPI_BASE/lib/libmpi.a ]; then
     MPI_LIBRARY="-lmpi"
 fi
+if [ -f $MPI_BASE/lib/release/libmpi.a ]; then
+    MPI_LIBRARY="-lmpi"
+fi
 if [ -e $MPI_BASE/lib/libmpi.so ]; then
+    MPI_LIBRARY="-lmpi"
+fi
+if [ -f $MPI_BASE/lib/release/libmpi.so ]; then
     MPI_LIBRARY="-lmpi"
 fi
 if [ -e $MPI_BASE/lib/libmpi.dylib ]; then
@@ -404,16 +435,15 @@ if [ -e $MPI_BASE/lib/libmpi.dylib ]; then
 fi
 
 if [ $MPI_LIBRARY=="" ]; then
-    
-    if [ -e $MPI_BASE/lib/libmpich.a ]; then
-	MPI_LIBRARY="-lmpich"
-    fi
-    if [ -e $MPI_BASE/lib/libmpich.so ]; then
-	MPI_LIBRARY="-lmpich"
-    fi
-    if [ -e $MPI_BASE/lib/libmpich.dylib ]; then
-	MPI_LIBRARY="-lmpich"
-    fi
+  if [ -e $MPI_BASE/lib/libmpich.a ]; then
+    MPI_LIBRARY="-lmpich"
+  fi
+  if [ -e $MPI_BASE/lib/libmpich.so ]; then
+    MPI_LIBRARY="-lmpich"
+  fi
+  if [ -e $MPI_BASE/lib/libmpich.dylib ]; then
+    MPI_LIBRARY="-lmpich"
+  fi
 fi
 
 
@@ -424,36 +454,46 @@ if [ $NO_MPI == 1 ] ; then
     echo "** parallel processing."
     echo "*********************************************************************"
 
-    echo MPI_BASE = >> sys.conf
-    echo MPI_LIBS = >> sys.conf
-    echo MPI_INCLUDE = -DMPI_STUBB -I\$\(LOCI_BASE\)/include/MPI_stubb >> sys.conf
-    echo MPI_RUN = none >> sys.conf
-    echo MPI_C_COMPILER = none >> sys.conf
-    echo MPI_CPP_COMPILER = none >> sys.conf
-    echo MPI_F90_COMPILER = none >> sys.conf
+    echo -e "MPI_BASE\t="                >> sys.conf
+    echo -e "MPI_LDFLAGS\t="             >> sys.conf
+    echo -e "MPI_LDLIBS\t="              >> sys.conf
+    echo -e "MPI_DEFINE\t=\t-DMPI_STUBB" >> sys.conf
+    echo -e "MPI_INCLUDE\t=\t-I\$(LOCI_SRC)/include/MPI_stubb" >> sys.conf
+    echo -e "MPI_RUN\t\t=\tnone"         >> sys.conf
+    echo -e "MPI_C_COMPILER\t\t=\tnone"  >> sys.conf
+    echo -e "MPI_CXX_COMPILER\t=\tnone"  >> sys.conf
+    echo -e "MPI_FC_COMPILER\t\t=\tnone" >> sys.conf
 else
     if [ "$MPI_C_COMPILER" == "none" ]; then
-	if [ "$ARCH" == "IRIX64" ]; then
-	    echo MPI_BASE = /usr/ >> sys.conf
-	    echo MPI_LIBS = -L/usr/lib64 \$\(RPATH\)/usr/lib64 $MPI_LIBRARY >> sys.conf
-	    echo MPI_INCLUDE = -DMPI_NO_CPPBIND >> sys.conf
-	    echo MPI_RUN = $MPIEXEC >> sys.conf
-	else
-	    echo MPI_BASE =  $MPI_BASE >> sys.conf
-	    echo MPI_LIBS =  -L$MPI_BASE/lib $MPI_LIBRARY >> sys.conf
-	    echo MPI_INCLUDE = -DMPI_NO_CPPBIND -I$MPI_BASE/include  >> sys.conf
-	    echo MPI_RUN=$MPI_PATH/$MPIEXEC >> sys.conf
-	fi
+      if [ "$ARCH" == "IRIX64" ]; then
+        echo -e "MPI_BASE\t=\t/usr/"                               >> sys.conf
+        echo -e "MPI_LDFLAGS\t=\t-L/usr/lib64 \$(RPATH)/usr/lib64" >> sys.conf
+        echo -e "MPI_LDLIBS\t=\t$MPI_LIBRARY"                      >> sys.conf
+        echo -e "MPI_DEFINE\t=\t-DMPI_NO_CPPBIND"                  >> sys.conf
+        echo -e "MPI_RUN\t\t=\t$MPIEXEC"                           >> sys.conf
+      else
+        MPI_LDFLAGS="-L\$(MPI_BASE)/lib"
+        if [ -d $MPI_BASE/lib/release ]; then
+          MPI_LDFLAGS+=" -L\$(MPI_BASE)/lib/release"
+        fi
+        echo -e "MPI_BASE\t\t\t=\t$MPI_BASE"                      >> sys.conf
+        echo -e "MPI_LDFLAGS\t\t\t=\t$MPI_LDFLAGS"                >> sys.conf
+        echo -e "MPI_LDLIBS\t\t\t=\t${MPI_LDLIBS- } $MPI_LIBRARY" >> sys.conf
+        echo -e "MPI_DEFINE\t\t\t=\t-DMPI_NO_CPPBIND "            >> sys.conf
+        echo -e "MPI_INCLUDE\t\t\t=\t-I\$(MPI_BASE)/include "     >> sys.conf
+        echo -e "MPI_RUN\t\t\t\t=\t\$(MPI_BASE)/bin/$MPIEXEC"     >> sys.conf
+      fi
     else
-	echo MPI_BASE =  $MPI_BASE >> sys.conf
-	echo MPI_LIBS =   >> sys.conf
-	echo MPI_INCLUDE = -DMPI_NO_CPPBIND -DMPICH_IGNORE_CXX_SEEK >> sys.conf
-	echo MPI_RUN=$MPI_PATH/$MPIEXEC >> sys.conf
+      echo -e "MPI_BASE\t\t\t=\t$MPI_BASE"                                   >> sys.conf
+      echo -e "MPI_LDFLAGS\t\t\t=\t-L\$(MPI_BASE)/lib"                       >> sys.conf
+      echo -e "MPI_LDLIBS\t\t\t=\t-lmpi"                                     >> sys.conf
+      echo -e "MPI_DEFINE\t\t\t=\t-DMPI_NO_CPPBIND -DMPICH_IGNORE_CXX_SEEK"  >> sys.conf
+      echo -e "MPI_INCLUDE\t\t\t=\t-I\$(MPI_BASE)/include "                  >> sys.conf
+      echo -e "MPI_RUN\t\t\t\t=\t\$(MPI_BASE)/$MPIEXEC"                      >> sys.conf
     fi
-    echo MPI_C_COMPILER = $MPI_C_COMPILER >> sys.conf
-    echo MPI_CPP_COMPILER = $MPI_CPP_COMPILER >> sys.conf
-    echo MPI_F90_COMPILER = $MPI_F90_COMPILER >> sys.conf
-    
+    echo -e "MPI_C_COMPILER\t\t=\t$MPI_C_COMPILER"   >> sys.conf
+    echo -e "MPI_CXX_COMPILER\t=\t$MPI_CXX_COMPILER" >> sys.conf
+    echo -e "MPI_FC_COMPILER\t\t=\t$MPI_FC_COMPILER" >> sys.conf
 fi
 
 echo >> sys.conf
@@ -462,17 +502,17 @@ echo >> sys.conf
 # find hdf5
 
 if [ ! -d "$H5PATH" ]; then
-    find_exec h5dump
-    if [ $RETURN_VALUE != 0 ]; then
-	H5PATH=${RETURN_VALUE%/bin*}
-    fi
+  find_exec h5dump
+  if [ $RETURN_VALUE != 0 ]; then
+    H5PATH=${RETURN_VALUE%/bin*}
+  fi
 fi
 
 if [ ! -d "$H5PATH" ]; then
-    find_lib hdf5
-    if [ $RETURN_VALUE != 0 ]; then
-	H5PATH=${RETURN_VALUE%/lib*}
-    fi
+  find_lib hdf5
+  if [ $RETURN_VALUE != 0 ]; then
+    H5PATH=${RETURN_VALUE%/lib*}
+  fi
 fi
 if [ ! -d $H5PATH ]; then
     echo Unable to find hdf5 libararies!
@@ -484,69 +524,198 @@ fi
 
 H5SUPPORTLIBS=-lz
 H5SUPPORTLIBSPATHS=
- 
+
 if [ -e $H5PATH/lib/libhdf5.settings ]; then
     H5SUPPORTLIBS=`grep "Extra libraries" $H5PATH/lib/libhdf5.settings | sed "s/.*://"`
     H5SUPPORTLIBSPATHS=`grep "AM_LDFLAGS" $H5PATH/lib/libhdf5.settings | sed "s/.*://"`
 fi
- 
-echo \# HDF5 File I/O Libraries Setup >> sys.conf
-echo HDF5_BASE = $H5PATH >> sys.conf
-echo Using HDF5 libraries in directory \"$H5PATH\".
+
+echo -e "Using HDF5 libraries in directory \e$PRT\"$H5PATH\"\e[0m."
+echo -e "# HDF5 File I/O Libraries Setup" >> sys.conf
+echo -e "HDF5_BASE\t\t=\t$H5PATH"         >> sys.conf
 if [ -e $H5PATH/lib64/libhdf5.so ]; then
-    echo HDF5_LIBS = -L\$\(HDF5_BASE\)/lib64 \$\(RPATH\)\$\(HDF5_BASE\)/lib64 -L\$\(HDF5_BASE\)/lib \$\(RPATH\)\$\(HDF5_BASE\)/lib -lhdf5 -lz >> sys.conf
+    echo -e "HDF5_LDFLAGS\t=\t-L\$(HDF5_BASE)/lib64 \\"                   >> sys.conf
+    echo -e "\t\t\t\t\$(RPATH)\$(HDF5_BASE)/lib64 -L\$(HDF5_BASE)/lib \\" >> sys.conf
+    echo -e "\t\t\t\$(RPATH)\$(HDF5_BASE)/lib "                           >> sys.conf
+    echo -e "HDF5_LDLIBS\t=\t-lhdf5 -lz"                                  >> sys.conf
 elif [ -e $H5PATH/lib/x86_64-linux-gnu/libhdf5_serial.so ]; then
-    echo HDF5_LIBS = -L\$\(HDF5_BASE\)/lib/x86_64-linux-gnu/ \$\(RPATH\)\$\(HDF5_BASE\)/lib/x86_64-linux-gnu -lhdf5_serial -lz >> sys.conf
+    echo -e "HDF5_LDFLAGS\t=\t-L\$(HDF5_BASE)/lib/x86_64-linux-gnu/ \\" >> sys.conf
+    echo -e "\t\t\t\t\$(RPATH)\$(HDF5_BASE)/lib/x86_64-linux-gnu \\"    >> sys.conf
+    echo -e "\t\t\t\t-lhdf5_serial -lz"                                 >> sys.conf
+    echo -e "HDF5_LDLIBS\t=\t-lhdf5_serial -lz"                         >> sys.conf
 else
-    echo HDF5_LIBS = -L\$\(HDF5_BASE\)/lib -lhdf5 \$\(RPATH\)\$\(HDF5_BASE\)/lib $H5SUPPORTLIBSPATHS $H5SUPPORTLIBS >> sys.conf
+    echo -e "HDF5_LDFLAGS\t=\t-L\$(HDF5_BASE)/lib \\" >> sys.conf
+    echo -e "\t\t\t\t\t\$(RPATH)\$(HDF5_BASE)/lib \\" >> sys.conf
+    if [[ ! -z $H5SUPPORTLIBSPATHS ]]; then
+      echo -e "\t\t\t\t\t$H5SUPPORTLIBSPATHS"  >> sys.conf
+    fi
+    echo -e "HDF5_LDLIBS\t\t=\t-lhdf5 \\" >> sys.conf
+    echo -e "\t\t\t\t\t$H5SUPPORTLIBS" >> sys.conf
 fi
 if [ -e $H5PATH/lib/x86_64-linux-gnu/libhdf5_serial.so ]; then
-   echo HDF5_INCLUDE = -I\$\(HDF5_BASE\)/include/hdf5/serial  >> sys.conf
+   echo -e "HDF5_INCLUDE\t=\t-I\$(HDF5_BASE)/include/hdf5/serial" >> sys.conf
 else
-    echo HDF5_INCLUDE = -I\$\(HDF5_BASE\)/include/  >> sys.conf
+    echo -e "HDF5_INCLUDE\t=\t-I\$(HDF5_BASE)/include " >> sys.conf
 fi
 echo >> sys.conf
 
 echo "# libxml2 library setup" >> sys.conf
 XMLPATH=/usr
 if [ ! -d $XMLPATH/include/libxml2 ]; then
-    find_lib xml2
-    if [ $RETURN_VALUE != 0 ]; then
-	XMLPATH=${RETURN_VALUE%/lib*}
-    fi
+  find_lib xml2
+  if [ $RETURN_VALUE != 0 ]; then
+    XMLPATH=${RETURN_VALUE%/lib*}
+  fi
 fi
 
 if [ -d $XMLPATH/include/libxml2 ]; then
-    echo LIBXML2_DEFINE = -DUSE_LIBXML2 >> sys.conf
-    if [ -e $XMLPATH/lib64/libxml2.so -o -e $XMLPATH/lib64/libxml2.a ] ; then
-	echo LIBXML2_LIBS = -L$XMLPATH/lib64 -L$XMLPATH/lib \$\(RPATH\)$XMLPATH/lib64 \$\(RPATH\)$XMLPATH/lib -lxml2 >> sys.conf
-    else
-	echo LIBXML2_LIBS = -L$XMLPATH/lib -lxml2 >> sys.conf
-    fi
-    echo LIBXML2_INCLUDE = -I$XMLPATH/include/libxml2 >> sys.conf
-    echo Using libxml2 found in \"$XMLPATH/include/libxml2\".
+  echo -e "LIBXML2_DEFINE\t=\t-DUSE_LIBXML2" >> sys.conf
+  if [ -e $XMLPATH/lib64/libxml2.so -o -e $XMLPATH/lib64/libxml2.a ] ; then
+    echo -e "LIBXML2_LDFLAGS\t=\t-L$XMLPATH/lib64 -L$XMLPATH/lib \\"  >> sys.conf
+    echo -e "\t\t\t\t\t\$(RPATH)$XMLPATH/lib64 \$(RPATH)$XMLPATH/lib" >> sys.conf
+    echo -e "LIBXML2_LDLIBS\t=\t-lxml2"                               >> sys.conf
+  else
+    echo -e "LIBXML2_LDFLAGS\t=\t-L$XMLPATH/lib" >> sys.conf
+    echo -e "LIBXML2_LDLIBS\t=\t-lxml2"          >> sys.conf
+  fi
+  echo -e "LIBXML2_INCLUDE\t=\t-I$XMLPATH/include/libxml2" >> sys.conf
+  echo -e "Using libxml2 found in \e$PRT\"$XMLPATH/include/libxml2\"\e[0m."
 else
-    echo libxml2 not found, disabling XML features!
-    echo LIBXML2_DEFINE = >> sys.conf
-    echo LIBXML2_LIBS = >> sys.conf
-    echo LIBXML2_INCLUDE = >> sys.conf
+  echo libxml2 not found, disabling XML features!
+  echo LIBXML2_DEFINE  = >> sys.conf
+  echo LIBXML2_LDFLAGS = >> sys.conf
+  echo LIBXML2_LDLIBS  = >> sys.conf
+  echo LIBXML2_INCLUDE = >> sys.conf
+fi
+echo >> sys.conf
+
+
+echo \# GKlib Library Setup >> sys.conf
+if [ $USE_GKLIB -eq 1 ]; then
+  if [ ! -d $GKLIB_BASE ]; then
+    find_lib GKlib
+    if [ $RETURN_VALUE != 0 ]; then
+      GKLIB_BASE=${RETURN_VALUE%/lib*}
+      INSTALL_GKLIB=0
+      USE_GKLIB=1
+    fi
+  fi
+
+  if [ -f $GKLIB_BASE/lib/libGKlib.so ]; then
+    echo -e "Using GKlib library found in \e$PRT\"$GKLIB_BASE\"\e[0m."
+    echo -e "GKLIB_BASE\t\t=\t$GKLIB_BASE"               >> sys.conf
+    echo -e "GKLIB_INCLUDE\t=\t-I\$(GKLIB_BASE)/include" >> sys.conf
+    echo -e "GKLIB_DEFINE\t="                            >> sys.conf
+    echo -e "GKLIB_LDFLAGS\t=\t-L\$(GKLIB_BASE)/lib \\"  >> sys.conf
+    echo -e "\t\t\t\t\t\$(RPATH)\$(GKLIB_BASE)/lib"      >> sys.conf
+    echo -e "GKLIB_LDLIBS\t=\t-lGKlib"                   >> sys.conf
+  else
+    if [ ${INSTALL_GKLIB} -eq 1 ]; then
+      echo -e "INSTALL_GKLIB\t=\t$INSTALL_GKLIB"           >> sys.conf
+      echo -e "GKLIB_BASE\t\t=\t\$(LOCI_SRC)/GKlib"        >> sys.conf
+      echo -e "GKLIB_INCLUDE\t=\t-I\$(GKLIB_BASE)/include" >> sys.conf
+      echo -e "GKLIB_DEFINE\t="                            >> sys.conf
+      echo -e "GKLIB_LDFLAGS\t=\t-L\$(GKLIB_BASE)/lib \\"  >> sys.conf
+      echo -e "\t\t\t\t\t\$(RPATH)\$(GKLIB_BASE)/lib"      >> sys.conf
+      echo -e "GKLIB_LDLIBS\t=\t-lGKlib"                   >> sys.conf
+    fi
+  fi
+else
+  echo -e "INSTALL_GKLIB\t\t=\t$INSTALL_GKLIB" >> sys.conf
+  echo -e "GKLIB_BASE\t\t="                    >> sys.conf
+  echo -e "GKLIB_INCLUDE\t="                   >> sys.conf
+  echo -e "GKLIB_DEFINE\t\t="                  >> sys.conf
+  echo -e "GKLIB_LDFLAGS\t="                   >> sys.conf
+  echo -e "GKLIB_LDLIBS\t\t="                  >> sys.conf
 fi
 echo >> sys.conf
 
 echo \# METIS Library Setup >> sys.conf
-echo INSTALL_METIS=$INSTALL_METIS >> sys.conf
-echo METIS_BASE= $METIS_BASE >> sys.conf
-echo METIS_LIBS= $METIS_LIBS >> sys.conf
-echo METIS_INCLUDE= $METIS_INCLUDE >> sys.conf
+if [ $USE_METIS -eq 1 ]; then
+  if [ ! -d $METIS_BASE ]; then
+    find_lib GKlib
+    if [ $RETURN_VALUE != 0 ]; then
+      METIS_BASE=${RETURN_VALUE%/lib*}
+      INSTALL_METIS=0
+      USE_METIS=1
+    fi
+  fi
 
+  if [ -f $METIS_BASE/lib/libmetis.so ]; then
+    echo -e "Using METIS library found in \e$PRT\"$METIS_BASE\"\e[0m."
+    echo -e "METIS_BASE\t\t=\t$METIS_BASE"               >> sys.conf
+    echo -e "METIS_INCLUDE\t=\t-I\$(METIS_BASE)/include" >> sys.conf
+    echo -e "METIS_DEFINE\t="                            >> sys.conf
+    echo -e "METIS_LDFLAGS\t=\t-L\$(METIS_BASE)/lib \\"  >> sys.conf
+    echo -e "\t\t\t\t\t\$(RPATH)\$(METIS_BASE)/lib"      >> sys.conf
+    echo -e "METIS_LDLIBS\t=\t-lmetis"                   >> sys.conf
+  else
+    if [ ${INSTALL_METIS} -eq 1 ]; then
+      echo -e "INSTALL_METIS\t=\t$INSTALL_METIS"           >> sys.conf
+      echo -e "METIS_BASE\t\t=\t\$(LOCI_SRC)/METIS"        >> sys.conf
+      echo -e "METIS_INCLUDE\t=\t-I\$(METIS_BASE)/include" >> sys.conf
+      echo -e "METIS_DEFINE\t="                            >> sys.conf
+      echo -e "METIS_LDFLAGS\t=\t-L\$(METIS_BASE)/lib \\"  >> sys.conf
+      echo -e "\t\t\t\t\t\$(RPATH)\$(METIS_BASE)/lib"      >> sys.conf
+      echo -e "METIS_LDLIBS\t=\t-lmetis"                   >> sys.conf
+    fi
+  fi
+else
+  echo -e "INSTALL_METIS\t\t=\t$INSTALL_METIS" >> sys.conf
+  echo -e "METIS_BASE\t\t="                    >> sys.conf
+  echo -e "METIS_INCLUDE\t="                   >> sys.conf
+  echo -e "METIS_DEFINE\t\t="                  >> sys.conf
+  echo -e "METIS_LDFLAGS\t="                   >> sys.conf
+  echo -e "METIS_LDLIBS\t\t="                  >> sys.conf
+fi
+echo >> sys.conf
+
+echo \# ParMETIS Library Setup >> sys.conf
+if [ $USE_PARMETIS -eq 1 ]; then
+  if [ ! -d $PARMETIS_BASE ]; then
+    find_lib GKlib
+    if [ $RETURN_VALUE != 0 ]; then
+      PARMETIS_BASE=${RETURN_VALUE%/lib*}
+      INSTALL_PARMETIS=0
+      USE_PARMETIS=1
+    fi
+  fi
+
+  if [ -f $PARMETIS_BASE/lib/libparmetis.so ]; then
+    echo -e "Using ParMETIS library found in \e$PRT\"$PARMETIS_BASE\"\e[0m."
+    echo -e "PARMETIS_BASE\t\t=\t$PARMETIS_BASE"               >> sys.conf
+    echo -e "PARMETIS_INCLUDE\t=\t-I\$(PARMETIS_BASE)/include" >> sys.conf
+    echo -e "PARMETIS_DEFINE\t\t=\t-DLOCI_USE_METIS"           >> sys.conf
+    echo -e "PARMETIS_LDFLAGS\t=\t-L\$(PARMETIS_BASE)/lib \\"  >> sys.conf
+    echo -e "\t\t\t\t\t\t\$(RPATH)\$(PARMETIS_BASE)/lib"       >> sys.conf
+    echo -e "PARMETIS_LDLIBS\t\t=\t-lparmetis"                 >> sys.conf
+  else
+    if [ ${INSTALL_PARMETIS} -eq 1 ]; then
+      echo -e "INSTALL_PARMETIS\t=\t$INSTALL_PARMETIS"           >> sys.conf
+      echo -e "PARMETIS_BASE\t\t=\t\$(LOCI_SRC)/ParMETIS"        >> sys.conf
+      echo -e "PARMETIS_INCLUDE\t=\t-I\$(PARMETIS_BASE)/include" >> sys.conf
+      echo -e "PARMETIS_DEFINE\t\t=\t-DLOCI_USE_METIS"           >> sys.conf
+      echo -e "PARMETIS_LDFLAGS\t=\t-L\$(PARMETIS_BASE)/lib \\"  >> sys.conf
+      echo -e "\t\t\t\t\t\t\$(RPATH)\$(PARMETIS_BASE)/lib"       >> sys.conf
+      echo -e "PARMETIS_LDLIBS\t\t=\t-lparmetis"                 >> sys.conf
+    fi
+  fi
+else
+  echo -e "INSTALL_PARMETIS\t\t=\t$INSTALL_PARMETIS" >> sys.conf
+  echo -e "PARMETIS_BASE\t\t="                       >> sys.conf
+  echo -e "PARMETIS_INCLUDE\t="                      >> sys.conf
+  echo -e "PARMETIS_DEFINE\t\t="                     >> sys.conf
+  echo -e "PARMETIS_LDFLAGS\t="                      >> sys.conf
+  echo -e "PARMETIS_LDLIBS\t\t="                     >> sys.conf
+fi
 echo >> sys.conf
 
 
 if [ ! -d $CGNSPATH/include ]; then
-    find_lib cgns
-    if [ $RETURN_VALUE != 0 ]; then
-	CGNSPATH=${RETURN_VALUE%/lib*}
-    fi
+  find_lib cgns
+  if [ $RETURN_VALUE != 0 ]; then
+    CGNSPATH=${RETURN_VALUE%/lib*}
+  fi
 fi
 
 if [ $TECIOPATH != "none" ] ; then
@@ -561,122 +730,172 @@ else
 fi
 
 if [ $TEC360PATH != "none" ] ; then
-    if [ ! -f $TEC360PATH/lib/libtecio.a ]; then
-	find_lib tecio
-	if [ $RETURN_VALUE != 0 ]; then
-	    echo $RETURN_VALUE
-	    TEC360PATH=${RETURN_VALUE%/lib*} 
-	    if [ -e $TEC360PATH/libtecio.a ] ; then
-		echo "Static Library"
-		TEC360TYPE=1
-	    elif [ -e $TEC360PATH/libtecio.so ] ; then
-		echo "Dynamic Library"
-		TEC360TYPE=2
-	    fi
-	    echo Found tecplot360 IO libraries in $TEC360PATH
-	fi
+  if [ ! -f $TEC360PATH/lib/libtecio.a ]; then
+    find_lib tecio
+    if [ $RETURN_VALUE != 0 ]; then
+      echo $RETURN_VALUE
+      TEC360PATH=${RETURN_VALUE%/lib*}
+      if [ -e $TEC360PATH/libtecio.a ] ; then
+        echo "Static Library"
+        TEC360TYPE=1
+      elif [ -e $TEC360PATH/libtecio.so ] ; then
+        echo "Dynamic Library"
+        TEC360TYPE=2
+      fi
+      echo Found tecplot360 IO libraries in $TEC360PATH
     fi
+  fi
 fi
 
+echo \# CGNS Library Setup >> sys.conf
 if [ -d $CGNSPATH/include ]; then
     echo Using CGNS library found in $CGNSPATH
-    echo # CGNS Library Setup >> sys.conf
-    echo CGNS_BASE = $CGNSPATH >> sys.conf
-    echo CGNS_INCLUDE = -I\$\(CGNS_BASE\)/include/ -DUSE_CGNS >> sys.conf
-    echo CGNS_LIBS = -L\$\(CGNS_BASE\)/lib \$\(RPATH\)\$\(CGNS_BASE\)/lib -lcgns >> sys.conf
-    echo >>sys.conf
+    echo -e "CGNS_BASE\t=\t$CGNSPATH"                                         >> sys.conf
+    echo -e "CGNS_DEFINE\t=\t-DUSE_CGNS"                                      >> sys.conf
+    echo -e "CGNS_INCLUDE\t=\t-I\$(CGNS_BASE)/include"                        >> sys.conf
+    echo -e "CGNS_LDFLAGS\t=\t-L\$(CGNS_BASE)/lib \$(RPATH)\$(CGNS_BASE)/lib" >> sys.conf
+    echo -e "CGNS_LDLIBS\t=\t-lcgns"                                          >> sys.conf
+    echo >> sys.conf
 else
     echo libcgns not found, disabling CGNS features!
-    echo CGNS_BASE = >> sys.conf
-    echo CGNS_INCLUDE = >> sys.conf
-    echo CGNS_LIBS = >> sys.conf
-    echo >> sys.conf 
+    echo -e "CGNS_BASE\t\t="    >> sys.conf
+    echo -e "CGNS_DEFINE\t\t="  >> sys.conf
+    echo -e "CGNS_INCLUDE\t="   >> sys.conf
+    echo -e "CGNS_LDFLAGS\t="   >> sys.conf
+    echo -e "CGNS_LDLIBS\t\t="  >> sys.conf
+    echo >> sys.conf
 fi
 
+echo \# TECPLOT Library Setup >> sys.conf
 if [ -f $TEC360PATH/lib/libtecio.a ]; then
     echo Using TECPLOT native IO library found in $TEC360PATH
-    echo TEC360INCLUDE = -I$TEC360PATH/include -DUSE_NATIVE_TECPLOT >> sys.conf
-    echo TEC360LIB = $TEC360PATH/lib/libtecio.a >> sys.conf
+    echo -e "TEC360_INCLUDE\t=\t-I$TEC360PATH/include"     >> sys.conf
+    echo -e "TEC360_DEFINE\t=\t-DUSE_NATIVE_TECPLOT"       >> sys.conf
+    echo -e "TEC360_LDFLAGS\t="                            >> sys.conf
+    echo -e "TEC360_LDLIBS\t=\t$TEC360PATH/lib/libtecio.a" >> sys.conf
 elif [ -f $TECIOPATH/bin/libtecio.so ] ; then
     echo "Using TECPLOT IO library found in $TECIOPATH"
-    echo TEC360INCLUDE = -I$TECIOPATH/include -DUSE_NATIVE_TECPLOT >> sys.conf
-    echo TEC360LIB = -L${TECIOPATH}/bin -ltecio >> sys.conf
+    echo -e "TEC360_INCLUDE\t=\t-I$TECIOPATH/include" >> sys.conf
+    echo -e "TEC360_DEFINE\t=\t-DUSE_NATIVE_TECPLOT"  >> sys.conf
+    echo -e "TEC360_LDFLAGS\t=\t-L${TECIOPATH}/bin"   >> sys.conf
+    echo -e "TEC360_LDLIBS\t=\t-ltecio"               >> sys.conf
 else
     echo Note: TECPLOT native IO library not found, older ascii format will be used instead.
     echo If you expected to include TECPLOT support, use --with-tec360 to specify where
     echo tecplot360 is installed.
     echo
-    echo TEC360INCLUDE = >> sys.conf
-    echo TEC360LIB = >> sys.conf
+    echo -e "TEC360_DEFINE\t="  >> sys.conf
+    echo -e "TEC360_INCLUDE\t=" >> sys.conf
+    echo -e "TEC360_LDFLAGS\t=" >> sys.conf
+    echo -e "TEC360_LDLIBS\t="  >> sys.conf
 fi
 echo >> sys.conf
 
 echo \# PETSc Library Setup >> sys.conf
 
 if [ ! -d $PETSC_BASE ]; then
-    find_lib petsc
-    if [ $RETURN_VALUE != 0 ]; then
-	PETSC_BASE=${RETURN_VALUE%/lib*}
-    fi
+  find_lib petsc
+  if [ $RETURN_VALUE != 0 ]; then
+    PETSC_BASE=${RETURN_VALUE%/lib*}
+  fi
 fi
 
 if [ -d $PETSC_BASE ]; then
-    if [ -e $PETSC_BASE/bmake/petscconf ]; then
+  if [ -e $PETSC_BASE/bmake/petscconf ]; then
 # This is the OLD v2 petsc setup
-	PETSC_ARCH=`grep PETSC_ARCH $PETSC_BASE/bmake/petscconf | sed s/PETSC_ARCH=//`
-	if [ ! -d $PETSC_BASE/bmake/$PETSC_ARCH ]; then 
-	    echo Problem with PETSc library setup, check PETSC_DIR
-	    echo PETSC_BASE = $PETSC_BASE
-	    echo PETSC_ARCH = $PETSC_ARCH
-	    rm sys.conf
-	    exit -1
-	fi
-	if [ -e $PETSC_BASE/bmake/$PETSC_ARCH/petscconf ]; then
-	    BLASLAPACK_LIB=`egrep ^BLASLAPACK_LIB $PETSC_BASE/bmake/$PETSC_ARCH/petscconf`
-	else
-	    echo WARNING: Unable to find file $PETSC_BASE/bmake/$PETSC_ARCH/petscconf!
-	    BLASLAPACK_LIB=
-	fi
-	if [ "$BLASLAPACK_LIB" == "" ] ; then
-	    echo WARNING: BLAS library paths not extracted from PETSC config files!
-	    echo WARNING:  Is PETSC installed properly?
-	fi
-	echo Using PETSc libraries found in \"$PETSC_BASE\".
-	echo PETSC_BASE = $PETSC_BASE >> sys.conf
-	echo $BLASLAPACK_LIB >> sys.conf
-	echo PETSC_ARCH = $PETSC_ARCH >> sys.conf
-	echo PETSC_LIBS = -L\$\(PETSC_BASE\)/lib/\$\(PETSC_ARCH\) \$\(RPATH\)\$\(PETSC_BASE\)/lib/\$\(PETSC_ARCH\) -lpetscsnes -lpetscksp -lpetscdm -lpetscmat -lpetscvec -lpetsc -L\$\(PETSC_BASE\)/externalpackages/fblaslapack/\$\(PETSC_ARCH\) \$\(RPATH\)\$\(PETSC_BASE\)/externalpackages/fblaslapack/\$\(PETSC_ARCH\) \$\(BLASLAPACK_LIB\) >> sys.conf
-	echo PETSC_INCLUDE = -I\$\(PETSC_BASE\)/include -I\$\(PETSC_BASE\)/bmake/\$\(PETSC_ARCH\) >> sys.conf
-	echo PETSC_DEFINE = -DUSE_PETSC -DPETSC_USE_EXTERN_CXX >> sys.conf
-    else
-	BLASLAPACK_LIB=
-	if [ -e $PETSC_BASE/conf/petscvariables ]; then
-	    BLASLAPACK_LIB=`egrep ^BLASLAPACK_LIB $PETSC_BASE/conf/petscvariables`
-	else
-	    if [ -e $PETSC_BASE/lib/petsc/conf/petscvariables ]; then 
-		BLASLAPACK_LIB=`egrep ^BLASLAPACK_LIB $PETSC_BASE/lib/petsc/conf/petscvariables`
-	    fi
-	fi
-	if [ "$BLASLAPACK_LIB" == "" ] ; then
-	    set +f
-	    if [ -e $PETSC_BASE/arch-*/conf/petscvariables ]; then
-		BLASLAPACK_LIB=`egrep ^BLASLAPACK_LIB $PETSC_BASE/arch-*/conf/petscvariables`
-	    else 
-		echo WARNING: Unable to find file $PETSC_BASE/arch-*/conf/petscvariables!
-	    fi
-	    set -f	    
-	fi
-	if [ "$BLASLAPACK_LIB" == "" ] ; then
-	    echo WARNING: BLAS library paths not extracted from PETSC config files!
-	    echo WARNING:  Is PETSC installed properly?
-	fi
-	echo Using PETSc libraries found in \"$PETSC_BASE\".
-	echo PETSC_BASE = $PETSC_BASE >> sys.conf
-	echo $BLASLAPACK_LIB >> sys.conf
-	echo PETSC_LIBS = -L\$\(PETSC_BASE\)/lib/ \$\(RPATH\)\$\(PETSC_BASE\)/lib/ -lpetsc \$\(BLASLAPACK_LIB\) >> sys.conf
-	echo PETSC_INCLUDE = -I\$\(PETSC_BASE\)/include  >> sys.conf
-	echo PETSC_DEFINE = -DUSE_PETSC -DPETSC_USE_EXTERN_CXX >> sys.conf
+    PETSC_ARCH=`grep PETSC_ARCH $PETSC_BASE/bmake/petscconf | sed s/PETSC_ARCH=//`
+    if [ ! -d $PETSC_BASE/bmake/$PETSC_ARCH ]; then
+      echo Problem with PETSc library setup, check PETSC_DIR
+      echo PETSC_BASE = $PETSC_BASE
+      echo PETSC_ARCH = $PETSC_ARCH
+      rm sys.conf
+      exit -1
     fi
+    if [ -e $PETSC_BASE/bmake/$PETSC_ARCH/petscconf ]; then
+      BLASLAPACK_LIB=`egrep ^BLASLAPACK_LIB $PETSC_BASE/bmake/$PETSC_ARCH/petscconf`
+      for iI in ${BLASLAPACK_LIB// / }; do
+        item=$(echo $iI | grep -e "-l")
+        if [ "$item" != "" ]; then
+          PETSC_LDLIBS+="$iI "
+        else
+          PETSC_LDFLAGS+="$iI "
+        fi
+      done
+    else
+      echo WARNING: Unable to find file $PETSC_BASE/bmake/$PETSC_ARCH/petscconf!
+      BLASLAPACK_LIB=
+    fi
+    if [ "$BLASLAPACK_LIB" == "" ] ; then
+        echo WARNING: BLAS library paths not extracted from PETSC config files!
+        echo WARNING:  Is PETSC installed properly?
+    fi
+    echo Using PETSc libraries found in \"$PETSC_BASE\".
+    echo -e "PETSC_BASE\t=\t$PETSC_BASE"                                                       >> sys.conf
+    echo -e "PETSC_ARCH\t=\t$PETSC_ARCH"                                                       >> sys.conf
+    echo -e "PETSC_LDFLAGS\t=\t-L\$(PETSC_BASE)/lib/\$(PETSC_ARCH) \\"                         >> sys.conf
+    echo -e "\t\t\t\t\$(RPATH)\$(PETSC_BASE)/lib/\$(PETSC_ARCH) \\"                            >> sys.conf
+    echo -e "\t\t\t\t-L\$(PETSC_BASE)/externalpackages/fblaslapack/\$(PETSC_ARCH) \\"          >> sys.conf
+    echo -e "\t\t\t\t\$(RPATH)\$(PETSC_BASE)/externalpackages/fblaslapack/\$(PETSC_ARCH) \\"   >> sys.conf
+    echo -e "\t\t\t\t\t$PETSC_LDFLAGS"                                                         >> sys.conf
+    echo -e "PETSC_LDLIBS\t=\t-lpetscsnes -lpetscksp -lpetscdm -lpetscmat \\"                  >> sys.conf
+    echo -e "\t\t\t\t\t-lpetscvec -lpetsc"                                                     >> sys.conf
+    echo -e "PETSC_INCLUDE\t=\t-I\$(PETSC_BASE)/include -I\$(PETSC_BASE)/bmake/\$(PETSC_ARCH)" >> sys.conf
+    echo -e "PETSC_DEFINE\t=\t-DUSE_PETSC -DPETSC_USE_EXTERN_CXX"                              >> sys.conf
+  else
+    BLASLAPACK_LIB=
+    if [ -e $PETSC_BASE/conf/petscvariables ]; then
+      BLASLAPACK_LIB=`egrep BLASLAPACK_LIB $PETSC_BASE/conf/petscvariables | cut -d= -f2-`
+      for iI in ${BLASLAPACK_LIB// / }; do
+        item=$(echo $iI | grep -e "-l")
+        if [ "$item" != "" ]; then
+          PETSC_LDLIBS+="$iI "
+        else
+          PETSC_LDFLAGS+="$iI "
+        fi
+      done
+    else
+      if [ -e $PETSC_BASE/lib/petsc/conf/petscvariables ]; then
+        BLASLAPACK_LIB=`egrep BLASLAPACK_LIB $PETSC_BASE/lib/petsc/conf/petscvariables | cut -d= -f2-`
+        for iI in ${BLASLAPACK_LIB// / }; do
+          item=$(echo $iI | grep -e "-l")
+          if [ "$item" != "" ]; then
+            PETSC_LDLIBS+="$iI "
+          else
+            PETSC_LDFLAGS+="$iI "
+          fi
+        done
+      fi
+    fi
+    if [ "$BLASLAPACK_LIB" == "" ] ; then
+      set +f
+      if [ -e $PETSC_BASE/arch-*/conf/petscvariables ]; then
+        BLASLAPACK_LIB=`egrep BLASLAPACK_LIB $PETSC_BASE/arch-*/conf/petscvariables | cut -d= -f2-`
+        for iI in ${BLASLAPACK_LIB// / }; do
+          item=$(echo $iI | grep -e "-l")
+          if [ "$item" != "" ]; then
+            PETSC_LDLIBS+="$iI "
+          else
+            PETSC_LDFLAGS+="$iI "
+          fi
+        done
+      else
+        echo WARNING: Unable to find file $PETSC_BASE/arch-*/conf/petscvariables!
+      fi
+      set -f
+    fi
+    if [ "$BLASLAPACK_LIB" == "" ] ; then
+        echo WARNING: BLAS library paths not extracted from PETSC config files!
+        echo WARNING:  Is PETSC installed properly?
+    fi
+    echo -e "Using PETSc libraries found in \e$PRT\"$PETSC_BASE\"\e[0m."
+    echo -e "PETSC_BASE\t\t=\t$PETSC_BASE"                        >> sys.conf
+    echo -e "PETSC_LDFLAGS\t=\t-L\$(PETSC_BASE)/lib \\"           >> sys.conf
+    echo -e "\t\t\t\t\t\$(RPATH)\$(PETSC_BASE)/lib \\"            >> sys.conf
+    echo -e "\t\t\t\t\t$PETSC_LDFLAGS"                            >> sys.conf
+    echo -e "PETSC_LDLIBS\t=\t-lpetsc $PETSC_LDLIBS"              >> sys.conf
+    echo -e "PETSC_INCLUDE\t=\t-I\$(PETSC_BASE)/include"          >> sys.conf
+    echo -e "PETSC_DEFINE\t=\t-DUSE_PETSC -DPETSC_USE_EXTERN_CXX" >> sys.conf
+  fi
 else
     echo "# PETSc not found, Loci compiled without PETSc enabled" >> sys.conf
     echo "Warning: PETSc not installed... "
@@ -691,24 +910,24 @@ echo >> sys.conf
 FORTRAN_LIBS=
 
 if [ "$MPI_C_COMPILER" == "none" ]; then
-    echo Selecting compiler = $COMPILER
+  echo -e "Selecting compiler = \e$PRT$COMPILER\e[0m for MPI"
 else
-    COMP_TEST=`$MPI_PATH/$MPI_C_COMPILER -show | sed "s/ .*//"`
-    if [ -e src/conf/$COMP_TEST.conf ]; then
-	COMPILER=$COMP_TEST
-	echo Selecting compiler = $COMPILER
-    fi
+  COMP_TEST=`$MPI_PATH/$MPI_C_COMPILER -show | sed "s/ .*//"`
+  if [ -e src/conf/$COMP_TEST.conf ]; then
+    COMPILER=$COMP_TEST
+    echo -e "Selecting compiler = \e$PRT$COMPILER\e[0m for MPI"
+  fi
 fi
 case "$COMPILER" in
     gcc)
     find_exec gfortran
     if [ $RETURN_VALUE != 0 ]; then
-	FORTRAN_LIBS=-lgfortran
+      FORTRAN_LIBS=-lgfortran
     else
-	find_exec g77
-	if [ $RETURN_VALUE != 0 ]; then
-	    FORTRAN_LIBS=-lg2c
-	fi
+      find_exec g77
+      if [ $RETURN_VALUE != 0 ]; then
+        FORTRAN_LIBS=-lg2c
+      fi
     fi
     ;;
     *)
@@ -725,17 +944,33 @@ case "$ARCH" in
     CCBASE=${CCPATH%/bin/cc}
     CCINC=$CCBASE/prod/include/cc
     if [ -e $CCINC/sunmath.h ]; then
-	echo MISC=-I$CCINC >> sys.conf
-	echo MISC_LIBS=-L$CCBASE/lib -lsunmath -lmalloc -lm $FORTRAN_LIBS >> sys.conf
+      echo MISC=-I$CCINC >> sys.conf
+      echo MISC_LIBS=-L$CCBASE/lib -lsunmath -lmalloc -lm $FORTRAN_LIBS >> sys.conf
     else
-	echo MISC=-DNOSUNMATH >> sys.conf
-	echo MISC_LIBS=-lmalloc -lm $FORTRAN_LIBS >> sys.conf
+      echo MISC=-DNOSUNMATH >> sys.conf
+      echo MISC_LIBS=-lmalloc -lm $FORTRAN_LIBS >> sys.conf
     fi
     ;;
-    *)
-#everything else
-    echo MISC= >> sys.conf
-    echo MISC_LIBS=$FORTRAN_LIBS >> sys.conf
+    *) #everything else
+    if [ $FAD_OPTS != "/notselected" ]; then
+      echo "# Miscellaneous Library Setup" >> sys.conf
+      if [ $FAD_OPTS -eq 1 ]; then
+        MISC="-DUSE_AUTODIFF "
+        if [ $MFAD_SIZE -gt 1 ]; then
+          MISC+="-DMULTIFAD -DMFAD_SIZE=${MFAD_SIZE}"
+        fi
+      elif [ $FAD_OPTS -eq 2 ]; then
+        MISC="-DUSE_AUTODIFF -DAUTODIFF2ND"
+      fi
+      echo -e "MISC\t\t=\t$MISC" >> sys.conf
+    else
+      echo -e "MISC\t\t=" >> sys.conf
+    fi
+    find_lib pthread
+    if [ $RETURN_VALUE != 0 ]; then
+      FORTRAN_LIBS+=" -pthread"
+    fi
+    echo -e "MISC_LIBS\t=\t$FORTRAN_LIBS" >> sys.conf
     ;;
 esac
 
@@ -745,36 +980,47 @@ echo \# Dynamic Library Defines >> sys.conf
 
 case "$ARCH" in
     Linux)
-    echo DYNAMIC_LOADING_DEFINES = >> sys.conf
-    echo DYNAMIC_LOADING_LINK = -ldl >> sys.conf
+    echo -e "DYNAMIC_LOADING_DEFINES\t="    >> sys.conf
+    echo -e "DYNAMIC_LOADING_LINK\t=\t-ldl" >> sys.conf
     ;;
     Darwin)
-    echo DYNAMIC_LOADING_DEFINES = >> sys.conf
-    echo DYNAMIC_LOADING_LINK = -ldl >> sys.conf
+    echo -e "DYNAMIC_LOADING_DEFINES\t="    >> sys.conf
+    echo -e "DYNAMIC_LOADING_LINK\t=\t-ldl" >> sys.conf
     ;;
     IRIX64)
-    echo DYNAMIC_LOADING_DEFINES = >> sys.conf
-    echo DYNAMIC_LOADING_LINK = -lc >> sys.conf
+    echo -e "DYNAMIC_LOADING_DEFINES\t="   >> sys.conf
+    echo -e "DYNAMIC_LOADING_LINK\t=\t-lc" >> sys.conf
     ;;
     *)
-    echo DYNAMIC_LOADING_DEFINES = >> sys.conf
-    echo DYNAMIC_LOADING_LINK =  >> sys.conf
+    echo -e "DYNAMIC_LOADING_DEFINES\t=" >> sys.conf
+    echo -e "DYNAMIC_LOADING_LINK\t="    >> sys.conf
     ;;
 esac
 
 echo >> sys.conf
 
 echo "##############################################" >> sys.conf
-echo "# No need to change things below this line" >> sys.conf
+echo "# No need to change things below this line"     >> sys.conf
 
 echo >> sys.conf
 
-echo "MACHINE_SPECIFIC = \$(PETSC_DEFINE) \$(PETSC_INCLUDE) \$(HDF5_INCLUDE)\\">> sys.conf
-echo "                   \$(MPI_INCLUDE) \$(METIS_INCLUDE) \$(CGNS_INCLUDE) \$(MISC)\\" >> sys.conf
-echo "                   \$(DYNAMIC_LOADING_DEFINES) " >> sys.conf
-echo >> sys.conf
-echo "BASE_LIBS = \$(HDF5_LIBS) \$(PETSC_LIBS)  \$(METIS_LIBS) \\" >> sys.conf
-echo "            \$(MISC_LIBS) \$(CGNS_LIBS) \$(DYNAMIC_LOADING_LINK) \$(MPI_LIBS)" >> sys.conf
+echo -e "MACHINE_DEFINES\t\t=\t\$(PETSC_DEFINE) \$(MPI_DEFINE) \$(TEC360_DEFINE)\\" >> sys.conf
+echo -e "\t\t\t\t\t\t\$(DYNAMIC_LOADING_DEFINES) \$(MISC) \$(CGNS_DEFINE) \\"       >> sys.conf
+echo -e "\t\t\t\t\t\t\$(PARMETIS_DEFINE) \$(METIS_DEFINE) \$(GKLIB_DEFINE)"         >> sys.conf
+echo -e "MACHINE_INCLUDES\t=\t\$(PETSC_INCLUDE) \$(HDF5_INCLUDE)\\"                 >> sys.conf
+echo -e "\t\t\t\t\t\t\$(MPI_INCLUDE) \$(TEC360_INCLUDE) \$(CGNS_INCLUDE) \\"        >> sys.conf
+echo -e "\t\t\t\t\t\t\$(PARMETIS_INCLUDE) \$(METIS_INCLUDE) \$(GKLIB_INCLUDE)"      >> sys.conf
+if [[ "${OS_NAME[2]-0}" == "platform:el8" && -d /usr/include/tirpc/rpc ]]; then
+  echo -e "MACHINE_INCLUDES\t+=\t-I/usr/include/tirpc"                              >> sys.conf
+fi
+echo                                                                                       >> sys.conf
+echo -e "BASE_LDFLAGS\t=\t\$(HDF5_LDFLAGS) \$(PETSC_LDFLAGS) \$(TEC360_LDFLAGS) \\"        >> sys.conf
+echo -e "\t\t\t\t\t\$(MISC_LDFLAGS) \$(CGNS_LDFLAGS) \$(MPI_LDFLAGS) \$(METIS_LDFLAGS) \\" >> sys.conf
+echo -e "\t\t\t\t\t\$(PARMETIS_LDFLAGS) \$(GKLIB_LDFLAGS)"                                 >> sys.conf
+echo                                                                                       >> sys.conf
+echo -e "BASE_LIBS\t\t=\t\$(HDF5_LDLIBS) \$(PETSC_LDLIBS) \$(TEC360_LDLIBS) \\"            >> sys.conf
+echo -e "\t\t\t\t\t\$(MISC_LDLIBS) \$(CGNS_LDLIBS) \$(DYNAMIC_LOADING_LINK) \\"            >> sys.conf
+echo -e "\t\t\t\t\t\$(MPI_LDLIBS) \$(PARMETIS_LDLIBS) \$(METIS_LDLIBS) \$(GKLIB_LDLIBS)"   >> sys.conf
 
 
 echo Making compile subdirectory ${OBJDIR}...
@@ -782,19 +1028,30 @@ echo Making compile subdirectory ${OBJDIR}...
 INSTALL_METIS=$INSTALL_METIS ./tmpcopy --target $OBJDIR --compiler $COMPILER > copy.out
 mv sys.conf ${OBJDIR}/sys.conf
 
-# Make makefile
-echo "default:" > Makefile
-echo "	cd ${OBJDIR}; \$(MAKE)" >> Makefile
-echo "install:" >> Makefile
-echo "	cd ${OBJDIR}; \$(MAKE) install" >> Makefile
-echo "clean:" >> Makefile
-echo "	cd ${OBJDIR}; \$(MAKE) clean" >> Makefile
-echo "distclean:" >> Makefile
-echo "	rm -fr ${OBJDIR} copy.out Makefile" >> Makefile
+# Setup targets files
+TARGET_MK=targets_tmp.mk
+cp targets/main.mk ${TARGET_MK}
+sed -i "s,{{OBJDIR}},${OBJDIR},g" ${TARGET_MK}
 
-echo 
+# Make makefile
+echo "include ${TARGET_MK}"                 >  makefile
+echo "default:"                             >> makefile
+echo "	@\$(MAKE) -C ${OBJDIR} \$@"         >> makefile
+echo "install:"                             >> makefile
+echo "	@\$(MAKE) -C ${OBJDIR} \$@"         >> makefile
+echo "clean:"                               >> makefile
+echo "	@\$(MAKE) -C ${OBJDIR} \$@"         >> makefile
+echo "clean_install:"                       >> makefile
+echo "	@\$(MAKE) -C ${OBJDIR} \$@"         >> makefile
+echo "spotless:"                            >> makefile
+echo "	@\$(MAKE) -C ${OBJDIR} \$@"         >> makefile
+echo "distclean:"                           >> makefile
+echo "	rm -fr ${OBJDIR} copy.out makefile" >> makefile
+
+
+echo
 echo
 echo "To compile Loci, enter:"
-echo "  make"
-echo "To install Loci in the directory $PREFIX, enter:"
+echo "  make all"
+echo -e "To install Loci in the directory \e[1;32;1m$PREFIX\e[0m, enter:"
 echo "  make install"

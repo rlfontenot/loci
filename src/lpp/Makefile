@@ -20,68 +20,54 @@
 ###############################################################################
 LOCI_BASE?=..
 LOCI_SRC?=..
-include $(LOCI_SRC)/Loci.conf
 
-MODULE_NAME	=	Tools
-LIB_NAME1	=	lib$(MODULE_NAME).a
-LIB_NAME2	=	lib$(MODULE_NAME).so
+include $(LOCI_SRC)/Loci.conf
+TARGET	=	lpp
 
 ################################################################################
 # No changes required below this line
 ################################################################################
-CFILES			=	$(wildcard *.c)
-CXXFILES		=	$(wildcard *.cpp)
-OBJS			=	$(subst .c,.o,$(CFILES)) \
-					$(subst .cpp,.o,$(CXXFILES))
+FILES			=	$(wildcard *.cpp)
+OBJS			=	$(subst .cpp,.o,$(FILES)) \
+					../System/variable.o
 DEPEND_FILES	=	$(subst .o,.d,$(OBJS))
 JUNK			=	*~ core ii_files ti_files KCC_files so_locations rii_files
-INCLUDES		=	-I$(LOCI_SRC)/include/Tools \
-					-I$(LOCI_SRC)/include
+INCLUDES		=	-I$(LOCI_SRC)/include
+LOCAL_LIBS		=	$(RPATH)$(LOCI_RPATH) -L$(LOCI_SRC)/lib -lTools -lm
+DEPS			=	$(LOCI_SRC)/lib/libTools.so
 
-
-default:	$(LIB_NAME1) $(LIB_NAME2)
-all:		$(LIB_NAME1) $(LIB_NAME2)
+default:	$(TARGET)
+all:		$(TARGET)
 spotless:	distclean clean_install
 
-$(LIB_NAME1): $(OBJS)
+
+$(LOCI_SRC)/lib/libTools.so:
+	$(MAKE) -C $(LOCI_SRC)/Tools
+
+$(TARGET): $(DEPS) $(OBJS)
 	@echo -e "\e[$(PRT) $@ \e[0m"
-	$(AR) $(ARFLAGS) $@ $(OBJS)
-	$(RANLIB) $@
-	cp -u $@ $(LOCI_SRC)/lib/$@
+	$(LDBSL) -o $@ $(OBJS) $(LOCAL_LIBS) $(LDFLAGS)
+	cp $@ $(LOCI_SRC)/bin/$@
 
-$(LIB_NAME2): $(OBJS)
-	@echo -e "\e[$(PRT) $@ \e[0m"
-	$(DYNAMIC_LD) $(DYNAMIC_LD_FLAGS) $@ $(LDFLAGS) $(OBJS)
-	cp -u $@ $(LOCI_SRC)/lib/$@
-
-
-install: $(LOCI_BASE)/lib/. $(LOCI_BASE)/include/$(MODULE_NAME)/. $(LIB_NAME1) $(LIB_NAME2)
-	@echo -e "\e[$(PRT) $@_$(MODULE_NAME) \e[0m"
+install: $(LOCI_BASE)/bin/. $(TARGET)
+	@echo -e "\e[$(PRT) $@_$(TARGET) \e[0m"
 ifneq ($(LOCI_SRC),$(LOCI_BASE))
-	cp -u $(LOCI_SRC)/lib/$(LIB_NAME1)        $(LOCI_BASE)/lib/$(LIB_NAME1)
-	cp -u $(LOCI_SRC)/lib/$(LIB_NAME2)        $(LOCI_BASE)/lib/$(LIB_NAME2)
-	cp -u $(LOCI_SRC)/include/$(MODULE_NAME)/*.h $(LOCI_BASE)/include/$(MODULE_NAME)/
+	cp -u $(LOCI_SRC)/bin/$(TARGET) $(LOCI_BASE)/bin/$(TARGET)
 endif
 
 clean_install:
-	@echo -e "\e[$(PRT) $@_$(MODULE_NAME) \e[0m"
-	rm -rf $(LOCI_BASE)/lib/$(LIB_NAME1)
-	rm -rf $(LOCI_BASE)/lib/$(LIB_NAME2)
-ifneq ($(LOCI_SRC),$(LOCI_BASE))
-	rm -rf $(LOCI_BASE)/include/$(MODULE_NAME)
-endif
+	@echo -e "\e[$(PRT) $@_$(TARGET) \e[0m"
+	rm -rf $(LOCI_BASE)/bin/$(TARGET)
 
 clean:
-	@echo -e "\e[$(PRT) $@_$(MODULE_NAME) \e[0m"
-	rm -fr $(OBJS) $(LIB_NAME1) $(LIB_NAME2)
-	rm -fr $(LOCI_SRC)/lib/$(LIB_NAME1) $(LOCI_SRC)/lib/$(LIB_NAME2) $(JUNK)
+	@echo -e "\e[$(PRT) $@_$(TARGET) \e[0m"
+	rm -fr $(OBJS) $(TARGET) $(LOCI_SRC)/bin/$(TARGET) $(JUNK)
 
 distclean: clean
-	@echo -e "\e[$(PRT) $@_$(MODULE_NAME) \e[0m"
+	@echo -e "\e[$(PRT) $@_$(TARGET) \e[0m"
 	rm -fr $(DEPEND_FILES)
 
-#include automatically generated dependencies
+
 ifeq ($(filter $(MAKECMDGOALS),clean clean_install distclean spotless),)
 -include $(DEPEND_FILES)
 endif
-

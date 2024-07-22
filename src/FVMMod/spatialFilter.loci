@@ -1,0 +1,1013 @@
+/** ****************************************************************************
+ * @file      spatialFilter.cc
+ * @authors   Ed Luke (MS State)
+ *            Manuel Gale (CFDRC)
+ *            Raymond Fontenot (CFDRC)
+ * @date      LICENSE Date: 12-30-2023
+ * @copyright MS State/CFDRC
+ * @brief     Spatial filter approaches for FV method
+ * @details   This file is a part of the Loci Framework, a free software.
+ * You can redistribute it and/or modify it under the terms of the Lesser
+ * GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * The Loci Framework is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * Lesser GNU General Public License for more details.
+ *
+ * You should have received a copy of the Lesser GNU General Public License
+ * along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
+ ******************************************************************************/
+#include <algorithm>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <iostream>
+#include <vector>
+#include <list>
+#include <map>
+#include <string>
+#include <sstream>
+#include <fstream>
+#include <utility>
+#include <Loci.h>
+#include "FVMOverset/overset.h"
+$include "FVM.lh" // include the Loci finite-volume module
+$include "FVMMod/spatialFilter.lh"
+$include "FVMOverset/overset.lh" // for iblank
+
+using std::pair;
+using std::ifstream;
+using std::ofstream;
+using std::stringstream;
+using std::string;
+using std::map;
+using std::list;
+using std::vector;
+using std::cout;
+using std::cerr;
+using std::endl;
+
+using Loci::StringError;
+
+namespace Loci {
+typedef vector3d<real_t> vect3d;
+typedef tensor3d<real_t> tens3d;
+typedef real_t real;
+
+/**
+ * @brief Unit rule to initialize nodal weights for filtering
+ * @retval nodeWeightSumSF    [-] weighting function at nodes
+ */
+$rule unit(nodeWeightSumSF),constraint(pos)
+{
+  $nodeWeightSumSF = 0.0;
+}
+
+/**
+ * @brief Left-cell/face apply rule for nodal weight
+ * @retval face2node->nodeWeightSumSF    [-] weighting function at nodes
+ * @param  face2node->pos                [-] nodal coordinates
+ * @param  facecenter                    [-] face center coordinates
+ * @param  cl->cellcenter                [-] cell center coordinates
+ * @param  cl->iblank                    [-] blanked cells for overset operation
+ */
+$rule apply(face2node->nodeWeightSumSF<-face2node->pos,
+            facecenter,cl->(cellcenter,iblank))[Loci::Summation],
+      constraint(cl->geom_cells)
+{
+  int nnf = $face2node.size();
+  vect3d pf = $facecenter;
+  vect3d pc = $cl->$cellcenter-pf;
+  if($cl->$iblank <=1)
+  {
+    for(int i=0;i<nnf;++i)
+    {
+      int j = (i>1)?(i-1):nnf-1;
+      vect3d pa = $face2node[i]->$pos-pf;
+      vect3d pb = $face2node[j]->$pos-pf;
+      real Wl = fabs(dot(pc,cross(pa,pb))); // Note factor 1/12 left off
+      join($face2node[i]->$nodeWeightSumSF,Wl);
+      join($face2node[j]->$nodeWeightSumSF,Wl);
+    }
+  }
+}
+
+/**
+ * @brief Right-cell/face apply rule for nodal weight
+ * @retval face2node->nodeWeightSumSF    [-] weighting function at nodes
+ * @param  face2node->pos                [-] nodal coordinates
+ * @param  facecenter                    [-] face center coordinates
+ * @param  cr->cellcenter                [-] cell center coordinates
+ * @param  cr->iblank                    [-] blanked cells for overset operation
+ */
+$rule apply(face2node->nodeWeightSumSF<-face2node->pos,
+            facecenter,cr->(cellcenter,iblank))[Loci::Summation],
+      constraint(cr->geom_cells)
+{
+  int nnf = $face2node.size();
+  vect3d pf = $facecenter;
+  vect3d pc = $cr->$cellcenter-pf;
+  if ($cr->$iblank <=1) 
+  {
+    for(int i=0;i<nnf;++i)
+    {
+      int j = (i>1)?(i-1):nnf-1;
+      vect3d pa = $face2node[i]->$pos-pf;
+      vect3d pb = $face2node[j]->$pos-pf;
+      real Wr = fabs(dot(pc,cross(pa,pb))); // Note factor 1/12 left off
+      join($face2node[i]->$nodeWeightSumSF,Wr);
+      join($face2node[j]->$nodeWeightSumSF,Wr);
+    }
+  }
+}
+
+/**
+ * @brief Unit rule to initialize cell weights for filtering
+ * @retval cellWeightSumSF    [-] weighting function at cells
+ */
+$rule unit(cellWeightSumSF),constraint(geom_cells)
+{
+  $cellWeightSumSF = 0.0;
+}
+
+/**
+ * @brief Left-cell/face apply rule for cell weight
+ * @retval cl->cellWeightSumSF           [-] weighting function at cells
+ * @param  face2node->pos                [-] nodal coordinates
+ * @param  facecenter                    [-] face center coordinates
+ * @param  cl->cellcenter                [-] cell center coordinates
+ * @param  cl->iblank                    [-] blanked cells for overset operation
+ */
+$rule apply(cl->cellWeightSumSF<-face2node->pos,facecenter,
+            cl->(cellcenter,iblank))[Loci::Summation],
+      constraint(cl->geom_cells)
+{
+  int nnf = $face2node.size();
+  vect3d pf = $facecenter;
+  vect3d pc = $cl->$cellcenter-pf;
+  if ($cl->$iblank <=1)
+  {
+    for(int i=0;i<nnf;++i)
+    {
+      int j = (i>1)?(i-1):nnf-1;
+      vect3d pa = $face2node[i]->$pos-pf;
+      vect3d pb = $face2node[j]->$pos-pf;
+      real Wl = fabs(dot(pc,cross(pa,pb))); // Note factor 1/12 left off
+      join($cl->$cellWeightSumSF,Wl);
+    }
+  }
+}
+
+/**
+ * @brief Right-cell/face apply rule for nodal weight
+ * @retval cr->cellWeightSumSF           [-] weighting function at cells
+ * @param  face2node->pos                [-] nodal coordinates
+ * @param  facecenter                    [-] face center coordinates
+ * @param  cr->cellcenter                [-] cell center coordinates
+ * @param  cr->iblank                    [-] blanked cells for overset operation
+ */
+$rule apply(cr->cellWeightSumSF<-face2node->pos,facecenter,
+            cr->(cellcenter,iblank))[Loci::Summation],
+      constraint(cr->geom_cells)
+{
+  int nnf = $face2node.size();
+  vect3d pf = $facecenter;
+  vect3d pc = $cr->$cellcenter-pf;
+  if ($cr->$iblank <=1)
+  {
+    for(int i=0;i<nnf;++i)
+    {
+      int j = (i>1)?(i-1):nnf-1;
+      vect3d pa = $face2node[i]->$pos-pf;
+      vect3d pb = $face2node[j]->$pos-pf;
+      real Wr = fabs(dot(pc,cross(pa,pb))); // Note factor 1/12 left off
+      join($cr->$cellWeightSumSF,Wr);
+    }
+  }
+}
+
+//////////////////////////////////////////////////////////////////////
+$type X store<real>;
+/**
+ * @brief Unit rule to initialize cell 2 node mapping for scalars
+ * @retval cell2nodeScalarSF    [-] mapping from cells to nodes, scalars
+ */
+$rule unit(cell2nodeScalarSF(X)),constraint(pos)
+{
+  $cell2nodeScalarSF(X) = 0;
+}
+
+/**
+ * @brief Left-cell/face apply for cell-2-node mapping
+ * @retval face2node->cell2nodeScalarSF  [-] mapping from cells to nodes, scalars
+ * @param  face2node->nodeWeightSumSF    [-] weighting function at nodes
+ * @param  face2node->pos                [-] nodal coordinates
+ * @param  facecenter                    [-] face center coordinates
+ * @param  cl->cellcenter                [-] cell center coordinates
+ * @param  cl->X                         [-] scalar state
+ * @param  cl->iblank                    [-] blanked cells for overset operation
+ */
+$rule apply(face2node->cell2nodeScalarSF(X)<-face2node->(pos,nodeWeightSumSF),
+            facecenter,cl->(cellcenter,X,iblank))[Loci::Summation],
+      constraint(cl->geom_cells)
+ {
+  int nnf = $face2node.size();
+  vect3d pf = $facecenter;
+  vect3d pc = $cl->$cellcenter-pf;
+  real xv = $cl->$X;
+  if ($cl->$iblank <= 1)
+  {
+    for(int i=0;i<nnf;++i)
+    {
+      int j = (i>1)?(i-1):nnf-1;
+      vect3d pa = $face2node[i]->$pos-pf;
+      vect3d pb = $face2node[j]->$pos-pf;
+      real Wl = fabs(dot(pc,cross(pa,pb))); // Note factor 1/12 left off
+      real Wli = Wl/$face2node[i]->$nodeWeightSumSF;
+      real Wlj = Wl/$face2node[j]->$nodeWeightSumSF;
+      join($face2node[i]->$cell2nodeScalarSF(X),Wli*xv);
+      join($face2node[j]->$cell2nodeScalarSF(X),Wlj*xv);
+    }
+  }
+}
+
+/**
+ * @brief Right-cell/face apply for cell-2-node mapping
+ * @retval face2node->cell2nodeScalarSF  [-] mapping from cells to nodes, scalars
+ * @param  face2node->nodeWeightSumSF    [-] weighting function at nodes
+ * @param  face2node->pos                [-] nodal coordinates
+ * @param  facecenter                    [-] face center coordinates
+ * @param  cr->cellcenter                [-] cell center coordinates
+ * @param  cr->X                         [-] scalar state
+ * @param  cr->iblank                    [-] blanked cells for overset operation
+ */
+$rule apply(face2node->cell2nodeScalarSF(X)<-face2node->(pos,nodeWeightSumSF),
+            facecenter,cr->(cellcenter,X,iblank))[Loci::Summation],
+      constraint(cr->geom_cells)
+{
+  int nnf = $face2node.size();
+  vect3d pf = $facecenter;
+  vect3d pc = $cr->$cellcenter-pf;
+  real xv = $cr->$X;
+  if ($cr->$iblank <=1)
+  {
+    for(int i=0;i<nnf;++i)
+    {
+      int j = (i>1)?(i-1):nnf-1;
+      vect3d pa = $face2node[i]->$pos-pf;
+      vect3d pb = $face2node[j]->$pos-pf;
+      real Wr = fabs(dot(pc,cross(pa,pb))); // Note factor 1/12 left off
+      real Wri = Wr/$face2node[i]->$nodeWeightSumSF;
+      real Wrj = Wr/$face2node[j]->$nodeWeightSumSF;
+      join($face2node[i]->$cell2nodeScalarSF(X),Wri*xv);
+      join($face2node[j]->$cell2nodeScalarSF(X),Wrj*xv);
+    }
+  }
+}
+
+/**
+ * @brief Boundary Face apply for cell-2-node mapping
+ * @retval face2node->cell2nodeScalarSF  [-] mapping from cells to nodes, scalars
+ * @param  face2node->nodeWeightSumSF    [-] weighting function at nodes
+ * @param  face2node->pos                [-] nodal coordinates
+ * @param  facecenter                    [-] face center coordinates
+ * @param  ci->cellcenter                [-] cell center coordinates
+ * @param  ci->X                         [-] scalar state
+ * @param  ci->iblank                    [-] blanked cells for overset operation
+ * @param  X_f                           [-] boundary face, scalar
+ */
+$type X_f store<real>;
+$rule apply(face2node->cell2nodeScalarSF(X)<-face2node->(pos,nodeWeightSumSF),
+            facecenter,ci->(cellcenter,X,iblank),X_f)[Loci::Summation],
+      constraint(ci,X_f)
+{
+  int nnf = $face2node.size();
+  vect3d pf = $facecenter;
+  vect3d pc = $ci->$cellcenter-pf;
+  real xv = $ci->$X;
+  real xf = $X_f;
+  if ($ci->$iblank <=1)
+  {
+    for(int i=0;i<nnf;++i)
+    {
+      int j = (i>1)?(i-1):nnf-1;
+      vect3d pa = $face2node[i]->$pos-pf;
+      vect3d pb = $face2node[j]->$pos-pf;
+      real Wl = fabs(dot(pc,cross(pa,pb))); // Note factor 1/12 left off
+      real Wli = Wl/$face2node[i]->$nodeWeightSumSF;
+      real Wlj = Wl/$face2node[j]->$nodeWeightSumSF;
+      // remove cell value
+      join($face2node[i]->$cell2nodeScalarSF(X),-Wli*xv);
+      join($face2node[j]->$cell2nodeScalarSF(X),-Wlj*xv);
+      // set value from face
+      join($face2node[i]->$cell2nodeScalarSF(X),Wli*xf);
+      join($face2node[j]->$cell2nodeScalarSF(X),Wlj*xf);
+    }
+  }
+}
+
+/**
+ * @brief Unit rule to initialize node to cell mapping for scalars
+ * @retval node2cellScalarSF    [-] mapping from nodes to cells, scalars
+ */
+$rule unit(node2cellScalarSF(X)),constraint(geom_cells)
+{
+  $node2cellScalarSF(X) = 0.0;
+}
+
+/**
+ * @brief Left-cell/face apply for node-2-cell mapping
+ * @retval cl>node2cellScalarSF          [-] mapping from nodes 2 cells, scalars
+ * @param  face2node->pos                [-] nodal coordinates
+ * @param  face2node->X                  [-] scalar state
+ * @param  facecenter                    [-] face center coordinates
+ * @param  cl->cellcenter                [-] cell center coordinates
+ * @param  cl->cellWeightSumSF           [-] cell weighting
+ * @param  cl->iblank                    [-] blanked cells for overset operation
+ */
+$rule apply(cl->node2cellScalarSF(X)<-face2node->(pos,X),facecenter,
+            cl->(cellcenter,cellWeightSumSF,iblank))[Loci::Summation],
+      constraint(cl->geom_cells),parametric(node2cellScalarSF(X))
+{
+  int nnf = $face2node.size();
+  vect3d pf = $facecenter;
+  vect3d pc = $cl->$cellcenter-pf;
+  if ($cl->$iblank <=1)
+  {
+    real cWl = 1./($cl->$cellWeightSumSF);
+    for(int i=0;i<nnf;++i)
+    {
+      int j = (i>1)?(i-1):nnf-1;
+      vect3d pa = $face2node[i]->$pos-pf;
+      vect3d pb = $face2node[j]->$pos-pf;
+      real Wl = fabs(dot(pc,cross(pa,pb)))*cWl;
+      real xv = 0.5*($face2node[i]->$X+$face2node[j]->$X);
+      join($cl->$node2cellScalarSF(X),Wl*xv);
+    }
+  }
+}
+
+/**
+ * @brief Right-cell/face apply for node-2-cell mapping
+ * @retval cr>node2cellScalarSF          [-] mapping from nodes 2 cells, scalars
+ * @param  face2node->pos                [-] nodal coordinates
+ * @param  face2node->X                  [-] scalar state
+ * @param  facecenter                    [-] face center coordinates
+ * @param  cr->cellcenter                [-] cell center coordinates
+ * @param  cr->cellWeightSumSF           [-] cell weighting
+ * @param  cr->iblank                    [-] blanked cells for overset operation
+ */
+$rule apply(cr->node2cellScalarSF(X)<-face2node->(pos,X),
+            facecenter,cr->(cellcenter,cellWeightSumSF,iblank))[Loci::Summation],
+      constraint(cr->geom_cells),parametric(node2cellScalarSF(X))
+{
+  int nnf = $face2node.size();
+  vect3d pf = $facecenter;
+  vect3d pc = $cr->$cellcenter-pf;
+  if ($cr->$iblank <=1)
+  {
+    real cWr = 1./($cr->$cellWeightSumSF);
+    for(int i=0;i<nnf;++i)
+    {
+      int j = (i>1)?(i-1):nnf-1;
+      vect3d pa = $face2node[i]->$pos-pf;
+      vect3d pb = $face2node[j]->$pos-pf;
+      real Wr = fabs(dot(pc,cross(pa,pb)))*cWr;
+      real xv = 0.5*($face2node[i]->$X+$face2node[j]->$X);
+      join($cr->$node2cellScalarSF(X),Wr*xv);
+    }
+  }
+}
+
+//////////////////////////////////////////////////////////////////////
+$type X store<vect3d>;
+/**
+ * @brief Unit rule to initialize cell 2 node mapping for vect3d
+ * @retval cell2nodeV3DSF    [-] mapping from cells to nodes, vect3d
+ */
+$rule unit(cell2nodeV3DSF(X)),constraint(pos)
+{
+  $cell2nodeV3DSF(X) = vect3d(0.0,0.0,0.0);
+}
+
+/**
+ * @brief Left-cell/face apply for cell-2-node mapping, vect3d
+ * @retval face2node->cell2nodeV3DSF     [-] mapping from cells to nodes, vect3d
+ * @param  face2node->nodeWeightSumSF    [-] weighting function at nodes
+ * @param  face2node->pos                [-] nodal coordinates
+ * @param  facecenter                    [-] face center coordinates
+ * @param  cl->cellcenter                [-] cell center coordinates
+ * @param  cl->X                         [-] vect3d state
+ * @param  cl->iblank                    [-] blanked cells for overset operation
+ */
+$rule apply(face2node->cell2nodeV3DSF(X)<-face2node->(pos,nodeWeightSumSF),
+            facecenter,cl->(cellcenter,X,iblank))[Loci::Summation],
+      constraint(cl->geom_cells)
+{
+  int nnf = $face2node.size();
+  vect3d pf = $facecenter;
+  vect3d pc = $cl->$cellcenter-pf;
+  vect3d xv = $cl->$X;
+  if ($cl->$iblank <=1)
+  {
+    for(int i=0;i<nnf;++i) {
+      int j = (i>1)?(i-1):nnf-1;
+      vect3d pa = $face2node[i]->$pos-pf;
+      vect3d pb = $face2node[j]->$pos-pf;
+      real Wl = fabs(dot(pc,cross(pa,pb))); // Note factor 1/12 left off
+      real Wli = Wl/$face2node[i]->$nodeWeightSumSF;
+      real Wlj = Wl/$face2node[j]->$nodeWeightSumSF;
+      join($face2node[i]->$cell2nodeV3DSF(X),Wli*xv);
+      join($face2node[j]->$cell2nodeV3DSF(X),Wlj*xv);
+    }
+  }
+}
+
+/**
+ * @brief Right-cell/face apply for cell-2-node mapping for vect3d
+ * @retval face2node->cell2nodeV3DSF     [-] mapping from cells to nodes, vect3d
+ * @param  face2node->nodeWeightSumSF    [-] weighting function at nodes
+ * @param  face2node->pos                [-] nodal coordinates
+ * @param  facecenter                    [-] face center coordinates
+ * @param  cr->cellcenter                [-] cell center coordinates
+ * @param  cr->X                         [-] vect3d state
+ * @param  cr->iblank                    [-] blanked cells for overset operation
+ */
+$rule apply(face2node->cell2nodeV3DSF(X)<-face2node->(pos,nodeWeightSumSF),
+            facecenter,cr->(cellcenter,X,iblank))[Loci::Summation],
+      constraint(cr->geom_cells)
+{
+  int nnf = $face2node.size();
+  vect3d pf = $facecenter;
+  vect3d pc = $cr->$cellcenter-pf;
+  vect3d xv = $cr->$X;
+  if ($cr->$iblank <=1)
+  {
+    for(int i=0;i<nnf;++i)
+    {
+      int j = (i>1)?(i-1):nnf-1;
+      vect3d pa = $face2node[i]->$pos-pf;
+      vect3d pb = $face2node[j]->$pos-pf;
+      real Wr = fabs(dot(pc,cross(pa,pb))); // Note factor 1/12 left off
+      real Wri = Wr/$face2node[i]->$nodeWeightSumSF;
+      real Wrj = Wr/$face2node[j]->$nodeWeightSumSF;
+      join($face2node[i]->$cell2nodeV3DSF(X),Wri*xv);
+      join($face2node[j]->$cell2nodeV3DSF(X),Wrj*xv);
+    }
+  }
+}
+
+$type X_f store<vect3d>;
+/**
+ * @brief Boundary Face apply for cell-2-node mapping, vect3d
+ * @retval face2node->cell2nodeV3DSF     [-] mapping from cells to nodes, vect3d
+ * @param  face2node->nodeWeightSumSF    [-] weighting function at nodes
+ * @param  face2node->pos                [-] nodal coordinates
+ * @param  facecenter                    [-] face center coordinates
+ * @param  ci->cellcenter                [-] cell center coordinates
+ * @param  ci->X                         [-] vect3d state
+ * @param  ci->iblank                    [-] blanked cells for overset operation
+ * @param  X_f                           [-] boundary face, vect3d
+ */
+$rule apply(face2node->cell2nodeV3DSF(X)<-face2node->(pos,nodeWeightSumSF),
+            facecenter,ci->(cellcenter,X,iblank),X_f)[Loci::Summation],
+      constraint(ci,X_f)
+{
+  int nnf = $face2node.size();
+  vect3d pf = $facecenter;
+  vect3d pc = $ci->$cellcenter-pf;
+  vect3d xv = $ci->$X;
+  vect3d xf = $X_f;
+  if ($ci->$iblank <=1)
+  {
+    for(int i=0;i<nnf;++i)
+    {
+      int j = (i>1)?(i-1):nnf-1;
+      vect3d pa = $face2node[i]->$pos-pf;
+      vect3d pb = $face2node[j]->$pos-pf;
+      real Wl = fabs(dot(pc,cross(pa,pb))); // Note factor 1/12 left off
+      real Wli = Wl/$face2node[i]->$nodeWeightSumSF;
+      real Wlj = Wl/$face2node[j]->$nodeWeightSumSF;
+      // remove cell value
+      join($face2node[i]->$cell2nodeV3DSF(X),-Wli*xv);
+      join($face2node[j]->$cell2nodeV3DSF(X),-Wlj*xv);
+      // set value from face
+      join($face2node[i]->$cell2nodeV3DSF(X),Wli*xf);
+      join($face2node[j]->$cell2nodeV3DSF(X),Wlj*xf);
+    }
+  }
+}
+
+/**
+ * @brief Unit rule to initialize node to cell mapping for vect3d
+ * @retval node2cellV3DSF    [-] mapping from nodes to cells, vect3d
+ */
+$rule unit(node2cellV3DSF(X)),constraint(geom_cells) {
+  $node2cellV3DSF(X) = vect3d(0.0,0.0,0.0);
+}
+
+/**
+ * @brief Left-cell/face apply for node-2-cell mapping, vect3d
+ * @retval cl>node2cellV3DSF             [-] mapping from nodes 2 cells, vect3d
+ * @param  face2node->pos                [-] nodal coordinates
+ * @param  face2node->X                  [-] vect3d state
+ * @param  facecenter                    [-] face center coordinates
+ * @param  cl->cellcenter                [-] cell center coordinates
+ * @param  cl->cellWeightSumSF           [-] cell weighting
+ * @param  cl->iblank                    [-] blanked cells for overset operation
+ */
+$rule apply(cl->node2cellV3DSF(X)<-face2node->(pos,X),facecenter,
+            cl->(cellcenter,cellWeightSumSF,iblank))[Loci::Summation],
+      constraint(cl->geom_cells)
+{
+  int nnf = $face2node.size();
+  vect3d pf = $facecenter;
+  vect3d pc = $cl->$cellcenter-pf;
+  if ($cl->$iblank <=1)
+  {
+    real cWl = 1./($cl->$cellWeightSumSF);
+    for(int i=0;i<nnf;++i) {
+      int j = (i>1)?(i-1):nnf-1;
+      vect3d pa = $face2node[i]->$pos-pf;
+      vect3d pb = $face2node[j]->$pos-pf;
+      real Wl = fabs(dot(pc,cross(pa,pb)))*cWl;
+      vect3d xv = 0.5*($face2node[i]->$X+$face2node[j]->$X);
+      join($cl->$node2cellV3DSF(X),Wl*xv);
+    }
+  }
+}
+
+/**
+ * @brief Right-cell/face apply for node-2-cell mapping, vect3d
+ * @retval cr>node2cellV3DSF             [-] mapping from nodes 2 cells, vect3d
+ * @param  face2node->pos                [-] nodal coordinates
+ * @param  face2node->X                  [-] vect3d state
+ * @param  facecenter                    [-] face center coordinates
+ * @param  cr->cellcenter                [-] cell center coordinates
+ * @param  cr->cellWeightSumSF           [-] cell weighting
+ * @param  cr->iblank                    [-] blanked cells for overset operation
+ */
+$rule apply(cr->node2cellV3DSF(X)<-face2node->(pos,X),facecenter,
+            cr->(cellcenter,cellWeightSumSF,iblank))[Loci::Summation],
+      constraint(cr->geom_cells)
+{
+  int nnf = $face2node.size();
+  vect3d pf = $facecenter;
+  vect3d pc = $cr->$cellcenter-pf;
+  if ($cr->$iblank <=1)
+  {
+    real cWr = 1./($cr->$cellWeightSumSF);
+    for(int i=0;i<nnf;++i)
+    {
+      int j = (i>1)?(i-1):nnf-1;
+      vect3d pa = $face2node[i]->$pos-pf;
+      vect3d pb = $face2node[j]->$pos-pf;
+      real Wr = fabs(dot(pc,cross(pa,pb)))*cWr;
+      vect3d xv = 0.5*($face2node[i]->$X+$face2node[j]->$X);
+      join($cr->$node2cellV3DSF(X),Wr*xv);
+    }
+  }
+}
+
+//////////////////////////////////////////////////////////////////////
+// MPGCOMMENT 06-08-2020 ---> new tens3d filtering ... needed for dynamic smagorinsky
+$type X store<tens3d>;
+/**
+ * @brief Unit rule to initialize cell 2 node mapping for tens3d
+ * @retval cell2nodeT3DSF    [-] mapping from cells to nodes, tens3d
+ */
+$rule unit(cell2nodeT3DSF(X)),constraint(pos)
+{
+  $cell2nodeT3DSF(X) = tens3d(vect3d(0.,0.,0.),vect3d(0.,0.,0.),vect3d(0.,0.,0.));
+}
+
+/**
+ * @brief Left-cell/face apply for cell-2-node mapping, tens3d
+ * @retval face2node->cell2nodeT3DSF     [-] mapping from cells to nodes, tens3d
+ * @param  face2node->nodeWeightSumSF    [-] weighting function at nodes
+ * @param  face2node->pos                [-] nodal coordinates
+ * @param  facecenter                    [-] face center coordinates
+ * @param  cl->cellcenter                [-] cell center coordinates
+ * @param  cl->X                         [-] tens3d state
+ * @param  cl->iblank                    [-] blanked cells for overset operation
+ */
+$rule apply(face2node->cell2nodeT3DSF(X)<-face2node->(pos,nodeWeightSumSF),
+            facecenter,cl->(cellcenter,X,iblank))[Loci::Summation],
+      constraint(cl->geom_cells)
+{
+  int nnf = $face2node.size();
+  vect3d pf = $facecenter;
+  vect3d pc = $cl->$cellcenter-pf;
+  tens3d xv = $cl->$X;
+  if ($cl->$iblank <= 1)
+  {
+    for(int i=0;i<nnf;++i) {
+      int j = (i>1)?(i-1):nnf-1;
+      vect3d pa = $face2node[i]->$pos-pf;
+      vect3d pb = $face2node[j]->$pos-pf;
+      real Wl = fabs(dot(pc,cross(pa,pb))); // Note factor 1/12 left off
+      real Wli = Wl/$face2node[i]->$nodeWeightSumSF;
+      real Wlj = Wl/$face2node[j]->$nodeWeightSumSF;
+      for(int p=0;p<3; p++)
+      {
+        for(int k=0;k<3; k++)
+        {
+          $face2node[i]->$cell2nodeT3DSF(X)[p][k]+=Wli*xv[p][k];
+          $face2node[j]->$cell2nodeT3DSF(X)[p][k]+=Wlj*xv[p][k];
+        }
+      }
+    }
+  }
+}
+
+/**
+ * @brief Right-cell/face apply for cell-2-node mapping for tens3d
+ * @retval face2node->cell2nodeT3DSF     [-] mapping from cells to nodes, tens3d
+ * @param  face2node->nodeWeightSumSF    [-] weighting function at nodes
+ * @param  face2node->pos                [-] nodal coordinates
+ * @param  facecenter                    [-] face center coordinates
+ * @param  cr->cellcenter                [-] cell center coordinates
+ * @param  cr->X                         [-] tens3d state
+ * @param  cr->iblank                    [-] blanked cells for overset operation
+ */
+$rule apply(face2node->cell2nodeT3DSF(X)<-face2node->(pos,nodeWeightSumSF),
+            facecenter,cr->(cellcenter,X,iblank))[Loci::Summation],
+      constraint(cr->geom_cells)
+ {
+  int nnf = $face2node.size();
+  vect3d pf = $facecenter;
+  vect3d pc = $cr->$cellcenter-pf;
+  tens3d xv = $cr->$X;
+  if ($cr->$iblank <=1)
+  {
+    for(int i=0;i<nnf;++i)
+    {
+      int j = (i>1)?(i-1):nnf-1;
+      vect3d pa = $face2node[i]->$pos-pf;
+      vect3d pb = $face2node[j]->$pos-pf;
+      real Wr = fabs(dot(pc,cross(pa,pb))); // Note factor 1/12 left off
+      real Wri = Wr/$face2node[i]->$nodeWeightSumSF;
+      real Wrj = Wr/$face2node[j]->$nodeWeightSumSF;
+      for(int p=0;p<3; p++)
+      {
+        for(int k=0;k<3; k++)
+        {
+          $face2node[i]->$cell2nodeT3DSF(X)[p][k]+=Wri*xv[p][k];
+          $face2node[j]->$cell2nodeT3DSF(X)[p][k]+=Wrj*xv[p][k];
+        }
+      }
+    }
+  }
+}
+
+$type X_f store<tens3d>;
+/**
+ * @brief Boundary Face apply for cell-2-node mapping, tens3d
+ * @retval face2node->cell2nodeT3DSF     [-] mapping from cells to nodes, tens3d
+ * @param  face2node->nodeWeightSumSF    [-] weighting function at nodes
+ * @param  face2node->pos                [-] nodal coordinates
+ * @param  facecenter                    [-] face center coordinates
+ * @param  ci->cellcenter                [-] cell center coordinates
+ * @param  ci->X                         [-] tens3d state
+ * @param  ci->iblank                    [-] blanked cells for overset operation
+ * @param  X_f                           [-] boundary face, tens3d
+ */
+$rule apply(face2node->cell2nodeT3DSF(X)<-face2node->(pos,nodeWeightSumSF),
+            facecenter,ci->(cellcenter,X,iblank),X_f)[Loci::Summation],
+      constraint(ci,X_f)
+{
+  int nnf = $face2node.size();
+  vect3d pf = $facecenter;
+  vect3d pc = $ci->$cellcenter-pf;
+  tens3d xv = $ci->$X;
+  tens3d xf = $X_f;
+  if ($ci->$iblank <=1)
+  {
+    for(int i=0;i<nnf;++i)
+    {
+      int j = (i>1)?(i-1):nnf-1;
+      vect3d pa = $face2node[i]->$pos-pf;
+      vect3d pb = $face2node[j]->$pos-pf;
+      real Wl = fabs(dot(pc,cross(pa,pb))); // Note factor 1/12 left off
+      real Wli = Wl/$face2node[i]->$nodeWeightSumSF;
+      real Wlj = Wl/$face2node[j]->$nodeWeightSumSF;
+      for(int p=0;p<3; p++)
+      {
+        for(int k=0;k<3; k++)
+        {
+          // remove cell value
+          $face2node[i]->$cell2nodeT3DSF(X)[p][k]-=Wli*xv[p][k];
+          $face2node[j]->$cell2nodeT3DSF(X)[p][k]-=Wlj*xv[p][k];
+          // set value from face
+          $face2node[i]->$cell2nodeT3DSF(X)[p][k]+=Wli*xf[p][k];
+          $face2node[j]->$cell2nodeT3DSF(X)[p][k]+=Wlj*xf[p][k];
+        }
+      }
+    }
+  }
+}
+
+/**
+ * @brief Unit rule to initialize node to cell mapping for tens3d
+ * @retval node2cellT3DSF    [-] mapping from nodes to cells, tens3d
+ */
+$rule unit(node2cellT3DSF(X)),constraint(geom_cells)
+{
+  $node2cellT3DSF(X) = tens3d(vect3d(0.,0.,0.),vect3d(0.,0.,0.),vect3d(0.,0.,0.));
+}
+
+/**
+ * @brief Left-cell/face apply for node-2-cell mapping, tens3d
+ * @retval cl>node2cellT3DSF             [-] mapping from nodes 2 cells, tens3d
+ * @param  face2node->pos                [-] nodal coordinates
+ * @param  face2node->X                  [-] tens3d state
+ * @param  facecenter                    [-] face center coordinates
+ * @param  cl->cellcenter                [-] cell center coordinates
+ * @param  cl->cellWeightSumSF           [-] cell weighting
+ * @param  cl->iblank                    [-] blanked cells for overset operation
+ */
+$rule apply(cl->node2cellT3DSF(X)<-face2node->(pos,X),
+            facecenter,cl->(cellcenter,cellWeightSumSF,iblank))[Loci::Summation],
+      constraint(cl->geom_cells)
+{
+  int nnf = $face2node.size();
+  vect3d pf = $facecenter;
+  vect3d pc = $cl->$cellcenter-pf;
+  if ($cl->$iblank <=1)
+  {
+    real cWl = 1./($cl->$cellWeightSumSF);
+    for(int i=0;i<nnf;++i)
+    {
+      int j = (i>1)?(i-1):nnf-1;
+      vect3d pa = $face2node[i]->$pos-pf;
+      vect3d pb = $face2node[j]->$pos-pf;
+      real Wl = fabs(dot(pc,cross(pa,pb)))*cWl;
+      for(int p=0;p<3; p++)
+      {
+        for(int k=0;k<3; k++)
+        {
+          $cl->$node2cellT3DSF(X)[p][k] += 0.5*($face2node[i]->$X[p][k]+$face2node[j]->$X[p][k])*Wl;
+        }
+      }
+    }
+  }
+}
+
+/**
+ * @brief Right-cell/face apply for node-2-cell mapping, tens3d
+ * @retval cr>node2cellT3DSF             [-] mapping from nodes 2 cells, tens3d
+ * @param  face2node->pos                [-] nodal coordinates
+ * @param  face2node->X                  [-] tens3d state
+ * @param  facecenter                    [-] face center coordinates
+ * @param  cr->cellcenter                [-] cell center coordinates
+ * @param  cr->cellWeightSumSF           [-] cell weighting
+ * @param  cr->iblank                    [-] blanked cells for overset operation
+ */
+$rule apply(cr->node2cellT3DSF(X)<-face2node->(pos,X),facecenter,
+            cr->(cellcenter,cellWeightSumSF,iblank))[Loci::Summation],
+      constraint(cr->geom_cells)
+{
+  int nnf = $face2node.size();
+  vect3d pf = $facecenter;
+  vect3d pc = $cr->$cellcenter-pf;
+  if ($cr->$iblank)
+  {
+    real cWr = 1./($cr->$cellWeightSumSF);
+    for(int i=0;i<nnf;++i)
+    {
+      int j = (i>1)?(i-1):nnf-1;
+      vect3d pa = $face2node[i]->$pos-pf;
+      vect3d pb = $face2node[j]->$pos-pf;
+      real Wr = fabs(dot(pc,cross(pa,pb)))*cWr;
+      for(int p=0;p<3; p++)
+      {
+        for(int k=0;k<3; k++)
+        {
+          $cr->$node2cellT3DSF(X)[p][k] += 0.5*($face2node[i]->$X[p][k]+$face2node[j]->$X[p][k])*Wr;
+        }
+      }
+    }
+  }
+}
+
+//////////////////////////////////////////////////////////////////////
+$type X storeVec<real>;
+$type vecSize(X) param<int>;
+/**
+ * @brief Unit rule to initialize cell 2 node mapping for vector
+ * @retval cell2nodeVectSF    [-] mapping from cells to nodes, vector
+ */
+$rule unit(cell2nodeVectSF(X)<-vecSize(X)),constraint(pos),
+  prelude
+{
+  $cell2nodeVectSF(X).setVecSize(*$vecSize(X));
+} compute {
+  $cell2nodeVectSF(X) = mk_Scalar(0.0);
+}
+
+/**
+ * @brief Left-cell/face apply for cell-2-node mapping, vector
+ * @retval face2node->cell2nodeVectSF    [-] mapping from cells to nodes, vector
+ * @param  face2node->nodeWeightSumSF    [-] weighting function at nodes
+ * @param  face2node->pos                [-] nodal coordinates
+ * @param  facecenter                    [-] face center coordinates
+ * @param  cl->cellcenter                [-] cell center coordinates
+ * @param  cl->X                         [-] vector state
+ * @param  cl->iblank                    [-] blanked cells for overset operation
+ */
+$rule apply(face2node->cell2nodeVectSF(X)<-face2node->(pos,nodeWeightSumSF),
+            facecenter,cl->(cellcenter,X,iblank),vecSize(X))[Loci::Summation],
+      constraint(cl->geom_cells)
+{
+  int nnf = $face2node.size();
+  vect3d pf = $facecenter;
+  vect3d pc = $cl->$cellcenter-pf;
+  int sz = $vecSize(X);
+  if ($cl->$iblank <=1)
+  {
+    for(int i=0;i<nnf;++i)
+    {
+      int j = (i>1)?(i-1):nnf-1;
+      vect3d pa = $face2node[i]->$pos-pf;
+      vect3d pb = $face2node[j]->$pos-pf;
+      real Wl = fabs(dot(pc,cross(pa,pb))); // Note factor 1/12 left off
+      real Wli = Wl/$face2node[i]->$nodeWeightSumSF;
+      real Wlj = Wl/$face2node[j]->$nodeWeightSumSF;
+      for(int k=0;k<sz;++k)
+      {
+        real xv = $cl->$X[k];
+        $face2node[i]->$cell2nodeVectSF(X)[k] += Wli*xv;
+        $face2node[j]->$cell2nodeVectSF(X)[k] += Wlj*xv;
+      }
+    }
+  }
+}
+
+/**
+ * @brief Right-cell/face apply for cell-2-node mapping for vector
+ * @retval face2node->cell2nodeVectSF     [-] mapping from cells to nodes, vector
+ * @param  face2node->nodeWeightSumSF    [-] weighting function at nodes
+ * @param  face2node->pos                [-] nodal coordinates
+ * @param  facecenter                    [-] face center coordinates
+ * @param  cr->cellcenter                [-] cell center coordinates
+ * @param  cr->X                         [-] vector state
+ * @param  cr->iblank                    [-] blanked cells for overset operation
+ */
+$rule apply(face2node->cell2nodeVectSF(X)<-face2node->(pos,nodeWeightSumSF),
+            facecenter,cr->(cellcenter,X,iblank),vecSize(X))[Loci::Summation],
+      constraint(cr->geom_cells)
+{
+  int nnf = $face2node.size();
+  vect3d pf = $facecenter;
+  vect3d pc = $cr->$cellcenter-pf;
+  int sz = $vecSize(X);
+  if ($cr->$iblank <=1)
+  {
+    for(int i=0;i<nnf;++i)
+    {
+      int j = (i>1)?(i-1):nnf-1;
+      vect3d pa = $face2node[i]->$pos-pf;
+      vect3d pb = $face2node[j]->$pos-pf;
+      real Wr = fabs(dot(pc,cross(pa,pb))); // Note factor 1/12 left off
+      real Wri = Wr/$face2node[i]->$nodeWeightSumSF;
+      real Wrj = Wr/$face2node[j]->$nodeWeightSumSF;
+      for(int k=0;k<sz;++k)
+      {
+        real xv = $cr->$X[k];
+        $face2node[i]->$cell2nodeVectSF(X)[k] += Wri*xv;
+        $face2node[j]->$cell2nodeVectSF(X)[k] += Wrj*xv;
+      }
+    }
+  }
+}
+
+$type X_f storeVec<real>;
+/**
+ * @brief Boundary Face apply for cell-2-node mapping, vector
+ * @retval face2node->cell2nodeVectSF    [-] mapping from cells to nodes, vector
+ * @param  face2node->nodeWeightSumSF    [-] weighting function at nodes
+ * @param  face2node->pos                [-] nodal coordinates
+ * @param  facecenter                    [-] face center coordinates
+ * @param  ci->cellcenter                [-] cell center coordinates
+ * @param  ci->X                         [-] vector state
+ * @param  ci->iblank                    [-] blanked cells for overset operation
+ * @param  X_f                           [-] boundary face, vector
+ */
+$rule apply(face2node->cell2nodeVectSF(X)<-face2node->(pos,nodeWeightSumSF),
+            facecenter,ci->(cellcenter,X,iblank),X_f,vecSize(X))[Loci::Summation],
+      constraint(cr->geom_cells)
+{
+  int nnf = $face2node.size();
+  vect3d pf = $facecenter;
+  vect3d pc = $ci->$cellcenter-pf;
+  int sz = $vecSize(X);
+  if ($ci->$iblank <=1)
+  {
+    for(int i=0;i<nnf;++i)
+    {
+      int j = (i>1)?(i-1):nnf-1;
+      vect3d pa = $face2node[i]->$pos-pf;
+      vect3d pb = $face2node[j]->$pos-pf;
+      real Wl = fabs(dot(pc,cross(pa,pb))); // Note factor 1/12 left off
+      real Wli = Wl/$face2node[i]->$nodeWeightSumSF;
+      real Wlj = Wl/$face2node[j]->$nodeWeightSumSF;
+      for(int k=0;k<sz;++k)
+      {
+        real xv = $ci->$X[k];
+        real xf = $X_f[k];
+        // Remove the cell value
+        $face2node[i]->$cell2nodeVectSF(X)[k] -= Wli*xv;
+        $face2node[j]->$cell2nodeVectSF(X)[k] -= Wlj*xv;
+        // Add the face value
+        $face2node[i]->$cell2nodeVectSF(X)[k] += Wli*xf;
+        $face2node[j]->$cell2nodeVectSF(X)[k] += Wlj*xf;
+      }
+    }
+  }
+}
+
+/**
+ * @brief Unit rule to initialize node to cell mapping for vectors
+ * @retval node2cellVectSF    [-] mapping from nodes to cells, vectors
+ */
+$rule unit(node2cellVectSF(X)<-vecSize(X)),constraint(geom_cells),prelude
+{
+  $node2cellVectSF(X).setVecSize(*$vecSize(X));
+} compute  {
+  $node2cellVectSF(X) = mk_Scalar(0.0);
+}
+
+/**
+ * @brief Left-cell/face apply for node-2-cell mapping, vectors
+ * @retval cl>node2cellVectSF            [-] mapping from nodes 2 cells, vectors
+ * @param  face2node->pos                [-] nodal coordinates
+ * @param  face2node->X                  [-] vectors state
+ * @param  facecenter                    [-] face center coordinates
+ * @param  cl->cellcenter                [-] cell center coordinates
+ * @param  cl->cellWeightSumSF           [-] cell weighting
+ * @param  cl->iblank                    [-] blanked cells for overset operation
+ */
+$rule apply(cl->node2cellVectSF(X)<-face2node->(pos,X),facecenter,
+            cl->(cellcenter,cellWeightSumSF,iblank),vecSize(X))[Loci::Summation],
+      constraint(cl->geom_cells),parametric(node2cellVectSF(X))
+{
+  int nnf = $face2node.size();
+  vect3d pf = $facecenter;
+  vect3d pc = $cl->$cellcenter-pf;
+  if ($cl->$iblank <=1)
+  {
+    real cWl = 1./($cl->$cellWeightSumSF);
+    int sz = $vecSize(X);
+    for(int i=0;i<nnf;++i)
+    {
+      int j = (i>1)?(i-1):nnf-1;
+      vect3d pa = $face2node[i]->$pos-pf;
+      vect3d pb = $face2node[j]->$pos-pf;
+      real Wl = fabs(dot(pc,cross(pa,pb)))*cWl;
+      for(int k=0;k<sz;++k)
+      {
+        real xv = 0.5*($face2node[i]->$X[k]+$face2node[j]->$X[k]);
+        $cl->$node2cellVectSF(X)[k] += Wl*xv;
+      }
+    }
+  }
+}
+
+/**
+ * @brief Right-cell/face apply for node-2-cell mapping for vectors
+ * @retval cr>node2cellVectSF            [-] mapping from nodes 2 cells, vector
+ * @param  face2node->pos                [-] nodal coordinates
+ * @param  face2node->X                  [-] vector state
+ * @param  facecenter                    [-] face center coordinates
+ * @param  cr->cellcenter                [-] cell center coordinates
+ * @param  cr->cellWeightSumSF           [-] cell weighting
+ * @param  cr->iblank                    [-] blanked cells for overset operation
+ */
+$rule apply(cr->node2cellVectSF(X)<-face2node->(pos,X),facecenter,
+            cr->(cellcenter,cellWeightSumSF,iblank),vecSize(X))[Loci::Summation],
+      constraint(cr->geom_cells),parametric(node2cellVectSF(X))
+{
+  int nnf = $face2node.size();
+  vect3d pf = $facecenter;
+  vect3d pc = $cr->$cellcenter-pf;
+  if ($cr->$iblank <=1)
+  {
+    real cWr = 1./($cr->$cellWeightSumSF);
+    int sz = $vecSize(X);
+    for(int i=0;i<nnf;++i)
+    {
+      int j = (i>1)?(i-1):nnf-1;
+      vect3d pa = $face2node[i]->$pos-pf; 
+      vect3d pb = $face2node[j]->$pos-pf;
+      real Wr = fabs(dot(pc,cross(pa,pb)))*cWr;
+      for(int k=0;k<sz;++k)
+      {
+        real xv = 0.5*($face2node[i]->$X[k]+$face2node[j]->$X[k]);
+        $cr->$node2cellVectSF(X)[k] += Wr*xv;
+      }
+    }
+  }
+}
+}
