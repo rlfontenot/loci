@@ -25,7 +25,7 @@ include $(LOCI_SRC)/Loci.conf
 DIR_NAME	=	System
 MODULE_NAME	=	Loci
 LIB_NAME1	=	lib$(MODULE_NAME).a
-LIB_NAME2	=	lib$(MODULE_NAME).so
+LIB_NAME2	=	lib$(MODULE_NAME).$(LIB_SUFFIX)
 
 ################################################################################
 # No changes required below this line
@@ -48,56 +48,56 @@ INCLUDES		=	-I$(LOCI_SRC)/include/sprng \
 					-I$(LOCI_SRC)/include       \
 					$(PARMETIS_INCLUDE)
 LOCAL_LIBS		=	-lparmetis -lsprng
-DEPS			=	${PARMETIS_BASE}/lib/libparmetis.so \
-					${LOCI_SRC}/lib/libsprng.so
+DEPS			=	${PARMETIS_BASE}/lib/libparmetis.$(LIB_SUFFIX) \
+					${LOCI_SRC}/lib/libsprng.$(LIB_SUFFIX)
 
 
 default:	$(LIB_NAME2)
 all:		$(LIB_NAME1) $(LIB_NAME2)
 spotless:	distclean clean_install
 
-${PARMETIS_BASE}/lib/libparmetis.so:
+${PARMETIS_BASE}/lib/libparmetis.$(LIB_SUFFIX):
 	@$(MAKE) -C $(LOCI_SRC) ParMETIS
-${LOCI_SRC}/lib/libsprng.so:
+${LOCI_SRC}/lib/libsprng.$(LIB_SUFFIX):
 	@$(MAKE) -C $(LOCI_SRC)/sprng
 
 FVMGridReader.o: $(DEPS)
 
 $(LIB_NAME1): $(VERSION_FILE) $(OBJS)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(AR) $(ARFLAGS) $@ $(OBJS)
 	$(RANLIB) $@
-	cp -u $@ $(LOCI_SRC)/lib/$@
+	$(COPY) -u $@ $(LOCI_SRC)/lib/$@
 
 $(LIB_NAME2): $(VERSION_FILE) $(OBJS)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(DYNAMIC_LD) $(DYNAMIC_LD_FLAGS) $@ $(LDFLAGS) $(LOCAL_LIBS) $(OBJS)
-	cp -u $@ $(LOCI_SRC)/lib/$@
+	$(COPY) -u $@ $(LOCI_SRC)/lib/$@
 
 install: $(LIB_NAME2) install_include
-	@echo -e "\e[$(PRT) $@_$(MODULE_NAME) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
 ifneq ($(LOCI_SRC),$(LOCI_BASE))
-	cp -u $(LOCI_SRC)/lib/$(LIB_NAME2) $(LOCI_BASE)/lib/$(LIB_NAME2)
+	$(COPY) -u $(LOCI_SRC)/lib/$(LIB_NAME2) $(LOCI_BASE)/lib/$(LIB_NAME2)
 endif
 
 install_include: $(LOCI_BASE)/include/Config/.
 install_include: $(LOCI_BASE)/include/MPI_stubb/.
-	@echo -e "\e[$(PRT) $@_$(MODULE_NAME) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
 ifneq ($(LOCI_SRC),$(LOCI_BASE))
-	cp -u $(LOCI_SRC)/include/Config/*.h    $(LOCI_BASE)/include/Config/
-	cp -u $(LOCI_SRC)/include/MPI_stubb/*.h $(LOCI_BASE)/include/MPI_stubb/
-	cp -u $(LOCI_SRC)/include/Loci $(LOCI_BASE)/include/
-	for d in $(LS_INC_H);  do cp -p  $(LOCI_SRC)/include/$$d $(LOCI_BASE)/include/; done
-	for d in $(LS_INC_LH); do cp -p  $(LOCI_SRC)/include/$$d $(LOCI_BASE)/include/; done
+	$(COPY) -u $(LOCI_SRC)/include/Config/*.h    $(LOCI_BASE)/include/Config/
+	$(COPY) -u $(LOCI_SRC)/include/MPI_stubb/*.h $(LOCI_BASE)/include/MPI_stubb/
+	$(COPY) -u $(LOCI_SRC)/include/Loci $(LOCI_BASE)/include/
+	for d in $(LS_INC_H);  do $(COPY) -p  $(LOCI_SRC)/include/$$d $(LOCI_BASE)/include/; done
+	for d in $(LS_INC_LH); do $(COPY) -p  $(LOCI_SRC)/include/$$d $(LOCI_BASE)/include/; done
 endif
 
 clean_install: clean_install_include
-	@echo -e "\e[$(PRT) $@_$(MODULE_NAME) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
 	rm -rf $(LOCI_BASE)/lib/$(LIB_NAME1)
 	rm -rf $(LOCI_BASE)/lib/$(LIB_NAME2)
 
 clean_install_include:
-	@echo -e "\e[$(PRT) $@_$(MODULE_NAME) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
 ifneq ($(LOCI_SRC),$(LOCI_BASE))
 	for d in $(LS_INC_H);  do rm -f $(LOCI_BASE)/include/$$d; done
 	for d in $(LS_INC_LH); do rm -f $(LOCI_BASE)/include/$$d; done
@@ -107,13 +107,13 @@ ifneq ($(LOCI_SRC),$(LOCI_BASE))
 endif
 
 clean:
-	@echo -e "\e[$(PRT) $@_$(MODULE_NAME) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
 	rm -fr $(OBJS) $(LIB_NAME1) $(LIB_NAME2) $(JUNK)
 	rm -fr $(LOCI_SRC)/lib/$(LIB_NAME1)
 	rm -fr $(LOCI_SRC)/lib/$(LIB_NAME2)
 
 distclean: clean
-	@echo -e "\e[$(PRT) $@_$(MODULE_NAME) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
 	rm -fr $(DEPEND_FILES)
 
 
@@ -121,7 +121,7 @@ $(VERSION_FILE):
 ifneq ($(shell date '+%F %H:%M' -r $@ 2>/dev/null),$(shell date \
                                                                   '+%F %H:%M'))
 ifneq ($(GIT_INFO),$(OLD_GIT_INFO))
-	@echo -e "\e[$(PRT) $@_$(MODULE_NAME) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
 	@rm -rf $@
 	@echo "/** ****************************************************************\
 	************"                                    >> $@

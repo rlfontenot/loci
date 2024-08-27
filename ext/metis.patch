@@ -1,0 +1,12 @@
+diff --git a/Makefile b/Makefile
+index 8fe67e7..2ea78e8 100644
+--- a/Makefile
++++ b/Makefile
+@@ -25,6 +25,7 @@ REALWIDTH = "\#define REALTYPEWIDTH 32"
+ CONFIG_FLAGS = -DCMAKE_VERBOSE_MAKEFILE=1
+ ifneq ($(gklib_path), not-set)
+     CONFIG_FLAGS += -DGKLIB_PATH=$(abspath $(gklib_path))
++    CONFIG_FLAGS += -DCMAKE_C_FLAGS="-lGKlib -Wno-unused-command-line-argument"
+ endif
+ ifneq ($(prefix), not-set)
+     CONFIG_FLAGS += -DCMAKE_INSTALL_PREFIX=$(prefix)

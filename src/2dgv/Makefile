@@ -40,26 +40,26 @@ all:		$(TARGET)
 spotless:	distclean clean_install
 
 $(TARGET): $(OBJS)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(CXX) -o $@ $(OBJS) $(LIBS)
-	cp -u $@ $(LOCI_SRC)/bin/$@
+	$(COPY) -u $@ $(LOCI_SRC)/bin/$@
 
 install: $(LOCI_BASE)/bin/. $(TARGET)
-	@echo -e "\e[$(PRT) $@_$(TARGET) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(TARGET) $(NC)"
 ifneq ($(LOCI_SRC),$(LOCI_BASE))
-	cp -u $(LOCI_SRC)/bin/$(TARGET) $(LOCI_BASE)/bin/$(TARGET)
+	$(COPY) -u $(LOCI_SRC)/bin/$(TARGET) $(LOCI_BASE)/bin/$(TARGET)
 endif
 
 clean_install:
-	@echo -e "\e[$(PRT) $@_$(TARGET) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(TARGET) $(NC)"
 	rm -rf $(LOCI_BASE)/bin/$(TARGET)
 
 clean:
-	@echo -e "\e[$(PRT) $@_$(TARGET) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(TARGET) $(NC)"
 	rm -fr $(LOCI_SRC)/bin/$(TARGET) $(TARGET) $(OBJS) $(JUNK)
 
 distclean: clean
-	@echo -e "\e[$(PRT) $@_$(TARGET) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(TARGET) $(NC)"
 	rm -fr $(DEPEND_FILES)
 
 #include automatically generated dependencies

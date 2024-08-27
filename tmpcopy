@@ -102,19 +102,19 @@ INCLUDE_DIRS="include            \
               include/libadf     \
               include/sprng"
 
-TARGET_DIRS="targets               \
-            targets/deps"
+TARGET_DIRS="targets             \
+             targets/deps"
 
-TUT_DIRS="Tutorial                    \
-          Tutorial/1D-Diffusion       \
-          Tutorial/Datatypes          \
-          Tutorial/docs               \
-          Tutorial/docs/figures       \
-          Tutorial/heat               \
-          Tutorial/lfvm               \
-          Tutorial/life               \
-          Tutorial/LociTutorialSlides \
-          Tutorial/LociTutorialSlides/Figures "
+TUT_DIRS="Tutorial                            \
+          Tutorial/1D-Diffusion               \
+          Tutorial/Datatypes                  \
+          Tutorial/docs                       \
+          Tutorial/docs/figures               \
+          Tutorial/heat                       \
+          Tutorial/lfvm                       \
+          Tutorial/life                       \
+          Tutorial/LociTutorialSlides         \
+          Tutorial/LociTutorialSlides/Figures"
 
 echo TOOLS_DIR=${TARGET_DIRS}
 

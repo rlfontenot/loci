@@ -12,16 +12,21 @@ DEST_PREFIX=$2
 GKLIB_BASE=$3
 METIS_BASE=$4
 
-source ${LOCI_SRC}/targets/deps/installFunctions.sh
+ARCH=$(uname -s)
+if [ "${ARCH}" == "Darwin" ]; then
+  LIB_SUFFIX=dylib
+else
+  LIB_SUFFIX=so
+fi
 
 cd ${LOCI_SRC}/ext/ParMETIS
 
-if [ -f ${DEST_PREFIX}/lib/libparmetis.so ]; then
-  echo "ParMETIS found in '${DEST_PREFIX}/lib/libparmetis.so'"
+if [ -f ${DEST_PREFIX}/lib/libparmetis.${LIB_SUFFIX} ]; then
+  echo "ParMETIS found in '${DEST_PREFIX}/lib/libparmetis.${LIB_SUFFIX}'"
   exit 0
 fi
 
-mkdir -p ${DEST_PREFIX}
+mkdir -p ${DEST_PREFIX}/lib
 rm -rf build
 mkdir build
 cd build
@@ -32,7 +37,7 @@ cmake -DCMAKE_INSTALL_PREFIX=${DEST_PREFIX} \
       -DSHARED=on \
       -DCMAKE_VERBOSE_MAKEFILE=1 \
       -DCMAKE_C_COMPILER=mpicc \
-      -DCMAKE_C_FLAGS="-O3 -fPIC" \
+      -DCMAKE_C_FLAGS="-O3 -fPIC -Wno-unused-command-line-argument" \
       -DCMAKE_EXE_LINKER_FLAGS="-lmpi" \
       ../ > config.out 2>&1 && \
 make -j install > make.out
@@ -42,7 +47,7 @@ cmake -DCMAKE_INSTALL_PREFIX=${DEST_PREFIX} \
       -DMETIS_PATH=${METIS_BASE} \
       -DCMAKE_VERBOSE_MAKEFILE=1 \
       -DCMAKE_C_COMPILER=mpicc \
-      -DCMAKE_C_FLAGS="-O3 -fPIC" \
+      -DCMAKE_C_FLAGS="-O3 -fPIC -Wno-unused-command-line-argument" \
       -DCMAKE_EXE_LINKER_FLAGS="-lmpi" \
       ../ >> config.out 2>&1 && \
 make -j install >> make.out

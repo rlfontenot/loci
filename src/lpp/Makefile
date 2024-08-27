@@ -34,37 +34,37 @@ DEPEND_FILES	=	$(subst .o,.d,$(OBJS))
 JUNK			=	*~ core ii_files ti_files KCC_files so_locations rii_files
 INCLUDES		=	-I$(LOCI_SRC)/include
 LOCAL_LIBS		=	$(RPATH)$(LOCI_RPATH) -L$(LOCI_SRC)/lib -lTools -lm
-DEPS			=	$(LOCI_SRC)/lib/libTools.so
+DEPS			=	$(LOCI_SRC)/lib/libTools.$(LIB_SUFFIX)
 
 default:	$(TARGET)
 all:		$(TARGET)
 spotless:	distclean clean_install
 
 
-$(LOCI_SRC)/lib/libTools.so:
+$(LOCI_SRC)/lib/libTools.$(LIB_SUFFIX):
 	$(MAKE) -C $(LOCI_SRC)/Tools
 
 $(TARGET): $(DEPS) $(OBJS)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(LDBSL) -o $@ $(OBJS) $(LOCAL_LIBS) $(LDFLAGS)
-	cp $@ $(LOCI_SRC)/bin/$@
+	$(COPY) $@ $(LOCI_SRC)/bin/$@
 
 install: $(LOCI_BASE)/bin/. $(TARGET)
-	@echo -e "\e[$(PRT) $@_$(TARGET) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(TARGET) $(NC)"
 ifneq ($(LOCI_SRC),$(LOCI_BASE))
-	cp -u $(LOCI_SRC)/bin/$(TARGET) $(LOCI_BASE)/bin/$(TARGET)
+	$(COPY) -u $(LOCI_SRC)/bin/$(TARGET) $(LOCI_BASE)/bin/$(TARGET)
 endif
 
 clean_install:
-	@echo -e "\e[$(PRT) $@_$(TARGET) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(TARGET) $(NC)"
 	rm -rf $(LOCI_BASE)/bin/$(TARGET)
 
 clean:
-	@echo -e "\e[$(PRT) $@_$(TARGET) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(TARGET) $(NC)"
 	rm -fr $(OBJS) $(TARGET) $(LOCI_SRC)/bin/$(TARGET) $(JUNK)
 
 distclean: clean
-	@echo -e "\e[$(PRT) $@_$(TARGET) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(TARGET) $(NC)"
 	rm -fr $(DEPEND_FILES)
 
 

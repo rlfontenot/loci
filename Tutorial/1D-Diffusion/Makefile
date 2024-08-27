@@ -26,20 +26,20 @@ default:	$(TARGET1)
 all:		$(TARGET1) $(TARGET2)
 
 $(TARGET1): $(OBJ1)
-	@echo -e "\e[$(PRT) $(DIR_NAME)_$@ \e[0m"
+	@$(ECHO) "$(PRT) $(DIR_NAME)_$@ $(NC)"
 	$(LD) -o $@ $(OBJ1) $(LOCAL_LIBS) $(LDFLAGS) $(LDLIBS)
 
 $(TARGET2): $(OBJ2)
-	@echo -e "\e[$(PRT) $(DIR_NAME)_$@ \e[0m"
+	@$(ECHO) "$(PRT) $(DIR_NAME)_$@ $(NC)"
 	$(LD) -o $@ $(OBJ2) $(LOCAL_LIBS) $(LDFLAGS) $(LDLIBS)
 
 clean:
-	@echo -e "\e[$(PRT) $@_$(DIR_NAME) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(DIR_NAME) $(NC)"
 	rm -rf  $(OBJS) $(JUNK) $(TARGET1) $(TARGET2)
 
 
 distclean: clean
-	@echo -e "\e[$(PRT) $@_$(DIR_NAME) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(DIR_NAME) $(NC)"
 	rm -fr  $(LOCI_LPP_FILES) $(DEPEND_FILES)
 
 #include automatically generated dependencies

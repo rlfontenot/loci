@@ -10,10 +10,10 @@ SOURCE_FILES	=	entities_cpp.tex \
 					Makefile_ex.tex
 
 tutorial.pdf: ${TEX_FILES} ${SOURCE_FILES}
-	latex main; latex main
-	dvips -t letter -Ppdf -o tutorial.ps main
-	ps2pdf tutorial.ps
-	rm tutorial.ps main.dvi
+	-latex main; latex main
+	-dvips -t letter -Ppdf -o tutorial.ps main
+	-ps2pdf tutorial.ps
+	-rm tutorial.ps main.dvi
 
 clean:
 	./clean

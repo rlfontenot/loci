@@ -91,15 +91,15 @@ OBJ23	:=	ugridmirror.o vogtools.o
 OBJ24	:=	msh2vog.o vogtools.o
 OBJ25	:=	ccm2vogp.o vogtools.o
 
-DEPS	=	$(LOCI_SRC)/lib/libLoci.so \
-			$(LOCI_SRC)/lib/libTools.so \
-			$(LOCI_SRC)/lib/libsprng.so
+DEPS	=	$(LOCI_SRC)/lib/libLoci.$(LIB_SUFFIX) \
+			$(LOCI_SRC)/lib/libTools.$(LIB_SUFFIX) \
+			$(LOCI_SRC)/lib/libsprng.$(LIB_SUFFIX)
 
 DEPS10	=	$(DEPS) $(LOCI_SRC)/bin/lpp
 DEPS13	=	$(DEPS) $(LOCI_SRC)/lib/libadf.a
-DEPS14	=	$(DEPS) $(LOCI_SRC)/lib/fvmadapt_m.so $(LOCI_SRC)/lib/libfvmadaptfunc.so
-DEPS15	=	$(DEPS) $(LOCI_SRC)/lib/fvmadapt_m.so $(LOCI_SRC)/lib/libfvmadaptfunc.so
-DEPS16	=	$(DEPS) $(LOCI_SRC)/lib/fvmadapt_m.so $(LOCI_SRC)/lib/libfvmadaptfunc.so
+DEPS14	=	$(DEPS) $(LOCI_SRC)/lib/fvmadapt_m.$(LIB_SUFFIX) $(LOCI_SRC)/lib/libfvmadaptfunc.$(LIB_SUFFIX)
+DEPS15	=	$(DEPS) $(LOCI_SRC)/lib/fvmadapt_m.$(LIB_SUFFIX) $(LOCI_SRC)/lib/libfvmadaptfunc.$(LIB_SUFFIX)
+DEPS16	=	$(DEPS) $(LOCI_SRC)/lib/fvmadapt_m.$(LIB_SUFFIX) $(LOCI_SRC)/lib/libfvmadaptfunc.$(LIB_SUFFIX)
 DEPS25	=	$(DEPS) $(LOCI_SRC)/lib/libadf.a
 
 ALL_TARGETS	=	$(TARGET1)  \
@@ -172,171 +172,171 @@ $(LOCI_LPP_FILES): $(LOCI_SRC)/bin/lpp
 
 $(LOCI_SRC)/bin/lpp:
 	$(MAKE) -C $(LOCI_SRC)/lpp
-$(LOCI_SRC)/lib/libLoci.so:
+$(LOCI_SRC)/lib/libLoci.$(LIB_SUFFIX):
 	$(MAKE) -C $(LOCI_SRC)/System
-$(LOCI_SRC)/lib/libTools.so:
+$(LOCI_SRC)/lib/libTools.$(LIB_SUFFIX):
 	$(MAKE) -C $(LOCI_SRC)/Tools
-$(LOCI_SRC)/lib/libsprng.so:
+$(LOCI_SRC)/lib/libsprng.$(LIB_SUFFIX):
 	$(MAKE) -C $(LOCI_SRC)/sprng
-$(LOCI_SRC)/lib/fvmadapt_m.so:
+$(LOCI_SRC)/lib/fvmadapt_m.$(LIB_SUFFIX):
 	$(MAKE) -C $(LOCI_SRC)/FVMAdapt
-$(LOCI_SRC)/lib/libfvmadaptfunc.so:
+$(LOCI_SRC)/lib/libfvmadaptfunc.$(LIB_SUFFIX):
 	$(MAKE) -C $(LOCI_SRC)/FVMAdapt
 $(LOCI_SRC)/lib/libadf.a:
 	$(MAKE) -C libadf all
 
 $(TARGET1): $(DEPS) $(OBJ1)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(LD) -o $@ $(OBJ1) $(LOCAL_LIBS) $(LDFLAGS) $(LDLIBS)
-	cp -u $@ $(LOCI_SRC)/bin/$@
+	$(COPY) -u $@ $(LOCI_SRC)/bin/$@
 
 $(TARGET2): $(DEPS) $(OBJ2)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(LD) -o $@ $(OBJ2) $(LOCAL_LIBS) $(LDLIBS) $(LDFLAGS)
-	cp -u $@ $(LOCI_SRC)/bin/$@
+	$(COPY) -u $@ $(LOCI_SRC)/bin/$@
 
 $(TARGET3): $(DEPS) $(OBJ3)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(LD) -o $@ $(OBJ3) $(LOCAL_LIBS) $(LDLIBS) $(LDFLAGS)
-	cp -u $@ $(LOCI_SRC)/bin/$@
+	$(COPY) -u $@ $(LOCI_SRC)/bin/$@
 
 $(TARGET4): $(DEPS) $(OBJ4)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(LD) -o $@ $(OBJ4) $(LOCAL_LIBS) $(LDLIBS) $(LDFLAGS)
-	cp -u $@ $(LOCI_SRC)/bin/$@
+	$(COPY) -u $@ $(LOCI_SRC)/bin/$@
 
 $(TARGET5): $(DEPS) $(OBJ5)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(LD) -o $@ $(OBJ5) $(LOCAL_LIBS) $(LDLIBS) $(LDFLAGS)
-	cp -u $@ $(LOCI_SRC)/bin/$@
+	$(COPY) -u $@ $(LOCI_SRC)/bin/$@
 
 $(TARGET6): $(DEPS) $(OBJ6)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(LD) -o $@ $(OBJ6) $(LOCAL_LIBS) $(LDLIBS) $(LDFLAGS)
-	cp -u $@ $(LOCI_SRC)/bin/$@
+	$(COPY) -u $@ $(LOCI_SRC)/bin/$@
 
 $(TARGET7): $(DEPS) $(OBJ7)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(LD) -o $@ $(OBJ7) $(LOCAL_LIBS) $(LDLIBS) $(LDFLAGS)
-	cp -u $@ $(LOCI_SRC)/bin/$@
+	$(COPY) -u $@ $(LOCI_SRC)/bin/$@
 
 $(TARGET8): $(DEPS) $(OBJ8)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(LD) -o $@ $(OBJ8) $(LOCAL_LIBS) $(LDLIBS) $(LDFLAGS)
-	cp -u $@ $(LOCI_SRC)/bin/$@
+	$(COPY) -u $@ $(LOCI_SRC)/bin/$@
 
 $(TARGET9): $(DEPS) $(OBJ9)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(LD) -o $@ $(OBJ9) $(LOCAL_LIBS) $(LDLIBS) $(LDFLAGS)
-	cp -u $@ $(LOCI_SRC)/bin/$@
+	$(COPY) -u $@ $(LOCI_SRC)/bin/$@
 
 $(TARGET10): $(DEPS) $(OBJ10)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(LD) -o $@ $(OBJ10) $(LOCAL_LIBS) $(LDLIBS) $(LDFLAGS)
-	cp -u $@ $(LOCI_SRC)/bin/$@
+	$(COPY) -u $@ $(LOCI_SRC)/bin/$@
 
 $(TARGET11): $(DEPS) $(OBJ11)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(LD) -o $@ $(OBJ11) $(LOCAL_LIBS) $(LDLIBS) $(LDFLAGS)
-	cp -u $@ $(LOCI_SRC)/bin/$@
+	$(COPY) -u $@ $(LOCI_SRC)/bin/$@
 
 $(TARGET12): $(DEPS) $(OBJ12)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(LD) -o $@ $(OBJ12) $(LOCAL_LIBS) $(LDLIBS) $(LDFLAGS)
-	cp -u $@ $(LOCI_SRC)/bin/$@
+	$(COPY) -u $@ $(LOCI_SRC)/bin/$@
 
 $(TARGET13): LOCAL_LIBS+=libadf/libadf.a
 $(TARGET13): $(DEPS13) $(OBJ13)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(LD) -o $@ $(OBJ13) $(LOCAL_LIBS) $(LDLIBS) $(LDFLAGS)
-	cp -u $@ $(LOCI_SRC)/bin/$@
+	$(COPY) -u $@ $(LOCI_SRC)/bin/$@
 
 $(TARGET14): LOCAL_LIBS+=-lfvmadaptfunc
 $(TARGET14): $(DEPS14) $(OBJ14)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(LD) -o $@  $(OBJ14) $(LOCAL_LIBS) $(LDLIBS) $(LDFLAGS)
-	cp -u $@ $(LOCI_SRC)/bin/$@
+	$(COPY) -u $@ $(LOCI_SRC)/bin/$@
 
 $(TARGET15): LOCAL_LIBS+=-lfvmadaptfunc
 $(TARGET15): $(DEPS15) $(OBJ15)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(LD) -o $@  $(OBJ15) $(LOCAL_LIBS) $(LDLIBS) $(LDFLAGS)
-	cp -u $@ $(LOCI_SRC)/bin/$@
+	$(COPY) -u $@ $(LOCI_SRC)/bin/$@
 
 $(TARGET16): LOCAL_LIBS+=-lfvmadaptfunc
 $(TARGET16): $(DEPS16) $(OBJ16)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(LD) -o $@  $(OBJ16) $(LOCAL_LIBS) $(LDLIBS) $(LDFLAGS)
-	cp -u $@ $(LOCI_SRC)/bin/$@
+	$(COPY) -u $@ $(LOCI_SRC)/bin/$@
 
 $(TARGET17): $(DEPS) $(OBJ17)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(LD) -o $@ $(OBJ17) $(LOCAL_LIBS) $(LDLIBS) $(LDFLAGS)
-	cp -u $@ $(LOCI_SRC)/bin/$@
+	$(COPY) -u $@ $(LOCI_SRC)/bin/$@
 
 $(TARGET18): $(DEPS) $(OBJ18)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(LD) -o $@ $(OBJ18) $(LOCAL_LIBS) $(LDLIBS) $(LDFLAGS)
-	cp -u $@ $(LOCI_SRC)/bin/$@
+	$(COPY) -u $@ $(LOCI_SRC)/bin/$@
 
 $(TARGET19): $(DEPS) $(OBJ19)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(LD) -o $@ $(OBJ19) $(LOCAL_LIBS) $(LDLIBS) $(LDFLAGS)
-	cp -u $@ $(LOCI_SRC)/bin/$@
+	$(COPY) -u $@ $(LOCI_SRC)/bin/$@
 
 $(TARGET20): $(DEPS) $(OBJ20)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(LD) -o $@ $(OBJ20)  $(LOCAL_LIBS) $(LDLIBS) $(LDFLAGS)
-	cp -u $@ $(LOCI_SRC)/bin/$@
+	$(COPY) -u $@ $(LOCI_SRC)/bin/$@
 
 $(TARGET21): $(DEPS) $(OBJ21)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(LD) -o $@ $(OBJ21) $(LOCAL_LIBS) $(LDLIBS) $(LDFLAGS)
-	cp -u $@ $(LOCI_SRC)/bin/$@
+	$(COPY) -u $@ $(LOCI_SRC)/bin/$@
 
 $(TARGET22): $(DEPS) $(OBJ22)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(LD) -o $@ $(OBJ22) $(LOCAL_LIBS) $(LDLIBS) $(LDFLAGS)
-	cp -u $@ $(LOCI_SRC)/bin/$@
+	$(COPY) -u $@ $(LOCI_SRC)/bin/$@
 
 $(TARGET23): $(DEPS) $(OBJ23)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(LD) -o $@ $(OBJ23) $(LOCAL_LIBS) $(LDLIBS) $(LDFLAGS)
-	cp -u $@ $(LOCI_SRC)/bin/$@
+	$(COPY) -u $@ $(LOCI_SRC)/bin/$@
 
 $(TARGET24): $(DEPS) $(OBJ24)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(LD) -o $@ $(OBJ24) $(LOCAL_LIBS) $(LDLIBS) $(LDFLAGS)
-	cp -u $@ $(LOCI_SRC)/bin/$@
+	$(COPY) -u $@ $(LOCI_SRC)/bin/$@
 
 $(TARGET25): LOCAL_LIBS+=libadf/libadf.a
 $(TARGET25): $(DEPS25) $(OBJ25)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(LD) -o $@ $(OBJ25) $(LOCAL_LIBS) $(LDLIBS) $(LDFLAGS)
-	cp -u $@ $(LOCI_SRC)/bin/$@
+	$(COPY) -u $@ $(LOCI_SRC)/bin/$@
 
 install: $(ALL_TARGETS)
-	@echo -e "\e[$(PRT) $@_$(MODULE_NAME) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
 	$(MAKE) -C libadf $@
 ifneq ($(LOCI_SRC),$(LOCI_BASE))
-	for d in $(ALL_TARGETS); do cp $(LOCI_SRC)/bin/$$d $(LOCI_BASE)/bin/$$d; done
-	cp extract_movie $(LOCI_BASE)/bin/extract_movie
+	for d in $(ALL_TARGETS); do $(COPY) $(LOCI_SRC)/bin/$$d $(LOCI_BASE)/bin/$$d; done
+	$(COPY) extract_movie $(LOCI_BASE)/bin/extract_movie
 endif
 
 clean_install:
-	@echo -e "\e[$(PRT) $@_$(MODULE_NAME) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
 	for d in $(ALL_TARGETS); do rm -rf $(LOCI_BASE)/bin/$$d; done
 	rm -rf $(LOCI_BASE)/bin/extract_movie
 	$(MAKE) -C libadf $@
 
 clean:
-	@echo -e "\e[$(PRT) $@_$(MODULE_NAME) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
 	@for d in $(ALL_TARGETS); do rm -rf $$d $(LOCI_SRC)/bin/$$d; done
 	rm -rf  $(ALL_OBJ) $(JUNK)
 	$(MAKE) -C libadf $@
 
 distclean: clean
-	@echo -e "\e[$(PRT) $@_$(MODULE_NAME) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
 	rm -fr $(DEPEND_FILES) $(LOCI_LPP_FILES)
 	$(MAKE) -C libadf $@
 

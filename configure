@@ -27,19 +27,31 @@ set +e
 set -u
 set -f
 HOST_NAME=`hostname | tr -d [0-9]`
+ARCH=`uname -s`
 
 # This is used to check if we are using SUSE on Cray systems
-OS_NAME=`cat /etc/os-release | grep "ID=" | cut -d'"' -f2`
-OS_NAME=($OS_NAME)
+# OS_NAME=`cat /etc/os-release | grep "ID=" | cut -d'"' -f2`
+# OS_NAME=($OS_NAME)
 
-PRT="[0;33;1m"
+if [ "${ARCH}" == "Darwin" ]; then
+  ESC="\033["
+  LIB_SUFFIX=dylib
+  SED_I="sed -i ''"
+else
+  ESC="\e["
+  LIB_SUFFIX=so
+  SED_I="sed -i"
+fi
 
+PRT="${ESC}0;33;1m"
+NC="${ESC}0m"
 
 if [ "$PETSC_BASE" == "" ]; then
     PETSC_BASE=/notinstalled/petsc
 fi
 H5PATH=/notinstalled/hdf5
 
+OBJDIR=OBJ
 CGNSPATH=none
 TEC360PATH=none
 TEC360TYPE=0
@@ -82,8 +94,6 @@ find_lib() {
     done
 }
 
-OBJDIR=OBJ
-ARCH=`uname -s`
 
 COMPILER=gcc
 
@@ -332,19 +342,19 @@ done
 # Check for debug variable and print to screen. Set to 7 if doesn't exist.
 if [[ ${LOCI_DEBUG-7} -eq 0 || ${LOCI_DEBUG-7} -eq 1 || ${LOCI_DEBUG-7} -eq 2 || \
       ${LOCI_DEBUG-7} -eq 3 ]]; then
-  echo -e "Compiling in \e[0;31;1m\"DEBUG\"\e[0m Mode."
+  echo -e "Compiling in ${ESC}0;31;1m\"DEBUG\"${NC} Mode."
 fi
 
 
-case "${OS_NAME[1]}" in
-    sles)
-      COMPILER=CC_suse
-      ;;
-    *)
-      ;;
-esac
+# case "${OS_NAME[1]}" in
+#     sles)
+#       COMPILER=CC_suse
+#       ;;
+#     *)
+#       ;;
+# esac
 
-echo -e "Setup for compiler \e$PRT\"$COMPILER\"\e[0m."
+echo -e "Setup for compiler $PRT\"$COMPILER\"${NC}."
 #setup install directory
 echo -e "LOCI_BASE\t=\t$PREFIX" > sys.conf
 echo >> sys.conf
@@ -530,7 +540,7 @@ if [ -e $H5PATH/lib/libhdf5.settings ]; then
     H5SUPPORTLIBSPATHS=`grep "AM_LDFLAGS" $H5PATH/lib/libhdf5.settings | sed "s/.*://"`
 fi
 
-echo -e "Using HDF5 libraries in directory \e$PRT\"$H5PATH\"\e[0m."
+echo -e "Using HDF5 libraries in directory $PRT\"$H5PATH\"${NC}."
 echo -e "# HDF5 File I/O Libraries Setup" >> sys.conf
 echo -e "HDF5_BASE\t\t=\t$H5PATH"         >> sys.conf
 if [ -e $H5PATH/lib64/libhdf5.so ]; then
@@ -579,7 +589,7 @@ if [ -d $XMLPATH/include/libxml2 ]; then
     echo -e "LIBXML2_LDLIBS\t=\t-lxml2"          >> sys.conf
   fi
   echo -e "LIBXML2_INCLUDE\t=\t-I$XMLPATH/include/libxml2" >> sys.conf
-  echo -e "Using libxml2 found in \e$PRT\"$XMLPATH/include/libxml2\"\e[0m."
+  echo -e "Using libxml2 found in $PRT\"$XMLPATH/include/libxml2\"${NC}."
 else
   echo libxml2 not found, disabling XML features!
   echo LIBXML2_DEFINE  = >> sys.conf
@@ -601,8 +611,8 @@ if [ $USE_GKLIB -eq 1 ]; then
     fi
   fi
 
-  if [ -f $GKLIB_BASE/lib/libGKlib.so ]; then
-    echo -e "Using GKlib library found in \e$PRT\"$GKLIB_BASE\"\e[0m."
+  if [ -f $GKLIB_BASE/lib/libGKlib.$LIB_SUFFIX ]; then
+    echo -e "Using GKlib library found in $PRT\"$GKLIB_BASE\"${NC}."
     echo -e "GKLIB_BASE\t\t=\t$GKLIB_BASE"               >> sys.conf
     echo -e "GKLIB_INCLUDE\t=\t-I\$(GKLIB_BASE)/include" >> sys.conf
     echo -e "GKLIB_DEFINE\t="                            >> sys.conf
@@ -633,7 +643,7 @@ echo >> sys.conf
 echo \# METIS Library Setup >> sys.conf
 if [ $USE_METIS -eq 1 ]; then
   if [ ! -d $METIS_BASE ]; then
-    find_lib GKlib
+    find_lib metis
     if [ $RETURN_VALUE != 0 ]; then
       METIS_BASE=${RETURN_VALUE%/lib*}
       INSTALL_METIS=0
@@ -641,14 +651,21 @@ if [ $USE_METIS -eq 1 ]; then
     fi
   fi
 
-  if [ -f $METIS_BASE/lib/libmetis.so ]; then
-    echo -e "Using METIS library found in \e$PRT\"$METIS_BASE\"\e[0m."
+  if [ -f $METIS_BASE/lib/libmetis.LIB_SUFFIX ]; then
+    echo -e "Using METIS library found in $PRT\"$METIS_BASE\"${NC}."
     echo -e "METIS_BASE\t\t=\t$METIS_BASE"               >> sys.conf
     echo -e "METIS_INCLUDE\t=\t-I\$(METIS_BASE)/include" >> sys.conf
     echo -e "METIS_DEFINE\t="                            >> sys.conf
     echo -e "METIS_LDFLAGS\t=\t-L\$(METIS_BASE)/lib \\"  >> sys.conf
     echo -e "\t\t\t\t\t\$(RPATH)\$(METIS_BASE)/lib"      >> sys.conf
     echo -e "METIS_LDLIBS\t=\t-lmetis"                   >> sys.conf
+  elif [ -f $METIS_BASE/lib/libmetis.a ]; then
+    echo -e "Using METIS library found in $PRT\"$METIS_BASE\"${NC}."
+    echo -e "METIS_BASE\t\t=\t$METIS_BASE"                  >> sys.conf
+    echo -e "METIS_INCLUDE\t=\t-I\$(METIS_BASE)/include"    >> sys.conf
+    echo -e "METIS_DEFINE\t="                               >> sys.conf
+    echo -e "METIS_LDFLAGS\t="                              >> sys.conf
+    echo -e "METIS_LDLIBS\t=\t${METIS_BASE}/lib/libmetis.a" >> sys.conf
   else
     if [ ${INSTALL_METIS} -eq 1 ]; then
       echo -e "INSTALL_METIS\t=\t$INSTALL_METIS"           >> sys.conf
@@ -673,7 +690,7 @@ echo >> sys.conf
 echo \# ParMETIS Library Setup >> sys.conf
 if [ $USE_PARMETIS -eq 1 ]; then
   if [ ! -d $PARMETIS_BASE ]; then
-    find_lib GKlib
+    find_lib parmetis
     if [ $RETURN_VALUE != 0 ]; then
       PARMETIS_BASE=${RETURN_VALUE%/lib*}
       INSTALL_PARMETIS=0
@@ -681,8 +698,8 @@ if [ $USE_PARMETIS -eq 1 ]; then
     fi
   fi
 
-  if [ -f $PARMETIS_BASE/lib/libparmetis.so ]; then
-    echo -e "Using ParMETIS library found in \e$PRT\"$PARMETIS_BASE\"\e[0m."
+  if [ -f $PARMETIS_BASE/lib/libparmetis.LIB_SUFFIX ]; then
+    echo -e "Using ParMETIS library found in $PRT\"$PARMETIS_BASE\"${NC}."
     echo -e "PARMETIS_BASE\t\t=\t$PARMETIS_BASE"               >> sys.conf
     echo -e "PARMETIS_INCLUDE\t=\t-I\$(PARMETIS_BASE)/include" >> sys.conf
     echo -e "PARMETIS_DEFINE\t\t=\t-DLOCI_USE_METIS"           >> sys.conf
@@ -887,7 +904,7 @@ if [ -d $PETSC_BASE ]; then
         echo WARNING: BLAS library paths not extracted from PETSC config files!
         echo WARNING:  Is PETSC installed properly?
     fi
-    echo -e "Using PETSc libraries found in \e$PRT\"$PETSC_BASE\"\e[0m."
+    echo -e "Using PETSc libraries found in $PRT\"$PETSC_BASE\"${NC}."
     echo -e "PETSC_BASE\t\t=\t$PETSC_BASE"                        >> sys.conf
     echo -e "PETSC_LDFLAGS\t=\t-L\$(PETSC_BASE)/lib \\"           >> sys.conf
     echo -e "\t\t\t\t\t\$(RPATH)\$(PETSC_BASE)/lib \\"            >> sys.conf
@@ -910,12 +927,12 @@ echo >> sys.conf
 FORTRAN_LIBS=
 
 if [ "$MPI_C_COMPILER" == "none" ]; then
-  echo -e "Selecting compiler = \e$PRT$COMPILER\e[0m for MPI"
+  echo -e "Selecting compiler = $PRT$COMPILER${NC} for MPI"
 else
   COMP_TEST=`$MPI_PATH/$MPI_C_COMPILER -show | sed "s/ .*//"`
   if [ -e src/conf/$COMP_TEST.conf ]; then
     COMPILER=$COMP_TEST
-    echo -e "Selecting compiler = \e$PRT$COMPILER\e[0m for MPI"
+    echo -e "Selecting compiler = $PRT$COMPILER${NC} for MPI"
   fi
 fi
 case "$COMPILER" in
@@ -1010,9 +1027,9 @@ echo -e "\t\t\t\t\t\t\$(PARMETIS_DEFINE) \$(METIS_DEFINE) \$(GKLIB_DEFINE)"     
 echo -e "MACHINE_INCLUDES\t=\t\$(PETSC_INCLUDE) \$(HDF5_INCLUDE)\\"                 >> sys.conf
 echo -e "\t\t\t\t\t\t\$(MPI_INCLUDE) \$(TEC360_INCLUDE) \$(CGNS_INCLUDE) \\"        >> sys.conf
 echo -e "\t\t\t\t\t\t\$(PARMETIS_INCLUDE) \$(METIS_INCLUDE) \$(GKLIB_INCLUDE)"      >> sys.conf
-if [[ "${OS_NAME[2]-0}" == "platform:el8" && -d /usr/include/tirpc/rpc ]]; then
-  echo -e "MACHINE_INCLUDES\t+=\t-I/usr/include/tirpc"                              >> sys.conf
-fi
+# if [[ "${OS_NAME[2]-0}" == "platform:el8" && -d /usr/include/tirpc/rpc ]]; then
+#   echo -e "MACHINE_INCLUDES\t+=\t-I/usr/include/tirpc"                              >> sys.conf
+# fi
 echo                                                                                       >> sys.conf
 echo -e "BASE_LDFLAGS\t=\t\$(HDF5_LDFLAGS) \$(PETSC_LDFLAGS) \$(TEC360_LDFLAGS) \\"        >> sys.conf
 echo -e "\t\t\t\t\t\$(MISC_LDFLAGS) \$(CGNS_LDFLAGS) \$(MPI_LDFLAGS) \$(METIS_LDFLAGS) \\" >> sys.conf
@@ -1031,7 +1048,7 @@ mv sys.conf ${OBJDIR}/sys.conf
 # Setup targets files
 TARGET_MK=targets_tmp.mk
 cp targets/main.mk ${TARGET_MK}
-sed -i "s,{{OBJDIR}},${OBJDIR},g" ${TARGET_MK}
+eval ${SED_I} "s,{{OBJDIR}},${OBJDIR},g" ${TARGET_MK}
 
 # Make makefile
 echo "include ${TARGET_MK}"                 >  makefile
@@ -1053,5 +1070,5 @@ echo
 echo
 echo "To compile Loci, enter:"
 echo "  make all"
-echo -e "To install Loci in the directory \e[1;32;1m$PREFIX\e[0m, enter:"
+echo -e "To install Loci in the directory ${ESC}1;32;1m$PREFIX${NC}, enter:"
 echo "  make install"

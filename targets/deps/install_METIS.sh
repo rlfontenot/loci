@@ -11,24 +11,28 @@ LOCI_SRC=$1
 DEST_PREFIX=$2
 GKLIB_BASE=$3
 
-source ${LOCI_SRC}/targets/deps/installFunctions.sh
+ARCH=$(uname -s)
+if [ "${ARCH}" == "Darwin" ]; then
+  LIB_SUFFIX=dylib
+else
+  LIB_SUFFIX=so
+fi
 
 cd ${LOCI_SRC}/ext/METIS
 
-
-if [ -f ${DEST_PREFIX}/lib/libmetis.so ]; then
-  echo "METIS found in '${DEST_PREFIX}/lib/libmetis.so'"
+if [ -f ${DEST_PREFIX}/lib/libmetis.${LIB_SUFFIX} ]; then
+  echo "METIS found in '${DEST_PREFIX}/lib/libmetis.${LIB_SUFFIX}'"
   exit 0
 fi
 
-mkdir -p ${DEST_PREFIX}
+git apply ${LOCI_SRC}/ext/metis.patch
+mkdir -p ${DEST_PREFIX}/lib
 rm -rf build
-
-/usr/bin/make config \
-              prefix=${DEST_PREFIX} \
-              gklib_path=${GKLIB_BASE} \
-              shared=1 \
-              cc=mpicc > config.out 2>&1 && \
+make prefix=${DEST_PREFIX} \
+     gklib_path=${GKLIB_BASE} \
+     shared=1 \
+     cc=mpicc \
+     config > config.out 2>&1 && \
 make -j install > make.out && \
 rm -rf build
 

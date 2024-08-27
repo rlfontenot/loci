@@ -10,12 +10,17 @@
 LOCI_SRC=$1
 DEST_PREFIX=$2
 
-source ${LOCI_SRC}/targets/deps/installFunctions.sh
+ARCH=$(uname -s)
+if [ "${ARCH}" == "Darwin" ]; then
+  LIB_SUFFIX=dylib
+else
+  LIB_SUFFIX=so
+fi
 
 cd ${LOCI_SRC}/ext/GKlib
 
-if [ -f ${DEST_PREFIX}/lib/libGKlib.so ]; then
-  echo "GKlib found in '${DEST_PREFIX}/lib/libGKlib.so'"
+if [ -f ${DEST_PREFIX}/lib/libGKlib.${LIB_SUFFIX} ]; then
+  echo "GKlib found in '${DEST_PREFIX}/lib/libGKlib.${LIB_SUFFIX}'"
   exit 0
 fi
 

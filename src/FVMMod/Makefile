@@ -24,7 +24,7 @@ include $(LOCI_SRC)/Loci.conf
 
 DIR_NAME	=	FVMMod
 MODULE_NAME	=	fvm
-LIB_NAME	=	$(MODULE_NAME)_m.so
+LIB_NAME	=	$(MODULE_NAME)_m.$(LIB_SUFFIX)
 
 ################################################################################
 # No changes required below this line
@@ -37,7 +37,7 @@ OBJS			=	$(subst .loci,.o,$(LOCI_FILES)) \
 DEPEND_FILES	=	$(subst .o,.d,$(OBJS))
 JUNK			=	*~ core ti_files ii_files rii_files
 DEPS			=	$(LOCI_SRC)/bin/lpp \
-					$(LOCI_SRC)/lib/libLoci.so
+					$(LOCI_SRC)/lib/libLoci.$(LIB_SUFFIX)
 INCLUDES		=	-I$(LOCI_SRC)/include
 
 
@@ -49,35 +49,35 @@ $(LOCI_LPP_FILES):	$(DEPS)
 
 $(LOCI_SRC)/bin/lpp:
 	$(MAKE) -C $(LOCI_SRC)/lpp
-$(LOCI_SRC)/lib/libLoci.so:
+$(LOCI_SRC)/lib/libLoci.$(LIB_SUFFIX):
 	$(MAKE) -C $(LOCI_SRC)/System
 
 $(LIB_NAME): $(OBJS)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(SHARED_LD) $(SHARED_LD_FLAGS) $@ $(LDFLAGS) $(LDLIBS) $(OBJS)
-	cp $@ $(LOCI_SRC)/lib/$@
+	$(COPY) $@ $(LOCI_SRC)/lib/$@
 
 install: $(LOCI_BASE)/include/$(DIR_NAME)/. $(LOCI_BASE)/lib/. $(LIB_NAME)
-	@echo -e "\e[$(PRT) $@_$(MODULE_NAME) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
 ifneq ($(LOCI_SRC),$(LOCI_BASE))
-	cp $(LOCI_SRC)/lib/$(LIB_NAME) $(LOCI_BASE)/lib/$(LIB_NAME)
-	cp -u $(LOCI_SRC)/include/$(DIR_NAME)/*.h  $(LOCI_BASE)/include/$(DIR_NAME)/
-	cp -u $(LOCI_SRC)/include/$(DIR_NAME)/*.lh $(LOCI_BASE)/include/$(DIR_NAME)/
+	$(COPY) $(LOCI_SRC)/lib/$(LIB_NAME) $(LOCI_BASE)/lib/$(LIB_NAME)
+	$(COPY) $(LOCI_SRC)/include/$(DIR_NAME)/*.h  $(LOCI_BASE)/include/$(DIR_NAME)/
+	$(COPY) $(LOCI_SRC)/include/$(DIR_NAME)/*.lh $(LOCI_BASE)/include/$(DIR_NAME)/
 endif
 
 clean_install:
-	@echo -e "\e[$(PRT) $@_$(MODULE_NAME) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
 ifneq ($(LOCI_SRC),$(LOCI_BASE))
 	rm -rf $(LOCI_BASE)/lib/$(LIB_NAME)
 	rm -rf $(LOCI_BASE)/include/$(DIR_NAME)
 endif
 
 clean:
-	@echo -e "\e[$(PRT) $@_$(MODULE_NAME) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
 	rm -fr $(LIB_NAME) $(OBJS) $(LOCI_SRC)/lib/$(LIB_NAME) $(JUNK)
 
 distclean: clean
-	@echo -e "\e[$(PRT) $@_$(MODULE_NAME) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
 	rm -fr  $(LOCI_LPP_FILES) $(DEPEND_FILES)
 
 #include automatically generated dependencies

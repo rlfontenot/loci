@@ -52,16 +52,16 @@ MODELS_BIN	=	2dgv          \
 				vogcut        \
 				vogcheck
 
-MODELS_LIB	=	fvmadapt_m.so      \
-				fvm_m.so           \
-				fvmoverset_m.so    \
-				libadf.a           \
-				libadf.so          \
-				libfvmadaptfunc.so \
-				libLoci.so         \
-				libsprng.so        \
-				libTools.a         \
-				libTools.so
+MODELS_LIB	=	fvmadapt_m.$(LIB_SUFFIX)      \
+				fvm_m.$(LIB_SUFFIX)           \
+				fvmoverset_m.$(LIB_SUFFIX)    \
+				libadf.a                      \
+				libadf.$(LIB_SUFFIX)          \
+				libfvmadaptfunc.$(LIB_SUFFIX) \
+				libLoci.$(LIB_SUFFIX)         \
+				libsprng.$(LIB_SUFFIX)        \
+				libTools.a                    \
+				libTools.$(LIB_SUFFIX)
 
 default:
 	$(MAKE) -C 2dgv         $@
@@ -78,9 +78,9 @@ default:
 copy_config:
 ifneq ($(LOCI_SRC),$(LOCI_BASE))
 	mkdir -p $(LOCI_BASE)
-	cp *.conf $(LOCI_BASE)/
-	sed -i "s,LOCI_SRC,LOCI_BASE,g" $(LOCI_BASE)/Loci.conf
-	sed -i "s,LOCI_SRC,LOCI_BASE,g" $(LOCI_BASE)/sys.conf
+	$(COPY) *.conf $(LOCI_BASE)/
+	$(SED_I) "s,LOCI_SRC,LOCI_BASE,g" $(LOCI_BASE)/Loci.conf
+	$(SED_I) "s,LOCI_SRC,LOCI_BASE,g" $(LOCI_BASE)/sys.conf
 endif
 
 install: copy_config
@@ -157,25 +157,25 @@ ifneq ($(LOCI_SRC),$(LOCI_BASE))
 endif
 
 
-RED		=	\e[1;31;1m
-GREEN	=	\e[1;32;1m
+RED		=	$(ESC)1;31;1m
+GREEN	=	$(ESC)1;32;1m
 DIREC	=	$(LOCI_SRC)
 list:
-	@echo -e "\e[$(PRT) :: $(DIREC) :: \e[0m"
-	@echo -e "\e[$(PRT) :: bin :: \e[0m"
+	@$(ECHO) "$(PRT) :: $(DIREC) :: $(NC)"
+	@$(ECHO) "$(PRT) :: bin :: $(NC)"
 	@for d in $(MODELS_BIN); do \
 		if [ -f ${DIREC}/bin/$$d ]; then \
-			echo -e "$(GREEN) $$d \e[0m"; \
+			$(ECHO) "$(GREEN) $$d $(NC)"; \
 		else \
-			echo -e "$(RED) $$d \e[0m"; \
+			$(ECHO) "$(RED) $$d $(NC)"; \
 		fi \
 	done
-	@echo -e "\e[$(PRT) :: lib :: \e[0m"
+	@$(ECHO) "$(PRT) :: lib :: $(NC)"
 	@for d in $(MODELS_LIB); do \
 		if [ -f ${DIREC}/lib/$$d ]; then \
-			echo -e "$(GREEN) $$d \e[0m"; \
+			$(ECHO) "$(GREEN) $$d $(NC)"; \
 		else \
-			echo -e "$(RED) $$d \e[0m"; \
+			$(ECHO) "$(RED) $$d $(NC)"; \
 		fi \
 	done
 
@@ -183,31 +183,31 @@ list_installed: DIREC=$(LOCI_BASE)
 list_installed: list
 
 
-PRTP	=	\e[1;35;1m
+PRTP	=	$(ESC)1;35;1m
 devhelp:
-	@echo -e "$(PRTP)LOCI_SRC           \e[0m = $(LOCI_SRC)"
-	@echo -e "$(PRTP)LOCI_BASE          \e[0m = $(LOCI_BASE)"
-	@echo -e "$(PRTP)CC                 \e[0m = $(CC)"
-	@echo -e "$(PRTP)CXX                \e[0m = $(CXX)"
-	@echo -e "$(PRTP)FC                 \e[0m = $(FC)"
-	@echo -e "$(PRTP)MAKEDEPEND         \e[0m = $(MAKEDEPEND)"
-	@echo -e "$(PRTP)LD                 \e[0m = $(LD)"
-	@echo -e "$(PRTP)SHARED_LD          \e[0m = $(SHARED_LD)"
-	@echo -e "$(PRTP)DYNAMIC_LD         \e[0m = $(DYNAMIC_LD)"
-	@echo -e "$(PRTP)FFLAGS             \e[0m = $(FFLAGS)"
-	@echo -e "$(PRTP)CFLAGS             \e[0m = $(CFLAGS)"
-	@echo -e "$(PRTP)CXXFLAGS           \e[0m = $(CXXFLAGS)"
-	@echo -e "$(PRTP)LDFLAGS            \e[0m = $(LDFLAGS)"
-	@echo -e "$(PRTP)SHARED_LD_FLAGS    \e[0m = $(SHARED_LD_FLAGS)"
-	@echo -e "$(PRTP)DYNAMIC_LD_FLAGS   \e[0m = $(DYNAMIC_LD_FLAGS)"
-	@echo -e "$(PRTP)LDPATH             \e[0m = $(LDPATH)"
-	@echo -e "$(PRTP)RPATH              \e[0m = $(RPATH)"
-	@echo -e "$(PRTP)DEFINES            \e[0m = $(DEFINES)"
-	@echo -e "$(PRTP)FDEFINES           \e[0m = $(FDEFINES)"
-	@echo -e "$(PRTP)LOCI_INCLUDES      \e[0m = $(LOCI_INCLUDES)"
-	@echo -e "$(PRTP)INCLUDES           \e[0m = $(INCLUDES)"
-	@echo -e "$(PRTP)LDLIBS             \e[0m = $(LDLIBS)"
-	@echo -e "$(PRTP)LOCAL_LIBS         \e[0m = $(LOCAL_LIBS)"
-	@echo -e "$(PRTP)LOCI_DEBUG         \e[0m = $(LOCI_DEBUG)"
+	@$(ECHO) "$(PRTP)LOCI_SRC           $(NC) = $(LOCI_SRC)"
+	@$(ECHO) "$(PRTP)LOCI_BASE          $(NC) = $(LOCI_BASE)"
+	@$(ECHO) "$(PRTP)CC                 $(NC) = $(CC)"
+	@$(ECHO) "$(PRTP)CXX                $(NC) = $(CXX)"
+	@$(ECHO) "$(PRTP)FC                 $(NC) = $(FC)"
+	@$(ECHO) "$(PRTP)MAKEDEPEND         $(NC) = $(MAKEDEPEND)"
+	@$(ECHO) "$(PRTP)LD                 $(NC) = $(LD)"
+	@$(ECHO) "$(PRTP)SHARED_LD          $(NC) = $(SHARED_LD)"
+	@$(ECHO) "$(PRTP)DYNAMIC_LD         $(NC) = $(DYNAMIC_LD)"
+	@$(ECHO) "$(PRTP)FFLAGS             $(NC) = $(FFLAGS)"
+	@$(ECHO) "$(PRTP)CFLAGS             $(NC) = $(CFLAGS)"
+	@$(ECHO) "$(PRTP)CXXFLAGS           $(NC) = $(CXXFLAGS)"
+	@$(ECHO) "$(PRTP)LDFLAGS            $(NC) = $(LDFLAGS)"
+	@$(ECHO) "$(PRTP)SHARED_LD_FLAGS    $(NC) = $(SHARED_LD_FLAGS)"
+	@$(ECHO) "$(PRTP)DYNAMIC_LD_FLAGS   $(NC) = $(DYNAMIC_LD_FLAGS)"
+	@$(ECHO) "$(PRTP)LDPATH             $(NC) = $(LDPATH)"
+	@$(ECHO) "$(PRTP)RPATH              $(NC) = $(RPATH)"
+	@$(ECHO) "$(PRTP)DEFINES            $(NC) = $(DEFINES)"
+	@$(ECHO) "$(PRTP)FDEFINES           $(NC) = $(FDEFINES)"
+	@$(ECHO) "$(PRTP)LOCI_INCLUDES      $(NC) = $(LOCI_INCLUDES)"
+	@$(ECHO) "$(PRTP)INCLUDES           $(NC) = $(INCLUDES)"
+	@$(ECHO) "$(PRTP)LDLIBS             $(NC) = $(LDLIBS)"
+	@$(ECHO) "$(PRTP)LOCAL_LIBS         $(NC) = $(LOCAL_LIBS)"
+	@$(ECHO) "$(PRTP)LOCI_DEBUG         $(NC) = $(LOCI_DEBUG)"
 
 

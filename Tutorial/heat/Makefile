@@ -19,16 +19,16 @@ default:	$(TARGET)
 all:		$(TARGET)
 
 $(TARGET): $(OBJS)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(LD) -o $@ $(OBJS) $(LOCAL_LIBS) $(LDFLAGS) $(LDLIBS)
 
 clean:
-	@echo -e "\e[$(PRT) $@_$(TARGET) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(TARGET) $(NC)"
 	rm -rf  $(OBJS) $(JUNK) $(TARGET)
 
 
 distclean: clean
-	@echo -e "\e[$(PRT) $@_$(TARGET) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(TARGET) $(NC)"
 	rm -fr  $(LOCI_LPP_FILES) $(DEPEND_FILES)
 
 #include automatically generated dependencies

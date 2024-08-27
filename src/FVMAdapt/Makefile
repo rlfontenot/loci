@@ -24,8 +24,8 @@ include $(LOCI_SRC)/Loci.conf
 
 DIR_NAME	=	FVMAdapt
 MODULE_NAME	=	fvmadapt
-LIB_NAME1	=	$(MODULE_NAME)_m.so
-LIB_NAME2	=	lib$(MODULE_NAME)func.so
+LIB_NAME1	=	$(MODULE_NAME)_m.$(LIB_SUFFIX)
+LIB_NAME2	=	lib$(MODULE_NAME)func.$(LIB_SUFFIX)
 
 
 OBJS1 :=	balance_general_cell.o          \
@@ -117,8 +117,8 @@ LOCAL_LIBS		=	$(LIBXML2_LDFLAGS) \
 					$(LIBXML2_LDLIBS)  \
 					-L$(LOCI_SRC)/lib -lLoci
 FILE_DEPS		=	$(LOCI_SRC)/bin/lpp        \
-					$(PARMETIS_BASE)/lib/libparmetis.so
-LIB_DEPS		=	$(LOCI_SRC)/lib/libLoci.so
+					$(PARMETIS_BASE)/lib/libparmetis.$(LIB_SUFFIX)
+LIB_DEPS		=	$(LOCI_SRC)/lib/libLoci.$(LIB_SUFFIX)
 
 default:	$(LIB_NAME1) $(LIB_NAME2)
 all:		$(LIB_NAME1) $(LIB_NAME2)
@@ -129,33 +129,33 @@ write_vog.d:       $(FILE_DEPS)
 
 $(LOCI_SRC)/bin/lpp:
 	$(MAKE) -C $(LOCI_SRC)/lpp
-$(LOCI_SRC)/lib/libLoci.so:
+$(LOCI_SRC)/lib/libLoci.$(LIB_SUFFIX):
 	$(MAKE) -C $(LOCI_SRC)/System
-$(PARMETIS_BASE)/lib/libparmetis.so:
+$(PARMETIS_BASE)/lib/libparmetis.$(LIB_SUFFIX):
 	$(MAKE) -C $(LOCI_SRC) ParMETIS
 
 $(LIB_NAME1): $(LIB_DEPS) $(OBJS1)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(SHARED_LD) $(SHARED_LD_FLAGS) $@ $(OBJS1) $(LOCAL_LIBS)
-	cp -u $@ $(LOCI_SRC)/lib/$@
+	$(COPY) -u $@ $(LOCI_SRC)/lib/$@
 
 $(LIB_NAME2): $(LIB_DEPS) $(OBJS2)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(DYNAMIC_LD) $(DYNAMIC_LD_FLAGS) $@ $(OBJS2)
-	cp -u $@ $(LOCI_SRC)/lib/$@
+	$(COPY) -u $@ $(LOCI_SRC)/lib/$@
 
 
 install: $(LOCI_BASE)/include/$(DIR_NAME)/. $(LOCI_BASE)/lib/.
 install: $(LIB_NAME1) $(LIB_NAME2)
-	@echo -e "\e[$(PRT) $@_$(MODULE_NAME) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
 ifneq ($(LOCI_SRC),$(LOCI_BASE))
-	cp -u $(LOCI_SRC)/lib/$(LIB_NAME1) $(LOCI_BASE)/lib/$(LIB_NAME1)
-	cp -u $(LOCI_SRC)/lib/$(LIB_NAME2) $(LOCI_BASE)/lib/$(LIB_NAME2)
-	cp -u $(LOCI_SRC)/include/$(DIR_NAME)/*.h $(LOCI_BASE)/include/$(DIR_NAME)/
+	$(COPY) -u $(LOCI_SRC)/lib/$(LIB_NAME1) $(LOCI_BASE)/lib/$(LIB_NAME1)
+	$(COPY) -u $(LOCI_SRC)/lib/$(LIB_NAME2) $(LOCI_BASE)/lib/$(LIB_NAME2)
+	$(COPY) -u $(LOCI_SRC)/include/$(DIR_NAME)/*.h $(LOCI_BASE)/include/$(DIR_NAME)/
 endif
 
 clean_install:
-	@echo -e "\e[$(PRT) $@_$(MODULE_NAME) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
 	rm -rf $(LOCI_BASE)/lib/$(LIB_NAME1)
 	rm -rf $(LOCI_BASE)/lib/$(LIB_NAME2)
 ifneq ($(LOCI_SRC),$(LOCI_BASE))
@@ -163,12 +163,12 @@ ifneq ($(LOCI_SRC),$(LOCI_BASE))
 endif
 
 clean:
-	@echo -e "\e[$(PRT) $@_$(MODULE_NAME) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
 	rm -fr $(OBJS1) $(OBJS2) $(LIB_NAME1) $(LIB_NAME2)
 	rm -fr $(LOCI_SRC)/lib/$(LIB_NAME1) $(LOCI_SRC)/lib/$(LIB_NAME2) $(JUNK)
 
 distclean: clean
-	@echo -e "\e[$(PRT) $@_$(MODULE_NAME) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
 	rm -fr $(LOCI_LPP_FILES) $(DEPEND_FILES)
 
 #include automatically generated dependencies

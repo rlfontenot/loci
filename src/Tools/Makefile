@@ -24,7 +24,7 @@ include $(LOCI_SRC)/Loci.conf
 
 MODULE_NAME	=	Tools
 LIB_NAME1	=	lib$(MODULE_NAME).a
-LIB_NAME2	=	lib$(MODULE_NAME).so
+LIB_NAME2	=	lib$(MODULE_NAME).$(LIB_SUFFIX)
 
 ################################################################################
 # No changes required below this line
@@ -44,27 +44,27 @@ all:		$(LIB_NAME1) $(LIB_NAME2)
 spotless:	distclean clean_install
 
 $(LIB_NAME1): $(OBJS)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(AR) $(ARFLAGS) $@ $(OBJS)
 	$(RANLIB) $@
-	cp -u $@ $(LOCI_SRC)/lib/$@
+	$(COPY) -u $@ $(LOCI_SRC)/lib/$@
 
 $(LIB_NAME2): $(OBJS)
-	@echo -e "\e[$(PRT) $@ \e[0m"
+	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(DYNAMIC_LD) $(DYNAMIC_LD_FLAGS) $@ $(LDFLAGS) $(OBJS)
-	cp -u $@ $(LOCI_SRC)/lib/$@
+	$(COPY) -u $@ $(LOCI_SRC)/lib/$@
 
 
 install: $(LOCI_BASE)/lib/. $(LOCI_BASE)/include/$(MODULE_NAME)/. $(LIB_NAME1) $(LIB_NAME2)
-	@echo -e "\e[$(PRT) $@_$(MODULE_NAME) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
 ifneq ($(LOCI_SRC),$(LOCI_BASE))
-	cp -u $(LOCI_SRC)/lib/$(LIB_NAME1)        $(LOCI_BASE)/lib/$(LIB_NAME1)
-	cp -u $(LOCI_SRC)/lib/$(LIB_NAME2)        $(LOCI_BASE)/lib/$(LIB_NAME2)
-	cp -u $(LOCI_SRC)/include/$(MODULE_NAME)/*.h $(LOCI_BASE)/include/$(MODULE_NAME)/
+	$(COPY) -u $(LOCI_SRC)/lib/$(LIB_NAME1)        $(LOCI_BASE)/lib/$(LIB_NAME1)
+	$(COPY) -u $(LOCI_SRC)/lib/$(LIB_NAME2)        $(LOCI_BASE)/lib/$(LIB_NAME2)
+	$(COPY) -u $(LOCI_SRC)/include/$(MODULE_NAME)/*.h $(LOCI_BASE)/include/$(MODULE_NAME)/
 endif
 
 clean_install:
-	@echo -e "\e[$(PRT) $@_$(MODULE_NAME) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
 	rm -rf $(LOCI_BASE)/lib/$(LIB_NAME1)
 	rm -rf $(LOCI_BASE)/lib/$(LIB_NAME2)
 ifneq ($(LOCI_SRC),$(LOCI_BASE))
@@ -72,12 +72,12 @@ ifneq ($(LOCI_SRC),$(LOCI_BASE))
 endif
 
 clean:
-	@echo -e "\e[$(PRT) $@_$(MODULE_NAME) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
 	rm -fr $(OBJS) $(LIB_NAME1) $(LIB_NAME2)
 	rm -fr $(LOCI_SRC)/lib/$(LIB_NAME1) $(LOCI_SRC)/lib/$(LIB_NAME2) $(JUNK)
 
 distclean: clean
-	@echo -e "\e[$(PRT) $@_$(MODULE_NAME) \e[0m"
+	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
 	rm -fr $(DEPEND_FILES)
 
 #include automatically generated dependencies
