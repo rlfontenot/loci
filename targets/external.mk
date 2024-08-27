@@ -11,7 +11,8 @@ ESC		=	\\033[
 ECHO	=	echo
 SED_I	=	sed -i ''
 else
-ESC		=	\\e
+COPY	=	cp
+ESC		=	\e[
 ECHO	=	echo -e
 SED_I	=	sed -i
 endif

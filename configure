@@ -712,7 +712,7 @@ if [ $USE_METIS -eq 1 ]; then
     fi
   fi
 
-  if [ -f $METIS_BASE/lib/libmetis.LIB_SUFFIX ]; then
+  if [ -f $METIS_BASE/lib/libmetis.${LIB_SUFFIX} ]; then
     echo -e "Using METIS library found in $PRT\"$METIS_BASE\"${NC}."
     echo -e "METIS_BASE\t\t=\t$METIS_BASE"               >> sys.conf
     echo -e "METIS_INCLUDE\t=\t-I\$(METIS_BASE)/include" >> sys.conf
@@ -761,7 +761,7 @@ if [ $USE_PARMETIS -eq 1 ]; then
     fi
   fi
 
-  if [ -f $PARMETIS_BASE/lib/libparmetis.LIB_SUFFIX ]; then
+  if [ -f $PARMETIS_BASE/lib/libparmetis.${LIB_SUFFIX} ]; then
     echo -e "Using ParMETIS library found in $PRT\"$PARMETIS_BASE\"${NC}."
     echo -e "PARMETIS_BASE\t\t=\t$PARMETIS_BASE"               >> sys.conf
     echo -e "PARMETIS_INCLUDE\t=\t-I\$(PARMETIS_BASE)/include" >> sys.conf
@@ -1113,8 +1113,7 @@ echo >> sys.conf
 echo -e "MACHINE_DEFINES\t\t=\t\$(PETSC_DEFINE) \$(MPI_DEFINE)            \\"  >> sys.conf
 echo -e "\t\t\t\t\t\t\$(TEC360_DEFINE) \$(DYNAMIC_LOADING_DEFINES)        \\"  >> sys.conf
 echo -e "\t\t\t\t\t\t\$(PTHREADS_DEFINE) \$(MISC_DEFINES) \$(CGNS_DEFINE) \\"  >> sys.conf
-echo -e "\t\t\t\t\t\t\$(PARMETIS_DEFINE) \$(MISC_DEFINES) \$(CGNS_DEFINE) \\"  >> sys.conf
-echo -e "\t\t\t\t\t\t\$(PARMETIS_DEFINE) \$(METIS_DEFINE) \$(GKLIB_DEFINE)"    >> sys.conf
+echo -e "\t\t\t\t\t\t\$(PARMETIS_DEFINE) \$(METIS_DEFINE) \$(GKLIB_DEFINE)"  >> sys.conf
 echo                                                                           >> sys.conf
 echo -e "MACHINE_INCLUDES\t=\t\$(PETSC_INCLUDE) \$(HDF5_INCLUDE)         \\"   >> sys.conf
 echo -e "\t\t\t\t\t\t\$(MPI_INCLUDE) \$(TEC360_INCLUDE) \$(CGNS_INCLUDE) \\"   >> sys.conf
