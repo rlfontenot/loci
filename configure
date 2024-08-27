@@ -1,5 +1,5 @@
 #!/bin/bash
-###############################################################################
+################################################################################
 #
 # Copyright 2008, 2015, Mississippi State University
 #
@@ -18,7 +18,44 @@
 # You should have received a copy of the Lesser GNU General Public License
 # along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 #
-###############################################################################
+################################################################################
+################################################################################
+# This function checks the `PATH` variable for an executable
+################################################################################
+find_exec() {
+  RETURN_VALUE=0
+  for i in ${PATH//:/ }; do
+    if [ -e $i/$1 ]; then
+      RETURN_VALUE=$i
+      break ;
+    fi
+  done
+}
+
+################################################################################
+# This function checks the `LD_LIBRARY_PATH` variable for an .a, .so, or .dylib
+# library file.
+################################################################################
+find_lib() {
+    RETURN_VALUE=0
+    for i in ${LD_LIBRARY_PATH//:/ }; do
+      if [ -e $i/lib$1.a ]; then
+        RETURN_VALUE=$i
+        break;
+      fi
+      if [ -e $i/lib$1.so ]; then
+        RETURN_VALUE=$i
+        break ;
+      fi
+      if [ -e $i/lib$1.dylib ]; then
+        RETURN_VALUE=$i
+        break ;
+      fi
+    done
+}
+
+################################################################################
+################################################################################
 
 LD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:$LD_LIBRARY_PATH:/:/usr:/usr/local:/opt:/opt/local
 PETSC_BASE=$PETSC_DIR
@@ -65,34 +102,10 @@ INSTALL_GKLIB=1
 USE_PARMETIS=1
 USE_METIS=1
 USE_GKLIB=1
+PTHREADS_DEFINE=
+PTHREADS_LDLIBS=
+USE_PTHREADS=0
 
-find_exec() {
-  RETURN_VALUE=0
-  for i in ${PATH//:/ }; do
-    if [ -e $i/$1 ]; then
-      RETURN_VALUE=$i
-      break ;
-    fi
-  done
-}
-
-find_lib() {
-    RETURN_VALUE=0
-    for i in ${LD_LIBRARY_PATH//:/ }; do
-      if [ -e $i/lib$1.a ]; then
-        RETURN_VALUE=$i
-        break;
-      fi
-      if [ -e $i/lib$1.so ]; then
-        RETURN_VALUE=$i
-        break ;
-      fi
-      if [ -e $i/lib$1.dylib ]; then
-        RETURN_VALUE=$i
-        break ;
-      fi
-    done
-}
 
 
 COMPILER=gcc
@@ -133,6 +146,8 @@ while [ $# -ne 0 ]; do
         tmp=$1
         PREFIX=${tmp#--prefix\=}
         ;;
+      ##########################################################################
+      ##########################################################################
       --petsc-dir)
         shift
         PETSC_BASE=$1
@@ -149,6 +164,25 @@ while [ $# -ne 0 ]; do
         tmp=$1
         PETSC_BASE=${tmp#--with-petsc\=}
         ;;
+      ##########################################################################
+      ##########################################################################
+      --with-pthreads)
+        PTHREADS_DEFINE=-DPTHREADS
+        PTHREADS_LDLIBS=-lpthread
+        USE_PTHREADS=1
+        ;;
+      --no-pthreads)
+        PTHREADS_DEFINE=
+        PTHREADS_LDLIBS=
+        USE_PTHREADS=0
+        ;;
+      --nopthreads)
+        PTHREADS_DEFINE=
+        PTHREADS_LDLIBS=
+        USE_PTHREADS=0
+        ;;
+      ##########################################################################
+      ##########################################################################
       --no-metis)
         PARMETIS_BASE=""
         PARMETIS_LDFLAGS=""
@@ -177,6 +211,8 @@ while [ $# -ne 0 ]; do
         PARMETIS_BASE=${tmp#--with-metis\=}
         INSTALL_PARMETIS=0
         ;;
+      ##########################################################################
+      ##########################################################################
       --hdf5-dir)
         shift
         H5PATH=$1
@@ -194,6 +230,8 @@ while [ $# -ne 0 ]; do
         H5PATH=${tmp#--with-hdf5\=}
         ;;
 
+      ##########################################################################
+      ##########################################################################
       --cgns-dir)
         shift
         CGNSPATH=$1
@@ -211,6 +249,8 @@ while [ $# -ne 0 ]; do
         CGNSPATH=${tmp#--with-cgns\=}
         ;;
 
+      ##########################################################################
+      ##########################################################################
       --w-tecio)
         TECIOPATH=find
         ;;
@@ -235,6 +275,8 @@ while [ $# -ne 0 ]; do
         TECIOPATH=$1
         ;;
 
+      ##########################################################################
+      ##########################################################################
       --tec360-dir)
         shift
         TEC360PATH=$1
@@ -252,6 +294,8 @@ while [ $# -ne 0 ]; do
         TEC360PATH=${tmp#--with-tec360\=}
         ;;
 
+      ##########################################################################
+      ##########################################################################
       --mpi-dir)
         shift
         MPI_BASE=$1
@@ -271,6 +315,11 @@ while [ $# -ne 0 ]; do
       --no-mpi-driver)
         NO_MPI_DRIVER=1
         ;;
+      --nompi)
+        NO_MPI=1
+        ;;
+      ##########################################################################
+      ##########################################################################
       --compiler)
         shift
         COMPILER=$1
@@ -279,6 +328,8 @@ while [ $# -ne 0 ]; do
         tmp=$1
         COMPILER=${tmp#--compiler\=}
         ;;
+      ##########################################################################
+      ##########################################################################
       --obj-dir)
         shift
         OBJDIR=$1
@@ -287,9 +338,9 @@ while [ $# -ne 0 ]; do
         tmp=$1
         OBJDIR=${tmp#--obj-dir\=}
         ;;
-      --nompi)
-        NO_MPI=1
-        ;;
+
+      ##########################################################################
+      ##########################################################################
       --fad-der)
         shift
         FAD_OPTS=$1
@@ -339,7 +390,9 @@ while [ $# -ne 0 ]; do
 done
 
 
+################################################################################
 # Check for debug variable and print to screen. Set to 7 if doesn't exist.
+################################################################################
 if [[ ${LOCI_DEBUG-7} -eq 0 || ${LOCI_DEBUG-7} -eq 1 || ${LOCI_DEBUG-7} -eq 2 || \
       ${LOCI_DEBUG-7} -eq 3 ]]; then
   echo -e "Compiling in ${ESC}0;31;1m\"DEBUG\"${NC} Mode."
@@ -359,8 +412,9 @@ echo -e "Setup for compiler $PRT\"$COMPILER\"${NC}."
 echo -e "LOCI_BASE\t=\t$PREFIX" > sys.conf
 echo >> sys.conf
 
+################################################################################
 #setup MPI
-
+################################################################################
 HAS_MPI=1
 MPIEXEC=mpirun
 if [ $MPI_BASE == "/notselected" ]; then
@@ -508,9 +562,10 @@ fi
 
 echo >> sys.conf
 
-#setup hdf5
+################################################################################
+# Setup hdf5
+################################################################################
 # find hdf5
-
 if [ ! -d "$H5PATH" ]; then
   find_exec h5dump
   if [ $RETURN_VALUE != 0 ]; then
@@ -569,6 +624,8 @@ else
 fi
 echo >> sys.conf
 
+################################################################################
+################################################################################
 echo "# libxml2 library setup" >> sys.conf
 XMLPATH=/usr
 if [ ! -d $XMLPATH/include/libxml2 ]; then
@@ -600,6 +657,8 @@ fi
 echo >> sys.conf
 
 
+################################################################################
+################################################################################
 echo \# GKlib Library Setup >> sys.conf
 if [ $USE_GKLIB -eq 1 ]; then
   if [ ! -d $GKLIB_BASE ]; then
@@ -640,6 +699,8 @@ else
 fi
 echo >> sys.conf
 
+################################################################################
+################################################################################
 echo \# METIS Library Setup >> sys.conf
 if [ $USE_METIS -eq 1 ]; then
   if [ ! -d $METIS_BASE ]; then
@@ -687,6 +748,8 @@ else
 fi
 echo >> sys.conf
 
+################################################################################
+################################################################################
 echo \# ParMETIS Library Setup >> sys.conf
 if [ $USE_PARMETIS -eq 1 ]; then
   if [ ! -d $PARMETIS_BASE ]; then
@@ -728,13 +791,8 @@ fi
 echo >> sys.conf
 
 
-if [ ! -d $CGNSPATH/include ]; then
-  find_lib cgns
-  if [ $RETURN_VALUE != 0 ]; then
-    CGNSPATH=${RETURN_VALUE%/lib*}
-  fi
-fi
-
+################################################################################
+################################################################################
 if [ $TECIOPATH != "none" ] ; then
   if [ ! -f $TECIOPATH/bin/libtecio.so ] ; then
     echo "Could not find libtecio.so at $TECIOPATH"
@@ -746,6 +804,8 @@ else
   echo "TECIOPATH == none"
 fi
 
+################################################################################
+################################################################################
 if [ $TEC360PATH != "none" ] ; then
   if [ ! -f $TEC360PATH/lib/libtecio.a ]; then
     find_lib tecio
@@ -764,7 +824,16 @@ if [ $TEC360PATH != "none" ] ; then
   fi
 fi
 
+
+################################################################################
+################################################################################
 echo \# CGNS Library Setup >> sys.conf
+if [ ! -d $CGNSPATH/include ]; then
+  find_lib cgns
+  if [ $RETURN_VALUE != 0 ]; then
+    CGNSPATH=${RETURN_VALUE%/lib*}
+  fi
+fi
 if [ -d $CGNSPATH/include ]; then
     echo Using CGNS library found in $CGNSPATH
     echo -e "CGNS_BASE\t=\t$CGNSPATH"                                         >> sys.conf
@@ -783,6 +852,8 @@ else
     echo >> sys.conf
 fi
 
+################################################################################
+################################################################################
 echo \# TECPLOT Library Setup >> sys.conf
 if [ -f $TEC360PATH/lib/libtecio.a ]; then
     echo Using TECPLOT native IO library found in $TEC360PATH
@@ -808,6 +879,8 @@ else
 fi
 echo >> sys.conf
 
+################################################################################
+################################################################################
 echo \# PETSc Library Setup >> sys.conf
 
 if [ ! -d $PETSC_BASE ]; then
@@ -922,8 +995,17 @@ fi
 
 
 echo >> sys.conf
+################################################################################
+################################################################################
+echo    "# POSIX threads setup"                >> sys.conf
+echo -e "PTHREADS_DEFINE\t=\t$PTHREADS_DEFINE" >> sys.conf
+echo -e "PTHREADS_LDLIBS\t=\t$PTHREADS_LDLIBS" >> sys.conf
+echo >> sys.conf
 
+
+################################################################################
 # check for fortran includes
+################################################################################
 FORTRAN_LIBS=
 
 if [ "$MPI_C_COMPILER" == "none" ]; then
@@ -952,47 +1034,52 @@ case "$COMPILER" in
     ;;
 esac
 
-case "$ARCH" in
-    SunOS)
-# SunOS architecture
-    # find sunmath.h
-    find_exec cc
-    CCPATH=$RETURN_VALUE/cc
-    CCBASE=${CCPATH%/bin/cc}
-    CCINC=$CCBASE/prod/include/cc
-    if [ -e $CCINC/sunmath.h ]; then
-      echo MISC=-I$CCINC >> sys.conf
-      echo MISC_LIBS=-L$CCBASE/lib -lsunmath -lmalloc -lm $FORTRAN_LIBS >> sys.conf
-    else
-      echo MISC=-DNOSUNMATH >> sys.conf
-      echo MISC_LIBS=-lmalloc -lm $FORTRAN_LIBS >> sys.conf
-    fi
-    ;;
-    *) #everything else
-    if [ $FAD_OPTS != "/notselected" ]; then
-      echo "# Miscellaneous Library Setup" >> sys.conf
-      if [ $FAD_OPTS -eq 1 ]; then
-        MISC="-DUSE_AUTODIFF "
-        if [ $MFAD_SIZE -gt 1 ]; then
-          MISC+="-DMULTIFAD -DMFAD_SIZE=${MFAD_SIZE}"
-        fi
-      elif [ $FAD_OPTS -eq 2 ]; then
-        MISC="-DUSE_AUTODIFF -DAUTODIFF2ND"
+################################################################################
+################################################################################
+if [ "${ARCH}" == "SunOS" ]; then
+  # SunOS architecture
+  # find sunmath.h
+  find_exec cc
+  CCPATH=$RETURN_VALUE/cc
+  CCBASE=${CCPATH%/bin/cc}
+  CCINC=$CCBASE/prod/include/cc
+  if [ -e $CCINC/sunmath.h ]; then
+    MISC_DEFINES="-I$CCINC"
+    MISC_LIBS="-L$CCBASE/lib -lsunmath -lmalloc -lm $FORTRAN_LIBS"
+  else
+    MISC_DEFINES="-DNOSUNMATH"
+    MISC_LIBS="-lmalloc -lm $FORTRAN_LIBS"
+  fi
+else
+  if [ $FAD_OPTS != "/notselected" ]; then
+    echo "# Miscellaneous Library Setup" >> sys.conf
+    if [ $FAD_OPTS -eq 1 ]; then
+      MISC_DEFINES="-DUSE_AUTODIFF "
+      if [ $MFAD_SIZE -gt 1 ]; then
+        MISC_DEFINES+="-DMULTIFAD -DMFAD_SIZE=${MFAD_SIZE}"
       fi
-      echo -e "MISC\t\t=\t$MISC" >> sys.conf
-    else
-      echo -e "MISC\t\t=" >> sys.conf
+    elif [ $FAD_OPTS -eq 2 ]; then
+      MISC_DEFINES="-DUSE_AUTODIFF -DAUTODIFF2ND"
     fi
-    find_lib pthread
-    if [ $RETURN_VALUE != 0 ]; then
-      FORTRAN_LIBS+=" -pthread"
-    fi
-    echo -e "MISC_LIBS\t=\t$FORTRAN_LIBS" >> sys.conf
-    ;;
-esac
+  fi
+  case "${ARCH}" in
+    Darwin)
+      MISC_DEFINES+="-DARCH_MACOS "
+      ;;
+    Linux)
+      MISC_DEFINES+="-DARCH_LINUX "
+      ;;
+    *)
+      ;;
+  esac
+fi
+echo -e "MISC_DEFINES\t=\t$MISC_DEFINES" >> sys.conf
+echo -e "MISC_LIBS\t\t=\t$FORTRAN_LIBS"  >> sys.conf
 
 echo >> sys.conf
 
+################################################################################
+################################################################################
 echo \# Dynamic Library Defines >> sys.conf
 
 case "$ARCH" in
@@ -1016,41 +1103,54 @@ esac
 
 echo >> sys.conf
 
+################################################################################
+################################################################################
 echo "##############################################" >> sys.conf
 echo "# No need to change things below this line"     >> sys.conf
 
 echo >> sys.conf
 
-echo -e "MACHINE_DEFINES\t\t=\t\$(PETSC_DEFINE) \$(MPI_DEFINE) \$(TEC360_DEFINE)\\" >> sys.conf
-echo -e "\t\t\t\t\t\t\$(DYNAMIC_LOADING_DEFINES) \$(MISC) \$(CGNS_DEFINE) \\"       >> sys.conf
-echo -e "\t\t\t\t\t\t\$(PARMETIS_DEFINE) \$(METIS_DEFINE) \$(GKLIB_DEFINE)"         >> sys.conf
-echo -e "MACHINE_INCLUDES\t=\t\$(PETSC_INCLUDE) \$(HDF5_INCLUDE)\\"                 >> sys.conf
-echo -e "\t\t\t\t\t\t\$(MPI_INCLUDE) \$(TEC360_INCLUDE) \$(CGNS_INCLUDE) \\"        >> sys.conf
-echo -e "\t\t\t\t\t\t\$(PARMETIS_INCLUDE) \$(METIS_INCLUDE) \$(GKLIB_INCLUDE)"      >> sys.conf
+echo -e "MACHINE_DEFINES\t\t=\t\$(PETSC_DEFINE) \$(MPI_DEFINE)            \\"  >> sys.conf
+echo -e "\t\t\t\t\t\t\$(TEC360_DEFINE) \$(DYNAMIC_LOADING_DEFINES)        \\"  >> sys.conf
+echo -e "\t\t\t\t\t\t\$(PTHREADS_DEFINE) \$(MISC_DEFINES) \$(CGNS_DEFINE) \\"  >> sys.conf
+echo -e "\t\t\t\t\t\t\$(PARMETIS_DEFINE) \$(MISC_DEFINES) \$(CGNS_DEFINE) \\"  >> sys.conf
+echo -e "\t\t\t\t\t\t\$(PARMETIS_DEFINE) \$(METIS_DEFINE) \$(GKLIB_DEFINE)"    >> sys.conf
+echo                                                                           >> sys.conf
+echo -e "MACHINE_INCLUDES\t=\t\$(PETSC_INCLUDE) \$(HDF5_INCLUDE)         \\"   >> sys.conf
+echo -e "\t\t\t\t\t\t\$(MPI_INCLUDE) \$(TEC360_INCLUDE) \$(CGNS_INCLUDE) \\"   >> sys.conf
+echo -e "\t\t\t\t\t\t\$(PARMETIS_INCLUDE) \$(METIS_INCLUDE) \$(GKLIB_INCLUDE)" >> sys.conf
 # if [[ "${OS_NAME[2]-0}" == "platform:el8" && -d /usr/include/tirpc/rpc ]]; then
 #   echo -e "MACHINE_INCLUDES\t+=\t-I/usr/include/tirpc"                              >> sys.conf
 # fi
-echo                                                                                       >> sys.conf
-echo -e "BASE_LDFLAGS\t=\t\$(HDF5_LDFLAGS) \$(PETSC_LDFLAGS) \$(TEC360_LDFLAGS) \\"        >> sys.conf
-echo -e "\t\t\t\t\t\$(MISC_LDFLAGS) \$(CGNS_LDFLAGS) \$(MPI_LDFLAGS) \$(METIS_LDFLAGS) \\" >> sys.conf
-echo -e "\t\t\t\t\t\$(PARMETIS_LDFLAGS) \$(GKLIB_LDFLAGS)"                                 >> sys.conf
-echo                                                                                       >> sys.conf
-echo -e "BASE_LIBS\t\t=\t\$(HDF5_LDLIBS) \$(PETSC_LDLIBS) \$(TEC360_LDLIBS) \\"            >> sys.conf
-echo -e "\t\t\t\t\t\$(MISC_LDLIBS) \$(CGNS_LDLIBS) \$(DYNAMIC_LOADING_LINK) \\"            >> sys.conf
-echo -e "\t\t\t\t\t\$(MPI_LDLIBS) \$(PARMETIS_LDLIBS) \$(METIS_LDLIBS) \$(GKLIB_LDLIBS)"   >> sys.conf
+echo >> sys.conf
+echo -e "BASE_LDFLAGS\t=\t\$(HDF5_LDFLAGS) \$(PETSC_LDFLAGS)              \\"   >> sys.conf
+echo -e "\t\t\t\t\t\$(TEC360_LDFLAGS) \$(MISC_LDFLAGS) \$(CGNS_LDFLAGS)   \\"   >> sys.conf
+echo -e "\t\t\t\t\t\$(MPI_LDFLAGS) \$(METIS_LDFLAGS) \$(PARMETIS_LDFLAGS) \\"   >> sys.conf
+echo -e "\t\t\t\t\t\$(GKLIB_LDFLAGS)"                                           >> sys.conf
+echo                                                                            >> sys.conf
+echo -e "BASE_LIBS\t\t=\t\$(HDF5_LDLIBS) \$(PETSC_LDLIBS) \$(TEC360_LDLIBS) \\" >> sys.conf
+echo -e "\t\t\t\t\t\$(MISC_LDLIBS) \$(CGNS_LDLIBS) \$(DYNAMIC_LOADING_LINK) \\" >> sys.conf
+echo -e "\t\t\t\t\t\$(MPI_LDLIBS) \$(PTHREADS_LDLIBS) \$(PARMETIS_LDLIBS)   \\" >> sys.conf
+echo -e "\t\t\t\t\t\$(METIS_LDLIBS) \$(GKLIB_LDLIBS)"                           >> sys.conf
 
 
+################################################################################
+################################################################################
 echo Making compile subdirectory ${OBJDIR}...
 
 INSTALL_METIS=$INSTALL_METIS ./tmpcopy --target $OBJDIR --compiler $COMPILER > copy.out
 mv sys.conf ${OBJDIR}/sys.conf
 
+################################################################################
 # Setup targets files
+################################################################################
 TARGET_MK=targets_tmp.mk
 cp targets/main.mk ${TARGET_MK}
 eval ${SED_I} "s,{{OBJDIR}},${OBJDIR},g" ${TARGET_MK}
 
+################################################################################
 # Make makefile
+################################################################################
 echo "include ${TARGET_MK}"                 >  makefile
 echo "default:"                             >> makefile
 echo "	@\$(MAKE) -C ${OBJDIR} \$@"         >> makefile
@@ -1066,6 +1166,8 @@ echo "distclean:"                           >> makefile
 echo "	rm -fr ${OBJDIR} copy.out makefile" >> makefile
 
 
+################################################################################
+################################################################################
 echo
 echo
 echo "To compile Loci, enter:"
