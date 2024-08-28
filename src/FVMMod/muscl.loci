@@ -1,0 +1,229 @@
+//#############################################################################
+//#
+//# Copyright 2008-2019, Mississippi State University
+//#
+//# This file is part of the Loci Framework.
+//#
+//# The Loci Framework is free software: you can redistribute it and/or modify
+//# it under the terms of the Lesser GNU General Public License as published by
+//# the Free Software Foundation, either version 3 of the License, or
+//# (at your option) any later version.
+//#
+//# The Loci Framework is distributed in the hope that it will be useful,
+//# but WITHOUT ANY WARRANTY; without even the implied warranty of
+//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//# Lesser GNU General Public License for more details.
+//#
+//# You should have received a copy of the Lesser GNU General Public License
+//# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
+//#
+//#############################################################################
+#include <Loci>
+#include <Tools/tools.h>
+#include "FVMMod/slope_rescale.h"
+$include "FVM.lh"
+
+// The following functions help to construct the flux terms
+// and flux Jacobian at the interface of the cell.
+// Notes: In the finite volume approach, we need to know the flux
+// terms at the interface. The procedure to compute the flux is shown
+// in the following functions. 1. compute primitive variables from
+// conservative variables in each cell; 2. extrapolate the primitive
+// variables to face from the cell (there are right and left values for
+// each face). in the current code, we employ the MUSCL extrapolation
+// scheme; 3. construct the flux at the interface based on right and left
+// extrapolated conservative variables. In the current code, we apply the Roe
+// scheme; 4. numerical flux Jacobian matrix is calculated, which is a used to
+// assemble matrix M in Mx = b (The solution of which results in the completion
+// of the implicit algorithm).
+
+namespace Loci {
+
+typedef vector3d<real_t> vect3d;
+typedef tensor3d<real_t> tens3d;
+typedef real_t real;
+
+$type X store<real>;
+$type M param<real>;
+
+
+/** ****************************************************************************
+ * @brief
+ ******************************************************************************/
+$rule pointwise(lefts(X)<-facecenter,
+                cl->(X,grads(X),limiters(X),cellcenter)),
+  constraint(cl->(X,geom_cells)) {
+  const vect3d drl = $facecenter - $cl->$cellcenter;
+  $lefts(X) = $cl->$X + $cl->$limiters(X)*dot($cl->$grads(X),drl);
+}
+
+
+/** ****************************************************************************
+ * @brief
+ ******************************************************************************/
+$rule pointwise(rights(X)<-facecenter,
+                cr->(X,grads(X),limiters(X),cellcenter)),
+  constraint(cr->(X,geom_cells)) {
+  const vect3d drl = $facecenter - $cr->$cellcenter;
+  $rights(X) = $cr->$X + $cr->$limiters(X)*dot($cr->$grads(X),drl);
+}
+
+
+/** ****************************************************************************
+ * @brief
+ ******************************************************************************/
+$rule pointwise(rights(X)<-pmap->lefts(X)),constraint(periodicFaces) {
+  $rights(X) = $pmap->$lefts(X);
+}
+
+$type Zero param<real>;
+$rule singleton(Zero),constraint(UNIVERSE) { $Zero = 0.0; }
+$type minPg param<real>;
+$type Pambient param<real>;
+$rule singleton(minPg<-Pambient) { $minPg = -$Pambient;  }
+
+
+/** ****************************************************************************
+ * @brief
+ ******************************************************************************/
+$rule pointwise(leftsP(X,M)<-facecenter,M,
+                cl->(X,grads(X),limiters(X),cellcenter)),
+  constraint(cl->(X,geom_cells)) {
+  const vect3d drl = $facecenter - $cl->$cellcenter;
+  const real Xl = $cl->$X;
+  const real XP = Xl + $cl->$limiters(X)*dot($cl->$grads(X),drl);
+  $leftsP(X,M) = (XP<$M)?Xl:XP;
+}
+
+
+/** ****************************************************************************
+ * @brief
+ ******************************************************************************/
+$rule pointwise(rightsP(X,M)<-facecenter,M,
+                cr->(X,grads(X),limiters(X),cellcenter)),
+  constraint(cr->(X,geom_cells)) {
+  const vect3d drl = $facecenter - $cr->$cellcenter;
+  const real Xr = $cr->$X;
+  const real XP = Xr + $cr->$limiters(X)*dot($cr->$grads(X),drl);
+  $rightsP(X,M) = (XP<$M)?Xr:XP;
+}
+
+
+/** ****************************************************************************
+ * @brief
+ ******************************************************************************/
+$rule pointwise(rightsP(X,M)<-pmap->leftsP(X,M)),constraint(periodicFaces) {
+  $rightsP(X,M) = $pmap->$leftsP(X,M);
+}
+
+$type X store<vect3d>;
+
+
+/** ****************************************************************************
+ * @brief
+ ******************************************************************************/
+$rule pointwise(leftv3d(X)<-facecenter,
+                cl->(X,gradv3d(X),limiterv3d(X),cellcenter)),
+  constraint(cl->(X,geom_cells)) {
+  const vect3d drl = $facecenter - $cl->$cellcenter;
+  $leftv3d(X) = $cl->$X +
+    vect3d($cl->$limiterv3d(X).x*dot($cl->$gradv3d(X).x,drl),
+           $cl->$limiterv3d(X).y*dot($cl->$gradv3d(X).y,drl),
+           $cl->$limiterv3d(X).z*dot($cl->$gradv3d(X).z,drl));
+}
+
+
+/** ****************************************************************************
+ * @brief
+ ******************************************************************************/
+$rule pointwise(rightv3d(X)<-facecenter,
+                cr->(X,gradv3d(X),limiterv3d(X),cellcenter)),
+  constraint(cr->(X,geom_cells)) {
+  const vect3d drl = $facecenter - $cr->$cellcenter;
+  $rightv3d(X) = $cr->$X +
+    vect3d($cr->$limiterv3d(X).x*dot($cr->$gradv3d(X).x,drl),
+           $cr->$limiterv3d(X).y*dot($cr->$gradv3d(X).y,drl),
+           $cr->$limiterv3d(X).z*dot($cr->$gradv3d(X).z,drl));
+}
+
+
+/** ****************************************************************************
+ * @brief
+ ******************************************************************************/
+$type periodicTransform store<rigid_transform>;
+$rule pointwise(rightv3d(X)<-pmap->leftv3d(X),pmap->ref->periodicTransform),
+  constraint(periodicFaces) {
+  const rigid_transform &frame = $pmap->$ref->$periodicTransform;
+  $rightv3d(X) = frame.rotate_vec($pmap->$leftv3d(X));
+}
+
+
+$type X storeVec<real>;
+
+/** ****************************************************************************
+ * @brief
+ ******************************************************************************/
+$rule pointwise(leftvM(X)<-facecenter,
+                cl->(X,gradv(X),limiterv(X),cellcenter)),
+  constraint(cl->(X,geom_cells)),
+  prelude {
+  $leftvM(X).setVecSize($X.vecSize());
+} compute {
+  const vect3d drl = $facecenter - $cl->$cellcenter;
+  const int vs = $*X.vecSize();
+  tmp_array<real> slopes(vs);
+
+  for(int i=0;i<vs;++i) {
+    const real Xi = $cl->$X[i];
+    slopes[i] = $cl->$limiterv(X)[i]*dot($cl->$gradv(X)[i],drl);
+    if(Xi+slopes[i] < 0.0)
+      slopes[i] = -Xi;
+    if(Xi-1.5*slopes[i] < 0.0)
+      slopes[i] = 0;
+  }
+  slope_rescale(slopes,vs);
+  for(int i=0;i<vs;++i) {
+    ($leftvM(X))[i] = $cl->$X[i] + slopes[i];
+  }
+}
+
+
+/** ****************************************************************************
+ * @brief
+ ******************************************************************************/
+$rule pointwise(rightvM(X)<-facecenter,
+                cr->(X,gradv(X),limiterv(X),cellcenter)),
+    constraint(cr->(X,geom_cells)), prelude {
+  $rightvM(X).setVecSize($X.vecSize());
+} compute {
+  const vect3d drl = $facecenter - $cr->$cellcenter;
+  const int vs = $*X.vecSize();
+  tmp_array<real> slopes(vs);
+
+  for(int i=0;i<vs;++i) {
+    const real Xi = $cr->$X[i];
+    slopes[i] = $cr->$limiterv(X)[i]*dot($cr->$gradv(X)[i],drl);
+    if(Xi+slopes[i] < 0.0)
+      slopes[i] = -Xi;
+    if(Xi-1.5*slopes[i] < 0.0)
+      slopes[i] = 0;
+  }
+  slope_rescale(slopes,vs);
+  for(int i=0;i<vs;++i) {
+    $rightvM(X)[i] = $cr->$X[i] + slopes[i];
+  }
+}
+
+
+/** ****************************************************************************
+ * @brief
+ ******************************************************************************/
+$rule pointwise(rightvM(X)<-pmap->leftvM(X)),constraint(periodicFaces),
+prelude {
+  $rightvM(X).setVecSize($leftvM(X).vecSize());
+} compute {
+  $rightvM(X) = $pmap->$leftvM(X);
+}
+
+}
+

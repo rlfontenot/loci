@@ -40,30 +40,30 @@ else
   COMP=${LOCI_COMP-gcc}
 fi
 
-while [ $# -ne 0 ]; do 
-    case "$1" in
-	--subdir)
-	    shift
-	    subdir=$1
-	    ;;
-	--target)
-	    shift
-	    subdir=""
-	    target=$1
-	    ;;
-	--source)
-	    shift
-	    source=$1
-	    ;;
-	--compiler)
-	    shift
-	    COMP=$1
-	    ;;
-	*)
-            break
-            ;;
-    esac
-    shift
+while [ $# -ne 0 ]; do
+  case "$1" in
+    --subdir)
+        shift
+        subdir=$1
+        ;;
+    --target)
+        shift
+        subdir=""
+        target=$1
+        ;;
+    --source)
+        shift
+        source=$1
+        ;;
+    --compiler)
+        shift
+        COMP=$1
+        ;;
+    *)
+      break
+      ;;
+  esac
+  shift
 done
 
 if [ $# -eq 1 ]; then
@@ -79,15 +79,44 @@ if [ ${target:0:1} != "/" ]; then
    echo setting target to \'$target\'
 fi
 
-TARGET_DIRS="System Tools FVMAdapt FVMOverset include include/Tools include/Config include/MPI_stubb include/FVMAdapt include/FVMOverset"
-TOOLS_DIRS="lpp FVMtools FVMtools/libadf FVMMod sprng sprng/include sprng/include/sprng"
+SRC_DIRS="2dgv               \
+          FVMAdapt           \
+          FVMMod             \
+          FVMOverset         \
+          FVMtools           \
+          FVMtools/libadf    \
+          lpp                \
+          sprng              \
+          System             \
+          Tools"
 
-DO_METIS_INSTALL=${INSTALL_METIS:-1}
-if [ ! ${DO_METIS_INSTALL} == 0 ]; then
-    TOOLS_DIRS=$TOOLS_DIRS" ParMetis-4.0 ParMetis-4.0/GKLib ParMetis-4.0/METISLib ParMetis-4.0/ParMETISLib"
-fi
+INCLUDE_DIRS="include            \
+              include/2dgv       \
+              include/Tools      \
+              include/Config     \
+              include/MPI_stubb  \
+              include/FVMAdapt   \
+              include/FVMMod     \
+              include/FVMOverset \
+              include/FVMtools   \
+              include/libadf     \
+              include/sprng"
 
-echo TOOLS_DIR=${TOOLS_DIRS}
+TARGET_DIRS="targets             \
+             targets/deps"
+
+TUT_DIRS="Tutorial                            \
+          Tutorial/1D-Diffusion               \
+          Tutorial/Datatypes                  \
+          Tutorial/docs                       \
+          Tutorial/docs/figures               \
+          Tutorial/heat                       \
+          Tutorial/lfvm                       \
+          Tutorial/life                       \
+          Tutorial/LociTutorialSlides         \
+          Tutorial/LociTutorialSlides/Figures"
+
+echo TOOLS_DIR=${TARGET_DIRS}
 
 echo -n "Making Directory Structure: "
 mkdir -p $target
@@ -102,9 +131,18 @@ fi
 mkdir -p $fulltarget/lib
 mkdir -p $fulltarget/bin
 
-if [ ! -h $fulltarget/Tutorial ]; then 
-    ln -s $source/Tutorial $fulltarget/Tutorial
-fi
+
+for i in $SRC_DIRS ; do
+  echo -n $i " "
+  mkdir -p $fulltarget/$i
+done
+echo
+
+for i in $INCLUDE_DIRS ; do
+  echo -n $i " "
+  mkdir -p $fulltarget/$i
+done
+echo
 
 for i in $TARGET_DIRS ; do
   echo -n $i " "
@@ -112,17 +150,14 @@ for i in $TARGET_DIRS ; do
 done
 echo
 
-# remove Makefile link if it already exists in case external metis option
-# changed
-rm -f $fulltarget/ParMetis-4.0/Makefile
-for i in $TOOLS_DIRS ; do
+for i in $TUT_DIRS ; do
   echo -n $i " "
   mkdir -p $fulltarget/$i
 done
 echo
 
 if [ ! -h $fulltarget/FVMtools/extract_movie ]; then
-    cp FVMtools/extract_movie $fulltarget/FVMtools/extract_movie
+    cp src/FVMtools/extract_movie $fulltarget/FVMtools/extract_movie
     chmod a+rx $fulltarget/FVMtools/extract_movie
 fi
 
@@ -132,8 +167,8 @@ if [ ! -h Makefile ]; then
   ln -s $source/src/Makefile Makefile
 fi
 if [ ! -h Loci.conf ]; then
-  echo ln -s $source/src/conf/Loci.conf Loci.conf
-  ln -s $source/src/conf/Loci.conf Loci.conf
+  echo ln -s $source/conf/Loci.conf Loci.conf
+  ln -s $source/conf/Loci.conf Loci.conf
 fi
 if [ ! -h Install.bash ]; then
   echo ln -s $source/src/Install.bash Install.bash
@@ -141,115 +176,24 @@ if [ ! -h Install.bash ]; then
 fi
 
 if [ ! -e comp.conf ]; then
-  echo cp $source/src/conf/${COMP}.conf comp.conf
-  cp $source/src/conf/${COMP}.conf comp.conf
+  echo cp $source/conf/${COMP}.conf comp.conf
+  cp $source/conf/${COMP}.conf comp.conf
 fi
 if [ ! -e sys.conf ]; then
-    if [ -e $source/src/conf/${ARCH}.conf ]; then
-	echo cp $source/src/conf/${ARCH}.conf sys.conf
-	cp $source/src/conf/${ARCH}.conf sys.conf
-    fi
+  if [ -e $source/conf/${ARCH}.conf ]; then
+    echo cp $source/conf/${ARCH}.conf sys.conf
+    cp $source/conf/${ARCH}.conf sys.conf
+  fi
 fi
 
-cd lib
-#if [ ! -h libTools.a ]; then
-#  ln -s ../Tools/libTools.a libTools.a
-#fi
-#if [ ! -h libLoci.a ]; then
-#  ln -s ../System/libLoci.a libLoci.a
-#fi
-if [ ! -h libTools.${LIB_POSTFIX} ]; then
-  ln -s ../Tools/libTools.${LIB_POSTFIX} libTools.${LIB_POSTFIX}
+if [ ! -e ext ]; then
+  echo ln -s $source/ext ext
+  ln -s $source/ext $fulltarget/ext
 fi
-if [ ! -h libLoci.${LIB_POSTFIX} ]; then
-  ln -s ../System/libLoci.${LIB_POSTFIX} libLoci.${LIB_POSTFIX}
-fi
-if [ ! -h fvm_m.so ]; then
-  ln -s ../FVMMod/fvm_m.so fvm_m.so
-fi
-if [ ! -h libfvmadaptfunc.${LIB_POSTFIX} ]; then
-  ln -s ../FVMAdapt/libfvmadaptfunc.${LIB_POSTFIX} libfvmadaptfunc.${LIB_POSTFIX}
-fi
-if [ ! -h fvmadapt_m.so ]; then
-  ln -s ../FVMAdapt/fvmadapt_m.so fvmadapt_m.so
-fi
-if [ ! -h fvmoverset_m.so ]; then
-  ln -s ../FVMOverset/fvmoverset_m.so fvmoverset_m.so
-fi
-if [ ! ${DO_METIS_INSTALL} == 0 ]; then
-    if [ ! -h libgk.${LIB_POSTFIX} ] ; then
-	ln -s ../ParMetis-4.0/GKLib/libgk.${LIB_POSTFIX} libgk.${LIB_POSTFIX}
-    fi
-    if [ ! -h libmetis.${LIB_POSTFIX} ] ; then
-	ln -s ../ParMetis-4.0/METISLib/libmetis.${LIB_POSTFIX} libmetis.${LIB_POSTFIX}
-    fi
-    if [ ! -h libparmetis.${LIB_POSTFIX} ] ; then
-	ln -s ../ParMetis-4.0/ParMETISLib/libparmetis.${LIB_POSTFIX} libparmetis.${LIB_POSTFIX}
-    fi
-else
-    rm -f libgk.* libmetis.* libparmetis.*
-fi
-if [ ! -h libsprng.${LIB_POSTFIX} ] ; then
-    ln -s ../sprng/libsprng.${LIB_POSTFIX} libsprng.${LIB_POSTFIX}
-fi
-cd ../bin
-if [ ! -h lpp ] ; then 
-  ln -s ../lpp/lpp lpp
-fi
-if [ ! -h extract ] ; then
-  ln -s ../FVMtools/extract extract
-fi
-if [ ! -h msh2vog ] ; then
-  ln -s ../FVMtools/msh2vog msh2vog
-fi
-if [ ! -h ugrid2vog ] ; then
-  ln -s ../FVMtools/ugrid2vog ugrid2vog
-fi
-if [ ! -h msh2vog ] ; then
-  ln -s ../FVMtools/msh2vog msh2vog
-fi
-if [ ! -h cfd++2vog ] ; then
-  ln -s ../FVMtools/cfd++2vog cfd++2vog
-fi
-if [ ! -h vogcheck ] ; then
-  ln -s ../FVMtools/vogcheck vogcheck
-fi
-if [ ! -h vogmerge ] ; then
-  ln -s ../FVMtools/vogmerge vogmerge
-fi
-if [ ! -h vog2surf ] ; then
-  ln -s ../FVMtools/vog2surf vog2surf
-fi
-if [ ! -h marker ] ; then
-  ln -s ../FVMtools/marker marker
-fi
-if [ ! -h refmesh ] ; then
-  ln -s ../FVMtools/refmesh refmesh
-fi
-if [ ! -h refine ] ; then
-  ln -s ../FVMtools/refine refine
-fi
-if [ ! -h cgns2surf ] ; then
-  ln -s ../FVMtools/cgns2surf cgns2surf
-fi
-if [ ! -h cgns2ensight ] ; then
-  ln -s ../FVMtools/cgns2ensight cgns2ensight
-fi
-if [ ! -h cgns2ugrid ] ; then
-  ln -s ../FVMtools/cgns2ugrid cgns2ugrid
-fi
-if [ ! -h cgns2vog ] ; then
-  ln -s ../FVMtools/cgns2vog cgns2vog
-fi
-if [ ! -h ugrid2cgns ] ; then
-  ln -s ../FVMtools/ugrid2cgns ugrid2cgns
-fi
-
-
-for dir in $TARGET_DIRS; do
+for dir in $SRC_DIRS; do
   echo "Linking" $dir "directory files..."
   cd $source/src/$dir
-  for i in *.cc *.h *.hh *.hpp *.c *.loci *.lh Makefile Loci ; do
+  for i in *.cpp *.c *.loci Makefile; do
     if [ -e  $i ] ; then
       if [ ! -h $fulltarget/$dir/$i ] ; then
         echo ln -s $source/src/$dir/$i $fulltarget/$dir/$i
@@ -259,10 +203,10 @@ for dir in $TARGET_DIRS; do
   done
 done
 
-for dir in $TOOLS_DIRS; do
+for dir in $INCLUDE_DIRS; do
   echo "Linking" $dir "directory files..."
   cd $source/$dir
-  for i in *.cc *.h *.hh *.hpp *.c *.loci *.lh Makefile Loci ; do
+  for i in *.h *.hh *.hpp *.lh Loci; do
     if [ -f  $i ] ; then
       if [ ! -h $fulltarget/$dir/$i ] ; then
         echo ln -s $source/$dir/$i $fulltarget/$dir/$i
@@ -271,15 +215,31 @@ for dir in $TOOLS_DIRS; do
     fi
   done
 done
-if [ ! -h $fulltarget/lpp/variable.cc ] ; then
-    echo ln -s $source/src/System/variable.cc $fulltarget/lpp/variable.cc
-    ln -s $source/src/System/variable.cc $fulltarget/lpp/variable.cc
-fi
-#if [ ${DO_METIS_INSTALL} == 0 ]; then
-#make dummy metis directory
-#    mkdir -p $fulltarget/ParMetis-4.0
-#    cp $source/ParMetis-4.0/Makefile.dummy $fulltarget/ParMetis-4.0/Makefile
-#fi
-#echo "** Be sure to set LOCI_BASE=\"$target/Loci\" **"
+
+for dir in $TARGET_DIRS; do
+  echo "Linking" $dir "directory files..."
+  cd $source/$dir
+  for i in Makefile *.mk *.sh; do
+    if [ -f  $i ] ; then
+      if [ ! -h $fulltarget/$dir/$i ] ; then
+        echo ln -s $source/$dir/$i $fulltarget/$dir/$i
+        ln -s $source/$dir/$i $fulltarget/$dir/$i
+      fi
+    fi
+  done
+done
 
 
+for dir in $TUT_DIRS; do
+  echo "Linking" $dir "directory files..."
+  cd $source/$dir
+  for i in *.cpp *.h *.hh *.hpp *.c *.loci *.lh *.vars *.vog Makefile *.mk \
+           *.sh *.tex *.pdf *.obj *.eps clean; do
+    if [ -f  $i ] ; then
+      if [ ! -h $fulltarget/$dir/$i ] ; then
+        echo ln -s $source/$dir/$i $fulltarget/$dir/$i
+        ln -s $source/$dir/$i $fulltarget/$dir/$i
+      fi
+    fi
+  done
+done

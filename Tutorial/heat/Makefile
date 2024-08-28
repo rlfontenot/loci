@@ -1,34 +1,37 @@
-# This is the Loci base directory.
-LOCI_BASE ?= /Users/lush/Work/Loci/OBJ
-# List your object files here
-OBJS  =  main.o residual.o matrix.o euler.o varFileInputs.o plot.o 
-# List the name of your compiled program here
-TARGET = heat
-
-#############################################################################
-# No changes needed below this line
+LOCI_BASE?=../..
+LOCI_SRC?=../..
 
 include $(LOCI_BASE)/Loci.conf
 
-default:
-	$(MAKE) $(TARGET)
+
+TARGET	=	heat
+
+################################################################################
+# No changes required below this line
+################################################################################
+LOCI_FILES		=	$(wildcard *.loci)
+LOCI_LPP_FILES	=	$(LOCI_FILES:.loci=.cc)
+OBJS			=	$(subst .loci,.o,$(LOCI_FILES))
+DEPEND_FILES	=	$(subst .o,.d,$(OBJS))
+JUNK			=	$(wildcard *~)  core make.depend make.depend.bak debug output
+
+default:	$(TARGET)
+all:		$(TARGET)
 
 $(TARGET): $(OBJS)
-	$(LD) -o $(TARGET) $(OBJS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
-
+	@$(ECHO) "$(PRT) $@ $(NC)"
+	$(LD) -o $@ $(OBJS) $(LOCAL_LIBS) $(LDFLAGS) $(LDLIBS)
 
 clean:
-	rm -fr $(OBJS) $(TARGET) 
+	@$(ECHO) "$(PRT) $@_$(TARGET) $(NC)"
+	rm -rf  $(OBJS) $(JUNK) $(TARGET)
 
-# Junk files that are created while editing and running cases
-JUNK = $(wildcard *~) $(wildcard crash_dump.*)  core debug output $(wildcard .schedule*)
-# ".cc" files created from .loci files
-LOCI_INTERMEDIATE_FILES = $(subst .loci,.cc, $(wildcard *.loci) )
 
-distclean:
-	rm -fr $(OBJS) $(TARGET) $(JUNK) $(LOCI_INTERMEDIATE_FILES) $(DEPEND_FILES) 
-
-DEPEND_FILES=$(subst .o,.d,$(OBJS))
+distclean: clean
+	@$(ECHO) "$(PRT) $@_$(TARGET) $(NC)"
+	rm -fr  $(LOCI_LPP_FILES) $(DEPEND_FILES)
 
 #include automatically generated dependencies
+ifeq ($(filter $(MAKECMDGOALS),clean clean_install distclean spotless),)
 -include $(DEPEND_FILES)
+endif

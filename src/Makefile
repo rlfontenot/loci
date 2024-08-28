@@ -1,4 +1,4 @@
-###############################################################################
+################################################################################
 #
 # Copyright 2008, Mississippi State University
 #
@@ -17,90 +17,197 @@
 # You should have received a copy of the Lesser GNU General Public License
 # along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 #
-###############################################################################
-#
-LOCI_BASE = $(shell pwd)
-LOCI_COMPILE = true
-include Loci.conf
+################################################################################
+LOCI_BASE?=$(shell pwd)
+LOCI_SRC?=$(shell pwd)
 
-#include sys.conf
-#include comp.conf
+include $(LOCI_SRC)/Loci.conf
+include $(LOCI_SRC)/targets/external.mk
 
-DEFINES = $(DEBUG) $(SYSTEM_DEFINES) $(MACHINE_SPECIFIC) 
+MODELS_BIN	=	2dgv          \
+				ccm2vog       \
+				ccm2vogp      \
+				cfd++2vog     \
+				cgns2ensight  \
+				cgns2surf     \
+				cgns2ugrid    \
+				cgns2vog      \
+				cobalt2vog    \
+				extract       \
+				extract_chem  \
+				extruder      \
+				fluent2vog    \
+				lpp           \
+				make_periodic \
+				marker        \
+				msh2vog       \
+				plot3d2vog    \
+				refine        \
+				refmesh       \
+				ugrid2cgns    \
+				ugrid2vog     \
+				ugridmirror   \
+				vog2surf      \
+				vogmerge      \
+				vogcut        \
+				vogcheck
 
-default: library lpp FVMtools FVMMod FVMAdapt FVMOverset
+MODELS_LIB	=	fvmadapt_m.so                 \
+				fvm_m.so                      \
+				fvmoverset_m.so               \
+				libadf.a                      \
+				libadf.$(LIB_SUFFIX)          \
+				libfvmadaptfunc.$(LIB_SUFFIX) \
+				libLoci.$(LIB_SUFFIX)         \
+				libsprng.$(LIB_SUFFIX)        \
+				libTools.a                    \
+				libTools.$(LIB_SUFFIX)
 
-library: shared
+default:
+	$(MAKE) -C 2dgv         $@
+	$(MAKE) -C Tools        $@
+	$(MAKE) -C System       $@
+	$(MAKE) -C lpp          $@
+	$(MAKE) -C FVMAdapt     $@
+	$(MAKE) -C FVMMod       $@
+	$(MAKE) -C FVMOverset   $@
+	$(MAKE) -C FVMtools     $@
+	$(MAKE) -C sprng        $@
+	$(MAKE) -C Tutorial     $@
 
-static: Tools System
-shared: Tools/libTools.so System/libLoci.so METIS SPRNG 
-
-docs:
-	cd Tutorial/docs; $(MAKE) LOCI_BASE="$(LOCI_BASE)"
-
-install: default docs
-	INSTALL_DIR=$(INSTALL_DIR) LOCI_INSTALL_DIR=$(LOCI_INSTALL_DIR) INSTALL_METIS=$(INSTALL_METIS) bash Install.bash
-
-Tools : FRC
-	$(MAKE) -C Tools LOCI_BASE="$(LOCI_BASE)" libTools.a
-
-
-System : FRC
-	$(MAKE) -C System LOCI_BASE="$(LOCI_BASE)" libLoci.a
-
-METIS : FRC
-ifeq ($(INSTALL_METIS),1)
-	$(MAKE) -C ParMetis-4.0 LOCI_BASE="$(LOCI_BASE)"
+copy_config:
+ifneq ($(LOCI_SRC),$(LOCI_BASE))
+	mkdir -p $(LOCI_BASE)
+	$(COPY) *.conf $(LOCI_BASE)/
+	$(SED_I) "s,LOCI_SRC,LOCI_BASE,g" $(LOCI_BASE)/Loci.conf
+	$(SED_I) "s,LOCI_SRC,LOCI_BASE,g" $(LOCI_BASE)/sys.conf
 endif
 
-SPRNG : FRC
-	$(MAKE) -C sprng LOCI_BASE="$(LOCI_BASE)"
-
-Tools/libTools.so: FRC
-	$(MAKE) -C Tools LOCI_BASE="$(LOCI_BASE)" libTools.so
-
-System/libLoci.so: FRC
-	$(MAKE) -C System LOCI_BASE="$(LOCI_BASE)" libLoci.so
-
-lpp: library
-	$(MAKE) -C lpp LOCI_BASE="$(LOCI_BASE)" lpp
-
-FVMtools: library lpp FVMAdapt 
-	$(MAKE) -C FVMtools LOCI_BASE="$(LOCI_BASE)" default
-FRC :
-
-FVMMod: library lpp
-	cd FVMMod; $(MAKE) LOCI_BASE="$(LOCI_BASE)" default
-
-FVMAdapt: library lpp
-	cd FVMAdapt; $(MAKE) LOCI_BASE="$(LOCI_BASE)" all
-
-FVMOverset: library lpp
-	cd FVMOverset; $(MAKE) LOCI_BASE="$(LOCI_BASE)" all
-
-JUNK =
+install: copy_config
+	$(MAKE) -C 2dgv         $@
+	$(MAKE) -C FVMAdapt     $@
+	$(MAKE) -C FVMMod       $@
+	$(MAKE) -C FVMOverset   $@
+	$(MAKE) -C FVMtools     $@
+	$(MAKE) -C lpp          $@
+	$(MAKE) -C sprng        $@
+	$(MAKE) -C System       $@
+	$(MAKE) -C Tools        $@
+	$(MAKE) -C Tutorial     $@
 
 clean:
-	rm -f $(JUNK)
-	$(MAKE) -C Tools clean LOCI_BASE="$(LOCI_BASE)" 
-	$(MAKE) -C System clean LOCI_BASE="$(LOCI_BASE)" 
-	$(MAKE) -C ParMetis-4.0 clean LOCI_BASE="$(LOCI_BASE)" 
-	$(MAKE) -C sprng clean LOCI_BASE="$(LOCI_BASE)" 
-	$(MAKE) -C FVMtools clean LOCI_BASE="$(LOCI_BASE)"
-	$(MAKE) -C FVMMod clean LOCI_BASE="$(LOCI_BASE)"
-	$(MAKE) -C FVMAdapt clean LOCI_BASE="$(LOCI_BASE)"
-	$(MAKE) -C FVMOverset clean LOCI_BASE="$(LOCI_BASE)"
-	$(MAKE) -C lpp clean LOCI_BASE="$(LOCI_BASE)"
+	$(MAKE) -C 2dgv         $@
+	$(MAKE) -C FVMAdapt     $@
+	$(MAKE) -C FVMMod       $@
+	$(MAKE) -C FVMOverset   $@
+	$(MAKE) -C FVMtools     $@
+	$(MAKE) -C lpp          $@
+	$(MAKE) $@_ParMETIS
+	$(MAKE) $@_METIS
+	$(MAKE) $@_GKlib
+	$(MAKE) -C sprng        $@
+	$(MAKE) -C System       $@
+	$(MAKE) -C Tools        $@
+	$(MAKE) -C Tutorial     $@
 
 distclean:
-	rm -f $(JUNK)
-	$(MAKE) -C Tools distclean LOCI_BASE="$(LOCI_BASE)" 
-	$(MAKE) -C System distclean LOCI_BASE="$(LOCI_BASE)" 
-	$(MAKE) -C ParMetis-4.0 distclean LOCI_BASE="$(LOCI_BASE)" 
-	$(MAKE) -C sprng distclean LOCI_BASE="$(LOCI_BASE)" 
-	$(MAKE) -C FVMtools distclean LOCI_BASE="$(LOCI_BASE)"
-	$(MAKE) -C FVMMod distclean LOCI_BASE="$(LOCI_BASE)"
-	$(MAKE) -C FVMAdapt distclean LOCI_BASE="$(LOCI_BASE)"
-	$(MAKE) -C FVMOverset distclean LOCI_BASE="$(LOCI_BASE)"
-	$(MAKE) -C lpp distclean LOCI_BASE="$(LOCI_BASE)"
+	$(MAKE) -C 2dgv         $@
+	$(MAKE) -C FVMAdapt     $@
+	$(MAKE) -C FVMMod       $@
+	$(MAKE) -C FVMOverset   $@
+	$(MAKE) -C FVMtools     $@
+	$(MAKE) -C lpp          $@
+	$(MAKE) -C sprng        $@
+	$(MAKE) -C System       $@
+	$(MAKE) -C Tools        $@
+	$(MAKE) -C Tutorial     $@
+
+clean_install:
+	$(MAKE) -C 2dgv         $@
+	$(MAKE) -C FVMAdapt     $@
+	$(MAKE) -C FVMMod       $@
+	$(MAKE) -C FVMOverset   $@
+	$(MAKE) -C FVMtools     $@
+	$(MAKE) -C lpp          $@
+	$(MAKE) -C sprng        $@
+	$(MAKE) -C System       $@
+	$(MAKE) -C Tools        $@
+	$(MAKE) -C Tutorial     $@
+ifneq ($(LOCI_SRC),$(LOCI_BASE))
+	rm -rf $(LOCI_BASE)/Loci.conf
+	rm -rf $(LOCI_BASE)/sys.conf
+	rm -rf $(LOCI_BASE)/comp.conf
+endif
+
+spotless:
+	$(MAKE) -C 2dgv         $@
+	$(MAKE) -C FVMAdapt     $@
+	$(MAKE) -C FVMMod       $@
+	$(MAKE) -C FVMOverset   $@
+	$(MAKE) -C FVMtools     $@
+	$(MAKE) -C lpp          $@
+	$(MAKE) -C sprng        $@
+	$(MAKE) -C System       $@
+	$(MAKE) -C Tools        $@
+	$(MAKE) -C Tutorial     $@
+ifneq ($(LOCI_SRC),$(LOCI_BASE))
+	rm -rf $(LOCI_BASE)/Loci.conf
+	rm -rf $(LOCI_BASE)/sys.conf
+	rm -rf $(LOCI_BASE)/comp.conf
+endif
+
+
+RED		=	$(ESC)1;31;1m
+GREEN	=	$(ESC)1;32;1m
+DIREC	=	$(LOCI_SRC)
+list:
+	@$(ECHO) "$(PRT) :: $(DIREC) :: $(NC)"
+	@$(ECHO) "$(PRT) :: bin :: $(NC)"
+	@for d in $(MODELS_BIN); do \
+		if [ -f ${DIREC}/bin/$$d ]; then \
+			$(ECHO) "$(GREEN) $$d $(NC)"; \
+		else \
+			$(ECHO) "$(RED) $$d $(NC)"; \
+		fi \
+	done
+	@$(ECHO) "$(PRT) :: lib :: $(NC)"
+	@for d in $(MODELS_LIB); do \
+		if [ -f ${DIREC}/lib/$$d ]; then \
+			$(ECHO) "$(GREEN) $$d $(NC)"; \
+		else \
+			$(ECHO) "$(RED) $$d $(NC)"; \
+		fi \
+	done
+
+list_installed: DIREC=$(LOCI_BASE)
+list_installed: list
+
+
+PRTP	=	$(ESC)1;35;1m
+devhelp:
+	@$(ECHO) "$(PRTP)LOCI_SRC           $(NC) = $(LOCI_SRC)"
+	@$(ECHO) "$(PRTP)LOCI_BASE          $(NC) = $(LOCI_BASE)"
+	@$(ECHO) "$(PRTP)CC                 $(NC) = $(CC)"
+	@$(ECHO) "$(PRTP)CXX                $(NC) = $(CXX)"
+	@$(ECHO) "$(PRTP)FC                 $(NC) = $(FC)"
+	@$(ECHO) "$(PRTP)MAKEDEPEND         $(NC) = $(MAKEDEPEND)"
+	@$(ECHO) "$(PRTP)LD                 $(NC) = $(LD)"
+	@$(ECHO) "$(PRTP)SHARED_LD          $(NC) = $(SHARED_LD)"
+	@$(ECHO) "$(PRTP)DYNAMIC_LD         $(NC) = $(DYNAMIC_LD)"
+	@$(ECHO) "$(PRTP)FFLAGS             $(NC) = $(FFLAGS)"
+	@$(ECHO) "$(PRTP)CFLAGS             $(NC) = $(CFLAGS)"
+	@$(ECHO) "$(PRTP)CXXFLAGS           $(NC) = $(CXXFLAGS)"
+	@$(ECHO) "$(PRTP)LDFLAGS            $(NC) = $(LDFLAGS)"
+	@$(ECHO) "$(PRTP)SHARED_LD_FLAGS    $(NC) = $(SHARED_LD_FLAGS)"
+	@$(ECHO) "$(PRTP)DYNAMIC_LD_FLAGS   $(NC) = $(DYNAMIC_LD_FLAGS)"
+	@$(ECHO) "$(PRTP)LDPATH             $(NC) = $(LDPATH)"
+	@$(ECHO) "$(PRTP)RPATH              $(NC) = $(RPATH)"
+	@$(ECHO) "$(PRTP)DEFINES            $(NC) = $(DEFINES)"
+	@$(ECHO) "$(PRTP)FDEFINES           $(NC) = $(FDEFINES)"
+	@$(ECHO) "$(PRTP)LOCI_INCLUDES      $(NC) = $(LOCI_INCLUDES)"
+	@$(ECHO) "$(PRTP)INCLUDES           $(NC) = $(INCLUDES)"
+	@$(ECHO) "$(PRTP)LDLIBS             $(NC) = $(LDLIBS)"
+	@$(ECHO) "$(PRTP)LOCAL_LIBS         $(NC) = $(LOCAL_LIBS)"
+	@$(ECHO) "$(PRTP)LOCI_DEBUG         $(NC) = $(LOCI_DEBUG)"
+
 

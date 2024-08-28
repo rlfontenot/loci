@@ -18,43 +18,67 @@
 # along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 #
 ###############################################################################
-# This is the Loci base directory
-LOCI_BASE ?= /usr/tmp/lush/Loci
-# Put objects in the module here
-OBJS =	geometry.o holeCutting.o interpolation.o motion.o
-MODULE_NAME = fvmoverset
+LOCI_BASE?=..
+LOCI_SRC?=..
+include $(LOCI_SRC)/Loci.conf
 
-#############################################################################
-# No changes needed below this line
+DIR_NAME	=	FVMOverset
+MODULE_NAME	=	fvmoverset
+LIB_NAME	=	$(MODULE_NAME)_m.so
 
-include $(LOCI_BASE)/Loci.conf
+################################################################################
+# No changes required below this line
+################################################################################
+LOCI_FILES		=	$(wildcard *.loci)
+LOCI_LPP_FILES	=	$(LOCI_FILES:.loci=.cc)
+OBJS			=	$(subst .loci,.o,$(LOCI_FILES))
+DEPEND_FILES	=	$(subst .o,.d,$(OBJS))
+JUNK			=	*~  core ti_files ii_files rii_files
+INCLUDES		=	-I$(LOCI_SRC)/include/FVMOverset \
+					-I$(LOCI_SRC)/include
+DEPS			=	$(LOCI_SRC)/bin/lpp
 
-JUNK = *~  core ti_files ii_files rii_files
 
-LIB_OBJS=$(OBJS:.o=_lo.o)
+default:	$(LIB_NAME)
+all:		$(LIB_NAME)
+spotless:	distclean clean_install
 
-default: $(MODULE_NAME)_m.so
+$(LOCI_LPP_FILES): $(DEPS)
 
-all: $(MODULE_NAME)_m.so
+$(LOCI_SRC)/bin/lpp:
+	$(MAKE) -C $(LOCI_SRC)/lpp
 
-$(MODULE_NAME)_m.so: $(LIB_OBJS)
-	$(SHARED_LD) $(SHARED_LD_FLAGS) $(MODULE_NAME)_m.so $(LIB_FLAGS) $(LIB_OBJS)
-FRC : 
+
+$(LIB_NAME): $(OBJS)
+	@$(ECHO) "$(PRT) $@ $(NC)"
+	$(SHARED_LD) $(SHARED_LD_FLAGS) $@ $(LDFLAGS) $(OBJS)
+	$(COPY) $@ $(LOCI_SRC)/lib/$@
+
+install: $(LOCI_BASE)/lib/. $(LOCI_BASE)/include/$(DIR_NAME)/. $(LIB_NAME)
+	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
+ifneq ($(LOCI_SRC),$(LOCI_BASE))
+	$(COPY) $(LOCI_SRC)/lib/$(LIB_NAME) $(LOCI_BASE)/lib/$(LIB_NAME)
+	$(COPY) $(LOCI_SRC)/include/$(DIR_NAME)/*.h $(LOCI_BASE)/include/$(DIR_NAME)/
+	$(COPY) $(LOCI_SRC)/include/$(DIR_NAME)/*.lh $(LOCI_BASE)/include/$(DIR_NAME)/
+endif
+
+clean_install:
+	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
+	rm -rf $(LOCI_BASE)/lib/$(LIB_NAME)
+ifneq ($(LOCI_SRC),$(LOCI_BASE))
+	rm -rf $(LOCI_BASE)/include/$(DIR_NAME)
+endif
 
 clean:
-	rm -fr $(OBJS) $(LIB_OBJS) $(MODULE_NAME)_m.so 
+	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
+	rm -fr $(OBJS) $(LIB_NAME) $(LOCI_SRC)/lib/$(LIB_NAME) $(JUNK)
 
-# Junk files that are created while editing and running cases
-JUNK = $(wildcard *~)  core 
-# ".cc" files created from .loci files
-LOCI_INTERMEDIATE_FILES = $(subst .loci,.cc, $(wildcard *.loci) )
-
-distclean: 
-	rm -fr $(OBJS) $(LIB_OBJS) $(MODULE_NAME)_m.so $(JUNK) $(LOCI_INTERMEDIATE_FILES) $(DEPEND_FILES)
-
-
-DEPEND_FILES=$(subst .o,.d,$(OBJS))
+distclean: clean
+	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
+	rm -fr  $(LOCI_LPP_FILES) $(DEPEND_FILES)
 
 
 #include automatically generated dependencies
+ifeq ($(filter $(MAKECMDGOALS),clean clean_install distclean spotless),)
 -include $(DEPEND_FILES)
+endif
