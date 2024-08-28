@@ -25,7 +25,9 @@ if [ -f ${DEST_PREFIX}/lib/libmetis.${LIB_SUFFIX} ]; then
   exit 0
 fi
 
-git apply ${LOCI_SRC}/ext/metis.patch
+if [ "${ARCH}" == "Darwin" ]; then
+  git apply ${LOCI_SRC}/ext/metis.patch
+fi
 mkdir -p ${DEST_PREFIX}/lib
 rm -rf build
 make prefix=${DEST_PREFIX} \

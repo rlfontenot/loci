@@ -84,6 +84,9 @@ ifneq ($(LOCI_SRC),$(LOCI_BASE))
 endif
 
 install: copy_config
+	$(MAKE) $@_ParMETIS
+	$(MAKE) $@_METIS
+	$(MAKE) $@_GKlib
 	$(MAKE) -C 2dgv         $@
 	$(MAKE) -C FVMAdapt     $@
 	$(MAKE) -C FVMMod       $@
@@ -150,6 +153,9 @@ spotless:
 	$(MAKE) -C System       $@
 	$(MAKE) -C Tools        $@
 	$(MAKE) -C Tutorial     $@
+	$(MAKE) $@_ParMETIS
+	$(MAKE) $@_METIS
+	$(MAKE) $@_GKlib
 ifneq ($(LOCI_SRC),$(LOCI_BASE))
 	rm -rf $(LOCI_BASE)/Loci.conf
 	rm -rf $(LOCI_BASE)/sys.conf
