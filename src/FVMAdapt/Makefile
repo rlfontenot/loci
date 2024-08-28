@@ -24,7 +24,7 @@ include $(LOCI_SRC)/Loci.conf
 
 DIR_NAME	=	FVMAdapt
 MODULE_NAME	=	fvmadapt
-LIB_NAME1	=	$(MODULE_NAME)_m.$(LIB_SUFFIX)
+LIB_NAME1	=	$(MODULE_NAME)_m.so
 LIB_NAME2	=	lib$(MODULE_NAME)func.$(LIB_SUFFIX)
 
 

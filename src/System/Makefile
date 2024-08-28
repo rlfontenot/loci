@@ -57,19 +57,19 @@ all:		$(LIB_NAME1) $(LIB_NAME2)
 spotless:	distclean clean_install
 
 ${PARMETIS_BASE}/lib/libparmetis.$(LIB_SUFFIX):
-	@$(MAKE) -C $(LOCI_SRC) ParMETIS
+	@$(MAKE) -C ${LOCI_SRC} ParMETIS
 ${LOCI_SRC}/lib/libsprng.$(LIB_SUFFIX):
-	@$(MAKE) -C $(LOCI_SRC)/sprng
+	@$(MAKE) -C ${LOCI_SRC}/sprng all
 
 FVMGridReader.o: $(DEPS)
 
-$(LIB_NAME1): $(VERSION_FILE) $(OBJS)
+$(LIB_NAME1): $(DEPS) $(VERSION_FILE) $(OBJS)
 	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(AR) $(ARFLAGS) $@ $(OBJS)
 	$(RANLIB) $@
 	$(COPY) -u $@ $(LOCI_SRC)/lib/$@
 
-$(LIB_NAME2): $(VERSION_FILE) $(OBJS)
+$(LIB_NAME2): $(DEPS) $(VERSION_FILE) $(OBJS)
 	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(DYNAMIC_LD) $(DYNAMIC_LD_FLAGS) $@ $(LDFLAGS) $(LOCAL_LIBS) $(OBJS)
 	$(COPY) -u $@ $(LOCI_SRC)/lib/$@

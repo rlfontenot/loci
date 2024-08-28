@@ -24,7 +24,7 @@ include $(LOCI_SRC)/Loci.conf
 
 DIR_NAME	=	FVMOverset
 MODULE_NAME	=	fvmoverset
-LIB_NAME	=	$(MODULE_NAME)_m.$(LIB_SUFFIX)
+LIB_NAME	=	$(MODULE_NAME)_m.so
 
 ################################################################################
 # No changes required below this line

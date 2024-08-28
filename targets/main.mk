@@ -88,9 +88,11 @@ clean_%:
 	$(MAKE) -C {{OBJDIR}}/$(*F) clean
 distclean_%:
 	$(MAKE) -C {{OBJDIR}}/$(*F) distclean
-
 spotless_%:
 	$(MAKE) -C {{OBJDIR}}/$(*F) spotless
 
-# install_include: copy_config
-# 	$(MAKE) -C {{OBJDIR}}/System $@
+install_include: copy_config
+	$(MAKE) -C {{OBJDIR}}/System $@
+
+clean_install_include:
+	$(MAKE) -C {{OBJDIR}}/System $@

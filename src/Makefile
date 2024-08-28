@@ -52,9 +52,9 @@ MODELS_BIN	=	2dgv          \
 				vogcut        \
 				vogcheck
 
-MODELS_LIB	=	fvmadapt_m.$(LIB_SUFFIX)      \
-				fvm_m.$(LIB_SUFFIX)           \
-				fvmoverset_m.$(LIB_SUFFIX)    \
+MODELS_LIB	=	fvmadapt_m.so                 \
+				fvm_m.so                      \
+				fvmoverset_m.so               \
 				libadf.a                      \
 				libadf.$(LIB_SUFFIX)          \
 				libfvmadaptfunc.$(LIB_SUFFIX) \
