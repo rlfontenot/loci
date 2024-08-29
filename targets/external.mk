@@ -60,40 +60,56 @@ distclean_ParMETIS:
 
 install_GKlib: GKlib
 	@$(ECHO) "$(PRT) $@ $(NC)"
+ifeq ($(INSTALL_GKLIB),1)
 ifneq ($(LOCI_SRC),$(LOCI_BASE))
 	mkdir -p -- "$(LOCI_BASE)"
 	$(COPY) -r $(LOCI_SRC)/$(shell echo $@ | cut -d"_" -f2) \
 	           $(LOCI_BASE)/
 endif
+endif
+
 install_METIS: METIS
 	@$(ECHO) "$(PRT) $@ $(NC)"
+ifeq ($(INSTALL_METIS),1)
 ifneq ($(LOCI_SRC),$(LOCI_BASE))
 	mkdir -p -- "$(LOCI_BASE)"
 	$(COPY) -r $(LOCI_SRC)/$(shell echo $@ | cut -d"_" -f2) \
 	           $(LOCI_BASE)/
 endif
+endif
+
 install_ParMETIS: ParMETIS
 	@$(ECHO) "$(PRT) $@ $(NC)"
+ifeq ($(INSTALL_PARMETIS),1)
 ifneq ($(LOCI_SRC),$(LOCI_BASE))
 	mkdir -p -- "$(LOCI_BASE)"
 	$(COPY) -r $(LOCI_SRC)/$(shell echo $@ | cut -d"_" -f2) \
 	           $(LOCI_BASE)/
+endif
 endif
 
 clean_install_GKlib:
 	@$(ECHO) "$(PRT) $@ $(NC)"
+ifeq ($(INSTALL_GKLIB),1)
 ifneq ($(LOCI_SRC),$(LOCI_BASE))
 	rm -rf $(LOCI_BASE)/$(shell echo $@ | cut -d"_" -f3)
 endif
+endif
+
 clean_install_METIS:
 	@$(ECHO) "$(PRT) $@ $(NC)"
+ifeq ($(INSTALL_METIS),1)
 ifneq ($(LOCI_SRC),$(LOCI_BASE))
 	rm -rf $(LOCI_BASE)/$(shell echo $@ | cut -d"_" -f3)
 endif
+endif
+
 clean_install_ParMETIS:
 	@$(ECHO) "$(PRT) $@ $(NC)"
+ifeq ($(INSTALL_PARMETIS),1)
 ifneq ($(LOCI_SRC),$(LOCI_BASE))
 	rm -rf $(LOCI_BASE)/$(shell echo $@ | cut -d"_" -f3)
+endif
 endif
 
 

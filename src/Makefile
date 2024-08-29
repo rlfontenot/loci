@@ -64,16 +64,16 @@ MODELS_LIB	=	fvmadapt_m.so                 \
 				libTools.$(LIB_SUFFIX)
 
 default:
-	$(MAKE) -C 2dgv         $@
-	$(MAKE) -C Tools        $@
-	$(MAKE) -C System       $@
-	$(MAKE) -C lpp          $@
-	$(MAKE) -C FVMAdapt     $@
-	$(MAKE) -C FVMMod       $@
-	$(MAKE) -C FVMOverset   $@
-	$(MAKE) -C FVMtools     $@
-	$(MAKE) -C sprng        $@
-	$(MAKE) -C Tutorial     $@
+	-$(MAKE) -C 2dgv         $@
+	$(MAKE)  -C Tools        $@
+	$(MAKE)  -C System       $@
+	$(MAKE)  -C lpp          $@
+	$(MAKE)  -C FVMAdapt     $@
+	$(MAKE)  -C FVMMod       $@
+	$(MAKE)  -C FVMOverset   $@
+	$(MAKE)  -C FVMtools     $@
+	$(MAKE)  -C sprng        $@
+	$(MAKE)  -C Tutorial     $@
 
 copy_config:
 ifneq ($(LOCI_SRC),$(LOCI_BASE))
@@ -84,19 +84,19 @@ ifneq ($(LOCI_SRC),$(LOCI_BASE))
 endif
 
 install: copy_config
-	$(MAKE) $@_ParMETIS
-	$(MAKE) $@_METIS
-	$(MAKE) $@_GKlib
-	$(MAKE) -C 2dgv         $@
-	$(MAKE) -C FVMAdapt     $@
-	$(MAKE) -C FVMMod       $@
-	$(MAKE) -C FVMOverset   $@
-	$(MAKE) -C FVMtools     $@
-	$(MAKE) -C lpp          $@
-	$(MAKE) -C sprng        $@
-	$(MAKE) -C System       $@
-	$(MAKE) -C Tools        $@
-	$(MAKE) -C Tutorial     $@
+	$(MAKE)  $@_ParMETIS
+	$(MAKE)  $@_METIS
+	$(MAKE)  $@_GKlib
+	-$(MAKE) -C 2dgv         $@
+	$(MAKE)  -C FVMAdapt     $@
+	$(MAKE)  -C FVMMod       $@
+	$(MAKE)  -C FVMOverset   $@
+	$(MAKE)  -C FVMtools     $@
+	$(MAKE)  -C lpp          $@
+	$(MAKE)  -C sprng        $@
+	$(MAKE)  -C System       $@
+	$(MAKE)  -C Tools        $@
+	$(MAKE)  -C Tutorial     $@
 
 clean:
 	$(MAKE) -C 2dgv         $@
