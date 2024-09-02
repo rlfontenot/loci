@@ -1,0 +1,11 @@
+# Style for C++ source files
+[*]
+trim_trailing_whitespace = true
+
+[*.{cxx,cpp,cc,h,hpp,loci}]
+indent_style = space
+indent_size  = 2
+
+[{Makefile,makefile,*.mk}]
+indent_size = 4
+indent_style = tab

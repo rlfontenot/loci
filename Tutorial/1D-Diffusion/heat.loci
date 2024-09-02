@@ -61,6 +61,9 @@ $type g param<float> ;
 $rule default(h) { $h = -1 ; } // h(t) = -1 ;
 $rule default(g) { $g = 0 ; }  // g(t) = 0 ;
 
+$type left_boundary Constraint ;
+$type right_boundary Constraint ;
+
 // Neuman boundary condition at left boundary (h(t) = -1)
 $rule pointwise(ux<-h), constraint(left_boundary) {
   $ux = $h ;

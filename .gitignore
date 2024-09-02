@@ -1,0 +1,12 @@
+*.toc
+*.aux
+*.pdf
+*.log
+*.cc
+*.o
+*.d
+*.code-workspace
+copy.out
+OBJ/
+makefile
+targets_tmp.mk

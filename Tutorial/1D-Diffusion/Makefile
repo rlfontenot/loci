@@ -1,32 +1,48 @@
-# This is the Loci base directory.
-LOCI_BASE = /usr/tmp/pa121/Loci
-# List the name of your compiled program here
-TARGET = heat
+LOCI_BASE?=../..
+LOCI_SRC?=../..
 
 include $(LOCI_BASE)/Loci.conf
-#COPT=-g
-# List your object files here
-OBJS  =  main.o heat.o
-OBJS2 =  main.o heat2.o
 
-JUNK = *~  core ti_files ii_files make.depend make.depend.bak
 
-default:
-	$(MAKE) $(TARGET)
+DIR_NAME	=	1D-Diffusion
+TARGET1		=	heat
+TARGET2		=	heat2
 
-$(TARGET): $(OBJS) FRC
-	$(LD) -o $(TARGET) $(OBJS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+OBJ1		=	heat.o \
+				main.o
+OBJ2		=	heat2.o \
+				main.o
 
-heat2: $(OBJS2) FRC
-	$(LD) -o heat2 $(OBJS2) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+################################################################################
+# No changes required below this line
+################################################################################
+LOCI_FILES		=	$(wildcard *.loci)
+LOCI_LPP_FILES	=	$(LOCI_FILES:.loci=.cc)
+OBJS			=	$(OBJ1) $(OBJ2)
+DEPEND_FILES	=	$(subst .o,.d,$(OBJS))
+JUNK			=	$(wildcard *~)  core make.depend make.depend.bak debug
 
-FRC : 
+default:	$(TARGET1)
+all:		$(TARGET1) $(TARGET2)
+
+$(TARGET1): $(OBJ1)
+	@$(ECHO) "$(PRT) $(DIR_NAME)_$@ $(NC)"
+	$(LD) -o $@ $(OBJ1) $(LOCAL_LIBS) $(LDFLAGS) $(LDLIBS)
+
+$(TARGET2): $(OBJ2)
+	@$(ECHO) "$(PRT) $(DIR_NAME)_$@ $(NC)"
+	$(LD) -o $@ $(OBJ2) $(LOCAL_LIBS) $(LDFLAGS) $(LDLIBS)
 
 clean:
-	rm -fr $(OBJS) $(TARGET) $(JUNK)  rii_files ii_files
+	@$(ECHO) "$(PRT) $@_$(DIR_NAME) $(NC)"
+	rm -rf  $(OBJS) $(JUNK) $(TARGET1) $(TARGET2)
 
-DEPEND_FILES=$(subst .o,.d,$(OBJS))
 
+distclean: clean
+	@$(ECHO) "$(PRT) $@_$(DIR_NAME) $(NC)"
+	rm -fr  $(LOCI_LPP_FILES) $(DEPEND_FILES)
 
 #include automatically generated dependencies
-include $(DEPEND_FILES)
+ifeq ($(filter $(MAKECMDGOALS),clean clean_install distclean spotless),)
+-include $(DEPEND_FILES)
+endif

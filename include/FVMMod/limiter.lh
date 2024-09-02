@@ -1,0 +1,56 @@
+/** ****************************************************************************
+ * @file      limiter.lh
+ * @author    Raymond L. Fontenot (CFDRC)
+ * @brief     This file contains all of the Loci "$type" variables needed for
+ *            the limiter.loci file.
+ * @date      2023-07-24
+ * @details   This file is a part of the Loci Framework, a free software.
+ * You can redistribute it and/or modify it under the terms of the Lesser
+ * GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * The Loci Framework is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * Lesser GNU General Public License for more details.
+ *
+ * You should have received a copy of the Lesser GNU General Public License
+ * along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
+ ******************************************************************************/
+#include <Loci.h>
+#include "FVMMod/limiter_support.h"
+
+$type Kl             param<real>;         // [-] Venkatakrishnan constant
+$type K1             param<real>;         // [-] MLP constant
+$type K2             param<real>;         // [-] MLP constant
+$type limiter        param<std::string>;  // [-] limiter
+$type limiterStencil param<std::string>;
+$type nisPow         param<Loci::real_t>; // [-] order of Nishikawa limiter
+$type vecLimiter     param<int>;          // [-] input variable to set limiter for vectors based on highest gradient
+
+$type V_limiter              Constraint; // [-] constraint for Venkatakrishnan limiter, face center
+$type B_limiter              Constraint; // [-] constraint for Barth limiter
+$type N_limiter              Constraint; // [-] constraint for no limiting
+$type Z_limiter              Constraint; // [-] constraint for full limiting
+$type NB_limiter             Constraint; // [-] constraint for nodal barth limiter
+$type V2_limiter             Constraint; // [-] constraint for Venkatakrishnan limiter, cell center
+$type NIS_limiter            Constraint; // [-] constraint for Nishikawa limiter
+$type NISc_limiter           Constraint; // [-] constraint for Nishikawa limiter, face center
+$type NISf_limiter           Constraint; // [-] constraint for Nishikawa limiter, cell center
+$type Venka_limiter          Constraint; // [-] constraint for Venkatakrishnan limiter functions
+$type MLPpw_limiter          Constraint; // [-] constraint for MLP limiter
+$type MLPpwv_limiter         Constraint; // [-] constraint for MLP limiter, venkatakrishnan version
+$type MLPpwn_limiter         Constraint; // [-] constraint for MLP limiter, Nishikawa version
+$type nonMLP_limiter         Constraint; // [-] constraints for non MLP limiters
+$type limiterStencilStandard Constraint; // [-] constraint for limiter stencil
+$type useLimiterStencil      Constraint; // [-] constraint to use limiter stencil
+$type greensLimiter          Constraint; // [-] constraint for green's stencil for limiter
+
+$type firstOrderCells store<char>;            // [-] first order cell marker
+$type venkaFac        store<Loci::real_t>;    // [-] Venkatakrishnan geometric factor
+$type mlpFac          store<Loci::real_t>;    // [-] MLP geometric factor
+$type omegaMLP        store<Loci::real_t>;    // [-] MLP pressure indicator
+$type epsilon2s(X)    store<Loci::real_t>;    // [-] grid/max/min parameter for Venkatakrishnan limiter, scalar
+$type epsilon2v3d(X)  store<Loci::real_t>;    // [-] grid/max/min parameter for Venkatakrishnan limiter, vect3d
+$type epsilon2v(X)    storeVec<Loci::real_t>; // [-] grid max/min parameter for Venkatakrishnan limiter, vector
+

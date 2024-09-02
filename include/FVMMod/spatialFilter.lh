@@ -1,0 +1,43 @@
+/** ****************************************************************************
+ * @file      spatialFilter.lh
+ * @author    Raymond L. Fontenot (CFDRC)
+ * @brief     This file contains all of the Loci "$type" variables needed for
+ *            the mapping and filtering variables
+ * @date      2023-07-24
+ * @details   This file is a part of the Loci Framework, a free software.
+ * You can redistribute it and/or modify it under the terms of the Lesser
+ * GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * The Loci Framework is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * Lesser GNU General Public License for more details.
+ *
+ * You should have received a copy of the Lesser GNU General Public License
+ * along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
+ ******************************************************************************/
+#include <Loci.h>
+
+$type nodeWeightSumSF       store<Loci::real_t>;                 // [-] weights for averaging to nodes
+$type cellWeightSumSF       store<Loci::real_t>;                 // [-] weights for averaging to cells
+$type cell2nodeScalarSF(X)  store<Loci::real_t>;                 // [-] cell 2 node map for scalars
+$type cell2nodeV3DSF(X)     store<Loci::vector3d<Loci::real_t>>; // cell 2 node map for vect3d
+$type cell2nodeVectSF(X)    storeVec<Loci::real_t>;              // [-] cell to node map for vectors
+$type cell2nodeT3DSF(X)     store<Loci::tensor3d<Loci::real_t>>; // [-] cell to node map for tensors
+$type node2cellScalarSF(X)  store<Loci::real_t>;                 // [-] node to cell map for scalars
+$type node2cellV3DSF(X)     store<Loci::vector3d<Loci::real_t>>; // [-] node to cell map for vect3d
+$type node2cellVectSF(X)    storeVec<Loci::real_t>;              // [-] node to cell map for vectors
+$type node2cellT3DSF(X)     store<Loci::tensor3d<Loci::real_t>>; // [-] node to cell map for tensors
+$type cellmaxmins(X)        store<Loci::stenMaxMinNorm>;         // [-] cell scalar max/min's
+$type cellmaxminv3d(X)      store<Loci::stenMaxMinNormv3d>;      // [-] cell vect3d max/min's
+$type cellmaxminv(X)        storeVec<Loci::stenMaxMinNorm>;      // [-] cell vector max/min's
+$type cell2facemaxmins(X)   store<Loci::stenMaxMinNorm>;         // [-] cell to face mapping of max/min for scalar
+$type cell2facemaxminv3d(X) store<Loci::stenMaxMinNormv3d>;      // [-] cell to face mapping of max/min for vect3d
+$type cell2facemaxminv(X)   storeVec<Loci::stenMaxMinNorm>;      // [-] cell to face mapping of max/min for vector
+$type cell2nodemaxmins(X)   store<Loci::stenMaxMinNorm>;         // [-] cell to node mapping for max/min for scalar
+$type cell2nodemaxminv3d(X) store<Loci::stenMaxMinNormv3d>;      // [-] cell to node mapping for max/min for vect3d
+$type cell2nodemaxminv(X)   storeVec<Loci::stenMaxMinNorm>;      // [-] cell to node mapping for vector
+$type node2cellmaxmins(X)   store<Loci::stenMaxMinNorm>;         // [-] node to cell mapping for max/min for scalar
+$type node2cellmaxminv3d(X) store<Loci::stenMaxMinNormv3d>;      // [-] node to cell mapping for max/min for vect3d
+$type node2cellmaxminv(X)   storeVec<Loci::stenMaxMinNorm>;      // [-] node to cell mapping for max/min for vector

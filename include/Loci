@@ -1,0 +1,100 @@
+//#############################################################################
+//#
+//# Copyright 2008-2019,  Mississippi State University
+//#
+//# This file is part of the Loci Framework.
+//#
+//# The Loci Framework is free software: you can redistribute it and/or modify
+//# it under the terms of the Lesser GNU General Public License as published by
+//# the Free Software Foundation, either version 3 of the License, or
+//# (at your option) any later version.
+//#
+//# The Loci Framework is distributed in the hope that it will be useful,
+//# but WITHOUT ANY WARRANTY; without even the implied warranty of
+//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//# Lesser GNU General Public License for more details.
+//#
+//# You should have received a copy of the Lesser GNU General Public License
+//# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
+//#
+//#############################################################################
+#ifndef LOCI_NOH
+#define LOCI_NOH
+
+#ifdef HAVE_CONFIG_H
+#include <config.h> // This must be the first file included
+#endif
+#include <Config/conf.h>
+#include <string>
+#include <Loci_version.h>
+#include <Loci_types.h>
+#include <data_traits.h>
+#include <Map.h>
+#include <MapVec.h>
+#include <multiMap.h>
+#include <store.h>
+#include <storeVec.h>
+#include <parameter.h>
+#include <constraint.h>
+#include <rule.h>
+#include <Tools/options_list.h>
+#include <Tools/fpe.h>
+#include <scheduler.h>
+#include <distribute.h>
+#include <distribute_io.h>
+#include <distribute_container.h>
+#include <multiStore.h>
+#include <storeMat.h>
+#include <mod_db.h>
+#include <gstore.h>
+#include <DStore.h>
+#include <DStoreVec.h>
+#include <accessMap.h>
+
+//#include <DStoreMat.h>
+
+
+#include <DMultiStore.h>
+
+#include <DMultiMap.h>
+
+#include <DMap.h>
+
+#include <DMapVec.h>
+#include <blackbox.h>
+
+#include <LociGridReaders.h>
+#include <pnn.h>
+
+#define HAS_MODULE_SEARCH_DIR
+#define LOCI_HAS_MPI_IO
+
+namespace Loci {
+  extern void AddModuleSearchDir(std::string dirname);
+  extern double random() ;
+  extern int irandom() ;
+  extern MPI_Datatype MPI_FADD ;
+  extern MPI_Op MPI_FADD_SUM ;
+  extern MPI_Op MPI_FADD_PROD ;
+  extern MPI_Op MPI_FADD_MIN ;
+  extern MPI_Op MPI_FADD_MAX ;
+
+  extern MPI_Datatype MPI_FADD2 ;
+  extern MPI_Op MPI_FADD2_SUM ;
+  extern MPI_Op MPI_FADD2_PROD ;
+  extern MPI_Op MPI_FADD2_MIN ;
+  extern MPI_Op MPI_FADD2_MAX ;
+  
+  extern MPI_Datatype MPI_MFADD ;
+  extern MPI_Op MPI_MFADD_SUM ;
+  extern MPI_Op MPI_MFADD_PROD ;
+  extern MPI_Op MPI_MFADD_MIN ;
+  extern MPI_Op MPI_MFADD_MAX ;
+}
+
+#endif
+
+
+
+
+

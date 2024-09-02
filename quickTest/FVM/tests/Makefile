@@ -1,4 +1,4 @@
-TEST_FILES=cylinder.test fixedMass.test  wedge.test shock_tube.test 
+TEST_FILES=cylinder.test fixedMass.test  wedge.test shock_tube.test
 
 
 #include $(LOCI_BASE)/test.conf
@@ -7,10 +7,9 @@ include ../../test.conf
 
 default: TestResults
 
-TestResults: $(TEST_FILES) FRC
+TestResults: $(TEST_FILES)
 	cat $(TEST_FILES) > TestResults; rm -f $(TEST_FILES)
 
-FRC:
 
 %.test : %.vars
 	FLOWTEST="$(FLOWTEST)" EXTRACT="$(EXTRACT)" NDIFF=../ndiff ./tests.sh $*.vars

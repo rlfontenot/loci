@@ -23,13 +23,16 @@
 \usepackage{longtable}
 
 \begin{document}
+\thispagestyle{empty}
+\pagestyle{empty}
 \maketitle
 %\small
 \tableofcontents
 %\listoffigures
-%\thispagestyle{empty}
 
 \cleardoublepage
+\pagestyle{plain}
+\thispagestyle{plain}
 \setcounter{page}{1}
 
 \include{intro}
@@ -120,7 +123,7 @@ The following program segment (included with the tutorial programs)
 provides examples of how to create and use sets and sequence of
 entities in {\it Loci}.
 
-\include{entities_cc}
+\include{entities_cpp}
 
 \section{{\it Loci} Containers}
 
@@ -128,7 +131,7 @@ In {\it Loci}, containers are entity based.  That is, a container provides
 an association between entities and values.  There are two basic types
 of containers: stores and parameters.  Stores are used to associate
 values with entities, while parameters are used to associate a value
-with a sent of entities.  For example, in a simulation the each nodes
+with a sent of entities.  For example, in a simulation each of the nodes
 of a mesh will have a position vector, and this will be represented in
 {\it Loci} using a store container.  However, the time-step of a simulation
 is a single value that is shared by all of the simulation entities and
@@ -271,10 +274,10 @@ like the {\tt store} container.  For example, if we wanted to create a {\tt Map}
                                           // have a left side
   // Create Maping from current node to the node to the left
   Map leftNode ;
-  leftNode.allocate(left) ; // Allocate over all entities tha have a left side
+  leftNode.allocate(left) ; // Allocate over all entities that have a left side
   // Assign left node by looping over left nodes and nodes at the same time
   entitySet::const_iterator ni = nodes.begin() ;
-  for(entitySet::const_iterator li=left.begin();li!=left.begin();++li,++ni)
+  for(entitySet::const_iterator li=left.begin();li!=left.end();++li,++ni)
     leftNode[*li] = *ni ; // node *ni is to the left of node *li
 \end{verbatim}
 
@@ -351,7 +354,9 @@ unexpected ways.})  In addition to the {\tt Array} template class,
 classes for three and two dimensional vectors are also provided.  See
 the following example code to see how to use these helper classes.
 
-\include{helpers_cc}
+\include{helpers_cpp}
+
+\include{options}
 
 \chapter{A Simple Example}
 
@@ -543,7 +548,7 @@ fact, the rules for calculating the boundary gradients can be given by
 u_x & = g(t), \mbox{constraint}\lbrace \neg \mathrm{dom}(cl) \wedge
 \mathrm{dom}(cr) \rbrace, \label{eq3:brule0}\\
 u & = h(t), \mbox{constraint}\lbrace \mathrm{dom}(cl)
-\wedge \neg \mathrm{dom}(cr) \rbrace. %\label{eq3:brule1}
+\wedge \neg \mathrm{dom}(cr) \rbrace.\\ %\label{eq3:brule1}\\
 \end{aligned}
 \end{equation}
 Here the constraint term added to the rule indicates a constraint on
@@ -649,7 +654,7 @@ calculations, the transformation rules are represented by a rule
 signature that is denoted by a list of targets of the transformation
 delineated from the sources of the transformation by the left arrow
 symbol, '$\leftarrow$'.  Thus the cell center position calculation is
-represented by the rule signature $x \leftarrow (ir,il)\rightarrow x$.
+represented by the rule signature $x_c \leftarrow (ir,il)\rightarrow x$.
 This rule signature represents the augmentation of the set of ordered
 pairs defined in equation (\ref{eq3:interfacex}) with the additional
 set given as
@@ -953,7 +958,7 @@ contain this attribute.
 To utilize these {\tt default} and {\tt optional} rule types, the user
 must specifically read in values from a user provided file.  For
 example, we read in the user provided values from a file called {\tt
-  heat.vars} in the file {\tt main.cc} with the following code:
+  heat.vars} in the file {\tt main.cpp} with the following code:
 
 \begin{verbatim}
   string varsFile = "heat.vars" ;
@@ -1022,7 +1027,7 @@ was placed in the fact database to apply this boundary condition as
 illustrated in the following code:
 
 \begin{verbatim}
-// Neuman boundary condition at left boundary, ux = h(t)
+// Neumann boundary condition at left boundary, ux = h(t)
 $rule pointwise(ux<-h), constraint(left_boundary) {
   $ux = $h ;
 }
@@ -1139,7 +1144,7 @@ largest possible number) and is associative and commutative.  The
 computation of the global stable time-step is given by the following
 {\it Loci} code:
 \begin{verbatim}
-$type dt param<int> ; // simulation timestep
+$type dt param<float> ; // simulation timestep
 
 $rule unit(dt), constraint(UNIVERSE) {
    $dt = std::numeric_limits<float>::max() ; // largest allowble timestep
@@ -1461,10 +1466,9 @@ parametric rule to compute {\tt L} as follows:
 // We find the length of an interval by integrating the position x
 $rule pointwise(L<-cellIntegrate(x)) { $L = $cellIntegrate(x) ; }
 \end{verbatim}
-
 Parametric rules behave somewhat like subroutines and share many of
 the same advantages.  One advantage is that because many related
-functions share the same implementation, it is possible to replace on
+functions share the same implementation, it is possible to replace one
 method of computation with another that is transparent to other parts
 of the computations.  In the same way, the use of the {\tt
   cellIntegrate} parametric rule will allow us to change fewer parts
@@ -2345,7 +2349,7 @@ as:
 \begin{verbatim}
 $rule singleton(OUTPUT<-L2Norm(qresidual),$n),
   option(disable_threading) {
-  if(Loci::MPI_rank==0) {
+  $[Once] { // output only from one thread/processor
     cout << "R" << $$n << ": " << $L2Norm(qresidual) << endl ;
   }
 }
@@ -2383,8 +2387,9 @@ $rule pointwise(OUTPUT<-cell2node(temperature),$n,plot_modulo),
   oss << "output/" << varname << "_hdf5." << iter ;
   string filename = oss.str() ;
 
-  if(Loci::MPI_rank == 0)
+  $[Once] {
     cout << "writing file " << filename << endl ;
+  }
 
   // Create an hdf5 file
   hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
@@ -2463,11 +2468,11 @@ visualization packages including {\it ensight}, {\it fieldview}, and
 {\it tecplot}.  For example to see the results of the simulation after
 10 iterations using ensight, one enters the command:
 \begin{verbatim}
-extract -en test 10 ntemperature
+extract -en test 10 temperature
 \end{verbatim}
 This creates a directory {\tt ensight\_test} that contains an ensight case
 file for visualization of the solution results.  The argument
-ntemperature tells extract that you want to extract the nodal plot
+{\tt temperature} tells extract that you want to extract the nodal plot
 variable {\tt temperature} that is stored in the {\tt output
   directory}.  Use {\tt extract -help} for more information.
 
@@ -2504,7 +2509,7 @@ In other words, the {\tt compute} block operates on values, while the
 {\tt prelude} block operates on the containers.
 
 The {\tt storeVec} container creates array of values for each entity.
-In general you can assign or ues the {\tt +=}, {\tt-=}, {\tt \*=}, or
+In general you can assign or use the {\tt +=}, {\tt-=}, {\tt \*=}, or
 {\tt /=} operators with these arrays.  The {\tt mk\_Scalar()} function in
 the above code converts a scalar value to a vector with the same
 scalar value repeated for each entity.  These operators facilitate a
