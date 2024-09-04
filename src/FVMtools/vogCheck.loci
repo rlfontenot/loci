@@ -42,7 +42,7 @@ using std::vector ;
 
 int main(int ac, char *av[]) {
   Loci::Init(&ac, &av) ;
-  // default query 
+  // default query
   string query = "report" ;
   // if output directory doesn't exist, create one
   struct stat statbuf ;
@@ -96,10 +96,10 @@ int main(int ac, char *av[]) {
 
   if(ac > 1) {
     string tmp = av[1] ;
-    
+
     string basename;
     bool has_dot = false ;
-    for(size_t i=0;i<tmp.size();++i) 
+    for(size_t i=0;i<tmp.size();++i)
       if(tmp[i] == '.') {
         has_dot = true ;
         break ;
@@ -110,22 +110,24 @@ int main(int ac, char *av[]) {
     if(!has_dot)
       filename += ".vog" ;
     param<std::string> modelName ;
-    
+
     *modelName = basename ;
     facts.create_fact("modelName",modelName) ;
-    if(Loci::MPI_rank == 0)
+    if(Loci::MPI_rank==0) {
       cout << "Reading: '" << filename <<"' ..." <<  endl  ;
+    }
     if(!Loci::setupFVMGrid(facts,filename)) {
-      if(Loci::MPI_rank == 0) {
+      if(Loci::MPI_rank==0) {
         cerr << "Reading grid file '" << filename <<"' failed in grid reader!"
              << endl ;
       }
       Loci::Abort() ;
     }
 
-    setupPosAutoDiff(facts) ;
-    	   
-    if(Loci::MPI_rank == 0) {
+    real_t val=1.0 ;
+    setupPosAutoDiff(facts,val) ;
+
+    if(Loci::MPI_rank==0) {
       cout << "finished reading grid." << endl ;
     }
 
@@ -142,7 +144,7 @@ int main(int ac, char *av[]) {
       cerr << "query for '" << query << "' failed. " << endl ;
       Loci::Abort() ;
     }
-    
+
   }
   Loci::Finalize() ;
 }
@@ -176,7 +178,7 @@ public:
     output("topo") ;
     disable_threading() ;
   }
-    
+
   void compute(const sequence &seq) ;
 } ;
 
@@ -203,11 +205,11 @@ void dump_pos(const sequence &seq,const_store<vector3d<real_t> > &pos,
               const_param<string> &modelName) {
   ostringstream oss ;
   int cycle = 0 ;
-    
+
   oss << "output/grid_pos." << cycle << "_" << *modelName ;
   string filename = oss.str() ;
 
-  $[Once] {
+  if(Loci::MPI_rank==0) {
     Loci::debugout << "writing file " << filename << endl ;
   }
 
@@ -234,11 +236,12 @@ public:
     name_store("pos",pos) ;
     name_store("modelName",modelName) ;
     name_store("topo",topo) ;
-      
+
     constraint("pos") ;
     input("pos") ;
     input("modelName") ;
     output("topo") ;
+    disable_threading() ;
   }
   void compute(const sequence &seq) {
     dump_pos(seq,pos,modelName) ;
@@ -274,9 +277,9 @@ $rule apply(numNodes<-pos)[Loci::Summation] {
   join($numNodes,cnt) ;
 }
 
-$rule apply(topo<-numNodes,numAccessedNodes)[Loci::Maximum], prelude {
+$rule apply(topo<-numNodes,numAccessedNodes)[Loci::Maximum],option(disable_threading), prelude {
   if(*$numNodes != *$numAccessedNodes) {
-    $[Once]{
+    if(Loci::MPI_rank==0) {
       cerr << "Warning: "
            << *$numNodes-*$numAccessedNodes
            << " unreferenced nodes in grid." << endl ;
@@ -388,7 +391,7 @@ $rule pointwise(faceTwisted<-facecenter,face2node->pos,area) {
     const vector3d<real_t> dv = $facecenter-$face2node[i]->$pos ;
     maxlen = max(dot(dv,dv),maxlen) ;
     maxdel = max(fabs(dot(dv,n)),maxdel) ;
-    
+
   }
   $faceTwisted = maxdel/sqrt(maxlen) ;
 }
@@ -431,7 +434,7 @@ $rule pointwise(faceShearTwist<-cl->(cellcenter,volume),cr->(cellcenter,volume),
   // anisotropy factor, ratio of thickness to unit sphere radius
   real_t aniso_factor = thickness/pow($cl->$volume+$cr->$volume,1./3.);
   $faceShearTwist = twist_factor*shear_factor*aniso_factor ;
-    
+
 }
 
 
@@ -474,7 +477,7 @@ $rule apply(topocheck<-(upper,lower,boundary_map)->face2node->pos)[Loci::Summati
       edges.push_back(tmp) ;
     }
   }
-  
+
   int lsz = $lower.size() ;
   for(int i=0;i<lsz;++i) {
     int fsz = $lower[i]->$face2node.size() ;
@@ -489,7 +492,7 @@ $rule apply(topocheck<-(upper,lower,boundary_map)->face2node->pos)[Loci::Summati
       edges.push_back(tmp) ;
     }
   }
-  
+
   int bsz = $boundary_map.size() ;
   for(int i=0;i<bsz;++i) {
     int fsz = $boundary_map[i]->$face2node.size() ;
@@ -509,13 +512,13 @@ $rule apply(topocheck<-(upper,lower,boundary_map)->face2node->pos)[Loci::Summati
     topok = 1 ;
   }
   sort(edges.begin(),edges.end(),edgeCompare) ;
-  int edge_missed = 0 ;
+//  int edge_missed = 0 ;
   for(int i=0;i<esz;i+=2) {
     if(edges[i][0] != edges[i+1][0] ||
        edges[i][1] != edges[i+1][1] ||
        (edges[i][2]+edges[i+1][2]) != 1) {
       topok=1 ;
-      edge_missed++ ;
+//      edge_missed++ ;
     }
   }
   join($topocheck,topok) ;
@@ -528,7 +531,7 @@ $type maxShearTwist param<real_t> ;
 $type modelName param<string> ;
 $type convexCell param<int> ;
 
-$rule singleton(report<-volRatio,maxCellAngle,minVol,maxTwist,maxShearTwist,topo,modelName,convexCell,topocheck) {
+$rule singleton(report<-volRatio,maxCellAngle,minVol,maxTwist,maxShearTwist,topo,modelName,convexCell,topocheck),option(disable_threading) {
   $[Once] {
     if($minVol <= 0) {
       cerr << "Negative or zero volume cell!  The grid quality is too poor to use." << endl ;
@@ -550,7 +553,7 @@ $rule singleton(report<-volRatio,maxCellAngle,minVol,maxTwist,maxShearTwist,topo
     cout << "For non-triangular faces it is possible for the face to be non-planar, "
          << endl
          << "i.e. twisted.  The twist metric measure the  non-planar component of the face"
-         << endl 
+         << endl
          << "geometry.  In other words a value of 0.1 indicates that the face geometry"
          << endl
          << "deviates from the planar description by 10 percent.  "
@@ -562,7 +565,7 @@ $rule singleton(report<-volRatio,maxCellAngle,minVol,maxTwist,maxShearTwist,topo
 
     int quality = 3 ;
     if($volRatio > 10 || $maxCellAngle > 90 ||
-       $maxTwist > 0.1 || $maxShearTwist > 0.1) 
+       $maxTwist > 0.1 || $maxShearTwist > 0.1)
       quality = 2 ;
     if($volRatio > 50 || $maxCellAngle > 150 ||
        $maxTwist > 0.2 || $maxShearTwist > 0.2)
@@ -578,7 +581,7 @@ $rule singleton(report<-volRatio,maxCellAngle,minVol,maxTwist,maxShearTwist,topo
       cout << "WARNING: " << $topocheck << " cells have invalid topology" << endl ;
       quality = -1 ;
     }
-    
+
     string quality_report = "undetermined" ;
     switch(quality) {
     case 3:
@@ -596,7 +599,7 @@ $rule singleton(report<-volRatio,maxCellAngle,minVol,maxTwist,maxShearTwist,topo
     case -1:
       quality_report = "UNUSABLE" ;
     }
-    
+
     cout << "Overall Grid Quality Assesment: " << quality_report << endl ;
     cout << endl ;
     switch(quality) {
@@ -627,7 +630,7 @@ $rule singleton(report<-volRatio,maxCellAngle,minVol,maxTwist,maxShearTwist,topo
       cout<< "-- This grid cannot be used as the solver will most likely fail to converge. "<< endl ;
       break ;
     }
-    
+
     string report_file = $modelName + ".quality" ;
     std::ofstream file(report_file.c_str(),std::ios::out) ;
     file << "<minVol> "  << $minVol << " </minVol>" << endl ;
@@ -659,10 +662,10 @@ void dump_scalar(const sequence &seq,const_store<float> &c2n,
                  const_param<string> &modelName,
                  string type,
                  string sname) {
-    
+
   ostringstream oss ;
   int cycle = 0;
-    
+
   oss << "output/" << sname << "_" << type << "." << cycle
       << "_" << *modelName ;
   string filename = oss.str() ;
@@ -670,7 +673,7 @@ void dump_scalar(const sequence &seq,const_store<float> &c2n,
   $[Once] {
     Loci::debugout << "writing file " << filename << endl ;
   }
-  
+
   hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
 
@@ -679,16 +682,16 @@ void dump_scalar(const sequence &seq,const_store<float> &c2n,
   Loci::hdf5CloseFile(file_id) ;
 
 }
-  
+
 scalar_node_output::scalar_node_output(const char *vname,
                                        const char *valname) {
   var_name = string(vname) ;
   value_name = string(valname) ;
-  string var_name_time = var_name; 
+  string var_name_time = var_name;
   name_store(var_name_time, c2n) ;
   name_store("modelName",modelName) ;
   name_store("topo",topo) ;
-    
+
   constraint("pos") ;
   input("modelName") ;
   input(var_name_time);
@@ -697,14 +700,14 @@ scalar_node_output::scalar_node_output(const char *vname,
 }
 void scalar_node_output::compute(const sequence &seq) {
   dump_scalar(seq,c2n, modelName,"sca",value_name) ;
-}	
+}
 
 
 
 #define OUTPUT_SCALAR(X,Y) class OUT_##Y : public scalar_node_output {	\
   public:								\
   OUT_##Y() : scalar_node_output(X,#Y){}				\
-  }; register_rule<OUT_##Y> register_OUT_##Y 
+  }; register_rule<OUT_##Y> register_OUT_##Y
 
 OUTPUT_SCALAR("cell2nodeMax(cellVolRatio)",volumeRatio) ;
 OUTPUT_SCALAR("cell2nodeMax(cellFaceAngle)",cellFaceAngle) ;
@@ -875,7 +878,7 @@ public:
   dump_boundary_geom() ;
   virtual void compute(const sequence &seq) ;
 } ;
-  
+
 dump_boundary_geom::dump_boundary_geom() {
   name_store("area",area) ;
   name_store("facecenter",facecenter) ;
@@ -885,6 +888,7 @@ dump_boundary_geom::dump_boundary_geom() {
   input("modelName") ;
   constraint("ci->cellcenter") ;
   output("topo") ;
+  disable_threading() ;
 }
 void dump_boundary_geom::compute(const sequence &seq) {
   ostringstream oss ;
@@ -898,7 +902,7 @@ void dump_boundary_geom::compute(const sequence &seq) {
   writeUnorderedStore(file_id,area,set,"area") ;
   writeUnorderedStore(file_id,facecenter,set,"facecenter") ;
   closeUnorderedFile(file_id) ;
-}	
+}
 
 register_rule<dump_boundary_geom> register_dump_boundary_geom ;
 
@@ -934,7 +938,7 @@ $rule pointwise(alpha_geom_f<-area,facecenter,(cl,cr)->(cellcenter,vol),
   real_t x3 = x2*x ;
   $alpha_geom_f = x2 + s*(x3-2.*x2+x) ;
 }
-  
+
 $type alphameanp param<Loci::Array<real_t,2> > ;
 
 $rule unit(alphameanp),constraint(alpha_geom_f) {
@@ -1077,7 +1081,7 @@ $rule apply(min_dihedral<-dihedral_min)[Loci::Minimum] {
 $rule apply(topo<-max_dihedral,min_dihedral)[Loci::Maximum],
   option(disable_threading), prelude {
   $[Once] {
-    cout << "Cell dihedral angles, Max: " << *$max_dihedral 
+    cout << "Cell dihedral angles, Max: " << *$max_dihedral
 	 << " Min: " << *$min_dihedral << endl ;
   }
 } ;

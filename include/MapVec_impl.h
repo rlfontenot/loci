@@ -28,23 +28,28 @@ namespace Loci {
   
   template<int M> void MapVecRepI<M>::allocate(const entitySet &ptn) {
 
-    if(alloc_pointer) delete[] alloc_pointer ;
-    alloc_pointer = 0 ;
-    base_ptr = 0 ;
-    if(ptn != EMPTY) {
-      int top = ptn.Min() ;
-      int size = ptn.Max()-top+1 ;
-      alloc_pointer = new VEC[size] ;
-      base_ptr = alloc_pointer-top ;
-    }
+    if(alloc_id < 0)
+      alloc_id = getStoreAllocateID() ;
+
+    storeAllocateData[alloc_id].template allocBasic<VEC>(ptn,1) ;
+    store_domain = storeAllocateData[alloc_id].allocset ; ;
+    base_ptr = (((VEC *)storeAllocateData[alloc_id].base_ptr) -
+		storeAllocateData[alloc_id].base_offset );
     store_domain = ptn ;
     dispatch_notify() ;
+    return ;
+    
   }
 
   //*************************************************************************/
 
   template<int M> MapVecRepI<M>::~MapVecRepI() {
-    if(alloc_pointer) delete[] alloc_pointer ;
+    if(alloc_id>=0) {
+      storeAllocateData[alloc_id].template release<VEC>() ;
+      releaseStoreAllocateID(alloc_id) ;
+      alloc_id = -1 ;
+    }
+    return ;
   }
 
   //*************************************************************************/
@@ -316,7 +321,7 @@ namespace Loci {
 
     entitySet::const_iterator ci;
     for( ci = eset.begin(); ci != eset.end(); ++ci) 
-      MPI_Pack( base_ptr[*ci], M, MPI_INT, outbuf, outcount, &position, 
+      MPI_Pack( &base_ptr[*ci][0], M, MPI_INT, outbuf, outcount, &position, 
                 MPI_COMM_WORLD);
   }
   //*************************************************************************/
@@ -335,7 +340,7 @@ namespace Loci {
 
     sequence::const_iterator ci;
     for( ci = seq.begin(); ci != seq.end(); ++ci) 
-      MPI_Unpack( inbuf, insize, &position, base_ptr[*ci], M, MPI_INT, 
+      MPI_Unpack( inbuf, insize, &position, &base_ptr[*ci][0], M, MPI_INT, 
                   MPI_COMM_WORLD) ;
   }
   //*************************************************************************/

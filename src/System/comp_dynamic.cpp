@@ -329,12 +329,12 @@ namespace Loci {
 
         if(join_op != 0) {
           storeRepP sp = join_op->getTargetRep() ;
-          if(sp->RepType()== PARAMETER) {
+          if(isPARAMETER(sp)) {
             reduce_var_vector.push_back(xi->first) ;
             unit_rule_vector.push_back(unit_rule) ;
             join_op_vector.push_back(join_op) ;
           }
-          else if (sp->RepType() == BLACKBOX) {
+          else if (isBLACKBOX(sp)) {
             cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
           }else {
             comp.push_back(new reduce_store_compiler(xi->first,unit_rule,

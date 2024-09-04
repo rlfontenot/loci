@@ -55,13 +55,17 @@ namespace Loci {
       return (H5Tcopy(H5T_NATIVE_LONG));
     case UNSIGNED_LONG:
       return (H5Tcopy(H5T_NATIVE_ULONG));
+    case LONGLONG:
+      return (H5Tcopy(H5T_NATIVE_LLONG)) ;
+    case UNSIGNED_LONGLONG:
+      return (H5Tcopy(H5T_NATIVE_ULLONG)) ;
     default:
       cerr << "Unknown Basic datatype  " << atom << endl;
       abort();
     }
     return 0;
   }
-  
+
   std::ostream  &AtomicType::output(std::ostream &s, const void *p) const {
     switch( atom ) {
     case BOOL:
@@ -198,11 +202,7 @@ namespace Loci {
       array_dims[k]  = dimension[k];
 
 
-#ifdef H5_USE_16_API
-    hid_t rtype = H5Tarray_create(hdf5T,rank,array_dims,NULL) ;
-#else
     hid_t rtype = H5Tarray_create(hdf5T,rank,array_dims) ;
-#endif
 
     H5Tclose(hdf5T) ;
     return  rtype ;
@@ -296,7 +296,7 @@ namespace Loci {
         void *np = reinterpret_cast<char *>(p)+type_list[i].offset ;
         type_list[i].type_data->input(s,np) ;
         parse::kill_white_space(s) ;
-        
+
         if(s.peek() == ',') {
           s.get() ;
           continue ;

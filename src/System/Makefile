@@ -30,7 +30,14 @@ LIB_NAME2	=	lib$(MODULE_NAME).$(LIB_SUFFIX)
 ################################################################################
 # No changes required below this line
 ################################################################################
-FILES			=	$(wildcard *.cpp)
+# Remove the filter when gpu stuff is fully developed
+FILES			=	$(filter-out \
+					gconstraint.cpp \
+					gkey_manager.cpp\
+					gkeyspace.cpp \
+					gmap.cpp \
+					gmultimap.cpp \
+					,$(wildcard *.cpp))
 OBJS			=	$(subst .cpp,.o,$(FILES))
 LS_INC_H		=	$(shell cd $(LOCI_SRC)/include/; ls *.h) version_loci.h
 LS_INC_LH		=	$(shell cd $(LOCI_SRC)/include/; ls *.lh)

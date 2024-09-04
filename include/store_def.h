@@ -47,8 +47,6 @@ namespace Loci {
   extern int MPI_rank ;
 
   template<class T> class storeRepI : public storeRep {
-    T *alloc_pointer ;
-    T *base_ptr ;
     entitySet store_domain ;
     void hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, frame_info &fi, entitySet &usr);
     void hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER g, const entitySet &en) const;
@@ -81,8 +79,8 @@ namespace Loci {
     frame_info get_frame_info(IDENTITY_CONVERTER g) ;
     frame_info get_frame_info(USER_DEFINED_CONVERTER g) ;
   public:
-    storeRepI() { alloc_pointer = 0 ; base_ptr = 0; }
-    storeRepI(const entitySet &p) { alloc_pointer=0 ; allocate(p) ;}
+    storeRepI() { } 
+    storeRepI(const entitySet &p) { allocate(p) ;}
     virtual void allocate(const entitySet &ptn) ;
     virtual void shift(int_type offset) ;
     virtual ~storeRepI()  ;
@@ -114,9 +112,37 @@ namespace Loci {
     virtual void writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en, hid_t xfer_plist_id) const ;
 #endif
     virtual entitySet domain() const ;
-    T * get_base_ptr() const { return base_ptr ; }
+    T * get_base_ptr() const {
+      T *p = 0 ;
+      if(alloc_id>=0)
+	p= (((T *)storeAllocateData[alloc_id].base_ptr) -
+	    storeAllocateData[alloc_id].base_offset) ;
+      return p;
+    }
     virtual DatatypeP getType() ;
     virtual frame_info get_frame_info() ;
+#ifdef DYNAMICSCHEDULING
+    virtual storeRepP freeze(const entitySet& es) const {
+      std::cerr << "storeRep.freeze(e) is not implemented yet"
+                << std::endl ;
+      abort() ;
+      return storeRepP(0) ;
+    }
+    //    virtual storeRepP thaw(const entitySet& es) const {
+    //      std::cerr << "storeRep.freeze(e) is not implemented yet"
+    //                << std::endl ;
+    //      abort() ;
+    //      return storeRepP(0) ;
+    //    }
+    virtual void pack(void* ptr, int& loc,
+                      int& size, const entitySet& e, const Map& remap) {
+      pack(ptr,loc,size,e) ;
+    }
+    virtual void unpack(void* ptr, int& loc,
+                        int& size, const sequence& seq, const dMap& remap) {
+      unpack(ptr,loc,size,seq) ;
+    }
+#endif
   } ;
 
   template<class T> class store : public store_instance {

@@ -19,6 +19,7 @@
 //#
 //#############################################################################
 #include "lpp.h"
+#include "parseAST.h"
 #include <ctype.h>
 #include <set>
 #include <iostream>
@@ -43,13 +44,16 @@ using std::ios ;
 using std::endl ;
 using std::cerr ;
 using std::cout ;
+using std::vector ;
 using namespace Loci ;
+
+vector<string> fileNameStack ;
 
 bool is_name(istream &s) {
   int ch = s.peek() ;
   return isalpha(ch) || ch == '_' ;
 }
-    
+
 string get_name(istream &s) {
   if(!is_name(s))
     throw parseError("expected name") ;
@@ -57,14 +61,14 @@ string get_name(istream &s) {
   while(!s.eof() && (s.peek() != EOF) &&
         (isalnum(s.peek()) || (s.peek() == '_')) )
     str += s.get() ;
-  
+
   return str ;
 }
 
 bool is_string(istream &s) {
   return s.peek() == '\"' ;
 }
-    
+
 string get_string(istream &s) {
   if(!is_string(s))
     throw parseError("expected string") ;
@@ -122,7 +126,7 @@ istream &killComment(istream &s, int & lines) {
   }
   return s ;
 }
-    
+
 istream &killsp(istream &s, int &lines) {
 
   bool foundstuff = false ;
@@ -176,7 +180,7 @@ istream &killCommentOut(istream &s, int & lines,ostream &out) {
   }
   return s ;
 }
-    
+
 istream &killspOut(istream &s, int &lines, ostream &out) {
 
   bool foundstuff = false ;
@@ -271,7 +275,7 @@ public:
     return i ;
   }
 } ;
-  
+
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
@@ -378,7 +382,7 @@ public:
     }
     return s ;
   }
-    
+
   string str() const {
     string s ;
     if(stuff == "")
@@ -393,7 +397,7 @@ public:
     return i ;
   }
 } ;
-  
+
 
 class var : public parsebase {
 public:
@@ -404,7 +408,7 @@ public:
   funclist<var> param_args ;
   bracestuff bs ;
   var() : isdollar(false) {}
-  
+
   istream &get(istream &s) {
     isdollar = false ;
     parsebase::killsp(s) ;
@@ -421,12 +425,12 @@ public:
         s.get() ;
         if(s.peek() != ':') {
 	  string err = "syntax error, improper trailing colon, use parenthesis around variable '"+ name+"' to fix." ;
-	  throw parseError(err.c_str()) ; 
+	  throw parseError(err.c_str()) ;
 	}
         s.get() ;
         parsebase::killsp(s) ;
         prio_list.push_back(name);
-        if(!is_name(s)) 
+        if(!is_name(s))
           throw parseError("syntax error near ':'") ;
         name = get_name(s) ;
         parsebase::killsp(s) ;
@@ -437,13 +441,13 @@ public:
         s.get() ;
         parsebase::killsp(s) ;
         nspace_list.push_back(name);
-        if(!is_name(s)) 
+        if(!is_name(s))
           throw parseError("syntax error near '@'") ;
         name = get_name(s) ;
         parsebase::killsp(s) ;
       }
     }
-    
+
     param_args.get(s) ;
     bs.get(s) ;
 
@@ -575,7 +579,7 @@ void parseFile::setup_Type(std::ostream &outputFile) {
   vin.get(is) ;
   typestuff tin ;
   tin.get(is) ;
-  while(is.peek() == ' ' || is.peek() == '\t') 
+  while(is.peek() == ' ' || is.peek() == '\t')
     is.get() ;
   if(is.peek() != ';')
     throw parseError("syntax error, missing ';'") ;
@@ -592,7 +596,7 @@ void parseFile::setup_Type(std::ostream &outputFile) {
 
 namespace {
   inline void fill_descriptors(set<vmap_info> &v, const exprList &in) {
-    
+
     for(exprList::const_iterator i = in.begin();i!=in.end();++i) {
       // This needs to be improved to use an actual variable syntax
       // certification.  This test will just get the blindingly obvious
@@ -633,7 +637,7 @@ void parseFile::process_SpecialCommand(std::ostream &outputFile,
   for(int i=0;i<nsz;++i)
     if(name[i] >= 'A' || name[i] <= 'Z')
       name[i] = std::tolower(name[i]) ;
-  
+
   if(name == "once") {
     killsp() ;
     if(is.peek() != '{') {
@@ -663,17 +667,17 @@ void parseFile::process_Prelude(std::ostream &outputFile,
                                 const map<variable,string> &vnames) {
   outputFile << "    virtual void prelude(const Loci::sequence &seq) { " ;
   is.get() ;
-  
+
   int openbrace = 1 ;
   for(;;) {
     killspout(outputFile) ;
     if(is.peek() == EOF)
       throw parseError("unexpected EOF") ;
-      
+
     if(is.peek() == '}') {
       is.get() ;
       outputFile << '}' ;
-      
+
       openbrace-- ;
       if(openbrace == 0)
         break ;
@@ -691,11 +695,11 @@ void parseFile::process_Prelude(std::ostream &outputFile,
       if(is.peek() == '[') {
         process_SpecialCommand(outputFile,vnames,openbrace) ;
         continue ;
-      } 
+      }
       var vin ;
       vin.get(is) ;
       v = variable(vin.str()) ;
-        
+
       map<variable,string>::const_iterator vmi = vnames.find(v) ;
       if(vmi == vnames.end()) {
         cerr << "variable " << v << " is unknown to this rule!" << endl ;
@@ -703,7 +707,7 @@ void parseFile::process_Prelude(std::ostream &outputFile,
       }
       outputFile << vmi->second  ;
     }
-  
+
     char c = is.get() ;
     if(c == '\n')
       line_no++ ;
@@ -715,17 +719,17 @@ void parseFile::process_Compute(std::ostream &outputFile,
                                 const map<variable,string> &vnames) {
   outputFile << "    void compute(const Loci::sequence &seq) { " ;
   is.get() ;
-  
+
   int openbrace = 1 ;
   for(;;) {
     killspout(outputFile) ;
     if(is.peek() == EOF)
       throw parseError("unexpected EOF") ;
-      
+
     if(is.peek() == '}') {
       is.get() ;
       outputFile << '}' ;
-      
+
       openbrace-- ;
       if(openbrace == 0)
         break ;
@@ -757,7 +761,7 @@ void parseFile::process_Compute(std::ostream &outputFile,
       is.get() ;
       outputFile << '\'' ;
       continue ;
-    }      
+    }
     if(is.peek() == '$') {
       variable v ;
       is.get() ;
@@ -770,7 +774,7 @@ void parseFile::process_Compute(std::ostream &outputFile,
         is.get() ;
         deref = false ;
       }
-      
+
 
       var vin ;
       vin.get(is) ;
@@ -788,13 +792,13 @@ void parseFile::process_Compute(std::ostream &outputFile,
       } else {
         outputFile << "(*" << vmi->second << ')' ;
       }
-      
+
     }
     char c = is.get() ;
     if(c == '\n')
       line_no++ ;
     outputFile << c ;
-  } 
+  }
 }
 
 string getNumber(std::istream &is) {
@@ -829,7 +833,7 @@ string parseFile::process_String(string in,
 
     if(is.peek() == EOF)
       break ;
-      
+
     if(is.peek() == '}') {
       is.get() ;
       outputFile << '}' ;
@@ -861,7 +865,7 @@ string parseFile::process_String(string in,
       is.get() ;
       outputFile << '\'' ;
       continue ;
-    }      
+    }
     if(is.peek() == '/') {
       is.get() ;
       outputFile << '/' ;
@@ -876,7 +880,7 @@ string parseFile::process_String(string in,
       }
       continue ;
     }
-          
+
     if(is.peek() == '#') {
       is.get() ;
       outputFile << '#' ;
@@ -898,7 +902,7 @@ string parseFile::process_String(string in,
       string name ;
       variable v ;
       string brackets ;
-      if(first_name) 
+      if(first_name)
         name = get_name(is) ;
       else {
         is.get() ;
@@ -906,18 +910,18 @@ string parseFile::process_String(string in,
           is.get() ;
           var vin ;
           vin.get(is) ;
-          
+
           variable v(vin.str()) ;
           map<variable,string>::const_iterator vmi = vnames.find(v) ;
           if(vmi == vnames.end()) {
             cerr << "variable " << v << " is unknown to this rule!" << endl ;
             throw parseError("type error") ;
           }
-          
+
           outputFile << vmi->second ;
           continue ;
         }
-        
+
         var vin ;
         vin.get(is) ;
         v = variable(vin.str()) ;
@@ -972,7 +976,7 @@ string parseFile::process_String(string in,
         throw parseError("syntax error, near '->' operator") ;
 
       validate_VariableAccess(v,vlist,first_name,vnames,validate_set) ;
-      
+
       if(first_name && (vlist.size() == 0)) {
         outputFile << name << ' ' ;
         continue ;
@@ -1011,9 +1015,9 @@ string parseFile::process_String(string in,
       char c = is.get() ;
       outputFile << c ;
     }
-  } 
+  }
 
-  
+
   return outputFile.str() ;
 }
 
@@ -1035,7 +1039,7 @@ void parseFile::validate_VariableAccess(variable v, const list<variable> &vlist,
   while(vt.get_info().priority.size() != 0)
     vt = vt.drop_priority() ;
   vlistall.push_front(vt) ;
-  
+
   if(!first_name && !vlistall.empty()
      && validate_set.find(vlistall) == validate_set.end()) {
     ostringstream msg ;
@@ -1050,7 +1054,7 @@ void parseFile::validate_VariableAccess(variable v, const list<variable> &vlist,
     msg << " not consistent with rule signature!" ;
     throw parseError(msg.str()) ;
   }
-  
+
   list<variable>::const_reverse_iterator ri ;
   for(ri=vlist.rbegin();ri!=vlist.rend();++ri) {
     map<variable,string>::const_iterator vmi = vnames.find(*ri) ;
@@ -1090,11 +1094,11 @@ void parseFile::process_Calculate(std::ostream &outputFile,
     killspout(outputFile) ;
     if(is.peek() == EOF)
       throw parseError("unexpected EOF in process_Calculate") ;
-      
+
     if(is.peek() == '}') {
       is.get() ;
       outputFile << '}' ;
-      
+
       openbrace-- ;
       if(openbrace == 0)
         break ;
@@ -1126,7 +1130,7 @@ void parseFile::process_Calculate(std::ostream &outputFile,
       is.get() ;
       outputFile << '\'' ;
       continue ;
-    }      
+    }
     if(is.peek() == '/') {
       is.get() ;
       outputFile << '/' ;
@@ -1141,7 +1145,7 @@ void parseFile::process_Calculate(std::ostream &outputFile,
       }
       continue ;
     }
-          
+
     if(is.peek() == '#') {
       is.get() ;
       outputFile << '#' ;
@@ -1157,7 +1161,7 @@ void parseFile::process_Calculate(std::ostream &outputFile,
       outputFile << getNumber(is) ;
       continue ;
     }
-    
+
     if(is_name(is) || is.peek() == '$') {
       int lcount = 0 ;
       bool first_name = is_name(is) ;
@@ -1171,7 +1175,7 @@ void parseFile::process_Calculate(std::ostream &outputFile,
       string name ;
       variable v ;
       string brackets ;
-      if(first_name) 
+      if(first_name)
         name = get_name(is) ;
       else {
         if(is.peek() == '*') {
@@ -1180,18 +1184,18 @@ void parseFile::process_Calculate(std::ostream &outputFile,
           vin.get(is) ;
           line_no += vin.num_lines() ;
           lcount += vin.num_lines() ;
-          
+
           variable v(vin.str()) ;
           map<variable,string>::const_iterator vmi = vnames.find(v) ;
           if(vmi == vnames.end()) {
             cerr << "variable " << v << " is unknown to this rule!" << endl ;
             throw parseError("type error") ;
           }
-          
+
           outputFile << vmi->second ;
           continue ;
         }
-        
+
         var vin ;
         vin.get(is) ;
         line_no += vin.num_lines() ;
@@ -1290,9 +1294,9 @@ void parseFile::process_Calculate(std::ostream &outputFile,
       for(int i=0;i<lcount;++i)
         outputFile << endl ;
       continue ;
-      
+
     }
-    
+
     char c = is.get() ;
     if(c == '\n')
       line_no++ ;
@@ -1358,34 +1362,29 @@ std::vector<list<variable> > expand_mapping(std::vector<variableSet> vset) {
   return tmp2 ;
 }
 
-void parseFile::setup_Rule(std::ostream &outputFile) {
+
+void parseFile::setup_cudaRule(std::ostream &outputFile) {
   killsp() ;
   string rule_type ;
   if(is_name(is)) {
     rule_type = get_name(is) ;
-  } else 
+  } else
     throw parseError("syntax error") ;
+  if(rule_type != "pointwise")
+    throw parseError("cudaRule only valid for pointwise") ;
   nestedparenstuff signature ;
 
   signature.get(is) ;
   line_no += signature.num_lines() ;
   nestedbracketstuff apply_op ;
   killsp() ;
-  if(rule_type == "apply") {
-    if(is.peek() != '[') 
-      throw parseError("apply rule missing '[operator]'") ;
-    apply_op.get(is) ;
-    line_no += apply_op.num_lines() ;
-    killsp() ;
-  }
-  
 
   string constraint, conditional ;
   string parametric_var ;
   list<string> options ;
   list<string> comments ;
   list<pair<variable,variable> > inplace ;
-  
+
   bool use_prelude = false ;
   bool is_specialized = false ;
   while(is.peek() == ',') {
@@ -1400,7 +1399,7 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
       con.get(is) ;
       if(constraint == "")
         constraint = con.str() ;
-      else 
+      else
         constraint += "," + con.str() ;
       line_no += con.num_lines() ;
     } else if(s == "parametric") {
@@ -1409,7 +1408,7 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
       if(parametric_var != "") {
         throw parseError("syntax error: canot specify more than one parametric variable") ;
       }
-        
+
       parametric_var = con.str() ;
       line_no += con.num_lines() ;
     } else if(s == "conditional") {
@@ -1425,12 +1424,12 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
       v = convertVariable(v) ;
       map<variable,pair<string,string> >::const_iterator mi ;
       if((mi = type_map.find(v)) == type_map.end()) {
-        
+
         v = v.new_offset(0) ;
         v = v.drop_assign() ;
         while(v.time() != time_ident())
           v = v.parent() ;
-        
+
         if((mi = type_map.find(v)) == type_map.end()) {
           while(v.get_info().namespac.size() != 0)
             v = v.drop_namespace() ;
@@ -1450,7 +1449,7 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
         for(int i=0;i<valsz;++i)
           if(val[i] != ' ' && val[i] != '\t' && val[i] != '\r' && val[i] != '\n')
             val2 += val[i] ;
-        
+
         if(val2 != "param<bool>") {
           throw(parseError("conditional variable must be typed as a param<bool>")) ;
         }
@@ -1461,15 +1460,15 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
       line_no += ip.num_lines() ;
       exprP p = expression::create(ip.str()) ;
       exprList l = collect_associative_op(p,OP_OR) ;
-      if(l.size() != 2) 
+      if(l.size() != 2)
         throw parseError("inplace needs two variables with a '|' separator") ;
-        
+
       exprList::const_iterator i = l.begin() ;
       variable v1(*i) ;
       ++i ;
       variable v2(*i) ;
       inplace.push_back(pair<variable,variable>(v1,v2)) ;
-    
+
     } else if(s == "prelude") {
       use_prelude=true ;
       killsp() ;
@@ -1501,24 +1500,16 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
       bodys = sig.substr(i+2,sig.size()) ;
       head = expression::create(heads) ;
       body = expression::create(bodys) ;
-      if(rule_type == "optional" || rule_type == "default") {
-	throw parseError("'optional' or 'default' rules should not have a body (defined by '<-' operator)!") ;
-      }
     }
   }
   if(head == 0) {
     heads = sig ;
     head = expression::create(heads) ;
-    if(rule_type == "optional" || rule_type == "default") {
-      if(constraint != "") 
-	throw parseError("'optional' or 'default' rules should not have a constraint!") ;      
-    } else {
-      if(constraint == "") {
-	throw parseError("rules without bodies should have a defined constraint as input!") ;
-      }
+    if(constraint == "") {
+      throw parseError("rules without bodies should have a defined constraint as input!") ;
     }
   }
-  
+
   string class_name = "file_" ;
   for(size_t i=0;i<filename.size();++i) {
     char c = filename[i] ;
@@ -1535,30 +1526,14 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
   //  ftime(&tdata) ;
   timespec tdata ;
   clock_gettime(CLOCK_MONOTONIC,&tdata) ;
-  
-  
+
+
   ostringstream tss ;
-  //  tss <<  '_' << tdata.time << 'm'<< tdata.millitm;
   tss << '_' << tdata.tv_sec << 'm' << tdata.tv_nsec/1000000 ;
-  
+
   class_name += tss.str() ;
   cnt++ ;
-#ifdef OLD
-  class_name += "_rule_" ;
-  if(conditional != "")
-    sig += "_" + conditional ;
-  if(constraint != "")
-    sig += "_" + constraint ;
-  for(size_t i=0;i<sig.size();++i) {
-    if(isalpha(sig[i]) || isdigit(sig[i]))
-      class_name += sig[i] ;
-    if(sig[i] == ',' || sig[i] == '-' || sig[i] == '>' || sig[i] == '('||
-       sig[i] == ')' || sig[i] == '{' || sig[i] == '}' || sig[i] == '='||
-       sig[i] == '+' || sig[i] == '_')
-      class_name += '_' ;
-  }
-#endif
-  
+
   set<vmap_info> sources ;
   set<vmap_info> targets ;
   if(body != 0)
@@ -1585,7 +1560,7 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
       variableSet::const_iterator vi ;
       for(vi=i->var.begin();vi!=i->var.end();++vi) {
         std::list<variable> vbasic ;
-      
+
         vbasic.push_back(*vi) ;
         validate_set.insert(vbasic) ;
       }
@@ -1645,7 +1620,7 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
     }
   }
 
-  
+
 
   map<variable,string> vnames ;
   variableSet::const_iterator vi ;
@@ -1660,16 +1635,6 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
     }
   }
 
-  if(rule_type != "pointwise" && rule_type != "default") {
-    for(vi=output.begin();vi!=output.end();++vi) {
-      if(vi->get_info().priority.size() != 0) {
-        ostringstream oss ;
-        oss << "only pointwise rules can use priority annotation, var="<< *vi << endl ;
-        throw parseError(oss.str()) ;
-      }
-    }
-  }    
-  
   for(vi=all_vars.begin();vi!=all_vars.end();++vi) {
     vnames[*vi] = var2name(*vi) ;
     if(vi->get_info().priority.size() != 0) {
@@ -1707,9 +1672,816 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
       oss << "inplace variable '"<< ipi->second << "' not input or output variable!" ;
       throw parseError(oss.str()) ;
     }
-    
+
   }
-  
+
+  map<variable,pair<string,string> > local_type_map ;
+  for(vi=all_vars.begin();vi!=all_vars.end();++vi) {
+    variable v = *vi ;
+    if(v.is_time_variable()) {
+      local_type_map[v] = pair<string,string>("param","<int> ") ;
+      continue ;
+    }
+    v = convertVariable(v) ;
+    map<variable,pair<string,string> >::const_iterator mi ;
+    if((mi = type_map.find(v)) == type_map.end()) {
+
+      v = v.new_offset(0) ;
+      v = v.drop_assign() ;
+      while(v.time() != time_ident())
+        v = v.parent() ;
+      if((mi = type_map.find(v)) == type_map.end()) {
+        while(v.get_info().namespac.size() != 0)
+          v = v.drop_namespace() ;
+        if((mi = type_map.find(v)) == type_map.end()) {
+          string s ;
+          s = "unable to determine type of variable " ;
+          s += v.str() ;
+          throw parseError(s) ;
+        }
+      }
+    }
+    local_type_map[*vi] = mi->second ;
+  }
+
+
+  //  if(!prettyOutput)
+  //    outputFile << "namespace {" ;
+  outputFile << "class " << class_name << " : public Loci::" << rule_type << "_rule" ;
+  if(rule_type == "pointwise") {
+    for(variableSet::const_iterator vi=output.begin();vi!=output.end();++vi) {
+      if(local_type_map[*vi].first == "param" && vi->get_info().name != "OUTPUT") {
+        throw(parseError("pointwise rule cannot compute param, use singleton")) ;
+      }
+    }
+  }
+
+  outputFile << " {" << endl ;
+  syncFile(outputFile) ;
+
+  variableSet outs = output ;
+  for(ipi=inplace.begin();ipi!=inplace.end();++ipi) {
+    outs -= ipi->first ;
+    outs += ipi->second ;
+  }
+  variableSet ins = input ;
+  ins -= outs ;
+  map<variable,string> typetable ;
+  for(vi=ins.begin();vi!=ins.end();++vi) {
+    map<variable,pair<string,string> >::const_iterator mi ;
+    if((mi = local_type_map.find(*vi)) == local_type_map.end()) {
+      cerr << "unknown type for variable " << *vi << endl ;
+      throw parseError("untyped Loci variable") ;
+    }
+    if(mi->second.first == "Map") {
+      typetable[*vi] = "int" ;
+    } else {
+      string scratch = mi->second.second ;
+      if(scratch.size() > 2) {
+	typetable[*vi] = scratch.substr(1,scratch.size()-3) ;
+      } else {
+	cerr << "unexpected loci variable type!" << endl ;
+      }
+    }
+
+    if(!prettyOutput)
+      outputFile << "    Loci::const_gpu" << mi->second.first <<  mi->second.second ;
+    else
+      outputFile << "    const_gpu" << mi->second.first <<  mi->second.second ;
+    outputFile << " " << vnames[*vi] << " ; " << endl ;
+    syncFile(outputFile) ;
+  }
+  for(vi=outs.begin();vi!=outs.end();++vi) {
+    map<variable,pair<string,string> >::const_iterator mi ;
+    if((mi = local_type_map.find(*vi)) == local_type_map.end()) {
+      cerr << "unknown type for variable " << *vi << endl ;
+      throw parseError("untyped Loci variable") ;
+    }
+    if(mi->second.first == "Map") {
+      typetable[*vi] = "int" ;
+    } else {
+      string scratch = mi->second.second ;
+      if(scratch.size() > 2) {
+	typetable[*vi] = scratch.substr(1,scratch.size()-3) ;
+      } else {
+	cerr << "unexpected loci variable type!" << endl ;
+      }
+    }
+    if(!prettyOutput)
+      outputFile << "    Loci::gpu" << mi->second.first <<  mi->second.second ;
+    else
+      outputFile << "    gpu" << mi->second.first <<  mi->second.second ;
+    outputFile << " " << vnames[*vi] << " ; " << endl ;
+    syncFile(outputFile) ;
+  }
+  outputFile << "public:" << endl ;
+  syncFile(outputFile) ;
+  outputFile <<   "    " << class_name << "() {" << endl ;
+  syncFile(outputFile) ;
+  for(ipi=inplace.begin();ipi!=inplace.end();++ipi) {
+    all_vars -= ipi->first ;
+  }
+
+  for(vi=all_vars.begin();vi!=all_vars.end();++vi) {
+    outputFile << "       name_store(\"" << *vi << "\","
+               << vnames[*vi] << ") ;" << endl ;
+    syncFile(outputFile) ;
+  }
+  if(bodys != "") {
+    outputFile <<   "       input(\"" << bodys << "\") ;" << endl ;
+    syncFile(outputFile) ;
+  }
+
+  for(i=targets.begin();i!=targets.end();++i) {
+    outputFile <<   "       output(\"" ;
+    for(size_t j=0;j<i->mapping.size();++j)
+      outputFile << i->mapping[j] << "->" ;
+
+    // Output target variables, adding inplace notation if needed
+    variableSet::const_iterator vi ;
+    if(i->var.size() > 1)
+      outputFile << '(' ;
+    for(vi=i->var.begin();vi!=i->var.end();++vi) {
+      if(vi != i->var.begin())
+        outputFile << ',' ;
+      for(ipi=inplace.begin();ipi!=inplace.end();++ipi) {
+        if((ipi->first) == *vi)
+          break ;
+      }
+      if(ipi!=inplace.end()) {
+        if(i->mapping.size() == 0 || i->var.size() > 1)
+          outputFile << ipi->first << "=" << ipi->second ;
+        else
+          outputFile << '('<<ipi->first << "=" << ipi->second <<')';
+      } else
+        outputFile << *vi ;
+    }
+    if(i->var.size() > 1)
+      outputFile << ')' ;
+
+    outputFile <<  "\") ;" << endl ;
+    syncFile(outputFile) ;
+  }
+  outputFile << "disable_threading() ;" << endl ;
+  syncFile(outputFile) ;
+  //  outputFile <<   "       output(\"" << heads << "\") ;" << endl ;
+  //  syncFile(outputFile) ;
+
+  if(constraint!="") {
+    // Check to see that the constraint is typed
+    exprP C = expression::create(constraint) ;
+    set<vmap_info> Cdigest ;
+    fill_descriptors(Cdigest,collect_associative_op(C,OP_COMMA)) ;
+    set<vmap_info>::const_iterator i ;
+    variableSet constraint_vars ;
+    for(i=Cdigest.begin();i!=Cdigest.end();++i) {
+      for(size_t j=0;j<i->mapping.size();++j)
+	constraint_vars += i->mapping[j] ;
+      constraint_vars += i->var ;
+    }
+
+    for(variableSet::const_iterator vi=constraint_vars.begin();
+	vi!=constraint_vars.end();++vi) {
+      variable v = *vi ;
+      v = convertVariable(v) ;
+      map<variable,pair<string,string> >::const_iterator mi ;
+      if((mi = type_map.find(v)) == type_map.end()) {
+        v = v.new_offset(0) ;
+        v = v.drop_assign() ;
+        while(v.time() != time_ident())
+          v = v.parent() ;
+
+        if((mi = type_map.find(v)) == type_map.end()) {
+          while(v.get_info().namespac.size() != 0)
+            v = v.drop_namespace() ;
+          mi = type_map.find(v) ;
+        }
+      }
+      if(mi == type_map.end()  && v.get_info().name != "UNIVERSE" &&
+	 v.get_info().name != "EMPTY") {
+
+        cerr << filename << ':' << line_no << ":0: warning: type of constraint variable '" << v << "' not found!"  << endl  ;
+
+      }
+    }
+
+
+
+    outputFile <<   "       constraint(\"" << constraint << "\") ;" << endl ;
+    syncFile(outputFile) ;
+  }
+
+  if(parametric_var != "") {
+    outputFile <<   "       set_parametric_variable(\""
+               << parametric_var << "\") ;" << endl ;
+    syncFile(outputFile) ;
+  }
+  if(is_specialized) {
+    outputFile <<   "       set_specialized() ; " << endl ;
+    syncFile(outputFile) ;
+  }
+  if(conditional!="") {
+    outputFile <<   "       conditional(\"" << conditional << "\") ;" << endl ;
+    syncFile(outputFile) ;
+  }
+  list<string>::const_iterator lsi ;
+  for(lsi=options.begin();lsi!=options.end();++lsi) {
+    string s = *lsi ;
+    bool has_paren = false ;
+    for(size_t i = 0;i<s.size();++i)
+      if(s[i] == '(')
+        has_paren = true ;
+    outputFile <<   "       " << s ;
+    if(!has_paren)
+      outputFile << "()" ;
+    outputFile << " ;" << endl;
+    syncFile(outputFile) ;
+  }
+  for(lsi=comments.begin();lsi!=comments.end();++lsi) {
+    outputFile <<   "       comments(" << *lsi << ") ;" << endl ;
+    syncFile(outputFile) ;
+  }
+
+  outputFile <<   "    }" << endl ;
+  syncFile(outputFile) ;
+
+  //  bool use_compute = true ;
+
+  if(use_prelude) {
+    throw parseError("prelude not compatible with cuda rules") ;
+  }
+
+
+  //  if(use_compute && is.peek() != '{')
+  //    throw parseError("syntax error, expecting '{'") ;
+
+  bool sized_outputs = false;
+  variableSet outsmi = outs ;
+  outsmi -= input ;
+  for(vi=outsmi.begin();vi!=outsmi.end();++vi) {
+    string ot = local_type_map[*vi].first ;
+    if(ot == "storeVec" || ot == "storeMat" || ot == "multiStore")
+      sized_outputs = true ;
+  }
+  if(sized_outputs)
+    throw parseError("cuda rules currently incompatible with storeVec, storemat or multiStore types") ;
+
+  //  if(use_compute)
+  //    process_Calculate(outputFile,vnames,validate_set) ;
+
+  outputFile <<   "    void compute(const Loci::sequence &seq) ;" << endl ;
+  syncFile(outputFile) ;
+  outputFile <<   "} ;" << endl ;
+  syncFile(outputFile) ;
+
+  //  process_Calculate(outputFile,vnames,validate_set) ;
+  varmap typemap ;
+  typemap["vect3d"] = varinfo(true,false) ;
+
+  if(is.peek() != '{')
+    throw parseError("syntax error, expecting '{'") ;
+
+  int startline = line_no ;
+  CPTR<AST_type> ap = parseBlock(is,line_no,typemap) ;
+  //    outputFile << "Parsed TEST:" << endl ;
+
+  AST_errorCheck syntaxChecker ;
+  ap->accept(syntaxChecker) ;
+  if(syntaxChecker.hasErrors()) {
+#ifdef VERBOSE
+    AST_simplePrint printer(cerr,-1,false) ;
+    ap->accept(printer) ;
+#endif
+    throw parseError("syntax error") ;
+  }
+
+  AST_collectAccessInfo varaccess ;
+  ap->accept(varaccess) ;
+  //  cout << "variables = " << varaccess.accessed << endl ;
+  //  cout << "write variables = " << varaccess.writes << endl ;
+
+  variableSet readvars ;
+  variableSet writevars ;
+
+  for(auto i=varaccess.accessed.begin();i!=varaccess.accessed.end();++i) {
+    readvars += i->var ;
+    for(size_t j=0;j<i->mapping.size();++j)
+      readvars += i->mapping[j] ;
+  }
+  for(auto i=varaccess.writes.begin();i!=varaccess.writes.end();++i) {
+    writevars += i->var ;
+    for(size_t j=0;j<i->mapping.size();++j)
+      readvars += i->mapping[j] ;
+  }
+
+  readvars -= writevars ;
+
+  // Now remove and save the open and close braces in the parseBlock
+  CPTR<AST_Block> bigblock = CPTR<AST_Block>(ap) ;
+  CPTR<AST_type> open = bigblock->elements[0] ;
+  int bsz = bigblock->elements.size() ;
+  CPTR<AST_type> close = bigblock->elements[bsz-1] ;
+  for(int i=0;i<bsz-1;++i)
+    bigblock->elements[i] = bigblock->elements[i+1] ;
+  bigblock->elements.pop_back() ;
+  bigblock->elements.pop_back() ;
+
+  AST_simplePrint printer(outputFile,-1,prettyOutput) ;
+
+  for(auto i = varaccess.id2var.begin();i!=varaccess.id2var.end();++i) {
+    string ot = local_type_map[i->second].first ;
+    if(ot == "param") {
+      printer.id2rename[i->first] = string("(*") +vnames[i->second]+")" ;
+    } else if(ot == "store" || ot == "Map") {
+      printer.id2rename[i->first] = vnames[i->second]+"[_e_]" ;
+    } else  {
+      cerr << "Warning: type " << ot << " for variable " << i->second << " not supported in cuda rule" << endl ;
+      printer.id2rename[i->first] = vnames[i->second]+"[_e_]" ;
+    }
+  }
+
+  map<string,string> maplist ;
+  for(auto i = varaccess.id2vmap.begin();i!=varaccess.id2vmap.end();++i) {
+    string mapaccess = vnames[*(i->second.var.begin())] ;
+    string mapvar ;
+    string mapsurrogate = "M_";
+    mapaccess += "[" ;
+    for(auto j = i->second.mapping.rbegin(); j!=i->second.mapping.rend();++j) {
+      mapvar += vnames[*(j->begin())]+"[" ;
+      string mv = vnames[*(j->begin())] ;
+      if(prettyOutput)
+	mapsurrogate += mv ;
+      else
+	mapsurrogate += mv.substr(2,mv.size()-2) ;
+    }
+    mapvar += "_e_" ;
+    for(auto j = i->second.mapping.rbegin(); j!=i->second.mapping.rend();++j)
+      mapvar +="]" ;
+    maplist[mapsurrogate] = mapvar ;
+    mapaccess += mapsurrogate + "]" ;
+
+    printer.id2rename[i->first] = mapaccess ;
+  }
+
+  if(!prettyOutput)
+    outputFile << "#line " << startline << endl ;
+  outputFile << "__global__" << endl ;
+  if(!prettyOutput)
+    outputFile << "#line " << startline << endl ;
+  outputFile << "void "<< class_name << "_kernel(" ;
+  for(auto i=writevars.begin();i!=writevars.end();) {
+    outputFile << typetable[*i]<< " *" << vnames[*i] ;
+    ++i ;
+    if(i!=writevars.end())
+      outputFile << "," ;
+  }
+  if(readvars!=EMPTY)
+    outputFile << "," ;
+  for(auto i=readvars.begin();i!=readvars.end();) {
+    outputFile << "const " << typetable[*i] << " *" << vnames[*i] ;
+    ++i ;
+    if(i!=readvars.end())
+      outputFile << "," ;
+  }
+  outputFile << ", int _start_, int _end_, int _blksz_)" << endl ;
+
+  open->accept(printer) ;
+
+  if(!prettyOutput)
+    outputFile << endl << "#line " << printer.lineno  << endl ;
+  outputFile << "   int _e_ = _start_+blockIdx.x*_blksz_+threadIdx.x ;" <<endl;
+  if(!prettyOutput)
+    outputFile << "#line " << printer.lineno  << endl ;
+  outputFile << "   if(_e_ <= _end_) {" << endl ;
+  if(!prettyOutput)
+    outputFile <<  "#line " << printer.lineno << endl  ;
+  if(!maplist.empty()) {
+    outputFile << "  int " ;
+    for(auto i=maplist.begin();i!=maplist.end();) {
+      outputFile << i->first << "=" << i->second ;
+      ++i ;
+      if(i!=maplist.end())
+	outputFile << "," ;
+    }
+    outputFile << ";" ;
+  }
+
+  ap->accept(printer) ;
+
+  close->accept(printer) ;
+  close->accept(printer) ;
+  outputFile << endl ;
+  syncFile(outputFile) ;
+  outputFile << "void " << class_name << "::compute(const Loci::sequence &seq) {" << endl ;
+  syncFile(outputFile) ;
+  outputFile << "  const int NTHREADS=64 ;" << endl ;
+  syncFile(outputFile) ;
+  outputFile << "  const int ni = seq.num_intervals() ;"<< endl ;
+  syncFile(outputFile) ;
+  outputFile << "  for(int i=0;i<ni;++i) {" << endl ;
+  syncFile(outputFile) ;
+  outputFile << "    const Loci::int_type i1 = seq[i].first ;" << endl ;
+  syncFile(outputFile) ;
+  outputFile << "    const Loci::int_type i2 = seq[i].second  ;" << endl ;
+  syncFile(outputFile) ;
+  outputFile << "    const Loci::int_type start = min(i1,i2) ;" << endl ;
+  syncFile(outputFile) ;
+  outputFile << "    const Loci::int_type stop = max(i1,i2) ;" << endl ;
+  syncFile(outputFile) ;
+  outputFile << "    const int nblks = (stop-start+NTHREADS)/NTHREADS ;" << endl ;
+  syncFile(outputFile) ;
+  outputFile <<"    " <<class_name << "_kernel<<<nblks,NTHREADS,0,Loci::getGPUStream()>>>(";
+  for(auto i=writevars.begin();i!=writevars.end();) {
+    outputFile << vnames[*i] << ".ptr()";
+    ++i ;
+    if(i!=writevars.end())
+      outputFile << "," ;
+  }
+  if(readvars!=EMPTY)
+    outputFile << "," ;
+  for(auto i=readvars.begin();i!=readvars.end();) {
+    outputFile <<vnames[*i]<< ".ptr()" ;
+    ++i ;
+    if(i!=readvars.end())
+      outputFile << "," ;
+  }
+  outputFile << ",start, stop, NTHREADS) ;" << endl ;
+  syncFile(outputFile) ;
+  outputFile << "}" << endl; // end of for loop
+  syncFile(outputFile) ;
+  outputFile << "}" << endl; // end of compute method
+  syncFile(outputFile) ;
+
+  if(!prettyOutput)
+    outputFile << "Loci::register_rule<"<<class_name<<"> register_"<<class_name
+               << " ;" << endl ;
+  else
+    outputFile << "register_rule<"<<class_name<<"> register_"<<class_name
+               << " ;" << endl ;
+  syncFile(outputFile) ;
+
+  //  if(!prettyOutput) {
+  //    outputFile << "}" << endl ;
+  //    syncFile(outputFile) ;
+  //  }
+
+
+  if(!use_prelude && sized_outputs && (rule_type != "apply"))
+    throw parseError("need prelude to size output type!") ;
+}
+// rule_type
+void parseFile::setup_Rule(std::ostream &outputFile) {
+  killsp() ;
+  string rule_type ;
+  if(is_name(is)) {
+    rule_type = get_name(is) ;
+  } else
+    throw parseError("syntax error") ;
+  nestedparenstuff signature ;
+
+  signature.get(is) ;
+  line_no += signature.num_lines() ;
+  nestedbracketstuff apply_op ;
+  killsp() ;
+  if(rule_type == "apply") {
+    if(is.peek() != '[')
+      throw parseError("apply rule missing '[operator]'") ;
+    apply_op.get(is) ;
+    line_no += apply_op.num_lines() ;
+    killsp() ;
+  }
+
+
+  string constraint, conditional ;
+  string parametric_var ;
+  list<string> options ;
+  list<string> comments ;
+  list<pair<variable,variable> > inplace ;
+
+  bool use_prelude = false ;
+  bool is_specialized = false ;
+  while(is.peek() == ',') {
+    is.get() ;
+    killsp() ;
+    if(!is_name(is))
+      throw parseError("syntax error") ;
+
+    string s = get_name(is) ;
+    if(s == "constraint") {
+      nestedparenstuff con ;
+      con.get(is) ;
+      if(constraint == "")
+        constraint = con.str() ;
+      else
+        constraint += "," + con.str() ;
+      line_no += con.num_lines() ;
+    } else if(s == "parametric") {
+      nestedparenstuff con ;
+      con.get(is) ;
+      if(parametric_var != "") {
+        throw parseError("syntax error: canot specify more than one parametric variable") ;
+      }
+
+      parametric_var = con.str() ;
+      line_no += con.num_lines() ;
+    } else if(s == "conditional") {
+      nestedparenstuff con ;
+      con.get(is) ;
+      if(conditional != "") {
+        throw parseError("syntax error: canot specify more than one conditional variable") ;
+      }
+      conditional = con.str() ;
+      line_no += con.num_lines() ;
+      // Check variable
+      variable v(conditional) ;
+      v = convertVariable(v) ;
+      map<variable,pair<string,string> >::const_iterator mi ;
+      if((mi = type_map.find(v)) == type_map.end()) {
+
+        v = v.new_offset(0) ;
+        v = v.drop_assign() ;
+        while(v.time() != time_ident())
+          v = v.parent() ;
+
+        if((mi = type_map.find(v)) == type_map.end()) {
+          while(v.get_info().namespac.size() != 0)
+            v = v.drop_namespace() ;
+          mi = type_map.find(v) ;
+        }
+      }
+      if(mi == type_map.end()) {
+        cerr << filename << ':' << line_no << ":0: warning: type of conditional variable '" << v << "' not found!"  << endl  ;
+      } else {
+        //        cout << "mi->first=" << mi->first << endl ;
+        //        cout << "mi->second.first=" << mi->second.first
+        //             << "mi->second.second='" << mi->second.second <<"'"<< endl ;
+        // clean up type string
+        string val = mi->second.first + mi->second.second ;
+        string val2 ;
+        int valsz = val.size() ;
+        for(int i=0;i<valsz;++i)
+          if(val[i] != ' ' && val[i] != '\t' && val[i] != '\r' && val[i] != '\n')
+            val2 += val[i] ;
+
+        if(val2 != "param<bool>") {
+          throw(parseError("conditional variable must be typed as a param<bool>")) ;
+        }
+      }
+    } else if(s == "inplace") {
+      nestedparenstuff ip ;
+      ip.get(is) ;
+      line_no += ip.num_lines() ;
+      exprP p = expression::create(ip.str()) ;
+      exprList l = collect_associative_op(p,OP_OR) ;
+      if(l.size() != 2)
+        throw parseError("inplace needs two variables with a '|' separator") ;
+
+      exprList::const_iterator i = l.begin() ;
+      variable v1(*i) ;
+      ++i ;
+      variable v2(*i) ;
+      inplace.push_back(pair<variable,variable>(v1,v2)) ;
+
+    } else if(s == "prelude") {
+      use_prelude=true ;
+      killsp() ;
+      continue ;
+    } else if(s == "specialized") {
+      is_specialized = true ;
+    } else if(s == "option") {
+      nestedparenstuff ip ;
+      ip.get(is) ;
+      line_no += ip.num_lines() ;
+      options.push_back(ip.str()) ;
+    } else if(s == "comments") {
+      nestedparenstuff ip ;
+      ip.get(is) ;
+      line_no += ip.num_lines() ;
+      comments.push_back(ip.str()) ;
+    } else {
+      throw parseError("unknown rule modifier") ;
+    }
+    killsp() ;
+  }
+
+  string sig = signature.str() ;
+  string heads,bodys ;
+  exprP head=0,body=0 ;
+  for(size_t i=0;i<sig.size()-1;++i) {
+    if(sig[i]=='<' && sig[i+1]=='-') {
+      heads = sig.substr(0,i) ;
+      bodys = sig.substr(i+2,sig.size()) ;
+      head = expression::create(heads) ;
+      body = expression::create(bodys) ;
+      if(rule_type == "optional" || rule_type == "default") {
+	throw parseError("'optional' or 'default' rules should not have a body (defined by '<-' operator)!") ;
+      }
+    }
+  }
+  if(head == 0) {
+    heads = sig ;
+    head = expression::create(heads) ;
+    if(rule_type == "optional" || rule_type == "default") {
+      if(constraint != "")
+	throw parseError("'optional' or 'default' rules should not have a constraint!") ;
+    } else {
+      if(constraint == "") {
+	throw parseError("rules without bodies should have a defined constraint as input!") ;
+      }
+    }
+  }
+
+  string class_name = "file_" ;
+  for(size_t i=0;i<filename.size();++i) {
+    char c = filename[i] ;
+    if(isalpha(c) || isdigit(c) || c=='_')
+      class_name += c ;
+    if(c == '.')
+      break ;
+  }
+  class_name += '0' + (cnt/100)%10 ;
+  class_name += '0' + (cnt/10)%10 ;
+  class_name += '0' + (cnt)%10 ;
+
+  //  timeb tdata ;
+  //  ftime(&tdata) ;
+  timespec tdata ;
+  clock_gettime(CLOCK_MONOTONIC,&tdata) ;
+
+
+  ostringstream tss ;
+  //  tss <<  '_' << tdata.time << 'm'<< tdata.millitm;
+  tss << '_' << tdata.tv_sec << 'm' << tdata.tv_nsec/1000000 ;
+
+  class_name += tss.str() ;
+  cnt++ ;
+#ifdef OLD
+  class_name += "_rule_" ;
+  if(conditional != "")
+    sig += "_" + conditional ;
+  if(constraint != "")
+    sig += "_" + constraint ;
+  for(size_t i=0;i<sig.size();++i) {
+    if(isalpha(sig[i]) || isdigit(sig[i]))
+      class_name += sig[i] ;
+    if(sig[i] == ',' || sig[i] == '-' || sig[i] == '>' || sig[i] == '('||
+       sig[i] == ')' || sig[i] == '{' || sig[i] == '}' || sig[i] == '='||
+       sig[i] == '+' || sig[i] == '_')
+      class_name += '_' ;
+  }
+#endif
+
+  set<vmap_info> sources ;
+  set<vmap_info> targets ;
+  if(body != 0)
+    fill_descriptors(sources,collect_associative_op(body,OP_COMMA)) ;
+  fill_descriptors(targets,collect_associative_op(head,OP_COMMA)) ;
+
+  set<vmap_info>::const_iterator i ;
+  variableSet input,output ;
+  for(i=sources.begin();i!=sources.end();++i) {
+    for(size_t j=0;j<i->mapping.size();++j)
+      input += i->mapping[j] ;
+    input += i->var ;
+  }
+
+  for(i=targets.begin();i!=targets.end();++i) {
+    for(size_t j=0;j<i->mapping.size();++j)
+      input += i->mapping[j] ;
+    output += i->var ;
+  }
+
+  set<std::list<variable> > validate_set ;
+  for(i=sources.begin();i!=sources.end();++i) {
+    if(i->mapping.size() == 0) {
+      variableSet::const_iterator vi ;
+      for(vi=i->var.begin();vi!=i->var.end();++vi) {
+        std::list<variable> vbasic ;
+
+        vbasic.push_back(*vi) ;
+        validate_set.insert(vbasic) ;
+      }
+    } else {
+      std::vector<std::list<variable> > maplist = expand_mapping(i->mapping) ;
+      int msz = maplist.size() ;
+      for(int j=0;j<msz;++j) {
+        variableSet::const_iterator vi ;
+        std::list<variable> mapping_list = maplist[j] ;
+        validate_set.insert(mapping_list) ;
+        for(vi=i->var.begin();vi!=i->var.end();++vi) {
+          std::list<variable> mapping_list2 = maplist[j] ;
+          mapping_list2.push_back(*vi) ;
+          validate_set.insert(mapping_list2) ;
+        }
+        mapping_list.pop_back() ;
+        while(!mapping_list.empty()) {
+          validate_set.insert(mapping_list) ;
+          mapping_list.pop_back() ;
+        }
+      }
+    }
+  }
+
+  for(i=targets.begin();i!=targets.end();++i) {
+    if(i->mapping.size() == 0) {
+      variableSet::const_iterator vi ;
+      for(vi=i->var.begin();vi!=i->var.end();++vi) {
+        std::list<variable> vbasic ;
+        variable vt = *vi ;
+        while(vt.get_info().priority.size() != 0)
+          vt = vt.drop_priority() ;
+        vbasic.push_back(vt) ;
+        validate_set.insert(vbasic) ;
+      }
+    } else {
+      std::vector<std::list<variable> > maplist = expand_mapping(i->mapping) ;
+      int msz = maplist.size() ;
+      for(int j=0;j<msz;++j) {
+        variableSet::const_iterator vi ;
+        std::list<variable> mapping_list = maplist[j] ;
+        validate_set.insert(mapping_list) ;
+        for(vi=i->var.begin();vi!=i->var.end();++vi) {
+          std::list<variable> mapping_list2 = maplist[j] ;
+          variable vt = *vi ;
+          while(vt.get_info().priority.size() != 0)
+            vt = vt.drop_priority() ;
+          mapping_list2.push_back(vt) ;
+          validate_set.insert(mapping_list2) ;
+        }
+        mapping_list.pop_back() ;
+        while(!mapping_list.empty()) {
+          validate_set.insert(mapping_list) ;
+          mapping_list.pop_back() ;
+        }
+      }
+    }
+  }
+
+
+
+  map<variable,string> vnames ;
+  variableSet::const_iterator vi ;
+  variableSet all_vars = input;
+  all_vars += output ;
+
+  for(vi=input.begin();vi!=input.end();++vi) {
+    if(vi->get_info().priority.size() != 0) {
+      ostringstream oss ;
+      oss<< "improper use of priority annotation on rule input, var=" << *vi << endl ;
+      throw parseError(oss.str()) ;
+    }
+  }
+
+  if(rule_type != "pointwise" && rule_type != "default") {
+    for(vi=output.begin();vi!=output.end();++vi) {
+      if(vi->get_info().priority.size() != 0) {
+        ostringstream oss ;
+        oss << "only pointwise rules can use priority annotation, var="<< *vi << endl ;
+        throw parseError(oss.str()) ;
+      }
+    }
+  }
+
+  for(vi=all_vars.begin();vi!=all_vars.end();++vi) {
+    vnames[*vi] = var2name(*vi) ;
+    if(vi->get_info().priority.size() != 0) {
+      variable v = *vi ;
+      while(v.get_info().priority.size() != 0)
+        v = v.drop_priority() ;
+      vnames[v] = vnames[*vi] ;
+    }
+  }
+
+
+  variableSet checkset ;
+  for(vi=all_vars.begin();vi!=all_vars.end();++vi) {
+    variable v = *vi ;
+    while(v.get_info().priority.size() != 0)
+      v = v.drop_priority() ;
+    checkset += v ;
+  }
+  list<pair<variable,variable> >::const_iterator ipi ;
+  for(ipi=inplace.begin();ipi!=inplace.end();++ipi) {
+    vnames[ipi->first] = vnames[ipi->second] ;
+    variable v = ipi->first ;
+    while(v.get_info().priority.size() != 0)
+      v = v.drop_priority() ;
+    if(!checkset.inSet(v)) {
+      ostringstream oss ;
+      oss << "inplace variable '"<< ipi->first << "' not input or output variable!" ;
+      throw parseError(oss.str()) ;
+    }
+    v = ipi->second ;
+    while(v.get_info().priority.size() != 0)
+      v = v.drop_priority() ;
+    if(!checkset.inSet(v)) {
+      ostringstream oss ;
+      oss << "inplace variable '"<< ipi->second << "' not input or output variable!" ;
+      throw parseError(oss.str()) ;
+    }
+
+  }
+
   map<variable,pair<string,string> > local_type_map ;
   for(vi=all_vars.begin();vi!=all_vars.end();++vi) {
     variable v = *vi ;
@@ -1757,11 +2529,11 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
       }
     }
   }
-    
-              
+
+
   bool singletonApply = false ;
   if(rule_type == "apply") {
-    if(output.size() != 1) 
+    if(output.size() != 1)
       throw parseError("apply rule should have only one output variable") ;
     variable av = *(output.begin()) ;
     pair<string,string> tinfo = local_type_map[av] ;
@@ -1804,9 +2576,9 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
       cerr << "unknown type for variable " << *vi << endl ;
       throw parseError("untyped Loci variable") ;
     }
-    if(!prettyOutput) 
+    if(!prettyOutput)
       outputFile << "    Loci::const_" << mi->second.first <<  mi->second.second ;
-    else 
+    else
       outputFile << "    const_" << mi->second.first <<  mi->second.second ;
     outputFile << " " << vnames[*vi] << " ; " << endl ;
     syncFile(outputFile) ;
@@ -1902,7 +2674,7 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
         v = v.drop_assign() ;
         while(v.time() != time_ident())
           v = v.parent() ;
-        
+
         if((mi = type_map.find(v)) == type_map.end()) {
           while(v.get_info().namespac.size() != 0)
             v = v.drop_namespace() ;
@@ -1914,10 +2686,10 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
 
         cerr << filename << ':' << line_no << ":0: warning: type of constraint variable '" << v << "' not found!"  << endl  ;
 
-      } 
+      }
     }
-    
-    
+
+
 
     outputFile <<   "       constraint(\"" << constraint << "\") ;" << endl ;
     syncFile(outputFile) ;
@@ -1975,7 +2747,7 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
     killsp() ;
   }
 
-  
+
   if(use_compute && is.peek() != '{')
     throw parseError("syntax error, expecting '{'") ;
 
@@ -1988,8 +2760,8 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
       sized_outputs = true ;
   }
 
-    
-    
+
+
 
   if(rule_type == "singleton" ||
      rule_type == "optional"  ||
@@ -2040,15 +2812,18 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
     syncFile(outputFile) ;
   }
 
-  if(!use_prelude && sized_outputs && (rule_type != "apply")) 
+  if(!use_prelude && sized_outputs && (rule_type != "apply"))
     throw parseError("need prelude to size output type!") ;
 }
+
+extern bool no_cuda ;
 
 void parseFile::processFile(string file, ostream &outputFile) {
   bool error = false ;
   filename = file ;
   line_no = 1 ;
-  
+
+  fileNameStack.push_back(file) ;
   is.open(file.c_str(),ios::in) ;
   if(is.fail()) {
     list<string>::const_iterator li ;
@@ -2063,6 +2838,7 @@ void parseFile::processFile(string file, ostream &outputFile) {
       string s = "can't open include file '" ;
       s += file ;
       s += "'" ;
+      fileNameStack.pop_back() ;
       throw parseError(s) ;
     }
   }
@@ -2086,24 +2862,33 @@ void parseFile::processFile(string file, ostream &outputFile) {
             setup_Type(outputFile) ;
           } else if(key == "rule") {
             setup_Rule(outputFile) ;
+	  } else if(key == "cudarule") {
+	    if(no_cuda)
+	      setup_Rule(outputFile) ;
+	    else
+	      setup_cudaRule(outputFile) ;
           } else if(key == "include") {
             killsp() ;
-            if(!is_string(is))
+            if(!is_string(is)) {
+	      fileNameStack.pop_back() ;
               throw parseError("syntax error") ;
+	    }
             string newfile = get_string(is) ;
-            
+
             parseFile parser ;
             parser.processFile(newfile,outputFile) ;
             syncFile(outputFile) ;
             map<variable,pair<string,string> >::const_iterator mi ;
             for(mi=parser.type_map.begin();mi!=parser.type_map.end();++mi)
               type_map[mi->first] = mi->second ;
-            
-            
+
+
           } else {
+	    fileNameStack.pop_back() ;
             throw parseError("syntax error: unknown key") ;
           }
         } else {
+	  fileNameStack.pop_back() ;
           throw parseError("unable to process '$' command") ;
         }
       } else {
@@ -2137,6 +2922,8 @@ void parseFile::processFile(string file, ostream &outputFile) {
     }
 
   } while(!is.eof()) ;
+  fileNameStack.pop_back() ;
   if(error)
     throw parseError("syntax error") ;
+
 }

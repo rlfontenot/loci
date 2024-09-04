@@ -36,6 +36,7 @@ using std::set ;
 //#define VERBOSE
 
 namespace Loci {
+  extern bool in_internal_query;
   extern bool threading_recursion;
   extern int num_total_recursion;
   extern int num_threaded_recursion;
@@ -63,9 +64,9 @@ namespace Loci {
     if(facts.isDistributed()) {
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
       variableSet recurse_vars = variableSet(impl.sources() & impl.targets()) ;
-      //std::vector<std::pair<variable,entitySet> > pre_send_entities =
+
       barrier_existential_rule_analysis(recurse_vars,facts, scheds) ;
-      //scheds.update_barrier_send_entities(pre_send_entities);
+
       my_entities = d->my_entities ;
     }
     entitySet sources = ~EMPTY ;
@@ -944,14 +945,14 @@ namespace Loci {
           if(li->size() != 0) {
             executeP exec_rule;
 #ifdef PTHREADS
-            if (threading_recursion) {
+            if (!in_internal_query && threading_recursion) {
               int tnum = thread_control->num_threads();
               int minw = thread_control->min_work_per_thread();
               if (!num_threads_counted) {
                 ++num_threaded_recursion;
                 num_threads_counted = true;
               }
-              if (li->size() >= tnum*minw)
+              if (li->size() >= (size_t)tnum*minw)
                 exec_rule = new Threaded_execute_rule
                   (*ri, sequence(*li), facts, scheds);
               else
@@ -1000,10 +1001,8 @@ namespace Loci {
       
       execute_comm2::inc_comm_step() ;
       if(!post_clist.empty()) {
-        //executeP exec_comm = new execute_comm(post_clist, facts);
         executeP exec_comm2 = new execute_comm2(post_clist, facts);
         el->append_list(exec_comm2) ;
-        //el->append_list(exec_comm) ;
       }
       // Make sure to request any variables communicated so that
       // the space is allocated.  This is a hack that should be

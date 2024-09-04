@@ -21,8 +21,8 @@
 #include <Loci_version.h>
 
 namespace Loci {
-  
-  const char *revision_name = "$Name: rel-4-0-patches $" ;
+
+  const char *revision_name = "$Name:  $" ;
 
   std::string version() {
     const char *p = revision_name;
@@ -35,7 +35,7 @@ namespace Loci {
     if(*p!= '\0')
       ++p ;
     std::string rn ;
-    while(*p!='$' &&  *p!=' ' && *p!='\0') 
+    while(*p!='$' &&  *p!=' ' && *p!='\0')
       rn += *p++ ;
 
     rn += " Compiled On " ;

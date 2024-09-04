@@ -41,6 +41,7 @@
 #ifdef inline
 #undef inline
 #endif
+
 #if(H5_VERS_MAJOR>1)
 #define H5_INTERFACE_1_6_4
 #define H5_INTERFACE_1_8
@@ -59,8 +60,9 @@ namespace Loci {
   
   enum AtomType {
     BOOL=1, CHAR, UNSIGNED_CHAR, BYTE,
-    SHORT, UNSIGNED_SHORT, INT, UNSIGNED, LONG,
-    UNSIGNED_LONG, FLOAT, DOUBLE, LONG_DOUBLE
+    SHORT, UNSIGNED_SHORT, INT, UNSIGNED, LONG, 
+    UNSIGNED_LONG, LONGLONG, UNSIGNED_LONGLONG,
+    FLOAT, DOUBLE, LONG_DOUBLE
   };
 
   class  AbstractDatatype: public CPTR_type {

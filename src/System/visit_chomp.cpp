@@ -40,14 +40,14 @@ using std::cerr ;
 using std::endl ;
 
 // all the searching and graph
-// editing algorithm for chomping 
+// editing algorithm for chomping
 namespace Loci {
 
   // show some debug information for the chomp chain discover algorithm
   //#define CHOMP_DEBUG
-  
+
   //////////////////////////////////////////////////////////////
-  // some helper functions 
+  // some helper functions
   //////////////////////////////////////////////////////////////
   namespace {
     // given a contrete rule, return all the sources
@@ -62,7 +62,7 @@ namespace Loci {
       }
       return sources ;
     }
-    
+
     // given a contrete rule, return all the targetss
     // that have maps
     inline variableSet map_targets(const rule& r) {
@@ -75,31 +75,6 @@ namespace Loci {
       }
       return targets ;
     }
-
-    // UNUSED
-    // given a contrete rule, return all the targets
-    // that do not have maps
-//     inline variableSet non_map_targets(const rule& r) {
-//       const rule_impl::info& rinfo = r.get_info().desc ;
-//       std::set<vmap_info>::const_iterator si ;
-//       variableSet targets ;
-//       for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
-//         if(si->mapping.empty())
-//           targets += si->var ;
-//       }
-//       return targets ;
-//     }
-    
-//     inline variableSet non_map_targets(const ruleSet::const_iterator& ri) {
-//       const rule_impl::info& rinfo = ri->get_info().desc ;
-//       std::set<vmap_info>::const_iterator si ;
-//       variableSet targets ;
-//       for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
-//         if(si->mapping.empty())
-//           targets += si->var ;
-//       }
-//       return targets ;
-//     }
 
     // return the vertexSet of the rule's sources, targets
     // and the rule itself
@@ -120,7 +95,7 @@ namespace Loci {
       }
       return ret ;
     }
-    
+
     inline bool thread_rule(const rule& r) {
       return (r.get_rule_implP()->thread_rule()&&
               !r.get_rule_implP()->dynamic_schedule_rule()) ;
@@ -193,7 +168,7 @@ namespace Loci {
 #ifdef CHOMP_DEBUG
     namespace {
       int problem_code = 0 ;
-    } 
+    }
 #endif
     inline bool has_problem(const digraph& gr, const digraph& test_gr,
                             const variableSet& validChompVars,
@@ -202,13 +177,13 @@ namespace Loci {
         - test_gr.get_target_vertices() ;
       digraph::vertexSet targets = test_gr.get_target_vertices()
         - test_gr.get_source_vertices() ;
-      
+
       digraph::vertexSet internal = test_gr.get_source_vertices()
         & test_gr.get_target_vertices() ;
-      
+
       FATAL(internal !=
             (test_gr.get_all_vertices() - sources - targets)) ;
-      
+
       variableSet internal_vars = extract_vars(internal) ;
       variableSet problem_vars =
         variableSet(internal_vars - validChompVars) ;
@@ -225,7 +200,7 @@ namespace Loci {
               (has_path(gr,sources,merged) && has_path(gr,merged,targets)) ||
               (problem_vars != EMPTY)) ;
     }
-    
+
     // this function computes the internal variables
     // (variables that are not the source and target) of a digraph
     inline variableSet get_internal_vars(const digraph& gr) {
@@ -277,45 +252,9 @@ namespace Loci {
     // returns the new resulting graph
 
 
-    // UNUSED
-    // this function works the same as the above one (gen_tmp_graph)
-    // we will have to repeat until no new internal variables are
-    // introduced into the new graph
-//     digraph merge_2_graphs(const digraph& gr1, const digraph& gr2,
-//                            const digraph& gr) {
-//       digraph grt = gr.transpose() ;
-//       digraph::vertexSet graph_vertices ;
-//       graph_vertices += gr1.get_all_vertices() ;
-//       graph_vertices += gr2.get_all_vertices() ;
-//       variableSet cur_internal_vars, new_internal_vars ;
-//       cur_internal_vars += get_internal_vars(gr1) ;
-//       cur_internal_vars += get_internal_vars(gr2) ;
-//       digraph new_gr ;
-      
-//       while(true) {
-//         new_gr = gr.subgraph(graph_vertices) ;
-//         new_internal_vars = get_internal_vars(new_gr) ;
-//         variableSet diff = variableSet(new_internal_vars - cur_internal_vars) ;
-//         if(diff == EMPTY)
-//           break ;
-//         // then bring in any relevant rules
-//         ruleSet addon_rules ;
-//         for(variableSet::const_iterator vi=diff.begin();
-//             vi!=diff.end();++vi) {
-//           addon_rules += extract_rules(gr[vi->ident()]) ;
-//           addon_rules += extract_rules(grt[vi->ident()]) ;
-//         }
-//         addon_rules -= extract_rules(new_gr.get_all_vertices()) ;
-//         graph_vertices += get_ruleSet_vertexSet(addon_rules) ;
-//         cur_internal_vars = new_internal_vars ;
-//       }
-//       return new_gr ;
-//     }
-
-
     //////////////////////////////////////////////////
-    // CHOMP_OPT currently has a logical bug inside 
-    // More work is needed to fix it in the future. 
+    // CHOMP_OPT currently has a logical bug inside
+    // More work is needed to fix it in the future.
     // The bug is that in the first opt pass, when the algorithm
     // merges two chomp chains, it is possible to include
     // chomped variables in other chains as either source
@@ -335,7 +274,7 @@ namespace Loci {
       if(chomp_vars.size() == 0)
         return ;
       // we first get a topological order
-      // of the chomp_vars 
+      // of the chomp_vars
       vector<digraph::vertexSet> gr_order =
         component_sort(gr).get_components() ;
       list<variable> chomp_vars_order ;
@@ -354,7 +293,7 @@ namespace Loci {
       variableSet valid_chomp_vars = chomp_vars ;
       variableSet merged_vars ;
       list<chomp_chain> temp_result ;
-      
+
       while(!chomp_vars_order.empty()) {
         // here is the basis, we start by selecting
         // a single chompable variable and form the
@@ -394,7 +333,7 @@ namespace Loci {
           graph_vertices += get_ruleSet_vertexSet(add_rules) ;
           cur_chomp_gr = gr.subgraph(graph_vertices) ;
         }
-        
+
         // remove the first variable from the list
         chomp_vars_order.pop_front() ;
 
@@ -511,14 +450,14 @@ namespace Loci {
         cerr << "Valid_chomp_vars removed (sub_chomp): "
              << sub_chomp_vars << endl ;
 #endif
-        
+
 #ifdef CHOMP_OPT
         temp_result.push_back(make_pair(cur_chomp_gr,sub_chomp_vars)) ;
 #else
         result.push_back(make_pair(cur_chomp_gr,sub_chomp_vars)) ;
 #endif
       } // end-of-while(!chomp_vars_order.empty())
-#ifdef CHOMP_OPT      
+#ifdef CHOMP_OPT
       // here we do an optimization phase
       // we try to merge the formed chains
       // and hope we can get back some of the chomping
@@ -561,7 +500,7 @@ namespace Loci {
                        new_gr.get_target_vertices()) ;
         temp_result2.push_back(make_pair(new_gr,chomp_vars_in_chain)) ;
       } // end of while(!temp_result.empty())
-      
+
       for(list<chomp_chain>::iterator li=temp_result2.begin();
           li!=temp_result2.end();++li) {
 #ifdef CHOMP_OPT_MORE
@@ -573,14 +512,14 @@ namespace Loci {
         // in the chain and are discarded and are NOT in any other
         // chains, we try to reclaim them again. If no problems
         // occur, we will accept them.
-        
+
         // it is important to use reference(&) here,
         // because we want to dynamically update temp_result2
         // so that in the following "gcio iter" we can have
         // correct result
         digraph& new_gr = li->first ;
         variableSet& chomp_vars_in_chain = li->second ;
-        
+
         variableSet chompCandInThis =
           get_chompCandInST(li->first,chomp_vars) ;
 
@@ -600,7 +539,7 @@ namespace Loci {
             ruleSet reachable_rules = ruleSet(rvs_rules + fwd_rules) ;
             digraph::vertexSet new_vertices =
               get_ruleSet_vertexSet(reachable_rules) ;
-            
+
             digraph test_gr = gr.subgraph(new_vertices +
                                           new_gr.get_all_vertices()) ;
             variableSet new_chomp_vars_in_chain = chomp_vars_in_chain ;
@@ -624,7 +563,7 @@ namespace Loci {
   // chompPPVisitor
   ///////////////////////////////////////////////////////////////
   //#define DISABLE_APPLY
-  
+
   chompPPVisitor::chompPPVisitor(fact_db& fd,
                                  const map<int,variableSet>& rot_vt,
                                  const map<int,variableSet>& lsharedt,
@@ -686,19 +625,19 @@ namespace Loci {
     // only be executed once).
     for(variableSet::const_iterator vi=remaining_vars.begin();
         vi!=remaining_vars.end();++vi) {
-      
+
       if(seen_vars.inSet(*vi)) {
         bad_vars += *vi ;
         continue ;
       }
-      
+
       storeRepP srp = facts.get_variable(*vi) ;
 
-      if(srp == 0 || srp->RepType() != Loci::STORE) {
+      if(!isSTORE(srp)) {
         bad_vars += *vi ;
         continue ;
       }
-        
+
       if(rotate_vars.inSet(*vi)) {
         bad_vars += *vi ;
         continue ;
@@ -707,12 +646,12 @@ namespace Loci {
         bad_vars += *vi ;
         continue ;
       }
-      
+
       if(rename_vars.inSet(*vi)) {
         bad_vars += *vi ;
         continue ;
       }
-        
+
       digraph::vertexSet next_vertices = gr[vi->ident()] ;
       if(next_vertices == EMPTY) {
         bad_vars += *vi ;
@@ -730,14 +669,14 @@ namespace Loci {
           rii!=tmp.end();++rii)
         if(is_internal_rule(*rii) || !thread_rule(*rii) ||
            has_output_in_targets(*rii) ||
-#ifdef DISABLE_APPLY             
+#ifdef DISABLE_APPLY
            rii->get_info().rule_impl->get_rule_class() == rule_impl::APPLY ||
 #endif
            rii->get_info().rule_impl->get_rule_class() == rule_impl::UNIT) {
         bad_vars += *vi ;
         break ;
       }
-        
+
       tmp = extract_rules(next_vertices_t) ;
       for(ruleSet::const_iterator rii=tmp.begin();
           rii!=tmp.end();++rii)
@@ -786,7 +725,7 @@ namespace Loci {
         li!=chomp_chain_list.end();++li)
       all_chomped_vars += li->second ;
 
-    return chomp_chain_list ;    
+    return chomp_chain_list ;
   } // end-of-find_chain function
 
   namespace {
@@ -806,7 +745,7 @@ namespace Loci {
       return !(isalnum(c) || c=='_') ;
     }
   }
-  
+
   // edit the graph to have the chomp node,
   void chompRuleVisitor::edit_gr(digraph& gr,const list<chomp_chain>& ccin,
                                  rulecomp_map& rcm) {
@@ -823,14 +762,14 @@ namespace Loci {
       digraph::vertexSet rules_vertices = get_vertexSet(all_rules) ;
       // chomp_set is the set of vertices that form the chomp
       digraph::vertexSet chomp_set = rules_vertices + chomp_vars_vertices ;
-      
+
       // Compute the vertices that are outgoing edges from the chomp chain
       digraph::vertexSet out_vertices ;
       digraph::vertexSet::const_iterator ei ;
       for(ei=chomp_set.begin();ei!=chomp_set.end();++ei)
 	out_vertices += gr[*ei] ;
       out_vertices -= chomp_set ;
-      
+
       // Now follow outgoing vertices until no new vertices are found
       digraph::vertexSet visit_set = out_vertices ;
       digraph::vertexSet found_set = out_vertices ;
@@ -842,7 +781,7 @@ namespace Loci {
 	found_set = new_set - visit_set ;
 	visit_set += found_set ;
       } while(found_set!=EMPTY) ;
-      
+
       // Check to see if any outgoing edges led back to chomp, if so then
       // making this chomp a supernode will cause cycle, otherwise
       // if it doesn't, then it is ok to process
@@ -852,7 +791,7 @@ namespace Loci {
         // This chomp could cause a cycle, print diagnostic in debug file
 	debugout << "NOTE:  Removing chomp chain for vars = " << chomp_vars
 		 << endl ;
-	debugout << "cycle variables = " 
+	debugout << "cycle variables = "
 		 <<  extract_vars(visit_set & chomp_set)
 		 << endl ;
       }
@@ -860,7 +799,7 @@ namespace Loci {
 
     if(cc.empty())
       return ;
-    
+
     for(list<chomp_chain>::const_iterator li=cc.begin();li!=cc.end();++li) {
       digraph chomp_graph = li->first ;
       variableSet chomp_vars = li->second ;
@@ -958,11 +897,11 @@ namespace Loci {
       rcm[chomp_rule] = new chomp_compiler(chomp_graph,
                                            chomp_vars,apply2unit) ;
 #endif
-      
+
       // the vertices to be taken out
       digraph::vertexSet takeout_vertices =
         chomp_vars_vertices + rules_vertices ;
-      
+
       if(takeout_vertices != (all_vertices -
                               source_vars_vertices - target_vars_vertices)) {
         cerr << "WARNING: inconsistency in chomping graph editing!" << endl ;
@@ -982,7 +921,7 @@ namespace Loci {
 
         Loci::Abort() ;
       }
-      
+
       // get other possible nodes (outside of the chomp_graph)
       // that lead to any internal vertices of the chomp graph
 
@@ -1017,12 +956,12 @@ namespace Loci {
         l1.push_back(*li) ;
     }
   }
-  
+
   void chompRuleVisitor::visit(loop_compiler& lc) {
     list<chomp_chain> c ;
 
     map<rule,rule_compilerP> tmp ;
-    
+
     c = find_chain(lc.collapse_gr) ;
     if(!c.empty()) {
       // all_chains[-lc.cid] = c ;
@@ -1041,7 +980,7 @@ namespace Loci {
       edit_gr(lc.collapse_gr,c,lc.rule_compiler_map) ;
       edit_gr(lc.loop_gr,c,tmp) ;
     }
-    
+
     c = find_chain(lc.advance_gr) ;
     if(!c.empty()) {
       all_chains[lc.cid] += c ;
@@ -1052,7 +991,7 @@ namespace Loci {
 
   void chompRuleVisitor::visit(dag_compiler& dc) {
     list<chomp_chain> c ;
-    
+
     c = find_chain(dc.dag_gr) ;
     if(!c.empty()) {
       all_chains[dc.cid] = c ;
@@ -1062,7 +1001,7 @@ namespace Loci {
 
   void chompRuleVisitor::visit(conditional_compiler& cc) {
     list<chomp_chain> c ;
-    
+
     c = find_chain(cc.cond_gr) ;
     if(!c.empty()) {
       all_chains[cc.cid] = c ;
@@ -1078,12 +1017,12 @@ namespace Loci {
     chompingPrio cpf ;
     graphSchedulerVisitor cgsv(cpf) ;
   }
-  
+
   void compChompVisitor::schedule_chomp(chomp_compiler& chc) {
     //chc.chomp_sched = orderVisitor::order_dag(chc.chomp_graph) ;
     chc.chomp_sched = cgsv.schedule(chc.chomp_graph) ;
   }
-  
+
   void compChompVisitor::compile_chomp(chomp_compiler& chc,
                                        const rulecomp_map& rcm) {
     for(vector<digraph::vertexSet>::const_iterator vi=chc.chomp_sched.begin();
@@ -1098,7 +1037,7 @@ namespace Loci {
       vars &= chc.chomp_vars ;
       digraph chomp_graph_t = chc.chomp_graph.transpose() ;
       variableSet barrier_vars, reduce_vars,singleton_vars,all_vars ;
-      
+
       for(variableSet::const_iterator vii=vars.begin();vii!=vars.end();++vii) {
         ruleSet var_rules = extract_rules(chomp_graph_t[(*vii).ident()]) ;
         ruleSet::const_iterator ri ;
@@ -1115,23 +1054,23 @@ namespace Loci {
              (ri->get_info().rule_class == rule::INTERNAL &&
               ri->get_info().qualifier() == "priority")) {
             use_rules += *ri ;
-            
+
             // Check for a priority rule
             if(ri->get_info().rule_class == rule::INTERNAL &&
                ri->get_info().qualifier() == "priority")
               priority_rule = true ;
-            
+
             rule_implP rimp = ri->get_rule_implP() ;
             if(rimp->get_rule_class() == rule_impl::POINTWISE)
               pointwise = true ;
-            
+
             if(rimp->get_rule_class() == rule_impl::UNIT ||
                rimp->get_rule_class() == rule_impl::APPLY)
               reduction = true ;
 
             if(rimp->get_rule_class() == rule_impl::UNIT)
               unit_rule_exists = true ;
-            
+
             if(rimp->get_rule_class() == rule_impl::SINGLETON)
               singleton = true ;
           } else {
@@ -1139,7 +1078,7 @@ namespace Loci {
               recursive = true ;
           }
         }
-        
+
         WARN((reduction && pointwise) || (pointwise && singleton) ||
              (reduction && singleton)) ;
 
@@ -1158,11 +1097,11 @@ namespace Loci {
 
           if(reduction && unit_rule_exists)
             reduce_vars += *vii ;
-          
+
           if(singleton) {
             singleton_vars += *vii ;
           }
-        } 
+        }
       }
 
       // create a fake rule for using in the record
@@ -1177,7 +1116,7 @@ namespace Loci {
 	if(duplicate_work)
 	  chc.old_barrier_sets.push_back(barrier_vars);
       }
-      
+
       all_vars += singleton_vars ;
 
       if(singleton_vars != EMPTY)
@@ -1191,7 +1130,7 @@ namespace Loci {
       vector<CPTR<joiner> > join_op_vector ;
       vector<rule> unit_rule_vector ;
       vector<variable> reduce_var_vector ;
-      
+
       for(variableSet::const_iterator rdvi=reduce_vars.begin();
           rdvi!=reduce_vars.end();++rdvi) {
         map<variable,pair<rule,CPTR<joiner> > >::const_iterator xi ;
@@ -1203,12 +1142,12 @@ namespace Loci {
         if(join_op != 0) {
           storeRepP sp = join_op->getTargetRep() ;
           if(sp!=0) {
-            if(sp->RepType()== PARAMETER) {
+            if(isPARAMETER(sp)) {
               reduce_var_vector.push_back(xi->first) ;
               unit_rule_vector.push_back(unit_rule) ;
               join_op_vector.push_back(join_op) ;
             } else {
-              WARN(sp->RepType()!=STORE) ;
+              WARN(!isSTORE(sp)) ;
               chc.
                 old_chomp_comp.
                 push_back(make_pair(fake,
@@ -1236,11 +1175,11 @@ namespace Loci {
 	  variableSet myVars;
 	  for(unsigned int i = 0; i < reduce_var_vector.size(); i++)
 	    myVars += reduce_var_vector[i];
-	  
+
 	  chc.old_barrier_sets.push_back(myVars);
 	}
       }
-      
+
       for(ruleSet::const_iterator ri=rules.begin();ri!=rules.end();++ri){
         rulecomp_map::const_iterator rmi ;
         rmi = rcm.find(*ri) ;
@@ -1268,11 +1207,11 @@ namespace Loci {
   void compChompVisitor::visit(loop_compiler& lc) {
     process_rcm(lc.rule_compiler_map) ;
   }
-  
+
   void compChompVisitor::visit(dag_compiler& dc) {
     process_rcm(dc.rule_compiler_map) ;
   }
-  
+
   void compChompVisitor::visit(conditional_compiler& cc) {
     process_rcm(cc.rule_compiler_map) ;
   }

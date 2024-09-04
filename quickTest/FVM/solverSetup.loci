@@ -1,0 +1,139 @@
+//#############################################################################
+//#
+//# Copyright 2015-2019, Mississippi State University
+//#
+//# This file is part of the flowPsi computational fluid dynamics solver.
+//#
+//# The flowPsi solver is free software: you can redistribute it and/or modify
+//# it under the terms of the GNU General Public License as published by
+//# the Free Software Foundation, either version 3 of the License, or
+//# (at your option) any later version.
+//#
+//# The flowPsi solver is distributed in the hope that it will be useful,
+//# but WITHOUT ANY WARRANTY; without even the implied warranty of
+//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//# GNU General Public License for more details.
+//#
+//# You should have received a copy of the GNU General Public License
+//# along with the flowPsi solver.  If not, see <http://www.gnu.org/licenses>
+//#
+//#############################################################################
+
+#include <Loci.h>
+$include "flowPsi.lh"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+namespace flowPsi {
+  $rule unit(plot_status{n}),constraint(UNIVERSE{n}) {
+    $plot_status{n} = 0 ;
+  } 
+
+  static double elapsed_check_time = -1 ;
+  $type time_interval_check param<double>;
+  $rule default(time_interval_check),comments("time interval to check for stop or plot file in seconds") {
+    $time_interval_check = 240 ;
+  }
+  $rule apply(plot_status{n}<-ncycle{n},time_interval_check{n})[Loci::Maximum],prelude {
+    if(Loci::MPI_rank == 0) {
+      double ctime = MPI_Wtime() ;
+      if(elapsed_check_time < 0)
+        elapsed_check_time = ctime ;
+      // Check every two minutes
+      if(ctime-elapsed_check_time > *$time_interval_check{n}) {
+        elapsed_check_time = ctime ;
+        struct stat buf ;
+        if(stat("plot",&buf)!=-1) {
+          if(buf.st_size == 0 && S_ISREG(buf.st_mode)) {
+            if(::unlink("plot")!= -1)
+              join(*$plot_status{n},1) ;
+          }
+        }
+        if(stat("stop",&buf)!=-1) {
+          if(buf.st_size == 0 && S_ISREG(buf.st_mode)) {
+            if(::unlink("stop")!= -1)
+              join(*$plot_status{n},2) ;
+          }
+        }
+      }
+    }
+  } ;
+
+
+  
+  $rule optional(maximumRunTime),comments("Maximum wallclock time for run.  If this time is exceeded, flowpsi will dump restart files and terminate") {
+    $maximumRunTime = 0.0 ;
+  } 
+
+  extern double StartTime ;
+  
+  $rule apply(plot_status{n}<-ncycle{n},maximumRunTime)[Loci::Maximum],prelude {
+    double currTime = MPI_Wtime() ;
+    double elapsedTime = currTime - flowPsi::StartTime ;
+    double maxTime = realToDouble(real(*$maximumRunTime)) ;
+    if(elapsedTime > maxTime)
+      join(*$plot_status{n},2) ;
+  } ;
+
+
+  // Compute eigenvalues for cfl estimation
+  $type maxev_f store<real> ;
+
+  $rule pointwise(maxev_f<-area,(cl,cr)->(u,soundSpeed)) {
+    const real utl = dot($cl->$u,$area.n) ;
+    const real utr = dot($cr->$u,$area.n) ;
+    const real al = $cl->$soundSpeed ;
+    const real ar = $cr->$soundSpeed ;
+    const real mevl = max(fabs(utl-al),fabs(utl+al)) ;
+    const real mevr = max(fabs(utr-ar),fabs(utr+ar)) ;
+    $maxev_f = max(mevl,mevr) ;
+  }
+  $rule pointwise(maxev_f<-area,u_f,soundSpeed_f),constraint(ci->u) {
+    const real utf = dot($u_f,$area.n) ;
+    const real af = $soundSpeed_f ;
+    $maxev_f = max(fabs(utf-af),fabs(utf+af)) ;
+  }
+  
+  $rule pointwise(cflpdt<-vol,(upper,lower,boundary_map)->(maxev_f,area)) {
+    real meva = 0.0 ;
+    for(const int *li=$lower.begin();li!=$lower.end();++li) {
+      meva += li->$maxev_f*li->$area.sada ;
+    }
+    for(const int *ui=$upper.begin();ui!=$upper.end();++ui) {
+      meva += ui->$maxev_f*ui->$area.sada ;
+    }
+    for(const int *bi=$boundary_map.begin();bi!=$boundary_map.end();++bi) {
+      meva += bi->$maxev_f*bi->$area.sada ;
+    }
+    $cflpdt = 0.5*meva/$vol; // Area counted twice so divide by 2
+  }
+
+  // Define maxmin operator
+  template <class T> struct MaxMin {
+    void operator()(T &r, const T &s) {
+      r.first = max(r.first,s.first) ;
+      r.second = min(r.second,s.second) ;
+    }
+  } ;
+
+  $rule unit(cfl),constraint(geom_cells) {
+    $cfl.first = real(0.0) ;    //base value for cflmax
+    $cfl.second = real(1e30) ;   //base value for cflmin
+  }
+
+  $rule apply(cfl<-cflpdt,dtmax)[MaxMin],
+    constraint(cflpdt) {
+    std::pair<real,real> CFL ;
+    CFL.first = $cflpdt*real($dtmax) ;
+    CFL.second = CFL.first ;
+    join($cfl,CFL) ;
+  }
+
+  // provides the condition under which cfl number is printed
+  $rule default(print_freq) {
+    $print_freq = 10 ;
+  }
+
+  
+}

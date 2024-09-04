@@ -26,9 +26,7 @@
 #include <string>
 #include <fstream>
 #include <iostream>
-#ifdef HAS_MALLINFO
-#include <malloc.h>
-#endif
+
 using std::cerr;
 using std::endl;
 using std::ostream;
@@ -64,7 +62,7 @@ inline void normalize(vect3d& v) {
   v.z /= t ;
 }
 
-//this function is used in build_general_cell with quadface. 
+//this function is used in build_general_cell with quadface.
 inline bool int_equal(const vect3d& v1, const vect3d& v2) {
   return (int64(v1.x) == int64(v2.x) && int64(v1.y) == int64(v2.y));
 }
@@ -102,7 +100,7 @@ inline vect3d weighted_center(const std::vector<vect3d>& fnodes, const std::vect
 
   return nodesum/lensum;
 }
-    
+
 //the indexes of two neighbors of each face
 struct NeibIndex{
   int c1;
@@ -111,9 +109,9 @@ struct NeibIndex{
   NeibIndex():c1(0), c2(0){}
 };
 
-namespace Loci {  
+namespace Loci {
   struct SetLong{
-  
+
     std::set<unsigned long> aset;
     friend ostream& operator << (ostream &, const SetLong &);
     friend istream& operator >> (istream &, SetLong &);
@@ -137,7 +135,7 @@ namespace Loci {
     }
     void getState(unsigned long* buf, int& size) {
       size = getSize() ;
-      int ii = 0;         
+      int ii = 0;
       for(std::set<unsigned long>::const_iterator ci=RefObj.aset.begin();
           ci!=RefObj.aset.end();++ci)
         buf[ii++] = *ci ;
@@ -158,11 +156,11 @@ namespace Loci {
     for(ci = begin; ci!=end; ci++) s << *ci << ' ';
     s << '}';
     return s;
-    
+
   }
-  
+
   inline std::istream& operator >> (std::istream &s,  SetLong &obj){
-    
+
     obj.aset.clear();
     int size;
     s >> size;
@@ -179,29 +177,29 @@ namespace Loci {
     }
     if(size != 0) s>>token;
     s>>token;
-    
+
     if(token != '}') {
       cerr << "parse error in SetLong istream" << endl;
       exit(0);
-    } 
-  
+    }
+
     return s;
   }
-  
+
   struct SetLongUnion {
     void operator()(SetLong &f1, const SetLong &f2) {
       SetLong result;
       std::set_union(f1.aset.begin(), f1.aset.end(), f2.aset.begin(), f2.aset.end(),
-                std::inserter(result.aset, result.aset.begin())); 
+                std::inserter(result.aset, result.aset.begin()));
       f1 = result;
     }
   };
 }
 
 namespace Loci {
-  
+
   typedef std::vector<vect3d> FineNodes;
-  
+
   class FineNodes_SchemaConverter ;
   template<>
   struct data_schema_traits<FineNodes> {
@@ -209,7 +207,7 @@ namespace Loci {
     typedef vect3d Converter_Base_Type ;
     typedef FineNodes_SchemaConverter Converter_Type ;
   } ;
-  
+
   class FineNodes_SchemaConverter {
     FineNodes& RefObj ;
   public:
@@ -228,10 +226,10 @@ namespace Loci {
         RefObj[i] = buf[i] ;
     }
   };
-  
+
   inline std::istream&
   operator >> (std::istream& s, std::vector<vect3d>& sl) {
-    
+
     int sz ;
     s >> sz ;
     sl.resize(sz);
@@ -241,7 +239,7 @@ namespace Loci {
       cerr << " parse error in std::vector<vect3d> istream operator" << endl;
       exit(0);
     }
-      
+
     for(int i=0;i<sz;++i) {
       s >> sl[i] ;
     }
@@ -251,7 +249,7 @@ namespace Loci {
       cerr << " parse error in std::vector<vect3d> istream operator" << endl;
       exit(0);
     }
-    
+
     return s ;
   }
 
@@ -259,21 +257,21 @@ namespace Loci {
   operator << (std::ostream& s, const std::vector<vect3d>& sl) {
     int size = sl.size();
     s << size <<'{'  ;
-    
+
     for(int i = 0; i < size; ++i) {
       s << sl[i] <<' ';
     }
     s << '}' ;
     return s ;
   }
-  
+
 }
 
 
 namespace Loci {
 
   typedef std::vector<std::vector<int> > FineFaces;
-  
+
   class FineFaces_SchemaConverter ;
   template<>
   struct data_schema_traits<FineFaces> {
@@ -309,7 +307,7 @@ namespace Loci {
         RefObj.clear();
         return;
       }
-    
+
       unsigned int ii = 0;
       RefObj.resize(buf[ii++]);
       for(unsigned int i=0; i<RefObj.size(); i++){
@@ -322,7 +320,7 @@ namespace Loci {
 
   inline std::istream&
   operator >> (std::istream& s, std::vector<std::vector<int> >& sl) {
-    
+
     int vec_size;
     s >> vec_size;
     sl.resize(vec_size);
@@ -332,7 +330,7 @@ namespace Loci {
       cerr << " parse error in std::vector<vector<int> > istream operator" << endl;
       exit(0);
      }
-     
+
      int size;
      for(int i = 0; i < vec_size; i++){
        s >> size;
@@ -341,7 +339,7 @@ namespace Loci {
          cerr << " parse error in std::vector<vector<int> > istream operator" << endl;
          exit(0);
        }
-     
+
        sl[i].resize(size);
        for(int j = 0; j <size; j++){
          s >> sl[i][j];
@@ -351,17 +349,17 @@ namespace Loci {
        if(tok != '}'){
          cerr << " parse error in std::vector<vector<int> > istream operator" << endl;
          exit(0);
-       } 
+       }
      }
      if(vec_size!= 0) s >> tok;
      s>>tok;
      if(tok != '}'){
        cerr << " parse error in std::vector<vector<int> > istream operator" << endl;
        exit(0);
-     } 
+     }
      return s ;
   }
-  
+
   inline std::ostream&
   operator << (std::ostream& s, const std::vector<std::vector<int> >& sl) {
     s <<sl.size();
@@ -393,14 +391,14 @@ namespace Loci {
 struct logicalAnd {
   void operator()(bool &f1, const bool &f2) {
     f1 = f1 && f2;
-    
+
   }
-} ;  
+} ;
 
 //for a quadface, the two edge that need apply
 struct TwoEdge{
   TwoEdge(){};
-  
+
   pair<int64, int64> e0;
   pair<int64, int64> e3;
 };
@@ -412,14 +410,6 @@ namespace Loci{
 }
 
 
-inline int currentMem(void){
-#ifdef HAS_MALLINFO
-  struct mallinfo info = mallinfo() ;
-  return info.arena+info.hblkhd ;
-#else
-  return 0 ;
-#endif
-}
 void colorMatrix(Map &cl, Map &cr, multiMap &face2node);
 
 
@@ -435,17 +425,6 @@ namespace Loci {
                            const_store<Loci::FineNodes> &inner_nodes);
   extern void writeVOGFace(hid_t file_id, Map &cl, Map &cr, multiMap &face2node) ;
   extern  unsigned long readAttributeLong(hid_t group, const char *name);
-  
-  bool setupFVMGridFromContainer(fact_db &facts,
-                                 std::vector<entitySet>& local_nodes,
-                                 std::vector<entitySet>& local_faces,
-                                 std::vector<entitySet>& local_cells,
-                                 store<vector3d<double> >& t_pos,
-                                 Map& tmp_cl,
-                                 Map& tmp_cr,
-                                 multiMap& tmp_face2node,
-                                 std::vector<pair<int,string> >& boundary_ids,
-                                 std::vector<pair<string,entitySet> >& volTags ) ;
 
   bool setupFVMGridFromContainer(fact_db &facts,
                                  std::vector<entitySet>& local_nodes,
@@ -457,9 +436,9 @@ namespace Loci {
                                  multiMap& tmp_face2node,
                                  std::vector<pair<int,string> >& boundary_ids,
                                  std::vector<pair<string,entitySet> >& volTags,
-				 storeRepP cellptn) ;
-  
-  
+                                 Loci::storeRepP cellwts = 0) ;
+
+
   inline std::ostream &operator <<(std::ostream &s, const std::vector<std::pair<int32,int32> > &v) {
     s << v.size() << endl ;
     for(size_t i=0;i<v.size();++i) {
@@ -467,7 +446,7 @@ namespace Loci {
     }
     return s ;
   }
-  
+
   inline std::istream &operator >>(std::istream &s, std::vector<std::pair<int32,int32> > &v) {
     size_t sz ;
     s >> sz ;

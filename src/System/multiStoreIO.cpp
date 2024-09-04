@@ -9,16 +9,14 @@ namespace Loci {
     // contain mapping information from file to local
     fact_db::distribute_infoP df = facts.get_distribute_info() ;
     read_set = read_set & df->my_entities ;
-    const_Map l2g ;
-    const_dMap g2f ;
-    l2g = df->l2g.Rep() ;
-    g2f = df->g2f.Rep() ;
+    const_Map l2f ;
+    l2f = df->l2f.Rep() ;
 
     // Find bounds of file number
-    int fmin_local = g2f[l2g[read_set.Min()]] ;
+    int fmin_local = l2f[read_set.Min()] ;
     int fmax_local = fmin_local ;
     FORALL(read_set,ii) {
-      int fid = g2f[l2g[ii]] ;
+      int fid = l2f[ii] ;
       fmin_local = min(fmin_local,fid) ;
       fmax_local = max(fmax_local,fid) ;
     } ENDFORALL ;
@@ -50,10 +48,8 @@ namespace Loci {
     // contain mapping information from file to local
     fact_db::distribute_infoP df = facts.get_distribute_info() ;
     read_set = read_set & df->my_entities ;
-    const_Map l2g ;
-    const_dMap g2f ;
-    l2g = df->l2g.Rep() ;
-    g2f = df->g2f.Rep() ;
+    const_Map l2f ;
+    l2f = df->l2f.Rep() ;
 
     const int p = MPI_processes ;
     // Collect information about mapping between file number and
@@ -61,7 +57,7 @@ namespace Loci {
     // Find file number to processor mapping
     std::vector<int> sendto(p,0) ;
     FORALL(read_set,ii) {
-      int fid = g2f[l2g[ii]]-fmin ;
+      int fid = l2f[ii]-fmin ;
       int ps = fid/delta ;
       sendto[ps]++ ;
     } ENDFORALL ;
@@ -79,7 +75,7 @@ namespace Loci {
       recv_offsets[i+1] = recv_offsets[i]+recvfrom[i] ;
     }
     FORALL(read_set,ii) {
-      int fid = g2f[l2g[ii]]-fmin ;
+      int fid = l2f[ii]-fmin ;
       int p = fid/delta ;
       int offset = offsets[p]+send_offsets[p] ; ;
       offsets[p]++ ;
@@ -324,5 +320,52 @@ namespace Loci {
     recv_local_num.swap(recv_data) ;
   }    
 
+  void sendCounts(std::vector<int>&recv_count,
+		  const std::vector<int> &send_sz,
+		  const std::vector<int> &recv_sz,
+		  const std::vector<int> &recv_local_num,
+		  const std::vector<int> &counts,
+		  const std::vector<int> &procID) {
+    const int p = MPI_processes ;
+    std::vector<int> soffsets(p+1,0) ;
+    std::vector<int> roffsets(p+1,0) ;
+    for(int i=0;i<p;++i) {
+      soffsets[i+1] = soffsets[i] + send_sz[i] ;
+      roffsets[i+1] = roffsets[i] + recv_sz[i] ;
+    }
+    std::vector<int> so(p,0) ;
+    std::vector<int> sbuf(counts.size()) ;
+    for(size_t i=0;i<counts.size();++i) {
+      int ps = procID[i] ;
+      sbuf[soffsets[ps]+so[ps]] = counts[i] ;
+      so[ps]++ ;
+    }
  
+    std::vector<int> rbuf(roffsets[p]) ;
+    int nreq = 0 ;
+    for(int i=0;i<p;++i) {
+      if(send_sz[i] > 0)
+	nreq++ ;
+      if(recv_sz[i] > 0)
+	nreq++ ;
+    }
+    std::vector<MPI_Request> recv_Requests(nreq) ;
+    int req = 0 ;
+    for(int i=0;i<p;++i)
+      if(recv_sz[i] > 0) {
+	MPI_Irecv(&rbuf[roffsets[i]],recv_sz[i],MPI_INT,i,3,
+		  MPI_COMM_WORLD,&recv_Requests[req]) ;
+	req++ ;
+      }
+    for(int i=0;i<p;++i)
+      if(send_sz[i] > 0) {
+	MPI_Isend(&sbuf[soffsets[i]],send_sz[i],MPI_INT,i,3,
+		  MPI_COMM_WORLD,&recv_Requests[req]) ;
+	req++ ;
+      }
+    std::vector<MPI_Status> statuslist(nreq) ;
+    MPI_Waitall(nreq,&recv_Requests[0],&statuslist[0]) ;
+    recv_count.swap(rbuf) ;
+    
+  }
 }

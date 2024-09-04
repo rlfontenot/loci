@@ -50,10 +50,10 @@
 
 namespace Loci {
   class rule_db ;
-  
+
   class fact_db {
   public:
-    
+
     struct distribute_info : public CPTR_type {
       struct dist_data {
         int proc ;
@@ -62,21 +62,22 @@ namespace Loci {
         dist_data(int p, entitySet &e) :proc(p),entities(e)
         { size = e.size() ; }
       } ;
-      
+
       int myid ;
       int isDistributed ;
       Map l2g ; // local numbering to global numbering
       store<unsigned char> key_domain ; // local numbering to key domain
+      Map l2f ; // local numbering to file numbering
 
 #ifdef LOCI_COMPAT_MODE1
       dMap g2l,g2f ;
 #endif
-     
+
       std::vector<dMap> g2lv ; // global numbering to local numbering
       // indexed by key domain
       entitySet my_entities ;
       entitySet comp_entities;//local numbering of global_comp_entities
-      
+
       std::vector<dist_data> copy ; // Data describing which processors own
       // the entities in the clone region
       std::vector<dist_data> xmit ; // Data describing which processors to
@@ -94,7 +95,7 @@ namespace Loci {
 
     //Related to Duplication: global_comp_entities set defines
     //entities that can be computed on a processor
-    entitySet global_comp_entities; 
+    entitySet global_comp_entities;
 
     typedef CPTR<distribute_info> distribute_infoP ;
     distribute_infoP distributed_info ;
@@ -116,19 +117,19 @@ namespace Loci {
     struct fact_info {
       store_refP data_rep ;
     } ;
-    
+
     /*! all variables that point to the same storeRepP, the second of the pair at the end of chain
       is the variable suppose to appear in fmap*/
     std::map<variable,variable> synonyms ;
-    
+
     // a copy function
     void copy_all_from(const fact_db& f) ;
 
     std::pair<entitySet, entitySet> get_dist_alloc(int size, size_t kd) ;
-    
+
     int maximum_allocated ;
     int dist_from_start ;
-    
+
     std::map<variable,fact_info> fmap ;
     std::map<variable,storeRepP> tmap ;
     std::vector<std::string> nspace_vec ;
@@ -173,8 +174,8 @@ namespace Loci {
     storeRepP get_variable_type(std::string vname) const
     { return get_variable_type(variable(vname)) ;}
 
-      
-    
+
+
     // create_fact now defaults to create an extensional fact
     // as this is the primary interface for users of Loci
     void create_fact(const variable& v, storeRepP st) {
@@ -198,7 +199,7 @@ namespace Loci {
       si.setRep(get_variable(vname)) ;
       extensional_facts += v ;
     }
-    
+
     void update_fact(variable v, storeRepP st) ;
     void update_fact(std::string vname, storeRepP st)
     { update_fact(variable(vname),st) ;}
@@ -223,9 +224,9 @@ namespace Loci {
     storeRepP get_variable(variable v) ;
     storeRepP get_variable(std::string vname)
     { return get_variable(variable(vname)) ; }
-    
+
     void remove_variable(variable v) ;
-    
+
     void synonym_variable(variable v, variable synonym) ;
 
     void rotate_vars(const std::list<variable> &lvars) ;
@@ -244,13 +245,13 @@ namespace Loci {
     // and we therefore must adjust the history
     // variables accordingly.
     void adjust_rotation_vars(const std::list<variable>& lvars) ;
-    
+
     void set_namespace(std::string name_space){
-      nspace_vec.insert(nspace_vec.begin(), 1, name_space) ; 
+      nspace_vec.insert(nspace_vec.begin(), 1, name_space) ;
     }
     void remove_namespace() {
       nspace_vec.pop_back() ;
-    }  
+    }
     void unset_namespace() {
       nspace_vec.clear() ;
     }
@@ -279,12 +280,12 @@ namespace Loci {
     std::vector<entitySet>& get_init_ptn(size_t kd) {return init_ptn[kd] ;}
     void  put_init_ptn(std::vector<entitySet> &t_init, size_t kd ) {init_ptn[kd] = t_init ;}
     int getNumKeyDomains() const { return init_ptn.size() ; }
-    
+
     fact_db::distribute_infoP get_distribute_info() ;
     void put_distribute_info(fact_db::distribute_infoP dp) ;
     bool isDistributed() ;
-    
-    
+
+
     variableSet get_typed_variables() const ;
     std::ostream &write(std::ostream &s) const ;
     std::istream &read(std::istream &s) ;
@@ -372,13 +373,13 @@ namespace Loci {
       make_intensional_fact(variable(vname)) ;
     }
 
-   
+
     void write_all_hdf5(const char *filename) ;
     void read_all_hdf5(const char *filename) ;
     void write_hdf5(const char *filename, variableSet &vars) ;
     void read_hdf5(const char *filename, variableSet &vars) ;
 
-   
+
     void Print_diagnostics() ;
 
     // experimental code to create keyspace from the
@@ -390,10 +391,10 @@ namespace Loci {
     KeyManagerP get_key_manager() const {return key_manager ;}
     void init_key_manager() ;
   } ;
-  
+
   void reorder_facts(fact_db &facts, dMap &remap) ;
   void serial_freeze(fact_db &facts) ;
-  
+
 
   entitySet collect_entitySet(entitySet e, fact_db &facts) ;
 

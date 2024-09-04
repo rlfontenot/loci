@@ -54,7 +54,7 @@ namespace Loci {
     void hdf5writeP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER g, const entitySet &en, hid_t xfer_plist_id) const;
     void hdf5writeP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER g,const entitySet &en, hid_t xfer_plist_id) const;
 
-    
+
 
     int get_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset);
     int get_estimated_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset);
@@ -93,6 +93,20 @@ namespace Loci {
     virtual storeRepP remap(const dMap &m) const ;
     virtual storeRepP freeze() ;
     virtual storeRepP thaw() ;
+#ifdef DYNAMICSCHEDULING
+    virtual storeRepP freeze(const entitySet& es) const {
+      std::cerr << "storeRep.freeze(e) is not implemented yet"
+                << std::endl ;
+      abort() ;
+      return storeRepP(0) ;
+    }
+    virtual storeRepP thaw(const entitySet& es) const {
+      std::cerr << "storeRep.thaw(e) is not implemented yet"
+                << std::endl ;
+      abort() ;
+      return storeRepP(0) ;
+    }
+#endif
     virtual void copy(storeRepP &st, const entitySet &context) ;
     virtual void fast_copy(storeRepP& st, const entitySet& context);
     virtual void gather(const dMap &m, storeRepP &st,
@@ -105,15 +119,28 @@ namespace Loci {
     virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
     virtual void unpack(void *ptr, int &loc, int &size, const sequence &seq)  ;
 
+#ifdef DYNAMICSCHEDULING
+    // this version of pack/unpack uses a remap during the process
+    // mainly for maps images to transform to another numbering scheme
+    // default behavior is to ignore the remaps
+    virtual void pack(void* ptr, int& loc,
+                      int& size, const entitySet& e, const Map& remap) {
+      pack(ptr,loc,size,e) ;
+    }
+    virtual void unpack(void* ptr, int& loc,
+                        int& size, const sequence& seq, const dMap& remap) {
+      unpack(ptr,loc,size,seq) ;
+    }
+#endif
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
-    
+
     virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en) ;
     virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const ;
 #ifdef H5_HAVE_PARALLEL
     virtual void readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en, hid_t xfer_plist_id) ;
     virtual void writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en, hid_t xfer_plist_id) const ;
-#endif    
+#endif
     T *get_param() { return &attrib_data ; }
     virtual DatatypeP getType() ;
     virtual frame_info get_frame_info() ;
@@ -205,7 +232,8 @@ namespace Loci {
       s.putback(ch) ;
       e = ~EMPTY ;
       allocate(e) ;
-      attrib_data = T() ;
+      if(!std::is_trivially_default_constructible<T>::value)
+	attrib_data = T() ;
       Loci::streaminput(&attrib_data,1,s) ;
       return s ;
     }
@@ -278,7 +306,7 @@ namespace Loci {
     schema_converter traits_output_type;
     hdf5read(group_id, dataspace, dataset, dimension, name, traits_output_type, fi, eset) ;
   }
-  
+
 #ifdef H5_HAVE_PARALLEL
   template<class T>
   void paramRepI<T>::readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &eset, hid_t xfer_plist_id)
@@ -309,7 +337,7 @@ namespace Loci {
     // schema_converter traits_output_type;
     // hdf5writeP(group_id, dataspace, dataset, dimension, name, traits_output_type, eset, xfer_plist_id) ;
   }
-#endif   
+#endif
 
   template<class T> class param : public store_instance {
     typedef paramRepI<T> paramType ;
@@ -569,12 +597,12 @@ namespace Loci {
       data_schema_traits<T>::Schema_Converter schema_converter;
 
     return get_estimated_mpi_size( schema_converter(), eset );
-    
+
   }
   //**************************************************************************/
   template<class T> int paramRepI<T>::
   pack_size(const entitySet& e, entitySet& packed) {
-    packed = domain() & e ;    
+    packed = domain() & e ;
 
     typedef typename
       data_schema_traits<T>::Schema_Converter schema_converter;
@@ -615,7 +643,7 @@ namespace Loci {
   int paramRepI<T>::get_estimated_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset)
   {
     return(50*sizeof(double) + sizeof(int));
-  } 
+  }
   //**************************************************************************/
 
   template <class T>
@@ -739,7 +767,7 @@ namespace Loci {
       H5Tclose(datatype) ;
     }
   }
-  
+
   template <class T>
   void paramRepI<T>::hdf5writeP(hid_t group_id, hid_t dataspace, hid_t dataset,hsize_t dimension, const char* name, IDENTITY_CONVERTER g, const entitySet &eset, hid_t xfer_plist_id) const
   {
@@ -781,13 +809,13 @@ namespace Loci {
   {
 #ifndef H5_HAVE_PARALLEL
     hdf5write( group_id, dataspace, dataset, dimension,  name,  g, eset) ;
-      
+
 #else
     warn(true);
     // //data transfer need to be independent
-    // if(xfer_plist_id == H5FD_MPIO_COLLECTIVE) warn(true); 
+    // if(xfer_plist_id == H5FD_MPIO_COLLECTIVE) warn(true);
     // hdf5write( group_id, dataspace, dataset, dimension,  name,  g, eset) ;
-    
+
 #endif
   }
   //**************************************************************************/
@@ -824,7 +852,7 @@ namespace Loci {
 #endif
   }
 
-             
+
   //*************************************************************************/
 
   template <class T>
@@ -855,7 +883,7 @@ namespace Loci {
   }
   template <class T>
   void paramRepI<T>::hdf5readP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER g, frame_info &fi, const entitySet &en, hid_t xfer_plist_id ){
-#ifndef H5_HAVE_PARALLEL 
+#ifndef H5_HAVE_PARALLEL
     hdf5read(group_id,  dataspace, dataset,  dimension, name,  g, fi, en);
 #else
     //data transfer need to be independent
@@ -865,7 +893,7 @@ namespace Loci {
   }
 
 
-   
+
   template<class T> storeRepP paramRepI<T>::
   redistribute(const std::vector<entitySet>& dom_ptn, MPI_Comm comm) {
     // for a parameter, we just redistribute its domain

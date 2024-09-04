@@ -39,6 +39,7 @@ using std::sort;
 
 #include <Tools/debug.h>
 #include <entitySet.h>
+#include "distribute.h"
 #include "dist_tools.h"
 #include <rule.h>
 #include <fact_db.h>
@@ -127,7 +128,7 @@ namespace Loci {
               storeRepP srp = facts.get_variable(*vi) ;
               if(srp == 0)
                 continue ;
-              if(srp->RepType() == MAP)
+              if(isMAP(srp))
                 vs += variable(*vi,time_ident()) ;
             }
             if(vs != EMPTY)
@@ -207,7 +208,7 @@ namespace Loci {
       for(smi = maps.begin(); smi != maps.end(); ++smi) {
 	vector<entitySet> locdom = domain ;
 	const vector<variableSet> &mv = *smi ;
-	      
+
 	for(size_t i = 0; i < mv.size(); ++i) {
 	  variableSet v = mv[i] ;
 	  v &= vars ;
@@ -215,13 +216,13 @@ namespace Loci {
 
 	  for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
 	    storeRepP p = facts.get_variable(*vi) ;
-	    if(p->RepType() ==  MAP) {      
+	    if(isMAP(p)) {
 	      int kd = p->getDomainKeySpace() ;
 	      std::vector<entitySet> ptn = facts.get_init_ptn(kd) ;
 
 	      entitySet tmp_dom = p->domain() ;
 	      MapRepP mp =  MapRepP(p->getRep()) ;
-	      entitySet glob_dom = all_collect_entitySet(tmp_dom) ;
+	      entitySet glob_dom = collectSet(tmp_dom,locdom[kd],MPI_COMM_WORLD) ;
 	      entitySet tmp_out = (glob_dom & locdom[kd]) - tmp_dom ;
 	      storeRepP sp = mp->expand(tmp_out, ptn) ;
 	      if(sp->domain() != tmp_dom) {
@@ -260,7 +261,7 @@ namespace Loci {
 	  if(i == 0) {
 	    for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
 	      storeRepP p = facts.get_variable(*vi) ;
-	      if(p->RepType() ==  MAP) {
+	      if(isMAP(p)) {
 		MapRepP mp =  MapRepP(p->getRep()) ;
 		domain += mp->domain();
 	      }
@@ -271,7 +272,7 @@ namespace Loci {
 
 	  for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
 	    storeRepP p = facts.get_variable(*vi) ;
-	    if(p->RepType() ==  MAP) {
+	    if(isMAP(p)) {
 	      MapRepP mp =  MapRepP(p->getRep()) ;
 	      image += mp->image(tmp);
 	    }
@@ -315,7 +316,7 @@ namespace Loci {
 	  std::vector<entitySet>  tmp_preimage_vec(MPI_processes);
 	  for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
 	    storeRepP p = facts.get_variable(*vi) ;
-	    if(p->RepType() ==  MAP) {
+	    if(isMAP(p)) {
 	      MapRepP mp =  MapRepP(p->getRep()) ;
 	      for(int j = 0; j < MPI_processes; j++) {
 		tmp_preimage_vec[j] += mp->preimage(preimage_vec[j]).second;
@@ -357,10 +358,10 @@ namespace Loci {
 	  for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
 
 	    storeRepP p = facts.get_variable(*vi) ;
-	    if(p->RepType() ==  MAP) {
+	    if(isMAP(p)) {
 	      entitySet tmp_dom = p->domain() ;
 	      MapRepP mp =  MapRepP(p->getRep()) ;
-	      entitySet glob_dom = all_collect_entitySet(tmp_dom) ;
+	      entitySet glob_dom = collectSet(tmp_dom,locdom,MPI_COMM_WORLD);
 	      entitySet tmp_out = (glob_dom & locdom) - tmp_dom ;
 	      storeRepP sp = mp->expand(tmp_out, ptn) ;
 	      if(sp->domain() != tmp_dom) {
@@ -398,7 +399,7 @@ namespace Loci {
           facts.replace_fact(*vi,tmp) ;
         }
       }
-      if(tmp_sp->RepType() == MAP) {
+      if(isMAP(tmp_sp)) {
 	MapRepP tmp_mp = MapRepP(tmp_sp->getRep()) ;
 	int kd_domain = tmp_sp->getDomainKeySpace() ;
 	int kd_range = tmp_mp->getRangeKeySpace() ;
@@ -436,17 +437,21 @@ namespace Loci {
       if(multilevel_duplication) {
 	entitySet mySet = ptn[MPI_rank];
 	bool continue_adding = true;
+#ifdef VERBOSE
 	int num_levels = 1;
+#endif
 	do{
 	  mySet += dist_special_expand_map(facts.global_comp_entities,
 					   facts, context_maps) ;
 	  entitySet added_entities = context_for_map_output(mySet,  facts, context_maps);
 	  added_entities -= facts.global_comp_entities;
-	  if(all_collect_entitySet(added_entities) == EMPTY)
+	  if(GLOBAL_AND(added_entities==EMPTY))
 	    continue_adding = false;
 	  else {
 	    facts.global_comp_entities += added_entities;
+#ifdef VERBOSE
 	    num_levels++;
+#endif
 	  }
 	}while(continue_adding);
 	facts.global_comp_entities += mySet;
@@ -476,9 +481,9 @@ namespace Loci {
     for(int kd=0;kd<nkd;++kd) {
       vector<entitySet>  copy(MPI_processes), send_clone(MPI_processes) ;
       entitySet tmp_copy ;
-      std::vector<entitySet> &ptn = facts.get_init_ptn(kd) ; 
+      std::vector<entitySet> &ptn = facts.get_init_ptn(kd) ;
       tmp_copy =  image[kd] - ptn[MPI_rank] ;
-      
+
       int *recv_count = new int[MPI_processes] ;
       int *send_count = new int[MPI_processes] ;
       int *send_displacement = new int[MPI_processes];
@@ -489,7 +494,7 @@ namespace Loci {
 	send_count[i] = copy[i].size() ;
 	size_send += send_count[i] ;
       }
-      
+
       int *send_buf = new int[size_send] ;
       MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
 		   MPI_COMM_WORLD) ;
@@ -535,26 +540,24 @@ namespace Loci {
 
     variableSet vars = facts.get_typed_variables() ;
     double start = MPI_Wtime() ;
-    //    timer_token creating_initial_info_timer = new timer_token;
-    //	if(collect_perf_data)
-    //		creating_initial_info_timer = perfAnalysis->start_timer("Create initial info");
+
     int myid = MPI_rank ;
     int size = 0 ;
     Map l2g ;
+    Map l2f ;
     int isDistributed ;
 
     vector<vector<entitySet> > proc_entities(nkd) ;
-    
+
     for(int kd=0;kd<nkd;++kd) {
       stopWatch s ;
       s.start() ;
       std::vector<entitySet> iv ;
       categories(facts,iv,kd) ; // FIX THIS
-      std::vector<entitySet> &ptn = facts.get_init_ptn(kd) ; 
+      std::vector<entitySet> &ptn = facts.get_init_ptn(kd) ;
       debugout << "finding categories time = " << s.stop() << endl ;
       s.start() ;
       for(size_t i=0;i < iv.size(); ++i) {
-	//      iv[i] = all_collect_entitySet(iv[i]) ;
 	debugout << "iv["<< i << "] size before expand = " << iv[i].num_intervals()<< endl ;
 	entitySet tmp_copy =  image[kd] - ptn[MPI_rank] ;
 	iv[i] = dist_expand_entitySet(iv[i],tmp_copy,ptn) ;
@@ -592,6 +595,7 @@ namespace Loci {
     int j = 0 ;
     entitySet e = interval(0, size-1) ;
     l2g.allocate(e) ;
+    l2f.allocate(e) ;
     store<unsigned char> key_domain ;
     key_domain.allocate(e) ;
 
@@ -599,12 +603,20 @@ namespace Loci {
     s.start() ;
     vector<entitySet> glist ;
     for(int kd=0;kd<nkd;++kd) {
+      dMap g2f ;
+      g2f.setRep(df->g2fv[kd].Rep()) ;
+      entitySet gdom = g2f.domain() ;
+
       entitySet g ;
       for(size_t i = 0; i < proc_entities[kd].size(); ++i) {
 	g += proc_entities[kd][i] ;
 	entitySet::const_iterator ei ;
 	for(ei = proc_entities[kd][i].begin(); ei != proc_entities[kd][i].end(); ++ei ) {
 	  l2g[j] = *ei ;
+	  if(gdom.inSet(*ei))
+	    l2f[j] = g2f[*ei] ;
+	  else
+	    l2f[j] = -1 ; // Probably something else should be used here
 	  key_domain[j] = kd ;
 	  ++j ;
 	}
@@ -615,6 +627,7 @@ namespace Loci {
     debugout << "time setting up l2g = " << s.stop() ;
     s.start() ;
     df->l2g = l2g.Rep() ;
+    df->l2f = l2f.Rep() ;
     df->key_domain = key_domain.Rep() ; // FIX THIS
 
     vector<dMap> tmp2(nkd) ;
@@ -638,13 +651,13 @@ namespace Loci {
     store<entitySet> recv_entities ;
     for(int i = 0 ; i < MPI_processes; ++i)
       if(myid != i )
-	for(int kd=0;kd<nkd;++kd) 
+	for(int kd=0;kd<nkd;++kd)
 	  if(copyv[kd][i] != EMPTY)
 	    recv_neighbour += i ;
 
     for(int i = 0; i < MPI_processes; ++i)
       if(myid != i)
-	for(int kd=0;kd<nkd;++kd) 
+	for(int kd=0;kd<nkd;++kd)
 	  if(send_clonev[kd][i] != EMPTY)
 	    send_neighbour += i ;
 
@@ -652,36 +665,31 @@ namespace Loci {
     recv_entities.allocate(recv_neighbour) ;
     entitySet::const_iterator ti ;
     for(ei = recv_neighbour.begin(); ei != recv_neighbour.end(); ++ei) {
-      for(int kd=0;kd<nkd;++kd) 
+      for(int kd=0;kd<nkd;++kd)
 	for(ti =  copyv[kd][*ei].begin(); ti != copyv[kd][*ei].end(); ++ti) {
 	  recv_entities[*ei] += df->g2lv[kd][*ti] ;
 	}
     }
 
     for(ei = send_neighbour.begin(); ei!= send_neighbour.end(); ++ei) {
-      for(int kd=0;kd<nkd;++kd) 
+      for(int kd=0;kd<nkd;++kd)
 	for(ti =  send_clonev[kd][*ei].begin(); ti != send_clonev[kd][*ei].end(); ++ti)
 	  send_entities[*ei] +=  df->g2lv[kd][*ti] ;
     }
 
 
     debugout << "time setting up send and recieve info = " << s.stop() << endl ;
-    //	if(collect_perf_data)
-    //		perfAnalysis->stop_timer(creating_initial_info_timer);
     double end_time =  MPI_Wtime() ;
     debugout << "  Time taken for creating initial info =  " << end_time - start << endl ;
 
     start = MPI_Wtime() ;
-    //    timer_token reordering_timer = new timer_token;
-    //	if(collect_perf_data)
-    //		reordering_timer = perfAnalysis->start_timer("Reordering");
-    //----------------------------------------------------------------------
-    // reorder facts to local numbering
-    reorder_facts(facts, df->g2lv[0]) ; 
 
     //----------------------------------------------------------------------
-    //	if(collect_perf_data)
-    //		perfAnalysis->stop_timer(reordering_timer);
+    // reorder facts to local numbering
+    reorder_facts(facts, df->g2lv[0]) ;
+
+    //----------------------------------------------------------------------
+
     end_time =  MPI_Wtime() ;
     debugout << "  Time taken for reordering =  " << end_time - start << endl ;
 
@@ -690,7 +698,7 @@ namespace Loci {
     entitySet mySetLocal ;
     for(int kd=0;kd<nkd;++kd)  {
       entitySet g ;
-      std::vector<entitySet> &ptn = facts.get_init_ptn(kd) ; 
+      std::vector<entitySet> &ptn = facts.get_init_ptn(kd) ;
 
 #ifdef DEBUG
       entitySet g2ldom = df->g2lv[kd].domain() ;
@@ -700,7 +708,7 @@ namespace Loci {
 #endif
       for(ei = ptn[myid].begin(); ei != ptn[myid].end(); ++ei) {
 	int gv = df->g2lv[kd][*ei] ;
-	if(g.inSet(gv)) 
+	if(g.inSet(gv))
 	  cerr << "repeated values in gv!" << endl ;
 	g += gv ;
       }

@@ -34,33 +34,61 @@
 #endif
 
 namespace Loci {
+
   std::vector<int> get_stencil(const Loci::kdTree::KDTree<float> &kd,
-                               vector3d<real_t> pnt,
-                               real_t delta) ;
+				 kdTree::coord3df ccenter,
+				 double delta) ;
   std::vector<int> get_stencil(const Loci::kdTree::KDTree<double> &kd,
-                               vector3d<real_t> pnt,
-                               real_t delta) ;
-  void stencil_weights(std::vector<real_t> &w,
+				 kdTree::coord3d ccenter,
+				 double delta) ;
+
+  /*  template<class T> inline std::vector<int>
+  get_stencil(const Loci::kdTree::KDTree<float> &kd,
+	      vector3d<T> pnt,
+	      double deltai) {
+    kdTree::coord3df ccenter ;
+    ccenter[0] = realToFloat(pnt.x) ;
+    ccenter[1] = realToFloat(pnt.y) ;
+    ccenter[2] = realToFloat(pnt.z) ;
+    double delta = deltai ;
+    return get_stencil_i(kd,ccenter,delta) ;
+  }
+
+
+  template<class T> inline std::vector<int>
+  get_stencil(const Loci::kdTree::KDTree<double> &kd,
+	      vector3d<T> pnt,
+	      double deltai) {
+    kdTree::coord3d ccenter ;
+    ccenter[0] = realToDouble(pnt.x) ;
+    ccenter[1] = realToDouble(pnt.y) ;
+    ccenter[2] = realToDouble(pnt.z) ;
+    double delta = deltai ;
+    return get_stencil_i(kd,ccenter,delta) ;
+  }
+  */
+
+  void stencil_weights(std::vector<double> &w,
                        std::vector<int> &neighbors,
-                       const store<vector3d<real_t> > &loc,
-                       vector3d<real_t> ipnt) ;
+                       const store<vector3d<double> > &loc,
+                       vector3d<double> ipnt) ;
 
   int collectPointsSizes(const Loci::kdTree::KDTree<float> &kd,
 			 Loci::kdTree::KDTree<float>::bounds bnd) ;
-  
+
   void getStencilBoundingBox2(Loci::kdTree::KDTree<float>::bounds &bnd,
 			      double &delta,
 			      const Loci::kdTree::KDTree<float> &kd,
-			      const vector3d<real_t> pnts[],
+			      const vector3d<double> pnts[],
                               int start, int end) ;
   void getStencilBoundingBox(Loci::kdTree::KDTree<float>::bounds &bnd,
                              double &delta,
-                             const const_store<vector3d<real_t> > &pnts,
+                             const const_store<vector3d<double> > &pnts,
                              entitySet dom) ;
   void collectPoints(std::vector<Loci::kdTree::KDTree<float>::coord_info> &pout,
                      const Loci::kdTree::KDTree<float> &kd,
                      Loci::kdTree::KDTree<float>::bounds bnd) ;
-  
+
   void getCommSchedFromStencil(std::vector<int> &send_info_out,
                                std::vector<int> &req_sizes_out,
                                std::vector<int> &snd_sizes_out,
@@ -71,11 +99,8 @@ namespace Loci {
   void remapStencil(std::vector<Array<int,4> > &stencils,
                     const std::vector<int> &access,
                     const store<int> &ids) ;
-  void sendStencilData(storeVec<real_t> &stencilData,
-                       const_storeVec<real_t> &sourceData,
-                       const std::vector<int> &send_info,
-                       const std::vector<int> &req_sizes_in,
-                       const std::vector<int> &snd_sizes_in) ;
+
+
   template <class T>
   void sendStencilData(store<T> &stencilData,
                        const_store<T> &sourceData,
@@ -117,7 +142,67 @@ namespace Loci {
                   &stencilData[0],&req_sizes[0],&sdispls[0],MPI_BYTE,
                   MPI_COMM_WORLD) ;
   }
-  
+
+  template <class T>
+  void sendStencilData(storeVec<T> &stencilData,
+                       const_storeVec<T> &sourceData,
+                       const vector<int> &send_info,
+                       const vector<int> &req_sizes_in,
+                       const vector<int> &snd_sizes_in) {
+    MEMORY_PROFILE(sendStencilDataStartv) ;
+
+#ifdef VERBOSE
+    entitySet dom = sourceData.domain() ;
+#endif
+    int vec_size = sourceData.vecSize() ;
+    vector<T> databuf(send_info.size()*vec_size) ;
+    for(size_t i = 0;i<send_info.size();++i) {
+      int id = send_info[i] ;
+#ifdef VERBOSE
+      if(!dom.inSet(id)) {
+        debugout << "id=" <<id << " out of domain " << dom << endl ;
+        id = dom.Min() ;
+      }
+
+#endif
+      for(int j=0;j<vec_size;++j) {
+        databuf[i*vec_size+j] = sourceData[id][j] ;
+      }
+    }
+
+    int p = MPI_processes ;
+    vector<int> req_sizes(p),snd_sizes(p) ;
+    for(int i=0;i<p;++i) {
+      req_sizes[i] = req_sizes_in[i]*vec_size*sizeof(T) ;
+      snd_sizes[i] = snd_sizes_in[i]*vec_size*sizeof(T) ;
+    }
+
+    vector<int> sdispls(p) ;
+    sdispls[0] = 0 ;
+    for(int i=1;i<p;++i)
+      sdispls[i] = sdispls[i-1]+req_sizes[i-1] ;
+
+    vector<int> rdispls(p) ;
+    rdispls[0] = 0 ;
+    for(int i=1;i<p;++i) {
+      rdispls[i] = rdispls[i-1]+snd_sizes[i-1] ;
+    }
+
+    int loc_size = 0 ;
+    for(int i=0;i<p;++i)
+      loc_size += req_sizes_in[i] ;
+
+    stencilData.allocate(entitySet(interval(0,loc_size-1))) ;
+    stencilData.setVecSize(vec_size) ;
+
+    MEMORY_PROFILE(sendStencilDataStartall2all) ;
+
+    MPI_Alltoallv(&databuf[0],&snd_sizes[0],&rdispls[0],MPI_BYTE,
+                  &stencilData[0][0],&req_sizes[0],&sdispls[0],MPI_BYTE,
+                  MPI_COMM_WORLD) ;
+    MEMORY_PROFILE(sendStencilDataStartEnd3dv) ;
+  }
+
   template<class T> void scatterVector(std::vector<T> &v,
                                   const std::vector<int> &procid,
                                   MPI_Comm comm) {
@@ -130,7 +215,7 @@ namespace Loci {
       return ;
     // count sends and recvs
     std::vector<int> recv_count(p,0),send_count(p,0) ;
-    
+
     for(size_t i=0;i<procid.size();++i)
       send_count[procid[i]]++ ;
 
@@ -172,7 +257,7 @@ namespace Loci {
 
     v.swap(recvbuf) ;
   }
-    
+
   template<class T> void gatherVector(std::vector<T> &v,
                                  const std::vector<int> &procid,
                                  MPI_Comm comm) {
@@ -182,10 +267,10 @@ namespace Loci {
     MPI_Comm_size(comm,&p) ;
     if(p==1)
       return ;
-    
+
     // count sends and recvs
     std::vector<int> recv_count(p,0),send_count(p,0) ;
-    
+
     for(size_t i=0;i<procid.size();++i)
       recv_count[procid[i]]++ ;
 
@@ -221,7 +306,7 @@ namespace Loci {
     // deallocate v
     { std::vector<T> tmp; v.swap(tmp) ;}
     // reallocate v
-    { std::vector<T> tmp(recvbuf.size()) ; v.swap(tmp) ;} 
+    { std::vector<T> tmp(recvbuf.size()) ; v.swap(tmp) ;}
 
     for(size_t i=0;i<procid.size();++i) {
       v[i] = recvbuf[roffsets[procid[i]]] ;
@@ -251,15 +336,15 @@ namespace Loci {
     MEMORY_PROFILE(allGatherVecEnd) ;
     r.swap(buf) ;
   }
-  
+
   struct bound_info {
     Loci::kdTree::KDTree<float>::bounds bnd ;
     int start,stop ;
   } ;
-  
-  template<class T> 
+
+  template<class T>
   void communicateBoxPoints(std::vector<std::vector<T>  >
-                            &loc_pbox, 
+                            &loc_pbox,
                             const std::vector<int> &box_sp,
                             const std::vector<int> &box_tp,
                             const std::vector<int> &b_sizes,
@@ -273,15 +358,15 @@ namespace Loci {
 #ifdef REPORT_TIMES
     Loci::stopWatch s ;
     s.start() ;
-#endif    
+#endif
     int p ;
     MPI_Comm_size(comm,&p) ;
     int r ;
     MPI_Comm_rank(comm,&r) ;
-    
+
     std::vector<std::vector<T>  > tmpx(recv_block_id.size()) ;
     loc_pbox.swap(tmpx) ;
-                            
+
     std::vector<MPI_Request> req_queue(recv_block_id.size()) ;
 
     // post receives
@@ -317,8 +402,8 @@ namespace Loci {
 #ifdef REPORT_TIMES
     Loci::debugout << "time to collect boxes: " << s.stop() << endl ;
     s.start() ;
-#endif    
-  }                            
+#endif
+  }
   template <class T>
   void returnBlockData(std::vector<T> &recv_data,
                        std::vector<std::vector<T> > &data_to_send,
@@ -338,7 +423,7 @@ namespace Loci {
       int bk = send_block_id[i] ;
       rcv_sz += b_sizes[bk]*group_size ;
     }
-      
+
     {
       std::vector<T> rcv_data_x(rcv_sz) ;
       recv_data.swap(rcv_data_x) ;
@@ -371,17 +456,17 @@ namespace Loci {
   void collectGroups(std::vector<Loci::vpair> &results,
                      std::vector<Loci::vpair> &inputs, int start, int end,
                      int levels, int min_pnts) ;
-  
-  void getBoundingBoxDecomp(std::vector<kdTree::KDTree<float>::coord_info> &pnts, 
-                            std::vector<bound_info> &boxes, 
+
+  void getBoundingBoxDecomp(std::vector<kdTree::KDTree<float>::coord_info> &pnts,
+                            std::vector<bound_info> &boxes,
                             double split, int dim, int levels,
                             int start, int stop, double delta_lim,
                             int split_lim) ;
-  void getBoundingBoxes(std::vector<kdTree::KDTree<float>::coord_info> &pnts, 
+  void getBoundingBoxes(std::vector<kdTree::KDTree<float>::coord_info> &pnts,
                         std::vector<bound_info> &boxes,
                         int levels, double delta_lim,
                         int split_lim) ;
-  
+
   void boundingBoxDistribution(std::vector<int> &box_sp,
                                std::vector<int> &box_tp,
                                std::vector<int> &b_sizes,
@@ -389,7 +474,7 @@ namespace Loci {
                                std::vector<int> &recv_block_id,
                                const std::vector<bound_info> &boxes,
                                const MPI_Comm &comm) ;
-  
+
   void recieveTargetPoints(std::vector<std::vector<kdTree::KDTree<float>::coord_info>  > &recv_targets,
                            const Loci::kdTree::KDTree<float> *kd,
                            const std::vector<bound_info> &boxes_g,

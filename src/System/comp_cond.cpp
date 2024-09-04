@@ -90,21 +90,6 @@ namespace Loci {
     }    
   }
   
-  /* compile() method has been removed from the rule_compiler class
-     hierarchy, this one exists here just for the DEBUG code reference.
-     we may later move it into the visitor class.
-  void conditional_compiler::compile()
-  {
-#ifdef DEBUG
-    // sanity check, all vertices should be scheduled
-    digraph::vertexSet allvertices ;
-    for(size_t i=0;i< dag_sched.size();++i) 
-      allvertices += dag_sched[i] ;
-    warn(allvertices != cond_gr.get_all_vertices()) ;
-#endif
-  }
-  */
-  
   void conditional_compiler::accept(visitor& v) {
     v.visit(*this) ;
   }

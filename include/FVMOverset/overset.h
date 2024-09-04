@@ -9,31 +9,31 @@ namespace Loci {
     Quaternion() {}
     Quaternion(real_t xi, real_t yi, real_t zi, real_t wi):x(xi),y(yi),z(zi),w(wi) {}
     Quaternion(vector3d<real_t> axis, real_t angle) {
-      real_t sinAngle; 
-      angle *= 0.5; 
-      axis *= 1.0/(norm(axis)+1e-30) ; 
+      real_t sinAngle;
+      angle *= 0.5;
+      axis *= 1.0/(norm(axis)+1e-30) ;
       sinAngle = sin(angle);
-      x = (axis.x * sinAngle); 
-      y = (axis.y * sinAngle); 
-      z = (axis.z * sinAngle); 
+      x = (axis.x * sinAngle);
+      y = (axis.y * sinAngle);
+      z = (axis.z * sinAngle);
       w = cos(angle);
     }
     Quaternion operator*(const Quaternion &q) const {
-      vector3d<real_t> vector1(x,y,z), vector2(q.x,q.y,q.z); 
+      vector3d<real_t> vector1(x,y,z), vector2(q.x,q.y,q.z);
 
-      const real_t angle = ((w * q.w) - (dot(vector1, vector2))); 
+      const real_t angle = ((w * q.w) - (dot(vector1, vector2)));
       const vector3d<real_t> across = cross(vector1, vector2);
       vector1 *= q.w ;
       vector2 *= w ;
-      Quaternion result; 
-      result.x = (vector1.x + vector2.x + across.x); 
-      result.y = (vector1.y + vector2.y + across.y); 
-      result.z = (vector1.z + vector2.z + across.z); 
+      Quaternion result;
+      result.x = (vector1.x + vector2.x + across.x);
+      result.y = (vector1.y + vector2.y + across.y);
+      result.z = (vector1.z + vector2.z + across.z);
       result.w = angle;
       return result ;
     }
     Quaternion &Normalize() {
-      // reciprocal of the l2 norm 
+      // reciprocal of the l2 norm
       const real_t rl2 = 1.0 / sqrt((x*x) + (y*y) + (z*z) + (w*w)) ;
       x*=rl2 ;
       y*=rl2 ;
@@ -41,12 +41,12 @@ namespace Loci {
       w*=rl2 ;
       return *this ;
     }
-    
+
     Quaternion Inverse() const {
       Quaternion result = *this ;
-      result.x *= -1 ; 
-      result.y *= -1 ; 
-      result.z *= -1 ; 
+      result.x *= -1 ;
+      result.y *= -1 ;
+      result.z *= -1 ;
       return result ;
     }
     vector3d<real_t> operator*(const vector3d<real_t> &v) const {
@@ -105,7 +105,7 @@ namespace Loci {
     // Get motion transform from current state
     virtual componentXform getXform(const std::vector<real_t> &state) const = 0 ;
   } ;
-  
+
   // Find the time interval that we are splining
   int findt(const std::vector<real_t> &t, real_t tval) ;
   // Compute spline derivatives for hermite spline
@@ -115,7 +115,7 @@ namespace Loci {
   real_t spline(int ind,real_t tval,const std::vector<real_t> &t,
                 const std::vector<real_t> &x,
                 const std::vector<real_t> &xp) ;
-  
+
   struct motionSplines {
     std::vector<real_t> t,x,y,z,q0,q1,q2,q3 ;
     std::vector<real_t> xp,yp,zp,q0p,q1p,q2p,q3p ;
@@ -178,7 +178,7 @@ namespace Loci {
   class interpolate_points {
   public:
     Loci::kdTree::KDTree<float> *kd ;
-    store<vector3d<real_t> > pos ;
+    store<vector3d<double> > pos ;
     store<int> posid ;
     std::vector<int> distribution ;
     interpolate_points &operator=(const interpolate_points &in) {
@@ -228,7 +228,7 @@ namespace Loci {
   } ;
 
   struct stencil_info {
-    std::vector<Loci::Array<real_t,4> > weights ;
+    std::vector<Loci::Array<double,4> > weights ;
     std::vector<Loci::Array<int ,4> > stencils ;
     std::vector<int> send_info, req_sizes, snd_sizes ;
     Loci::storeRepP slookup ;

@@ -219,18 +219,12 @@ namespace Loci {
         int rank = 1 ;
         hid_t dataspace = H5Screate_simple(rank, &dimension, NULL) ;
         hid_t datatype = H5T_NATIVE_INT ;
-#ifdef H5_USE_16_API
-        hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,H5P_DEFAULT) ;
-#else
-        hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+        hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,
+				  H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
         H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.is_stat) ;
         H5Dclose(dataset) ;
-#ifdef H5_USE_16_API
-        dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,H5P_DEFAULT) ;
-#else
-        dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+        dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,
+			    H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
         H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.size) ;
         H5Dclose(dataset) ;
         H5Sclose(dataspace) ;
@@ -238,13 +232,8 @@ namespace Loci {
           rank = 1 ;
           dimension = 1 ;
           dataspace = H5Screate_simple(rank,&dimension,NULL) ;
-#ifdef H5_USE_16_API
-          hid_t dataset = H5Dcreate(group_id,"second_level",H5T_NATIVE_INT,
-                                    dataspace,H5P_DEFAULT) ;
-#else
           hid_t dataset = H5Dcreate(group_id,"second_level",H5T_NATIVE_INT,
                                     dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
 
           hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
           H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, &fi.second_level[0]) ;
@@ -271,21 +260,15 @@ namespace Loci {
       int rank = 1 ;
       hid_t dataspace = H5Screate_simple(rank, &dimension, NULL) ;
       hid_t datatype = H5T_NATIVE_INT ;
-#ifdef H5_USE_16_API
-      hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,H5P_DEFAULT) ;
-#else
-      hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+      hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,
+				H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
       
       if(prank==0) {
         H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.is_stat) ;
       }
       H5Dclose(dataset) ;
-#ifdef H5_USE_16_API
-      dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,H5P_DEFAULT) ;
-#else
-      dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+      dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,
+			  H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
       if(prank==0) {
         H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.size) ;
       }
@@ -295,13 +278,8 @@ namespace Loci {
         rank = 1 ;
         dimension = 1 ;
         dataspace = H5Screate_simple(rank,&dimension,NULL) ;
-#ifdef H5_USE_16_API
-        hid_t dataset = H5Dcreate(group_id,"second_level",H5T_NATIVE_INT,
-                                  dataspace,H5P_DEFAULT) ;
-#else
         hid_t dataset = H5Dcreate(group_id,"second_level",H5T_NATIVE_INT,
                                   dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
         if(prank==0) {
           hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
           H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, &fi.second_level[0]) ;
@@ -325,18 +303,12 @@ namespace Loci {
         int rank = 1 ;
         hid_t dataspace = H5Screate_simple(rank, &dimension, NULL) ;
         hid_t datatype = H5T_NATIVE_INT ;
-#ifdef H5_USE_16_API
-        hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,H5P_DEFAULT) ;
-#else
-        hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+        hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,
+				  H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
         H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.is_stat) ;
         H5Dclose(dataset) ;
-#ifdef H5_USE_16_API
-        dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,H5P_DEFAULT) ;
-#else
-        dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+        dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,
+			    H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
         H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.size) ;
         H5Dclose(dataset) ;
         H5Sclose(dataspace) ;
@@ -373,20 +345,14 @@ namespace Loci {
       int rank = 1 ;
       hid_t dataspace = H5Screate_simple(rank, &dimension, NULL) ;
       hid_t datatype = H5T_NATIVE_INT ;
-#ifdef H5_USE_16_API
-      hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,H5P_DEFAULT) ;
-#else
-      hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+      hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,
+				H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
       if(prank==0) {
         H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.is_stat) ;
       }
       H5Dclose(dataset) ;
-#ifdef H5_USE_16_API
-      dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,H5P_DEFAULT) ;
-#else
-      dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+      dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,
+			  H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
       if(prank==0) {
         H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.size) ;
       }
@@ -423,29 +389,17 @@ namespace Loci {
       frame_info fi ;
       if(prank == 0) {
         hid_t datatype = H5T_NATIVE_INT ;
-#ifdef H5_USE_16_API
-        hid_t dataset = H5Dopen(group_id, "is_stat") ;
-#else
         hid_t dataset = H5Dopen(group_id, "is_stat",H5P_DEFAULT) ;
-#endif
 
         H5Dread(dataset,datatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &is_stat) ;
         H5Dclose(dataset) ;
-#ifdef H5_USE_16_API
-        dataset = H5Dopen(group_id, "vec_size") ;
-#else
         dataset = H5Dopen(group_id, "vec_size",H5P_DEFAULT) ;
-#endif
         H5Dread(dataset,datatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &sz) ;
         H5Dclose(dataset) ;
         fi.is_stat = is_stat ;
         fi.size = sz ;
         if(is_stat != 0) {
-#ifdef H5_USE_16_API
-          hid_t dataset = H5Dopen(group_id, "second_level") ;
-#else
           hid_t dataset = H5Dopen(group_id, "second_level",H5P_DEFAULT) ;
-#endif
           hid_t dataspace = H5Dget_space(dataset) ;
           hsize_t dimension = 1 ;
           H5Sget_simple_extent_dims(dataspace, &dimension, NULL) ;
@@ -473,18 +427,10 @@ namespace Loci {
       // read in is_stat and vector size
       if(prank == 0) {
         hid_t datatype = H5T_NATIVE_INT ;
-#ifdef H5_USE_16_API
-        hid_t dataset = H5Dopen(group_id, "is_stat") ;
-#else
         hid_t dataset = H5Dopen(group_id, "is_stat",H5P_DEFAULT) ;
-#endif
         H5Dread(dataset,datatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &is_stat) ;
         H5Dclose(dataset) ;
-#ifdef H5_USE_16_API
-        dataset = H5Dopen(group_id, "vec_size") ;
-#else
         dataset = H5Dopen(group_id, "vec_size",H5P_DEFAULT) ;
-#endif
         H5Dread(dataset,datatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &sz) ;
         H5Dclose(dataset) ;
       }
@@ -526,18 +472,10 @@ namespace Loci {
       //read in is_stat and vec_size using MPI_IO
       if(prank == 0) {
         hid_t datatype = H5T_NATIVE_INT ;
-#ifdef H5_USE_16_API
-        hid_t dataset = H5Dopen(group_id, "is_stat") ;
-#else
         hid_t dataset = H5Dopen(group_id, "is_stat",H5P_DEFAULT) ;
-#endif
         H5Dread(dataset,datatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &is_stat) ;
         H5Dclose(dataset) ;
-#ifdef H5_USE_16_API
-        dataset = H5Dopen(group_id, "vec_size") ;
-#else
         dataset = H5Dopen(group_id, "vec_size",H5P_DEFAULT) ;
-#endif
         H5Dread(dataset,datatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &sz) ;
         H5Dclose(dataset) ;
       }
@@ -594,11 +532,7 @@ namespace Loci {
           array_size = 1 ;
         hsize_t dimension = array_size ;
         int rank = 1 ;
-#ifdef H5_INTERFACE_1_6_4
         hsize_t start = 0 ;
-#else
-        hssize_t start = 0 ;
-#endif
         hsize_t stride = 1 ;
         hsize_t count = array_size ;
 
@@ -608,11 +542,8 @@ namespace Loci {
         H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
         dimension = count ;
         start += dimension ;
-#ifdef H5_USE_16_API
-        hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT) ;
-#else
-        hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+        hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace,
+				  H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
         entitySet dom = ~EMPTY ;
         qrep->writehdf5(group_id, dataspace, dataset, dimension, "data", dom) ;
         H5Dclose(dataset) ;
@@ -649,11 +580,7 @@ namespace Loci {
         array_size = 1 ;
       hsize_t dimension = array_size ;
       int rank = 1 ;
-#ifdef H5_INTERFACE_1_6_4
       hsize_t start = 0 ;
-#else
-      hssize_t start = 0 ;
-#endif
       hsize_t stride = 1 ;
       hsize_t count = array_size ;
 
@@ -663,11 +590,8 @@ namespace Loci {
       H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
       dimension = count ;
       start += dimension ;
-#ifdef H5_USE_16_API
-      hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT) ;
-#else
-      hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+      hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace,
+				H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
       entitySet dom = ~EMPTY ;
       //only process 0 do the writing, and use non-parallel
       if(prank==0)  qrep->writehdf5(group_id, dataspace, dataset, dimension, "data", dom) ;
@@ -759,11 +683,7 @@ namespace Loci {
         // Begin writing array
         int rank = 1 ;
         hsize_t dimension = 1 ;
-#ifdef H5_INTERFACE_1_6_4
         hsize_t start = 0 ;
-#else
-        hssize_t start = 0 ;
-#endif
         hsize_t stride = 1 ;
         hsize_t count = arr_sizes[0] ;
         dimension =  tot_arr_size ;
@@ -775,11 +695,8 @@ namespace Loci {
           H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
           dimension = count ;
           start += dimension ;
-#ifdef H5_USE_16_API
-          hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT) ;
-#else
-          hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+          hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace,
+				    H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
           qrep->writehdf5(group_id, dataspace, dataset, dimension, "data", dom) ;
           H5Dclose(dataset) ;
 
@@ -808,11 +725,7 @@ namespace Loci {
             H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
             start += count ;
 
-#ifdef H5_USE_16_API
-            dataset = H5Dopen(group_id, "data") ;
-#else
             dataset = H5Dopen(group_id, "data",H5P_DEFAULT) ;
-#endif
 
             t_qrep->writehdf5(group_id, dataspace, dataset, dimension, "data", tmpset) ;
             t_qrep->allocate(EMPTY) ;
@@ -906,11 +819,7 @@ namespace Loci {
    
       int rank = 1 ;
       hsize_t dimension = 1 ;
-#ifdef H5_INTERFACE_1_6_4
       hsize_t start = 0 ;
-#else
-      hssize_t start = 0 ;
-#endif
       hsize_t stride = 1 ;
       hsize_t count = arr_sizes[prank] ;
 
@@ -923,11 +832,8 @@ namespace Loci {
 
         DatatypeP dp = qrep->getType() ;
         hid_t datatype = dp->get_hdf5_type() ;
-#ifdef H5_USE_16_API
-        hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT) ;
-#else
-        hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+        hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace,
+				  H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
         
         H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
         dimension = count ;
@@ -1080,17 +986,9 @@ namespace Loci {
         qrep->unpack(tmp_buf, loc_unpack, total_size, tmp_seq) ;
       } else {
         // processor zero
-#ifdef H5_USE_16_API
-        hid_t dataset =  H5Dopen(group_id, "data") ;
-#else
         hid_t dataset =  H5Dopen(group_id, "data",H5P_DEFAULT) ;
-#endif
         hid_t dataspace = H5Dget_space(dataset) ;
-#ifdef H5_INTERFACE_1_6_4
         hsize_t start = 0 ;
-#else
-        hssize_t start = 0 ;
-#endif
         hsize_t stride = 1 ;
         hsize_t count = 0 ;
         int curr_indx = 0 ;
@@ -1267,17 +1165,9 @@ namespace Loci {
       std::vector<int> arr_sizes = all_collect_sizes(array_size,comm) ;
          
       //  each process open dataset and read in data
-#ifdef H5_USE_16_API
-      hid_t dataset =  H5Dopen(group_id, "data") ;
-#else
       hid_t dataset =  H5Dopen(group_id, "data",H5P_DEFAULT) ;
-#endif
       hid_t dataspace = H5Dget_space(dataset) ;
-#ifdef H5_INTERFACE_1_6_4
       hsize_t start = 0 ;
-#else
-      hssize_t start = 0 ;
-#endif
       hsize_t stride = 1 ;
       hsize_t count = 0 ;
       
@@ -1348,11 +1238,7 @@ namespace Loci {
       }
 
       hid_t dimension = array_size ;
-#ifdef H5_USE_16_API
-      hid_t dataset =  H5Dopen(group_id, "data") ;
-#else
       hid_t dataset =  H5Dopen(group_id, "data",H5P_DEFAULT) ;
-#endif
       hid_t dataspace = H5Dget_space(dataset) ;
       entitySet dom = ~EMPTY ;
       qrep->readhdf5(group_id, dataspace, dataset, dimension, "data", fi, dom) ;
@@ -1507,14 +1393,14 @@ namespace Loci {
       kd = 0 ;
     }
     // Now get global to file numbering
-    dMap g2f ;
-    g2f = dist->g2fv[kd].Rep() ;
+    Map l2f ;
+    l2f = dist->l2f.Rep() ;
 
     // Compute map from local numbering to file numbering
     Map newnum ;
     newnum.allocate(dom) ;
     FORALL(dom,i) {
-      newnum[i] = g2f[l2g[i]] ;
+      newnum[i] = l2f[i] ; 
     } ENDFORALL ;
 
     int imx = std::numeric_limits<int>::min() ;
@@ -1781,12 +1667,10 @@ namespace Loci {
         kd = 0 ;
       }
 
-      dMap g2f ;
-      g2f = dist->g2fv[kd].Rep() ;
-      Map l2g ;
-      l2g = dist->l2g.Rep() ;
+      Map l2f ;
+      l2f = dist->l2f.Rep() ;
       FORALL(resultSet,i) {
-        newnum[i] = g2f[l2g[i]] ;
+        newnum[i] = l2f[i] ; 
       } ENDFORALL ;
     } else {
       result->copy(input,resultSet) ;
@@ -1892,13 +1776,9 @@ namespace Loci {
     hid_t group_id = 0 ;
     int prank = 0 ;
     MPI_Comm_rank(comm,&prank) ;
-#ifdef H5_USE_16_API
     if(use_parallel_io || prank == 0)
-      group_id = H5Gcreate(file_id, vname.c_str(), 0) ;
-#else
-    if(use_parallel_io || prank == 0)
-      group_id = H5Gcreate(file_id, vname.c_str(), H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+      group_id = H5Gcreate(file_id, vname.c_str(),
+			   H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
     if(var->RepType() != PARAMETER) {
       int offset = 0 ;
       if(use_parallel_io)
@@ -1922,13 +1802,8 @@ namespace Loci {
     int prank = 0 ;
     MPI_Comm_rank(comm,&prank) ;
     hid_t group_id = 0;
-#ifdef H5_USE_16_API
-    if(prank == 0||use_parallel_io)
-      group_id = H5Gopen(file_id, vname.c_str()) ;
-#else
     if(prank == 0||use_parallel_io)
       group_id = H5Gopen(file_id, vname.c_str(),H5P_DEFAULT) ;
-#endif
     if(var->RepType() == PARAMETER) {
       read_parameter(group_id, var, comm) ;
       if(prank == 0 || use_parallel_io)
@@ -1956,13 +1831,9 @@ namespace Loci {
     }
 
     hid_t group_id = 0 ;
-#ifdef H5_USE_16_API
     if(MPI_rank == 0||use_parallel_io)
-      group_id = H5Gcreate(file_id, vname.c_str(), 0) ;
-#else
-    if(MPI_rank == 0||use_parallel_io)
-      group_id = H5Gcreate(file_id, vname.c_str(), H5P_DEFAULT,H5P_DEFAULT, H5P_DEFAULT) ;
-#endif
+      group_id = H5Gcreate(file_id, vname.c_str(),
+			   H5P_DEFAULT,H5P_DEFAULT, H5P_DEFAULT) ;
     // Redistribute container to map from local to global numbering
     if(var->RepType() != PARAMETER && MPI_processes != 1) {
       // parallel store write.. reorder to file numbering then write out
@@ -2002,14 +1873,12 @@ namespace Loci {
       kd = 0 ;
     }
     // Now get global to file numbering
-    dMap g2f ;
-    g2f = dist->g2fv[kd].Rep() ;
-    Map l2g ;
-    l2g = dist->l2g.Rep() ;
+    Map l2f ;
+    l2f = dist->l2f.Rep() ;
 
     // Compute map from local numbering to file numbering
     FORALL(read_set,ii) {
-      minIDfl = min(minIDfl,g2f[l2g[ii]]) ;
+      minIDfl = min(minIDfl,l2f[ii]) ;
     } ENDFORALL ;
     int minIDf = minIDfl ;
     MPI_Allreduce(&minIDfl,&minIDf,1,MPI_INT,MPI_MIN,MPI_COMM_WORLD) ;
@@ -2021,13 +1890,8 @@ namespace Loci {
                                    storeRepP var, entitySet read_set,
                                    fact_db &facts) {
     hid_t group_id = 0;
-#ifdef H5_USE_16_API
-    if(use_parallel_io || MPI_rank == 0)
-      group_id = H5Gopen(file_id, vname.c_str()) ;
-#else
     if(use_parallel_io || MPI_rank == 0)
       group_id = H5Gopen(file_id, vname.c_str(),H5P_DEFAULT) ;
-#endif
     if(var->RepType() == PARAMETER) {
       read_parameter(group_id, var, MPI_COMM_WORLD) ;
       if(use_parallel_io || MPI_rank == 0)
@@ -2088,7 +1952,6 @@ namespace Loci {
 
     int c = 0 ;
     if(MPI_processes > 1) {
-      Map l2g ;
       fact_db::distribute_infoP df = facts.get_distribute_info() ;
       int kd =  getKeyDomain(local_set, df, MPI_COMM_WORLD) ;
       if(kd < 0) {
@@ -2096,11 +1959,10 @@ namespace Loci {
         kd = 0 ;
       }
 
-      l2g = df->l2g.Rep() ;
-      dMap g2f ;
-      g2f = df->g2fv[kd].Rep() ;
+      Map l2f ;
+      l2f = df->l2f.Rep() ;
       FORALL(local_set,ii) {
-        ids[c++] = g2f[l2g[ii]] ;
+        ids[c++] = l2f[ii] ; 
       } ENDFORALL ;
     } else {
       // Note, this means that a single processor run will not be compatible
@@ -2125,11 +1987,8 @@ namespace Loci {
 
     file_id = writeVOGOpen(filename);
     if(MPI_rank == 0 || use_parallel_io) {
-#ifdef H5_USE_16_API
-      group_id = H5Gcreate(file_id,"dataInfo",0) ;
-#else
-      group_id = H5Gcreate(file_id,"dataInfo",H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+      group_id = H5Gcreate(file_id,"dataInfo",
+			   H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
     }
     writeSetIds(group_id,set,facts) ;
     if(MPI_rank == 0 || use_parallel_io)
@@ -2429,6 +2288,90 @@ namespace Loci {
     return dom ;
   }
 
+  // collect file to global map
+  entitySet
+  getF2G2(Map &f2g, entitySet fdom, Map &l2g, Map &l2f, MPI_Comm comm) {
+    // First find out the distribution of the input
+    int p = 0 ;
+    MPI_Comm_size(comm,&p) ;
+    int mn = fdom.Min() ;
+    int mx = fdom.Max() ;
+    vector<int> allmx(p) ;
+    vector<int> allmn(p) ;
+    MPI_Allgather(&mx,1,MPI_INT,&allmx[0],1,MPI_INT,comm) ;
+    MPI_Allgather(&mn,1,MPI_INT,&allmn[0],1,MPI_INT,comm) ;
+    int mnv = allmn[0] ;
+    int mxv = allmx[0] ;
+    vector<int> splits(p) ;
+    int last = allmx[0] ;
+    for(int i=0;i<p-1;++i) {
+      mnv = min(mnv,allmn[i+1]) ;
+      mxv = max(mxv,allmx[i+1]) ;
+      splits[i]=allmx[i] ;
+      if(allmx[i] < allmn[i])
+        splits[i] = last ;
+      else
+        last = splits[i] ;
+    }
+    splits[p-1] = mxv+1 ;
+
+    MapRepP l2fP = l2f ;
+    entitySet FileScope = interval(mnv,mxv) ;
+    entitySet dom = l2fP->preimage(FileScope).first ;
+
+    // return maps to requestors
+    vector<pair<int,int> > datalist(dom.size()) ;
+    int cnt = 0 ;
+    FORALL(dom,ii) {
+      datalist[cnt].second = l2g[ii] ; // global number
+      datalist[cnt].first = l2f[ii] ; // global number
+      cnt++ ;
+    } ENDFORALL ;
+    sort(datalist.begin(),datalist.end()) ;
+    vector<int> sendszs(p,0) ;
+    cnt = 0 ;
+    for(size_t i=0;i<datalist.size();++i) {
+      int f = datalist[i].first ;
+      while(f > splits[cnt] && cnt < p)
+        cnt++ ;
+      sendszs[cnt]++ ;
+    }
+    vector<int> recvszs(p,0) ;
+    MPI_Alltoall(&sendszs[0],1,MPI_INT, &recvszs[0],1,MPI_INT, comm) ;
+
+    vector<int> send_dspl(p),recv_dspl(p) ;
+    send_dspl[0] = 0 ;
+    recv_dspl[0] = 0 ;
+    for(int i=1;i<p;++i) {
+      send_dspl[i] = send_dspl[i-1] + sendszs[i-1] ;
+      recv_dspl[i] = recv_dspl[i-1] + recvszs[i-1] ;
+    }
+    int recv_sz = recv_dspl[p-1] + recvszs[p-1] ;
+
+    size_t send_sz = send_dspl[p-1] + sendszs[p-1] ;
+    if(send_sz != datalist.size()) {
+      cerr << "internal error in getF2G()!" << endl ;
+    }
+    vector<pair<int,int> > datarecv(recv_sz) ;
+    for(int i=0;i<p;++i) {
+      int scale = sizeof(pair<int,int>) ;
+      sendszs[i] *= scale ;
+      recvszs[i] *= scale ;
+      send_dspl[i] *= scale ;
+      recv_dspl[i] *= scale ;
+    }
+    MPI_Alltoallv(&datalist[0], &sendszs[0], &send_dspl[0], MPI_BYTE,
+                  &datarecv[0], &recvszs[0], &recv_dspl[0], MPI_BYTE,
+                  comm) ;
+    entitySet rdom ;
+    for(int i=0;i<recv_sz;++i)
+      rdom += datarecv[i].first ;
+    f2g.allocate(rdom) ;
+    for(int i=0;i<recv_sz;++i)
+      f2g[datarecv[i].first] = datarecv[i].second ;
+    return dom ;
+  }
+
   void File2LocalOrderGeneral(storeRepP &result, entitySet resultSet,
                               storeRepP input, int offset,
                               fact_db::distribute_infoP dist,
@@ -2446,8 +2389,8 @@ namespace Loci {
       kd = 0 ;
     }
 
-    dMap g2f ;
-    g2f = dist->g2fv[kd].Rep() ;
+    Map l2f ;
+    l2f = dist->l2f.Rep() ;
     Map l2g ;
     l2g = dist->l2g.Rep() ;
 
@@ -2455,7 +2398,7 @@ namespace Loci {
     entitySet fdom = input->domain() ;
     fdom = fdom >> offset ;
     // gdom is the global entitys on source processor.
-    entitySet gdom = getF2G(F2G,fdom, g2f, comm) ;
+    entitySet gdom = getF2G2(F2G,fdom, l2g, l2f, comm) ;
 
     int p = 0 ;
     MPI_Comm_size(comm,&p) ;
@@ -2502,21 +2445,17 @@ namespace Loci {
   }
 
   void getL2FMap(Map &l2f, entitySet dom, fact_db::distribute_infoP dist) {
-    l2f.allocate(dom) ;
     if(dist == 0) {
+      l2f.allocate(dom) ;
       FORALL(dom,ii) {
         l2f[ii] = ii-dom.Min() ;
       } ENDFORALL ;
     } else {
+      l2f.allocate(dom) ;
       // first compute distribution of file numbered data
-      dMap g2f ;
-      g2f = dist->g2f.Rep() ;
-      // Get mapping from local to global numbering
-      Map l2g ;
-      l2g = dist->l2g.Rep() ;
       int mnl = std::numeric_limits<int>::max() ;
       FORALL(dom,ii) {
-        l2f[ii] = g2f[l2g[ii]] ;
+        l2f[ii] = dist->l2f[ii] ; 
         mnl = min(mnl,l2f[ii]) ;
       } ENDFORALL ;
       int mn=mnl ;

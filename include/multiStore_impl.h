@@ -29,19 +29,19 @@ namespace Loci {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #endif
-  template <class T> 
+  template <class T>
   inline std::ostream & operator<<(std::ostream &s, const multiStore<T> &m)
   { return m.Print(s) ; }
 
   //************************************************************************/
 
-  template<class T> 
+  template<class T>
   inline std::istream & operator>>(std::istream &s, multiStore<T> &m)
   { return m.Input(s) ; }
- 
+
   //************************************************************************/
-  template<class T> 
-  void multiStore<T>::notification() 
+  template<class T>
+  void multiStore<T>::notification()
   {
     NPTR<storeType> p(Rep()) ;
     if(p != 0)
@@ -49,14 +49,14 @@ namespace Loci {
     warn(p == 0) ;
   }
   //************************************************************************/
-  template<class T> 
+  template<class T>
   store_instance::instance_type
   const_multiStore<T>::access() const
   { return READ_ONLY ; }
 
   //*************************************************************************/
-  template<class T> 
-  void const_multiStore<T>::notification() 
+  template<class T>
+  void const_multiStore<T>::notification()
   {
     NPTR<storeType> p(Rep()) ;
     if(p != 0)
@@ -65,120 +65,35 @@ namespace Loci {
   }
 
   //*************************************************************************/
-  template<class T> 
-  void multiStoreRepI<T>::allocate(const store<int> &sizes) 
+  template<class T>
+  void multiStoreRepI<T>::allocate(const store<int> &sizes)
   {
+    if(alloc_id < 0)
+      alloc_id = getStoreAllocateID() ;
     //-------------------------------------------------------------------------
-    // Objective: Allocate memeory for multiStore data. This call reclaims 
+    // Objective: Allocate memeory for multiStore data. This call reclaims
     // all previously held memory
     //-------------------------------------------------------------------------
     // Assign new entitySet ...
+
     entitySet ptn = sizes.domain() ;
-    if(index) {
-#ifdef PAGE_ALLOCATE
-      // Call destructor for all allocated objects in container
-      for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
-	p->~T() ;
-      // release allocated objects
-      pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
-		  alloc_pointer) ;
-      // release index pointer array
-      pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
-#else
-      delete[] index ;
-      delete[] alloc_pointer ;
-#endif
-    }
+    int cntid = sizes.Rep()->get_alloc_id() ;
+    storeAllocateData[alloc_id].template release<T>() ;
+    storeAllocateData[alloc_id].template
+      allocMulti<T>(storeAllocateData[cntid],ptn) ;
 
-    store_domain  = ptn ;
-    alloc_pointer = 0 ;
-    index = 0 ;
-    base_ptr = 0 ;
-    
-    size_t sz = 0 ;
-    if(ptn != EMPTY) {
-      int top  = ptn.Min() ;
-      int len  = ptn.Max() - top + 2 ;
-#ifdef PAGE_ALLOCATE
-      index = pageAlloc(len,index) ;
-#else
-      index    = new T *[len] ;
-#endif
-      base_ptr = index - top ;
+    base_ptr = ((T **)storeAllocateData[alloc_id].alloc_ptr2 -
+		storeAllocateData[alloc_id].base_offset) ;
 
-      FORALL(ptn,i) {
-        sz += sizes[i] ;
-      } ENDFORALL ;
+    store_domain = ptn ;
 
-#ifdef PAGE_ALLOCATE
-      alloc_pointer = pageAlloc(sz+1,alloc_pointer) ;
-      for(size_t i=0;i<sz+1;++i)
-	new (&alloc_pointer[i]) T() ;
-#else
-      alloc_pointer = new T[sz+1] ;
-#endif
-      sz = 0 ;
-      for(size_t ivl=0;ivl< ptn.num_intervals(); ++ivl) {
-        int i       = ptn[ivl].first ;
-        base_ptr[i] = alloc_pointer + sz ;
-        while(i<=ptn[ivl].second) {
-          sz += sizes[i] ;
-          ++i ;
-          base_ptr[i] = alloc_pointer + sz ;
-        }
-      }
-
-    }
     dispatch_notify();
   }
 
-  //*************************************************************************/
-
-  template<class T> 
-  void multiStoreRepI<T>::multialloc(const store<int> &count, T ***index, 
-                                     T **alloc_pointer, T ***base_ptr ) {
-    entitySet ptn = count.domain() ;
-    int top = ptn.Min() ;
-    int len = ptn.Max() - top + 2 ;
-    T **new_index = 0 ;
-#ifdef PAGE_ALLOCATE
-    new_index = pageAlloc(len,new_index) ;
-#else
-    new_index = new T *[len] ;
-#endif
-    T **new_base_ptr = new_index - top ;
-    size_t sz = 0 ;
-    
-    FORALL(ptn, i) {
-      sz += count[i] ;
-    } ENDFORALL ;
-    
-    T *new_alloc_pointer = 0 ;
-#ifdef PAGE_ALLOCATE
-    alloc_pointer = pageAlloc(sz+1,alloc_pointer) ;
-    for(size_t i=0;i<sz+1;++i)
-      new (&alloc_pointer[i]) T() ;
-#else
-    new_alloc_pointer = new T[sz + 1] ;
-#endif
-    sz = 0 ;
-    
-    for(size_t ivl = 0; ivl < ptn.num_intervals(); ++ivl) {
-      int i = ptn[ivl].first ;
-      new_base_ptr[i] = new_alloc_pointer + sz ;
-      while(i <= ptn[ivl].second) {
-	sz += count[i] ;
-	++i ;
-	new_base_ptr[i] = new_alloc_pointer + sz ;
-      }
-    }
-    
-    *base_ptr = new_base_ptr ;
-  }
 
   //*************************************************************************/
-   
-  template<class T> 
+
+  template<class T>
   void multiStoreRepI<T>::setSizes(const const_multiMap &mm)
   {
     //------------------------------------------------------------------------
@@ -187,58 +102,28 @@ namespace Loci {
 
     mutex.lock() ;
 
-    if(alloc_pointer != 0 && base_ptr[store_domain.Min()] == base_ptr[store_domain.Max()]) {
-#ifdef PAGE_ALLOCATE
-      // Call destructor for all allocated objects in container
-      for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
-	p->~T() ;
-      // release allocated objects
-      pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
-		  alloc_pointer) ;
-      // release index pointer array
-      pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
-#else
-      delete[] alloc_pointer ;
-      delete[] index ;
-#endif
-      index = 0 ;
-      alloc_pointer = 0 ;
-    }
+    store<int> sizes ;
+    sizes.allocate(store_domain) ;
+    FORALL(store_domain,i) {
+      sizes[i] = 0 ;
+    } ENDFORALL ;
+    entitySet map_set = mm.domain() & store_domain ;
+    FORALL(map_set,i) {
+      sizes[i] = (mm.end(i) - mm.begin(i)) ;
+    } ENDFORALL ;
+    allocate(sizes) ;
 
-    if(alloc_pointer != 0) {
-      entitySet map_set = mm.domain() & store_domain ;
-      entitySet problem ;
-      FORALL(map_set,i) {
-        if((end(i)-begin(i))<(mm.end(i)-mm.begin(i)))
-          problem += i ;
-      } ENDFORALL ;
-
-      if(problem != EMPTY) {
-        std::cerr << "reallocation of multiStore required for entities"
-                  << problem << endl
-                  << "Currently this reallocation isn't implemented."
-                  << endl ;
-      }
-    } else {
-      store<int> sizes ;
-      sizes.allocate(store_domain) ;
-      FORALL(store_domain,i) {
-        sizes[i] = 0 ;
-      } ENDFORALL ;
-      entitySet map_set = mm.domain() & store_domain ;
-      FORALL(map_set,i) {
-        sizes[i] = (mm.end(i) - mm.begin(i)) ;
-      } ENDFORALL ;
-      allocate(sizes) ;
-    }
     mutex.unlock() ;
   }
 
   //*************************************************************************/
-  
-  template<class T> 
-  void multiStoreRepI<T>::allocate(const entitySet &ptn) 
+
+  template<class T>
+  void multiStoreRepI<T>::allocate(const entitySet &ptn)
   {
+
+    if(alloc_id < 0)
+      alloc_id = getStoreAllocateID() ;
     //------------------------------------------------------------------------
     // Objective : allocate memory specified by the entitySet. Allocation
     // doesn't resize the memory, therefore reclaims previously held memory.
@@ -246,107 +131,76 @@ namespace Loci {
     if(ptn == store_domain)
       return ;
 
-    if(index) {
-#ifdef PAGE_ALLOCATE
-      // Call destructor for all allocated objects in container
-      for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
-	p->~T() ;
-      // release allocated objects
-      pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
-		  alloc_pointer) ;
-      // release index pointer array
-      pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
-#else
-      delete[] alloc_pointer ;
-      delete[] index ;
-#endif
-    }
-
-    alloc_pointer = 0 ;
-    index         = 0 ;
-    
-    base_ptr      = 0 ;
-
-    store_domain  = ptn ;
 
     //-------------------------------------------------------------------------
-    // Initialize degree of each entity to zero 
+    // Initialize degree of each entity to zero
     //-------------------------------------------------------------------------
 
     store<int> count ;
     count.allocate(ptn) ;
-    
+
     FORALL(ptn,i) {
       count[i] = 0 ;
     } ENDFORALL ;
-    
+
     allocate(count) ;
 
-    //-------------------------------------------------------------------------
-    // Notify all observers ...
-    //-------------------------------------------------------------------------
-
-    dispatch_notify() ;
   }
 
   template<class T>
   void multiStoreRepI<T>::shift(int_type offset) {
+    if(alloc_id < 0)
+      alloc_id = getStoreAllocateID() ;
+
     store_domain >>= offset ;
-    allocate(store_domain) ;
+    storeAllocateData[alloc_id].allocset >>= offset ;
+    storeAllocateData[alloc_id].base_offset += offset ;
+    base_ptr = get_base_ptr() ;
+    dispatch_notify() ;
   }
   //*************************************************************************/
 
-  template<class T> 
-  multiStoreRepI<T>::~multiStoreRepI() 
+  template<class T>
+  multiStoreRepI<T>::~multiStoreRepI()
   {
-    if(index) {
-#ifdef PAGE_ALLOCATE
-      // Call destructor for all allocated objects in container
-      for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
-	p->~T() ;
-      // release allocated objects
-      pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
-		  alloc_pointer) ;
-      // release index pointer array
-      pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
-#else
-      delete[] index ;    
-      delete[] alloc_pointer ;
-#endif
+    if(alloc_id>=0) {
+      storeAllocateData[alloc_id].template release<T>() ;
+      releaseStoreAllocateID(alloc_id) ;
+      alloc_id = -1 ;
     }
   }
 
   //*************************************************************************/
 
-  template<class T> 
-  storeRep *multiStoreRepI<T>::new_store(const entitySet &p) const 
+  template<class T>
+  storeRep *multiStoreRepI<T>::new_store(const entitySet &p) const
   {
     store<int> count ;
     count.allocate(p) ;
     entitySet ent = p - domain() ;
-    
+
     for(entitySet::const_iterator ei = p.begin(); ei != p.end(); ++ei)
       count[*ei] = base_ptr[*ei+1] - base_ptr[*ei] ;
-    
+
     for(entitySet::const_iterator ei = ent.begin(); ei != ent.end(); ++ei)
       count[*ei] = 0 ;
-    
+
     return new multiStoreRepI<T>(count) ;
   }
-  template<class T> 
+  template<class T>
   storeRep *multiStoreRepI<T>::new_store(const entitySet &p, const int* cnt) const {
     store<int> count ;
     count.allocate(p) ;
     int t= 0 ;
     FORALL(p, pi) {
-      count[pi] = cnt[t++] ; 
+      count[pi] = cnt[t++] ;
     } ENDFORALL ;
     return new multiStoreRepI<T>(count) ;
   }
   //*************************************************************************/
 
-  template<class T> 
-  storeRepP multiStoreRepI<T>::remap(const dMap &m) const 
+  template<class T>
+  storeRepP multiStoreRepI<T>::remap(const dMap &m) const
   {
 
     entitySet newdomain = m.domain() & domain() ;
@@ -378,115 +232,92 @@ namespace Loci {
   }
 
   //*************************************************************************/
-  
-  template<class T> 
-  void multiStoreRepI<T>::copy(storeRepP &st, const entitySet &context) 
+
+  template<class T>
+  void multiStoreRepI<T>::copy(storeRepP &st, const entitySet &context)
   {
     const_multiStore<T> s(st) ;
-    fatal(alloc_pointer == 0) ;
+    fatal(base_ptr == 0) ;
     fatal((context - domain()) != EMPTY) ;
     fatal((context - s.domain()) != EMPTY) ;
     store<int> count ;
     count.allocate(domain()) ;
-    
+
     FORALL(domain() - context, i) {
       count[i] = base_ptr[i+1] - base_ptr[i] ;
     } ENDFORALL ;
-    
+
     FORALL(context, i) {
       count[i] = s.end(i) - s.begin(i) ;
     } ENDFORALL ;
-    
-    T **new_index ;
-    T *new_alloc_pointer ;
-    T **new_base_ptr ;
-    
-    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
 
+    // Allocate a temporary copy for the copy
+    int cntid = count.Rep()->get_alloc_id() ;
+    storeAllocateInfo tmp ;
+    tmp.template allocMulti<T>(storeAllocateData[cntid],count.domain()) ;
+
+    T **new_base_ptr = ((T **)tmp.alloc_ptr2 -
+			     tmp.base_offset) ;
+
+    // Copy data to new allocation
     FORALL(domain()-context,i) {
-      for(int j=0;j<count[i];++j) 
+      for(int j=0;j<count[i];++j)
         new_base_ptr[i][j] = base_ptr[i][j] ;
     } ENDFORALL ;
-    
+
     FORALL(context,i) {
       for(int j=0;j<count[i];++j)
         new_base_ptr[i][j] = s[i][j] ;
     } ENDFORALL ;
-    
-    if(index) {
-#ifdef PAGE_ALLOCATE
-      // Call destructor for all allocated objects in container
-      for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
-	p->~T() ;
-      // release allocated objects
-      pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
-		  alloc_pointer) ;
-      // release index pointer array
-      pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
-#else
-      delete[] index ;
-      delete[] alloc_pointer ;
-#endif
-    }
-    alloc_pointer = new_alloc_pointer;
-    index = new_index ;
+    // release old allocation
+    storeAllocateData[alloc_id].template release<T>() ;
+    // copy newly copied temporary to main allocatin
+    storeAllocateData[alloc_id] = tmp ;
     base_ptr = new_base_ptr ;
 
     dispatch_notify() ;
   }
 
   //*************************************************************************/
-  
-  template<class T> 
+
+  template<class T>
   void multiStoreRepI<T>::gather(const dMap &m, storeRepP &st,
-                                 const entitySet &context) 
+                                 const entitySet &context)
   {
     store<int> count ;
     const_multiStore<T> s(st) ;
     count.allocate(domain()) ;
-    
+
     FORALL(domain()-context,i) {
       count[i] = base_ptr[i+1]-base_ptr[i] ;
     } ENDFORALL ;
-    
+
     FORALL(context,i) {
       count[i] = s.end(m[i])-s.begin(m[i]) ;
     } ENDFORALL ;
-    
-    T **new_index ;
-    T *new_alloc_pointer ;
-    T **new_base_ptr ;
 
-    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
-    
+    // Allocate a temporary copy for the copy
+    int cntid = count.Rep()->get_alloc_id() ;
+    storeAllocateInfo tmp ;
+    tmp.template allocMulti<T>(storeAllocateData[cntid],count.domain()) ;
+
+    T **new_base_ptr = ((T **)tmp.alloc_ptr2 -
+			     tmp.base_offset) ;
     FORALL(domain()-context,i) {
-      for(int j = 0; j < count[i]; ++j) 
+      for(int j=0;j<count[i];++j)
         new_base_ptr[i][j] = base_ptr[i][j] ;
     } ENDFORALL ;
 
     FORALL(context,i) {
-      for(int j = 0; j < count[i]; ++j)
+      for(int j=0;j<count[i];++j)
         new_base_ptr[i][j] = s[m[i]][j] ;
     } ENDFORALL ;
 
-    if(index) {
-#ifdef PAGE_ALLOCATE
-      // Call destructor for all allocated objects in container
-      for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
-	p->~T() ;
-      // release allocated objects
-      pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
-		  alloc_pointer) ;
-      // release index pointer array
-      pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
-#else
-      delete[] alloc_pointer ;
-      delete[] index ;
-#endif
-    }
-    alloc_pointer = new_alloc_pointer;
+    // release old allocation
+    storeAllocateData[alloc_id].template release<T>() ;
+    // copy newly copied temporary to main allocatin
+    storeAllocateData[alloc_id] = tmp ;
 
-    index = new_index ;
     base_ptr = new_base_ptr ;
 
     dispatch_notify() ;
@@ -494,86 +325,73 @@ namespace Loci {
 
   //*************************************************************************/
 
-  template<class T> 
+  template<class T>
   void multiStoreRepI<T>::scatter(const dMap &m, storeRepP &st,
-                                  const entitySet &context) 
+                                  const entitySet &context)
   {
     store<int> count;
-    
+
     const_multiStore<T> s(st) ;
     count.allocate(domain());
 
     fatal((context != EMPTY) && (base_ptr == 0)) ;
     fatal((context - s.domain()) != EMPTY) ;
     fatal((context - m.domain()) != EMPTY);
-    
+
     FORALL(domain()-m.image(context),i) {
       count[i] = base_ptr[i+1]-base_ptr[i] ;
     } ENDFORALL ;
-    
+
     FORALL(context,i) {
       count[m[i]] = s.end(i)-s.begin(i) ;
     } ENDFORALL ;
-    
-    T **new_index ;
-    T *new_alloc_pointer ;
-    T **new_base_ptr ;
-    
-    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
-    
-    FORALL(domain() - m.image(context),i) {
-      for(int j=0;j<count[i];++j) 
+
+    // Allocate a temporary copy for the copy
+    int cntid = count.Rep()->get_alloc_id() ;
+    storeAllocateInfo tmp ;
+    tmp.template allocMulti<T>(storeAllocateData[cntid],count.domain()) ;
+
+    T **new_base_ptr = ((T **)tmp.alloc_ptr2 -
+			     tmp.base_offset) ;
+
+    FORALL(domain()-m.image(context),i) {
+      for(int j=0;j<count[i];++j)
         new_base_ptr[i][j] = base_ptr[i][j] ;
     } ENDFORALL ;
-
     FORALL(context,i) {
       for(int j=0;j<count[m[i]];++j) {
         new_base_ptr[m[i]][j] = s[i][j] ;
       }
     } ENDFORALL ;
-    
-    if(index) {
-#ifdef PAGE_ALLOCATE
-      // Call destructor for all allocated objects in container
-      for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
-	p->~T() ;
-      // release allocated objects
-      pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
-		  alloc_pointer) ;
-      // release index pointer array
-      pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
-#else
-      delete[] alloc_pointer;
-      delete[] index ;
-#endif
-    }
-    alloc_pointer = new_alloc_pointer;
-    index = new_index ;
+    // release old allocation
+    storeAllocateData[alloc_id].template release<T>() ;
+    // copy newly copied temporary to main allocatin
+    storeAllocateData[alloc_id] = tmp ;
+
     base_ptr = new_base_ptr ;
-    
     dispatch_notify() ;
   }
 
   //*************************************************************************/
 
-  template<class T> 
-  store_type multiStoreRepI<T>::RepType() const 
+  template<class T>
+  store_type multiStoreRepI<T>::RepType() const
   {
     return STORE ;
   }
 
   //*************************************************************************/
-  
-  template<class T> 
-  entitySet multiStoreRepI<T>::domain() const 
+
+  template<class T>
+  entitySet multiStoreRepI<T>::domain() const
   {
     return store_domain ;
   }
 
   //*************************************************************************/
-  
-  template<class T> 
-  std::ostream &multiStoreRepI<T>::Print(std::ostream &s) const 
+
+  template<class T>
+  std::ostream &multiStoreRepI<T>::Print(std::ostream &s) const
   {
     //-------------------------------------------------------------------------
     // Objective : Print the multiStore data in the output stream.
@@ -590,7 +408,7 @@ namespace Loci {
     } ENDFORALL ;
 
     //-------------------------------------------------------------------------
-    // Write the data of each entity in the domain 
+    // Write the data of each entity in the domain
     //-------------------------------------------------------------------------
 
     FORALL(domain(),ii) {
@@ -608,8 +426,8 @@ namespace Loci {
 
   //*************************************************************************/
 
-  template<class T> 
-  std::istream &multiStoreRepI<T>::Input(std::istream &s) 
+  template<class T>
+  std::istream &multiStoreRepI<T>::Input(std::istream &s)
   {
     //-------------------------------------------------------------------------
     // Objective : Read the multiStore data from the input stream
@@ -629,13 +447,13 @@ namespace Loci {
     //-------------------------------------------------------------------------
     // Read the entitySet intervals ....
     //-------------------------------------------------------------------------
-    
+
     s >> e ;
 
     //-------------------------------------------------------------------------
     // Read the size of each entity in the set ...
     //-------------------------------------------------------------------------
-    
+
     store<int> sizes ;
     sizes.allocate(e) ;
 
@@ -646,10 +464,10 @@ namespace Loci {
     //-------------------------------------------------------------------------
     // read the data
     //-------------------------------------------------------------------------
-    
+
     allocate(sizes) ;
     FORALL(e,ii) {
-      for(T *ip = begin(ii);ip!=end(ii);++ip) 
+      for(T *ip = begin(ii);ip!=end(ii);++ip)
         *ip = T() ;
       Loci::streaminput(begin(ii),end(ii)-begin(ii),s) ;
     } ENDFORALL ;
@@ -657,7 +475,7 @@ namespace Loci {
     //-------------------------------------------------------------------------
     // Look for closing brackets
     //-------------------------------------------------------------------------
-    
+
     do ch = s.get(); while(ch==' ' || ch=='\n') ;
     if(ch != '}') {
       std::cerr << "Incorrect Format while reading store" << std::endl ;
@@ -668,8 +486,8 @@ namespace Loci {
 
   //**************************************************************************/
 
-  template <class T> 
-  inline int multiStoreRepI<T>::get_mpi_size(IDENTITY_CONVERTER c, const entitySet &eset ) 
+  template <class T>
+  inline int multiStoreRepI<T>::get_mpi_size(IDENTITY_CONVERTER c, const entitySet &eset )
   {
 
     int sze = 0 ;
@@ -683,8 +501,8 @@ namespace Loci {
   }
   //**************************************************************************/
 
-  template <class T> 
-  inline int multiStoreRepI<T>::get_estimated_mpi_size(IDENTITY_CONVERTER c, const entitySet &eset ) 
+  template <class T>
+  inline int multiStoreRepI<T>::get_estimated_mpi_size(IDENTITY_CONVERTER c, const entitySet &eset )
   {
 
     int sze;
@@ -693,8 +511,8 @@ namespace Loci {
     return sze ;
   }
   //**************************************************************************/
-  template <class T> 
-  int multiStoreRepI<T>::get_mpi_size(USER_DEFINED_CONVERTER c, const entitySet &eset ) 
+  template <class T>
+  int multiStoreRepI<T>::get_mpi_size(USER_DEFINED_CONVERTER c, const entitySet &eset )
   {
     int        arraySize =0, vsize, numContainers = 0;
 
@@ -716,20 +534,20 @@ namespace Loci {
     return( arraySize*sizeof(typename schema_traits::Converter_Base_Type) +
             numContainers*sizeof(int) );
   }
-  
+
   //**************************************************************************/
-  template <class T> 
-  int multiStoreRepI<T>::get_estimated_mpi_size(USER_DEFINED_CONVERTER c, const entitySet &eset ) 
+  template <class T>
+  int multiStoreRepI<T>::get_estimated_mpi_size(USER_DEFINED_CONVERTER c, const entitySet &eset )
   {
     int  vsize = 4*eset.size()*50*sizeof(double)+
       4*eset.size()*sizeof(int)  +   // size of each object
       eset.size()*sizeof(int);       // size of each entity
-    
+
     return(vsize);
   }
   //**************************************************************************/
-  template <class T> 
-  int multiStoreRepI<T>::pack_size(const entitySet &eset ) 
+  template <class T>
+  int multiStoreRepI<T>::pack_size(const entitySet &eset )
   {
     fatal((eset - domain()) != EMPTY);
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
@@ -738,19 +556,19 @@ namespace Loci {
     warn(eset-domain() != EMPTY) ;
     return get_mpi_size( traits_type, eset );
   }
-  
+
   //**************************************************************************/
-  template <class T> 
-  int multiStoreRepI<T>::estimated_pack_size(const entitySet &eset ) 
+  template <class T>
+  int multiStoreRepI<T>::estimated_pack_size(const entitySet &eset )
   {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_type;
-    return get_estimated_mpi_size( traits_type, eset );  
+    return get_estimated_mpi_size( traits_type, eset );
   }
-  
 
 
-  
+
+
   template<class T> int multiStoreRepI<T>::
   pack_size(const entitySet& e, entitySet& packed) {
     packed = domain() & e ;
@@ -759,28 +577,28 @@ namespace Loci {
       schema_converter;
     schema_converter traits_type;
 
-    return get_mpi_size(traits_type, packed);    
+    return get_mpi_size(traits_type, packed);
   }
   //**************************************************************************/
-  template <class T> 
+  template <class T>
   void multiStoreRepI<T>::packdata( IDENTITY_CONVERTER c, void *outbuf,
                                     int &position,  int outcount,
-                                    const entitySet &eset ) 
+                                    const entitySet &eset )
   {
     int  vsize, incount;
     FORALL(eset,i) {
       vsize   = end(i)-begin(i);
       incount = vsize*sizeof(T);
-      MPI_Pack( &base_ptr[i][0], incount, MPI_BYTE, outbuf, outcount, &position, 
+      MPI_Pack( &base_ptr[i][0], incount, MPI_BYTE, outbuf, outcount, &position,
                 MPI_COMM_WORLD) ;
     } ENDFORALL ;
   }
-  
+
   //**************************************************************************/
-  template <class T> 
-  void multiStoreRepI<T>::packdata( USER_DEFINED_CONVERTER c, void *outbuf, 
+  template <class T>
+  void multiStoreRepI<T>::packdata( USER_DEFINED_CONVERTER c, void *outbuf,
                                     int &position, int outcount,
-                                    const entitySet &eset ) 
+                                    const entitySet &eset )
   {
 
     entitySet::const_iterator ci;
@@ -823,16 +641,16 @@ namespace Loci {
   }
 
   //**************************************************************************/
-  template <class T> 
-  void multiStoreRepI<T>::pack( void *outbuf, int &position, int &outcount, 
-                                const entitySet &eset ) 
+  template <class T>
+  void multiStoreRepI<T>::pack( void *outbuf, int &position, int &outcount,
+                                const entitySet &eset )
   {
 
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_type;
 
     FORALL(eset,ii){
-      size = end(ii) - begin(ii) ;
+      int size = end(ii) - begin(ii) ;
       MPI_Pack( &size, 1, MPI_INT, outbuf, outcount, &position, MPI_COMM_WORLD) ;
     }ENDFORALL ;
 
@@ -840,9 +658,9 @@ namespace Loci {
   }
 
   //**************************************************************************/
-  template <class T> 
-  void multiStoreRepI<T>::unpack(void *ptr, int &loc, int &size, 
-                                 const sequence &seq) 
+  template <class T>
+  void multiStoreRepI<T>::unpack(void *ptr, int &loc, int &size,
+                                 const sequence &seq)
   {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_type;
@@ -854,53 +672,17 @@ namespace Loci {
     store<int> ecount ;
     ecount.allocate(new_dom) ;
 
-    bool conflict = 0 ;
     for(Loci::sequence::const_iterator si = seq.begin(); si != seq.end(); ++si) {
       MPI_Unpack(ptr, size, &loc, &ecount[*si], 1, MPI_INT, MPI_COMM_WORLD) ;
-      if(ecount[*si] != (base_ptr[*si+1] - base_ptr[*si])) conflict = 1 ;
     }
 
-    if(conflict) {
-      T **new_index ;
-      T *new_alloc_pointer ;
-      T **new_base_ptr ; 
-      multialloc(ecount, &new_index, &new_alloc_pointer, &new_base_ptr) ;
-      
-      for(entitySet::const_iterator ei = ent.begin(); ei != ent.end(); ++ei) {
-        for(int j = 0 ; j < ecount[*ei]; ++j) 
-          new_base_ptr[*ei][j] = base_ptr[*ei][j] ;
-      }
-      
-      if(index) {
-#ifdef PAGE_ALLOCATE
-        // Call destructor for all allocated objects in container
-        for(T *p=base_ptr[store_domain.Min()];p!=base_ptr[store_domain.Max()+1];++p)
-          p->~T() ;
-        // release allocated objects
-        pageRelease(base_ptr[store_domain.Max()+1]-base_ptr[store_domain.Min()],
-                    alloc_pointer) ;
-        // release index pointer array
-        pageRelease(store_domain.Max()-store_domain.Min()+1, index) ;
-#else
-	delete [] alloc_pointer ;
-	delete[] index ;
-#endif
-      }
-
-      alloc_pointer = new_alloc_pointer;
-      index = new_index ;
-      base_ptr = new_base_ptr ;
-
-      dispatch_notify() ;
-    }
-
-    unpackdata( traits_type, ptr, loc, size, seq); 
+    unpackdata( traits_type, ptr, loc, size, seq);
   }
 
   //**************************************************************************/
-  template <class T> 
+  template <class T>
   void multiStoreRepI<T>::unpackdata( IDENTITY_CONVERTER c, void *inbuf, int &position,
-                                      int insize, const sequence &seq) 
+                                      int insize, const sequence &seq)
   {
     int   outcount, vsize;
     sequence :: const_iterator si;
@@ -912,12 +694,12 @@ namespace Loci {
                  MPI_COMM_WORLD) ;
     }
   }
-  
+
   //**************************************************************************/
-  template <class T> 
-  void multiStoreRepI<T>::unpackdata( USER_DEFINED_CONVERTER c, void *inbuf, 
+  template <class T>
+  void multiStoreRepI<T>::unpackdata( USER_DEFINED_CONVERTER c, void *inbuf,
                                       int &position, int insize,
-                                      const sequence &seq) 
+                                      const sequence &seq)
   {
     int  stateSize, outcount, vsize;
     sequence :: const_iterator ci;
@@ -944,13 +726,13 @@ namespace Loci {
       }
     }
   }
-  
-  template<class T> 
+
+  template<class T>
   frame_info multiStoreRepI<T>::get_frame_info() {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     return get_frame_info(schema_converter()) ;
   }
-  template<class T> 
+  template<class T>
   frame_info multiStoreRepI<T>::get_frame_info(IDENTITY_CONVERTER g) {
     frame_info fi ;
     fi.is_stat = 0 ;
@@ -963,7 +745,7 @@ namespace Loci {
     }
     return fi ;
   }
-  template<class T> 
+  template<class T>
   frame_info multiStoreRepI<T>::get_frame_info(USER_DEFINED_CONVERTER g) {
     int vsize ;
     entitySet dom = domain() ;
@@ -984,17 +766,17 @@ namespace Loci {
     }
     return fi ;
   }
-  template<class T> 
+  template<class T>
   DatatypeP multiStoreRepI<T>::getType() {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     return getType(schema_converter()) ;
   }
-  template<class T> 
+  template<class T>
   DatatypeP multiStoreRepI<T>::getType(IDENTITY_CONVERTER g) {
     typedef data_schema_traits<T> traits_type;
     return(traits_type::get_type()) ;
   }
-  template<class T> 
+  template<class T>
   DatatypeP multiStoreRepI<T>::getType(USER_DEFINED_CONVERTER g) {
     typedef data_schema_traits<T> schema_traits ;
     typedef typename schema_traits::Converter_Base_Type dtype;
@@ -1002,9 +784,9 @@ namespace Loci {
     return(traits_type::get_type()) ;
   }
   //**************************************************************************/
-  
-  template<class T> 
-  void multiStoreRepI<T>::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset) 
+
+  template<class T>
+  void multiStoreRepI<T>::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset)
   {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_output_type;
@@ -1012,15 +794,15 @@ namespace Loci {
   }
 
 #ifdef H5_HAVE_PARALLEL
-  template<class T> 
-  void multiStoreRepI<T>::readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset, hid_t xfer_plist_id) 
+  template<class T>
+  void multiStoreRepI<T>::readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset, hid_t xfer_plist_id)
   {
     warn(true);
   }
 #endif
   //**************************************************************************/
 
-  template <class T> 
+  template <class T>
   void multiStoreRepI<T>::hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, frame_info &fi, entitySet &eset)
   {
     if(dimension != 0) {
@@ -1037,7 +819,7 @@ namespace Loci {
         cerr << "H5Dread() failed" << endl ;
       }
       int loc = 0 ;
-      for(entitySet::const_iterator si = eset.begin(); si != eset.end();++si) 
+      for(entitySet::const_iterator si = eset.begin(); si != eset.end();++si)
         for(int ivec = 0; ivec < (fi.first_level)[loc]; ivec++) {
           base_ptr[*si][ivec] = tmp_array[tmp++] ;
           loc++ ;
@@ -1048,16 +830,16 @@ namespace Loci {
     }
   }
 
-#ifdef H5_HAVE_PARALLEL 
-  template <class T> 
+#ifdef H5_HAVE_PARALLEL
+  template <class T>
   void multiStoreRepI<T>::hdf5readP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, frame_info &fi, entitySet &eset, hid_t cfer_plist_id)
   {
     warn(true);
   }
-#endif  
+#endif
   //**************************************************************************/
-  
-  template <class T> 
+
+  template <class T>
   void multiStoreRepI<T>::hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER, frame_info &fi, entitySet &eset)
   {
     typedef data_schema_traits<T> schema_traits ;
@@ -1069,7 +851,7 @@ namespace Loci {
       hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
       std::vector<int> vint = fi.second_level ;
       typedef typename schema_traits::Converter_Base_Type dtype;
-      dtype* tmp_array = new dtype[dimension] ;    
+      dtype* tmp_array = new dtype[dimension] ;
       hid_t err = H5Dread(dataset,  datatype, memspace, dataspace,
                           H5P_DEFAULT, tmp_array) ;
       if(err < 0) {
@@ -1088,15 +870,15 @@ namespace Loci {
         }
         loc++ ;
       }
-      
+
       H5Sclose(memspace) ;
       H5Tclose(datatype) ;
       delete [] tmp_array ;
     }
-  }  
+  }
 
-#ifdef H5_HAVE_PARALLEL 
-  template <class T> 
+#ifdef H5_HAVE_PARALLEL
+  template <class T>
   void multiStoreRepI<T>::hdf5readP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER c, frame_info &fi, entitySet &eset, hid_t xfer_plist_id)
   {
     warn(true);
@@ -1104,24 +886,24 @@ namespace Loci {
 #endif
   //**************************************************************************/
 
-  template<class T> 
-  void multiStoreRepI<T>::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet &usr_eset) const 
+  template<class T>
+  void multiStoreRepI<T>::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet &usr_eset) const
   {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_output_type;
     hdf5write(group_id, dataspace, dataset, dimension, name, traits_output_type, usr_eset) ;
   }
-  
+
 #ifdef H5_HAVE_PARALLEL
-  template<class T> 
-  void multiStoreRepI<T>::writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet &usr_eset, hid_t xfer_plist_id) const 
+  template<class T>
+  void multiStoreRepI<T>::writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet &usr_eset, hid_t xfer_plist_id) const
   {
     warn(true);
   }
 #endif
-  
+
   //**************************************************************************/
-  template <class T> 
+  template <class T>
   void multiStoreRepI<T>::hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER g, const entitySet &eset) const
   {
     if(dimension != 0) {
@@ -1146,8 +928,8 @@ namespace Loci {
     }
   }
 
-#ifdef H5_HAVE_PARALLEL 
-  template <class T> 
+#ifdef H5_HAVE_PARALLEL
+  template <class T>
   void multiStoreRepI<T>::hdf5writeP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER g, const entitySet &eset, hid_t xfer_plist_id) const
   {
     warn(true);
@@ -1155,9 +937,9 @@ namespace Loci {
 #endif
   //*************************************************************************/
 
-  template <class T> 
+  template <class T>
   void multiStoreRepI<T>:: hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER g, const entitySet &eset)  const
-  {   
+  {
     typedef data_schema_traits<T> schema_traits ;
     if(dimension != 0) {
       storeRepP qrep = getRep() ;
@@ -1182,12 +964,12 @@ namespace Loci {
       H5Sclose(memspace) ;
       H5Tclose(datatype) ;
       delete [] tmp_array ;
-    }   
+    }
   }
-  template <class T> 
+  template <class T>
   void multiStoreRepI<T>:: hdf5writeP(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER g, const entitySet &eset, hid_t xfer_plist_id)  const
   {
-#ifndef H5_HAVE_PARALLEL    
+#ifndef H5_HAVE_PARALLEL
     hdf5write(group_id,  dataspace, dataset,  dimension,  name,  g, eset);
 #else
     warn(true);

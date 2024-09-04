@@ -51,7 +51,7 @@ void dummyFunctionDependencies(int i) {
   ierr = MatCreateMPIAIJ(MPI_COMM_WORLD,0,0,0,0,0,0,0,0,&m) ;
 #endif
   ierr = KSPSetFromOptions(ksp) ;
-  if(i==0) 
+  if(i==0)
     dummyFunctionDependencies(ierr) ;
 }
 #endif
@@ -105,7 +105,6 @@ using std::ostream ;
 using std::ofstream ;
 using std::string ;
 using std::ostringstream ;
-using std::cout ;
 using std::vector ;
 
 namespace Loci {
@@ -128,9 +127,9 @@ namespace Loci {
   MPI_Op MPI_MFADD_MAX ;
 
   MPI_Info PHDF5_MPI_Info ;
-  
+
   int MPI_processes = 1;
-  int MPI_rank = 0 ; 
+  int MPI_rank = 0 ;
   int MPI_processes_per_host = 1 ;
 
   bool useDebugDir = true ;
@@ -170,11 +169,11 @@ namespace Loci {
   // (more memory conservative and more synchronization
   //  points will be generated)
   bool memory_greedy_schedule = true ;
-  
+
   //use randomized greedy DAG scheduler. Firs the sizes of variables are queried.
   //Then the scheduler is rerun using the sizes as weight.
   bool randomized_memory_greedy_schedule = false;
-  
+
   // flag to disable memory deallocation decoration
   // if use_dynamic_memory==true. this is more of a
   // debugging tool. in this mode, we only have
@@ -197,19 +196,19 @@ namespace Loci {
 #else
   bool use_parallel_io = false ;
 #endif
-  
+
   // space filling curve partitioner
 #ifdef LOCI_USE_METIS
   bool use_sfc_partition = false ;
-#else 
+#else
   // RSM COMMENT 20181108 setting this to true,
   // automatically disables calls to METIS decomposition
-  // when we add support for ZOLTAN this will need to be 
+  // when we add support for ZOLTAN this will need to be
   // REVISITED: METIS_DISABLE_NOTE
   bool use_sfc_partition=true;
 #endif /* ifndef LOCI_USE_METIS */
   bool use_orb_partition = false ;
-  
+
   int metis_cpp_threshold = 384 ;
 
   extern int factdb_allocated_base ;
@@ -223,8 +222,7 @@ namespace Loci {
   // partitioning routine
   bool load_cell_weights = false ;
   string cell_weight_file ;
-  storeRepP cell_weight_store = 0;
-  
+
   // flag to indicate whether multithreading is used for each type of rules
   bool threading_pointwise = false;
   bool threading_global_reduction = false;
@@ -232,6 +230,7 @@ namespace Loci {
   bool threading_chomping = false;
   bool threading_recursion = false;
   int num_threads = 0;
+  int num_thread_blocks = 10; // default 10 blocks per threads
 
 
   ofstream debugout ;
@@ -323,6 +322,10 @@ extern "C" {
 namespace Loci {
   extern   void register_closing_function(void (*fptr)(int code)) ;
 
+#ifdef USE_CUDA_RT
+  extern int setCudaDevice() ;
+#endif
+
   void closeoutMPI(int code) {
     if(code == -1) {
       int MPI_rank ;
@@ -332,7 +335,7 @@ namespace Loci {
     if(code == -2) {
       MPI_Abort(MPI_COMM_WORLD,-1) ;
     }
-    
+
   }
 
   void sumFADd(FADd *rin, FADd *rinout, int *len, MPI_Datatype *dtype) {
@@ -387,7 +390,7 @@ namespace Loci {
   }
 
   MPI_Errhandler Loci_MPI_err_handler ;
-  
+
 
   //This is the first call to be made for any Loci program be it
   //sequential or parallel.
@@ -413,6 +416,7 @@ namespace Loci {
 #else
     MPI_Init(argc, argv) ;
 #endif
+
 
     create_mpi_info(&PHDF5_MPI_Info) ;
 #ifndef MPI_STUBB
@@ -479,7 +483,7 @@ namespace Loci {
 
     }
 #endif
-    
+
     time_duration_to_collect_data = MPI_Wtick()*20;
     signal(SIGTERM,TerminateSignal) ;
 
@@ -616,7 +620,7 @@ namespace Loci {
           i++ ;
 	} else if(!strcmp((*argv)[i],"--pio")) { // turn on parallel IO
 #ifdef H5_HAVE_PARALLEL
-	  if(MPI_processes > 1) 
+	  if(MPI_processes > 1)
 	    use_parallel_io = true ;
 	  else {
 	    use_parallel_io = false ;
@@ -633,6 +637,13 @@ namespace Loci {
 #endif
 	  i++ ;
 	  use_parallel_io = false ;
+	} else if(!strcmp((*argv)[i],"--max_gpu_stream")) {
+	  int num = atoi((*argv)[i+1]) ;
+	  i+=2 ;
+	  num = max(1,min(8,num)) ;
+#ifdef USE_CUDA_RT
+	  MAXGPUStreamAlloc = 1<<num ;
+#endif
 	} else if(!strcmp((*argv)[i],"--metis_cpp_threshold")) {
             metis_cpp_threshold = atoi((*argv)[i+1]);
 	    i+=2;
@@ -768,20 +779,27 @@ namespace Loci {
           // ideally we would like to detect the available
           // hardware threads on a given platform automatically,
           // this is a work in the future.
-          
+
           // but right now, we will accept the user inputs
           // and check if it is reasonable
           int nt = atoi( (*argv)[i+1]);
-          if(nt < 0 || nt > 20)
+          if(nt < 0 || nt > 128)
             nt = 2;
           num_threads = nt;
           if(num_threads > 1) {
             threading_pointwise = true;
             threading_global_reduction = true;
             threading_local_reduction = true;
-            threading_chomping = false;//true;
+            threading_chomping = true;
             threading_recursion = true;
           }
+          i+=2;
+        } else if(!strcmp((*argv)[i],"--thread_blocks")) {
+          // determine the number of thread blocks to use
+          int nb = atoi( (*argv)[i+1]);
+          if(nb <= 0 || nb > 100)
+            nb = 10; // prevent unreasonable values
+          num_thread_blocks = nb;
           i+=2;
         } else if(!strcmp((*argv)[i],"--no_threading_pointwise")) {
           threading_pointwise = false;
@@ -850,6 +868,24 @@ namespace Loci {
         debugout.open(filename.c_str(),ios::out) ;
       } else {
         debugout.open("/dev/null",ios::out) ;
+      }
+
+
+#ifdef USE_CUDA_RT
+      setCudaDevice() ;
+#endif
+
+      // Find number of mpi processes per host
+      {
+	long hid = gethostid() ;
+	vector<long> host_list(MPI_processes) ;
+	MPI_Allgather(&hid,1,MPI_LONG,&host_list[0],1,MPI_LONG,MPI_COMM_WORLD) ;
+	int cnt = 0 ;
+	for(int i=0;i<MPI_processes;++i)
+	  if(hid == host_list[i])
+	    cnt++ ;
+	MPI_processes_per_host = cnt ;
+	debugout << "mpi processes per host = " << cnt << endl ;
       }
 
       init_sprng(sprng_gtype,sprng_seed,SPRNG_DEFAULT) ;

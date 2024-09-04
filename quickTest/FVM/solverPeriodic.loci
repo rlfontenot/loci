@@ -1,0 +1,72 @@
+//#############################################################################
+//#
+//# Copyright 2015-2019, Mississippi State University
+//#
+//# This file is part of the flowPsi computational fluid dynamics solver.
+//#
+//# The flowPsi solver is free software: you can redistribute it and/or modify
+//# it under the terms of the GNU General Public License as published by
+//# the Free Software Foundation, either version 3 of the License, or
+//# (at your option) any later version.
+//#
+//# The flowPsi solver is distributed in the hope that it will be useful,
+//# but WITHOUT ANY WARRANTY; without even the implied warranty of
+//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//# GNU General Public License for more details.
+//#
+//# You should have received a copy of the GNU General Public License
+//# along with the flowPsi solver.  If not, see <http://www.gnu.org/licenses>
+//#
+//#############################################################################
+
+#include <Loci.h>
+#include "flowTypes.h"
+#include "flowPsiIO.h"
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+$include  "flowPsi.lh"
+
+namespace flowPsi {
+  
+  $rule pointwise(cr->cellcenter<-pmap->cl->cellcenter,pmap->ref->periodicTransform),
+    constraint(periodicFaces) {
+    const rigid_transform &frame = $pmap->$ref->$periodicTransform ;
+    $cr->$cellcenter = frame.transform($pmap->$cl->$cellcenter) ;
+  }
+
+  $rule pointwise(cr->vol<-pmap->cl->vol) {
+    $cr->$vol = $pmap->$cl->$vol ;
+  }
+  
+  
+  $rule pointwise(cr->u<-pmap->cl->u,pmap->ref->periodicTransform) {
+    const rigid_transform &frame = $pmap->$ref->$periodicTransform ;
+    $cr->$u= frame.rotate_vec($pmap->$cl->$u) ;
+  }
+
+  // this fix will allow gradients of u to be computed when all boundaries
+  // are periodic
+  $rule pointwise(u_f),constraint(ci->u,geom_cells) {}
+
+  $rule pointwise(cr->temperature<-pmap->cl->temperature) {
+    $cr->$temperature = $pmap->$cl->$temperature ;
+  }
+
+  // this fix will allow gradients of u to be computed when all boundaries
+  // are periodic
+  $rule pointwise(temperature_f),constraint(ci->temperature,geom_cells) {}
+
+  $rule pointwise(cr->gagePressure<-pmap->cl->gagePressure) {
+    $cr->$gagePressure = $pmap->$cl->$gagePressure ;
+  }
+
+  // this fix will allow gradients of u to be computed when all boundaries
+  // are periodic
+  $rule pointwise(gagePressure_f),constraint(ci->gagePressure,geom_cells) {}
+
+
+  
+}

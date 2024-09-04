@@ -1,7 +1,7 @@
 #!/bin/bash
 ################################################################################
 #
-# Copyright 2008, 2015, Mississippi State University
+# Copyright 2008, 2015, 2019, 2022 Mississippi State University
 #
 # This file is part of the Loci Framework.
 #
@@ -106,14 +106,6 @@ PREFIX=\$LOCI_BASE
 MPI_BASE=/notselected
 FAD_OPTS=/notselected
 MPI_LIBRARY=""
-
-case "$ARCH" in
-  IRIX64)
-    COMPILER=CC_sgi
-    ;;
-  *)
-    ;;
-esac
 
 
 if [ $# -eq 0 ]; then
@@ -953,10 +945,10 @@ else
     echo "         Set PETSC_DIR if you want to compile Loci with"
     echo "         the PETSc libraries enabled."
 fi
-
-
 echo >> sys.conf
+
 ################################################################################
+# Pthreads Options
 ################################################################################
 echo    "# POSIX threads setup"                >> sys.conf
 echo -e "PTHREADS_DEFINE\t=\t$PTHREADS_DEFINE" >> sys.conf
@@ -995,70 +987,54 @@ case "$COMPILER" in
     ;;
 esac
 
+
 ################################################################################
+# FAD and Miscellaneous Options
 ################################################################################
-if [ "${ARCH}" == "SunOS" ]; then
-  # SunOS architecture
-  # find sunmath.h
-  find_exec cc
-  CCPATH=$RETURN_VALUE/cc
-  CCBASE=${CCPATH%/bin/cc}
-  CCINC=$CCBASE/prod/include/cc
-  if [ -e $CCINC/sunmath.h ]; then
-    MISC_DEFINES="-I$CCINC"
-    MISC_LDLIBS="-L$CCBASE/lib -lsunmath -lmalloc -lm $FORTRAN_LIBS"
-  else
-    MISC_DEFINES="-DNOSUNMATH"
-    MISC_LDLIBS="-lmalloc -lm $FORTRAN_LIBS"
-  fi
-else
-  if [ $FAD_OPTS != "/notselected" ]; then
-    echo "# Miscellaneous Library Setup" >> sys.conf
-    if [ $FAD_OPTS -eq 1 ]; then
-      MISC_DEFINES="-DUSE_AUTODIFF "
-      if [ $MFAD_SIZE -gt 1 ]; then
-        MISC_DEFINES+="-DMULTIFAD -DMFAD_SIZE=${MFAD_SIZE} "
-      fi
-    elif [ $FAD_OPTS -eq 2 ]; then
-      MISC_DEFINES="-DUSE_AUTODIFF -DAUTODIFF2ND "
+FAD_DEFINES="-DUSE_AUTODIFF -DAUTODIFF_MODULE"
+if [ $FAD_OPTS != "/notselected" ]; then
+  echo "# Miscellaneous Library Setup" >> sys.conf
+  if [ $FAD_OPTS -eq 1 ]; then
+    if [ $MFAD_SIZE -gt 1 ]; then
+      FAD_DEFINES+="-DMULTIFAD -DMFAD_SIZE=${MFAD_SIZE} "
     fi
+  elif [ $FAD_OPTS -eq 2 ]; then
+    FAD_DEFINES+="-DAUTODIFF2ND "
   fi
-  case "${ARCH}" in
-    Darwin)
-      MISC_DEFINES+="-DARCH_MACOS "
-      MISC_LDLIBS+="${FORTRAN_LIBS} "
-      ;;
-    Linux)
-      MISC_DEFINES+="-DARCH_LINUX "
-      MISC_LDLIBS+="${FORTRAN_LIBS} "
-      ;;
-    *)
-      ;;
-  esac
 fi
+case "${ARCH}" in
+  Darwin)
+    MISC_DEFINES+="-DARCH_MACOS "
+    MISC_LDLIBS+="${FORTRAN_LIBS} "
+    ;;
+  Linux)
+    MISC_DEFINES+="-DARCH_LINUX "
+    MISC_LDLIBS+="${FORTRAN_LIBS} "
+    ;;
+  *)
+    ;;
+esac
+
+echo -e "FAD_DEFINES\t\t=\t$FAD_DEFINES" >> sys.conf
 echo -e "MISC_DEFINES\t=\t$MISC_DEFINES" >> sys.conf
 echo -e "MISC_LDLIBS\t\t=\t$MISC_LDLIBS" >> sys.conf
-
 echo >> sys.conf
 
 ################################################################################
+# Dynamic Libraries
 ################################################################################
 echo \# Dynamic Library Defines >> sys.conf
 
 case "$ARCH" in
-    Linux)
+  Linux)
     echo -e "DYNAMIC_LOADING_DEFINES\t="    >> sys.conf
     echo -e "DYNAMIC_LOADING_LINK\t=\t-ldl" >> sys.conf
     ;;
-    Darwin)
+  Darwin)
     echo -e "DYNAMIC_LOADING_DEFINES\t="    >> sys.conf
     echo -e "DYNAMIC_LOADING_LINK\t=\t-ldl" >> sys.conf
     ;;
-    IRIX64)
-    echo -e "DYNAMIC_LOADING_DEFINES\t="   >> sys.conf
-    echo -e "DYNAMIC_LOADING_LINK\t=\t-lc" >> sys.conf
-    ;;
-    *)
+  *)
     echo -e "DYNAMIC_LOADING_DEFINES\t=" >> sys.conf
     echo -e "DYNAMIC_LOADING_LINK\t="    >> sys.conf
     ;;
@@ -1067,6 +1043,7 @@ esac
 echo >> sys.conf
 
 ################################################################################
+# Set all the system variables
 ################################################################################
 echo "##############################################" >> sys.conf
 echo "# No need to change things below this line"     >> sys.conf
@@ -1093,10 +1070,11 @@ echo -e "\t\t\t\t\t\$(METIS_LDLIBS) \$(GKLIB_LDLIBS)"                           
 
 
 ################################################################################
+# Copy source code to OBJDIR
 ################################################################################
 echo Making compile subdirectory ${OBJDIR}...
 
-INSTALL_METIS=$INSTALL_METIS ./tmpcopy --target $OBJDIR --compiler $COMPILER > copy.out
+./tmpcopy --target $OBJDIR --compiler $COMPILER > copy.out
 mv sys.conf ${OBJDIR}/sys.conf
 
 ################################################################################
@@ -1125,6 +1103,7 @@ echo "	rm -fr ${OBJDIR} copy.out makefile" >> makefile
 
 
 ################################################################################
+# Message to User
 ################################################################################
 echo
 echo

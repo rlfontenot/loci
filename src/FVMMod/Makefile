@@ -25,6 +25,7 @@ include $(LOCI_SRC)/Loci.conf
 DIR_NAME	=	FVMMod
 MODULE_NAME	=	fvm
 LIB_NAME	=	$(MODULE_NAME)_m.so
+FAD_NAME	=	$(MODULE_NAME)FAD_m.so
 
 ################################################################################
 # No changes required below this line
@@ -34,6 +35,7 @@ LOCI_FILES		=	$(wildcard *.loci)
 LOCI_LPP_FILES	=	$(LOCI_FILES:.loci=.cc)
 OBJS			=	$(subst .loci,.o,$(LOCI_FILES)) \
 					$(subst .cpp,.o,$(CXX_FILES))
+FAD_OBJS		=	$(OBJS:.o=_FAD.o)
 DEPEND_FILES	=	$(subst .o,.d,$(OBJS))
 JUNK			=	*~ core ti_files ii_files rii_files
 DEPS			=	$(LOCI_SRC)/bin/lpp \
@@ -41,8 +43,8 @@ DEPS			=	$(LOCI_SRC)/bin/lpp \
 INCLUDES		=	-I$(LOCI_SRC)/include
 
 
-default:	$(LIB_NAME)
-all:		$(LIB_NAME)
+default:	$(LIB_NAME) $(FAD_NAME)
+all:		$(LIB_NAME) $(FAD_NAME)
 spotless:	distclean clean_install
 
 $(LOCI_LPP_FILES):	$(DEPS)
@@ -57,10 +59,16 @@ $(LIB_NAME): $(OBJS)
 	$(SHARED_LD) $(SHARED_LD_FLAGS) $@ $(LDFLAGS) $(LDLIBS) $(OBJS)
 	$(COPY) $@ $(LOCI_SRC)/lib/$@
 
-install: $(LOCI_BASE)/include/$(DIR_NAME)/. $(LOCI_BASE)/lib/. $(LIB_NAME)
+$(FAD_NAME): $(FAD_OBJS)
+	@$(ECHO) "$(PRT) $@ $(NC)"
+	$(SHARED_LD) $(SHARED_LD_FLAGS) $@ $(LDFLAGS) $(LDLIBS) $(FAD_OBJS)
+	$(COPY) $@ $(LOCI_SRC)/lib/$@
+
+install: $(LOCI_BASE)/include/$(DIR_NAME)/. $(LOCI_BASE)/lib/. $(LIB_NAME) $(FAD_NAME)
 	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
 ifneq ($(LOCI_SRC),$(LOCI_BASE))
 	$(COPY) $(LOCI_SRC)/lib/$(LIB_NAME) $(LOCI_BASE)/lib/$(LIB_NAME)
+	$(COPY) $(LOCI_SRC)/lib/$(FAD_NAME) $(LOCI_BASE)/lib/$(FAD_NAME)
 	$(COPY) $(LOCI_SRC)/include/$(DIR_NAME)/*.h  $(LOCI_BASE)/include/$(DIR_NAME)/
 	$(COPY) $(LOCI_SRC)/include/$(DIR_NAME)/*.lh $(LOCI_BASE)/include/$(DIR_NAME)/
 endif
@@ -69,12 +77,15 @@ clean_install:
 	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
 ifneq ($(LOCI_SRC),$(LOCI_BASE))
 	rm -rf $(LOCI_BASE)/lib/$(LIB_NAME)
+	rm -rf $(LOCI_BASE)/lib/$(FAD_NAME)
 	rm -rf $(LOCI_BASE)/include/$(DIR_NAME)
 endif
 
 clean:
 	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
-	rm -fr $(LIB_NAME) $(OBJS) $(LOCI_SRC)/lib/$(LIB_NAME) $(JUNK)
+	rm -fr $(LIB_NAME) $(LOCI_SRC)/lib/$(LIB_NAME) $(OBJS)
+	rm -fr $(FAD_NAME) $(LOCI_SRC)/lib/$(FAD_NAME) $(FAD_OBJS)
+	rm -rf $(JUNK)
 
 distclean: clean
 	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"

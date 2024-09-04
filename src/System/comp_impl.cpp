@@ -108,6 +108,7 @@ namespace Loci {
   int             ta_dctrl_executes = 0 ;
 #endif
 
+  extern bool in_internal_query;
   extern bool threading_pointwise;
   extern int num_threaded_pointwise;
   extern int num_total_pointwise;
@@ -115,6 +116,7 @@ namespace Loci {
   int current_rule_id = 0 ;
   int rule_count = 0;
 
+#ifdef DYNAMICSCHEDULING
   // implementation of execute_dynamic_rule
   namespace {
     variableSet
@@ -850,7 +852,7 @@ namespace Loci {
 
     return context ;
   }
-  
+
   execute_dynamic_rule::
   execute_dynamic_rule(rule r, KeySpaceP kp,
                        fact_db& facts, sched_db& scheds) {
@@ -1079,6 +1081,7 @@ namespace Loci {
 
     data_collector.accumulateTime(timer,EXEC_COMPUTATION,oss.str()) ;
   }
+#endif
   
   execute_rule::execute_rule(rule fi, sequence seq, fact_db &facts, const sched_db &scheds)  {
     rp = fi.get_rule_implP() ;
@@ -1217,17 +1220,17 @@ namespace Loci {
     for (variableSet::const_iterator vi=targets.begin();
         vi!=targets.end();++vi) {
       storeRepP tr = ti->get_store(*vi);
-      if (tr->RepType() == PARAMETER) {
+      if (isPARAMETER(tr)) {
         threadable = false;
         break;
       }
     }
-    if(threading_pointwise && threadable) {
+    if(!in_internal_query && threading_pointwise && threadable) {
       int tnum = thread_control->num_threads();
       int minw = thread_control->min_work_per_thread();
       // if a rule is not for threading, then generate a normal module,
       // also no multithreading if the execution sequence is too small
-      if(exec_seq.size() < tnum*minw)
+      if(exec_seq.size() < (size_t)tnum*minw)
         // normal case
         return new execute_rule(impl,sequence(exec_seq),facts, scheds);
       else {
@@ -1244,6 +1247,7 @@ namespace Loci {
     return exec_rule;
   }
 
+#ifdef DYNAMICSCHEDULING
   void
   dynamic_impl_compiler::
   set_var_existence(fact_db& facts, sched_db& scheds) {
@@ -1279,7 +1283,8 @@ namespace Loci {
     executeP execute = new execute_dynamic_rule(impl,space,facts,scheds) ;
     return execute ;
   }
-
+  
+  
   // execute_dynamic_applyrule module implementation
   execute_dynamic_applyrule::
   execute_dynamic_applyrule(rule a, rule u, KeySpaceP kp,
@@ -1465,7 +1470,12 @@ namespace Loci {
     storeRepP target_rep_local ;
     if(output_cross_space) {
       // initialize the unit value by using the proper thaw method
+#ifdef DYNAMICSCHEDULING
       target_rep_local = target_rep_in_facts->thaw(target_var_exist) ;
+#else
+      cerr << "dynamic schduling feature not enabled" << endl ;
+      Abort() ;
+#endif
     } else {
       target_rep_local = target_rep_in_facts ;
       // again, we don't want to allocate the targets
@@ -1557,7 +1567,7 @@ namespace Loci {
     variable target = *(apply.targets().begin()) ;
     storeRepP target_rep = facts.get_variable(target) ;
     FATAL(target_rep == 0) ;
-    if(target_rep->RepType() == Loci::PARAMETER) {
+    if(isPARAMETER(target_rep)) {
       executeP execute =
         new execute_dynamic_applyrule_param(apply,unit_tag,
                                             space,facts,scheds) ;
@@ -1997,6 +2007,7 @@ namespace Loci {
     oss << "keyspace distribution: (" << space_names << ")" ;
     data_collector.accumulateTime(timer,EXEC_COMMUNICATION,oss.str()) ;
   }
+#endif
 
   // execute_keyspace_init module
   execute_init_keyspace::
@@ -2030,18 +2041,7 @@ namespace Loci {
         expand_control_vars += scheds.get_rotations(*vi) ;
       }
       space->add_control_vars(expand_control_vars) ;
-      // // we will also expand the keyspace tunnel
-      // variableSet tunnels = space->get_tunnels() ;
-      // variableSet expand_tunnels ;
-      // for(variableSet::const_iterator vi=tunnels.begin();
-      //     vi!=tunnels.end();++vi) {
-      //   expand_tunnels += *vi ;
-      //   expand_tunnels += scheds.get_aliases(*vi) ;
-      //   expand_tunnels += scheds.get_antialiases(*vi) ;
-      //   expand_tunnels += scheds.get_synonyms(*vi) ;
-      //   expand_tunnels += scheds.get_rotations(*vi) ;
-      // }
-      // space->reset_tunnels(expand_tunnels) ;
+
       // integraty check for this keyspace
       string err ;
       if(!space->integrity_check(err)) {
@@ -2127,6 +2127,8 @@ namespace Loci {
     executeP execute = new execute_rule(impl, ~EMPTY, facts, scheds);
     return execute;
   }
+
+#ifdef DYNAMICSCHEDULING
 
   // here comes the insertion and deletion rule impls
   executeP insertion_rule_compiler::
@@ -2254,7 +2256,7 @@ namespace Loci {
     } else {
       target = *(vmsi->var.begin()) ;
       target_rep = tagp->get_store(target) ;
-      if(target_rep->RepType() != PARAMETER) {
+      if(!isPARAMETER(target_rep)) {
         cerr << "Error: key destruction rule can only have one"
              << " target of parameter<bool>! Offending rule: "
              << rule_tag << endl ;
@@ -2539,14 +2541,6 @@ namespace Loci {
 #endif
     }
 
-    // // give a warning if context is very large
-    // if(context.size() > large_context_size) {
-    //   if(space->get_comm_rank() == 0)
-    //     cerr << "Warning: dynamic rule: " << rule_tag
-    //          << " executing over a very large context, potentially"
-    //          << " fatal to memory allocation" << endl ;
-    // }
-
     // targets don't need to be allocated
 
     // then call the compute method
@@ -2661,7 +2655,7 @@ namespace Loci {
     oss << "Reset Drule control flag by: " << var ;
     data_collector.accumulateTime(timer,EXEC_CONTROL,oss.str()) ;
   }
-  
+#endif  
 
   ///////////////////////////////////////////////
   // Lets set up some common super rule functions

@@ -127,7 +127,6 @@ namespace Loci{
       } ENDFORALL;
       return nm.Rep();
     }
-    REPORTMEM();
 #ifdef VERBOSE
     stopWatch s;
     s.start();
@@ -274,7 +273,6 @@ namespace Loci{
 #ifdef VERBOSE
     debugout << "time to form map = " << s.stop() << endl;
 #endif
-    REPORTMEM();
     return newnum.Rep();
   }
 
@@ -500,7 +498,6 @@ namespace Loci{
                                  storeRepP posRep,
                                  entitySet localCells,
                                  fact_db &facts) {
-    REPORTMEM();
     const_multiMap upper(upperRep),lower(lowerRep),
       boundary_map(boundary_mapRep),face2node(face2nodeRep);
     const_Map ref(refRep);
@@ -513,7 +510,6 @@ namespace Loci{
     int nhexs = 0;
     int nprsm = 0;
     int npyrm = 0;
-    int ngnrl = 0;
 
     // Classify Cells
     FORALL(localCells,cc) {
@@ -541,7 +537,7 @@ namespace Loci{
       case 3:
         npyrm++; break;
       default:
-        ngnrl++;
+        break;
       }
     } ENDFORALL;
 
@@ -687,11 +683,8 @@ namespace Loci{
     hid_t file_id = 0, group_id = 0;
     file_id=writeVOGOpen(filename);
     if(use_parallel_io ||MPI_rank == 0 ) {
-#ifdef H5_USE_16_API
-      group_id = H5Gcreate(file_id,"elements",0);
-#else
-      group_id = H5Gcreate(file_id,"elements",H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT);
-#endif
+      group_id = H5Gcreate(file_id,"elements",
+                           H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT);
     }
 
 
@@ -715,11 +708,8 @@ namespace Loci{
 
     if(use_parallel_io || MPI_rank == 0) {
       H5Gclose(group_id);
-#ifdef H5_USE_16_API
-      group_id = H5Gcreate(file_id,"boundaries",0);
-#else
-      group_id = H5Gcreate(file_id,"boundaries",H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT);
-#endif
+      group_id = H5Gcreate(file_id,"boundaries",
+                           H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT);
     }
 
     const_store<string> boundary_names(bnamesRep);
@@ -763,8 +753,7 @@ namespace Loci{
     entitySet  fset = (MapRepP(boundary_mapRep)->image(localCells)+
                        MapRepP(upperRep)->image(localCells)) & ref.domain();
 
-    Map l2g;
-    dMap g2f;
+    Map l2f;
     if(MPI_processes > 1) {
       fact_db::distribute_infoP df = facts.get_distribute_info();
       int kd =  getKeyDomain(fset, df, MPI_COMM_WORLD);
@@ -776,13 +765,11 @@ namespace Loci{
       }
       //      debugout << "in write gridTopology, face key domain is " << kd
       //	       << endl;
-      l2g = df->l2g.Rep();
-      g2f = df->g2fv[kd].Rep();
+      l2f = df->l2f.Rep();
     } else {
-      l2g.allocate(fset);
+      l2f.allocate(fset);
       FORALL(fset,fc) {
-	l2g[fc] = fc;
-	g2f[fc] = fc;
+        l2f[fc] = fc;
       } ENDFORALL;
     }
 
@@ -790,11 +777,8 @@ namespace Loci{
       hid_t bc_id = 0;
       string current_bc = bnamelist[i];
       if(use_parallel_io || MPI_rank==0) {
-#ifdef H5_USE_16_API
-        bc_id = H5Gcreate(group_id,current_bc.c_str(),0);
-#else
-        bc_id = H5Gcreate(group_id,current_bc.c_str(),H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT);
-#endif
+        bc_id = H5Gcreate(group_id,current_bc.c_str(),
+                          H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT);
       }
 
       bool found_ref = false;
@@ -839,20 +823,20 @@ namespace Loci{
           Trias[nt][0] = node_remap[face2node[fc][0]];
           Trias[nt][1] = node_remap[face2node[fc][1]];
           Trias[nt][2] = node_remap[face2node[fc][2]];
-          tria_ids[nt] = g2f[l2g[fc]];
+          tria_ids[nt] = l2f[fc];
           nt++;
         } else if(face2node[fc].size() == 4) {
           Quads[nq][0] = node_remap[face2node[fc][0]];
           Quads[nq][1] = node_remap[face2node[fc][1]];
           Quads[nq][2] = node_remap[face2node[fc][2]];
           Quads[nq][3] = node_remap[face2node[fc][3]];
-          quad_ids[nq] = g2f[l2g[fc]];
+          quad_ids[nq] = l2f[fc];
           nq++;
         } else {
           nsizes[ng] = face2node[fc].size();
           for(int i=0;i<nsizes[ng];++i)
             nsidenodes.push_back(node_remap[face2node[fc][i]]);
-          genc_ids[ng] = g2f[l2g[fc]];
+          genc_ids[ng] = l2f[fc];
           ng++;
         }
       } ENDFORALL;
@@ -878,7 +862,6 @@ namespace Loci{
       H5Gclose(group_id);
       H5Fclose(file_id);
     }
-    REPORTMEM();
   }
 
   //collect all boundary names
@@ -1013,7 +996,6 @@ namespace Loci{
                          storeRepP face2nodeRep,
                          entitySet bfaces,//boundary faces define this surface
                          fact_db &facts ){
-      REPORTMEM();
 #ifdef VERBOSE
     debugout << "writing out boundary surface topology" << endl;
     stopWatch s;
@@ -1112,7 +1094,6 @@ namespace Loci{
     debugout << "time to write unordered vectors = " << s.stop() << endl;
     debugout << "finished writing boundary topology" << endl;
 #endif
-      REPORTMEM();
   }
 
   //this function find the index of an inner edge.
@@ -1331,7 +1312,6 @@ namespace Loci{
                        storeRepP valRep,
                        entitySet localCells,//all geom_cells
                        fact_db &facts) {
-    REPORTMEM();
 
     const_multiMap upper(upperRep),lower(lowerRep),
       boundary_map(boundary_mapRep),face2node(face2nodeRep), face2edge(face2edgeRep);
@@ -1391,7 +1371,6 @@ namespace Loci{
     }ENDFORALL;
 
 
-    REPORTMEM();
     return CutPlane(edgesWeight.Rep(),
                     new_faceLoops);
 
@@ -1402,7 +1381,6 @@ namespace Loci{
   void writeCutPlaneTopo(hid_t bc_id,
                          const CutPlane& cp,
                          fact_db &facts){
-      REPORTMEM();
 #ifdef VERBOSE
     debugout << "write cutPlaneTopology" << endl;
     stopWatch s;
@@ -1443,7 +1421,6 @@ namespace Loci{
 #ifdef VERBOSE
     debugout << "time to write cut plane topology=" << s.stop() << endl;
 #endif
-      REPORTMEM();
   }
 
   namespace {
@@ -1526,7 +1503,7 @@ namespace Loci{
           tot += tmp_pos[face2node[*ei][i]];
         }
         tot *= double(1)/double(sz);
-	vector3d<real_t> totr(tot.x,tot.y,tot.z);
+	vector3d<double> totr(tot.x,tot.y,tot.z);
 	totr = tran.transform(totr);
         p1center[*ei] = realToDouble(totr);
       }
@@ -1612,21 +1589,6 @@ namespace Loci{
     Map cl;
     pfaces = facts.get_variable("periodicFaces");
 
-#ifdef NOTNEEDED
-    *pfaces  = all_collect_entitySet(*pfaces);
-
-    cl = facts.get_variable("cl");
-    entitySet pcells = MapRepP(cl.Rep())->image(*pfaces);
-
-    pcells = all_collect_entitySet(pcells);
-    constraint periodicCells;
-    *periodicCells = pcells;
-
-    facts.create_fact("periodicCells",periodicCells);
-    constraint notPeriodicCells;
-    *notPeriodicCells = ~pcells;
-    facts.create_fact("notPeriodicCells",notPeriodicCells);
-#endif
   }
 
   void create_ci_map(fact_db &facts) {
@@ -1688,7 +1650,7 @@ namespace Loci{
       throw(StringError("boundary_conditions not found in setupBoundaryConditions! Is vars file read?"));
     bc_info = tmp;
 
-    param<real_t> Lref;
+    param<double> Lref;
     *Lref = 1.0;
     storeRepP p = facts.get_variable("Lref");
     if(p != 0)
@@ -1772,7 +1734,8 @@ namespace Loci{
         }
         if(ol.optionExists("center")) {
 	  //          get_vect3dOption(ol,"center","m",pi.center,*Lref);
-	  ol.getOptionUnits("center","m",pi.center,*Lref);
+	  double Lr = realToDouble(*Lref) ;
+	  ol.getOptionUnits("center","m",pi.center,Lr) ;
         }
         if(ol.optionExists("vector")) {
 	  //          get_vect3d(ol,"vector",pi.v);
@@ -1781,7 +1744,8 @@ namespace Loci{
         }
         if(ol.optionExists("translate")) {
           // get_vect3dOption(ol,"translate","m",pi.translate,*Lref);
-	  ol.getOptionUnits("translate","m",pi.translate,*Lref);
+	  double Lr = realToDouble(*Lref) ;
+	  ol.getOptionUnits("translate","m",pi.translate,Lr) ;
         }
         if(ol.optionExists("rotate")) {
           ol.getOptionUnits("rotate","radians",pi.angle);
@@ -1925,9 +1889,9 @@ namespace Loci{
   // remove self2self references
   // Convert resulting structure to multiMap
 
-  void getFaceCenter(fact_db &facts, dstore<vector3d<real_t> > &fcenter, dstore<real_t> &area, dstore<vector3d<real_t> > &normal) {
+  void getFaceCenter(fact_db &facts, dstore<vector3d<double> > &fcenter, dstore<double> &area, dstore<vector3d<double> > &normal) {
     // Compute face centers
-    store<vector3d<real_t> > pos;
+    store<vector3d<double> > pos ;
     pos = facts.get_variable("pos");
 
     multiMap face2node;
@@ -1937,7 +1901,7 @@ namespace Loci{
 
     entitySet out_of_dom = f2n_image - pos.domain();
 
-    dstore<vector3d<real_t> > tmp_pos;
+    dstore<vector3d<double> > tmp_pos ;
     FORALL(pos.domain(), pi) {
       tmp_pos[pi] = pos[pi];
     } ENDFORALL;
@@ -1958,38 +1922,38 @@ namespace Loci{
 
     FORALL(fdom,fc) {
       int fsz = face2node[fc].size();
-      vector3d<real_t>  center = vector3d<real_t> (0,0,0);
-      real_t wsum = 0;
+      vector3d<double>  center = vector3d<double> (0,0,0) ;
+      double wsum = 0 ;
 
       for(int i=1;i<fsz;++i) {
-	real_t len = norm(tmp_pos[face2node[fc][i-1]]-tmp_pos[face2node[fc][i]]);
-	vector3d<real_t>  eloc = 0.5*(tmp_pos[face2node[fc][i-1]]+tmp_pos[face2node[fc][i]]);
+	double len = norm(tmp_pos[face2node[fc][i-1]]-tmp_pos[face2node[fc][i]]) ;
+	vector3d<double>  eloc = 0.5*(tmp_pos[face2node[fc][i-1]]+tmp_pos[face2node[fc][i]]) ;
 	center += len*eloc;
 	wsum += len;
       }
-      real_t lenr = norm(tmp_pos[face2node[fc][0]]-tmp_pos[face2node[fc][fsz-1]]);
-      vector3d<real_t>  elocr = 0.5*(tmp_pos[face2node[fc][0]]+tmp_pos[face2node[fc][fsz-1]]);
+      double lenr = norm(tmp_pos[face2node[fc][0]]-tmp_pos[face2node[fc][fsz-1]]) ;
+      vector3d<double>  elocr = 0.5*(tmp_pos[face2node[fc][0]]+tmp_pos[face2node[fc][fsz-1]]) ;
       center += lenr*elocr;
       wsum += lenr;
       center *= 1./wsum;
       fcenter[fc] = center;
       if(exact) {
 	// Iterate to find exact centroid that is on the face
-	vector3d<real_t>  tmpcenter = center;
+	vector3d<double>  tmpcenter = center ;
 	const int NITER=4;
 	for(int iter=0;iter<NITER;++iter) {
 
 	  // compute centroid using triangles formed by wireframe centroid
-	  vector3d<real_t>  centroidsum(0.0,0.0,0.0);
-	  real_t facearea = 0;
+	  vector3d<double>  centroidsum(0.0,0.0,0.0) ;
+	  double facearea = 0 ;
 	  for(int i=0;i<fsz;++i) {
 	    int n1 = i;
 	    int n2 = (i+1==fsz)?0:i+1;
-	    vector3d<real_t>  p1 = tmp_pos[face2node[fc][n1]];
-	    vector3d<real_t>  p2 = tmp_pos[face2node[fc][n2]];
+	    vector3d<double>  p1 = tmp_pos[face2node[fc][n1]] ;
+	    vector3d<double>  p2 = tmp_pos[face2node[fc][n2]] ;
 
-	    const vector3d<real_t>  t_centroid = (p1 + p2 + tmpcenter)/3.0;
-	    const real_t t_area = 0.5*norm(cross(p1-tmpcenter,p2-tmpcenter));
+	    const vector3d<double>  t_centroid = (p1 + p2 + tmpcenter)/3.0 ;
+	    const double t_area = 0.5*norm(cross(p1-tmpcenter,p2-tmpcenter)) ;
 	    centroidsum += t_area*t_centroid;
 	    facearea += t_area;
 	  }
@@ -1997,27 +1961,27 @@ namespace Loci{
 	}
 	fcenter[fc] = tmpcenter;
       }
-      vector3d<real_t> facearea = vector3d<real_t>(0,0,0);
-      vector3d<real_t>  tmpcenter = fcenter[fc];
+      vector3d<double> facearea = vector3d<double>(0,0,0) ;
+      vector3d<double>  tmpcenter = fcenter[fc] ;
       for(int i=0;i<fsz;++i) {
 	int n1 = i;
 	int n2 = (i+1==fsz)?0:i+1;
-	vector3d<real_t>  p1 = tmp_pos[face2node[fc][n1]];
-	vector3d<real_t>  p2 = tmp_pos[face2node[fc][n2]];
+	vector3d<double>  p1 = tmp_pos[face2node[fc][n1]] ;
+	vector3d<double>  p2 = tmp_pos[face2node[fc][n2]] ;
 
 	facearea += cross(p1-tmpcenter,p2-tmpcenter);
       }
-      real_t nfacearea = norm(facearea);
+      double nfacearea = norm(facearea) ;
       area[fc] = 0.5*nfacearea;
       normal[fc] = (1./nfacearea)*facearea;
     } ENDFORALL;
   }
 
-  void getCellCenter(fact_db &facts, dstore<vector3d<real_t> > &fcenter,
-		     dstore<vector3d<real_t> > &fnormal,
-		     dstore<vector3d<real_t> > &ccenter) {
+  void getCellCenter(fact_db &facts, dstore<vector3d<double> > &fcenter,
+		     dstore<vector3d<double> > &fnormal,
+		     dstore<vector3d<double> > &ccenter) {
 
-    dstore<real_t> area;
+    dstore<double> area ;
     getFaceCenter(facts,fcenter,area,fnormal);
     multiMap upper,lower,boundary_map;
     upper = facts.get_variable("upper");
@@ -2042,32 +2006,32 @@ namespace Loci{
 	fill_clone(sp, out_of_dom, init_ptn);
       }
     }
-    dstore<vector3d<real_t> > wccenter;
+    dstore<vector3d<double> > wccenter ;
     // compute wireframe centroid
     FORALL(cells,cc) {
-      vector3d<real_t>  csum = vector3d<real_t> (0,0,0);
-      real_t wsum = 0;
+      vector3d<double>  csum = vector3d<double> (0,0,0) ;
+      double wsum = 0 ;
       int lsz = lower[cc].size();
       for(int i=0;i<lsz;++i) {
 	int f = lower[cc][i];
-	real_t w = area[f];
-	vector3d<real_t>  v = fcenter[f];
+	double w = area[f] ;
+	vector3d<double>  v = fcenter[f] ;
 	csum += w*v;
 	wsum += w;
       }
       int usz = upper[cc].size();
       for(int i=0;i<usz;++i) {
 	int f = upper[cc][i];
-	real_t w = area[f];
-	vector3d<real_t>  v = fcenter[f];
+	double w = area[f] ;
+	vector3d<double>  v = fcenter[f] ;
 	csum += w*v;
 	wsum += w;
       }
       int bsz = boundary_map[cc].size();
       for(int i=0;i<bsz;++i) {
 	int f = boundary_map[cc][i];
-	real_t w = area[f];
-	vector3d<real_t>  v = fcenter[f];
+	double w = area[f] ;
+	vector3d<double>  v = fcenter[f] ;
 	csum += w*v;
 	wsum += w;
       }
@@ -2085,7 +2049,6 @@ namespace Loci{
   }
 
   void create_cell_stencil_full(fact_db &facts) {
-    REPORTMEM();
     using std::vector;
     using std::pair;
     Map cl,cr;
@@ -2093,13 +2056,14 @@ namespace Loci{
     cl = facts.get_variable("cl");
     cr = facts.get_variable("cr");
     face2node = facts.get_variable("face2node");
+    entitySet faces = face2node.domain() ;
+    entitySet cellmask = cl.image(faces)+cr.image(faces) ;
     constraint geom_cells_c;
     geom_cells_c = facts.get_variable("geom_cells");
     entitySet geom_cells = *geom_cells_c;
     // We need to have all of the geom_cells to do the correct test in the
     // loop before, so gather with all_collect_entitySet
-    geom_cells = all_collect_entitySet(geom_cells);
-    entitySet faces = face2node.domain();
+    geom_cells = collectSet(geom_cells,cellmask,MPI_COMM_WORLD) ;
 
     Loci::protoMap f2cell;
 
@@ -2138,11 +2102,9 @@ namespace Loci{
     distributed_inverseMap(cellStencil,c2c,geom_cells,geom_cells,ptn);
     // Put in fact database
     facts.create_fact("cellStencil",cellStencil);
-    REPORTMEM();
   }
 
   void create_cell_stencil(fact_db & facts) {
-    REPORTMEM();
     using std::vector;
     using std::pair;
     Map cl,cr;
@@ -2150,13 +2112,14 @@ namespace Loci{
     cl = facts.get_variable("cl");
     cr = facts.get_variable("cr");
     face2node = facts.get_variable("face2node");
+    entitySet faces = face2node.domain() ;
+    entitySet cellmask = cl.image(faces)+cr.image(faces) ;
     constraint geom_cells_c;
     geom_cells_c = facts.get_variable("geom_cells");
     entitySet geom_cells = *geom_cells_c;
     // We need to have all of the geom_cells to do the correct test in the
     // loop before, so gather with all_collect_entitySet
-    geom_cells = all_collect_entitySet(geom_cells);
-    entitySet faces = face2node.domain();
+    geom_cells = collectSet(geom_cells,cellmask,MPI_COMM_WORLD) ;
 
     Loci::protoMap f2cell;
 
@@ -2195,9 +2158,9 @@ namespace Loci{
     distributed_inverseMap(cellStencil,c2c,geom_cells,geom_cells,ptn);
 
     // Now downselect cells
-    dstore<vector3d<real_t> > fcenter;
-    dstore<vector3d<real_t> > fnormal;
-    dstore<vector3d<real_t> > ccenter;
+    dstore<vector3d<double> > fcenter ;
+    dstore<vector3d<double> > fnormal ;
+    dstore<vector3d<double> > ccenter ;
     getCellCenter(facts, fcenter, fnormal, ccenter);
 
     entitySet cells = cellStencil.domain();
@@ -2223,8 +2186,8 @@ namespace Loci{
     FORALL(cells,cc) {
       int csz = cellStencil[cc].size();
       int bsz = boundary_map[cc].size();;
-      vector3d<real_t>  ccent = ccenter[cc];
-      vector<vector3d<real_t> > cdirs(csz+bsz);
+      vector3d<double>  ccent = ccenter[cc] ;
+      vector<vector3d<double> > cdirs(csz+bsz) ;
       for(int i=0;i<csz;++i) {
 	cdirs[i] = ccenter[cellStencil[cc][i]]-ccent;
 	cdirs[i] *= 1./norm(cdirs[i]);
@@ -2237,14 +2200,14 @@ namespace Loci{
       vector<int> flags(csz+bsz,0);
       int lsz = lower[cc].size();
       for(int i=0;i<lsz;++i) {
-	vector3d<real_t>  dir = fcenter[lower[cc][i]] -ccent;
+	vector3d<double>  dir = fcenter[lower[cc][i]] -ccent;
 	dir *= 1./norm(dir);
 	int minid = 0;
 	int maxid = 0;
-	real_t minval = dot(dir,cdirs[0]);
-	real_t maxval = minval;
+	double minval = dot(dir,cdirs[0]) ;
+	double maxval = minval ;
 	for(int j=1;j<csz+bsz;++j) {
-	  real_t v = dot(dir,cdirs[j]);
+	  double v = dot(dir,cdirs[j]) ;
 	  if(minval < v) {
 	    minid = j;
 	    minval = v;
@@ -2262,7 +2225,7 @@ namespace Loci{
 	minval = dot(dir,cdirs[0]);
 	maxval = minval;
 	for(int j=1;j<csz+bsz;++j) {
-	  real_t v = dot(dir,cdirs[j]);
+	  double v = dot(dir,cdirs[j]) ;
 	  if(minval < v) {
 	    minid = j;
 	    minval = v;
@@ -2277,14 +2240,14 @@ namespace Loci{
       }
       int usz = upper[cc].size();
       for(int i=0;i<usz;++i) {
-	vector3d<real_t>  dir = fcenter[upper[cc][i]] -ccent;
+	vector3d<double>  dir = fcenter[upper[cc][i]] -ccent;
 	dir *= 1./norm(dir);
 	int minid = 0;
 	int maxid = 0;
-	real_t minval = dot(dir,cdirs[0]);
-	real_t maxval = minval;
+	double minval = dot(dir,cdirs[0]) ;
+	double maxval = minval ;
 	for(int j=1;j<csz+bsz;++j) {
-	  real_t v = dot(dir,cdirs[j]);
+	  double v = dot(dir,cdirs[j]) ;
 	  if(minval < v) {
 	    minid = j;
 	    minval = v;
@@ -2302,7 +2265,7 @@ namespace Loci{
 	minval = dot(dir,cdirs[0]);
 	maxval = minval;
 	for(int j=1;j<csz+bsz;++j) {
-	  real_t v = dot(dir,cdirs[j]);
+	  double v = dot(dir,cdirs[j]) ;
 	  if(minval < v) {
 	    minid = j;
 	    minval = v;
@@ -2317,14 +2280,14 @@ namespace Loci{
       }
 
       for(int i=0;i<bsz;++i) {
-	vector3d<real_t>  dir = fcenter[boundary_map[cc][i]] -ccent;
+	vector3d<double>  dir = fcenter[boundary_map[cc][i]] -ccent;
 	dir *= 1./norm(dir);
 	int minid = 0;
 	int maxid = 0;
-	real_t minval = dot(dir,cdirs[0]);
-	real_t maxval = minval;
+	double minval = dot(dir,cdirs[0]) ;
+	double maxval = minval ;
 	for(int j=1;j<csz+bsz;++j) {
-	  real_t v = dot(dir,cdirs[j]);
+	  double v = dot(dir,cdirs[j]) ;
 	  if(minval < v) {
 	    minid = j;
 	    minval = v;
@@ -2342,7 +2305,7 @@ namespace Loci{
 	minval = dot(dir,cdirs[0]);
 	maxval = minval;
 	for(int j=1;j<csz+bsz;++j) {
-	  real_t v = dot(dir,cdirs[i]);
+	  double v = dot(dir,cdirs[i]) ;
 	  if(minval < v) {
 	    minid = j;
 	    minval = v;
@@ -2376,8 +2339,8 @@ namespace Loci{
     } ENDFORALL;
     // Put in fact database
     facts.create_fact("cellStencil",cellStencilFiltered);
-    REPORTMEM();
   }
+
 
 /** ****************************************************************************
  * @brief limiter stencil
@@ -2717,7 +2680,6 @@ void create_cell_limiter_stencil(fact_db & facts)
 // end limiter stencil
 
   void createLowerUpper(fact_db &facts) {
-    REPORTMEM();
     constraint geom_cells,interior_faces,boundary_faces;
     constraint faces = facts.get_variable("faces");
     geom_cells = facts.get_variable("geom_cells");
@@ -2733,16 +2695,16 @@ void create_cell_limiter_stencil(fact_db & facts)
       bfaces -= *periodicFaces;
       ifaces += *periodicFaces;
     }
-    entitySet global_interior_faces = all_collect_entitySet(ifaces,facts);
-    entitySet global_boundary_faces = all_collect_entitySet(bfaces,facts);
+    entitySet global_interior_faces = collectSet(ifaces,*faces,MPI_COMM_WORLD) ;
+    entitySet global_boundary_faces = collectSet(bfaces,*faces,MPI_COMM_WORLD) ;
 
     Map cl,cr;
     cl = facts.get_variable("cl");
     cr = facts.get_variable("cr");
-    entitySet global_geom_cells;
-    std::vector<entitySet> init_ptn;
-
-    global_geom_cells = all_collect_entitySet(*geom_cells,facts);
+    // Note, all_collect_entitySet has the potential to be inefficient,
+    // but not in the present case.  These low level utilities need to be
+    // rethought.
+    entitySet global_geom_cells = all_collect_entitySet(*geom_cells) ;
     multiMap lower,upper,boundary_map;
     distributed_inverseMap(upper, cl, global_geom_cells, global_interior_faces,
                            facts,0); // FIX THIS
@@ -2777,8 +2739,8 @@ void create_cell_limiter_stencil(fact_db & facts)
     if(varl != 0)
     {
       limiterStencil = varl;
-      if(*limiterStencil == "stable")create_cell_limiter_stencil(facts);
-      if(*limiterStencil == "full")  create_cell_limiter_stencil_full(facts);
+      if(*limiterStencil == "stable") create_cell_limiter_stencil(facts);
+      if(*limiterStencil == "full")   create_cell_limiter_stencil_full(facts);
     }
 
   }
@@ -3323,7 +3285,6 @@ void create_cell_limiter_stencil(fact_db & facts)
 
   void
   createEdgesPar(fact_db &facts) {
-    REPORTMEM();
     multiMap face2node;
     face2node = facts.get_variable("face2node");
     entitySet faces = face2node.domain();
@@ -3816,32 +3777,11 @@ void create_cell_limiter_stencil(fact_db & facts)
     edge3.Rep()->setDomainKeySpace(ek);
     facts.create_fact("edge2node",edge3);
 
-    REPORTMEM();
   } // end of createEdgesPar
 
-  void setupPosAutoDiff(fact_db &facts) {
-#if defined(USE_AUTODIFF) || defined(MULTIFAD)
-
-    store<vector3d<Loci::real_t> > pout;
-    {
-      store<vector3d<double> > pin;
-      pin.setRep(facts.get_fact("pos"));
-
-      entitySet dom = pin.domain();
-      pout.allocate(dom);
-      FORALL(dom,ii) {
-	pout[ii] = vector3d<Loci::real_t>(pin[ii].x,
-					  pin[ii].y,
-					  pin[ii].z);
-      } ENDFORALL;
-    }
-    facts.replace_fact("pos",pout.Rep());
-#endif
-  }
 
 
   void setupOverset(fact_db &facts) {
-    REPORTMEM();
     using namespace Loci;
     using std::map;
     storeRepP sp = facts.get_variable("componentGeometry");
@@ -3890,6 +3830,11 @@ void create_cell_limiter_stencil(fact_db & facts)
         volMap[name] = vname.domain();
       }
     }
+    Map cl,cr ;
+    cl = facts.get_variable("cl") ;
+    cr = facts.get_variable("cr") ;
+    entitySet domf = cl.domain()+cr.domain() ;
+    entitySet domc = cl.image(domf)+cr.image(domf) ;
 
     // If no volume tags (Weird), then make default tag.
     if(volMap.begin() == volMap.end()) {
@@ -3899,21 +3844,18 @@ void create_cell_limiter_stencil(fact_db & facts)
     map<string,entitySet>::const_iterator mi;
     for(mi=volMap.begin();mi!=volMap.end();++mi) {
       // This could be a scalability problem!!!!
-      volSets.push_back(all_collect_entitySet(mi->second));
+      entitySet volgather = collectSet(mi->second,domc,MPI_COMM_WORLD) ;
+      volSets.push_back(volgather) ;
     }
 
     // Now get face associations with volumes
     vector<entitySet> facesets;
     int sz = volSets.size();
-    Map cl,cr;
-    cl = facts.get_variable("cl");
-    cr = facts.get_variable("cr");
-    entitySet domf = cl.domain()+cr.domain();
     for(int i=0;i<sz;++i) {
       entitySet faces = (cr.preimage(volSets[i]).first +
                          cl.preimage(volSets[i]).first);
 
-      facesets.push_back(all_collect_entitySet(faces));
+      facesets.push_back(faces) ;
     }
 
     // Now get node associations with volumes
@@ -3921,7 +3863,8 @@ void create_cell_limiter_stencil(fact_db & facts)
     vector<entitySet> nodesets;
     for(int i=0;i<sz;++i) {
       entitySet nodes = mp->image(facesets[i]);
-      nodesets.push_back(all_collect_entitySet(nodes));
+      nodes = collectSet(nodes,pos.domain(),MPI_COMM_WORLD) ;
+      nodesets.push_back(nodes) ;
     }
 
 
@@ -3956,9 +3899,7 @@ void create_cell_limiter_stencil(fact_db & facts)
       vector<int> closest(nodeSet.size(),-1);
       cnt = 0;
       FORALL(nodeSet,nd) {
-        node_pts[cnt][0] = pos[nd].x;
-        node_pts[cnt][1] = pos[nd].y;
-        node_pts[cnt][2] = pos[nd].z;
+        node_pts[cnt] = pos[nd] ;
         cnt++;
       } ENDFORALL;
 
@@ -3985,13 +3926,5 @@ void create_cell_limiter_stencil(fact_db & facts)
     }
 
     facts.create_fact("node2surf",min_node2surf);
-    REPORTMEM();
-  }
-
-
-  void setupPosAutoDiff(fact_db &facts, std::string filename) {
-#if defined(USE_AUTODIFF) || defined(MULTIFAD)
-    setupPosAutoDiff(facts);
-#endif
   }
 }

@@ -53,8 +53,11 @@ MODELS_BIN	=	2dgv          \
 				vogcheck
 
 MODELS_LIB	=	fvmadapt_m.so                 \
+				fvmadaptFAD_m.so              \
 				fvm_m.so                      \
+				fvmFAD_m.so                   \
 				fvmoverset_m.so               \
+				fvmoversetFAD_m.so            \
 				libadf.a                      \
 				libadf.$(LIB_SUFFIX)          \
 				libfvmadaptfunc.$(LIB_SUFFIX) \
@@ -209,7 +212,7 @@ devhelp:
 	@$(ECHO) "$(PRTP)LDPATH             $(NC) = $(LDPATH)"
 	@$(ECHO) "$(PRTP)RPATH              $(NC) = $(RPATH)"
 	@$(ECHO) "$(PRTP)DEFINES            $(NC) = $(DEFINES)"
-	@$(ECHO) "$(PRTP)FDEFINES           $(NC) = $(FDEFINES)"
+	@$(ECHO) "$(PRTP)FAD_DEFINES        $(NC) = $(FAD_DEFINES)"
 	@$(ECHO) "$(PRTP)LOCI_INCLUDES      $(NC) = $(LOCI_INCLUDES)"
 	@$(ECHO) "$(PRTP)INCLUDES           $(NC) = $(INCLUDES)"
 	@$(ECHO) "$(PRTP)LDLIBS             $(NC) = $(LDLIBS)"

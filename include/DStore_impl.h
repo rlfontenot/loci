@@ -319,10 +319,15 @@ namespace Loci {
     std::vector<P2pCommInfo> send, recv ;
     get_p2p_comm(dom_ptn, domain(), 0, 0, comm, recv, send) ;
     dstore<T> new_store ;
+#ifdef DYNAMICSCHEDULING
     fill_store2(getRep(), 0, new_store.Rep(), &remap, send, recv, comm) ;
+#else
+    Loci::Abort();
+#endif
     return new_store.Rep() ;
   }
 
+#ifdef DYNAMICSCHEDULING
   template<class T> storeRepP
   dstoreRepI<T>::redistribute_omd(const std::vector<entitySet>& dom_ptn,
                                   const dMap& remap, MPI_Comm comm) {
@@ -333,7 +338,8 @@ namespace Loci {
     fill_store_omd(getRep(), 0, new_store.Rep(), &remap, send, recv, comm) ;
     return new_store.Rep() ;
   }
-
+#endif
+  
   // ********************************************************************/
 
   template<class T>

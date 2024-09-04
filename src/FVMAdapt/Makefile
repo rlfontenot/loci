@@ -25,6 +25,7 @@ include $(LOCI_SRC)/Loci.conf
 DIR_NAME	=	FVMAdapt
 MODULE_NAME	=	fvmadapt
 LIB_NAME1	=	$(MODULE_NAME)_m.so
+FAD_NAME	=	$(MODULE_NAME)FAD_m.so
 LIB_NAME2	=	lib$(MODULE_NAME)func.$(LIB_SUFFIX)
 
 
@@ -107,6 +108,7 @@ OBJS2 := 	build_general_cell.o \
 ################################################################################
 LOCI_FILES		:=	$(wildcard *.loci)
 LOCI_LPP_FILES	:=	$(LOCI_FILES:.loci=.cc)
+FAD_OBJS		=	$(OBJS1:.o=_FAD.o)
 DEPEND_FILES	=	$(subst .o,.d,$(OBJS1),$(OBJS2))
 JUNK			=	*~ core ti_files ii_files rii_files
 INCLUDES		=	-I$(LOCI_SRC)/include/FVMAdapt \
@@ -120,8 +122,8 @@ FILE_DEPS		=	$(LOCI_SRC)/bin/lpp        \
 					$(PARMETIS_BASE)/lib/libparmetis.$(LIB_SUFFIX)
 LIB_DEPS		=	$(LOCI_SRC)/lib/libLoci.$(LIB_SUFFIX)
 
-default:	$(LIB_NAME1) $(LIB_NAME2)
-all:		$(LIB_NAME1) $(LIB_NAME2)
+default:	$(LIB_NAME1) $(LIB_NAME2) $(FAD_NAME)
+all:		$(LIB_NAME1) $(LIB_NAME2) $(FAD_NAME)
 spotless:	distclean clean_install
 
 $(LOCI_LPP_FILES): $(FILE_DEPS)
@@ -139,6 +141,11 @@ $(LIB_NAME1): $(LIB_DEPS) $(OBJS1)
 	$(SHARED_LD) $(SHARED_LD_FLAGS) $@ $(OBJS1) $(LOCAL_LIBS)
 	$(COPY) -u $@ $(LOCI_SRC)/lib/$@
 
+$(FAD_NAME): $(LIB_DEPS) $(FAD_OBJS)
+	@$(ECHO) "$(PRT) $@ $(NC)"
+	$(SHARED_LD) $(SHARED_LD_FLAGS) $@ $(FAD_OBJS) $(LOCAL_LIBS)
+	$(COPY) -u $@ $(LOCI_SRC)/lib/$@
+
 $(LIB_NAME2): $(LIB_DEPS) $(OBJS2)
 	@$(ECHO) "$(PRT) $@ $(NC)"
 	$(DYNAMIC_LD) $(DYNAMIC_LD_FLAGS) $@ $(OBJS2)
@@ -146,11 +153,12 @@ $(LIB_NAME2): $(LIB_DEPS) $(OBJS2)
 
 
 install: $(LOCI_BASE)/include/$(DIR_NAME)/. $(LOCI_BASE)/lib/.
-install: $(LIB_NAME1) $(LIB_NAME2)
+install: $(LIB_NAME1) $(LIB_NAME2) $(FAD_NAME)
 	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
 ifneq ($(LOCI_SRC),$(LOCI_BASE))
 	$(COPY) -u $(LOCI_SRC)/lib/$(LIB_NAME1) $(LOCI_BASE)/lib/$(LIB_NAME1)
 	$(COPY) -u $(LOCI_SRC)/lib/$(LIB_NAME2) $(LOCI_BASE)/lib/$(LIB_NAME2)
+	$(COPY) -u $(LOCI_SRC)/lib/$(FAD_NAME)  $(LOCI_BASE)/lib/$(FAD_NAME)
 	$(COPY) -u $(LOCI_SRC)/include/$(DIR_NAME)/*.h $(LOCI_BASE)/include/$(DIR_NAME)/
 endif
 
@@ -158,14 +166,17 @@ clean_install:
 	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
 	rm -rf $(LOCI_BASE)/lib/$(LIB_NAME1)
 	rm -rf $(LOCI_BASE)/lib/$(LIB_NAME2)
+	rm -rf $(LOCI_BASE)/lib/$(FAD_NAME)
 ifneq ($(LOCI_SRC),$(LOCI_BASE))
 	rm -rf $(LOCI_BASE)/include/$(DIR_NAME)
 endif
 
 clean:
 	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"
-	rm -fr $(OBJS1) $(OBJS2) $(LIB_NAME1) $(LIB_NAME2)
-	rm -fr $(LOCI_SRC)/lib/$(LIB_NAME1) $(LOCI_SRC)/lib/$(LIB_NAME2) $(JUNK)
+	rm -fr $(LIB_NAME1) $(LOCI_SRC)/lib/$(LIB_NAME1) $(OBJS1)
+	rm -rf $(LIB_NAME2) $(LOCI_SRC)/lib/$(LIB_NAME2) $(OBJS1)
+	rm -rf $(FAD_NAME)  $(LOCI_SRC)/lib/$(FAD_NAME)  $(FAD_OBJS)
+	rm -fr $(JUNK)
 
 distclean: clean
 	@$(ECHO) "$(PRT) $@_$(MODULE_NAME) $(NC)"

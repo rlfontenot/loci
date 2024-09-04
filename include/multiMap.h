@@ -35,14 +35,10 @@
 namespace Loci {
   class multiMapRepI : public MapRep {
     entitySet store_domain ;
-    int **index ;
-    int *alloc_pointer ;
-    int **base_ptr ;
+    Entity **base_ptr ;
   public:
-    multiMapRepI() { index = 0; alloc_pointer = 0 ; base_ptr = 0 ; }
+    multiMapRepI() { base_ptr = 0 ; }
     multiMapRepI(const store<int> &sizes) {
-      index = 0 ;
-      alloc_pointer = 0 ;
       base_ptr = 0 ;
       allocate(sizes) ; }
     void allocate(const store<int> &sizes) ;
@@ -68,7 +64,7 @@ namespace Loci {
                       int &size, const entitySet &e, const Map& remap) ;
     virtual void unpack(void *ptr, int &loc,
                         int &size, const sequence &seq, const dMap& remap) ;
-    
+
     virtual entitySet domain() const ;
 
     virtual entitySet image(const entitySet &domain) const ;
@@ -79,75 +75,89 @@ namespace Loci {
     virtual std::istream &Input(std::istream &s) ;
     virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en) ;
     virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const ;
-#ifdef H5_HAVE_PARALLEL 
+#ifdef H5_HAVE_PARALLEL
     virtual void readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en, hid_t xfer_plist_id) ;
     virtual void writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en, hid_t xfer_plist_id) const ;
 #endif
-    int ** get_base_ptr() const { return base_ptr ; }
-    int *begin(int indx) { return base_ptr[indx] ; }
-    int *end(int indx) { return base_ptr[indx+1] ; }
-    const int *begin(int indx) const { return base_ptr[indx] ; }
-    const int *end(int indx) const { return base_ptr[indx+1] ; }
+    Entity ** get_base_ptr() const { return base_ptr ; }
+    Entity *begin(int indx) { return base_ptr[indx] ; }
+    Entity *end(int indx) { return base_ptr[indx+1] ; }
+    const Entity *begin(int indx) const { return base_ptr[indx] ; }
+    const Entity *end(int indx) const { return base_ptr[indx+1] ; }
     int vec_size(int indx) const { return end(indx)-begin(indx) ; }
     virtual DatatypeP getType() ;
     virtual frame_info get_frame_info() ;
+#ifdef DYNAMICSCHEDULING
+    virtual storeRepP freeze(const entitySet& es) const {
+      std::cerr << "storeRep.freeze(e) is not implemented yet"
+                << std::endl ;
+      abort() ;
+      return storeRepP(0) ;
+    }
+    virtual storeRepP thaw(const entitySet& es) const {
+      std::cerr << "storeRep.freeze(e) is not implemented yet"
+                << std::endl ;
+      abort() ;
+      return storeRepP(0) ;
+    }
+#endif
   private:
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
     virtual storeRepP freeze() ;
-    virtual storeRepP thaw() ; 
+    virtual storeRepP thaw() ;
   } ;
-      
+
   class multiMap : public store_instance {
     friend class const_multiMap ;
     typedef multiMapRepI MapType ;
-    int **base_ptr ;
+    Entity **base_ptr ;
   public:
 
     class arrayHelper {
-      int *first ;
-      int *last ;
+      Entity *first ;
+      Entity *last ;
     public:
-      arrayHelper(int *f, int *l) : first(f), last(l){}
+      arrayHelper(Entity *f, Entity *l) : first(f), last(l){}
       int size() { return last-first ; }
-      int &operator[](int indx) { return first[indx] ; }
-      int &operator[](size_t indx) { return first[indx] ; }
-      int &operator[](unsigned int indx) { return first[indx] ; }
-      int &operator[](unsigned char indx) { return first[indx] ; }
-      int *begin() { return first ; }
-      int *end() { return last; }
+      Entity &operator[](int indx) { return first[indx] ; }
+      Entity &operator[](size_t indx) { return first[indx] ; }
+      Entity &operator[](unsigned int indx) { return first[indx] ; }
+      Entity &operator[](unsigned char indx) { return first[indx] ; }
+      Entity *begin() { return first ; }
+      Entity *end() { return last; }
     } ;
     class arrayHelper_const {
-      const int *first ;
-      const int *last ;
+      const Entity *first ;
+      const Entity *last ;
     public:
-      arrayHelper_const(const int *f, const int *l) : first(f), last(l){}
+      arrayHelper_const(const Entity *f, const Entity *l) : first(f), last(l){}
       int size() { return last-first ; }
-      const int &operator[](int indx) { return first[indx] ; }
-      const int &operator[](size_t indx) { return first[indx] ; }
-      const int &operator[](unsigned int indx) { return first[indx] ; }
-      const int &operator[](unsigned char indx) { return first[indx] ; }
-      const int *begin() { return first ; }
-      const int *end() { return last; }
+      const Entity &operator[](Entity indx) { return first[indx] ; }
+      const Entity &operator[](size_t indx) { return first[indx] ; }
+      const Entity &operator[](unsigned int indx) { return first[indx] ; }
+      const Entity &operator[](unsigned char indx) { return first[indx] ; }
+      const Entity *begin() { return first ; }
+      const Entity *end() { return last; }
     } ;
-        
+
     // These should be private, as they only perform a shallow copy,
     // which is dangerous.  For now we leave them public because it would
     // be too difficult to fix properly.
     multiMap(const multiMap &var) { setRep(var.Rep()) ; }
     multiMap & operator=(const multiMap &str)
     { setRep(str.Rep()) ; return *this ;}
-    
+
     multiMap() { setRep(new MapType) ; }
-        
+
     multiMap(const store<int> &sizes) { setRep( new MapType(sizes) ); }
 
     multiMap(storeRepP p) { setRep(p) ; }
-    
+
     virtual ~multiMap() ;
     virtual void notification() ;
 
     multiMap & operator=(storeRepP p) { setRep(p) ; return *this ;}
-    
+
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
     void allocate(const store<int> &sizes) {
       NPTR<MapType> p(Rep()) ;
@@ -161,14 +171,14 @@ namespace Loci {
       return p ; }
     arrayHelper elem(int indx) {
 #ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
+      fatal(base_ptr==NULL);
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif
       return arrayHelper(base_ptr[indx],base_ptr[indx+1]) ;
     }
     arrayHelper_const const_elem(int indx)  const {
 #ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
+      fatal(base_ptr==NULL);
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif
       return arrayHelper_const(base_ptr[indx],base_ptr[indx+1]) ;
@@ -176,45 +186,45 @@ namespace Loci {
 
     arrayHelper operator[](Entity indx) {
 #ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
+      fatal(base_ptr==NULL);
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif
       return arrayHelper(base_ptr[indx],base_ptr[indx+1]) ;
     }
     arrayHelper_const operator[](Entity indx) const {
 #ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
+      fatal(base_ptr==NULL);
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif
       return arrayHelper_const(base_ptr[indx],base_ptr[indx+1]) ;
     }
     arrayHelper operator[](size_t indx) {
 #ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
+      fatal(base_ptr==NULL);
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif
       return arrayHelper(base_ptr[indx],base_ptr[indx+1]) ;
     }
     arrayHelper_const operator[](size_t indx) const {
 #ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
+      fatal(base_ptr==NULL);
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif
       return arrayHelper_const(base_ptr[indx],base_ptr[indx+1]) ;
     }
-      
+
     int num_elems(int indx) const {return base_ptr[indx+1]-base_ptr[indx];}
-    int *begin(int indx) { return base_ptr[indx] ; }
-    int *end(int indx) { return base_ptr[indx+1] ; }
-    const int *begin(int indx) const { return base_ptr[indx] ; }
-    const int *end(int indx) const { return base_ptr[indx+1] ; }
+    Entity *begin(int indx) { return base_ptr[indx] ; }
+    Entity *end(int indx) { return base_ptr[indx+1] ; }
+    const Entity *begin(int indx) const { return base_ptr[indx] ; }
+    const Entity *end(int indx) const { return base_ptr[indx+1] ; }
     int vec_size(int indx) const { return end(indx)-begin(indx) ; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ; }
     int getRangeKeySpace() const { return MapRepP(Rep())->getRangeKeySpace() ; }
     void setRangeKeySpace(int v) { MapRepP(Rep())->setRangeKeySpace(v) ; }
   } ;
-  
+
   inline std::ostream & operator<<(std::ostream &s, const multiMap &m)
   { return m.Print(s) ; }
   inline std::istream & operator>>(std::istream &s, multiMap &m)
@@ -222,7 +232,7 @@ namespace Loci {
 
   class const_multiMap : public store_instance {
     typedef multiMapRepI MapType ;
-    const int * const * base_ptr ;
+    const Entity * const * base_ptr ;
     const_multiMap(const_multiMap &var) {  setRep(var.Rep()) ; }
     const_multiMap & operator=(const const_multiMap &str)
     { setRep(str.Rep()) ; return *this ;}
@@ -230,34 +240,34 @@ namespace Loci {
     { setRep(str.Rep()) ; return *this ;}
   public:
     class arrayHelper_const {
-      const int *first ;
-      const int *last ;
+      const Entity *first ;
+      const Entity *last ;
     public:
       arrayHelper_const(const int *f, const int *l) : first(f), last(l){}
       int size() { return last-first ; }
-      const int &operator[](int indx) { return first[indx] ; }
-      const int &operator[](size_t indx) { return first[indx] ; }
-      const int &operator[](unsigned int indx) { return first[indx] ; }
-      const int &operator[](unsigned char indx) { return first[indx] ; }
-      const int *begin() { return first ; }
-      const int *end() { return last; }
-      
+      const Entity &operator[](int indx) { return first[indx] ; }
+      const Entity &operator[](size_t indx) { return first[indx] ; }
+      const Entity &operator[](unsigned int indx) { return first[indx] ; }
+      const Entity &operator[](unsigned char indx) { return first[indx] ; }
+      const Entity *begin() { return first ; }
+      const Entity *end() { return last; }
+
     } ;
 
     const_multiMap() { setRep(new MapType) ; }
-    
-    
+
+
     const_multiMap(multiMap &var) { setRep(var.Rep()) ; }
-    
+
     const_multiMap(storeRepP rp) { setRep(rp) ; }
-    
+
     virtual ~const_multiMap() ;
     virtual void notification() ;
-    
+
     virtual instance_type access() const ;
-    
+
     const_multiMap & operator=(storeRepP p) { setRep(p) ; return *this ;}
-    
+
     entitySet domain() const { return Rep()->domain(); }
     //    operator storeRepP() { return Rep() ; }
     operator MapRepP() {
@@ -266,19 +276,19 @@ namespace Loci {
       return p ; }
     arrayHelper_const const_elem(Entity indx)  const {
 #ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
+      fatal(base_ptr==NULL);
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif
       return arrayHelper_const(base_ptr[indx],base_ptr[indx+1]); }
-    arrayHelper_const operator[](Entity indx) const { 
+    arrayHelper_const operator[](Entity indx) const {
 #ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
+      fatal(base_ptr==NULL);
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif
       return arrayHelper_const(base_ptr[indx],base_ptr[indx+1]); }
-    arrayHelper_const operator[](size_t indx) const { 
+    arrayHelper_const operator[](size_t indx) const {
 #ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
+      fatal(base_ptr==NULL);
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif
       return arrayHelper_const(base_ptr[indx],base_ptr[indx+1]); }

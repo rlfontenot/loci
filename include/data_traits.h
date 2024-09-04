@@ -38,6 +38,7 @@
 
 #include <Loci_Datatypes.h>
 #include <Tools/expr.h>
+#include <mpi.h>
 
 namespace Loci {
 
@@ -162,7 +163,7 @@ namespace Loci {
       oss << ref ;
       return oss.str().size() ;
     }
-    void getState(char *buf, int &size) {
+    void getState(char *buf, int &size) const {
       std::ostringstream oss ;
       oss << ref ;
       const std::string &s = oss.str() ;
@@ -170,7 +171,7 @@ namespace Loci {
       for(int i=0;i<size;++i)
         buf[i] = s[i] ;
     }
-    void setState(char *buf, int size) {
+    void setState(const char *buf, int size) {
       std::string s ;
       for(int i=0;i<size;++i)
         s += buf[i] ;
@@ -187,10 +188,10 @@ namespace Loci {
       std::cerr << "undefined converter" << std::endl ;
       return 0 ;
     }
-    void getState(char *buf, int &size) {
+    void getState(char *buf, int &size) const {
       std::cerr << "undefined converter" << std::endl ;
     }
-    void setState(char *buf, int size) {
+    void setState(const char *buf, int size) {
       std::cerr << "undefined converter" << std::endl ;
     }
   } ;
@@ -329,6 +330,24 @@ namespace Loci {
   } ;
 
   template <>
+  struct data_schema_traits<long long> {
+    typedef IDENTITY_CONVERTER Schema_Converter;
+
+    static DatatypeP get_type() {
+      return DatatypeP(new AtomicType(LONGLONG)) ;
+    }      
+  } ;
+
+  template <>
+  struct data_schema_traits<unsigned long long> {
+    typedef IDENTITY_CONVERTER Schema_Converter;
+
+    static DatatypeP get_type() {
+      return DatatypeP(new AtomicType(UNSIGNED_LONGLONG)) ;
+    }      
+  } ;
+
+  template <>
   struct data_schema_traits<float> {
     typedef IDENTITY_CONVERTER Schema_Converter;
 
@@ -374,13 +393,13 @@ namespace Loci {
     int getSize() const {
       return eref.size() ;
     }
-    void getState(int *buf, int &size) {
+    void getState(int *buf, int &size) const {
       size = getSize() ;
       int ii=0; 
       for(entitySet::const_iterator i=eref.begin();i!=eref.end();++i)
         buf[ii++] = *i ;
     }
-    void setState(int *buf, int size) {
+    void setState(const int *buf, int size) {
       eref = EMPTY ;
       for(int i=0;i<size;++i)
         eref += buf[i] ;
@@ -404,12 +423,12 @@ namespace Loci {
     int getSize() const {
       return eref.size() ;
     }
-    void getState(T *buf, int &size) {
+    void getState(T *buf, int &size) const {
       size = getSize() ;
       for(int i=0;i<size;++i)
         buf[i] = eref[i] ;
     }
-    void setState(T *buf, int size) {
+    void setState(const T *buf, int size) {
       eref.clear() ;
       eref.reserve(size) ;
       for(int i=0;i<size;++i)
@@ -431,12 +450,12 @@ namespace Loci {
     int getSize() const {
       return ref.size() ;
     }
-    void getState(char *buf, int &size) {
+    void getState(char *buf, int &size) const {
       size = getSize() ;
       for(int i=0;i<size;++i)
         buf[i] = ref[i] ;
     }
-    void setState(char *buf, int size) {
+    void setState(const char *buf, int size) {
       ref = "" ;
       for(int i=0;i<size;++i)
         ref += buf[i] ;
@@ -483,6 +502,130 @@ namespace Loci {
     }
   } ;
 
+  template <class T> class MPI_traits {} ;
+
+
+  template<> class MPI_traits <unsigned char> {
+  public:
+    static MPI_Datatype get_MPI_type() { return MPI_UNSIGNED_CHAR ; } ;
+  } ;
+
+  template<> class MPI_traits <char> {
+  public:
+    static MPI_Datatype get_MPI_type() { return MPI_BYTE ; } ;
+  } ;
+
+  template<> class MPI_traits <short> {
+  public:
+    static MPI_Datatype get_MPI_type() { return MPI_SHORT ; } ;
+  } ;
+
+  template<> class MPI_traits <unsigned int> {
+  public:
+    static MPI_Datatype get_MPI_type() { return MPI_UNSIGNED ; } ;
+  } ;
+
+
+
+  template<> class MPI_traits <int> {
+  public:
+    static MPI_Datatype get_MPI_type() { return MPI_INT ; } ;
+  } ;
+
+  template<> class MPI_traits <long> {
+  public:
+    static MPI_Datatype get_MPI_type() { return MPI_LONG ; } ;
+  } ;
+
+  template<> class MPI_traits <unsigned long> {
+  public:
+    static MPI_Datatype get_MPI_type() { return MPI_UNSIGNED_LONG ; } ;
+  } ;
+
+  template<> class MPI_traits <long long> {
+  public:
+    static MPI_Datatype get_MPI_type() { return MPI_LONG_LONG_INT; } ;
+  } ;
+
+  template<> class MPI_traits <float> {
+  public:
+    static MPI_Datatype get_MPI_type() { return MPI_FLOAT ; } ;
+  } ;
+
+  template<> class MPI_traits <double> {
+  public:
+    static MPI_Datatype get_MPI_type() { return MPI_DOUBLE ; } ;
+  } ;
+
+  template<> class MPI_traits <long double> {
+  public:
+    static MPI_Datatype get_MPI_type() { return MPI_LONG_DOUBLE ; } ;
+  } ;
+
+
+
+  template <class T> class HDF5_traits {} ;
+
+  template<> class HDF5_traits <char> {
+  public:
+    static hid_t get_HDF5_type() { return H5T_NATIVE_CHAR ; } ;
+  } ;
+
+  template<> class HDF5_traits <short> {
+  public:
+    static hid_t get_HDF5_type() { return H5T_NATIVE_SHORT ; } ;
+  } ;
+
+  template<> class HDF5_traits <int> {
+  public:
+    static hid_t get_HDF5_type() { return H5T_NATIVE_INT ; } ;
+  } ;
+
+  template<> class HDF5_traits <long> {
+  public:
+    static hid_t get_HDF5_type() { return H5T_NATIVE_LONG ; } ;
+  } ;
+
+  template<> class HDF5_traits <long long> {
+  public:
+    static hid_t get_HDF5_type() { return H5T_NATIVE_LLONG; } ;
+  } ;
+
+
+  template<> class HDF5_traits <unsigned char> {
+  public:
+    static hid_t get_HDF5_type() { return H5T_NATIVE_UCHAR ; } ;
+  } ;
+
+  template<> class HDF5_traits <unsigned short> {
+  public:
+    static hid_t get_HDF5_type() { return H5T_NATIVE_USHORT ; } ;
+  } ;
+
+  template<> class HDF5_traits <unsigned int> {
+  public:
+    static hid_t get_HDF5_type() { return H5T_NATIVE_UINT ; } ;
+  } ;
+
+  template<> class HDF5_traits <unsigned long> {
+  public:
+    static hid_t get_HDF5_type() { return H5T_NATIVE_ULONG ; } ;
+  } ;
+
+  template<> class HDF5_traits <unsigned long long> {
+  public:
+    static hid_t get_HDF5_type() { return H5T_NATIVE_ULLONG; } ;
+  } ;
+
+  template<> class HDF5_traits <float> {
+  public:
+    static hid_t get_HDF5_type() { return H5T_NATIVE_FLOAT ; } ;
+  } ;
+
+  template<> class HDF5_traits <double> {
+  public:
+    static hid_t get_HDF5_type() { return H5T_NATIVE_DOUBLE ; } ;
+  } ;
     
 }
 

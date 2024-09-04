@@ -45,21 +45,11 @@ using std::ostringstream ;
 #include "dist_tools.h"
 #include "loci_globs.h"
 
-#ifdef HAS_MALLINFO
-// for the mallinfo function
-#include <malloc.h>
-#endif
-
 
 namespace {
     // memory profile function
   double currentMem(void) {
-#ifdef HAS_MALLINFO
-    struct mallinfo info = mallinfo() ;
-    return double(info.arena)+double(info.hblkhd) ;
-#else
-    return 0 ;
-#endif
+    return ::Loci::getmaxrss() ;
   }
 }
 
@@ -259,7 +249,7 @@ namespace Loci {
 		scheds.add_policy(*vi, sched_db::NEVER);
 	    }
 	    else if(r.get_info().rule_impl->get_rule_class() == rule_impl::UNIT) {
-	      if(reduction_duplication && facts.get_variable(*vi)->RepType() != Loci::PARAMETER){
+	      if(reduction_duplication && !isPARAMETER(facts.get_variable(*vi))) {
 		if(!use_duplicate_model)
 		  scheds.add_policy(*vi, sched_db::ALWAYS);
 		else
@@ -626,7 +616,7 @@ namespace Loci {
     FATAL(targets.size() != 1) ;
     variable tvar = *(targets.begin()) ;
 
-    if(facts.get_variable(tvar)->RepType() == Loci::PARAMETER)
+    if(isPARAMETER(facts.get_variable(tvar)))
       tvarmap[tvar] = scheds.variable_existence(tvar) ;
     else
       tvarmap[tvar] = scheds.get_variable_request(unit_tag,tvar) ;
@@ -1903,13 +1893,6 @@ namespace Loci {
       for(size_t j=0;j<send_info[i].second.size();++j) {
 	storeRepP sp = send_vars[i][j] ; //facts.get_variable(send_info[i].second[j].v) ;
         s_size[i] += sp->pack_size(send_info[i].second[j].set) ;
-	/*
-	  #ifdef DEBUG
-	  entitySet rem = send_info[i].second[j].set - sp->domain() ;
-	  if(rem != EMPTY)
-          debugout << "variable " << send_info[i].second[j].v << " not allocated, but sending for entities " << rem << endl ;
-	  #endif
-	*/
       }
       if((s_size[i] > maxs_size[i]) || (s_size[i] == sizeof(int))) {
 	if(s_size[i] > maxs_size[i])
@@ -2312,39 +2295,46 @@ namespace Loci {
   }
 
   executeP barrier_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
-    
+
     if(facts.isDistributed()) {
       std::list<comm_info> clist = scheds.get_comm_info_list(barrier_vars, facts, sched_db::BARRIER_CLIST);
       std::list<comm_info> plist = scheds.get_comm_info_list(barrier_vars, facts, sched_db::BARRIER_PLIST);
       
       CPTR<execute_list> el = new execute_list ;
-      //       executeP tmp ;
-      //       int cnt = 0 ;
+
+      bool isGPUSync = false ;
+      for(variableSet::const_iterator vi=barrier_vars.begin();
+	  vi != barrier_vars.end();++vi) {
+	if(vi->name.substr(0,7) == string("__GPU__"))
+	  isGPUSync = true ;
+      }
+
+      // Add gpu syncronization point
+      if(isGPUSync) {
+	executeP tmp = new execute_gpuSync(barrier_vars) ;
+	el->append_list(tmp) ;
+      }
       execute_comm2::inc_comm_step() ;
       if(!plist.empty()) {
-        //tmp = new execute_comm(plist, facts);
-        //cnt++ ;
         executeP tmp2 = new execute_comm2(plist, facts) ;
         el->append_list(tmp2) ;
-        //el->append_list(tmp) ;
       }
       execute_comm2::inc_comm_step() ;
       if(!clist.empty()) {
-        //tmp = new execute_comm(clist, facts);
-        //cnt++ ;
         executeP tmp2 = new execute_comm2(clist, facts) ;
         el->append_list(tmp2) ;
-        //el->append_list(tmp) ;
       }
-      // if(cnt == 0)
-      //   return executeP(0) ;
-      // if(cnt == 1)
-      //   return tmp ;
-      // return executeP(el) ;
+
+      if(MPI_processes==1 && !isGPUSync) {
+	ostringstream oss ;
+	oss << "Sync: " << barrier_vars << endl ;
+	executeP exec_thrd_sync = new execute_msg(oss.str()) ;
+	el->append_list(exec_thrd_sync) ;
+      }
       return executeP(el) ;
     }
     ostringstream oss ;
-    oss << "Sync: " << barrier_vars << endl ;
+      oss << "Sync: " << barrier_vars << endl ;
     executeP exec_thrd_sync = new execute_msg(oss.str()) ;
     return exec_thrd_sync;
   }
@@ -2438,7 +2428,7 @@ namespace Loci {
           LociAppAllocRequestBeanCounting -= packsize ;
           LociAppFreeRequestBeanCounting -= packsize ;
         }
-	if(srp->RepType() == Loci::STORE) {
+	if(isSTORE(srp)) {
 
 	  entitySet tmp = interval(alloc_dom.Min(), alloc_dom.Max()) ;
 	  if(verbose && tmp.size() >= 2*srp->domain().size() )
@@ -2737,13 +2727,8 @@ namespace Loci {
   void execute_memProfileFree::execute(fact_db& facts, sched_db &scheds) {
     for(variableSet::const_iterator vi=vars.begin();
         vi!=vars.end();++vi) {
-      //cerr<<"memory profiling (free) on: "<<*vi<<endl;
       storeRepP srp = facts.get_variable(*vi) ;
       entitySet alloc_dom = srp->domain() ;
-
-      //double currmen = currentMem() ;
-      //if(currmen > LociAppPeakMemory)
-      //LociAppPeakMemory = currmen ;
 
       int packsize = srp->pack_size(alloc_dom) ;
       LociAppFreeRequestBeanCounting += packsize ;

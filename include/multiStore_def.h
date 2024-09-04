@@ -41,12 +41,9 @@ namespace Loci {
 
   template<class T> class multiStoreRepI : public storeRep {
     entitySet store_domain ;
-    T **index ;
-    T *alloc_pointer ;
     T **base_ptr ;
-    int size ;
     lmutex mutex ;
-    
+
     void  hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, frame_info&fi, entitySet &en);
     void  hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER c, frame_info &fi, entitySet &en) ;
     void  hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, const entitySet &en) const;
@@ -61,7 +58,7 @@ namespace Loci {
     int get_estimated_mpi_size(IDENTITY_CONVERTER c, const entitySet &eset);
     int get_mpi_size(USER_DEFINED_CONVERTER c, const entitySet &eset);
     int get_estimated_mpi_size(USER_DEFINED_CONVERTER c, const entitySet &eset);
-    
+
     void packdata(IDENTITY_CONVERTER c,     void *ptr, int &loc, int size,
                   const entitySet &e) ;
     void packdata(USER_DEFINED_CONVERTER c, void *ptr, int &loc, int size,
@@ -77,17 +74,16 @@ namespace Loci {
     frame_info get_frame_info(USER_DEFINED_CONVERTER g) ;
   public:
     multiStoreRepI()
-    { index = 0; alloc_pointer = 0 ; base_ptr = 0 ; size=0;}
+    { base_ptr = 0 ; }
 
     multiStoreRepI(const entitySet &p)
-    { index = 0; alloc_pointer = 0 ; base_ptr = 0 ; size=0; store_domain=p;}
+    { base_ptr = 0 ; store_domain=p;}
 
-    multiStoreRepI(const store<int> &sizes) {
-      index = 0 ; alloc_pointer=0 ; base_ptr = 0; allocate(sizes) ; }
+    multiStoreRepI(const store<int> &sizes)
+    { base_ptr = 0; allocate(sizes) ; }
 
     void allocate(const store<int> &sizes) ;
     virtual void shift(int_type offset) ;
-    void multialloc(const store<int> &count, T ***index, T **alloc_pointer, T ***base_ptr) ;
     void setSizes(const const_multiMap &mm) ;
     virtual ~multiStoreRepI() ;
     virtual void allocate(const entitySet &ptn) ;
@@ -101,13 +97,13 @@ namespace Loci {
                         const entitySet &context)  ;
     virtual void scatter(const dMap &m, storeRepP &st,
                          const entitySet &context) ;
-    
+
     virtual int pack_size(const entitySet& e, entitySet& packed) ;
     virtual int pack_size(const entitySet &e) ;
     virtual int estimated_pack_size(const entitySet &e) ;
     virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
     virtual void unpack(void *ptr, int &loc, int &size,  const sequence &seq ) ;
-    		      
+
     virtual store_type RepType() const ;
     virtual entitySet domain() const ;
     virtual std::ostream &Print(std::ostream &s) const ;
@@ -118,7 +114,13 @@ namespace Loci {
     virtual void readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en, hid_t xfer_plsit_id) ;
     virtual void writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en,hid_t xfer_plsit_id) const ;
 #endif
-    T ** get_base_ptr() const { return base_ptr ; }
+    T ** get_base_ptr() const {
+      T **p = 0 ;
+      if(alloc_id>=0)
+	p = ((T **)storeAllocateData[alloc_id].alloc_ptr2) -
+	  storeAllocateData[alloc_id].base_offset ;
+      return p ;
+    }
     T *begin(int indx) { return base_ptr[indx] ; }
     T *end(int indx) { return base_ptr[indx+1] ; }
     const T *begin(int indx) const  { return base_ptr[indx] ; }
@@ -131,7 +133,7 @@ namespace Loci {
   template<class T> class multiStore : public store_instance {
     typedef multiStoreRepI<T> storeType ;
     T ** base_ptr ;
-    int size ;
+    //    int size ;
     multiStore(const multiStore<T> &var) {setRep(var.Rep()) ;}
     multiStore<T> & operator=(const multiStore<T> &str) {
       setRep(str.Rep()) ;
@@ -162,29 +164,29 @@ namespace Loci {
       p->setSizes(m) ;
     }
     const entitySet domain() const { return Rep()->domain() ; }
-    Vect<T> elem(Entity indx) 
+    Vect<T> elem(Entity indx)
     {
 #ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
+      fatal(base_ptr==NULL);
       fatal(!((Rep()->domain()).inSet(indx))) ;
-#endif 
-      return Vect<T>(base_ptr[indx],base_ptr[indx+1]-base_ptr[indx]) ; 
+#endif
+      return Vect<T>(base_ptr[indx],base_ptr[indx+1]-base_ptr[indx]) ;
     }
-    Vect<T> operator[](Entity indx) 
+    Vect<T> operator[](Entity indx)
     {
 #ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
+      fatal(base_ptr==NULL);
       fatal(!((Rep()->domain()).inSet(indx))) ;
-#endif 
-      return Vect<T>(base_ptr[indx],base_ptr[indx+1]-base_ptr[indx]) ; 
+#endif
+      return Vect<T>(base_ptr[indx],base_ptr[indx+1]-base_ptr[indx]) ;
     }
-    Vect<T> operator[](size_t indx) 
+    Vect<T> operator[](size_t indx)
     {
 #ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
+      fatal(base_ptr==NULL);
       fatal(!((Rep()->domain()).inSet(indx))) ;
-#endif 
-      return Vect<T>(base_ptr[indx],base_ptr[indx+1]-base_ptr[indx]) ; 
+#endif
+      return Vect<T>(base_ptr[indx],base_ptr[indx+1]-base_ptr[indx]) ;
     }
     T *begin(int indx) { return base_ptr[indx] ; }
     T *end(int indx) { return base_ptr[indx+1] ; }
@@ -200,7 +202,7 @@ namespace Loci {
   template<class T> class const_multiStore : public store_instance {
     typedef multiStoreRepI<T> storeType ;
     T ** base_ptr ;
-    int size ;
+    //    int size ;
     const_multiStore(const const_multiStore<T> &var) {setRep(var.Rep()) ;}
     const_multiStore(const multiStore<T> &var) {setRep(var.Rep()) ;}
     const_multiStore<T> & operator=(const multiStore<T> &str) {
@@ -222,21 +224,21 @@ namespace Loci {
     const entitySet domain() const { return Rep()->domain() ; }
     containerType elem(Entity indx) {
 #ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
+      fatal(base_ptr==NULL);
       fatal(!((Rep()->domain()).inSet(indx))) ;
-#endif 
+#endif
       return containerType(base_ptr[indx],base_ptr[indx+1]-base_ptr[indx]) ; }
     containerType operator[](Entity indx) {
 #ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
+      fatal(base_ptr==NULL);
       fatal(!((Rep()->domain()).inSet(indx))) ;
-#endif 
+#endif
       return containerType(base_ptr[indx],base_ptr[indx+1]-base_ptr[indx]) ; }
     containerType operator[](size_t indx) {
 #ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
+      fatal(base_ptr==NULL);
       fatal(!((Rep()->domain()).inSet(indx))) ;
-#endif 
+#endif
       return containerType(base_ptr[indx],base_ptr[indx+1]-base_ptr[indx]) ; }
 
     const T *begin(int indx) const  { return base_ptr[indx] ; }
@@ -246,7 +248,7 @@ namespace Loci {
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ;}
   } ;
-  
+
 } // end of namespace Loci
 
 #endif

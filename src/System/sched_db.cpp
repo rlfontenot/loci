@@ -95,15 +95,8 @@ namespace Loci {
   }
   /*! since free_set is never assigned, else block will never be executed, commented out here */
   void sched_db::install_sched_data(variable v, sched_data data) {
-    // if(free_set == EMPTY) {
     sched_infov.push_back(data) ;
     install_sched_info(v,sched_info(sched_infov.size()-1)) ;
-    //} else {
-    //int val = *(free_set.begin()) ;
-    // free_set -= val ;
-    //sched_infov[val] = data ;
-    //install_sched_info(v,sched_info(val)) ;
-    // }
   }
   sched_db::sched_info &sched_db::get_sched_info(variable v) {
     vmap_type::iterator mi = vmap.find(remove_synonym(v)) ;
@@ -111,16 +104,6 @@ namespace Loci {
       return get_sched_info(variable("EMPTY")) ; /*! assume variable("EMPTY") will be definitely in vmap, other infinite loop*/  
     return mi->second ;
   }
-  /* variable_is_fact_at() is commented out because it's never used*/
-  //  void sched_db::variable_is_fact_at(variable v,entitySet s, fact_db &facts) {/*! ??? and it's never used*/
-  //     sched_info &fi = get_sched_info(v) ;
-  //     fi.fact_installed += s ;
-  //     fi.existence += s ;
-  //     variableSet aliases = sched_infov[fi.sched_info_ref].aliases ;
-  //     aliases -= v ;
-  //     for(variableSet::const_iterator vi=aliases.begin();vi!=aliases.end();++vi) 
-  //       get_sched_info(v).fact_installed -= s ;/*! should v be vi? */
-  //   }
 
   void sched_db::set_variable_rotations(variableSet vars) {
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
@@ -128,6 +111,40 @@ namespace Loci {
     }
   }
   
+  void sched_db::alias_variable(variable v, variable alias) {
+
+    if(all_vars.inSet(v)) {
+      if(all_vars.inSet(alias)) {
+        if(MPI_processes == 1) {
+          cerr << "alias already in fact_db!" << endl ;
+          cerr << "error found in alias_variable("<<v<<","<< alias<<")" << endl ;
+        } else {
+          debugout << "alias already in fact_db!" << endl ;
+          debugout << "error found in alias_variable("<<v<<","<< alias<<")" << endl ;
+        }
+	detected_errors = true ;
+        return ;
+      }
+      
+      int ref = get_sched_info(v).sched_info_ref ;
+      sched_infov[ref].aliases += alias ;
+      install_sched_info(alias,sched_info(ref)) ;
+      ref = get_sched_info(alias).sched_info_ref ;
+      sched_infov[ref].antialiases += v ;
+      
+    } else if(all_vars.inSet(alias)) {
+      alias_variable(alias,v) ;
+    } else {
+      if(MPI_processes == 1)
+        cerr << "neither variable " << v << ", nor " << alias << " exist in db, cannot create alias" << endl ;
+      else
+        debugout << "neither variable " << v << ", nor " << alias << " exist in db, cannot create alias" << endl ;
+        
+      detected_errors = true ;
+    }
+    
+  }
+
   void sched_db::alias_variable(variable v, variable alias, fact_db &facts) {
 
     facts.synonym_variable(v,alias) ;
@@ -164,6 +181,29 @@ namespace Loci {
     
   }
   
+  void sched_db::synonym_variable(variable v, variable synonym) {
+    v = remove_synonym(v) ;
+    vmap_type::iterator vmi ;
+    if((vmi = vmap.find(synonym)) != vmap.end()) {
+      if(MPI_processes == 1) {
+        cerr << "synonym already in fact_db!" << endl ;
+        cerr << "error found in synonym_variable("<<v<<","<<synonym<<")"<<endl;
+      } else {
+        debugout << "synonym already in fact_db!" << endl ;
+        debugout << "error found in synonym_variable("<<v<<","<<synonym<<")"<<endl;
+      }
+      //      detected_errors = true ;
+      //      return ;
+    }
+
+    sched_info &vfinfo = get_sched_info(v) ;
+    
+    vfinfo.synonyms += synonym ;
+    synonyms[synonym] = v ;
+    all_vars += synonym ;
+    sched_info &sfinfo = get_sched_info(synonym) ;
+    sfinfo.synonyms += v ;
+  }
   
   void sched_db::synonym_variable(variable v, variable synonym, fact_db &facts) {
     facts.synonym_variable(v, synonym) ;
@@ -372,15 +412,15 @@ namespace Loci {
     std::map<variable,sched_info>::const_iterator mi ;
     for(mi=vmap.begin();mi!=vmap.end();++mi) {
       storeRepP sp = facts.get_variable(mi->first) ;
-      if(sp->RepType() == MAP)
+      if(isMAP(sp))
 	s << " Container = MAP " << endl ;
-      else if(sp->RepType() == STORE)
+      else if(isSTORE(sp))
 	s << " Container = STORE " << endl ;
-      else if(sp->RepType() == PARAMETER)
+      else if(isPARAMETER(sp))
 	s << " Container = PARAMETER " << endl ;
-      else if(sp->RepType() == BLACKBOX)
+      else if(isBLACKBOX(sp))
 	s << " Container = BLACKBOX " << endl;
-      else if(sp->RepType() == CONSTRAINT)
+      else if(isCONSTRAINT(sp))
 	s << " Container = CONSTRAINT " << endl ;
       
       //      double size = 0 ;

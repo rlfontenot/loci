@@ -37,8 +37,8 @@ using std::find_if ;
 using std::copy ;
 using std::find ;
 #include <functional>
-using std::bind2nd ;
-using std::ptr_fun ;
+//using std::bind2nd ;
+//using std::ptr_fun ;
 #include <iterator>
 using std::ostream_iterator ;
 #include <utility>
@@ -755,75 +755,6 @@ namespace Loci {
     typed_vars += add ;
   }
 
-  /*
-  void unTypedVarVisitor::discover(const digraph& gr) {
-    digraph grt = gr.transpose() ;
-    // typed variables in this graph
-    variableSet typed_here ;
-    // get all target variables
-    variableSet allvars ;
-    ruleSet rules = extract_rules(gr.get_all_vertices()) ;
-    for(ruleSet::const_iterator ri=rules.begin();ri!=rules.end();++ri)
-      allvars += ri->targets() ;
-
-    // typed vars don't need to be processed
-    allvars -= typed_vars ;
-    for(variableSet::const_iterator vi=allvars.begin();
-        vi!=allvars.end();++vi) {
-      // process one variable each time
-      ruleSet source_rules ;
-      
-      ruleSet working ;
-      working = extract_rules(grt[vi->ident()]) ;
-      source_rules += working ;
-      while(working != EMPTY) {
-        ruleSet next ;
-        for(ruleSet::const_iterator ri=working.begin();
-            ri!=working.end();++ri) {
-          variableSet source_vars ;
-          if(!is_super_node(ri)) {
-            source_vars = extract_vars(grt[ri->ident()]) ;
-            for(variableSet::const_iterator vi2=source_vars.begin();
-                vi2!=source_vars.end();++vi2)
-              next += extract_rules(grt[vi2->ident()]) ;
-          }
-        }
-        source_rules += next ;
-        working = next ;
-      } // end of while
-
-      bool is_untyped = true ;
-      for(ruleSet::const_iterator ri=source_rules.begin();
-          ri!=source_rules.end();++ri) {
-        if(!is_virtual_rule(*ri)) {
-          is_untyped = false ;
-          break ;
-        }
-      }
-      if(is_untyped)
-        untyped_vars += *vi ;
-      else
-        typed_here += *vi ;
-    } // end of for
-    // we make all typed variables' recurrence target variable(if any)
-    // and all the recurrence source variable(if any) typed
-    typed_vars += typed_here ;
-    for(variableSet::const_iterator vi=typed_here.begin();
-        vi!=typed_here.end();++vi) {
-      variableSet all_targets = get_all_recur_vars(recur_vars_s2t,*vi) ;
-      typed_vars += all_targets ;
-    }
-    for(variableSet::const_iterator vi=typed_here.begin();
-        vi!=typed_here.end();++vi) {
-      variableSet all_sources = get_all_recur_vars(recur_vars_t2s,*vi) ;
-      typed_vars += all_sources ;
-    }
-    for(variableSet::const_iterator vi=typed_vars.begin();
-        vi!=typed_vars.end();++vi)
-      if(untyped_vars.inSet(*vi))
-        untyped_vars -= *vi ;
-  }
-  */
   
   void unTypedVarVisitor::discover(const digraph& gr) {
     digraph::vertexSet all_vertices = gr.get_all_vertices() ;
@@ -1078,10 +1009,13 @@ namespace Loci {
       vector<variable>::iterator pos ;
       vector<variable>::iterator old_pos = all_targets.begin() ;
       while(old_pos != all_targets.end()) {
-        pos = find_if(old_pos+1,all_targets.end(),
-                      bind2nd(ptr_fun(time_after),*old_pos)
-                      ) ;
-        
+	// old way
+	//	pos = find_if(old_pos+1,all_targets.end(),
+	//		      bind2nd(ptr_fun(time_after),*old_pos)
+	//		      ) ;
+        // now replaced with lambda expression
+	pos = find_if(old_pos+1,all_targets.end(),
+		      [old_pos](variable elem) { return time_after(elem,*old_pos) ; }) ;
         if(pos - old_pos > 1) {
           variableSet time_ident_vars ;
           variableSet real_varset ;
@@ -1533,6 +1467,7 @@ namespace Loci {
       KeySpaceP kp = mi->second ;
       if(kp->get_dynamism() != DYNAMIC)
         continue ;
+#ifdef DYNAMICSCHEDULING
       // finally we have a rule in a dynamic keyspace
       // we need to replace the rule compiler with a
       // corresponding dynamic_impl_compiler
@@ -1954,6 +1889,7 @@ namespace Loci {
         }
         // end of var processing
       } // end of targets
+#endif      
     }
   }
 
@@ -2000,115 +1936,6 @@ namespace Loci {
     replace_compiler(rc.get_rules()) ;
   }
 
-  /////////////////////////////////////////////////////////////////
-  // DynamicCloneInvalidatorVisitor
-  /////////////////////////////////////////////////////////////////
-  void DynamicCloneInvalidatorVisitor::
-  edit_graph(digraph& gr, rulecomp_map& rcm) {
-    // we'll get all the variables generated in this graph
-    digraph::vertexSet all_vertices = gr.get_all_vertices() ;
-    ruleSet all_rules = extract_rules(all_vertices) ;
-
-    variableSet targets ;
-    // gather targets first
-    for(ruleSet::const_iterator ri=all_rules.begin();
-        ri!=all_rules.end();++ri) {
-      // skip internal rules
-      if(is_internal_rule(ri))
-        continue ;
-      targets += ri->targets() ;
-    }
-
-    for(variableSet::const_iterator vi=targets.begin();
-        vi!=targets.end();++vi) {
-      variable t = facts.remove_synonym(*vi) ;
-      if(clone_vars.inSet(t)) {
-        // create a new rule and modify the graph
-        variable sv("dCloneInvalidate") ;
-        rule clone_irule = create_rule(sv,*vi,"DCLONE_INVALIDATE") ;
-        digraph::vertexSet reach = gr[vi->ident()] ;
-        for(digraph::vertexSet::const_iterator ii=reach.begin();
-            ii!=reach.end();++ii)
-          gr.remove_edge(vi->ident(), *ii) ;
-        gr.add_edge(vi->ident(), clone_irule.ident()) ;
-        gr.add_edges(clone_irule.ident(), reach) ;
-        // create a compiler for the new rule
-        KeySpaceP self_clone_kp = 0 ;
-        vector<KeySpaceP> shadow_clone_kp ;
-
-        map<variable, string>::const_iterator mi ;
-        mi = self_clone.find(t) ;
-        if(mi != self_clone.end()) {
-          // get the keyspace rep
-          map<string,KeySpaceP>::const_iterator ki ;
-          ki = facts.keyspace.find(mi->second) ;
-          if(ki == facts.keyspace.end()) {
-            cerr << "Error: keyspace: " << mi->second
-                 << " does not exist, error from "
-                 << "DynamicCloneInvalidatorVisitor" << endl ;
-            Loci::Abort() ;
-          }
-          self_clone_kp = ki->second ;
-        }
-          
-        map<variable, set<string> >::const_iterator mi2 ;
-        mi2 = shadow_clone.find(t) ;
-        if(mi2 != shadow_clone.end()) {
-          // get the all keyspace pointer
-          const set<string>& space_names = mi2->second ;
-          for(set<string>::const_iterator si=space_names.begin();
-              si!=space_names.end();++si) {
-            map<string,KeySpaceP>::const_iterator ki ;
-            ki = facts.keyspace.find(*si) ;
-            if(ki == facts.keyspace.end()) {
-              cerr << "Error: keyspace: " << *si
-                   << " does not exist, error from "
-                   << "DynamicCloneInvalidatorVisitor" << endl ;
-              Loci::Abort() ;
-            }
-            shadow_clone_kp.push_back(ki->second) ;
-          }
-        }
-
-        rcm[clone_irule] =
-          new dclone_invalidate_compiler(*vi, t,
-                                         self_clone_kp, shadow_clone_kp) ;
-      }
-    }
-  }
-  
-  DynamicCloneInvalidatorVisitor::
-  DynamicCloneInvalidatorVisitor
-  (fact_db& fd,
-   const std::map<variable,std::string>& sc,
-   const std::map<variable,std::set<std::string> >& sac)
-    :facts(fd),self_clone(sc),shadow_clone(sac) {
-
-    std::map<variable,std::string>::const_iterator mi ;
-    for(mi=self_clone.begin();mi!=self_clone.end();++mi)
-      self_clone_vars += mi->first ;
-    
-    std::map<variable,std::set<std::string> >::const_iterator mi2 ;
-    for(mi2=shadow_clone.begin();mi2!=shadow_clone.end();++mi2)
-      shadow_clone_vars += mi2->first ;
-
-    clone_vars = self_clone_vars + shadow_clone_vars ;
-  }
-  
-  void
-  DynamicCloneInvalidatorVisitor::visit(loop_compiler& lc) {
-    edit_graph(lc.loop_gr, lc.rule_compiler_map) ;
-  }
-
-  void
-  DynamicCloneInvalidatorVisitor::visit(dag_compiler& dc) {
-    edit_graph(dc.dag_gr, dc.rule_compiler_map) ;
-  }
-
-  void
-  DynamicCloneInvalidatorVisitor::visit(conditional_compiler& cc) {
-    edit_graph(cc.cond_gr, cc.rule_compiler_map) ;
-  }
 
   ////////////////////////////////////////////////////////////
   //                        The-End                         //

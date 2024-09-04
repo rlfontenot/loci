@@ -26,6 +26,7 @@
 #endif
 #include <Config/conf.h>
 
+#include <cstdint>
 #include <Tools/debug.h>
 #include <Tools/Handle.h>
 #include <Tools/tools.h>
@@ -41,11 +42,15 @@
 namespace Loci {
 
   typedef int int_type ;
-  typedef int GEntity;
+#define LONG_GENTITY
 
-  
+#ifdef LONG_GENTITY
+  typedef std::int64_t gEntity;
+#else
+  typedef int_type gEntity;
+#endif
 
- 
+   
   //c++ can not typedef a template class, so interval is replaced by genInterval and moved into genIntervalSet class
   //outside class definition, interval is replaced by std::pair<T, T>. same with pair_vector
   
@@ -246,6 +251,7 @@ namespace Loci {
     T Max() const {
       size_t sz = Rep->size() ;
       return sz==0?UNIVERSE_MIN:(*Rep)[sz-1].second ;}
+    void make_unique() { Rep.MakeUnique(); }
   } ;
 
 
@@ -629,6 +635,7 @@ namespace Loci {
     void Print() const { Print(std::cout) ; }
 
     std::istream &Input(std::istream &s) ;
+    void make_unique() { Rep.MakeUnique(); }
   } ;
 
   template<typename T> inline genSequence<T> & operator+=(genSequence<T> &e, T ival) 
@@ -761,7 +768,33 @@ namespace Loci {
     }
     return s ;
   }
- 
+
+  template<class T> inline genIntervalSet<gEntity> gcreate_intervalSet(T start, T end) {
+    if(start==end)
+      return genIntervalSet<gEntity>::EMPTY ;
+    std::sort(start,end) ;
+    gEntity First = *start ;
+    gEntity Second = *start ;
+    genIntervalSet<gEntity> r ;
+    for(T p=start;p!=end;++p) {
+      if(*p > Second+1) {
+        r += std::pair<gEntity, gEntity>(First,Second) ;
+        First = *p ;
+      }
+      Second = *p ;
+    }
+    r += std::pair<gEntity, gEntity>(First,Second) ;
+    return r ;
+  }
+
+  template<class T> inline genSequence<gEntity> gcreate_sequence(T start, T end) {
+    genSequence<gEntity> s ;
+    for(T p=start;p!=end;++p) {
+      s += *p ;
+    }
+    return s ;
+  }
+  
 }
   
 #define FORALL(var,indx)                                                \
@@ -774,11 +807,10 @@ namespace Loci {
 
 
 #define GFORALL(var,indx)                                               \
-  {  const Loci::genIntervalSet<GEntity> &__p = var ;                   \
-  for(int __ii=0;__ii<__p.num_intervals();++__ii)                       \
-    for(Loci::GEntity indx=__p[__ii].first;indx<=__p[__ii].second;++indx)
+  {  const Loci::genIntervalSet<gEntity> &__p = var ;                   \
+  for(size_t __ii=0;__ii<__p.num_intervals();++__ii)                       \
+    for(Loci::gEntity indx=__p[__ii].first;indx<=__p[__ii].second;++indx)
       
 #define ENDGFORALL }
-
 
 #endif 

@@ -24,20 +24,17 @@
 namespace Loci {
   using std::vector ;
   using std::pair ;
-  typedef vector3d<real_t> vect3d ;
- 
+  typedef vector3d<double> vect3d ;
+
   // Compute stencil using nearest point in 8 octants
-  vector<int> get_stencil(const kdTree::KDTree<float> &kd,vect3d pnt,
-                          real_t deltai) {
+  vector<int> get_stencil(const kdTree::KDTree<float> &kd,
+			  kdTree::coord3df ccenter,
+			  double deltai) {
     vector<int> neighbors(8) ;
-    kdTree::coord3df ccenter ;
-    ccenter[0] = realToFloat(pnt.x) ;
-    ccenter[1] = realToFloat(pnt.y) ;
-    ccenter[2] = realToFloat(pnt.z) ;
-    double delta = 1.4142*realToDouble(deltai) ;
+    double delta = 1.4142*deltai ;
     double rmin = delta*delta ; // Note rmin is radius squared.
     double rmin_ref = rmin ;
-    
+
     int id = kd.find_closest(ccenter,rmin) ;
 
     if(id < 0) {
@@ -55,7 +52,7 @@ namespace Loci {
       return n ;
     }
 
-    
+
     // First gather postive z quadrants
     kdTree::KDTree<float>::bounds box ;
 
@@ -134,19 +131,15 @@ namespace Loci {
     return neighbors ;
   }
 
-  // Compute stencil using nearest point in 8 octants (real_t precision)
-  vector<int> get_stencil(const kdTree::KDTree<double> &kd,vect3d pnt,
-                          real_t deltai) {
+  // Compute stencil using nearest point in 8 octants
+  vector<int> get_stencil(const kdTree::KDTree<double> &kd,
+			    kdTree::coord3d ccenter,
+			    double deltai) {
     vector<int> neighbors(8) ;
-    kdTree::coord3d ccenter ;
-    ccenter[0] = realToFloat(pnt.x) ;
-    ccenter[1] = realToFloat(pnt.y) ;
-    ccenter[2] = realToFloat(pnt.z) ;
-
-    double delta = 1.4142*realToDouble(deltai) ;
+    double delta = 1.4142*deltai ;
     double rmin = delta*delta ; // Note rmin is radius squared.
     double rmin_ref = rmin ;
-    
+
     int id = kd.find_closest(ccenter,rmin) ;
 
     if(id < 0 ) {
@@ -164,7 +157,7 @@ namespace Loci {
       return n ;
     }
 
-    
+
     // First gather postive z quadrants
     kdTree::KDTree<double>::bounds box ;
 
@@ -274,18 +267,18 @@ namespace Loci {
   //                   |/         |/
   //                   5----------4
   //
-  
-  void stencil_weights(std::vector<real_t> &w,
+
+  void stencil_weights(std::vector<double> &w,
                        std::vector<int> &neighbors,
                        const store<vect3d> &loc,
                        vect3d ipnt) {
     using std::swap ;
     // Find closest point, set it to n0
     int sz = neighbors.size() ;
-    if(sz == 0 ) 
+    if(sz == 0 )
       return ;
     if(sz == 1) {
-      vector<real_t> W(1) ;
+      vector<double> W(1) ;
       W[0] = 1.0 ;
       w.swap(W) ;
       return ;
@@ -297,7 +290,7 @@ namespace Loci {
           {0, 7, 5}, {1, 4, 6}, {2, 5, 7}, {3, 6, 4} } ;
 
     int corner = -1 ;
-    real_t dist = 1e33 ;
+    double dist = 1e33 ;
     for(int i=0;i<8;++i) {
       const int p0 = neighbors[i] ;
       const int p1 = neighbors[corner_tets[i][0]] ;
@@ -310,7 +303,7 @@ namespace Loci {
         vect3d v2 = loc[p3]-loc[p2] ;
         vect3d vp = ipnt-loc[p2] ;
         if(dot(vp,cross(v1,v2)) < 0.0) {
-            real_t sum = dot(vp,vp) ;
+            double sum = dot(vp,vp) ;
             vp = ipnt - loc[i] ;
             sum += dot(vp,vp) ;
             vp = ipnt - loc[p1] ;
@@ -322,7 +315,7 @@ namespace Loci {
               corner = i ;
             }
         }
-      } 
+      }
     }
 
     int t0=-1,t1=-1,t2=-1,t3=-1 ;
@@ -355,7 +348,7 @@ namespace Loci {
       p2 = neighbors[5] ;
       p3 = neighbors[7] ;
       if(p0 >=0 && p1 >= 0 && p2 >= 0 && p3 >= 0) {
-        real_t dist2 =
+        double dist2 =
           dot(ipnt-loc[p0],ipnt-loc[p0])+
           dot(ipnt-loc[p1],ipnt-loc[p1])+
           dot(ipnt-loc[p2],ipnt-loc[p2])+
@@ -374,7 +367,7 @@ namespace Loci {
       // and modify stencil to only include the four points that define
       // the bounding tetrahedra.
       vector<int> N(4) ;
-      vector<real_t> W(4) ;
+      vector<double> W(4) ;
       N[0] = t0 ;
       N[1] = t1 ;
       N[2] = t2 ;
@@ -384,15 +377,15 @@ namespace Loci {
       vect3d v2 = loc[N[2]]-v0 ;
       vect3d v3 = loc[N[3]]-v0 ;
       vect3d vc = ipnt-v0 ;
-      
-      real_t w3 = dot(cross(v2,v1),vc) ;
-      real_t w2 = dot(cross(vc,v1),v3) ;
-      real_t w1 = dot(cross(v2,vc),v3) ;
-      real_t vol = dot(cross(v2,v1),v3) ;
-      real_t w0 = vol-w1-w2-w3 ;
+
+      double w3 = dot(cross(v2,v1),vc) ;
+      double w2 = dot(cross(vc,v1),v3) ;
+      double w1 = dot(cross(v2,vc),v3) ;
+      double vol = dot(cross(v2,v1),v3) ;
+      double w0 = vol-w1-w2-w3 ;
       if(vol >= 1e-30 && w0>=0.0 && w1>= 0.0 && w2 >= 0.0 && w3 >= 0.0 ) {
-        real_t rvol = 1./(vol) ;
-        real_t aspect6 = dist*dist*dist*rvol*rvol ;
+        double rvol = 1./(vol) ;
+        double aspect6 = dist*dist*dist*rvol*rvol ;
         if(aspect6 < 1.6e10) { // aspect ratio less than 50
           W[0] = w0*rvol ;
           W[1] = w1*rvol ;
@@ -401,22 +394,22 @@ namespace Loci {
           w.swap(W) ;
           neighbors.swap(N) ;
           return ;
-        } 
+        }
       }
       //      cerr << "degenerate tet, corner = "<< corner << ",w0="
-      //	   << w0 << ",w1="<<w1 << ",w2=" <<w2 << ",w3=" 
+      //	   << w0 << ",w1="<<w1 << ",w2=" <<w2 << ",w3="
       //	   << ",vol=" << vol << endl ;
     }
     // Got here, so it means we are degenerate.
     int nt[8] ;
     sz = 0 ;
-    real_t mind = 1e30 ;
+    double mind = 1e30 ;
     for(int i=0;i<8;++i)
       if(neighbors[i] >= 0) {
 	nt[sz] = neighbors[i] ;
 	sz++ ;
 	vect3d dv = ipnt-loc[neighbors[i]] ;
-	const real_t d = dot(dv,dv) ;
+	const double d = dot(dv,dv) ;
 	if(d<mind) {
 	  mind = d ;
 	  swap(nt[sz-1],nt[0]) ;
@@ -424,20 +417,20 @@ namespace Loci {
       }
     if(sz == 0) {
       vector<int> N ;
-      vector<real_t> W ;
+      vector<double> W ;
       neighbors.swap(N) ;
       w.swap(W) ;
       return ;
     }
     if(sz == 1) {
       vector<int> N(1) ;
-      vector<real_t> W(1) ;
+      vector<double> W(1) ;
       N[0] = nt[0] ;
       W[0] = 1.0 ;
       neighbors.swap(N) ;
       w.swap(W) ;
       return ;
-    }      
+    }
     vect3d v0 = loc[nt[0]] ;
     vect3d vc = ipnt-v0 ;
     // Now find best triangle fit
@@ -445,25 +438,25 @@ namespace Loci {
     int n1=-1, n2 = -1 ;
     for(int i=1;i<sz;++i) {
       const vect3d v1 = loc[nt[i]]-v0 ;
-      const real_t d1 = dot(loc[nt[i]]-ipnt,loc[nt[i]]-ipnt) ;
+      const double d1 = dot(loc[nt[i]]-ipnt,loc[nt[i]]-ipnt) ;
       for(int j=i+1;j<sz;++j) {
         const vect3d dv = loc[nt[j]]-ipnt;
         const vect3d v2 = loc[nt[j]]-v0 ;
-        const real_t d2 = dot(dv,dv) ;
+        const double d2 = dot(dv,dv) ;
         // find smallest perimiter
         if(mind > d1+d2) {
           const vect3d n = cross(v1,v2) ; // Compute face normal
-          const real_t a2 = dot(n,n) ;
-          const real_t d = dot(vc,n) ; // projected distance to triangle
-          const real_t ra2 = 1./(a2+1e-60) ;
+          const double a2 = dot(n,n) ;
+          const double d = dot(vc,n) ; // projected distance to triangle
+          const double ra2 = 1./(a2+1e-60) ;
           // Compute projected point on triangle plane
           vect3d pnt = (vc-d*ra2*n) ;
           // Now check to see if pnt is in triangle
           // Compute barycentric coordinates and make sure all are positive
-          real_t c1 = dot(n,cross(v1,pnt)) ;
-          real_t c2 = dot(n,cross(pnt,v2)) ;
-          real_t c3 = dot(n,cross(v1-pnt,v2-pnt)) ;
-      
+          double c1 = dot(n,cross(v1,pnt)) ;
+          double c2 = dot(n,cross(pnt,v2)) ;
+          double c3 = dot(n,cross(v1-pnt,v2-pnt)) ;
+
           if(c1 >= 0. && c2 >= 0. && c3 >= 0.) {
             mind = d1+d2 ;
             n2 = j ;
@@ -473,7 +466,7 @@ namespace Loci {
       }
     }
 
-    // found triangle, setup weights    
+    // found triangle, setup weights
     if(n2 != -1) {
       swap(nt[1],nt[n1]) ;
       swap(nt[2],nt[n2]) ;
@@ -482,19 +475,19 @@ namespace Loci {
       vect3d v1 = loc[nt[1]]-v0 ;
       vect3d v2 = loc[nt[2]]-v0 ;
       vect3d n = cross(v1,v2) ;
-      real_t ra2 = 1./(dot(n,n)+1e-30) ;
-      real_t d = dot(vc,n) ; // projected distance to triangle
+      double ra2 = 1./(dot(n,n)+1e-30) ;
+      double d = dot(vc,n) ; // projected distance to triangle
       vect3d pnt = (vc-d*ra2*n) ;
-      real_t w2 = dot(n,cross(v1,pnt)) ;
-      real_t w1 = dot(n,cross(pnt,v2)) ;
-      real_t w0 = dot(n,cross(v1-pnt,v2-pnt)) ;
+      double w2 = dot(n,cross(v1,pnt)) ;
+      double w1 = dot(n,cross(pnt,v2)) ;
+      double w0 = dot(n,cross(v1-pnt,v2-pnt)) ;
       if(w1>=0 && w2>=0 && w0 >=0 && w0+w1+w2 > 1e-30) {
 	vector<int> N(3) ;
-	vector<real_t> W(3) ;
+	vector<double> W(3) ;
 	N[0] = nt[0] ;
 	N[1] = nt[1] ;
 	N[2] = nt[2] ;
-        real_t wsr = 1./(w0+w1+w2) ;
+        double wsr = 1./(w0+w1+w2) ;
 	W[0] = w0*wsr ;
 	W[1] = w1*wsr ;
 	W[2] = w2*wsr ;
@@ -504,13 +497,13 @@ namespace Loci {
       }
       //      cerr << "degenerate triangle, w0="<<w0 << "w1="<<w1<< "w2="<<w2 << endl ;
     }
-    
+
     // Now we are reduced to a line segment, project onto it to get weights
     // Find second closest point
     mind = dot(ipnt-loc[nt[1]],ipnt-loc[nt[1]]) ;
     for(int i=2;i<sz;++i) {
       vect3d dv = ipnt-loc[nt[i]] ;
-      const real_t d = dot(dv,dv) ;
+      const double d = dot(dv,dv) ;
       if(d<mind) {
         mind = d ;
         swap(nt[i],nt[1]) ;
@@ -518,22 +511,22 @@ namespace Loci {
     }
     // compute weights
     vector<int> N(2) ;
-    vector<real_t> W(2) ;
+    vector<double> W(2) ;
     N[0] = nt[0] ;
     N[1] = nt[1] ;
     vect3d v1 = loc[nt[1]]-v0 ;
-    W[1] = max(real_t(0.0),min(real_t(1.0),dot(vc,v1)/(dot(v1,v1)+1e-30))) ;
+    W[1] = max(double(0.0),min(double(1.0),dot(vc,v1)/(dot(v1,v1)+1e-30))) ;
     W[0] = 1.-W[1] ;
     w.swap(W) ;
     neighbors.swap(N) ;
     return ;
   }
-  
+
   int collectPointsSizes(const kdTree::KDTree<float> &kd,
 			 kdTree::KDTree<float>::bounds bnd) {
     MEMORY_PROFILE(collectPointsBegin) ;
     // Communicate bounds request to other processors
-    using namespace kdTree ;    
+    using namespace kdTree ;
     int p = MPI_processes ;
     vector<KDTree<float>::bounds> bnd_req(p) ;
     MPI_Allgather(&bnd,6,MPI_FLOAT,&bnd_req[0],6,MPI_FLOAT,MPI_COMM_WORLD) ;
@@ -558,7 +551,7 @@ namespace Loci {
   void getStencilBoundingBox2(kdTree::KDTree<float>::bounds &bnd,
 			      double &delta,
 			      const kdTree::KDTree<float> &kd,
-			      const vector3d<real_t> pnts[],int start, int end) {
+			      const vector3d<double> pnts[],int start, int end) {
     double deltain = delta ;
     for(int d=0;d<3;++d) {
       bnd.minc[d] = .25*std::numeric_limits<float>::max() ;
@@ -598,7 +591,7 @@ namespace Loci {
 	std::swap(d1,d3) ;
       if(d2<d3)
 	std::swap(d2,d3) ;
-      
+
       // Compute mean distance
       double rnpnts = 1./double(npnts) ;
       double dist = max(max(d1*rnpnts,sqrt(d1*d2*rnpnts)),
@@ -621,10 +614,10 @@ namespace Loci {
       bnd.minc[d] -= delta ;
     }
     int npnts2 = collectPointsSizes(kd,bnd) ;
-    
+
     if(npnts2 > 1000000) {
       double f = pow(double(npnts)/double(npnts2+1),0.33333) ;
-      
+
 #ifdef VERBOSE
       debugout << "npnts2="<<npnts2 <<",f=" << f << endl ;
 #endif
@@ -644,12 +637,12 @@ namespace Loci {
         bnd.minc[d] -= max_delta ;
       }
     }
-    
+
   }
 
   void getStencilBoundingBox(kdTree::KDTree<float>::bounds &bnd,
                              double &delta,
-                             const const_store<vector3d<real_t> > &pnts,
+                             const const_store<vector3d<double> > &pnts,
                              entitySet dom) {
     //    MEMORY_PROFILE(getStencilBoundingBoxBegin) ;
     for(int d=0;d<3;++d) {
@@ -768,14 +761,14 @@ namespace Loci {
     std::sort(stmp.begin(),stmp.end()) ;
     vector<int>::const_iterator se = std::unique(stmp.begin(),stmp.end()) ;
     vector<int> access(se-stmp.begin()) ;
-    
+
     int cnt = 0 ;
 
     for(vector<int>::const_iterator ii=stmp.begin();ii!=se;++ii) {
       access[cnt++] = ids[*ii] ;
       WARN(ids[*ii] < 0) ;
     }
-    
+
     std::sort(access.begin(),access.end()) ;
 
     WARN(access.size()>0 && access[0] < 0) ;
@@ -854,65 +847,6 @@ namespace Loci {
       }
     }
     //    MEMORY_PROFILE(remapStencilEnd) ;
-  }
-  
-  // Note, this needs to be made more general.
-  void sendStencilData(storeVec<double> &stencilData,
-                       const_storeVec<double> &sourceData,
-                       const vector<int> &send_info,
-                       const vector<int> &req_sizes_in,
-                       const vector<int> &snd_sizes_in) {
-    MEMORY_PROFILE(sendStencilDataStartv) ;
-
-#ifdef VERBOSE
-    entitySet dom = sourceData.domain() ;
-#endif
-    int vec_size = sourceData.vecSize() ;
-    vector<double> databuf(send_info.size()*vec_size) ;
-    for(size_t i = 0;i<send_info.size();++i) {
-      int id = send_info[i] ;
-#ifdef VERBOSE
-      if(!dom.inSet(id)) {
-        debugout << "id=" <<id << " out of domain " << dom << endl ;
-        id = dom.Min() ;
-      }
-
-#endif
-      for(int j=0;j<vec_size;++j) {
-        databuf[i*vec_size+j] = sourceData[id][j] ;
-      }
-    }
-
-    int p = MPI_processes ;
-    vector<int> req_sizes(p),snd_sizes(p) ;
-    for(int i=0;i<p;++i) {
-      req_sizes[i] = req_sizes_in[i]*vec_size ;
-      snd_sizes[i] = snd_sizes_in[i]*vec_size ;
-    }
-
-    vector<int> sdispls(p) ;
-    sdispls[0] = 0 ;
-    for(int i=1;i<p;++i)
-      sdispls[i] = sdispls[i-1]+req_sizes[i-1] ;
-
-    vector<int> rdispls(p) ;
-    rdispls[0] = 0 ;
-    for(int i=1;i<p;++i) {
-      rdispls[i] = rdispls[i-1]+snd_sizes[i-1] ;
-    }
-
-    int loc_size = 0 ;
-    for(int i=0;i<p;++i)
-      loc_size += req_sizes_in[i] ;
-
-    stencilData.allocate(entitySet(interval(0,loc_size-1))) ;
-    stencilData.setVecSize(vec_size) ;
-
-    MEMORY_PROFILE(sendStencilDataStartall2all) ;
-    MPI_Alltoallv(&databuf[0],&snd_sizes[0],&rdispls[0],MPI_DOUBLE,
-                  &stencilData[0][0],&req_sizes[0],&sdispls[0],MPI_DOUBLE,
-                  MPI_COMM_WORLD) ;
-    MEMORY_PROFILE(sendStencilDataStartEnd3dv) ;
   }
 
     // Note, this needs to be made more general.
@@ -1112,7 +1046,7 @@ namespace Loci {
 #define COUNT_SIZE 100
 #define SMALLEST_SPLIT 2048
 #define STOP_SPLIT 10240
-  
+
   inline double split_histogram(const int counts[COUNT_SIZE]) {
     int tot = counts[0] ;
     int mxcount = counts[0] ;
@@ -1143,7 +1077,7 @@ namespace Loci {
 
     if(10*mxcount < 12*mean)  // If less than 20% variation in histogram
       return .5 ;             // split down the middle.
-    
+
     int s1 ;
     for(s1=mxcid-1;s1>=0;--s1)
       if(counts[s1] < mean)
@@ -1152,7 +1086,7 @@ namespace Loci {
     for(s2=mxcid+1;s2<COUNT_SIZE;++s2)
       if(counts[s2] < mean)
         break ;
-    
+
     int c1 = 0 ;
     int c2 = 0 ;
     for(int i=s1;i>=0;--i)
@@ -1189,7 +1123,7 @@ namespace Loci {
       sizes.push_back(end-start) ;
       return ;
     }
-      
+
     int counts[COUNT_SIZE] ;
     for(int i=0;i<COUNT_SIZE;++i)
       counts[i] = 0 ;
@@ -1338,8 +1272,8 @@ namespace Loci {
   // split is the value to split this level of the tree
   // dim is the dimension of the split (0,1,2 -- x,y,z)
   // start and stop are the indicies into pnts that this call will decompose
-  void getBoundingBoxDecomp(vector<kdTree::KDTree<float>::coord_info> &pnts, 
-                            vector<bound_info> &boxes, 
+  void getBoundingBoxDecomp(vector<kdTree::KDTree<float>::coord_info> &pnts,
+                            vector<bound_info> &boxes,
                             double split,
                             int dim,
                             int levels,
@@ -1438,7 +1372,7 @@ namespace Loci {
     }
   }
 
-  void getBoundingBoxes(vector<kdTree::KDTree<float>::coord_info> &pnts, 
+  void getBoundingBoxes(vector<kdTree::KDTree<float>::coord_info> &pnts,
                         vector<bound_info> &boxes, int levels, double delta_lim,
                         int split_lim) {
     boxes.clear() ;
@@ -1509,9 +1443,9 @@ namespace Loci {
     MPI_Comm_size(comm,&p) ;
     int r ;
     MPI_Comm_rank(comm,&r) ;
-    
+
     int bsize = boxes.size() ;
-    
+
     tmp_array<int> bsize_list(p)  ;
     MPI_Allgather(&bsize,1,MPI_INT,&bsize_list[0],1,MPI_INT,MPI_COMM_WORLD) ;
 
@@ -1531,13 +1465,13 @@ namespace Loci {
 
     vector<int> box_sp_tmp(b_sizes.size()) ; // source processor of block
     box_sp.swap(box_sp_tmp) ;
-    
+
     int cnt = 0 ;
-    for(int i=0;i<p;++i) 
+    for(int i=0;i<p;++i)
       for(int j=0;j<bsize_list[i];++j)
         box_sp[cnt++] = i ;
 
-    
+
     // Allocate target processors
     int tot = 0 ;
     int threshold = 0 ;
@@ -1545,10 +1479,10 @@ namespace Loci {
       tot += b_sizes[i] ;
       //    threshold = max(threshold,b_sizes[i]+1) ;
     }
-    
+
     vector<int> box_tp_tmp(b_sizes.size()) ; // target processor of block
     box_tp.swap(box_tp_tmp) ;
-    
+
     threshold = max(threshold,(tot / p) + 1) ;
     //  threshold += threshold/16 ;
 
@@ -1563,7 +1497,7 @@ namespace Loci {
       block_list_sort[i].second = i ;
       box_tp[i] = -1 ;
     }
-   
+
     std::sort(block_list_sort.begin(),block_list_sort.end()) ;
     // First assign largest blocks to owning processor if less than
     // threshold
@@ -1575,7 +1509,7 @@ namespace Loci {
         psizes[box_sp[bk]] += b_sizes[bk] ;
       }
     }
-    
+
     vector<pair<int,int> > vpsizes(p) ;
     for(int i=0;i<p;++i) {
       vpsizes[i].first = psizes[i] ;
@@ -1605,7 +1539,7 @@ namespace Loci {
         //        pcnt++ ;
       }
     }
-    
+
 #ifdef VERBOSE
     debugout << "psizes =" ;
     for(int i=0;i<p;++i)
@@ -1613,7 +1547,7 @@ namespace Loci {
     debugout << endl ;
 #endif
 
-#ifdef VERBOSE        
+#ifdef VERBOSE
     debugout << "block sizes = " ;
     for(size_t i=0;i<b_sizes.size();++i) {
       debugout << ' ' << b_sizes[i]
@@ -1638,7 +1572,7 @@ namespace Loci {
       }
     }
 
-  }                             
+  }
 
   using namespace kdTree ;
 
@@ -1651,7 +1585,7 @@ namespace Loci {
                            const vector<int> &send_block_id,
                            const vector<int> &recv_block_id,
                            const MPI_Comm &comm) {
-    
+
     MEMORY_PROFILE(RecieveTargetPointsBegin) ;
     int p ;
     MPI_Comm_size(comm,&p) ;
@@ -1663,12 +1597,12 @@ namespace Loci {
     vector<int> scounts(boxes_g.size(),0) ;
     vector<int> block_sends(p,0) ;
     vector<vector<int> > proc_send_list(p) ;
-    
+
     for(size_t i=0;i<boxes_g.size();++i) {
       int bsz = pntlist.size() ;
       (kd)->find_box(pntlist,boxes_g[i].bnd) ;
       scounts[i] = pntlist.size()-bsz ;
-      
+
 #ifdef VERBOSE
       if(scounts[i] != 0) {
 
@@ -1685,7 +1619,7 @@ namespace Loci {
             btmp.maxc[d] = max(btmp.minc[d],pntlist[bsz+k].coords[d]) ;
           }
         }
-          
+
         debugout << "boxesg="
                        << boxes_g[i].bnd.minc[0] << ","
                        <<boxes_g[i].bnd.maxc[0] << " "
@@ -1699,7 +1633,7 @@ namespace Loci {
                        << btmp.minc[1] << "," <<btmp.maxc[1] << " "
                        << btmp.minc[2] << "," <<btmp.maxc[2]
                        << endl ;
-        
+
       }
 #endif
       if(scounts[i] != 0) {
@@ -1721,14 +1655,14 @@ namespace Loci {
 
     // Now recieve the block sizes
     int num_recv = 0 ;
-    for(int i=0;i<p;++i) 
+    for(int i=0;i<p;++i)
       num_recv += block_recvs[i] ;
-    
+
     vector<pair<int,int> > recv_info(num_recv) ;
     vector<MPI_Request> req_queue(num_recv) ;
 
     int cnt = 0 ;
-    for(int i=0;i<p;++i) 
+    for(int i=0;i<p;++i)
       for(int j=0;j<block_recvs[i];++j) {
         MPI_Irecv(&(recv_info[cnt]),2,MPI_INT,i,j,comm,&req_queue[cnt]) ;
         cnt++ ;
@@ -1787,18 +1721,18 @@ namespace Loci {
     }
     MEMORY_PROFILE(RecieveTargetPointsMid) ;
 
-    // allocate points to receive 
+    // allocate points to receive
     for(size_t i=0;i<recv_tot_size.size();++i) {
       if(recv_tot_size[i] != 0) {
 	vector<kdTree::KDTree<float>::coord_info>  tmp(recv_tot_size[i]) ;
 	recv_targets[i].swap(tmp) ;
       }
     }
-    
+
     vector<int> recv_offset(recv_tot_size.size(),0) ;
     cnt = 0 ;
     int coord_size = sizeof(kdTree::KDTree<float>::coord_info) ;
-    for(int i=0;i<p;++i) 
+    for(int i=0;i<p;++i)
       for(int j=0;j<block_recvs[i];++j) {
 	int bk = recv_info[cnt].first ;
 	int offset = recv_offset[bk] ;
@@ -1808,7 +1742,7 @@ namespace Loci {
                   comm,&req_queue[cnt]) ;
         cnt++ ;
       }
-    
+
     for(int i=0;i<p;++i) {
       int cp = (i*p1+r*p2)%p ; // processor to send data this iteration
       for(size_t j=0;j<proc_send_list[cp].size();++j) {

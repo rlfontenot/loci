@@ -71,6 +71,8 @@ class parseFile {
                          const std::set<std::list<Loci::variable> > & validate_set) ;
   void setup_Type(std::ostream &outputFile) ;
   void setup_Rule(std::ostream &outputFile) ;
+  void setup_cudaRule(std::ostream &outputFile) ;
+  void setup_Test(std::ostream &outputFile) ;
 public:
   parseFile() {
     line_no = 0 ;
@@ -82,4 +84,6 @@ public:
 } ;
 
 extern std::list<std::string> include_dirs ;
+
+extern std::vector<std::string> fileNameStack ;
 #endif

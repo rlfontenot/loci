@@ -128,12 +128,12 @@ namespace Loci {
       exit(-1) ;
     }
     
-    int pid = getpid() ;
-    char buf[512] ;
-    const char *xtermpath = "xterm" ;
 #ifdef BSD
     exit(-1) ;
 #else
+    char buf[512] ;
+    int pid = getpid() ;
+    const char *xtermpath = "xterm" ;
 #ifndef SGI
     snprintf(buf,512,"%s  -display %s -e %s %s %d &",
             xtermpath,

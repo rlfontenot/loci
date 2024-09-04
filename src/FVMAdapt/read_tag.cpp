@@ -19,7 +19,7 @@
 //#
 //#############################################################################
 //*****************************************************************************
-// this file read in the refinement plan 
+// this file read in the refinement plan
 //moified 03/12/07, read in cell tags before face tags
 //*****************************************************************************
 #include <iostream>
@@ -55,12 +55,12 @@ namespace Loci{
   // MPI Communicator
   storeRepP Local2FileOrder(storeRepP sp, entitySet dom, int &offset,
                             fact_db::distribute_infoP dist, MPI_Comm comm);
-  
+
   void File2LocalOrder(storeRepP &result, entitySet resultSet,
                        storeRepP input, int offset,
                        fact_db::distribute_infoP dist,
                        MPI_Comm comm);
-  
+
 }
 
 // Read in text version of tags file
@@ -131,15 +131,9 @@ vector<char> read_tags_hdf5(string filename, string varname, MPI_Comm &comm) {
     hid_t file_id = 0;
     file_id = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
     hid_t group_id = 0;
-#ifdef H5_USE_16_API
-    group_id = H5Gopen(file_id, varname.c_str()) ;
-    //process 0 read in its local tag
-    hid_t dataset =  H5Dopen(group_id, "data") ;
-#else
     group_id = H5Gopen(file_id, varname.c_str(),H5P_DEFAULT) ;
     //process 0 read in its local tag
     hid_t dataset =  H5Dopen(group_id, "data",H5P_DEFAULT) ;
-#endif
     hid_t dataspace = H5Dget_space(dataset) ;
     // Get size of tag file
     hsize_t size = 0 ;
@@ -151,19 +145,15 @@ vector<char> read_tags_hdf5(string filename, string varname, MPI_Comm &comm) {
     proc_alloc[p-1] = cnt ;
     int lsize ;
     MPI_Scatter(&proc_alloc[0],1,MPI_INT,&lsize,1,MPI_INT,0,comm) ;
-    
-#ifdef H5_INTERFACE_1_6_4
+
     hsize_t start = 0 ;
-#else
-    hssize_t start = 0 ;
-#endif
     hsize_t stride = 1 ;
     hsize_t count = 0 ;
     int rank = 1 ;
     hsize_t dimension = proc_alloc[0]; // size of local data
     count = dimension ;
     H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
-      
+
     hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
     vector<float> buf(proc_alloc[0]) ;
     H5Dread (dataset, H5T_NATIVE_FLOAT, memspace, dataspace,
@@ -180,7 +170,7 @@ vector<char> read_tags_hdf5(string filename, string varname, MPI_Comm &comm) {
       vector<char> sendval(send_size) ;
       dimension = send_size ;
       count = dimension ;
-      
+
       H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
       hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
       vector<float> buf(send_size) ;
@@ -232,7 +222,7 @@ void add_to_datamap(entitySet dom, vector<pair<int,int> > &datamap, int offset,
       pair<int,int> item(g2f[l2g[nd]]-offset,nd) ;
       datamap.push_back(item) ;
     } ENDFORALL ;
-  }      
+  }
 }
 
 // Take datamap input and return data from the tags file for the
@@ -246,7 +236,7 @@ void communicateFileData(vector<char> &filedata,
   MPI_Comm_size(comm, &p) ;
   int r = 0 ;
   MPI_Comm_rank(comm, &r) ;
-  
+
   int dmsz = datamap.size() ;
   if(p == 1) {
     // On one processor then we just need to copy data from filedata
@@ -262,7 +252,7 @@ void communicateFileData(vector<char> &filedata,
     return ;
   }
   sort(datamap.begin(),datamap.end()) ;
- 
+
   vector<int> sizes(p) ;
   int lsize = filedata.size() ;
   MPI_Allgather(&lsize,1,MPI_INT,&sizes[0],1,MPI_INT,comm) ;
@@ -297,11 +287,11 @@ void communicateFileData(vector<char> &filedata,
     for(int j=datamapoffsets[i];j<datamapoffsets[i+1];++j) {
       reqitem[j] = datamap[j].first-offsets[i] ;
     }
-  
+
   // send request sizes
   vector<int> sendsizes(p) ;
   MPI_Alltoall(&reqsizes[0],1,MPI_INT,&sendsizes[0],1,MPI_INT, comm) ;
-  
+
   // Now send item requests
   int nreq = sendsizes[0] ;
   for(int i=1;i<p;++i)
@@ -334,7 +324,7 @@ void communicateFileData(vector<char> &filedata,
     returndata[i].first = datamap[i].second ;
     returndata[i].second = recvinfo[i] ;
   }
-    
+
 }
 
 class input_TagsData : public singleton_rule {
@@ -350,7 +340,7 @@ public:
   }
   virtual void compute(const sequence &seq) {
     string filename = *tagfile_par;
-    MPI_Comm comm = MPI_COMM_WORLD ;    
+    MPI_Comm comm = MPI_COMM_WORLD ;
 
     size_t p = filename.find("ref_sca");
     if(p != string::npos){//read hdf5 file
@@ -362,11 +352,11 @@ public:
 } ;
 
 register_rule<input_TagsData> register_input_TagsData ;
-  
+
 class get_postag : public pointwise_rule{
   const_blackbox<vector<char> > inputTagsData ;
   store<char> posTag;
-  
+
 public:
   get_postag(){
     name_store("inputTagsData", inputTagsData);
@@ -377,33 +367,33 @@ public:
     disable_threading();
   }
   virtual void compute(const sequence &seq){
-    MPI_Comm comm = MPI_COMM_WORLD ;    
-    
+    MPI_Comm comm = MPI_COMM_WORLD ;
+
     vector<char> filedata  = *inputTagsData ;
-    
+
     // Now determine what data we need to collect from filedata
     fact_db::distribute_infoP dist = (Loci::exec_current_fact_db)->get_distribute_info() ;
     entitySet dom = entitySet(seq);
 
     vector<pair<int,int> > datamap ;
     add_to_datamap(dom,datamap,0,dist) ;
-    
-   
+
+
     vector<pair<int,char> > returndata ;
     communicateFileData(filedata,datamap,returndata,comm) ;
-    
+
     for(size_t i=0;i<returndata.size();++i) {
       posTag[returndata[i].first] = returndata[i].second ;
     }
 
-    
+
   }
 
 };
 register_rule<get_postag> register_get_postag;
 
 
-  
+
 int getFileNumberOffset(const entitySet& locdom,MPI_Comm &comm){
   // Now determine what data we need to collect from filedata
   fact_db::distribute_infoP dist = (Loci::exec_current_fact_db)->get_distribute_info() ;
@@ -419,7 +409,7 @@ int getFileNumberOffset(const entitySet& locdom,MPI_Comm &comm){
     key_domain = dist->key_domain.Rep() ;
     // // Compute domain in global numbering
     //     entitySet dom_global = l2g.image(dom) ;
-     
+
     //     // This shouldn't happen
     //     FATAL(dom.size() != dom_global.size()) ;
 
@@ -447,13 +437,13 @@ int getFileNumberOffset(const entitySet& locdom,MPI_Comm &comm){
     // Find overall bounds
     //imx = GLOBAL_MAX(imx) ;
     int local_min = imn;
-    MPI_Allreduce(&local_min, &imn, 1, MPI_INT, MPI_MIN,comm);  
+    MPI_Allreduce(&local_min, &imn, 1, MPI_INT, MPI_MIN,comm);
     return imn;
   }
   return imn;
 }
 
-  
+
 
 // Return node location for each entity based on how many nodes are
 // created through splits input in numsplits, numsplits is accessed
@@ -513,8 +503,8 @@ getNodeOffsets(store<int> &nodeloc, const_store<int> &numsplits,
   }
   return tnodes ;
 }
-  
-    
+
+
 class get_nodetag : public pointwise_rule{
   const_blackbox<vector<char> > inputTagsData;
   const_param<int> num_original_nodes;
@@ -535,8 +525,8 @@ public:
   virtual void compute(const sequence &seq){
     vector<char> filedata  = *inputTagsData ;
 
-    MPI_Comm comm = MPI_COMM_WORLD ;    
-    
+    MPI_Comm comm = MPI_COMM_WORLD ;
+
     // Now determine what data we need to collect from filedata
     fact_db::distribute_infoP dist = (Loci::exec_current_fact_db)->get_distribute_info() ;
     entitySet my_entities ;
@@ -557,7 +547,7 @@ public:
     local_edges = (my_entities) & (e2n->domain()) ;
     local_faces = (my_entities) & (*faces);
     local_cells = (my_entities)&(*geom_cells);
-    
+
     // Gather data maps for nodes created at edges, then cells, then faces
     // Note, since each of these are given a file number starting from zero
     // and we are using local2file to get a consistent numbering we need
@@ -570,7 +560,7 @@ public:
     // node
     int nenodes =
       getNodeOffsets(nodeloc,num_inner_nodes,local_edges,dist,comm) ;
-    
+
     // allocate nodeTag
     int cnt = 0 ;
     FORALL(local_edges, cc){
@@ -592,15 +582,15 @@ public:
         std::vector<char>(1).swap(nodeTag[cc]);//to avoid default allocated size for vector
         nodeTag[cc].clear();
       }
-    } ENDFORALL; 
+    } ENDFORALL;
     start += nenodes ;
     nodeloc.allocate(EMPTY) ;
-    
+
     // Now process cell created nodes
     int ncnodes =
       getNodeOffsets(nodeloc,num_inner_nodes,local_cells,dist,comm) ;
-    
-    
+
+
     FORALL(local_cells, cc){
       if(num_inner_nodes[cc] != 0){
         std::vector<char>(int(num_inner_nodes[cc])).swap(nodeTag[cc]);
@@ -623,14 +613,14 @@ public:
         nodeTag[cc].clear();
       }
     } ENDFORALL;
-    
+
     start += ncnodes ;
-    
+
     nodeloc.allocate(EMPTY) ;
-    // now process face allocated nodes    
+    // now process face allocated nodes
     int nfnodes =
       getNodeOffsets(nodeloc,num_inner_nodes,local_faces,dist,comm) ;
-    
+
 
     FORALL(local_faces, cc){
       if(num_inner_nodes[cc] != 0){
@@ -654,14 +644,14 @@ public:
         nodeTag[cc].clear();
       }
     } ENDFORALL;
-    
+
     start += nfnodes ;
 
     // Sanity Check on file size
     int local_size = filedata.size() ;
     int global_size = 0 ;
     MPI_Allreduce(&local_size,&global_size,1,MPI_INT,MPI_SUM,comm) ;
-    
+
     // Check to see if the tag file contained enough tags
     if(start != global_size) {
       if(Loci::MPI_rank == 0) {
@@ -682,7 +672,7 @@ public:
     }
 #ifdef DEBUG
     entitySet dom2 = entitySet(seq) ;
-    
+
     FORALL(dom2,ii) {
       int sz = nodeTag[ii].size() ;
       for(int i=0;i<sz;++i)
@@ -691,11 +681,11 @@ public:
         }
     } ENDFORALL ;
 #endif
-    
+
   }
-     
-  
-  
+
+
+
 };
 
 register_rule<get_nodetag> register_get_nodetag;
@@ -719,8 +709,8 @@ public:
   virtual void compute(const sequence &seq){
     vector<char> filedata  = *inputTagsData ;
 
-    MPI_Comm comm = MPI_COMM_WORLD ;    
-    
+    MPI_Comm comm = MPI_COMM_WORLD ;
+
     // Now determine what data we need to collect from filedata
     fact_db::distribute_infoP dist = (Loci::exec_current_fact_db)->get_distribute_info() ;
     entitySet my_entities ;
@@ -729,7 +719,7 @@ public:
     if(dist != 0)
       my_entities = (dist->my_entities) ;
 
-  
+
 
     Loci::constraint geom_cells;
     geom_cells = (Loci::exec_current_fact_db)->get_variable("geom_cells");
@@ -737,7 +727,7 @@ public:
     entitySet  local_cells;
     //don't know if it's necessray
     local_cells = (my_entities)&(*geom_cells);
-    
+
     // Gather data maps for nodes created at edges, then cells, then faces
     // Note, since each of these are given a file number starting from zero
     // and we are using local2file to get a consistent numbering we need
@@ -746,14 +736,14 @@ public:
     vector<pair<int,int> > locations ; ;
     store<int> nodeloc ; // location of nodes
 
-   
+
     int start = 0;
     int cnt = 0 ;
     // Now process cell created nodes
     int ncnodes =
       getNodeOffsets(nodeloc,num_fine_cells,local_cells,dist,comm) ;
-    
-    
+
+
     FORALL(local_cells, cc){
       if(num_fine_cells[cc] != 0){
         std::vector<char>(int(num_fine_cells[cc])).swap(fineCellTag[cc]);
@@ -777,17 +767,17 @@ public:
         fineCellTag[cc].clear();
       }
     } ENDFORALL;
-    
+
     start += ncnodes ;
-    
+
     nodeloc.allocate(EMPTY) ;
-   
+
 
     // Sanity Check on file size
     int local_size = filedata.size() ;
     int global_size = 0 ;
     MPI_Allreduce(&local_size,&global_size,1,MPI_INT,MPI_SUM,comm) ;
-    
+
     // Check to see if the tag file contained enough tags
     if(start != global_size) {
       if(Loci::MPI_rank == 0) {
@@ -808,7 +798,7 @@ public:
     }
 #ifdef DEBUG
     entitySet dom2 = entitySet(seq) ;
-    
+
     FORALL(dom2,ii) {
       int sz = fineCellTag[ii].size() ;
       for(int i=0;i<sz;++i)
@@ -817,15 +807,15 @@ public:
         }
     } ENDFORALL ;
 #endif
-    
+
   }
-     
-  
-  
+
+
+
 };
 
 register_rule<get_fineCellTag> register_get_fineCellTag;
-                                                
+
 
 class input_CellTagsData : public singleton_rule {
   const_param<std::string> tagfile_par ;
@@ -840,7 +830,7 @@ public:
   }
   virtual void compute(const sequence &seq) {
     string filename = *tagfile_par;
-    MPI_Comm comm = MPI_COMM_WORLD ;    
+    MPI_Comm comm = MPI_COMM_WORLD ;
 
     size_t p = filename.find("ref_sca");
     if(p != string::npos){//read hdf5 file
@@ -856,7 +846,7 @@ register_rule<input_CellTagsData> register_input_CellTagsData ;
 class get_celltag : public pointwise_rule{
   const_blackbox<vector<char> > inputTagsData ;
   store<char> cellTag;
-  
+
 public:
   get_celltag(){
     name_store("inputCellTagsData", inputTagsData);
@@ -867,29 +857,29 @@ public:
     disable_threading();
   }
   virtual void compute(const sequence &seq){
-    MPI_Comm comm = MPI_COMM_WORLD ;    
-    
+    MPI_Comm comm = MPI_COMM_WORLD ;
+
     vector<char> filedata  = *inputTagsData ;
-    
+
     // Now determine what data we need to collect from filedata
     fact_db::distribute_infoP dist = (Loci::exec_current_fact_db)->get_distribute_info() ;
     entitySet dom = entitySet(seq);
     if(dist!=0)dom = dom & dist->my_entities;
-    
+
     int offset= getFileNumberOffset(dom,comm);
-   
+
     vector<pair<int,int> > datamap ;
     add_to_datamap(dom,datamap,offset,dist) ;
-    
-    
+
+
     vector<pair<int,char> > returndata ;
     communicateFileData(filedata,datamap,returndata,comm) ;
-    
-    
+
+
     for(size_t i=0;i<returndata.size();++i) {
       cellTag[returndata[i].first] = returndata[i].second ;
     }
-        
+
   }
 
 };

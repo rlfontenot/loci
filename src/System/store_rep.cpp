@@ -26,6 +26,43 @@ using std::istream ;
 using std::ostream ;
 
 namespace Loci {
+
+  std::vector<storeAllocateInfo> storeAllocateData ;
+  std::vector<int> storeAllocateFreeList ;
+
+  int getStoreAllocateID() {
+    // allocate slot in storeAllocateData
+    int id = storeAllocateData.size() ;
+    if(!storeAllocateFreeList.empty()) {
+      id = storeAllocateFreeList.back() ;
+      storeAllocateFreeList.pop_back() ;
+    } else {
+      storeAllocateData.push_back(storeAllocateInfo()) ;
+    }
+    storeAllocateData[id].alloc_ptr1 = 0 ;
+    storeAllocateData[id].alloc_ptr2 = 0 ;
+    storeAllocateData[id].base_ptr = 0 ;
+    storeAllocateData[id].base_offset = 0 ;
+    storeAllocateData[id].size = 0 ;
+    storeAllocateData[id].allocated_size = 0 ;
+    storeAllocateData[id].allocated = true ;
+    storeAllocateData[id].allocset = EMPTY ;
+    return id ;
+  }
+    
+  void releaseStoreAllocateID(int id) {
+    storeAllocateData[id].alloc_ptr1 = 0 ;
+    storeAllocateData[id].alloc_ptr2 = 0 ;
+    storeAllocateData[id].base_ptr = 0 ;
+    storeAllocateData[id].base_offset = 0 ;
+    storeAllocateData[id].size = 0 ;
+    storeAllocateData[id].allocated_size = 0 ;
+    storeAllocateData[id].allocated = false ;
+    storeAllocateData[id].allocset = EMPTY ;
+    storeAllocateFreeList.push_back(id) ;
+  }
+
+  
   storeRep::~storeRep() {}
   void storeRep::set_elem_size(int sz) { warn(true) ; }
 
@@ -37,6 +74,8 @@ namespace Loci {
 
   store_ref::~store_ref() {}
 
+  int store_ref::get_alloc_id() const { return Rep()->get_alloc_id() ; }
+  
   void store_ref::allocate(const entitySet &ptn) {
     Rep()->allocate(ptn) ;
   }
@@ -143,17 +182,18 @@ namespace Loci {
                const dMap& remap, MPI_Comm comm)
   { return Rep()->redistribute(dom_ptn,remap,comm) ;}
   
+#ifdef DYNAMICSCHEDULING
   storeRepP store_ref::
   redistribute_omd(const std::vector<entitySet>& dom_ptn,
                    const dMap& remap, MPI_Comm comm)
   { return Rep()->redistribute_omd(dom_ptn,remap,comm) ;}
-  
+
   storeRepP store_ref::
   freeze(const entitySet& es) const { return Rep()->freeze(es) ;}
 
   storeRepP store_ref::
   thaw(const entitySet& es) const { return Rep()->thaw(es) ;}
-  
+
   void store_ref::
   pack(void* ptr, int& loc,
        int& size, const entitySet& e, const Map& remap)
@@ -163,5 +203,5 @@ namespace Loci {
   unpack(void* ptr, int& loc,
          int& size, const sequence& seq, const dMap& remap)
   { Rep()->unpack(ptr,loc,size,seq,remap) ;}
-  
+#endif
 }

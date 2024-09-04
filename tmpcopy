@@ -28,16 +28,11 @@ logname=${LOGNAME-user}
 target=${LOCI_TARGET-/usr/tmp/$logname/}
 subdir=Loci
 LIB_POSTFIX="so"
+COMP=${LOCI_COMP-gcc}
 
 ARCH=${LOCI_ARCH-`uname -s`}
 if [ $ARCH == "Darwin" ]; then
-    LIB_POSTFIX="dylib"
-fi
-if [ $ARCH == "IRIX64" ]; then
-# If IRIX OS, default to sgi compiler, otherwise default to gcc
-  COMP=${LOCI_COMP-CC_sgi}
-else
-  COMP=${LOCI_COMP-gcc}
+  LIB_POSTFIX="dylib"
 fi
 
 while [ $# -ne 0 ]; do
@@ -116,7 +111,12 @@ TUT_DIRS="Tutorial                            \
           Tutorial/LociTutorialSlides         \
           Tutorial/LociTutorialSlides/Figures"
 
-echo TOOLS_DIR=${TARGET_DIRS}
+TEST_DIRS="quickTest             \
+           quickTest/Containers  \
+           quickTest/FVM         \
+           quickTest/FVM/include \
+           quickTest/FVM/tests   "
+
 
 echo -n "Making Directory Structure: "
 mkdir -p $target
@@ -151,6 +151,12 @@ done
 echo
 
 for i in $TUT_DIRS ; do
+  echo -n $i " "
+  mkdir -p $fulltarget/$i
+done
+echo
+
+for i in $TEST_DIRS ; do
   echo -n $i " "
   mkdir -p $fulltarget/$i
 done
@@ -229,12 +235,25 @@ for dir in $TARGET_DIRS; do
   done
 done
 
-
 for dir in $TUT_DIRS; do
   echo "Linking" $dir "directory files..."
   cd $source/$dir
   for i in *.cpp *.h *.hh *.hpp *.c *.loci *.lh *.vars *.vog Makefile *.mk \
            *.sh *.tex *.pdf *.obj *.eps clean; do
+    if [ -f  $i ] ; then
+      if [ ! -h $fulltarget/$dir/$i ] ; then
+        echo ln -s $source/$dir/$i $fulltarget/$dir/$i
+        ln -s $source/$dir/$i $fulltarget/$dir/$i
+      fi
+    fi
+  done
+done
+
+for dir in $TEST_DIRS; do
+  echo "Linking" $dir "directory files..."
+  cd $source/$dir
+  for i in *.cpp *.h *.hh *.hpp *.c *.loci *.lh *.vars *.vog Makefile *.mk \
+           *.sh *.tex *.pdf *.obj *.eps clean *.txt *.dat *.conf; do
     if [ -f  $i ] ; then
       if [ ! -h $fulltarget/$dir/$i ] ; then
         echo ln -s $source/$dir/$i $fulltarget/$dir/$i

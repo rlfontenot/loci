@@ -14,7 +14,8 @@
 \setlength{\evensidemargin}{0cm}
 \unitlength=1in
 
-\usepackage{epsf}    % used for importing encapsulated postscript figures
+%\usepackage{epsf}    % used for importing encapsulated postscript figures
+\usepackage{graphicx}
 \usepackage{amsmath} % used for extended formula formatting tools
 \usepackage{amssymb}
 \usepackage{theorem}
@@ -426,8 +427,9 @@ satisfies both of these constraints.
 
 \begin{figure}[htbp]
  \centerline{
-  \epsfxsize=5.50in
-  \epsfbox{figures/one-d.eps}}
+\includegraphics[width=5.50in]{figures/one-d.eps}}
+%  \epsfxsize=5.50in
+%  \epsfbox{figures/one-d.eps}}
  \caption{A Discretization of the Interval $[0,1]$}
  \label{fig3:oned}
 \end{figure}
@@ -1777,8 +1779,9 @@ in later sections when matrix assembly is required.
 
 \begin{figure}[htbp]
  \centerline{
-  \epsfxsize=3in
-  \epsfbox{figures/face.eps}}
+\includegraphics[width=3in]{figures/face.eps}}
+%  \epsfxsize=3in
+%  \epsfbox{figures/face.eps}}
  \caption{The {\tt face2node} map and its relationship to neighboring cells}
  \label{face2node}
 \end{figure}
@@ -2117,16 +2120,18 @@ with a convenient representation of the assembled matrix.
 
 \begin{figure}[htbp]
  \centerline{
-  \epsfxsize=2.4in
-  \epsfbox{figures/cell.eps}}
+\includegraphics[width=2.4in]{figures/cell.eps}}
+%  \epsfxsize=2.4in
+%  \epsfbox{figures/cell.eps}}
  \caption{Upper and lower maps viewed from the cell}
 \label{cellperspective}
 \end{figure}
 
 \begin{figure}[htbp]
  \centerline{
-  \epsfxsize=4.5in
-  \epsfbox{figures/mat.eps}}
+\includegraphics[width=4.5in]{figures/mat.eps}}
+%  \epsfxsize=4.5in
+%  \epsfbox{figures/mat.eps}}
  \caption{Matrix Data-Structure as used by the finite-volume module}
 \label{matrixperspective}
 \end{figure}

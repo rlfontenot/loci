@@ -1,0 +1,232 @@
+//#############################################################################
+//#
+//# Copyright 2015-2019, Mississippi State University
+//#
+//# This file is part of the flowPsi computational fluid dynamics solver.
+//#
+//# The flowPsi solver is free software: you can redistribute it and/or modify
+//# it under the terms of the GNU General Public License as published by
+//# the Free Software Foundation, either version 3 of the License, or
+//# (at your option) any later version.
+//#
+//# The flowPsi solver is distributed in the hope that it will be useful,
+//# but WITHOUT ANY WARRANTY; without even the implied warranty of
+//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//# GNU General Public License for more details.
+//#
+//# You should have received a copy of the GNU General Public License
+//# along with the flowPsi solver.  If not, see <http://www.gnu.org/licenses>
+//#
+//#############################################################################
+
+#include <Loci.h>
+#include "flowTypes.h"
+#include <string>
+#include "readGrid.h"
+#include "Tools/stream.h"
+#include "inviscidFlux.h"
+#include "bcTools.h"
+#include "flowPsiIO.h"
+$include "flowPsi.lh"
+
+namespace flowPsi {
+  class supersonicOutflow_check : public BC_Check {
+  public:
+    std::string boundaryConditions() { return "supersonicOutflow,extrapolate" ; }
+    std::string variablesChecked() { return "" ; }
+    bool checkOptions(const options_list& bc_options) { return true ; }
+    std::ostream &ErrorMessage(std::ostream &s) { return s; }
+  } ;
+
+  register_BC<supersonicOutflow_check> register_BC_supersonicOutflow_check ;
+
+  class outflow_check : public BC_Check {
+    string error_message ;
+  public:
+    std::string boundaryConditions() { return "outflow" ; }
+    std::string variablesChecked() { return "p,pMean" ; }
+    bool checkOptions(const options_list& bc_options) {
+      error_message = "" ;
+      bool hasp = false, haspavg=false ;
+      if(bc_options.optionExists("p")) {
+        hasp = true ;
+        if(!check_scalar_units(bc_options,"p","Pa")) {
+          error_message = "Wrong units for 'p'" ;
+          return false ;
+        }
+      }
+      if(bc_options.optionExists("pMean")) {
+        haspavg = true ;
+        if(!check_scalar_units(bc_options,"pMean","Pa")) {
+          error_message = "Wrong units for 'pMean'" ;
+          return false ;
+        }
+      }
+      if(hasp && haspavg) {
+        error_message = "boundary condition must specify either 'p' or 'pMean' but not both." ;
+        return false ;
+      }
+      if(!(hasp || haspavg)) {
+        error_message = "boundary condition must specify either 'p' or 'pMean'" ;
+        return false ;
+      }
+      return true ;
+    }
+    std::ostream &ErrorMessage(std::ostream &s) {
+      s << error_message << endl ;
+      return s;
+    }
+  } ;
+
+  register_BC<outflow_check> register_BC_outflow_check ;
+
+  // Extrapolate BC implementation
+  $rule pointwise(gagePressure_f<-ci->gagePressure),constraint(extrapolate_BC) {
+    $gagePressure_f = $ci->$gagePressure ;
+  }
+
+  $rule pointwise(temperature_f<-ci->temperature),constraint(extrapolate_BC) {
+    $temperature_f = $ci->$temperature ;
+  }
+  
+  $rule pointwise(u_f<-ci->u),constraint(extrapolate_BC) {
+    $u_f = $ci->$u ;
+  }
+
+  $rule pointwise(iflux<-leftsP(gagePressure,minPg),leftsP(temperature,Zero),leftv3d(u),gagePressure_f,temperature_f,u_f,area,Pambient,Rtilde,gamma),constraint(extrapolate_BC), prelude {
+    $iflux.setVecSize(5) ;
+  } compute{
+    const real Tl = $leftsP(temperature,Zero) ;
+    const real Pgl = $leftsP(gagePressure,minPg) ;
+    const vect3d ul = $leftv3d(u) ;
+    const real Tr = $temperature_f ;
+    const real Pgr = $gagePressure_f ;
+    const vect3d ur = $u_f ;
+    inviscidRiemannFlux($iflux,Pgl,Tl,ul,Pgr,Tr,ur,$area.n,$area.sada,$Pambient,
+			$Rtilde, $gamma) ;
+  }
+
+  
+  // SupersonicOutflow bc implementation
+  $rule pointwise(gagePressure_f<-ci->(u,temperature,gagePressure),area,gamma,Rtilde,Pambient),constraint(supersonicOutflow_BC) {
+    $gagePressure_f = $ci->$gagePressure ;
+    const real ai = sqrt($gamma*$Rtilde*$ci->$temperature) ;
+    const real ut = dot($area.n,$ci->$u) ;
+    if( ut < ai) // If subsonic, lower pressure by 10%
+      $gagePressure_f -= ($ci->$gagePressure+$Pambient)*.1 ;
+  }
+
+  $rule pointwise(temperature_f<-ci->temperature),constraint(supersonicOutflow_BC) {
+    $temperature_f = $ci->$temperature ;
+  }
+  
+  $rule pointwise(u_f<-ci->u),constraint(supersonicOutflow_BC) {
+    $u_f = $ci->$u ;
+  }
+
+  $rule pointwise(iflux<-leftsP(gagePressure,minPg),leftsP(temperature,Zero),leftv3d(u),gagePressure_f,temperature_f,u_f,area,Pambient,Rtilde,gamma),constraint(supersonicOutflow_BC), prelude {
+    $iflux.setVecSize(5) ;
+  } compute {
+    const real Tl = $leftsP(temperature,Zero) ;
+    const real Pgl = $leftsP(gagePressure,minPg) ;
+    const vect3d ul = $leftv3d(u) ;
+    const real Tr = $temperature_f ;
+    const real Pgr = $gagePressure_f ;
+    const vect3d ur = $u_f ;
+    inviscidRiemannFlux($iflux,Pgl,Tl,ul,Pgr,Tr,ur,$area.n,$area.sada,$Pambient,
+			$Rtilde, $gamma) ;
+  }
+
+  $rule pointwise(p_BC<-BC_options),constraint(p_BCoption) {
+    $BC_options.getOptionUnits("p","Pa",$p_BC) ;
+  }
+  $rule pointwise(pMean_BC<-BC_options),constraint(pMean_BCoption) {
+    $BC_options.getOptionUnits("pMean","Pa",$pMean_BC) ;
+  }
+  $type pBoundary store<real> ;
+
+  $rule pointwise(pBoundary<-ref->p_BC) {
+    $pBoundary = $ref->$p_BC ;
+  }
+
+  $type areaPressure store<real> ;
+  $type bcPressure store<real> ;
+  $rule unit(areaPressure),constraint(UNIVERSE) {
+    $areaPressure = 0 ;
+  }
+
+
+  $rule apply(ref->areaPressure<-area,ci->gagePressure)[Loci::Summation],constraint(ref,ci) {
+    join($ref->$areaPressure, $area.sada*$ci->$gagePressure) ;
+  }
+
+  $rule unit(boundary_area),constraint(UNIVERSE) {
+    $boundary_area = 0 ;
+  } 
+  $rule apply(ref->boundary_area<-area)[Loci::Summation],constraint(ref,ci) {
+    join($ref->$boundary_area,$area.sada) ;
+  } 
+
+  $rule pointwise(bcPressure<-areaPressure,boundary_area,Pambient) {
+    $bcPressure = $areaPressure/$boundary_area + $Pambient ;
+  }
+
+  $rule pointwise(pBoundary<-ref->pMean_BC,ref->bcPressure,ci->gagePressure,
+                  Pambient) {
+    $pBoundary = $ci->$gagePressure+$Pambient +
+      ($ref->$pMean_BC-$ref->$bcPressure) ;
+  }
+  
+  $rule pointwise(gagePressure_f,temperature_f,u_f<-Pambient,area,
+		  ci->(u,gagePressure,temperature),
+		  pBoundary,gamma,Rtilde),
+    constraint(outflow_BC) {
+
+    bool flag = false ;
+
+    const vect3d n = $area.n ;
+    const real pref = $pBoundary-$Pambient ;
+    const real uit = dot($ci->$u,n) ;
+    const real Ti = $ci->$temperature ;
+    const real ai = sqrt($gamma*$Rtilde*Ti) ;
+    const real rhoi = ($ci->$gagePressure+$Pambient)/($Rtilde*Ti) ;
+    bool outflow = (uit >= 0) ;
+    bool supersonic = (uit > ai) ;
+    
+    if(outflow) {
+      if(supersonic) {
+	$u_f = $ci->$u ;
+	$temperature_f = $ci->$temperature ;
+	$gagePressure_f = $ci->$gagePressure ;
+      } else {
+	$gagePressure_f = pref ;
+	$u_f = $ci->$u ;
+	const real p = $gagePressure_f+$Pambient ;
+	$temperature_f = p/($Rtilde*rhoi) ;
+      }
+    } else {
+      $u_f = vect3d(0,0,0) ;
+      $gagePressure_f = $ci->$gagePressure - .05*($ci->$gagePressure+$Pambient) ;
+      $temperature_f = Ti ;
+      flag = true ;
+    }
+    if(flag)
+      BCErrorCode |= OUTFLOW_BECAME_INFLOW ;
+  } 
+
+  $rule pointwise(iflux<-leftsP(gagePressure,minPg),leftsP(temperature,Zero),leftv3d(u),gagePressure_f,temperature_f,u_f,area,Pambient,Rtilde,gamma),constraint(outflow_BC),
+    prelude {
+    $iflux.setVecSize(5) ;
+  } compute {
+    const real Tl = $leftsP(temperature,Zero) ;
+    const real Pgl = $leftsP(gagePressure,minPg) ;
+    const vect3d ul = $leftv3d(u) ;
+    const real Tr = $temperature_f ;
+    const real Pgr = $gagePressure_f ;
+    const vect3d ur = $u_f ;
+    inviscidRiemannFlux($iflux,Pgl,Tl,ul,Pgr,Tr,ur,$area.n,$area.sada,$Pambient,
+			$Rtilde, $gamma) ;
+  }
+
+
+}

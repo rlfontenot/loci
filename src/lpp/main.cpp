@@ -57,6 +57,8 @@ void Usage(int argc, char *argv[]) {
   exit(-1) ;
 }
 
+bool no_cuda = false ;
+
 int main(int argc, char *argv[]) {
 
 
@@ -69,22 +71,25 @@ int main(int argc, char *argv[]) {
       if(argv[i][1] == 'I') {
         string dir = &argv[i][2] ;
         include_dirs.push_back(dir) ;
-      }
-      if(argv[i][1] == 'p') {
+      } else if(argv[i][1] == 'p') {
         prettyOutput = true ;
-      }
-      if(argv[i][1] == 'o') {
+      } else  if(argv[i][1] == 'x') {
+	no_cuda = true ;
+      } else if(argv[i][1] == 'o') {
         if(i+1>argc || out_given)
           Usage(argc,argv) ;
         outfile = argv[i+1] ;
         i++ ;
         out_given = true ;
-      }
-      if(argv[i][1] == 'v') {
+      } else if(argv[i][1] == 'v') {
         cout << "Loci version: " << version() << endl ;
-      }
-      if(argv[i][1] == 'V') {
+      } else if(argv[i][1] == 'V') {
         cout << "Loci version: " << version() << endl ;
+      } else if(argv[i][1] == 'D') {
+	// ignore this option
+      } else {
+	cerr << "Warning: Unknown option " << argv[i] << endl ;
+	//	exit(-1) ;
       }
     } else {
       if(file_given == true) {
@@ -99,6 +104,9 @@ int main(int argc, char *argv[]) {
     cerr << "no filename" << endl ;
     Usage(argc,argv) ;
   }
+#ifndef USE_CUDA_RT
+  no_cuda = true ;
+#endif
   parseFile parser ;
   try {
     if(out_given) {

@@ -34,15 +34,11 @@
 #include <vector>
 #include <map>
 #include <deque>
+#include <gpurep.h>
+#include <gpuMap.h>
 
 #include <mpi.h>
 using std::vector;
-
-#ifdef HAS_MALLINFO
-// for the mallinfo function
-#include <malloc.h>
-#endif
-
 
 namespace Loci {
 
@@ -152,6 +148,7 @@ namespace Loci {
     virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
   } ;
   
+#ifdef DYNAMICSCHEDULING
   // rule compiler for rule intended to be evaluated at runtime.
   // example rules are those that may reside in a totally dynamic
   // keyspace
@@ -177,7 +174,8 @@ namespace Loci {
     virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
     virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
   } ;
-
+#endif
+  
   // rule compiler for single rule recursion
   class impl_recurse_compiler : public rule_compiler {
     rule impl ;  // rule to implement
@@ -236,13 +234,6 @@ namespace Loci {
     std::map<rule,fcontrol > control_set ;
     std::list<std::vector<std::pair<variable,entitySet> > > recurse_send_entities ;
     std::map<variable,std::vector<std::list<comm_info> > > send_req_var ;
-    // std::list<std::list<comm_info> > recurse_clist ;//never used 
-    // std::list<std::list<comm_info> > recurse_plist ;//never used
-	
-    // std::vector<std::pair<variable,entitySet> > pre_send_entities ;
-    //std::list<comm_info> pre_clist ;
-    //std::list<comm_info> post_clist ;
-    //std::list<comm_info> pre_plist ;
   public:
     int cid ; //id number of this compiler
     recurse_compiler(rulecomp_map &rp, ruleSet rs, int id) : rule_process(rp),cid(id)
@@ -394,6 +385,7 @@ namespace Loci {
     virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
   } ;
   
+#ifdef DYNAMICSCHEDULING
   // dynamic apply rule compiler 
   class dynamic_apply_compiler : public rule_compiler {
     rule apply, unit_tag ;  // rule to apply
@@ -492,7 +484,8 @@ namespace Loci {
     virtual executeP create_execution_schedule(fact_db &facts,
                                                sched_db &scheds) ;
   } ;
-
+#endif
+  
   class promote_compiler : public rule_compiler {
     rule r ;
   public:
@@ -525,6 +518,39 @@ namespace Loci {
     virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
     virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
   } ;
+
+  class gpu2cpu_compiler : public rule_compiler {
+    rule r ;
+  public:
+    gpu2cpu_compiler(rule rin)
+    { r = rin; }
+    virtual void accept(visitor& v) {}
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
+  } ;
+
+  class cpu2gpu_compiler : public rule_compiler {
+    rule r ;
+  public:
+    cpu2gpu_compiler(rule rin)
+    { r = rin; }
+    virtual void accept(visitor& v) {}
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
+  } ;
+
+  class map2gpu_compiler : public rule_compiler {
+    rule r ;
+  public:
+    map2gpu_compiler(rule rin)
+    { r = rin; }
+    virtual void accept(visitor& v) {}
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
+  } ;
   
   class execute_msg : public execute_modules {
     std::string msg ;
@@ -536,7 +562,57 @@ namespace Loci {
     virtual void dataCollate(collectData &data_collector) const {}
   } ;
 
- 
+  class execute_gpuSync: public execute_modules {
+    variableSet vars ;
+  public:
+    execute_gpuSync(variableSet v) : vars(v) {}
+    virtual void execute(fact_db &facts, sched_db &scheds) ;
+    virtual void Print(std::ostream &s) const ;
+    virtual string getName() { return "execute_gpuSync" ; }
+    virtual void dataCollate(collectData &data_collector) const {}
+  } ;
+  
+  class execute_gpu2cpu_copy: public execute_modules {
+    rule r ;
+    gpuRepP gpuvar ;
+    storeRepP cpuvar ;
+    entitySet copyset ;
+  public:
+    execute_gpu2cpu_copy(rule rin, gpuRepP vgpu, storeRepP vcpu,entitySet s) :
+      r(rin),gpuvar(vgpu),cpuvar(vcpu),copyset(s) {}
+    virtual void execute(fact_db &facts, sched_db &scheds) ;
+    virtual void Print(std::ostream &s) const ;
+    virtual string getName() {return "execute_gpu2cpu";};
+    virtual void dataCollate(collectData &data_collector) const ;
+  } ;
+
+  class execute_cpu2gpu_copy: public execute_modules {
+    rule r ;
+    gpuRepP gpuvar ;
+    storeRepP cpuvar ;
+    entitySet copyset ;
+  public:
+    execute_cpu2gpu_copy(rule rin, gpuRepP vgpu, storeRepP vcpu, entitySet s) :
+      r(rin),gpuvar(vgpu),cpuvar(vcpu),copyset(s) {}
+    virtual void execute(fact_db &facts, sched_db &scheds) ;
+    virtual void Print(std::ostream &s) const ;
+    virtual string getName() {return "execute_cpu2gpu";};
+    virtual void dataCollate(collectData &data_collector) const ;
+  } ;
+
+  class execute_map2gpu_copy: public execute_modules {
+    rule r ;
+    gpuMapRepP gpuvar ;
+    storeRepP cpuvar ;
+    entitySet copyset ;
+  public:
+    execute_map2gpu_copy(rule rin, gpuMapRepP vgpu, storeRepP vcpu, entitySet s) :
+      r(rin),gpuvar(vgpu),cpuvar(vcpu),copyset(s) {}
+    virtual void execute(fact_db &facts, sched_db &scheds) ;
+    virtual void Print(std::ostream &s) const ;
+    virtual string getName() {return "execute_map2gpu";};
+    virtual void dataCollate(collectData &data_collector) const ;
+  } ;
 
   class execute_comm : public execute_modules {
     std::vector<std::pair<int,std::vector<send_var_info> > > send_info ;
@@ -646,13 +722,7 @@ namespace Loci {
 	virtual string getName() {return "execute_memProfileAlloc";};	
     // memory profile function
     int currentMem(void) {
-#ifdef HAS_MALLINFO
-      struct mallinfo info = mallinfo() ;
-      return info.arena+info.hblkhd ;
-#else
-      cerr << "memProfile not implemented" << endl;
-      return 0 ;
-#endif
+      return ::Loci::getmaxrss() ;
     }    
     virtual void dataCollate(collectData &data_collector) const ;
   } ;
@@ -666,13 +736,7 @@ namespace Loci {
 	virtual string getName() {return "execute_memProfileFree";};
     // memory profile function
     int currentMem(void) {
-#ifdef HAS_MALLINFO
-      struct mallinfo info = mallinfo() ;
-      return info.arena+info.hblkhd ;
-#else
-      cerr << "memProfile not implemented" << endl ;
-      return 0 ;
-#endif
+      return ::Loci::getmaxrss() ;
     }    
     virtual void dataCollate(collectData &data_collector) const ;
   } ;

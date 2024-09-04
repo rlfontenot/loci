@@ -227,14 +227,21 @@ namespace Loci {
       sizes[indx]++ ;
     }
     result.allocate(sizes) ;
-
     for(int i=0;i<size_recv;++i) {
       int indx = recv_store[i++] ;
       int refer = recv_store[i] ;
-      //      if(input_image.inSet(indx)) {
+#ifdef DEBUG
+      if(input_image.inSet(indx)) {
+#endif
         sizes[indx]-- ;
         result[indx][sizes[indx]] = refer ;
-        //      }
+#ifdef DEBUG
+      } else {
+	debugout << "indx=" << indx << " not in input_image=" << input_image
+		 << endl ;
+	Loci::Abort() ;
+      }
+#endif
     }
 #ifdef DEBUG
     FORALL(local_input_image,i) {
@@ -429,6 +436,7 @@ namespace Loci {
 
     vector<pair<int,int> > inlist ;
     entitySet preloop = input_preimage & input_map.domain() ;
+    
     inlist.reserve(preloop.size()) ;
     FORALL(preloop,i) {
       int elem = input_map[i] ;

@@ -1,7 +1,6 @@
 #ifndef GRID_INTERFACE_H
 #define GRID_INTERFACE_H
 #include <store_rep.h>
-#include <vector>
 
 namespace Loci {
   void parallelClassifyCell(fact_db &facts) ;
@@ -10,7 +9,7 @@ namespace Loci {
                      const store<Loci::FineNodes> &inner_nodes,
                      int& num_nodes,
                      fact_db & facts,//in global numbering
-                     std::vector<entitySet>& nodes_ptn) ;
+                     vector<entitySet>& nodes_ptn) ;
 
   void createVOGFace(int numNodes,
                      const store<Loci::FineFaces> &fine_faces,
@@ -20,8 +19,8 @@ namespace Loci {
                      Map& cl,
                      Map& cr,
                      multiMap& face2node,
-                     std::vector<entitySet>& local_faces,
-                     std::vector<entitySet>& local_cells) ;
+                     vector<entitySet>& local_faces,
+                     vector<entitySet>& local_cells) ;
 
 
   // Map a store from the parent cells to the child cells of the adapted mesh
@@ -36,11 +35,11 @@ namespace Loci {
     Map new_cr;
     multiMap new_face2node;
     store<vector3d<double> > new_pos;
-    std::vector<entitySet> local_nodes;
-    std::vector<entitySet> local_faces;
-    std::vector<entitySet> local_cells;
-    std::vector<pair<int,string> > boundary_ids;
-    std::vector<pair<string,entitySet> > volTags;
+    vector<entitySet> local_nodes;
+    vector<entitySet> local_faces;
+    vector<entitySet> local_cells;
+    vector<pair<int,string> > boundary_ids;
+    vector<pair<string,entitySet> > volTags;
   } ;
 
   void initializeGridFromPlan(Loci::CPTR<refinedGridData> &gridDataP,

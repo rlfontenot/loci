@@ -1,0 +1,207 @@
+//#############################################################################
+//#
+//# Copyright 2015-2019, Mississippi State University
+//#
+//# This file is part of the flowPsi computational fluid dynamics solver.
+//#
+//# The flowPsi solver is free software: you can redistribute it and/or modify
+//# it under the terms of the GNU General Public License as published by
+//# the Free Software Foundation, either version 3 of the License, or
+//# (at your option) any later version.
+//#
+//# The flowPsi solver is distributed in the hope that it will be useful,
+//# but WITHOUT ANY WARRANTY; without even the implied warranty of
+//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//# GNU General Public License for more details.
+//#
+//# You should have received a copy of the GNU General Public License
+//# along with the flowPsi solver.  If not, see <http://www.gnu.org/licenses>
+//#
+//#############################################################################
+#include <Loci>
+#include <flowTypes.h>
+
+$include "FVM.lh"
+
+$type plot_output param<flowPsi::list_input> ;
+$type plot_output_exclusive param<flowPsi::list_input> ;
+
+$type modelName param<std::string> ;
+// Transform for periodic bc's (should this be in FVM.lh?)
+$type periodicTransform store<Loci::rigid_transform> ;
+
+
+// EoS settings
+$type molecularMass param<flowPsi::real> ;
+$type Rtilde param<flowPsi::real> ;
+$type gamma param<flowPsi::real> ;
+$type Cp    param<flowPsi::real> ;
+
+$type p0 param<PressureValue> ;
+
+// Initial Conditions
+$type temperature_ic store<flowPsi::real> ;
+$type gagePressure_ic store<flowPsi::real> ;
+$type u_ic store<flowPsi::vect3d> ;
+
+// Ambient Pressure used to define gage pressure
+$type Pambient          param<flowPsi::real> ;
+$type temperature       store<flowPsi::real> ;
+// cell density
+$type rho               store<flowPsi::real> ;
+// cell pressure
+$type pressure          store<flowPsi::real> ;
+$type e_internal        store<flowPsi::real> ;
+// cell speed of sound
+
+$type soundSpeed        store<flowPsi::real> ;
+$type gagePressure     store<flowPsi::real> ;
+
+// fluid velocity at a cell
+$type u                 store<flowPsi::vect3d> ;
+// grid velocity at face
+$type us_n store<flowPsi::real> ;
+$type us store<flowPsi::vect3d> ;
+$type gcl_sum store<flowPsi::real>;
+
+$type src store<Loci::Array<flowPsi::real,5> > ;
+// Right hand side of Newton method
+$type rhs store<Loci::Array<flowPsi::real,5> > ;
+// Inviscid Flux
+$type iflux storeVec<real> ;
+
+
+// Low Speed Preconditioning Work
+$type Mref store<flowPsi::real> ; // Reference Mach number used for preconditioning
+$type PLimPC param<flowPsi::real> ;// Pressure jump limit on preconditioning
+$type Minf param<flowPsi::real> ; // Free stream Mach number
+$type etaT param<flowPsi::real> ; // Stagnation point limit factor
+$type Eta_p store<flowPsi::real> ; // Eta factor used in preconditioning
+$type Eta_pf store<flowPsi::real> ; // Eta factor used in preconditioning
+$type Eta_bc store<flowPsi::real> ; // used for boundary conditions, only includes viscous terms
+
+// Face values
+$type gagePressure_f    store<flowPsi::real> ;
+$type pressure_f        store<flowPsi::real> ;
+$type temperature_f     store<flowPsi::real> ;
+$type rho_f             store<flowPsi::real> ;
+$type soundSpeed_f      store<flowPsi::real> ;
+$type u_f               store<flowPsi::vect3d> ;
+
+$type bc_total_area store<flowPsi::real> ;
+$type bc_total_force store<flowPsi::real> ;
+$type bc_average_pressure store<flowPsi::real> ;
+
+$type flow_direction store<flowPsi::vect3d> ;
+$type rigid_u store<flowPsi::vect3d> ;
+$type p0Ref store<flowPsi::real> ;
+$type T0Ref store<flowPsi::real> ;
+$type massFluxRef store<flowPsi::real> ;
+$type temperatureRef store<flowPsi::real> ;
+$type gagePressureRef store<flowPsi::real> ;
+$type uRef store<flowPsi::vect3d> ;
+// Solution Clipping
+$type TclipMin param<TemperatureValue> ;
+$type TclipMax param<TemperatureValue> ;
+$type PclipMin param<PressureValue> ;
+// Fluid Stress
+$type tau               store<flowPsi::symmetricTensor> ;
+// Boundary Condition Parameters
+$type Uwall_BC          store<flowPsi::vect3d> ;
+$type T_BC              store<flowPsi::real> ;
+$type T0_BC             store<flowPsi::real> ;
+$type p0_BC             store<flowPsi::real> ;
+$type rho_BC            store<flowPsi::real> ;
+$type Twall_BC          store<flowPsi::real> ;
+$type qwall_BC          store<flowPsi::real> ;
+$type massFlux_BC       store<flowPsi::real> ;
+$type mdot_BC           store<flowPsi::real> ;
+$type swirlAngle_BC     store<flowPsi::real> ;
+$type swirlCenter_BC    store<flowPsi::vect3d> ;
+$type momentCenter_BC   store<flowPsi::vect3d> ;
+$type M_BC              store<flowPsi::vect3d> ;
+$type u_BC              store<flowPsi::vect3d> ;
+$type p_BC store<flowPsi::real> ;
+$type pMean_BC store<flowPsi::real> ;
+$type BC_inflow_type store<int> ;
+$type temperatureRef_BC store<flowPsi::real> ;
+$type gagePressureRef_BC store<flowPsi::real> ;
+$type uRef_BC store<flowPsi::vect3d> ;
+
+$type angVel_BC store<flowPsi::vect3d> ;
+$type rotAxis_BC store<flowPsi::vect3d> ;
+$type rotCenter_BC store<flowPsi::vect3d> ;
+$type swirlAxis_BC store<flowPsi::vect3d> ;
+$type flowDir_BC store<flowPsi::vect3d> ;
+$type boundary_area store<flowPsi::real> ;
+
+$type stime             param<flowPsi::real> ; // simulation time
+$type ncycle            param<int> ; // simulation iteration number
+$type dtmax             param<flowPsi::TimeValue> ;
+$type timeStepSize      param<flowPsi::real> ;
+$type cflmax            param<flowPsi::real> ;
+$type cflpdt            store<flowPsi::real> ; // Multiply this by dt to get cfl
+$type cfl               param<std::pair<flowPsi::real,flowPsi::real> > ;
+
+$type dtau              store<flowPsi::real> ;
+
+// General Turbulence Model
+// Map from cell to nearest viscous wall
+$type min_cell2noslip    Map ;
+
+$type initialConditions param<Loci::options_list> ;
+$type initialConditionRegions param<Loci::options_list> ;
+$type icRegionInfo blackbox<std::vector<flowPsi::ICstate_info> >;
+$type icRegionId store<int> ;
+
+$type print_freq  param<int> ;
+$type plot_freq   param<int> ;
+$type plot_modulo param<int> ;
+$type do_plot     param<bool> ;
+$type plot_postfix param<std::string> ;
+$type do_boundary_plot     param<bool> ;
+
+$type plot_status       param<int> ;
+$type icfile            param<std::string> ;
+
+$type maximumRunTime    param<flowPsi::TimeValue> ;
+
+
+
+$type timeStepExplicit Constraint ;
+$type rkFinished param<bool> ;
+$type symmetry_BC Constraint ;
+$type impermeable_BC Constraint ;
+$type reflecting_BC Constraint ;
+$type fixedMass_BC Constraint ;
+$type extrapolate_BC Constraint ;
+$type supersonicOutflow_BC Constraint ;
+$type outflow_BC Constraint ;
+$type supersonicInflow_BC Constraint ;
+$type farfield_BC Constraint ;
+$type inflow_BC Constraint ;
+
+$type plotFreq_BCoption Constraint ;
+$type normal_BCoption Constraint ;
+$type angVel_BCoption Constraint ;
+$type rotAxis_BCoption Constraint ;
+$type rotCenter_BCoption Constraint ;
+$type rotSpeed_BCoption Constraint ;
+$type flowDir_BCoption Constraint ;
+$type T_BCoption Constraint ;
+$type T0_BCoption Constraint ;
+$type p_BCoption Constraint ;
+$type pMean_BCoption Constraint ;
+$type p0_BCoption Constraint ;
+$type rho_BCoption Constraint ;
+$type massFlux_BCoption Constraint ;
+$type mdot_BCoption Constraint ;
+$type swirlAngle_BCoption Constraint ;
+$type swirlCenter_BCoption Constraint ;
+$type swirlAxis_BCoption Constraint ;
+$type momentCenter_BCoption Constraint ;
+$type M_BCoption Constraint ;
+$type u_BCoption Constraint ;
+$type v_BCoption Constraint ;
+$type name_BCoption Constraint ;
+

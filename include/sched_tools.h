@@ -282,6 +282,7 @@ namespace Loci {
     virtual void reset_ctrl() { dflag = true ; }
   } ;
 
+  
   class execute_dynamic_applyrule : public execute_drule_module {
   protected:
     rule_implP rp ;
@@ -415,7 +416,7 @@ namespace Loci {
     virtual string getName() {return "execute_init_keyspace" ;}
     virtual void dataCollate(collectData& data_collector) const ;
   } ;
-
+  
   class execute_insertion: public execute_modules {
     rule rule_tag ;
     insertion_rule_interfaceP rp ;
@@ -724,29 +725,10 @@ namespace Loci {
     virtual void dataCollate(collectData &data_collector) const ;
   } ;
 
-  // experimental dynamic scheduling function
-  void dynamic_scheduling(digraph& gr, fact_db& facts,
-                          variableSet& given,
-                          const variableSet& target) ;
-  // this version will construct a graph internally and then
-  // will throw it away before exiting the function. this is
-  // safer than the above version.
-  void
-  dynamic_scheduling2(rule_db&, fact_db&, const variableSet&) ;
   // experimental dynamic mapping generation
   // in the stationary time level
   void stationary_relation_gen(rule_db&, fact_db&, const variableSet&) ;
   
-  // experimental code to process static & dynamic constraints in
-  // a unified way, this is the stage 1 --- mainly to compute the
-  // static constraints and also to do some pre-process to those
-  // dynamic ones
-  variableSet
-  constraint_process_stage1(rule_db&, fact_db&, const variableSet&) ;
-  // stage2 --- generate new rule_db and setting up things for
-  // dynamic constraints
-  rule_db
-  constraint_process_stage2(const rule_db&, fact_db&, const variableSet&) ;
 }
 #endif
 

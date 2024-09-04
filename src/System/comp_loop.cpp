@@ -264,61 +264,6 @@ namespace Loci {
 
   }
 
-  /* compile() method has been removed from the rule_compiler class
-     hierarchy, this one exists here just for the DEBUG code reference.
-     we may later move it into the visitor class.
-  void loop_compiler::compile()  {
-    collapse_sched = schedule_dag(collapse_gr) ;
-    advance_sched = schedule_dag(advance_gr) ;
-
-    compile_dag_sched(collapse_comp,collapse_sched,
-                      rule_compiler_map,loop_gr) ;
-    compile_dag_sched(advance_comp,advance_sched,
-                      rule_compiler_map,loop_gr) ;
-
-    // sanity check, all vertices should be scheduled
-    digraph::vertexSet allvertices = visited ;
-    for(size_t i=0;i< dag_sched.size();++i) 
-      allvertices += dag_sched[i] ;
-    warn(allvertices != dag.get_all_vertices()) ;
-    if(allvertices != dag.get_all_vertices()) {
-
-      cerr << "Loci INTERNAL Consistency error!" << endl ;
-      cerr << " rules NOT scheduled = " << endl
-           << extract_rules(dag.get_all_vertices() - allvertices) << endl ;
-      cerr << " variables NOT scheduled = "
-           << extract_vars(dag.get_all_vertices() - allvertices) << endl ;
-      vector<digraph::vertexSet> components =
-        component_sort(dag).get_components() ;
-      for(size_t i=0;i<components.size();++i) {
-        if(components[i].size() > 1) {
-          cerr << "reason: graph not a dag, strongly connected component found"
-               << endl ;
-          ruleSet rs = extract_rules(components[i]) ;
-          variableSet vs = extract_vars(components[i]) ;
-          cerr << "component rules = " << endl ;
-          cerr << rs << endl ;
-          cerr << "component variables = " << vs << endl ;
-
-          for(ruleSet::const_iterator ri=rs.begin();ri!=rs.end();++ri) {
-            rule r = *ri ;
-            cerr << r << ":" ;
-            digraph::vertexSet edges = dag[r.ident()] & components[i] ;
-            cerr <<extract_vars(edges) << ' ' << extract_rules(edges) << endl ;
-          }
-          for(variableSet::const_iterator vi=vs.begin();vi!=vs.end();++vi) {
-            variable v = *vi ;
-            cerr << v << ":" ;
-            digraph::vertexSet edges = dag[v.ident()] & components[i] ;
-            cerr << extract_vars(edges) << ' ' << extract_rules(edges) << endl ;
-          }
-        }
-      }
-      Loci::Abort() ;
-    }
-  } 
-  */
-
   void loop_compiler::accept(visitor& v) {
     v.visit(*this) ;
   }
@@ -397,20 +342,12 @@ namespace Loci {
     }
 
 
-    // this block of code is apparently not used
-//     for(vi=var_requests.begin();vi!=var_requests.end();++vi) {
-//       entitySet tot_request = scheds.get_variable_requests(*vi);
-//       variable tmp_var = vi->new_offset(vi->get_info().offset - 1);
-//       tot_request += scheds.get_variable_requests(tmp_var);
-//       //      scheds.variable_request(*vi, tot_request);
-//     }
-
     // then we need to remove all the non-store variables from
     // var_requests to prevent any parallel communications
     variableSet non_stores ;
     for(vi=var_requests.begin();vi!=var_requests.end();++vi) {
       storeRepP sp = facts.get_variable(*vi) ;
-      if(sp->RepType() != STORE)
+      if(!isSTORE(sp))
         non_stores += *vi ;
     }
     var_requests -= non_stores ;

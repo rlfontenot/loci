@@ -29,6 +29,7 @@
 #include <istream>
 #include <ostream>
 
+#include <Tools/basic_types.h>
 #include <Tools/debug.h>
 #include <Map_rep.h>
 #include <store.h>
@@ -41,14 +42,13 @@ namespace Loci {
 
   template <int M> class MapVecRepI : public MapRep {
   public:
-    typedef int VEC[M] ;
+    typedef Array<int,M> VEC ;
   private:
     entitySet store_domain ;
-    VEC *alloc_pointer ;
     VEC *base_ptr ;
   public:
-    MapVecRepI() { alloc_pointer = 0 ; base_ptr = 0 ; }
-    MapVecRepI(const entitySet &p) { alloc_pointer=0 ; allocate(p) ; }
+    MapVecRepI() {  base_ptr = 0 ; }
+    MapVecRepI(const entitySet &p) { allocate(p) ; }
     virtual void allocate(const entitySet &ptn) ;
     virtual ~MapVecRepI() ;
     virtual storeRep *new_store(const entitySet &p) const ;
@@ -61,13 +61,27 @@ namespace Loci {
                         const entitySet &context) ;
     virtual void scatter(const dMap &m, storeRepP &st,
                          const entitySet &context) ;
-    
+
     virtual int pack_size(const entitySet& e, entitySet& packed) ;
     virtual int pack_size(const entitySet &e) ;
      virtual int estimated_pack_size(const entitySet &e) ;
     virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
     virtual void unpack(void *ptr, int &loc, int &size,  const sequence &seq)  ;
-    
+
+#ifdef DYNAMICSCHEDULING
+    // this version of pack/unpack uses a remap during the process
+    // mainly for maps images to transform to another numbering scheme
+    // default behavior is to ignore the remaps
+    virtual void pack(void* ptr, int& loc,
+                      int& size, const entitySet& e, const Map& remap) {
+      pack(ptr,loc,size,e) ;
+    }
+    virtual void unpack(void* ptr, int& loc,
+                        int& size, const sequence& seq, const dMap& remap) {
+      unpack(ptr,loc,size,seq) ;
+    }
+#endif
+
     virtual entitySet domain() const ;
 
     virtual entitySet image(const entitySet &domain) const ;
@@ -82,12 +96,26 @@ namespace Loci {
     virtual void readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en, hid_t xfer_plist_id) ;
     virtual void writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en, hid_t xfer_plist_id) const ;
 #endif
-    VEC * get_base_ptr() const { return base_ptr; } 
+    VEC * get_base_ptr() const { VEC * p = 0 ; if(alloc_id>=0) p = ((VEC *)storeAllocateData[alloc_id].base_ptr) - storeAllocateData[alloc_id].base_offset ; return p ; }
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
     virtual storeRepP freeze() ;
     virtual storeRepP thaw() ;
     virtual DatatypeP getType() ;
     virtual frame_info get_frame_info() ;
+#ifdef DYNAMICSCHEDULING
+    virtual storeRepP freeze(const entitySet& es) const {
+      std::cerr << "storeRep.freeze(e) is not implemented yet"
+                << std::endl ;
+      abort() ;
+      return storeRepP(0) ;
+    }
+    virtual storeRepP thaw(const entitySet& es) const {
+      std::cerr << "storeRep.freeze(e) is not implemented yet"
+                << std::endl ;
+      abort() ;
+      return storeRepP(0) ;
+    }
+#endif
   } ;
 
   template<int M> class const_MapVec ;
@@ -115,10 +143,10 @@ namespace Loci {
     }
     //    operator storeRepP() { return Rep() ; }
     operator MapRepP() { MapRepP p(Rep()) ; fatal(p==0) ; return p ; }
-    VEC &elem(Entity indx) { fatal(base_ptr==NULL); 
+    VEC &elem(Entity indx) { fatal(base_ptr==NULL);
     fatal(!((Rep()->domain()).inSet(indx))) ;
     return base_ptr[indx]; }
-    const VEC &const_elem(Entity indx)  const { fatal(base_ptr==NULL); 
+    const VEC &const_elem(Entity indx)  const { fatal(base_ptr==NULL);
     fatal(!((Rep()->domain()).inSet(indx))) ;
     return base_ptr[indx]; }
     VEC &operator[](Entity indx) { return elem(indx); }
@@ -135,7 +163,7 @@ namespace Loci {
     typedef MapVecRepI<M> MapVecType ;
     typedef typename MapVecType::VEC VEC ;
     const VEC * base_ptr ;
-    const_MapVec(const const_MapVec<M> &var) { setRep(var.Rep()) ; } 
+    const_MapVec(const const_MapVec<M> &var) { setRep(var.Rep()) ; }
     const_MapVec(const MapVec<M> &var) { setRep(var.Rep()) ; }
     const_MapVec & operator=(const const_MapVec<M> &str)
     { setRep(str.Rep()) ; return *this ;}
@@ -158,7 +186,7 @@ namespace Loci {
     operator MapRepP() { MapRepP p(Rep()) ; fatal(p==0) ; return p ; }
     const VEC &const_elem(Entity indx)  const {
 #ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
+      fatal(base_ptr==NULL);
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif
       return base_ptr[indx]; }
@@ -166,8 +194,8 @@ namespace Loci {
     const VEC &operator[](size_t indx) const { return const_elem(indx) ; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
     int getRangeKeySpace() const { return MapRepP(Rep())->getRangeKeySpace() ; }
-  } ;  
-  
+  } ;
+
 } // end of namespace Loci
 
 #endif

@@ -564,7 +564,7 @@ void fixupGluedNodesFace(vector<Loci::Array<int,4> > &fd,
   map<int,int>::const_iterator mi ;
   int fdsz = fd.size() ;
   int dgen_face = 0 ;
-  int remap_cnt = 0 ;
+  //  int remap_cnt = 0 ;
   for(int i=0;i<fdsz;++i) {
     bool remap = false ;
     for(int j=0;j<4;++j) {
@@ -574,7 +574,7 @@ void fixupGluedNodesFace(vector<Loci::Array<int,4> > &fd,
       }
     }
     if(remap) {
-      remap_cnt++ ;
+      //      remap_cnt++ ;
       // Check to see if the face became a triangle, or degenerated
       int k=-1 ;
       int cnt = 0 ;

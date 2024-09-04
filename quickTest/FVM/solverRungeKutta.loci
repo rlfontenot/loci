@@ -1,0 +1,330 @@
+//#############################################################################
+//#
+//# Copyright 2015-2019, Mississippi State University
+//#
+//# This file is part of the flowPsi computational fluid dynamics solver.
+//#
+//# The flowPsi solver is free software: you can redistribute it and/or modify
+//# it under the terms of the GNU General Public License as published by
+//# the Free Software Foundation, either version 3 of the License, or
+//# (at your option) any later version.
+//#
+//# The flowPsi solver is distributed in the hope that it will be useful,
+//# but WITHOUT ANY WARRANTY; without even the implied warranty of
+//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//# GNU General Public License for more details.
+//#
+//# You should have received a copy of the GNU General Public License
+//# along with the flowPsi solver.  If not, see <http://www.gnu.org/licenses>
+//#
+//#############################################################################
+
+#include <Loci.h>
+#include <Tools/stream.h>
+#include <string>
+#include <sstream>
+$include "flowPsi.lh"
+
+namespace flowPsi {
+  using std::cerr ;
+  using std::endl ;
+
+
+  $type temperature_i store<real> ;
+  $type gagePressure_i store<real> ;
+  $type u_i store<vect3d> ;
+  $type dtRK param<real> ;
+
+  $rule pointwise(temperature_i{n,rk=0}<-temperature{n}),
+  constraint(geom_cells,timeStepExplicit) {
+    $temperature_i{n,rk=0}= $temperature{n} ;
+  }
+  $rule pointwise(gagePressure_i{n,rk=0}<-gagePressure{n}),
+  constraint(geom_cells,timeStepExplicit) {
+    $gagePressure_i{n,rk=0} = $gagePressure{n} ;
+  }
+  $rule pointwise(u_i{n,rk=0}<-u{n}),
+  constraint(geom_cells,timeStepExplicit) {
+    $u_i{n,rk=0} = $u{n} ;
+  }
+
+  $rule pointwise(temperature{n,rk}<-temperature_i{n,rk}),
+  	inplace(temperature{n,rk}|temperature_i{n,rk}),prelude {} ;
+  $rule pointwise(gagePressure{n,rk}<-gagePressure_i{n,rk}),
+  	inplace(gagePressure{n,rk}|gagePressure_i{n,rk}),prelude {} ;
+  $rule pointwise(u{n,rk}<-u_i{n,rk}),inplace(u{n,rk}|u_i{n,rk}),prelude {} ;
+
+
+
+  $rule singleton(dtRK{n,rk=-1}<-dtmax{n}),
+  constraint(dtmax{n},timeStepExplicit) {
+    $dtRK{n,rk=-1} = 1e-20 ;
+  }
+
+  $type dtStable param<real> ;
+  $rule singleton(dtRK{n,rk}<-dtRK{n,rk-1},dtStable{n,rk}, $rk{n,rk}),
+    constraint(dtmax{n,rk},timeStepExplicit) {
+    $dtRK{n,rk} = ($$rk{n,rk} == 0)?$dtStable{n,rk}:$dtRK{n,rk-1} ;
+//    cerr << "dtRK=" << $dtRK{n,rk} << endl ;
+  }
+
+  $rule unit(dtStable<-dtmax) {
+    $dtStable = ($dtmax>0)?($dtmax):(1e30) ;
+  }
+
+  $rule apply(dtStable<-cflpdt,cflmax,vol)[Loci::Minimum] {
+    real cfl = ($cflmax<=0)?0.95:$cflmax ;
+    const real dt = cfl/$cflpdt ;
+    join($dtStable,dt) ;
+  }
+
+  $type plot_interval param<TimeValue> ;
+  $rule default(plot_interval) {
+    $plot_interval = -1.0 ;
+  }
+
+  $type stime_remain param<real> ;
+  $type ic_stime param<real> ;
+  
+
+  $rule singleton(stime_remain{n=0}<-ic_stime,plot_interval),
+  constraint(timeStepExplicit) {
+    $stime_remain{n=0} = $ic_stime ;
+    $stime_remain{n=0} -= floor($ic_stime/real($plot_interval))*real($plot_interval) ;
+  }
+
+  $rule singleton(stime_remain{n,rk=0}<-stime_remain{n}),
+  constraint(timeStepExplicit) {
+    $stime_remain{n,rk=0} = $stime_remain{n} ;
+  }
+
+  $rule singleton(stime_remain{n,rk+1}<-stime_remain{n,rk},$rk{n,rk},dtRK{n,rk},plot_interval),
+  constraint(timeStepExplicit){
+    $stime_remain{n,rk+1} = $stime_remain{n,rk} ;
+    if($$rk{n,rk} == 0) {
+      const real pt = $plot_interval ;
+      const real tnext = $stime_remain{n,rk}+$dtRK{n,rk} ;
+      $stime_remain{n,rk+1} = (fabs(tnext-pt) < 1e-8*pt)?0.0:tnext ;
+    }
+  }
+
+  $rule singleton(stime_remain{n+1}<-stime_remain{n,rk}),
+    conditional(rkFinished{n,rk}),
+    constraint(timeStepExplicit) {
+    $stime_remain{n+1} = $stime_remain{n,rk} ;
+  }
+
+  $rule apply(dtStable<-stime_remain,plot_interval,dtmax)[Loci::Minimum],prelude {
+      real t1 = *$stime_remain ;
+      real pi = (*$plot_interval)>0?(*$plot_interval):(*$dtmax)*1000.0 ;
+      real t2 = pi ;
+      join(*$dtStable,max<real>(t2-t1,1e-30)) ;
+  } ;                                                
+
+
+  //  $rule singleton(dtRK<-dtmax) {
+  //    $dtRK = $dtmax ;
+  //  }
+
+  $type rkOrderParam param<int> ;
+  $rule default(rkOrderParam) {
+    $rkOrderParam = 2 ;
+  }
+
+  $type rkOrderWeights param<std::vector<Loci::Array<double,3> > > ;
+
+  
+  $rule singleton(rkOrderWeights<-rkOrderParam) {
+    Loci::Array<double,3> wts ;
+    wts[0] = 1 ;
+    wts[1] = 0 ;
+    wts[2] = 1 ;
+    std::vector<Loci::Array<double,3> > wlist ;
+    wlist.push_back(wts) ;
+    if($rkOrderParam == 2) {
+      wts[0] = 0.5 ;
+      wts[1] = 0.5 ;
+      wts[2] = 0.5 ;
+      wlist.push_back(wts) ;
+    }
+    if($rkOrderParam == 3) {
+      wts[0] = 0.75 ;
+      wts[1] = 0.25 ;
+      wts[2] = 0.25 ;
+      wlist.push_back(wts) ;
+      wts[0] = 1./3. ;
+      wts[1] = 2./3. ;
+      wts[2] = 2./3. ;
+      wlist.push_back(wts) ;
+    }
+    $rkOrderWeights = wlist ;
+    if($rkOrderParam < 1 || $rkOrderParam > 3) {
+      cerr << "rkOrderParam should be between 1 and 3, it is set to "
+	   << $rkOrderParam << endl ;
+      Loci::Abort() ;
+    }
+  }
+
+  $type rkFinished param<bool> ;
+  $rule singleton(rkFinished{n,rk}<-$rk{n,rk},rkOrderParam) {
+    $rkFinished{n,rk} = ($$rk{n,rk} >= $rkOrderParam) ;
+  }
+
+  $rule pointwise(temperature{n+1},gagePressure{n+1},u{n+1}<-
+		  temperature_i{n,rk},gagePressure_i{n,rk},u_i{n,rk}),
+  inplace(temperature{n+1}|temperature_i{n,rk}),
+  inplace(gagePressure{n+1}|gagePressure_i{n,rk}),
+  inplace(u{n+1}|u_i{n,rk}),
+  constraint(geom_cells,timeStepExplicit),
+  conditional(rkFinished{n,rk}), prelude { } ;
+
+
+  $rule pointwise(u_i{n,rk+1},temperature_i{n,rk+1},gagePressure_i{n,rk+1}<-
+		  u{n,rk},temperature{n,rk},gagePressure{n,rk},src{n,rk},
+		  rkOrderWeights{n,rk},u{n},temperature{n},gagePressure{n},
+		  vol{n,rk}, vol{n}, dtRK{n,rk},
+		  Pambient,Rtilde,gamma,$rk{n,rk}),constraint(geom_cells,timeStepExplicit) {
+    const real gm1 = $gamma-1. ;
+    const real rgm1 = 1./gm1 ;
+    const real rhon = ($gagePressure{n}+$Pambient)/($Rtilde*$temperature{n}) ;
+    const real rein = ($gagePressure{n}+$Pambient)*rgm1 ;
+    //    const real ein = $Rtilde*$temperature{n}/($gamma-1.) ;
+    const real re0n = rein + 0.5*rhon*dot($u{n},$u{n}) ;
+    const real rhork = ($gagePressure{n,rk}+$Pambient)/($Rtilde*$temperature{n,rk}) ;
+    const real reirk = ($gagePressure{n,rk}+$Pambient)*rgm1 ;
+    const real re0rk = reirk + 0.5*rhork*dot($u{n,rk},$u{n,rk}) ;
+    //    const real eirk = $Rtilde*$temperature{n,rk}/($gamma-1.) ;
+    const int step = $$rk{n,rk} ;
+    const real vn = $vol{n} ;
+    const real vnp1 = $vol{n,rk} ;
+    const real rvnp1 = 1./vnp1 ;
+    const real dt = $dtRK{n,rk} ;
+    const Loci::Array<double,3> &wgts = $rkOrderWeights{n,rk}[step] ;
+    const real rnext = (wgts[0]*vn*rhon + 
+    			wgts[1]*vnp1*rhork+
+    			wgts[2]*dt*$src{n,rk}[0])*rvnp1 ;
+    const real re0next = (wgts[0]*vn*re0n + 
+    			  wgts[1]*vnp1*re0rk+
+    			  wgts[2]*dt*$src{n,rk}[4])*rvnp1 ;
+    const vect3d unext = (rvnp1/rnext)*(wgts[0]*vn*rhon*$u{n} + 
+					wgts[1]*vnp1*rhork*$u{n,rk} +
+					wgts[2]*dt*vect3d($src{n,rk}[1],
+							  $src{n,rk}[2],
+							  $src{n,rk}[3])) ;
+    const real pnext = (re0next - 0.5*rnext*dot(unext,unext))*gm1 ;
+    const real tnext = pnext/($Rtilde*rnext) ;
+    const real pgnext = pnext - $Pambient ;
+    $u_i{n,rk+1} = unext ;
+    $temperature_i{n,rk+1} = tnext ;
+    $gagePressure_i{n,rk+1} = pgnext ;  
+  }
+
+  $rule singleton(stime{n,rk=0}<-stime{n}),constraint(timeStepExplicit) {
+    $stime{n,rk=0} = $stime{n} ;
+  }
+
+  $rule singleton(stime{n,rk+1}<-stime{n,rk},$rk{n,rk},dtRK{n,rk}),
+  constraint(timeStepExplicit){
+    $stime{n,rk+1} = $stime{n,rk} ;
+    if($$rk{n,rk} == 0) {
+      $stime{n,rk+1} = $stime{n,rk}+$dtRK{n,rk} ;
+    }
+  }
+
+  $rule singleton(stime{n+1}<-stime{n,rk}),
+    conditional(rkFinished{n,rk}),
+    constraint(timeStepExplicit) {
+    $stime{n+1} = $stime{n,rk} ;
+  }
+
+  $rule singleton(ncycle{n,rk=0}<-ncycle{n}),constraint(timeStepExplicit) {
+    $ncycle{n,rk=0} = $ncycle{n} ;
+  }
+
+  $rule singleton(ncycle{n,rk+1}<-ncycle{n,rk},$rk{n,rk}),
+  constraint(timeStepExplicit){
+    $ncycle{n,rk+1} = $ncycle{n,rk} ;
+    if($$rk{n,rk} == 0) {
+      $ncycle{n,rk+1} = $ncycle{n,rk}+1 ;
+    }
+  }
+
+  $rule singleton(ncycle{n+1}<-ncycle{n,rk}),
+    conditional(rkFinished{n,rk}),
+    constraint(timeStepExplicit) {
+    $ncycle{n+1} = $ncycle{n,rk} ;
+  }
+
+  $rule singleton(do_plot{n,rk}<-ncycle{n},$rk{n,rk},plot_freq,plot_status{n},
+                  plot_interval{n,rk},stime_remain{n,rk},stime{n,rk},dtRK{n,rk}) {
+    if($plot_interval{n,rk} < 0.0) {
+      $do_plot{n,rk} = (($ncycle{n})%$plot_freq == 0 || $plot_status{n}> 0)
+                          && ($$rk{n,rk} == 0) ;
+    } else {
+      $do_plot{n,rk} = false ;
+      if($$rk{n,rk} == 0) {
+	$do_plot{n,rk} = ($stime_remain{n,rk} == 0.0) ;
+      }
+    }
+  }
+  // $rule singleton(do_plot{n,rk}<-ncycle{n,rk},plot_freq,plot_status{n},$rk{n,rk}) {
+  //   $do_plot{n,rk} = ((((($ncycle{n,rk})%$plot_freq) == 0) ||
+  // 		       ($plot_status{n} != 0)) &&
+  // 		      $$rk{n,rk}==0) ;
+  //   if(Loci::MPI_rank == 0) {
+  //     if($do_plot{n,rk}) {
+  // 	std::cout << "plot output, ncycle = " << $ncycle{n,rk} << endl ;
+  //     }
+  //   }
+  // }
+  
+  $type output_topo param<bool> ;
+
+  $rule singleton(output_topo{n,rk}<-ncycle{n,rk},$n{n},$rk{n,rk}) {
+    $output_topo{n,rk} = ($$n{n} == 0) && ($$rk{n,rk} == 0) ;
+  }
+
+  real time_factor(real ptime, string &time_units) {
+    real factor = 1e15 ;
+    time_units = "fs" ;
+    if(ptime > 1e-15 && fabs(ptime*1e12-ceil(ptime*1e12-1e-4)) < 1e-8) {
+      time_units = "ps" ;
+      factor = 1e12 ;
+    }
+    if(ptime > 1e-12 && fabs(ptime*1e9-ceil(ptime*1e9-1e-4)) < 1e-8) {
+      time_units = "ns" ;
+      factor = 1e9 ;
+    }
+    if(ptime > 1e-9 && fabs(ptime*1e6-ceil(ptime*1e6-1e-4)) < 1e-8) {
+      time_units = "us" ;
+      factor = 1e6 ;
+    }
+    if(ptime > 1e-6 && fabs(ptime*1e3-ceil(ptime*1e3-1e-4)) < 1e-8) {
+      time_units = "ms" ;
+      factor = 1e3 ;
+    }
+    if(ptime > 1e-3 && fabs(ptime - ceil(ptime-1e-4))< 1e-8) {
+      time_units = "s" ;
+      factor = 1 ;
+    }
+    return factor ;
+  }
+
+  $rule singleton(plot_postfix<-ncycle,plot_modulo,stime,plot_interval),constraint(timeStepExplicit) {
+    $plot_postfix = "" ;
+    real ptime = $plot_interval ;
+    string time_units  ;
+    real factor = time_factor(ptime,time_units) ;
+    real time = $stime ;
+    int val = int(realToDouble(floor(time*factor +.5))) ;
+    ostringstream oss ;
+    oss << val << time_units ;
+    $plot_postfix=oss.str() ;
+  }
+
+}
+
+
+
+
+

@@ -57,7 +57,7 @@ namespace Loci {
       rule r(sig) ;
       return r ;
     }
-    
+
     rule create_rule(variableSet source, variableSet target,
                      string qualifier) {
       ostringstream oss ;
@@ -68,7 +68,7 @@ namespace Loci {
       rule r(sig) ;
       return r ;
     }
-    
+
     inline void invoke_rule(rule f, digraph &gr) {
       gr.add_edges(f.sources(),f.ident()) ;
       gr.add_edges(f.ident(),f.targets()) ;
@@ -93,7 +93,7 @@ namespace Loci {
         }
       }
     }
-    
+
     variableSet convert_stationary(const variableSet &v) {
       variableSet result ;
       variableSet::const_iterator vi ;
@@ -118,19 +118,14 @@ namespace Loci {
       }
       return result ;
     }
-    
+
     inline bool time_before(time_ident t1, time_ident t2) {
       return t1.before(t2) ;
     }
-    
+
     inline bool time_equal(time_ident t1, time_ident t2) {
       return (!time_before(t1,t2) && !time_before(t2,t1)) ;
     }
-    
-    // UNUSED
-    //    inline bool time_after(time_ident t1, time_ident t2) {
-    //      return (!time_before(t1,t2) && !time_equal(t1,t2)) ;
-    //}
 
     inline variable drop_all_priorities(variable v) {
       while(v.get_info().priority.size() != 0)
@@ -144,10 +139,10 @@ namespace Loci {
         vnew += drop_all_priorities(*vi) ;
       return vnew ;
     }
-    
+
     // forward declaration
     struct iteration_info ;
-    
+
     struct iteration {
       bool active ;
       digraph iteration_graph ;
@@ -182,7 +177,7 @@ namespace Loci {
           if(ri->target_time().parent()  != ri->source_time()) {
             cerr << "ERROR: malformed build rule, time levels should increment only one level" << endl
                  << *ri << endl ;
-          }          
+          }
           iter.iteration_rules[ri->target_time()].build += *ri ;
         } else if(rtype == rule::COLLAPSE) {
           variableSet cond = ri->get_info().desc.conditionals ;
@@ -193,7 +188,7 @@ namespace Loci {
           } else if(ri->target_time()  != ri->source_time().parent()) {
             cerr << "ERROR: malformed collapse rule, time levels should increment only one level" << endl
                  << *ri << endl ;
-          }          
+          }
             iter.iteration_rules[ri->source_time()].collapse += *ri ;
         } else if(!ri->time_advance) {
           working_rules += *ri ;
@@ -241,7 +236,7 @@ namespace Loci {
         for(ri=collapse.begin();ri!=collapse.end();++ri)
           targets += ri->targets() ;
         rule i_rule = create_rule(sources,targets,"iterating_rule") ;
-        
+
         // set up the record ;
         iter.iteration_time_ident[i_rule] = mi->first ;
         mi->second.iteration_rule = i_rule ;
@@ -296,7 +291,7 @@ namespace Loci {
     // function prototype for mutual recursion
     rule promote_iterating_rule(const rule&,const time_ident&,
                                 iteration_info&) ;
-    
+
     // promote the entire iteration object
     // return the promoted iteration_rule
     rule promote_iteration(const iteration& i,
@@ -335,7 +330,7 @@ namespace Loci {
         }else {
           new_advance += prepend_rule(*ri,tl) ;
         }
-      
+
       for(ruleSet::const_iterator ri=i.collapse.begin();
           ri!=i.collapse.end();++ri) {
         new_collapse += prepend_rule(*ri,tl) ;
@@ -416,11 +411,11 @@ namespace Loci {
       else
         return true ;
     }
-    
+
     // function prototype
     variableSet create_graph(const digraph&,const digraph&,const variableSet&,
                              iteration_info&,digraph&,time_ident) ;
-    
+
     variableSet instantiate_iteration(time_ident,iteration_info&,
                                       const digraph&,const digraph&) ;
 
@@ -462,7 +457,7 @@ namespace Loci {
         for(intervalSet::const_iterator ii=mvi->second.begin();
             ii!=mvi->second.end();++ii) {
           variable newv = vbase.new_offset(*ii) ;
-          
+
           iteration_output += newv ;
           changing_vars += drop_all_priorities(newv) ;
         }
@@ -493,7 +488,7 @@ namespace Loci {
         }
       }
 
-      
+
       // add an output variable
       variable ov("OUTPUT") ;
       variable output(ov,iteration_time) ;
@@ -570,7 +565,7 @@ namespace Loci {
       // convert those necessary changing variables to
       // stationary time to searching
       working_vars += convert_stationary(changing_vars) ;
-      
+
       variableSet visited_vars ;
       ruleSet visited_rules ;
       while(working_vars != EMPTY) {
@@ -586,9 +581,9 @@ namespace Loci {
               convert_time(ri->targets(),iteration_time) ;
             variableSet varsATstationary =
               convert_stationary(ri->targets()) ;
-            
+
             add_changing += varsPLUStime ;
-            
+
             next += varsPLUStime ;
             next += varsATstationary ;
           }
@@ -620,10 +615,10 @@ namespace Loci {
       debugout << "search_requests = " << search_requests << endl ;
       debugout << "iteration_rule = " << iteration_rule << endl ;
 #endif
-               
+
     }
 
-    
+
     // function that instantiates an iteration,
     // it actually builds the iteration graph.
     // it returns the requests from this time level to
@@ -645,7 +640,7 @@ namespace Loci {
       iteration& io = ip->second ;
       io.init(iter,rule_graph,rule_graph_transpose) ;
       // then we build the graph
-      io.requests += 
+      io.requests +=
       create_graph(rule_graph,rule_graph_transpose,
                    io.search_requests,iter,io.iteration_graph,
                    tlevel) ;
@@ -679,7 +674,7 @@ namespace Loci {
         dont_promote = ip->second.dont_promote ;
         changing_vars = ip->second.changing_vars ;
       }
-      
+
       variableSet visited_vars ;
       ruleSet visited_rules ;
       variableSet working_vars = search_requests ;
@@ -712,7 +707,7 @@ namespace Loci {
                 (ri->qualifier() == "iterating_rule")
                 ) {
               // we see an iterating_rule, we need to instantiate it
-              
+
               // we first need to look for the iteration time
               map<rule,time_ident>::const_iterator tp =
                 iter.iteration_time_ident.find(*ri) ;
@@ -794,7 +789,7 @@ namespace Loci {
                     }
                   }
                 } // end of for(promote)
-                
+
               } else {
                 if(!computed_vars.inSet(*vi)) {
                   // we only do variable promotions
@@ -817,12 +812,12 @@ namespace Loci {
 
       return requests ;
     }
-    
+
     // function that adds dependency to rename rules
     void add_rename_dependencies(digraph &gr) {
       variableSet all_vars = extract_vars(gr.get_all_vertices()) ;
       ruleSet     all_rules = extract_rules(gr.get_all_vertices()) ;
-      
+
       // extract the qualified rules, these are rules that are
       // automatically generated by the system.  Since these rules
       // cannot provide type information directly, they are
@@ -836,12 +831,12 @@ namespace Loci {
         set<vmap_info>::const_iterator vmsi ;
         for(vmsi=ri->get_info().desc.targets.begin();
             vmsi!=ri->get_info().desc.targets.end(); ++vmsi)
-          if(vmsi->assign.size() != 0) 
+          if(vmsi->assign.size() != 0)
             rename_rules += *ri ;
       }
       // We need the transpose of the graph in order to find the rules that
       // generate a particular variable
-      
+
       ruleSet check_rules = all_rules ;
       check_rules -= qualified_rules ;
       for(ruleSet::const_iterator ri=check_rules.begin();
@@ -850,7 +845,7 @@ namespace Loci {
         set<vmap_info>::const_iterator vmsi ;
         for(vmsi=ri->get_info().desc.targets.begin();
             vmsi!=ri->get_info().desc.targets.end(); ++vmsi)
-          if(vmsi->assign.size() != 0) 
+          if(vmsi->assign.size() != 0)
             for(size_t i=0;i<vmsi->assign.size();++i) {
               variable orig_name = vmsi->assign[i].second ;
               //              digraph grt = gr.transpose() ;
@@ -866,16 +861,16 @@ namespace Loci {
               }
             }
       }
-      
+
     }
   } // end of unnamed namespace
-    
+
   // function that clean the dependency graph at last
   void clean_graph(digraph &gr, const variableSet& given,
                                       const variableSet& target) {
 
     bool debugging = MPI_processes == 1 || verbose ;
-    
+
     if(verbose) {
       debugout << "given = " << given << endl ;
       debugout << "targets = " << target << endl ;
@@ -883,11 +878,11 @@ namespace Loci {
 
     // Adjustments for super rule
     ruleSet super_rules ;
-    { 
+    {
       variable UNIVERSE("UNIVERSE") ;
       ruleSet cmp = extract_rules(gr.get_all_vertices()) ;
       for(ruleSet::const_iterator ri=cmp.begin();ri!=cmp.end();++ri) {
-	if(ri->type() != rule::INTERNAL 
+	if(ri->type() != rule::INTERNAL
 	   && ri->get_rule_implP()->get_rule_class() == rule_impl::SUPER_RULE) {
 	  debugout << "super_rule " << *ri << endl ;
 	  super_rules += *ri ;
@@ -928,7 +923,7 @@ namespace Loci {
         for(ri=outrules.begin();ri!=outrules.end();++ri) {
           digraph::vertexSet working, breadth ;
           working += ri->ident() ;
-          
+
           while(working != EMPTY) {
             digraph::vertexSet visit ;
             for(digraph::vertexSet::const_iterator dvi=working.begin();
@@ -955,7 +950,7 @@ namespace Loci {
             remove_rules += *ri ;
           }
         }
-          
+
       }
 
       for(ruleSet::const_iterator ri=remove_rules.begin();
@@ -965,30 +960,30 @@ namespace Loci {
       all_cleaned_rules += remove_rules ;
 
     }
-    
+
     do { // Keep cleaning until nothing left to clean!
-        
+
       // Remove unnecessary vertexes from graph.
       int virtual_vertex = gr.max_vertex() + 1 ;
       digraph::vertexSet allvertices = gr.get_all_vertices() ;
       variableSet allvars = extract_vars(allvertices) ;
-        
+
       //  target += variable(expression::create("OUTPUT")) ;
-        
+
       gr.add_edges(virtual_vertex, given) ;
       gr.add_edges(target,virtual_vertex) ;
-        
+
       const vector<digraph::vertexSet> components =
         component_sort(gr).get_components() ;
-        
+
       digraph::vertexSet subset = EMPTY ;
-        
+
       for(size_t i=0;i<components.size();++i)
         if(components[i].inSet(virtual_vertex)) {
           subset = components[i] ;
           break ;
         }
-        
+
       subset -= virtual_vertex ;
       ruleSet rules = extract_rules(subset) ;
       ruleSet::const_iterator fi ;
@@ -1005,7 +1000,7 @@ namespace Loci {
         debugout << rulesNOTinComponent ;
         debugout << "}}}}}" << endl << endl ;
       }
-        
+
       // Check for looping rules here, don't clean looping rule if it is
       // in the subset.
       digraph grt = gr.transpose() ;
@@ -1027,7 +1022,7 @@ namespace Loci {
 
       ruleSet cleanoutrules = extract_rules(cleanout) ;
       subset -= cleanout ;
-        
+
       variableSet touched_variables = given ;
       ruleSet working_rules = extract_rules(subset) ;
       for(ruleSet::const_iterator ri = working_rules.begin();
@@ -1035,9 +1030,9 @@ namespace Loci {
           ++ri) {
         touched_variables += ri->targets() ;
       }
-      
+
       ruleSet looping_rules ;
-        
+
       digraph::vertexSet cleanout2 ;
       // don't clean out super rules
       tmp = working_rules ;
@@ -1058,13 +1053,13 @@ namespace Loci {
       }
 
       subset -= cleanout2 ;
-        
+
       cleanoutrules += extract_rules(cleanout2) ;
-        
+
       WARN(subset == EMPTY) ;
 
       gr = gr.subgraph(subset) ;
-        
+
       if(looping_rules != EMPTY) {
         digraph grt = gr.transpose() ;
         for(ruleSet::const_iterator ri = looping_rules.begin();
@@ -1094,7 +1089,7 @@ namespace Loci {
             variable tvar = *vi ;
             if(tvar.get_info().name != "OUTPUT" && !tvar.get_info().tvar) {
               // If a variable isn't being advanced in time, then
-              // it has no business in the time loop 
+              // it has no business in the time loop
               while(newtargets.inSet(tvar)) {
                 tvar = tvar.new_offset(tvar.get_info().offset + 1) ;
               }
@@ -1102,9 +1097,9 @@ namespace Loci {
                 unused_vars += *vi ;
               }
             }
-              
+
           }
-            
+
           if(unused_vars != EMPTY) {
             variableSet looping_input = variableSet(sources-unused_vars) ;
             variableSet looping_output = variableSet(targets-unused_vars) ;
@@ -1113,7 +1108,7 @@ namespace Loci {
                 << "),target(" << looping_output
                 << "),qualifier(looping)" ;
             rule floop(oss.str()) ;
-              
+
             invoke_rule(floop,gr) ;
             gr.remove_vertex(ri->ident()) ;
             if(debugging) {
@@ -1131,7 +1126,7 @@ namespace Loci {
 
     } while (cleaned_rules) ;
   }
-    
+
   // return only the rules that can be used with the given facts
   ruleSet active_rules(ruleSet rin,variableSet given) {
     ruleSet outrules ;
@@ -1189,8 +1184,8 @@ namespace Loci {
     ruleSet cmp = extract_rules(gr.get_all_vertices()) ;
     for(ruleSet::const_iterator ri=cmp.begin();ri!=cmp.end();++ri) {
         int id = ri->ident() ;
-	
-	if(ri->type() != rule::INTERNAL 
+
+	if(ri->type() != rule::INTERNAL
 	   && ri->get_rule_implP()->get_rule_class() == rule_impl::SUPER_RULE) {
 	  debugout << "super_rule " << *ri << endl ;
 	  visited_rules += *ri ;
@@ -1204,17 +1199,17 @@ namespace Loci {
       ruleSet rule_consider ;
       variableSet::const_iterator ni ;
       // loop over working set and create a list of candidate vertexes
-      for(ni=working.begin();ni != working.end(); ++ni) 
+      for(ni=working.begin();ni != working.end(); ++ni)
         rule_consider += extract_rules(gr[ni->ident()]) ;
-        
+
       rule_consider -= visited_rules ;
       ruleSet::const_iterator ri ;
       ruleSet new_rules ;
       variableSet new_vars ;
       for(ri=rule_consider.begin();ri!=rule_consider.end();++ri) {
         int id = ri->ident() ;
-	
-	if(ri->type() != rule::INTERNAL 
+
+	if(ri->type() != rule::INTERNAL
 	   && ri->get_rule_implP()->get_rule_class() == rule_impl::SUPER_RULE) {
 	  new_rules += *ri ;
           new_vars += extract_vars(gr[id]) ;
@@ -1229,7 +1224,7 @@ namespace Loci {
       working = new_vars ;
       visited_rules += new_rules ;
     }
-    
+
 
     outrules += visited_rules ;
 
@@ -1240,7 +1235,7 @@ namespace Loci {
         for(ruleSet::const_iterator ri=rin.begin();ri!=rin.end();++ri) {
           variableSet x = extract_vars(gt[ri->ident()]) ;
           x -= visited_vars ;
-          debugout << "eliminating " << *ri  
+          debugout << "eliminating " << *ri
                    << " due to " << x << endl ;
         }
       }
@@ -1288,7 +1283,7 @@ namespace Loci {
     s << "}" << endl ;
     return s ;
   }
-  
+
 
   variable flattenVariable(variable v) {
     variable::info vinfo = v.get_info() ;
@@ -1299,7 +1294,7 @@ namespace Loci {
     variable vn(vinfo) ;
     return vn ;
   }
-  
+
   void makeFlatGraph(digraph &gr,const rule_db &rdb) {
     ruleSet all_rules = rdb.all_rules() ;
 
@@ -1307,7 +1302,7 @@ namespace Loci {
     variableSet all_vars ;
     for(ri=all_rules.begin();ri!=all_rules.end();++ri) {
       int rid = ri->ident() ;
-      
+
       variableSet vin = ri->sources() ;
 
       variableSet::const_iterator vi ;
@@ -1322,7 +1317,7 @@ namespace Loci {
         gr.add_edge(rid,v.ident()) ;
       }
     }
-    
+
   }
 
   //#define CLEANREPORT
@@ -1337,8 +1332,8 @@ namespace Loci {
 #ifdef REPORT
     char *p ;
     char buf[2048] ;
-    
-    if(getcwd(buf,sizeof(buf))==0) 
+
+    if(getcwd(buf,sizeof(buf))==0)
       p = "PWD" ;
     else
       p=buf ;
@@ -1360,7 +1355,7 @@ namespace Loci {
     prefix += string(t) ;
     {
       string filename = prefix+string("rules.dat") ;
-      
+
       std::ofstream file(filename.c_str(),std::ios::out) ;
       file << "rules = {" << endl ;
       for(ruleSet::const_iterator ri=all_rules.begin();
@@ -1395,7 +1390,7 @@ namespace Loci {
     // next, we create a representative rule for
     // each iteration
     create_iteration_rep(iter,working_rules) ;
-    // followed, we will need to check the iteration rules 
+    // followed, we will need to check the iteration rules
     // if check failed, we just return an empty graph
     if(!check_iteration(iter))
       return ; // because gr is empty now
@@ -1448,7 +1443,7 @@ namespace Loci {
     // we are now ready to build the graph
     digraph rule_graph_transpose = rule_graph.transpose() ;
     // we collect the toplevel requests
-    variableSet top_request = 
+    variableSet top_request =
       create_graph(rule_graph,rule_graph_transpose,
                    target,iter,gr,time_ident()) ;
     // we need to compare the top_request with the given
@@ -1461,7 +1456,7 @@ namespace Loci {
 //       gr = digraph() ;
 //       return ;
 //     }
-    
+
     // we now add these built iteration graphs
     for(map<time_ident,iteration>::iterator ip=iter.iteration_rules.begin();
         ip!=iter.iteration_rules.end();++ip)
@@ -1476,7 +1471,7 @@ namespace Loci {
       std::ofstream file(filename.c_str(),std::ios::out) ;
 
       file << "input = {" << given << "}"<<endl ;
-       
+
       output_graph(gr,file) ;
     }
 #endif
@@ -1501,7 +1496,7 @@ namespace Loci {
       gr.remove_dangling_vertices() ;
 
       file << "input = {" << given << "}"<<endl ;
-       
+
       output_graph(gr,file) ;
     }
 #endif
@@ -1561,7 +1556,7 @@ namespace Loci {
           if(cond != ri->get_info().desc.conditionals) {
             conflicts.push_back(mi->first) ;
           }
-        } 
+        }
       }
     }
     // If there are no conflicts then we are done
@@ -1600,7 +1595,7 @@ namespace Loci {
 
       if(looping_rule.size() == 0)
         continue ;
-      
+
       // There should only be one looping rule at this stage, if not
       // something weird is going on.
       if(looping_rule.size() != 1) {
@@ -1634,7 +1629,7 @@ namespace Loci {
         }
         variableSet v1var = extract_vars(v1) ;
         v1var &= looping_rule.begin()->targets() ;
-        
+
         for(vi=v1var.begin();vi!=v1var.end();++vi) {
           variable::info vinfo = vi->get_info() ;
           if(vinfo.tvar || vinfo.name == "OUTPUT")
@@ -1658,7 +1653,7 @@ namespace Loci {
           check -= promote_vars ;
           check -= variable(iter) ;
           if(check != EMPTY) {
-            cerr << "Warning:" << endl 
+            cerr << "Warning:" << endl
                  << "  iteration will yield duplicate computations when collapse"
                  << endl
                  << "  are split to accommodate different collapse conditionals"
@@ -1678,7 +1673,7 @@ namespace Loci {
         newgr.remove_vertices(extract_rules(groups[i])) ;
       }
       newgr.remove_vertices(looping_rule) ;
-      
+
       for(size_t i=0;i<groups.size();++i) {
         string level_name = iter.level_name() ;
         char buf[512] ;

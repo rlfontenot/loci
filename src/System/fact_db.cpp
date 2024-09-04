@@ -30,7 +30,7 @@
 
 #include <Loci_Datatypes.h>
 
-using std::string ; 
+using std::string ;
 using std::map ;
 using std::make_pair ;
 using std::vector ;
@@ -85,27 +85,15 @@ namespace Loci {
     tmap = f.tmap ;
     nspace_vec = f.nspace_vec ;
     extensional_facts = f.extensional_facts ;
-    
+
     // create new keyspaces
     keyspace.clear() ;
     const std::map<std::string,KeySpaceP>& fks = f.keyspace ;
     for(std::map<std::string,KeySpaceP>::const_iterator
           mi=fks.begin();mi!=fks.end();++mi) {
       keyspace[mi->first] = mi->second->new_keyspace() ;
-    }      
-    
-    // we cannot clone keyspace because copying
-    // keyspace is an ill operation as some critical
-    // structures will be lost
-    
-    // std::map<std::string,KeySpaceP>& ks = keyspace ;
-    // ks.clear() ;
-    // const std::map<std::string,KeySpaceP>& fks = f.keyspace ;
-    // for(std::map<std::string,KeySpaceP>::const_iterator
-    //       mi=fks.begin();mi!=fks.end();++mi) {
-    //   ks[mi->first] = mi->second->clone_keyspace() ;
-    // }
-    
+    }
+
     // here is something very important, we'll need to
     // assign the current fact_db's synonym record to
     // all the keyspaces here
@@ -135,10 +123,12 @@ namespace Loci {
     // we make a deep copy of the maps
     entitySet l2g_alloc = fdf->l2g.domain() ;
     df->l2g.allocate(l2g_alloc) ;
+    df->l2f.allocate(l2g_alloc) ;
     df->key_domain.allocate(l2g_alloc) ;
     for(entitySet::const_iterator ei=l2g_alloc.begin();
         ei!=l2g_alloc.end();++ei) {
       df->l2g[*ei] = fdf->l2g[*ei] ;
+      df->l2f[*ei] = fdf->l2f[*ei] ;
       df->key_domain[*ei] = fdf->key_domain[*ei] ;
     }
 
@@ -170,11 +160,11 @@ namespace Loci {
     df->g2f.setRep(df->g2fv[0].Rep()) ;
 #endif
   }
-  
+
   void fact_db::set_maximum_allocated(int i) {
     maximum_allocated = i ;
   }
-  
+
   int fact_db::getKeyDomain(std::string name) {
     for(size_t i=0;i<keyDomainName.size();++i)
       if(name == keyDomainName[i])
@@ -210,7 +200,7 @@ namespace Loci {
       s = mi->second ;
     }
     synonym_set += s ;
- 
+
     // If the two are already synonymous, we are done
     if(s == v)
       return ;
@@ -228,7 +218,7 @@ namespace Loci {
     if((vmj = fmap.find(s)) != fmap.end()) {
       fact_info &finfo = vmj->second ;
       if((finfo.data_rep->domain() != EMPTY &&
-          finfo.data_rep->RepType() != PARAMETER)) {
+          !isPARAMETER(finfo.data_rep->getRep()))) {
         cerr << "unable to define synonym variable " << synonym
              << " when variable already created in db. "  << endl ;
         cerr << "variable v = " << v << endl ;
@@ -236,7 +226,7 @@ namespace Loci {
       }
       remove_variable(synonym) ;
     }
-    
+
     // Add new synonyms so that they point to v
     for(variableSet::const_iterator vi = synonym_set.begin();
         vi!=synonym_set.end();
@@ -244,11 +234,11 @@ namespace Loci {
       synonyms[*vi] = v ;
     }
   }
-  
-  
+
+
   void fact_db::update_fact(variable v, storeRepP st) {
     //if st is STORE or MAP, update maximum_allocated
-    if(st->RepType() == Loci::MAP || st->RepType() == Loci::STORE) {
+    if(isMAP(st) || isSTORE(st)) {
       int max_val = st->domain().Max() ;
       if(gmax_alloc.size()==0)
 	getKeyDomain("Main") ;
@@ -279,10 +269,9 @@ namespace Loci {
       tmp_v = v ;
     return tmp_v ;
   }
-  
+
   void fact_db::create_pure_fact(const variable& v, storeRepP st) {
-    
-    if(st->RepType() == Loci::MAP || st->RepType() == Loci::STORE) {
+    if(isMAP(st) || isSTORE(st)) {
       int max_val = st->domain().Max() ;
       if(gmax_alloc.size()==0)
 	getKeyDomain("Main") ;
@@ -291,7 +280,7 @@ namespace Loci {
     }
     variable tmp_v ;
     tmp_v = v ;
-    
+
     if(synonyms.find(tmp_v) != synonyms.end()) {
       tmp_v = remove_synonym(tmp_v) ;
       std::map<variable, fact_info>::iterator mi = fmap.find(tmp_v) ;
@@ -306,7 +295,7 @@ namespace Loci {
       }
       return ;
     }
-    
+
     std::map<variable, fact_info>::iterator mi = fmap.find(tmp_v) ;
     if(mi != fmap.end()) {
       cerr << "WARNING: fact_db::set_variable_type retyping variable "
@@ -316,7 +305,7 @@ namespace Loci {
       fmap[tmp_v].data_rep = new store_ref ;
       fmap[tmp_v].data_rep->setRep(st->getRep()) ;
     }
-  } 
+  }
 
   /*! remove from synonym and fmap */
   void fact_db::remove_variable(variable v) {
@@ -344,14 +333,14 @@ namespace Loci {
       fmap.erase(mi) ;
     }
   }
-  
+
   variableSet fact_db::get_typed_variables() const {
     std::map<variable, fact_info>::const_iterator mi ;
     std::map<variable, variable>::const_iterator si ;
     variableSet all_vars ;
     for(mi=fmap.begin();mi!=fmap.end();++mi)
       all_vars += mi->first ;
-    
+
     for(si=synonyms.begin();si!=synonyms.end();++si)
       all_vars += si->first ;
     return all_vars ;
@@ -407,7 +396,7 @@ namespace Loci {
       for(int i = 0; i < MPI_processes; ++i) {
 	send_buf[i] = gmax_alloc[kd] ;
 	size_send[i] = size ;
-      } 
+      }
       MPI_Alltoall(send_buf, 1, MPI_INT, recv_buf, 1, MPI_INT, MPI_COMM_WORLD) ;
       MPI_Alltoall(size_send, 1, MPI_INT, size_recv, 1, MPI_INT, MPI_COMM_WORLD) ;
       std::sort(recv_buf, recv_buf+MPI_processes) ;
@@ -416,9 +405,9 @@ namespace Loci {
       int global_max = 0 ;
       for(int i = 0; i < MPI_rank; ++i)
 	local_max += size_recv[i] ;
-      for(int i = 0; i < MPI_processes; ++i) 
+      for(int i = 0; i < MPI_processes; ++i)
 	global_max += size_recv[i] ;
-      
+
       for(int i = 0 ; i < MPI_processes; ++i) {
 	int local = gmax_alloc[kd] ;
 	for(int j = 0; j < i; ++j)
@@ -432,11 +421,11 @@ namespace Loci {
       else {
 	local_ivl = EMPTY ;
       }
-      
+
       global_ivl = entitySet(interval(gmax_alloc[kd], gmax_alloc[kd]+global_max-1)) ;
 
       global_comp_entities += local_ivl;
-      
+
       delete [] send_buf ;
       delete [] recv_buf ;
       delete [] size_send ;
@@ -446,17 +435,17 @@ namespace Loci {
     }
     entitySet alloc = entitySet(interval(gmax_alloc[kd],gmax_alloc[kd]+size-1)) ;
     gmax_alloc[kd] += size ;
-    
+
     init_ptn[kd][0] += alloc ;
     global_comp_entities += alloc;
     return (make_pair(alloc, alloc)) ;
   }
-    
+
   void fact_db::update_remap(const std::vector<std::pair<int, int> > &remap_update, size_t kd) {
     if(Loci::MPI_processes > 1) {
       warn(!dist_from_start);
       fatal(distributed_info == NULL);
-      
+
       for(std::vector<std::pair<int, int> >::const_iterator vi = remap_update.begin(); vi != remap_update.end(); vi++) {
         //	distributed_info->remap[vi->first] = vi->second;
         distributed_info->g2fv[kd][vi->second] = vi->first ;
@@ -471,20 +460,20 @@ namespace Loci {
   std::pair<entitySet, entitySet> fact_db::get_distributed_alloc(int size, size_t kd) {
     pair<entitySet, entitySet> allocation = get_dist_alloc(size, kd);
     vector<pair<int, int> > remap_update;
-   
+
     FORALL(allocation.first, ai) {
       remap_update.push_back(make_pair(ai, ai));
     }ENDFORALL;
 
-    update_remap(remap_update,kd);    
+    update_remap(remap_update,kd);
     return allocation;
   }
 
   std::pair<entitySet, entitySet> fact_db::get_distributed_alloc(const std::vector<int> &remap_entities, size_t kd) {
     pair<entitySet, entitySet> allocation = get_dist_alloc(remap_entities.size(),kd);
     vector<pair<int, int> > remap_update;
-    
-    int i = 0;   
+
+    int i = 0;
     FORALL(allocation.first, ai) {
       remap_update.push_back(make_pair(remap_entities[i], ai));
       i++;
@@ -494,18 +483,18 @@ namespace Loci {
     return allocation;
   }
 
-  std::pair<entitySet, entitySet> fact_db::get_distributed_alloc(int size, int offset,size_t kd) {  
+  std::pair<entitySet, entitySet> fact_db::get_distributed_alloc(int size, int offset,size_t kd) {
     pair<entitySet, entitySet> allocation = get_dist_alloc(size,kd);
     vector<pair<int, int> > remap_update;
-    
+
     FORALL(allocation.first, ai) {
       remap_update.push_back(make_pair(ai+offset, ai));
     }ENDFORALL;
-    
+
     update_remap(remap_update,kd);
     return allocation;
   }
-  
+
   storeRepP fact_db::get_variable(variable v) {
     variable tmp_v = add_namespace(v) ;
     tmp_v = remove_synonym(tmp_v) ;
@@ -517,22 +506,22 @@ namespace Loci {
     else
       return storeRepP(mi->second.data_rep) ;
   }
-  
+
   fact_db::distribute_infoP fact_db::get_distribute_info() {
     return(distributed_info);
   }
-  
+
   void fact_db::put_distribute_info(distribute_infoP dp) {
     distributed_info = dp ;
   }
- 
+
   bool fact_db::isDistributed() {
     if(distributed_info == 0)
       return 0 ;
-    else 
+    else
       return 1 ;
   }
-  
+
   void fact_db::rotate_vars(const std::list<variable> &lvars) {
     list<variable>::const_iterator jj ;
     jj = lvars.begin() ;
@@ -587,7 +576,7 @@ namespace Loci {
     }
     return s ;
   }
-  
+
   istream &fact_db::read(istream &s) {
     bool syntax_error = false ;
     try {
@@ -599,7 +588,7 @@ namespace Loci {
         return s ;
       }
       s.get() ;
-      
+
       variableSet read_vars ;
       for(;;) {
         parse::kill_white_space(s) ;
@@ -611,7 +600,7 @@ namespace Loci {
           throw StringError("unexpected EOF in fact_db::read") ;
         }
         parse::kill_white_space(s) ;
-        if(parse::is_name(s)) 
+        if(parse::is_name(s))
           vname = parse::get_name(s) ;
         else {
           throw StringError("syntax error in fact_db::read") ;
@@ -621,7 +610,7 @@ namespace Loci {
 	  vname += '@' ;
 	  s.get() ;
 	  parse::kill_white_space(s) ;
-	  if(parse::is_name(s)) 
+	  if(parse::is_name(s))
 	    vname += parse::get_name(s) ;
 	  else {
 	    ostringstream oss ;
@@ -669,8 +658,8 @@ namespace Loci {
           while(s.peek()!=EOF&&s.peek()!='\n'&&s.peek()!='\r')
             cerr << char(s.get()) ;
           cerr << "\"" << endl ;
-         
- 
+
+
           syntax_error = true ;
         }
       }
@@ -702,7 +691,7 @@ namespace Loci {
 
       variable v = *targets.begin() ;
       // only process rules in current namspace
-      if(nspace_vec.size()>0 &&v.get_info().namespac != nspace_vec) 
+      if(nspace_vec.size()>0 &&v.get_info().namespac != nspace_vec)
 	continue ;
       variable dpv = v ;
       while(dpv.get_info().priority.size() != 0)
@@ -735,7 +724,7 @@ namespace Loci {
       storeRepP srp = rp->get_store(mi->second.first) ;
       if(srp == 0) {
         ostringstream oss ;
-        oss << "default rule " << mi->second.second 
+        oss << "default rule " << mi->second.second
 	    << " unable to provide type for " << v
             << endl ;
 	cerr << oss.str() << endl ;
@@ -768,7 +757,7 @@ namespace Loci {
 	//	Loci::debugout << "targets=" << targets << endl ;
         bool UseRule = true ;
         for(variableSet::const_iterator vi=targets.begin();
-            vi!=targets.end();++vi) 
+            vi!=targets.end();++vi)
           if(nspace_vec.size()>0 && vi->get_info().namespac != nspace_vec) {
             UseRule = false ;
           }
@@ -793,7 +782,7 @@ namespace Loci {
           set_variable_type(*vi,srp) ;
         }
       }
-    
+
       string vname ;
       parse::kill_white_space(s) ;
       if(s.peek()!='{') {
@@ -801,7 +790,7 @@ namespace Loci {
         return s ;
       }
       s.get() ;
-      
+
       variableSet read_var_set ;
       for(;;) {
         parse::kill_white_space(s) ;
@@ -838,7 +827,7 @@ namespace Loci {
           throw StringError("unexpected EOF in fact_db::read") ;
         }
         parse::kill_white_space(s) ;
-        if(parse::is_name(s)) 
+        if(parse::is_name(s))
           vname = parse::get_name(s) ;
         else {
           throw StringError("syntax error in fact_db::read") ;
@@ -848,7 +837,7 @@ namespace Loci {
 	  vname += '@' ;
 	  s.get() ;
 	  parse::kill_white_space(s) ;
-	  if(parse::is_name(s)) 
+	  if(parse::is_name(s))
 	    vname += parse::get_name(s) ;
 	  else {
 	    ostringstream oss ;
@@ -862,7 +851,7 @@ namespace Loci {
           if(!parse::get_token(s,":")) {
             throw StringError("syntax error in fact_db::read, no ':' separator") ;
           }
-          
+
           variable var(vname) ;
           if(read_var_set.inSet(var)) {
             cerr << "WARNING: Redefining variable '" << var << "' while reading in fact_db!!!!!" << endl ;
@@ -896,8 +885,8 @@ namespace Loci {
           while(s.peek()!=EOF&&s.peek()!='\n'&&s.peek()!='\r')
             cerr << char(s.get()) ;
           cerr << "\"" << endl ;
-         
- 
+
+
           syntax_error = true ;
         }
       }
@@ -924,17 +913,17 @@ namespace Loci {
     entitySet dom, total, unused ;
     for(mi = fmap.begin(); mi != fmap.end(); ++mi) {
       fact_info &finfo = mi->second ;
-      if(finfo.data_rep->RepType() == STORE) {
+      if(isSTORE(finfo.data_rep->getRep())) {
 	dom = finfo.data_rep->domain() ;
 	total = interval(dom.Min(), dom.Max()) ;
 	unused = total - dom ;
-	total_size += finfo.data_rep->pack_size(dom) ; 
+	total_size += finfo.data_rep->pack_size(dom) ;
 	total_wasted += finfo.data_rep->pack_size(unused) ;
       }
     }
     for(mi = fmap.begin(); mi != fmap.end(); ++mi) {
       fact_info &finfo = mi->second ;
-      if(finfo.data_rep->RepType() == STORE) {
+      if(isSTORE(finfo.data_rep->getRep())) {
 	dom = finfo.data_rep->domain() ;
 	double size = finfo.data_rep->pack_size(dom) ;
 	total = interval(dom.Min(), dom.Max()) ;
@@ -944,11 +933,11 @@ namespace Loci {
 	ofile << " Total_size = " << total_size << endl ;
 	ofile << "Variable = "  << mi->first << endl ;
 	ofile << "Domain = " << dom << endl ;
-	ofile << "Size allocated = " << size << endl ; 
+	ofile << "Size allocated = " << size << endl ;
 	if( isDistributed() )  {
 	  Loci::fact_db::distribute_infoP d ;
 	  d   = Loci::exec_current_fact_db->get_distribute_info() ;
-	  entitySet my_entities = d->my_entities ; 
+	  entitySet my_entities = d->my_entities ;
 	  entitySet clone = dom - my_entities ;
 	  double clone_size = finfo.data_rep->pack_size(clone) ;
 	  ofile << "----------------------------------------------------" << endl;
@@ -969,9 +958,9 @@ namespace Loci {
       }
     }
   }
-  
+
   /////////////////////////////////////////////////////////////////////////////
-  
+
   void reorder_facts(fact_db &facts, dMap &remap) {
     variableSet vars = facts.get_typed_variables() ;
     if(facts.is_distributed_start()) {
@@ -982,7 +971,7 @@ namespace Loci {
 	  // For universal set, keep set universal
 	  facts.replace_fact(*vi,p->freeze()) ;
 	  p = facts.get_variable(*vi) ;
-	} else if(p->RepType() != Loci::MAP) {
+	} else if(!isMAP(p)) {
 	  int kd = p->getDomainKeySpace() ;
 	  entitySet rdom = p->domain() & df->g2lv[kd].domain() ;
 	  storeRepP fp = (p->remap(df->g2lv[kd]))->freeze() ;
@@ -1010,7 +999,7 @@ namespace Loci {
 	if(p->domain() == ~EMPTY) {
 	  // For universal set, keep set universal
 	  facts.update_fact(*vi,p->freeze()) ;
-	} else if(p->RepType() != Loci::MAP) {
+	} else if(!isMAP(p)) {
 	  facts.update_fact(*vi,(p->remap(remap))->freeze()) ;
 	} else {
 	  MapRepP mp = MapRepP(p->getRep()) ;
@@ -1021,14 +1010,42 @@ namespace Loci {
   }
 
   ///////////////////////////////////////////////////////////////////////////////
-  
+
   void serial_freeze(fact_db &facts) {
     variableSet vars = facts.get_typed_variables() ;
 
+    fact_db::distribute_infoP df = new fact_db::distribute_info;
+    df->myid = 0 ;
+    df->isDistributed = 0 ;
+    entitySet dom ;
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
       storeRepP p = facts.get_variable(*vi) ;
-      facts.replace_fact(*vi, p->freeze()) ;
+      p = p->freeze() ;
+      facts.replace_fact(*vi, p) ;
+      if(p->domain()!=~EMPTY)
+	dom += p->domain() ;
     }
+    Map l2g ;
+    store<unsigned char> key_domain ;
+    l2g.allocate(dom) ;
+    key_domain.allocate(dom) ;
+    dMap g2l ;
+    FORALL(dom,ii) {
+      l2g[ii] = ii ;
+      key_domain[ii] = 0 ;
+      g2l[ii] = ii ;
+    } ENDFORALL ;
+    df->l2g = l2g.Rep() ;
+    df->key_domain = key_domain.Rep() ;
+    df->l2f = l2g.Rep() ;
+#ifdef LOCI_COMPAT_MODE1
+    df->g2l = g2l.Rep() ;
+    df->g2f = g2l.Rep() ;
+#endif
+    df->my_entities = ~EMPTY ;
+    df->g2lv.push_back(g2l) ;
+    df->g2fv.push_back(g2l) ;
+    facts.put_distribute_info(df) ;
   }
 
   void fact_db::set_variable_type(variable v, storeRepP st) {
@@ -1050,39 +1067,39 @@ namespace Loci {
   }
   void fact_db::read_all_hdf5(const char *filename) {
     variableSet vars = get_typed_variables() ;
-    read_hdf5(filename, vars) ; 
+    read_hdf5(filename, vars) ;
   }
 
   void fact_db::write_hdf5(const char *filename, variableSet &vars) {
     hid_t  file_id=0 ;
     file_id = Loci::hdf5CreateFile(filename, H5F_ACC_TRUNC,
                                    H5P_DEFAULT, H5P_DEFAULT) ;
-       
+
     for(variableSet::const_iterator vi = vars.begin(); vi != vars.end(); ++vi) {
       storeRepP  p = get_variable(*vi) ;
-      if(p->RepType() == STORE) {
+      if(isSTORE(p)) {
         writeContainer(file_id,variable(*vi).get_info().name,p,*this) ;
       }
     }
     hdf5CloseFile(file_id);
   }
-  
-  
- 
+
+
+
 
   void fact_db::read_hdf5(const char *filename, variableSet &vars) {
     hid_t  file_id=0 ;
     file_id =  hdf5OpenFile(filename,  H5F_ACC_RDONLY, H5P_DEFAULT);
     for(variableSet::const_iterator vi = vars.begin(); vi != vars.end(); ++vi) {
       storeRepP  p = get_variable(*vi) ;
-      if(p->RepType() == STORE) {
+      if(isSTORE(p)) {
         readContainer(file_id,variable(*vi).get_info().name,p,EMPTY,*this) ;
       }
     }
     hdf5CloseFile(file_id);
   }
 
- 
+
   // experimental code to create keyspace from the
   // global registered keyspace list
   // returns "true" to indicate the methods succeeded,
@@ -1094,9 +1111,11 @@ namespace Loci {
       KeySpaceP kp = ki.get_p()->rr->get_space() ;
       // first get the space name
       if(!kp->named_space()) {
-        if(Loci::MPI_rank == 0)
+        if(Loci::MPI_rank == 0) {
+	  auto &kpdr = *kp ;
           cerr << "fact_db Error: Initializing Unnamed Keyspace!"
-               << " typeid = " << typeid(*kp).name() << endl ;
+               << " typeid = " << typeid(kpdr).name() << endl ;
+	}
         return false ;
       }
       string name = kp->get_name() ;
@@ -1121,7 +1140,7 @@ namespace Loci {
     else
       return mi->second ;
   }
-  
+
   void
   fact_db::init_key_manager() {
     int max_alloc = get_max_alloc(0) ;
@@ -1130,7 +1149,7 @@ namespace Loci {
                   MPI_INT, MPI_MAX, MPI_COMM_WORLD) ;
     key_manager = new KeyManager(global_max+1) ;
   }
-  
+
 }
 
-  
+

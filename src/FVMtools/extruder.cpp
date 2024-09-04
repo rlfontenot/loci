@@ -22,7 +22,7 @@ void kill_comment(istream &s) {
   while(s.peek() == ' ' || s.peek() == '\t' ||
         s.peek() == '\n' || s.peek() == '\r')
     s.get() ;
-  
+
   while(s.peek() == '#') {
     char buf[1024] ;
     s.getline(buf,1023) ;
@@ -64,7 +64,7 @@ void Usage() {
        << "  -nz <float value>" << endl
        << "     extrusion normal vector z component (default 1.0)" << endl
        << "  -xr"<< endl
-       << "     project cylindrical coordinates onto xy surface" << endl 
+       << "     project cylindrical coordinates onto xy surface" << endl
        << "  -no_hanging_nodes" << endl
        << "     mesh does not contain hanging nodes from mesh adaptation so don't merge edges" << endl ;
   cerr << endl ;
@@ -80,6 +80,7 @@ int main(int ac, char *av[]) {
   int nplanes = 2 ;
   bool use_delta_file = false ;
   bool merge_hanging_nodes = true ;
+  bool radial = false ;
   string delta_file = "" ;
   while(ac > 2 ) {
     if(!strcmp(av[1],"-xy")) {
@@ -114,6 +115,10 @@ int main(int ac, char *av[]) {
       ac-- ;
       av++ ;
       nz = atof(av[1]) ;
+      ac-- ;
+      av++ ;
+    } else if(!strcmp(av[1],"-radial") && ac > 2) {
+      radial = true ;
       ac-- ;
       av++ ;
     } else if(!strcmp(av[1],"-delta_file") && ac > 3) {
@@ -151,7 +156,7 @@ int main(int ac, char *av[]) {
         cerr << "growth must be positive!" << endl ;
         Usage() ;
       }
-      
+
       ac-- ;
       av++ ;
     } else if(!strcmp(av[1],"-nplanes") && ac > 3) {
@@ -173,10 +178,10 @@ int main(int ac, char *av[]) {
       Usage() ;
       break ;
     }
-  } 
+  }
   vector<double> delta_list ;
   if(use_delta_file) {
-    ifstream dfile(delta_file.c_str(),ios::in); 
+    ifstream dfile(delta_file.c_str(),ios::in);
     int ndeltas = 0 ;
     dfile >> ndeltas ;
     if(ndeltas <= 0) {
@@ -190,8 +195,8 @@ int main(int ac, char *av[]) {
     delta_list = tmp ;
     nplanes = ndeltas+1 ;
   }
-    
-      
+
+
   double nnorm = sqrt(nx*nx+ny*ny+nz*nz) ;
   nx *= 1./nnorm ;
   ny *= 1./nnorm ;
@@ -239,7 +244,7 @@ int main(int ac, char *av[]) {
 
   // Get grid edges
   vector<Array<int,3> > edge_map ;
-  
+
   for(int i=0;i<nbcs;++i) {
     kill_comment(isurf) ;
     isurf >> bcs[i].name ;
@@ -316,7 +321,7 @@ int main(int ac, char *av[]) {
       cerr << "zero node or cell number" << endl ;
     }
   }
-  
+
   sort(boundary_edges.begin(),boundary_edges.end()) ;
   vector<int> edgepairs ;
   vector<int> edge_map_bpairs(edge_map.size(),0) ;
@@ -389,7 +394,7 @@ int main(int ac, char *av[]) {
       X = x[i] ;
       Y = y[i] ;
       Z = z[i] ;
-      break ;      
+      break ;
     }
     x[i] = X ;
     y[i] = Y ;
@@ -404,38 +409,49 @@ int main(int ac, char *av[]) {
     double dx = nx*dn ;
     double dy = ny*dn ;
     double dz = nz*dn ;
+    double dnsave = dn ;
     ddn *= growth ;
     ddn = min(ddn,deltamax) ;
     if(use_delta_file) {
-      if(j+1 != nplanes) 
+      if(j+1 != nplanes)
 	dn += delta_list[j] ;
     } else {
       dn += ddn ;
     }
-    for(int i=0;i<npnts;++i) {
-      ofile << x[i]+dx << ' ' << y[i]+dy << ' ' << z[i]+dz << endl ;
+    if(radial) {
+      for(int i=0;i<npnts;++i) {
+	double rlen = 1./sqrt(y[i]*y[i]+z[i]*z[i]) ;
+	double dx = 0 ;
+	double dy = dnsave*rlen*y[i] ;
+	double dz = dnsave*rlen*z[i] ;
+	ofile << x[i]+dx << ' ' << y[i]+dy << ' ' << z[i]+dz << endl ;
+      }
+    } else {
+      for(int i=0;i<npnts;++i) {
+	ofile << x[i]+dx << ' ' << y[i]+dy << ' ' << z[i]+dz << endl ;
+      }
     }
   }
   // now output mesh faces, starting with edge extrusion
-  
+
   for(int j=1;j<nplanes;++j) {
     int of1 = (j-1)*npnts ;
     int of2 = j*npnts ;
     int cof = (j-1)*nfaces ;
-    int cnt = 0;
+    //    int cnt = 0;
     for(int i=0;i<emsz;i+=2) {
       if(edge_map_bpairs[i] == 0) {
 	// all extruded faces are quads
 	ofile << 4 << ' ' ;
 	ofile << edge_map[i][0]+of1 << ' ' << edge_map[i][1]+of1 << ' '
 	      << edge_map[i][1]+of2 << ' ' << edge_map[i][0]+of2 << ' ' ;
-	int c1 = edge_map[i+1][2] ; 
+	int c1 = edge_map[i+1][2] ;
 	int c2 = edge_map[i][2] ;
 	c1 += (c1<0)?0:cof ;
 	c2 += (c2<0)?0:cof ;
 	ofile << c1 << ' ' << c2 << endl ;
-      } else
-	cnt++ ;
+      } //else
+	//	cnt++ ;
     }
 
     for(size_t i=0;i<edgepairs.size();++i) {
@@ -448,9 +464,9 @@ int main(int ac, char *av[]) {
       // all extruded  split edges have quads with 6 edges (2 split)
 	ofile << 6 << ' ' ;
 	ofile << n1+of1 << ' ' << ncent+of1 << ' '
-	      << n2+of1 << ' ' << n2+of2 << ' ' 
+	      << n2+of1 << ' ' << n2+of2 << ' '
 	      << ncent+of2 << ' ' << n1+of2 << ' ' ;
-	int c1 = edge_map[b1+1][2] ; 
+	int c1 = edge_map[b1+1][2] ;
 	int c2 = edge_map[b1][2] ;
 	c1 += (c1<0)?0:cof ;
 	c2 += (c2<0)?0:cof ;
@@ -492,7 +508,7 @@ int main(int ac, char *av[]) {
         nodes1 += f2node[off+j]+npnts*cplane ;
       off += fsz ;
     }
-  }    
+  }
   cplane++ ;
   bc -= 1 ;
   off = 0 ;
@@ -508,7 +524,7 @@ int main(int ac, char *av[]) {
   }
   cout << "nodes1= " << nodes1 << endl ;
   cout << "mxfsz = " << mxfsz << ", mnfsz = " << mnfsz << endl ;
-  
+
   ofstream otfile("grid.tags",ios::out) ;
   if(otfile.fail()) {
     cerr << "can't open grid.tags" << endl ;
@@ -524,7 +540,7 @@ int main(int ac, char *av[]) {
   otfile << "#" << nbcs+2 << ":     " << "plane2" << "      "
            << " 1 0 0 0 0 0" << endl ;
   otfile.close() ;
-    
-  
+
+
   return 0;
 }

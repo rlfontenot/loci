@@ -1080,7 +1080,6 @@ inline FAD2d max (const FAD2d &a, const FAD2d & b) {
       return *this;
     }
 
-
     FADd operator *(const FADd &v) const {
       return FADd(value*v.value,  grad*v.value + v.grad*value);
     }
@@ -1096,7 +1095,6 @@ inline FAD2d max (const FAD2d &a, const FAD2d & b) {
     FADd operator *(const long double &v) const{
       return FADd(value*(long double)v,  grad*(long double)v);
     }
-
     FADd& operator *=(const FADd &u) {
       grad = grad*u.value + u.grad * value;
       value*=u.value;
@@ -1138,7 +1136,6 @@ inline FAD2d max (const FAD2d &a, const FAD2d & b) {
     FADd operator /(const long double &v) const{
       return FADd(value/v, (grad/(long double)v));
     }
-
     FADd& operator /=(const FADd &u) {
       grad = (grad*u.value - value * u.grad) / u.value / u.value;
       value/=u.value;
@@ -1717,7 +1714,6 @@ inline FADd max (const FADd &a, const FADd& b) {
       for (size_t i=0; i<s; i++) out.grad[i] = this->grad[i];
       return out;
     }
-
     MFADd& operator +=(const MFADd &u) {
       this->value+=u.value;
       for (size_t i=0; i<maxN; i++) this->grad[i]+=u.grad[i];
@@ -1776,7 +1772,6 @@ inline FADd max (const FADd &a, const FADd& b) {
       for (size_t i=0; i<s; i++) out.grad[i] = this->grad[i];
       return out;
     }
-
     MFADd& operator -=(const MFADd &u) {
       this->value -= u.value;
       for (size_t i=0; i<maxN; i++) this->grad[i]-=u.grad[i];
@@ -1829,7 +1824,6 @@ inline FADd max (const FADd &a, const FADd& b) {
       for (size_t i=0; i<s; i++) out.grad[i] = this->grad[i] * (long double)v;
       return out;
     }
-
     MFADd& operator *=(const MFADd &u) {
       size_t s = maxN;
       for (size_t i=0; i<s; i++) this->grad[i] = this->grad[i]*u.value + u.grad[i] * this->value;
@@ -2043,7 +2037,6 @@ inline FADd max (const FADd &a, const FADd& b) {
     }
     return stream;
   }
-
   using std::sqrt;
   using std::sin;
   using std::cos;

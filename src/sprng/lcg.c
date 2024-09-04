@@ -890,7 +890,7 @@ int *igen;
 {
   struct rngen *gen;
   
-  printf("\n%s\n", GENTYPE+2);
+  printf("\n%s\n", &GENTYPE[0]+2);
   
   gen = (struct rngen *) igen;
   printf("\n \tseed = %d, stream_number = %d\tparameter = %d\n\n", gen->init_seed, gen->prime_position, gen->parameter);

@@ -42,28 +42,53 @@ namespace Loci {
     virtual storeRepP remap(const dMap &m) const
     { entitySet newImage = m.image(m.domain()&imageMap) ;
       return new accessMapRepI(newImage) ;
-    } 
+    }
     virtual storeRepP MapRemap(const dMap &dm, const dMap &rm) const
     { entitySet newImage = dm.image(dm.domain()&imageMap) ;
       return new accessMapRepI(newImage) ;
-    } 
+    }
     virtual void compose(const dMap &m, const entitySet &context) {}
     virtual void copy(storeRepP &st, const entitySet &context)
     { st = new_store(imageMap) ; }
     virtual void gather(const dMap &m, storeRepP &st,
-                        const entitySet &context) 
+                        const entitySet &context)
     {st=new_store(imageMap) ; }
     virtual void scatter(const dMap &m, storeRepP &st,
-                         const entitySet &context) 
+                         const entitySet &context)
     {st=new_store(imageMap) ; }
-    
+
     virtual int pack_size(const entitySet& e, entitySet& packed) {return 0;}
     virtual int pack_size(const entitySet &e) {return 0 ; }
     virtual int estimated_pack_size(const entitySet &e) {return 0 ; }
     virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) {}
     virtual void unpack(void *ptr, int &loc, int &size,  const sequence &seq)  {}
-    
-    virtual entitySet domain() const { return ~EMPTY ; } 
+#ifdef DYNAMICSCHEDULING
+    // this version of pack/unpack uses a remap during the process
+    // mainly for maps images to transform to another numbering scheme
+    // default behavior is to ignore the remaps
+    virtual void pack(void* ptr, int& loc,
+                      int& size, const entitySet& e, const Map& remap) {
+      pack(ptr,loc,size,e) ;
+    }
+    virtual void unpack(void* ptr, int& loc,
+                        int& size, const sequence& seq, const dMap& remap) {
+      unpack(ptr,loc,size,seq) ;
+    }
+    virtual storeRepP freeze(const entitySet& es) const {
+      std::cerr << "storeRep.freeze(e) is not implemented yet"
+                << std::endl ;
+      abort() ;
+      return storeRepP(0) ;
+    }
+    virtual storeRepP thaw(const entitySet& es) const {
+      std::cerr << "storeRep.freeze(e) is not implemented yet"
+                << std::endl ;
+      abort() ;
+      return storeRepP(0) ;
+    }
+#endif
+
+    virtual entitySet domain() const { return ~EMPTY ; }
 
     virtual entitySet image(const entitySet &domain) const { return imageMap ; }
     virtual std::pair<entitySet,entitySet>
@@ -113,8 +138,8 @@ namespace Loci {
       return MapRepP(Rep())->preimage(codomain) ;
     }
     operator MapRepP() { MapRepP p(Rep()) ; fatal(p==0) ; return p ; }
-    void elem(int indx) { } 
-    void const_elem(int indx)  const {} 
+    void elem(int indx) { }
+    void const_elem(int indx)  const {}
     void operator[](int indx) { }
     void operator[](int indx) const { }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
@@ -123,7 +148,7 @@ namespace Loci {
 
   class const_accessMap : public store_instance {
     typedef accessMapRepI accessMapType ;
-    const_accessMap(const const_accessMap &var) { setRep(var.Rep()) ; } 
+    const_accessMap(const const_accessMap &var) { setRep(var.Rep()) ; }
     const_accessMap(const accessMap &var) { setRep(var.Rep()) ; }
     const_accessMap & operator=(const const_accessMap &str)
       { setRep(str.Rep()) ; return *this ;}
@@ -147,18 +172,18 @@ namespace Loci {
     void const_elem(int indx)  const { }
     void operator[](int indx) const {  }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
-  } ;  
+  } ;
 
 
 
   inline std::ostream & operator<<(std::ostream &s, const accessMap &m){
     return m.Print(s) ;
   }
-    
+
   inline std::istream & operator>>(std::istream &s, accessMap &m) {
     return m.Input(s) ;
   }
-  
+
   //*************************************************************************/
 
   inline std::ostream & operator<<(std::ostream &s,
@@ -169,6 +194,6 @@ namespace Loci {
 
 
 }
-    
+
 
 #endif

@@ -248,6 +248,8 @@ bytes	start	end   description      range / format
 #include "ADF.h"
 #include "ADF_internals.h"
 
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
+
 #if defined (_WIN64) || defined(_WIN32)
 typedef __int64 file_offset_t;
 #else
@@ -756,10 +758,12 @@ void DC_flush_range(
 {
 #if CACHEWRITES
     int n = 0;
-    struct DISK_CACHE_NODE *prev, *node = disk_cache;
+    //    struct DISK_CACHE_NODE *prev ;
+    struct DISK_CACHE_NODE  *node = disk_cache;
+
 
     while (node) {
-	prev = node;
+      //	prev = node;
 	if (ADFI_is_same_file(node->index, index) &&
 	    node->block >= start_block && node->block <= end_block)
 	    n++;
@@ -4874,7 +4878,7 @@ void	ADFI_flush_buffers(
 		int flush_mode,
 		int *error_return )
 {
-char data;
+  char data=0;
 
 if( file_in_use[ file_index ] == 0 ) {
    *error_return = ADF_FILE_NOT_OPENED ;

@@ -28,28 +28,30 @@ namespace Loci {
 
   using std::pair ;
   using std::make_pair ;
-  
+
   MapRep::~MapRep() {}
-  
+
   store_type MapRep::RepType() const { return MAP ; }
-  
+
   void MapRepI::allocate(const entitySet &ptn) {
-    if(alloc_pointer) delete[] alloc_pointer ;
-    alloc_pointer = 0 ;
-    base_ptr = 0 ;
-    if(ptn != EMPTY) {
-      int top = ptn.Min() ;
-      int size = ptn.Max()-top+1 ;
-      alloc_pointer = new Entity[size] ;
-      base_ptr = alloc_pointer - top ;
-    }
-    store_domain = ptn ;
+    if(alloc_id < 0)
+      alloc_id = getStoreAllocateID() ;
+
+    storeAllocateData[alloc_id].template allocBasic<Entity>(ptn,1) ;
+    store_domain = storeAllocateData[alloc_id].allocset ;
+    base_ptr = (((Entity *) storeAllocateData[alloc_id].base_ptr) -
+		storeAllocateData[alloc_id].base_offset) ;
+
     dispatch_notify() ;
+    return ;
   }
 
-
   MapRepI::~MapRepI() {
-    if(alloc_pointer) delete[] alloc_pointer ;
+    if(alloc_id>=0) {
+      storeAllocateData[alloc_id].template release<Entity>() ;
+      releaseStoreAllocateID(alloc_id) ;
+      alloc_id = -1 ;
+    }
   }
 
   storeRep *MapRepI::new_store(const entitySet &p) const {
@@ -100,7 +102,7 @@ namespace Loci {
   void MapRepI::gather(const dMap &m, storeRepP &st, const entitySet &context) {
     const_Map s(st) ;
     fatal(base_ptr == 0 && context != EMPTY) ;
-    fatal((m.image(context) - s.domain()) != EMPTY) ; 
+    fatal((m.image(context) - s.domain()) != EMPTY) ;
     fatal((context - domain()) != EMPTY) ;
     FORALL(context,i) {
       base_ptr[i] = s[m[i]] ;
@@ -118,36 +120,36 @@ namespace Loci {
       base_ptr[m[i]] = s[i] ;
     } ENDFORALL ;
   }
- 
+
   int MapRepI::pack_size(const entitySet &e) {
     fatal((e - domain()) != EMPTY);
     int size ;
-    size = sizeof(int) * e.size() ;
+    size = sizeof(Entity) * e.size() ;
     return(size) ;
   }
   int MapRepI::estimated_pack_size(const entitySet &e) {
-   
-    return e.size()*sizeof(int) ;
+
+    return e.size()*sizeof(Entity) ;
   }
   int MapRepI::
   pack_size(const entitySet& e, entitySet& packed) {
     packed = domain() & e ;
-    int size = sizeof(int) * packed.size() ;
+    int size = sizeof(Entity) * packed.size() ;
     return size ;
   }
-  
-  void MapRepI::pack(void *outbuf, int &position, int &outcount, const entitySet &eset) 
+
+  void MapRepI::pack(void *outbuf, int &position, int &outcount, const entitySet &eset)
   {
     for( size_t i = 0; i < eset.num_intervals(); i++) {
       const Loci::int_type begin = eset[i].first ;
       int t = eset[i].second - eset[i].first + 1 ;
-      MPI_Pack( &base_ptr[begin], t, MPI_INT, outbuf, outcount, 
+      MPI_Pack( &base_ptr[begin], t, MPI_INT, outbuf, outcount,
                 &position, MPI_COMM_WORLD) ;
     }
   }
-  
+
   void MapRepI::pack(void *outbuf, int &position,
-                     int &outcount, const entitySet &eset, const Map& remap) 
+                     int &outcount, const entitySet &eset, const Map& remap)
   {
     for( size_t i = 0; i < eset.num_intervals(); i++) {
       const Loci::int_type begin = eset[i].first ;
@@ -159,7 +161,7 @@ namespace Loci {
       delete[] img ;
     }
   }
-  
+
   void MapRepI::unpack(void *inbuf, int &position, int &insize, const sequence &seq) {
 
     for(size_t i = 0; i < seq.num_intervals(); ++i) {
@@ -216,7 +218,7 @@ namespace Loci {
     for(const int *i=start;i!=end;++i) {
       mx = max(mx,*i) ;
       mn = min(mn,*i) ;
-    }                                         
+    }
     size_t sz = mx-mn+1 ;
     size_t sz2 = end-start ;
     if(sz>2*sz2) {
@@ -256,7 +258,7 @@ namespace Loci {
       }
 
     WARN(!bits[sz-1]) ;
-    
+
     iv.second = mx ;
     result += iv ;
     return result ;
@@ -301,7 +303,7 @@ namespace Loci {
     for(const Entity *i=start;i!=end;++i) {
       mx = max(mx,*i) ;
       mn = min(mn,*i) ;
-    }        
+    }
     int mxi = getEntityIdentity(mx);
     int mni = getEntityIdentity(mn);
     size_t sz = mxi-mni+1 ;
@@ -345,15 +347,15 @@ namespace Loci {
       }
 
     WARN(!bits[sz-1]) ;
-    
+
     iv.second = mx ;
     result += iv ;
     return result ;
-    }      
+    }
 
 #endif
 
-    
+
   entitySet MapRepI::image(const entitySet &domain) const {
     entitySet d = domain & store_domain ;
     entitySet codomain ;
@@ -374,7 +376,7 @@ namespace Loci {
       for(ins=img.begin();ins!=uend;++ins)
         codomain += *ins ;
     }
-      
+
     return codomain ;
   }
 
@@ -387,7 +389,7 @@ namespace Loci {
     } ENDFORALL ;
     return make_pair(domain,domain) ;
   }
-  
+
   storeRepP MapRepI::expand(entitySet &out_of_dom, std::vector<entitySet> &ptn) {
     storeRepP sp ;
     int *recv_count = new int[MPI_processes] ;
@@ -404,15 +406,15 @@ namespace Loci {
 	copy[i].push_back(*ei) ;
       std::sort(copy[i].begin(), copy[i].end()) ;
       send_count[i] = copy[i].size() ;
-      size_send += send_count[i] ; 
+      size_send += send_count[i] ;
     }
     int *send_buf = new int[size_send] ;
     MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
-		 MPI_COMM_WORLD) ; 
+		 MPI_COMM_WORLD) ;
     size_send = 0 ;
     for(int i = 0; i < MPI_processes; ++i)
       size_send += recv_count[i] ;
-    
+
     int *recv_buf = new int[size_send] ;
     size_send = 0 ;
     for(int i = 0; i < MPI_processes; ++i)
@@ -428,20 +430,20 @@ namespace Loci {
     }
     MPI_Alltoallv(send_buf,send_count, send_displacement , MPI_INT,
 		  recv_buf, recv_count, recv_displacement, MPI_INT,
-		  MPI_COMM_WORLD) ;  
+		  MPI_COMM_WORLD) ;
     for(int i = 0; i < MPI_processes; ++i) {
       for(int j = recv_displacement[i]; j <
-	    recv_displacement[i]+recv_count[i]; ++j) 
+	    recv_displacement[i]+recv_count[i]; ++j)
 	send_clone[i].push_back(recv_buf[j]) ;
       std::sort(send_clone[i].begin(), send_clone[i].end()) ;
     }
-    
+
     std::vector<HASH_MAP(int, int) > map_entities(MPI_processes) ;
-    for(int i = 0; i < MPI_processes; ++i) 
-      for(vi = send_clone[i].begin(); vi != send_clone[i].end(); ++vi) 
+    for(int i = 0; i < MPI_processes; ++i)
+      for(vi = send_clone[i].begin(); vi != send_clone[i].end(); ++vi)
 	if(store_domain.inSet(*vi))
 	  (map_entities[i])[*vi] = base_ptr[*vi] ;
-    
+
     size_send = 0 ;
     for(int i = 0; i < MPI_processes; ++i) {
       send_count[i] = 2 * map_entities[i].size() ;
@@ -449,13 +451,13 @@ namespace Loci {
     }
     int *send_map = new int[size_send] ;
     MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
-		 MPI_COMM_WORLD) ; 
+		 MPI_COMM_WORLD) ;
     size_send = 0 ;
     for(int i = 0; i < MPI_processes; ++i)
       size_send += recv_count[i] ;
     int *recv_map = new int[size_send] ;
     size_send = 0 ;
-    for(int i = 0; i < MPI_processes; ++i) 
+    for(int i = 0; i < MPI_processes; ++i)
       for(HASH_MAP(int, int)::const_iterator miv = map_entities[i].begin(); miv != map_entities[i].end(); ++miv) {
 	send_map[size_send] = miv->first ;
 	++size_send ;
@@ -470,7 +472,7 @@ namespace Loci {
     }
     MPI_Alltoallv(send_map,send_count, send_displacement , MPI_INT,
 		  recv_map, recv_count, recv_displacement, MPI_INT,
-		  MPI_COMM_WORLD) ;  
+		  MPI_COMM_WORLD) ;
     HASH_MAP(int, int) hm ;
     for(int i = 0; i < MPI_processes; ++i) {
       for(int j = recv_displacement[i]; j <
@@ -481,12 +483,12 @@ namespace Loci {
     Map dm ;
     dm.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
     MapRepP(dm.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
-    
+
     entitySet tm = store_domain + out_of_dom ;
     dm.allocate(tm) ;
     for(ei = store_domain.begin(); ei != store_domain.end(); ++ei)
       dm[*ei] = base_ptr[*ei] ;
-    for(HASH_MAP(int, int)::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi) 
+    for(HASH_MAP(int, int)::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi)
       dm[hmi->first] = hmi->second ;
     sp = dm.Rep() ;
     delete [] send_buf ;
@@ -503,9 +505,9 @@ namespace Loci {
   storeRepP MapRepI::freeze() {
     return getRep() ;
   }
-  
+
   storeRepP MapRepI::thaw() {
-    
+
     dMap dm ;
     dm.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
     MapRepP(dm.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
@@ -529,7 +531,7 @@ namespace Loci {
     } ENDFORALL ;
     return result.Rep() ;
   }
-    
+
   std::ostream &MapRepI::Print(std::ostream &s) const {
     s << '{' << domain() << std::endl ;
     FORALL(domain(),ii) {
@@ -543,7 +545,7 @@ namespace Loci {
   std::istream &MapRepI::Input(std::istream &s) {
     entitySet e ;
     char ch ;
-    
+
     do ch = s.get(); while(ch==' ' || ch=='\n') ;
     if(ch != '{') {
       std::cerr << "Incorrect Format while reading store" << std::endl ;
@@ -556,7 +558,7 @@ namespace Loci {
     FORALL(e,ii) {
       s >> base_ptr[ii] ;
     } ENDFORALL ;
-    
+
     do ch = s.get(); while(ch==' ' || ch=='\n') ;
     if(ch != '}') {
       std::cerr << "Incorrect Format while reading store" << std::endl ;
@@ -573,25 +575,25 @@ namespace Loci {
     frame_info fi ;
     return fi ;
    }
-  
-  void MapRepI::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &usr_eset){
-    warn(true) ; 
-  } 
 
-#ifdef H5_HAVE_PARALLEL 
+  void MapRepI::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &usr_eset){
+    warn(true) ;
+  }
+
+#ifdef H5_HAVE_PARALLEL
   void MapRepI::readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &usr_eset, hid_t xfer_plist_id){
-    warn(true) ; 
-  } 
+    warn(true) ;
+  }
 #endif
   void MapRepI::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet &usr_eset) const{
     warn(true) ;
-  } 
+  }
 
-#ifdef H5_HAVE_PARALLEL 
+#ifdef H5_HAVE_PARALLEL
   void MapRepI::writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet &usr_eset, hid_t xfer_plist_id) const{
     warn(true) ;
-  } 
-#endif  
+  }
+#endif
   Map::~Map() {}
 
   void Map::notification() {
@@ -599,7 +601,7 @@ namespace Loci {
     if(p!=0)
       base_ptr = p->get_base_ptr() ;
     warn(p==0) ;
-  }    
+  }
 
   const_Map::~const_Map() {}
 
@@ -612,7 +614,7 @@ namespace Loci {
 
   store_instance::instance_type const_Map::access() const
   { return READ_ONLY ; }
-    
+
   void multiMapRepI::allocate(const entitySet &ptn) {
     store<int> count ;
     count.allocate(ptn) ;
@@ -637,15 +639,15 @@ namespace Loci {
 	copy[i].push_back(*ei) ;
       std::sort(copy[i].begin(), copy[i].end()) ;
       send_count[i] = copy[i].size() ;
-      size_send += send_count[i] ; 
+      size_send += send_count[i] ;
     }
     int *send_buf = new int[size_send] ;
     MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
-		 MPI_COMM_WORLD) ; 
+		 MPI_COMM_WORLD) ;
     size_send = 0 ;
     for(int i = 0; i < MPI_processes; ++i)
       size_send += recv_count[i] ;
-    
+
     int *recv_buf = new int[size_send] ;
     size_send = 0 ;
     for(int i = 0; i < MPI_processes; ++i)
@@ -661,45 +663,45 @@ namespace Loci {
     }
     MPI_Alltoallv(send_buf,send_count, send_displacement , MPI_INT,
 		  recv_buf, recv_count, recv_displacement, MPI_INT,
-		  MPI_COMM_WORLD) ;  
+		  MPI_COMM_WORLD) ;
     for(int i = 0; i < MPI_processes; ++i) {
       for(int j = recv_displacement[i]; j <
-	    recv_displacement[i]+recv_count[i]; ++j) 
+	    recv_displacement[i]+recv_count[i]; ++j)
 	send_clone[i].push_back(recv_buf[j]) ;
       std::sort(send_clone[i].begin(), send_clone[i].end()) ;
     }
     std::vector<HASH_MAP(int, std::vector<int>) > map_entities(MPI_processes) ;
-    for(int i = 0; i < MPI_processes; ++i) 
+    for(int i = 0; i < MPI_processes; ++i)
       for(vi = send_clone[i].begin(); vi != send_clone[i].end(); ++vi) {
 	if(store_domain.inSet(*vi)) {
 	  for(const int* j = begin(*vi); j != end(*vi); ++j)
 	    (map_entities[i])[*vi].push_back(*j) ;
 	}
       }
-    
+
     for(int i = 0; i < MPI_processes; ++i) {
       send_count[i] = 2 * map_entities[i].size() ;
       for(HASH_MAP(int, std::vector<int>)::iterator hi = map_entities[i].begin(); hi != map_entities[i].end(); ++hi)
-	send_count[i] += hi->second.size() ; 
+	send_count[i] += hi->second.size() ;
     }
     size_send = 0 ;
     for(int i = 0; i < MPI_processes; ++i)
       size_send += send_count[i] ;
     int *send_map = new int[size_send] ;
     MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
-		 MPI_COMM_WORLD) ; 
+		 MPI_COMM_WORLD) ;
     size_send = 0 ;
     for(int i = 0; i < MPI_processes; ++i)
       size_send += recv_count[i] ;
     int *recv_map = new int[size_send] ;
     size_send = 0 ;
-    for(int i = 0; i < MPI_processes; ++i) 
+    for(int i = 0; i < MPI_processes; ++i)
       for(HASH_MAP(int, std::vector<int> )::const_iterator miv = map_entities[i].begin(); miv != map_entities[i].end(); ++miv) {
 	send_map[size_send] = miv->first ;
 	++size_send ;
 	send_map[size_send] = miv->second.size() ;
 	++size_send ;
-	for(std::vector<int>::const_iterator vi = miv->second.begin(); vi != miv->second.end(); ++vi) { 
+	for(std::vector<int>::const_iterator vi = miv->second.begin(); vi != miv->second.end(); ++vi) {
 	  send_map[size_send] = *vi ;
 	  ++size_send ;
 	}
@@ -712,7 +714,7 @@ namespace Loci {
     }
     MPI_Alltoallv(send_map,send_count, send_displacement , MPI_INT,
 		  recv_map, recv_count, recv_displacement, MPI_INT,
-		  MPI_COMM_WORLD) ;  
+		  MPI_COMM_WORLD) ;
     HASH_MAP(int, std::vector<int> ) hm ;
     std::vector<int> ss ;
     for(int i = 0; i < MPI_processes; ++i) {
@@ -738,11 +740,11 @@ namespace Loci {
     for(HASH_MAP(int, std::vector<int> )::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi)
       count[hmi->first] = hmi->second.size() ;
     dmul.allocate(count) ;
-    
+
     for(ei = store_domain.begin(); ei != store_domain.end(); ++ei)
       for(int p = 0; p < count[*ei] ; ++p)
 	dmul[*ei][p] = base_ptr[*ei][p] ;
-    
+
     for(HASH_MAP(int, std::vector<int> )::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi) {
       int p = 0 ;
       for(std::vector<int>::const_iterator si = hmi->second.begin(); si != hmi->second.end(); ++si) {
@@ -758,14 +760,14 @@ namespace Loci {
     delete [] recv_count ;
     delete [] send_count ;
     delete [] send_displacement ;
-    delete [] recv_displacement ; 
+    delete [] recv_displacement ;
     return sp ;
   }
 
   storeRepP multiMapRepI::freeze() {
     return getRep() ;
   }
-  
+
   storeRepP multiMapRepI::thaw() {
     dmultiMap dm ;
     dm.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
@@ -778,78 +780,32 @@ namespace Loci {
     } ENDFORALL ;
     return(dm.Rep()) ;
   }
-  
-  void multialloc(const store<int> &count, int ***index, int **alloc_pointer,
-                  int ***base_ptr) {
-    entitySet ptn = count.domain() ;
-    int top = ptn.Min() ;
-    int len = ptn.Max() - top + 2 ;
-    if(ptn == EMPTY) {
-      top = 0 ;
-      len = 0 ;
-    }
-    int **new_index = 0 ;
-    try {
-      if(ptn != EMPTY)
-	new_index = new int *[len] ;
-    } catch(std::exception &e) {
-      std::cerr << " a standard exception was caught in new_index"
-      		<< ", len=" << len << " with message: "
-      		<< e.what() << endl;
-      Loci::Abort() ;
-    }
 
-    int **new_base_ptr = new_index-top ;
-    size_t sz = 0 ;
-    int min_count = 0x8fffffff ;
-    int max_count = 0 ;
-    FORALL(ptn,i) {
-      max_count = max(count[i],max_count) ;
-      min_count = min(count[i],min_count) ;
-      sz += count[i] ;
-    } ENDFORALL ;
-    int *new_alloc_pointer = 0 ;
-    try {
-      new_alloc_pointer = new int[sz+1] ;
-    } catch(std::exception &e) {
-      std::cerr << " a standard exception was caught in new_alloc_pointer "
-		<< ", sz=" << sz << ", min_cnt=" << min_count 
-		<< ", max_cnt=" << max_count
-		<< ", pnt.size() = " << ptn.size() 
-		<< ", exception = " 
-		<< e.what() << endl;
-    }
-    sz = 0 ;
-    for(size_t ivl=0;ivl<ptn.num_intervals();++ivl) {
-      int i = ptn[ivl].first ;
-      new_base_ptr[i] = new_alloc_pointer + sz ;
-      while(i<=ptn[ivl].second) {
-        sz += count[i] ;
-        ++i ;
-        new_base_ptr[i] = new_alloc_pointer + sz ;
-      }
-    }
-    *index = new_index ;
-    *alloc_pointer = new_alloc_pointer ;
-    *base_ptr = new_base_ptr ;
-  }
 
   void multiMapRepI::allocate(const store<int> &sizes) {
+    if(alloc_id < 0)
+      alloc_id = getStoreAllocateID() ;
+
     entitySet ptn = sizes.domain() ;
-    if(alloc_pointer) delete[] alloc_pointer ;
-    alloc_pointer = 0 ;
-    if(index) delete[] index ;
-    index = 0 ;
-    multialloc(sizes, &index, &alloc_pointer, &base_ptr) ;
-   
+    int cntid = sizes.Rep()->get_alloc_id() ;
+    storeAllocateData[alloc_id].template release<Entity>() ;
+    storeAllocateData[alloc_id].template
+      allocMulti<Entity>(storeAllocateData[cntid],ptn) ;
+
+    base_ptr = ((Entity **)storeAllocateData[alloc_id].alloc_ptr2 -
+		storeAllocateData[alloc_id].base_offset) ;
+
     store_domain = ptn ;
     dispatch_notify() ;
   }
-  
+
 
   multiMapRepI::~multiMapRepI() {
-    if(alloc_pointer) delete[] alloc_pointer ;
-    if(index) delete[] index ;
+    if(alloc_id>=0) {
+      storeAllocateData[alloc_id].template release<Entity>() ;
+      releaseStoreAllocateID(alloc_id) ;
+      alloc_id = -1 ;
+    }
   }
 
   storeRep *multiMapRepI::new_store(const entitySet &p) const {
@@ -860,7 +816,7 @@ namespace Loci {
     count.allocate(p) ;
     int t= 0 ;
     FORALL(p, pi) {
-      count[pi] = cnt[t++] ; 
+      count[pi] = cnt[t++] ;
     } ENDFORALL ;
     return new multiMapRepI(count)  ;
   }
@@ -872,20 +828,19 @@ namespace Loci {
     multiMap s ;
     s.Rep()->setDomainKeySpace(getDomainKeySpace()) ;
     MapRepP(s.Rep())->setRangeKeySpace(getRangeKeySpace()) ;
-    
+
     s.allocate(mapimage) ;
     storeRepP my_store = getRep() ;
     s.Rep()->scatter(dm,my_store,newdomain) ;
     MapRepP(s.Rep())->compose(rm,mapimage) ;
     return s.Rep() ;
-  } 
+  }
   storeRepP multiMapRepI::remap(const dMap &m) const {
     cerr << "remap should not be used on Map!" << endl ;
     return MapRemap(m,m) ;
   }
 
   void multiMapRepI::compose(const dMap &m, const entitySet &context) {
-    fatal(alloc_pointer == 0) ;
     fatal((context-store_domain) != EMPTY) ;
     //fatal((image(context)-m.domain()) != EMPTY) ;
     entitySet dom = m.domain() ;
@@ -899,10 +854,9 @@ namespace Loci {
     } ENDFORALL ;
   }
 
-    
+
   void multiMapRepI::copy(storeRepP &st, const entitySet &context) {
     const_multiMap s(st) ;
-    fatal(alloc_pointer == 0) ;
     fatal((context-domain()) != EMPTY) ;
     fatal((context-s.domain()) != EMPTY) ;
 
@@ -914,14 +868,18 @@ namespace Loci {
     FORALL(context,i) {
       count[i] = s.end(i)-s.begin(i) ;
     } ENDFORALL ;
-    
-    int **new_index ;
-    int *new_alloc_pointer ;
-    int **new_base_ptr ;
 
-    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
+    // Allocate a temporary copy for the copy
+    int cntid = count.Rep()->get_alloc_id() ;
+    storeAllocateInfo tmp ;
+    tmp.template allocMulti<Entity>(storeAllocateData[cntid],count.domain()) ;
+
+    Entity **new_base_ptr = ((Entity **)tmp.alloc_ptr2 -
+			     tmp.base_offset) ;
+
+    // Copy data to new allocation
     FORALL(domain()-context,i) {
-      for(int j=0;j<count[i];++j) 
+      for(int j=0;j<count[i];++j)
         new_base_ptr[i][j] = base_ptr[i][j] ;
     } ENDFORALL ;
 
@@ -929,11 +887,10 @@ namespace Loci {
       for(int j=0;j<count[i];++j)
         new_base_ptr[i][j] = s[i][j] ;
     } ENDFORALL ;
-
-    if(alloc_pointer) delete[] alloc_pointer ;
-    alloc_pointer = new_alloc_pointer;
-    if(index) delete[] index ;
-    index = new_index ;
+    // release old allocation
+    storeAllocateData[alloc_id].template release<Entity>() ;
+    // copy newly copied temporary to main allocatin
+    storeAllocateData[alloc_id] = tmp ;
     base_ptr = new_base_ptr ;
     dispatch_notify() ;
   }
@@ -949,13 +906,16 @@ namespace Loci {
     FORALL(context,i) {
       count[i] = s.end(m[i])-s.begin(m[i]) ;
     } ENDFORALL ;
-    int **new_index ;
-    int *new_alloc_pointer ;
-    int **new_base_ptr ;
 
-    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
+    // Allocate a temporary copy for the copy
+    int cntid = count.Rep()->get_alloc_id() ;
+    storeAllocateInfo tmp ;
+    tmp.template allocMulti<Entity>(storeAllocateData[cntid],count.domain()) ;
+
+    Entity **new_base_ptr = ((Entity **)tmp.alloc_ptr2 -
+			     tmp.base_offset) ;
     FORALL(domain()-context,i) {
-      for(int j=0;j<count[i];++j) 
+      for(int j=0;j<count[i];++j)
         new_base_ptr[i][j] = base_ptr[i][j] ;
     } ENDFORALL ;
 
@@ -964,14 +924,15 @@ namespace Loci {
         new_base_ptr[i][j] = s[m[i]][j] ;
     } ENDFORALL ;
 
-    if(alloc_pointer) delete[] alloc_pointer ;
-    alloc_pointer = new_alloc_pointer;
-    if(index) delete[] index ;
-    index = new_index ;
+    // release old allocation
+    storeAllocateData[alloc_id].template release<Entity>() ;
+    // copy newly copied temporary to main allocatin
+    storeAllocateData[alloc_id] = tmp ;
+
     base_ptr = new_base_ptr ;
     dispatch_notify() ;
   }
- 
+
   void multiMapRepI::scatter(const dMap &m, storeRepP &st,
                              const entitySet  &context) {
     store<int> count ;
@@ -981,20 +942,23 @@ namespace Loci {
     fatal((context != EMPTY) && (base_ptr == 0)) ;
     fatal((context - s.domain()) != EMPTY) ;
     fatal((context - m.domain()) != EMPTY);
-    
+
     FORALL(domain()-m.image(context),i) {
       count[i] = base_ptr[i+1]-base_ptr[i] ;
     } ENDFORALL ;
     FORALL(context,i) {
       count[m[i]] = s.end(i)-s.begin(i) ;
     } ENDFORALL ;
-    int **new_index ;
-    int *new_alloc_pointer ;
-    int **new_base_ptr ;
-    
-    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
+    // Allocate a temporary copy for the copy
+    int cntid = count.Rep()->get_alloc_id() ;
+    storeAllocateInfo tmp ;
+    tmp.template allocMulti<Entity>(storeAllocateData[cntid],count.domain()) ;
+
+    Entity **new_base_ptr = ((Entity **)tmp.alloc_ptr2 -
+			     tmp.base_offset) ;
+
     FORALL(domain()-m.image(context),i) {
-      for(int j=0;j<count[i];++j) 
+      for(int j=0;j<count[i];++j)
         new_base_ptr[i][j] = base_ptr[i][j] ;
     } ENDFORALL ;
     FORALL(context,i) {
@@ -1002,14 +966,15 @@ namespace Loci {
         new_base_ptr[m[i]][j] = s[i][j] ;
       }
     } ENDFORALL ;
-    if(alloc_pointer) delete[] alloc_pointer ;
-    alloc_pointer = new_alloc_pointer;
-    if(index) delete[] index ;
-    index = new_index ;
+    // release old allocation
+    storeAllocateData[alloc_id].template release<Entity>() ;
+    // copy newly copied temporary to main allocatin
+    storeAllocateData[alloc_id] = tmp ;
+
     base_ptr = new_base_ptr ;
     dispatch_notify() ;
   }
-  
+
   int multiMapRepI::pack_size(const  entitySet &eset ) {
     fatal((eset - domain()) != EMPTY);
 
@@ -1017,12 +982,12 @@ namespace Loci {
     FORALL(eset,i) {
       size += end(i) - begin(i);
     } ENDFORALL ;
-    
-    return( (size+eset.size())*sizeof(int) ) ;
+
+    return( (size+eset.size())*sizeof(Entity) ) ;
   }
-  
+
   int multiMapRepI::estimated_pack_size(const  entitySet &eset ) {
-    return 5*eset.size()*sizeof(int);
+    return 5*eset.size()*sizeof(Entity);
   }
 
   int multiMapRepI::
@@ -1033,7 +998,7 @@ namespace Loci {
       size += end(i) - begin(i) ;
     } ENDFORALL ;
 
-    return ( (size+packed.size()) * sizeof(int)) ;
+    return ( (size+packed.size()) * sizeof(Entity)) ;
   }
 
   void multiMapRepI::pack(void *outbuf, int &position, int &outcount, const entitySet &eset) {
@@ -1049,7 +1014,7 @@ namespace Loci {
     }
 
   }
-  
+
   void multiMapRepI::pack(void *outbuf, int &position,
                           int &outcount, const entitySet &eset,
                           const Map& remap) {
@@ -1068,7 +1033,7 @@ namespace Loci {
       delete[] img ;
     }
   }
-  
+
   void multiMapRepI::unpack(void *inbuf, int &position, int &insize, const sequence &seq) {
 
     int vsize;
@@ -1085,8 +1050,8 @@ namespace Loci {
       MPI_Unpack( inbuf, insize, &position, base_ptr[*ci],
                   vsize, MPI_INT, MPI_COMM_WORLD) ;
     }
-  }   
-    
+  }
+
   void multiMapRepI::unpack(void *inbuf, int &position,
                             int &insize, const sequence &seq,
                             const dMap& remap) {
@@ -1107,12 +1072,12 @@ namespace Loci {
       for(int k=0;k<vsize;++k)
         base_ptr[*ci][k] = remap[base_ptr[*ci][k]] ;
     }
-  }   
-    
+  }
+
   entitySet multiMapRepI::domain() const {
     return store_domain ;
   }
-    
+
   entitySet multiMapRepI::image(const entitySet &domain) const {
     entitySet d = domain & store_domain ;
     entitySet codomain ;
@@ -1161,7 +1126,7 @@ namespace Loci {
   storeRepP multiMapRepI::get_map() {
     return this ;
   }
-    
+
   std::ostream &multiMapRepI::Print(std::ostream &s) const {
     s << '{' << domain() << std::endl ;
     FORALL(domain(),ii) {
@@ -1180,7 +1145,7 @@ namespace Loci {
   std::istream &multiMapRepI::Input(std::istream &s) {
     entitySet e ;
     char ch ;
-    
+
     do ch = s.get(); while(ch==' ' || ch=='\n') ;
     if(ch != '{') {
       std::cerr << "Incorrect Format while reading store" << std::endl ;
@@ -1195,12 +1160,12 @@ namespace Loci {
     } ENDFORALL ;
 
     allocate(sizes) ;
-        
+
     FORALL(e,ii) {
       for(int *ip = begin(ii);ip!=end(ii);++ip)
         s >> *ip  ;
     } ENDFORALL ;
-            
+
     do ch = s.get(); while(ch==' ' || ch=='\n') ;
     if(ch != '}') {
       std::cerr << "Incorrect Format while reading store" << std::endl ;
@@ -1219,27 +1184,27 @@ namespace Loci {
     frame_info fi ;
     return fi ;
   }
-  
+
   void multiMapRepI::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &usr_eset) {
     warn(true) ;
   }
 
-#ifdef H5_HAVE_PARALLEL 
+#ifdef H5_HAVE_PARALLEL
   void multiMapRepI::readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &usr_eset, hid_t xfer_plist_id) {
     warn(true) ;
   }
 #endif
-  
+
   void multiMapRepI::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& eset) const{
     warn(true) ;
-  } 
-  
-#ifdef H5_HAVE_PARALLEL 
+  }
+
+#ifdef H5_HAVE_PARALLEL
   void multiMapRepI::writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& eset, hid_t xfer_plist_id) const{
     warn(true) ;
-  }  
+  }
 #endif
-  
+
   multiMap::~multiMap() {}
 
   void multiMap::notification() {
@@ -1260,7 +1225,7 @@ namespace Loci {
 
   store_instance::instance_type const_multiMap::access() const
   { return READ_ONLY ; }
-    
+
   void inverseMap(multiMap &result, const Map &input_map,
                   const entitySet &input_image,
                   const entitySet &input_preimage) {
@@ -1292,7 +1257,7 @@ namespace Loci {
     } ENDFORALL ;
 #endif
   }
-  
+
 
   void inverseMap(multiMap &result, const multiMap &input_map,
                   const entitySet &input_image,
@@ -1301,7 +1266,7 @@ namespace Loci {
     sizes.allocate(input_image) ;
     result.Rep()->setDomainKeySpace(MapRepP(input_map.Rep())->getRangeKeySpace()) ;
     MapRepP(result.Rep())->setRangeKeySpace(input_map.Rep()->getDomainKeySpace()) ;
-    
+
     FORALL(input_image,i) {
       sizes[i] = 0 ;
     } ENDFORALL ;
@@ -1329,5 +1294,5 @@ namespace Loci {
     } ENDFORALL ;
 #endif
   }
-   
+
 }

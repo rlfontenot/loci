@@ -36,7 +36,7 @@ using std::string ;
 
 #include <iostream>
 using std::cout ;
-using std::cerr ; 
+using std::cerr ;
 using std::endl ;
 using std::ios ;
 using std::ostream ;
@@ -76,18 +76,18 @@ namespace Loci {
       storeRepP p = facts.get_variable(*vi) ;
 
       if(p->getDomainKeySpace() == kd) {
-	if((p->RepType() == MAP)) {
+	if(isMAP(p)) {
 	  entitySet tmp = dist_collect_entitySet(p->domain(), ptn) ;
 	  vm[*vi] = tmp ;
 	  total_entities += tmp ;
-	} else if((p->RepType() == STORE)) {
+	} else if(isSTORE(p)) {
 	  entitySet tmp = dist_collect_entitySet(p->domain(), ptn) ;
 	  vm[*vi] = tmp ;
 	  total_entities += tmp ;
 	} else {
 	  if(p->domain() != ~EMPTY) {
 	    entitySet all_collect = dist_collect_entitySet(p->domain(),ptn) ;
-	    vm[*vi] = all_collect ; 
+	    vm[*vi] = all_collect ;
 	    total_entities += all_collect ;
 	  }
 	}
@@ -95,7 +95,7 @@ namespace Loci {
     }
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
       storeRepP p = facts.get_variable(*vi) ;
-      if((p->RepType() == MAP)) {
+      if(isMAP(p)) {
         // Add any map image that refers to entities not already identified.
         MapRepP mp = MapRepP(p->getRep()) ;
 
@@ -130,7 +130,7 @@ namespace Loci {
     map<variable,entitySet>::const_iterator mi ;
     entitySet totSet ;
     for(mi=vm.begin();mi!=vm.end();++mi) {
-      entitySet s = mi->second ; 
+      entitySet s = mi->second ;
       totSet += s ;
       for(size_t i = 0;i < s.num_intervals(); ++i) {
 	vals.push_back(s[i].first-1) ;
@@ -139,7 +139,7 @@ namespace Loci {
 	vals.push_back(s[i].second+1) ;
       }
     }
-    
+
     std::sort(vals.begin(),vals.end()) ;
 
     vector<int>::iterator uend = std::unique(vals.begin(),vals.end()) ;
@@ -170,7 +170,7 @@ namespace Loci {
     cmap.clear() ;
     vector<interval> pvec ;
     getLocalIntervals(pvec,vm) ;
-    
+
     vector<variableSet> cat_names(pvec.size()) ;
 #ifdef VERBOSE
     debugout << "pvec.size() = " << pvec.size()
@@ -185,11 +185,11 @@ namespace Loci {
     } ;
 #ifdef VERBOSE
     debugout << "pvec.size() = " << pvec.size()
-             << " vm.size() = " << vm.size() 
+             << " vm.size() = " << vm.size()
              << " vt.size() = " << vt.size() << endl ;
 #endif
     map<entitySet,variableSet>::const_iterator mt ;
-    
+
     for(mt=vt.begin();mt!=vt.end();++mt) {
       variableSet vs = mt->second ;
       entitySet e = mt->first ;
@@ -203,13 +203,13 @@ namespace Loci {
         }
       }
     }
-    
-    for(size_t i=0;i<pvec.size();++i) 
+
+    for(size_t i=0;i<pvec.size();++i)
       cmap[cat_names[i]] += pvec[i] ;
 
   }
 
-  
+
 
   // Unify local categories across all processors, return in a universal order
   // variables and categories.
@@ -232,13 +232,13 @@ namespace Loci {
       vlist.push_back(v) ;
       vident[v] = i ;
     }
-    
+
     set<entitySet> cat_set ;
     map<variableSet,entitySet>::const_iterator ci ;
     for(ci=cmap.begin();ci!=cmap.end();++ci) {
       entitySet tmp ;
       variableSet s = ci->first ;
-      for(variableSet::const_iterator vi=s.begin();vi!=s.end();++vi) 
+      for(variableSet::const_iterator vi=s.begin();vi!=s.end();++vi)
         tmp += vident[*vi] ;
       cat_set.insert(tmp) ;
     }
@@ -319,14 +319,14 @@ namespace Loci {
     }
     std::stable_sort(cat_keys.begin(),cat_keys.end(),compare_groups) ;
   }
-  }                  
+  }
   void categories(fact_db &facts,vector<entitySet> &pvec, int kd) {
     map<variable, entitySet> vm ;
     getVariableAssociations(vm,facts,kd) ;
 
     if(vm.size() == 1) // Empty kd
       return ;
-    
+
     map<variableSet, entitySet> cmap ;
     getLocalCategories(cmap,vm) ;
 

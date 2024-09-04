@@ -39,17 +39,15 @@ namespace Loci {
   // The Entity version of image_section.
   entitySet image_section(const Entity *start, const Entity *end);
 #endif
-  
+
   class Map ;
-  class multiMap ;
-  
+
   class MapRepI : public MapRep {
     entitySet store_domain ;
-    Entity *alloc_pointer ;
     Entity *base_ptr ;
   public:
-    MapRepI() { alloc_pointer = 0 ; base_ptr = 0 ; }
-    MapRepI(const entitySet &p) { alloc_pointer=0 ; allocate(p) ; }
+    MapRepI() { base_ptr = 0 ; }
+    MapRepI(const entitySet &p) { allocate(p) ; }
     virtual void allocate(const entitySet &ptn) ;
     virtual ~MapRepI() ;
     virtual storeRep *new_store(const entitySet &p) const ;
@@ -64,7 +62,7 @@ namespace Loci {
                         const entitySet &context) ;
     virtual void scatter(const dMap &m, storeRepP &st,
                          const entitySet &context) ;
-    
+
     virtual int pack_size(const entitySet& e, entitySet& packed) ;
     virtual int pack_size(const entitySet &e) ;
     virtual int estimated_pack_size(const entitySet &e) ;
@@ -74,7 +72,7 @@ namespace Loci {
                       int &size, const entitySet &e, const Map& remap) ;
     virtual void unpack(void *ptr, int &loc,
                         int &size, const sequence &seq, const dMap& remap) ;
-    
+
     virtual entitySet domain() const ;
 
     virtual entitySet image(const entitySet &domain) const ;
@@ -88,13 +86,28 @@ namespace Loci {
 #ifdef H5_HAVE_PARALLEL
     virtual void readhdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en, hid_t xfer_plist_id) ;
     virtual void writehdf5P(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name,  entitySet& en, hid_t xfer_plist_id) const ;
-#endif    
-    Entity * get_base_ptr() const { return base_ptr ; }
+#endif
+
+    Entity * get_base_ptr() const { Entity * p = 0 ; if(alloc_id>=0) p = ((Entity *)storeAllocateData[alloc_id].base_ptr) -storeAllocateData[alloc_id].base_offset ; return p ; }
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
     virtual DatatypeP getType() ;
     virtual frame_info get_frame_info() ;
+#ifdef DYNAMICSCHEDULING
+    virtual storeRepP freeze(const entitySet& es) const {
+      std::cerr << "storeRep.freeze(e) is not implemented yet"
+                << std::endl ;
+      abort() ;
+      return storeRepP(0) ;
+    }
+    virtual storeRepP thaw(const entitySet& es) const {
+      std::cerr << "storeRep.freeze(e) is not implemented yet"
+                << std::endl ;
+      abort() ;
+      return storeRepP(0) ;
+    }
+#endif
   } ;
-  
+
   class Map : public store_instance {
     friend class const_Map ;
     typedef MapRepI MapType ;
@@ -110,7 +123,7 @@ namespace Loci {
     virtual void notification() ;
 
     Map & operator=(storeRepP p) { setRep(p) ; return *this ;}
-    
+
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
 
     entitySet domain() const { return Rep()->domain() ; }
@@ -119,13 +132,13 @@ namespace Loci {
       MapRepP p(Rep()) ;
       fatal(p==0) ;
       return p ; }
-    Entity &elem(Entity indx) { 
+    Entity &elem(Entity indx) {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL);
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif
       return base_ptr[indx]; }
-    const Entity &const_elem(Entity indx)  const { 
+    const Entity &const_elem(Entity indx)  const {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL);
       fatal(!((Rep()->domain()).inSet(indx))) ;
@@ -166,12 +179,12 @@ namespace Loci {
     const_Map()
     { setRep(new MapType); }
     const_Map(storeRepP rp) { setRep(rp) ; }
-    
+
     virtual ~const_Map() ;
     virtual void notification() ;
 
     virtual instance_type access() const ;
-        
+
     const_Map & operator=(storeRepP p) { setRep(p) ; return *this ;}
 
     entitySet domain() const { return Rep()->domain(); }
@@ -192,7 +205,7 @@ namespace Loci {
   inline std::ostream & operator<<(std::ostream &s, const const_Map &m)
   { return m.Print(s) ; }
 
-  const size_t IMAGE_THRESHOLD = 4 ; 
+  const size_t IMAGE_THRESHOLD = 4 ;
 
   inline entitySet remapSet(entitySet s, const Map &m) {
     entitySet t ;

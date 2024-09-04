@@ -58,7 +58,7 @@ using std::priority_queue ;
 using std::remove_if ;
 using std::sort ;
 using std::stable_sort ;
-using std::random_shuffle ;
+//using std::random_shuffle ;
 
 #include <sys/time.h>
 
@@ -78,17 +78,17 @@ namespace Loci {
                           digraph::vertexSet start_vertices,
                           digraph::vertexSet only_vertices) {
     digraph gt = g.transpose() ;
-    
-    vector<digraph::vertexSet> schedule ; 
+
+    vector<digraph::vertexSet> schedule ;
     // First schedule any vertices that have no edges leading into them
     //and have not been scheduled previously (in start vertices)
 
     digraph::vertexSet working = g.get_source_vertices() -
       (g.get_target_vertices()+start_vertices) ;
     working &= only_vertices ;
-    if(working != EMPTY) 
+    if(working != EMPTY)
       schedule.push_back(working) ;
-    
+
     // visited vertices are all vertices that have already been scheduled
     digraph::vertexSet visited_vertices = start_vertices + working ;
     // In the beginning our working set are all scheduled vertices
@@ -99,7 +99,7 @@ namespace Loci {
       digraph::vertexSet new_vertices ;
       digraph::vertexSet::const_iterator ni ;
       // loop over working set and create a list of candidate vertices
-      for(ni=working.begin();ni != working.end(); ++ni) 
+      for(ni=working.begin();ni != working.end(); ++ni)
         new_vertices += g[*ni] ;
 
       // If a vertex has already been scheduled it can't be scheduled again,
@@ -110,7 +110,7 @@ namespace Loci {
       new_vertices = EMPTY ;
       // Find any vertex from this working set that has had all
       // vertices leading to it scheduled
-      for(ni=working.begin();ni != working.end(); ++ni) 
+      for(ni=working.begin();ni != working.end(); ++ni)
         if((gt[*ni] & visited_vertices) == gt[*ni])
           new_vertices += *ni ;
       working = new_vertices ;
@@ -121,10 +121,10 @@ namespace Loci {
       visited_vertices += new_vertices ;
     }
     return schedule ;
-  }  
+  }
 
   void orderVisitor::visit(loop_compiler& lc) {
-    
+
     lc.collapse_sched = order_dag(lc.collapse_gr) ;
     lc.advance_sched = order_dag(lc.advance_gr) ;
   }
@@ -155,17 +155,17 @@ namespace Loci {
           struct stat statbuf ;
           if(stat("dump_vars",&statbuf))
             do_dump = false ;
-          else if(!S_ISDIR(statbuf.st_mode)) 
+          else if(!S_ISDIR(statbuf.st_mode))
             do_dump = false ;
           checked_dump = true ;
-        } 
+        }
         return do_dump ;
       }
-      
+
     } ;
-    
+
     check_dump_on_startup check_dump_vars ;
-    
+
     class execute_dump_var : public execute_modules {
       variableSet dump_vars ;
       timeAccumulator timer ;
@@ -176,9 +176,9 @@ namespace Loci {
       virtual string getName() { return "execute_dump_var";};
       virtual void dataCollate(collectData &data_collector) const ;
     } ;
-    
+
     map<variable, int> dump_var_lookup ;
-    
+
     void execute_dump_var::execute(fact_db &facts, sched_db &scheds) {
       stopWatch s ;
       s.start() ;
@@ -188,7 +188,7 @@ namespace Loci {
         debugout << "dumping variable " << v << endl ;
         storeRepP st = facts.get_variable(v) ;
         storeRepP sc = st ;
-        if(st->RepType() == STORE) {
+        if(isSTORE(st)) {
           ostringstream oss ;
           oss << "dump_vars/"<<v ;
           if(dump_var_lookup.find(v) ==dump_var_lookup.end())
@@ -212,7 +212,7 @@ namespace Loci {
             if(dump_var_lookup[v] != 0)
               oss << "."<<dump_var_lookup[v] ;
             dump_var_lookup[v]++ ;
-          
+
             string filename = oss.str() ;
             ofstream ofile(filename.c_str(),ios::out) ;
             ofile.precision(6) ;
@@ -222,17 +222,17 @@ namespace Loci {
       }
       timer.addTime(s.stop(),1) ;
     }
-    
+
     void execute_dump_var::Print(std::ostream &s) const {
       s << "dumping variables " << dump_vars << endl ;
     }
-    
+
     void execute_dump_var::dataCollate(collectData &data_collector) const {
       string name ;
       name = "dump vars" ;
       data_collector.accumulateTime(timer,EXEC_CONTROL,name) ;
     }
-    
+
     class dump_vars_compiler : public rule_compiler {
       variableSet dump_vars ;
     public:
@@ -245,7 +245,7 @@ namespace Loci {
         return executeP(new execute_dump_var(dump_vars)) ;
       }
     } ;
-    
+
   } // end of namespace
 
   assembleVisitor::
@@ -264,7 +264,7 @@ namespace Loci {
     map<string,KeySpaceP>::iterator ki ;
     for(ki=facts.keyspace.begin();ki!=facts.keyspace.end();++ki) {
       string space_name = ki->second->get_name() ;
-      
+
       variableSet critical_vars = ki->second->get_critical_vars() ;
       variableSet all_synonyms ;
 
@@ -296,7 +296,7 @@ namespace Loci {
     for(sai=drule_ctrl.begin();sai!=drule_ctrl.end();++sai)
       drule_inputs += sai->first ;
   }
-  
+
   void assembleVisitor::compile_dag_sched
   (std::vector<rule_compilerP> &dag_comp,
    const std::vector<digraph::vertexSet> &dag_sched,
@@ -331,7 +331,7 @@ namespace Loci {
       variableSet barrier_vars,reduce_vars,
         singleton_vars,dide_vars,all_vars,dvars ;
       variableSet::const_iterator vi ;
-      
+
       for(vi=vars.begin();vi!=vars.end();++vi) {
         ruleSet var_rules = extract_rules(dagt[(*vi).ident()]) ;
         ruleSet::const_iterator ri ;
@@ -347,7 +347,7 @@ namespace Loci {
         for(ri=var_rules.begin();ri!=var_rules.end();++ri) {
           if(!is_super_node(ri))
             dvars += *vi ;
-          
+
           if(!is_virtual_rule(*ri) ||
              (ri->get_info().rule_class == rule::INTERNAL &&
               ri->get_info().qualifier() == "priority")) {
@@ -375,18 +375,18 @@ namespace Loci {
                 ruleSet chomp_var_rules = extract_rules(cgrt[vi->ident()]) ;
                 for(ruleSet::const_iterator cri=chomp_var_rules.begin() ;
                     cri!=chomp_var_rules.end();++cri) {
-                  
+
                   rule_implP crimp = cri->get_rule_implP() ;
                   if(crimp->get_rule_class() == rule_impl::POINTWISE)
                     pointwise = true ;
-                  
+
                   if(crimp->get_rule_class() == rule_impl::UNIT ||
                      crimp->get_rule_class() == rule_impl::APPLY)
                     reduction = true ;
-                  
+
                   if(crimp->get_rule_class() == rule_impl::UNIT)
                     unit_rule_exists = true ;
-                  
+
                   if(crimp->get_rule_class() == rule_impl::SINGLETON)
                     singleton = true ;
 
@@ -398,18 +398,18 @@ namespace Loci {
                 //continue ;
               }
             }
-          
+
             rule_implP rimp = ri->get_rule_implP() ;
             if(rimp->get_rule_class() == rule_impl::POINTWISE)
               pointwise = true ;
-            
+
             if(rimp->get_rule_class() == rule_impl::UNIT ||
                rimp->get_rule_class() == rule_impl::APPLY)
               reduction = true ;
 
             if(rimp->get_rule_class() == rule_impl::UNIT)
               unit_rule_exists = true ;
-            
+
             if(rimp->get_rule_class() == rule_impl::SINGLETON)
               singleton = true ;
 
@@ -417,7 +417,7 @@ namespace Loci {
                rimp->get_rule_class() == rule_impl::DELETION ||
                rimp->get_rule_class() == rule_impl::ERASE)
               dynamic_ide = true ;
-            
+
           } else {
             if((ri->sources() & ri->targets()) != EMPTY)
               recursive = true ;
@@ -448,7 +448,7 @@ namespace Loci {
           */
           if(reduction && unit_rule_exists)
             reduce_vars += *vi ;
-          
+
           if(singleton) {
             singleton_vars += *vi ;
           }
@@ -468,7 +468,7 @@ namespace Loci {
       if(barrier_vars != EMPTY) {
         dag_comp.push_back(new barrier_compiler(barrier_vars)) ;
       }
-      
+
       all_vars += singleton_vars ;
 
       singleton_vars -= dynamic_targets ;
@@ -490,7 +490,7 @@ namespace Loci {
       vector<CPTR<joiner> > join_op_vector ;
       vector<rule> unit_rule_vector ;
       vector<variable> reduce_var_vector ;
-      
+
       for(variableSet::const_iterator rdvi=reduce_vars.begin();
           rdvi!=reduce_vars.end();++rdvi) {
         map<variable,pair<rule,CPTR<joiner> > >::const_iterator xi ;
@@ -502,18 +502,18 @@ namespace Loci {
         if(join_op != 0) {
           storeRepP sp = join_op->getTargetRep() ;
           /* old code
-             if(sp->RepType() == PARAMETER) {
+             if(isPARAMETER(sp)) {
              dag_comp.push_back(new reduce_param_compiler(xi->first,unit_rule,
              join_op)) ;
              }
           */
           if(sp!=0) {
-            if(sp->RepType()== PARAMETER) {
+            if(isPARAMETER(sp)) {
               reduce_var_vector.push_back(xi->first) ;
               unit_rule_vector.push_back(unit_rule) ;
               join_op_vector.push_back(join_op) ;
             } else {
-              warn(sp->RepType()!=STORE) ;
+              warn(!isSTORE(sp)) ;
 #ifdef VERBOSE
               debugout << "reduce_store_compiler("
                        << xi->first << ","
@@ -525,9 +525,10 @@ namespace Loci {
           }
         }
       }
-      if(reduce_var_vector.size() != 0)  
+      if(reduce_var_vector.size() != 0)
         dag_comp.push_back(new reduce_param_compiler(reduce_var_vector, unit_rule_vector, join_op_vector));
 
+#ifdef DYNAMICSCHEDULING
       // check for dynamic clone invalidator first
       for(variableSet::const_iterator dci=dvars.begin();
           dci!=dvars.end();++dci) {
@@ -602,12 +603,11 @@ namespace Loci {
 
         dag_comp.push_back(new keyspace_dist_compiler(keyspace_dist)) ;
       }
-      
       if(check_dump_vars.ok()) {
-        if(all_vars != EMPTY) 
+        if(all_vars != EMPTY)
           dag_comp.push_back(new dump_vars_compiler(all_vars)) ;
       }
-      
+
       if(rules != EMPTY) {
         ruleSet::const_iterator ri ;
         for(ri=rules.begin();ri!=rules.end();++ri) {
@@ -629,6 +629,7 @@ namespace Loci {
               (new keyspace_dist_compiler(rp->gather_keyspace_dist())) ;
         }
       }
+#endif
     }
   }
 
@@ -644,12 +645,12 @@ namespace Loci {
     compile_dag_sched(lc.advance_comp,lc.advance_sched,
                       lc.rule_compiler_map,lc.advance_gr) ;
   }
-  
+
   void assembleVisitor::visit(dag_compiler& dc) {
     compile_dag_sched(dc.dag_comp,dc.dag_sched,
                       dc.rule_compiler_map,dc.dag_gr) ;
   }
-  
+
   void assembleVisitor::visit(conditional_compiler& cc) {
     compile_dag_sched(cc.dag_comp,cc.dag_sched,
                       cc.rule_compiler_map,cc.cond_gr) ;
@@ -666,125 +667,42 @@ namespace Loci {
       // then we schedule those alloc rules
       digraph grt = gr.transpose() ;
       vector<digraph::vertexSet> finalSched ;
-      
+
       digraph::vertexSet last ;
       digraph::vertexSet sched_alloc ;
       for(vector<digraph::vertexSet>::const_iterator vi=firstSched.begin();
           vi!=firstSched.end();++vi) {
         digraph::vertexSet step = *vi ;
         ruleSet step_rules = extract_rules(step) ;
-        
+
         digraph::vertexSet pre_vertices ;
         for(ruleSet::const_iterator ri=step_rules.begin();
             ri!=step_rules.end();++ri)
           pre_vertices += grt[ri->ident()] ;
-        
+
         ruleSet pre_rules = extract_rules(pre_vertices) ;
         digraph::vertexSet needed_alloc ;
         for(ruleSet::const_iterator ri=pre_rules.begin();
             ri!=pre_rules.end();++ri)
           if(ri->get_info().qualifier() == "ALLOCATE")
             needed_alloc += ri->ident() ;
-        
+
         needed_alloc -= sched_alloc ;
         sched_alloc += needed_alloc ;
-        
+
         digraph::vertexSet sum = needed_alloc + last ;
         if(sum != EMPTY)
           finalSched.push_back(sum) ;
-        
+
         last = step ;
       }
       if(last != EMPTY)
         finalSched.push_back(last) ;
-      
+
       return finalSched ;
     }
 
-    // UNUSED
-//     //special depth first scheduling
-//     typedef enum {WHITE, GRAY, BLACK} vertex_color ;
-//     // depth first visit and topo sort
-//     void dfs_visit(const digraph& dag, int_type v,
-//                    map<int_type,vertex_color>& vc,
-//                    deque<int_type>& sched) {
-//       vc[v] = GRAY ;
-//       digraph::vertexSet next = dag[v] ;
 
-//       // findout all the delete rules
-//       ruleSet rules = extract_rules(next) ;
-//       digraph::vertexSet delrules ;
-//       for(ruleSet::const_iterator ri=rules.begin();
-//           ri!=rules.end();++ri)
-//         if(ri->get_info().qualifier() == "DELETE") {
-//           delrules += ri->ident() ;
-//           next -= ri->ident() ;
-//         }
-      
-//       map<int_type,vertex_color>::const_iterator cfound ;
-
-//       // first schedule delete rules
-//       for(digraph::vertexSet::const_iterator vi=delrules.begin();
-//           vi!=delrules.end();++vi) {
-//         cfound = vc.find(*vi) ;
-//         FATAL(cfound == vc.end()) ;
-//         if(cfound->second == WHITE)
-//           dfs_visit(dag,*vi,vc,sched) ;
-//       }      
-
-//       // then schedule the rest
-//       for(digraph::vertexSet::const_iterator vi=next.begin();
-//           vi!=next.end();++vi) {
-//         cfound = vc.find(*vi) ;
-//         FATAL(cfound == vc.end()) ;
-//         if(cfound->second == WHITE)
-//           dfs_visit(dag,*vi,vc,sched) ;
-//       }
-//       vc[v] = BLACK ;
-//       sched.push_front(v) ;
-//     }
-    
-    // UNUSED
-    // topologically sort a dag
-//     vector<digraph::vertexSet> dfs_sched(const digraph& dag) {
-//       deque<int_type> sched ;
-//       digraph::vertexSet allv = dag.get_all_vertices();
-//       map<int_type,vertex_color> vcolor ;
-//       for(digraph::vertexSet::const_iterator vi=allv.begin();
-//           vi!=allv.end();++vi)
-//         vcolor[*vi] = WHITE ;
-
-//       map<int_type,vertex_color>::const_iterator cfound ;
-//       for(digraph::vertexSet::const_iterator vi=allv.begin();
-//           vi!=allv.end();++vi) {
-//         cfound = vcolor.find(*vi) ;
-//         FATAL(cfound == vcolor.end()) ;
-//         if(cfound->second == WHITE)
-//           dfs_visit(dag,*vi,vcolor,sched) ;
-//       }
-
-//       vector<digraph::vertexSet> ret_sched ;
-//       for(deque<int_type>::size_type i=0;i!=sched.size();++i) {
-//         digraph::vertexSet step ;
-//         step += sched[i] ;
-//         ret_sched.push_back(step) ;
-//       }
-
-//       return ret_sched ;
-//     }
-    
-
-// UNUSED
-//     void print_schedule(const vector<digraph::vertexSet>& sched) {
-//       vector<digraph::vertexSet>::const_iterator vi ;
-//       int step = 0 ;
-//       for(vi=sched.begin();vi!=sched.end();++vi,++step) {
-//         cout << "step " << step << ": " << endl ;
-//         cout << "\tvars:  " << extract_vars(*vi) << endl ;
-//         cout << "\trules: " << extract_rules(*vi) << endl ;
-//       }
-//     }
-    
   } // end of namespace
 
   /////////////////////////////////////////////////////////////////
@@ -794,14 +712,14 @@ namespace Loci {
   simLazyAllocSchedVisitor::get_firstSched(const digraph& gr) const {
     // first we get all vertices except all the allocate rules
     ruleSet rules = extract_rules(gr.get_all_vertices()) ;
-    
+
     digraph::vertexSet alloc_rules_vertices ;
     for(ruleSet::const_iterator ri=rules.begin();ri!=rules.end();++ri)
       if(ri->get_info().qualifier() == "ALLOCATE")
         alloc_rules_vertices += ri->ident() ;
-    
+
     vector<digraph::vertexSet> first_sched ;
-    
+
     first_sched =
       orderVisitor::order_dag(gr,alloc_rules_vertices,
                               gr.get_all_vertices()-alloc_rules_vertices) ;
@@ -834,18 +752,18 @@ namespace Loci {
   /////////////////////////////////////////////////////////////////
   std::vector<digraph::vertexSet>
   memGreedySchedVisitor::get_firstSched(const digraph& gr) {
-    ruleSet rules = extract_rules(gr.get_all_vertices()) ;    
+    ruleSet rules = extract_rules(gr.get_all_vertices()) ;
     digraph::vertexSet alloc_rules_vertices ;
     for(ruleSet::const_iterator ri=rules.begin();ri!=rules.end();++ri)
       if(ri->get_info().qualifier() == "ALLOCATE")
         alloc_rules_vertices += ri->ident() ;
 
     digraph grt = gr.transpose() ;
-    
-    vector<digraph::vertexSet> schedule ; 
+
+    vector<digraph::vertexSet> schedule ;
     digraph::vertexSet waiting = gr.get_source_vertices() -
       gr.get_target_vertices() - alloc_rules_vertices ;
-    
+
     // visited vertices are all vertices that have already been scheduled
     digraph::vertexSet visited_vertices = alloc_rules_vertices ;
     while(waiting != EMPTY) {
@@ -873,7 +791,7 @@ namespace Loci {
                 for(variableSet::const_iterator vi2=targets.begin();
                     vi2!=targets.end();++vi2) {
                   storeRepP srp = facts.get_variable(*vi2) ;
-                  if(srp != 0 && srp->RepType() == Loci::STORE) {
+                  if(isSTORE(srp)) {
                     has_alloc = true ;
                     break ;
                   }
@@ -890,7 +808,7 @@ namespace Loci {
           vi!=step_sched.end();++vi)
         if( (grt[*vi] - visited_vertices) == EMPTY)
           valid_sched += *vi ;
-      
+
       step_sched = valid_sched ;
       // if any thing inside, we schedule this set
       if(step_sched != EMPTY) {
@@ -927,7 +845,7 @@ namespace Loci {
               for(variableSet::const_iterator vi2=targets.begin();
                   vi2!=targets.end();++vi2) {
                 storeRepP srp = facts.get_variable(*vi2) ;
-                if(srp != 0 && srp->RepType() == Loci::STORE) {
+                if(isSTORE(srp)) {
                   ++local_num_del ;
                   break ; // !!!!!!!!!!!!!!modified!!!!!!!!!!!!!!!
                 }
@@ -943,7 +861,7 @@ namespace Loci {
               for(variableSet::const_iterator vi2=targets.begin();
                   vi2!=targets.end();++vi2) {
                 storeRepP srp = facts.get_variable(*vi2) ;
-                if(srp != 0 && srp->RepType() == Loci::STORE) {
+                if(isSTORE(srp)) {
                   ++local_num_alloc ;
                   break ; // !!!!!!!!!!!!!!modified!!!!!!!!!!!!!!!
                 }
@@ -975,7 +893,7 @@ namespace Loci {
         waiting += gr[sched_v] ;
         visited_vertices += step_sched ;
         schedule.push_back(step_sched) ;
-        continue ;        
+        continue ;
       }
       // otherwise we pick one rule from the rest vertex set
       // we pick one that has fewest outgoing edges from all
@@ -992,7 +910,7 @@ namespace Loci {
           for(variableSet::const_iterator vi2=targets.begin();
               vi2!=targets.end();++vi2) {
             storeRepP srp = facts.get_variable(*vi2) ;
-            if(srp != 0 && srp->RepType() == Loci::STORE) {
+            if(isSTORE(srp)) {
               digraph::vertexSet nextv = gr[vi2->ident()] ;
               local_out_edges += nextv.size() ;
             }
@@ -1022,22 +940,11 @@ namespace Loci {
       schedule.push_back(step_sched) ;
     }
     return schedule ;
-
-    /*
-    vector<digraph::vertexSet> components =
-      component_sort(gr_wo_alloc).get_components() ;
-
-      return components ;
-    */
-    /*
-    vector<digraph::vertexSet> sched = dfs_sched(gr_wo_alloc) ;
-    return sched ;
-    */
   }
 
   void memGreedySchedVisitor::visit(loop_compiler& lc) {
     vector<digraph::vertexSet> first_sched ;
-    
+
     first_sched = get_firstSched(lc.collapse_gr) ;
     lc.collapse_sched = insertAlloc2Sched(lc.collapse_gr,first_sched) ;
 
@@ -1054,20 +961,20 @@ namespace Loci {
     vector<digraph::vertexSet> first_sched = get_firstSched(cc.cond_gr) ;
     cc.dag_sched = insertAlloc2Sched(cc.cond_gr,first_sched) ;
   }
-  
+
 
 
   void SchedClearVisitor::visit(loop_compiler& lc) {
-   
+
     (lc.collapse_sched).clear();
     (lc.advance_sched).clear();
     (lc.collapse_comp).clear();
     (lc.advance_comp).clear();
-    
+
   }
 
   void SchedClearVisitor::visit(dag_compiler& dc) {
-  
+
     (dc.dag_sched).clear();
     (dc.dag_comp).clear();
   }
@@ -1076,8 +983,8 @@ namespace Loci {
     (cc.dag_sched).clear();
     (cc.dag_comp).clear();
   }
-  
-  
+
+
   /////////////////////////////////////////////////////////////////
   // graphSchedulerVisitor
   /////////////////////////////////////////////////////////////////
@@ -1092,7 +999,7 @@ namespace Loci {
       bool operator()(const sched_item& si1,const sched_item& si2) const
       { return si1.weight > si2.weight ;}
     } ;
-    
+
     inline void create_queue(const digraph::vertexSet& vs,
                              const map<int,int>& pmap,
                              priority_queue<sched_item,
@@ -1111,7 +1018,7 @@ namespace Loci {
     pop_queue(priority_queue<sched_item,vector<sched_item>,
               comp_sched_item>& q) {
       if(q.empty()) return EMPTY ;
-      
+
       digraph::vertexSet ret ;
       sched_item si ; // current poped item
       int_type pre_w ; // previous weight
@@ -1145,7 +1052,7 @@ namespace Loci {
       }
       // get rid of those already scheduled
       valid -= visited ;
-      
+
       return valid ;
     }
 
@@ -1162,7 +1069,7 @@ namespace Loci {
 
     inline digraph allocFreeGr(const digraph& gr) {
       digraph::vertexSet allv = gr.get_all_vertices() ;
-      ruleSet rules = extract_rules(gr.get_all_vertices()) ;    
+      ruleSet rules = extract_rules(gr.get_all_vertices()) ;
       digraph::vertexSet alloc_rules_vertices ;
       for(ruleSet::const_iterator ri=rules.begin();ri!=rules.end();++ri)
         if(ri->get_info().qualifier() == "ALLOCATE")
@@ -1172,24 +1079,8 @@ namespace Loci {
       return new_gr ;
     }
 
-    // UNUSED
-//     digraph::vertexSet get_reachable(const digraph& g, int v) {
-//       digraph::vertexSet all ;
-//       digraph::vertexSet nxt ; nxt += v ;
-//       while(nxt != EMPTY) {
-//         digraph::vertexSet tmp ;
-//         for(digraph::vertexSet::const_iterator vi=nxt.begin();
-//             vi!=nxt.end();++vi)
-//           tmp += g[*vi] ;
-//         tmp -= all ;
-//         all += tmp ;
-//         nxt = tmp ;
-//       }
-//       return all ;
-//     }
-    
   } // end of namespace (unnamed)
-  
+
   std::vector<digraph::vertexSet>
   graphSchedulerVisitor::schedule(const digraph& gr) {
     // we schedule the graph without allocate rules first
@@ -1210,7 +1101,7 @@ namespace Loci {
     digraph::vertexSet visited ;
     digraph::vertexSet waiting = gwoa.get_source_vertices()
       - gwoa.get_target_vertices() ;
-    
+
     while(waiting != EMPTY) {
       // create a priority queue
       priority_queue<sched_item,vector<sched_item>,comp_sched_item> q ;
@@ -1238,7 +1129,7 @@ namespace Loci {
     // the schedule
     sched = insertAlloc2Sched(gr,sched) ;
 
-    return sched ;    
+    return sched ;
   }
 
   void graphSchedulerVisitor::visit(loop_compiler& lc) {
@@ -1291,12 +1182,12 @@ namespace Loci {
       digraph::vertexSet vset ;
     } ;
   } // end of namespace (unnamed)
-  
+
   void memGreedyPrio::operator()(const digraph& gr,
                                  map<int_type,int_type>& pmap) const {
     digraph::vertexSet allv = gr.get_all_vertices() ;
     digraph grt = gr.transpose() ;
-    
+
     vector<stat_item> l ;
     for(digraph::vertexSet::const_iterator vi=allv.begin();
         vi!=allv.end();++vi) {
@@ -1307,7 +1198,7 @@ namespace Loci {
         ruleSet next = extract_rules(gr[*vi]) ;
         rule r(*vi) ;
         variableSet targets = r.targets() ;
-        
+
         int a=0,d=0,o=0 ;
         // first count for allocation rules attached
         for(ruleSet::const_iterator ri=pre.begin();
@@ -1317,7 +1208,7 @@ namespace Loci {
             for(variableSet::const_iterator invi=tvars.begin();
                 invi!=tvars.end();++invi) {
               storeRepP srp = facts.get_variable(*invi) ;
-              if(srp != 0 && srp->RepType() == Loci::STORE) {
+              if(isSTORE(srp)) {
                 ++a ;
                 break ;
               }
@@ -1331,7 +1222,7 @@ namespace Loci {
             for(variableSet::const_iterator invi=tvars.begin();
                 invi!=tvars.end();++invi) {
               storeRepP srp = facts.get_variable(*invi) ;
-              if(srp != 0 && srp->RepType() == Loci::STORE) {
+              if(isSTORE(srp)) {
                 ++d ;
                 break ;
               }
@@ -1341,7 +1232,7 @@ namespace Loci {
         for(variableSet::const_iterator vari=targets.begin() ;
             vari!=targets.end();++vari) {
           storeRepP srp = facts.get_variable(*vari) ;
-          if(srp != 0 && srp->RepType() == Loci::STORE) {
+          if(isSTORE(srp)) {
             digraph::vertexSet nxv = gr[vari->ident()] ;
             o += nxv.size() ;
           }
@@ -1358,7 +1249,7 @@ namespace Loci {
     vector<stat_item>::size_type size ;
     vector<stat_item>::iterator old_end, new_end ;
     int weight = 0 ;
-    
+
     for(vi=l.begin();vi!=l.end();++vi) {
       stat_item s = *vi ;
       if(s.a == 0) {
@@ -1367,7 +1258,7 @@ namespace Loci {
       }
     }
     // remove the assigned vertices
-    size = l.size() ; 
+    size = l.size() ;
     old_end = l.end() ;
     new_end = remove_if(l.begin(),l.end(),comp_rm(remove)) ;
     l.resize(size-(old_end-new_end)) ;
@@ -1379,7 +1270,7 @@ namespace Loci {
     sort(l.begin(),l.end(),ascend_a) ;
     // then stable sort according to descending order of d
     stable_sort(l.begin(),l.end(),descend_d) ;
-    
+
     weight = 1 ;
     remove = EMPTY ;
     for(vi=l.begin();vi!=l.end();++vi) {
@@ -1390,7 +1281,7 @@ namespace Loci {
       }
     }
     // remove processed vertices
-    size = l.size() ; 
+    size = l.size() ;
     old_end = l.end() ;
     new_end = remove_if(l.begin(),l.end(),comp_rm(remove)) ;
     l.resize(size-(old_end-new_end)) ;
@@ -1407,7 +1298,7 @@ namespace Loci {
 
   } // end of function
 
-  
+
   // graph prioritize function that tries
   // to maximize the cache benefit of chomping
   void chompingPrio::operator()(const digraph& gr,
@@ -1423,6 +1314,7 @@ namespace Loci {
       if(vi->size() != 1) {
         cerr << "Chomping graph error: Cycle(s) detected" << endl ;
         Loci::Abort() ;
+
       }
       pmap[*(vi->begin())] = weight++ ;
     }
@@ -1438,7 +1330,7 @@ namespace Loci {
       return b + static_cast<size_t>(o*scale) ;
     }
   }
-  
+
   MemGreedyScheduler::
   MemGreedyScheduler(fact_db& fd,
                      sched_db& sd,
@@ -1448,52 +1340,18 @@ namespace Loci {
     :s2t(s),t2s(t),var_cluster(5) {
     // initialize random seed
     srand48(s.size()*t.size()) ;
-    // check to see if the allocinfo file is present
-    // if so, read in information
-   //  string filename ;
-//     ostringstream oss ;
-//     oss << "alloc-info" ;
-//     if(Loci::MPI_processes > 1)
-//       oss << "-" << Loci::MPI_rank ;
-//     filename = oss.str() ;
-//     int file_exists = 1 ;
-//     if(Loci::MPI_rank == 0) {
-//       struct stat buf ;
-//       if(stat(filename.c_str(),&buf) == -1
-//          || !S_ISREG(buf.st_mode)) file_exists = 0 ;
-//     }
-//     MPI_Bcast(&file_exists, 1, MPI_INT, 0, MPI_COMM_WORLD) ;
 
     int max_id = 0 ;
-    // map<variable,double> info ;
-    //  if(file_exists == 1) {
-//       // read in previously recorded allocation information
-//       std::ifstream file(filename.c_str(), ios::in) ;
-//       string v ;
-//       double s ;
-//       while(file>>v) {
-//         file >> s ;
-//         variable var(v) ;
-//         info[var] = s ;
-//         if(var.ident() > max_id)
-//           max_id = var.ident() ;
-//       }
-//       file.close() ;
-//     }else{//query the size of all variables in s2t and t2s, fill in map info
-      
 
-      for(map<variable, double>::const_iterator mi = info.begin(); mi != info.end(); mi++){
-        if((mi->first).ident() > max_id)max_id = (mi->first).ident();
-      }
-      
-      
-      // }
-      // }
+    for(map<variable, double>::const_iterator mi = info.begin(); mi != info.end(); mi++){
+      if((mi->first).ident() > max_id)max_id = (mi->first).ident();
+    }
 
-     
-      // construct the var_cluster info
-      var_cluster.resize(max_id+1) ;
-      for(map<variable,double>::const_iterator
+
+
+    // construct the var_cluster info
+    var_cluster.resize(max_id+1) ;
+    for(map<variable,double>::const_iterator
           mi=info.begin();mi!=info.end();++mi) {
       var_cluster.makeSet( (mi->first).ident()) ;
     }
@@ -1559,7 +1417,7 @@ namespace Loci {
     }
     return mi->second ;
   }
-  
+
   void MemGreedyScheduler::
   rule_effects(const rule& r, const variableSet& c,
                vector<pair<variable,double> >& e) {
@@ -1622,7 +1480,7 @@ namespace Loci {
           s += ve[i].second ;
         score[*vi] = s ;
       }
-      double smax = std::numeric_limits<double>::min() ;
+      double smax = -std::numeric_limits<double>::max() ;
       double smin = std::numeric_limits<double>::max() ;
       for(map<int,double>::const_iterator
             mi=score.begin();mi!=score.end();++mi) {
@@ -1691,7 +1549,7 @@ namespace Loci {
           created_vars -= e[i].first ;
       }
     } // end while(candidates)
-    
+
     // check for topology consistency
     vector<digraph::vertexSet> final = insertAlloc2Sched(dag,sched) ;
     //#define CHECK_TOPO
@@ -1735,7 +1593,7 @@ namespace Loci {
         digraph::vertexSet cur = final[i] ;
         digraph::vertexSet pre ;
         for(size_t j=0;j!=i;++j)
-          pre += final[j] ; 
+          pre += final[j] ;
         for(digraph::vertexSet::const_iterator ci=cur.begin();
             ci!=cur.end();++ci) {
           digraph::vertexSet depend = get_reachable(dagt,*ci) ;
@@ -1784,22 +1642,6 @@ namespace Loci {
     // remove all variables from the graph
     tmp_g = tmp_g.subgraph(vs-varsvs) ;
 
-    // then strip all the rules inside while keeping the dependency
-    // digraph::vertexSet vs = tmp_g.get_all_vertices() ;
-    // ruleSet rules = extract_rules(vs) ;
-    // digraph::vertexSet rs ;
-    // for(ruleSet::const_iterator ri=rules.begin();ri!=rules.end();++ri) {
-    //   rs += ri->ident() ;
-    //   // get the vertices connected
-    //   digraph::vertexSet pre = gtr[ri->ident()] ;
-    //   digraph::vertexSet nxt = g[ri->ident()] ;
-    //   for(digraph::vertexSet::const_iterator dvi=pre.begin();
-    //       dvi!=pre.end();++dvi)
-    //     tmp_g.add_edges(*dvi, nxt) ;
-    // }
-    // // remove all variables from the graph
-    // tmp_g = tmp_g.subgraph(vs-rs) ;
-
 #ifdef COLLAPSE_LEAF
     // now we will collapse all the leaf nodes (inputs and outputs)
     gtr = tmp_g.transpose() ;
@@ -1827,7 +1669,7 @@ namespace Loci {
         for(digraph::vertexSet::const_iterator
               dvi2=reachable.begin();dvi2!=reachable.end();++dvi2)
           tmp_g.add_edge(*dvi2, v) ;
-        
+
         rm += collapse ;
         visited += collapse ;
       }
@@ -1859,8 +1701,8 @@ namespace Loci {
     return tmp_g ;
   }
 
- 
-  
+
+
 
 
  //#define CLUSTER_TEST
@@ -1868,7 +1710,7 @@ namespace Loci {
     lc.collapse_sched = schedule(lc.collapse_gr) ;
     lc.advance_sched = schedule(lc.advance_gr) ;
   }
-  
+
   void MemGreedyScheduler::visit(dag_compiler& dc) {
     dc.dag_sched = schedule(dc.dag_gr) ;
   }
@@ -1876,13 +1718,13 @@ namespace Loci {
  void MemGreedyScheduler::visit(conditional_compiler& cc) {
     cc.dag_sched = schedule(cc.cond_gr) ;
   }
-  
 
 
 
 
 
 
- 
+
+
 
 } // end of namespace Loci

@@ -30,6 +30,8 @@
 
 #include <Tools/debug.h>
 
+#include <Tools/lmutex.h>
+
 namespace Loci {
     
   enum Handle_type {NULL_HANDLE} ;
@@ -51,13 +53,23 @@ namespace Loci {
 #endif
     ~HandleGrab() { fatal(count!=0) ; }
     // add reference to grab
-    HandleGrab *LinkGrab() { ++count ; return this ; }
+    HandleGrab *LinkGrab()
+    {lock.lock(); ++count ; lock.unlock(); return this ;}
     // delete reference to grab
-    void UnlinkGrab() { if(--count == 0) delete this ; }
+    void UnlinkGrab() // { if(--count==0) delete this; }
+    {
+      lock.lock(); 
+      if(--count == 0) {
+        lock.unlock();
+        delete this ; 
+      } else
+        lock.unlock();
+    }
     // check if there is only one reference to grab
     bool GrabUnique() const { return count == 1 ; }
     
     T GrabItem ;
+    lmutex lock;
   } ;
 
   template<class T> class ConstHandle ;

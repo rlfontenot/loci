@@ -82,6 +82,7 @@ namespace Loci {
   extern bool threading_local_reduction;
   extern bool threading_chomping;
   extern int num_threads;
+  bool in_internal_query = false ;
   namespace {
     // used to pre-process preallocation memory profiling
     variableSet LociRecurrenceVarsRealloc ;
@@ -91,7 +92,6 @@ namespace Loci {
     // all chomped variables
     //variableSet all_chomped_vars = variableSet(EMPTY) ;
     variableSet all_chomped_vars ;
-    bool in_internal_query = false ;
   }
   
   class error_compiler : public rule_compiler {
@@ -181,11 +181,18 @@ namespace Loci {
             rule_process[*ri] = new generalize_compiler(*ri) ;
           else if(ri->get_info().qualifier() == "priority")
             rule_process[*ri] = new priority_compiler(*ri) ;
+	  else if(ri->get_info().qualifier() == "gpu2cpu") 
+	    rule_process[*ri] = new gpu2cpu_compiler(*ri) ;
+	  else if(ri->get_info().qualifier() == "cpu2gpu")
+	    rule_process[*ri] = new cpu2gpu_compiler(*ri) ;
+	  else if(ri->get_info().qualifier() == "map2gpu")
+	    rule_process[*ri] = new map2gpu_compiler(*ri) ;
           else if(ri->get_info().qualifier() == "ALLOCATE")
             rule_process[*ri] = new allocate_var_compiler(ri->targets()) ;
           else
             rule_process[*ri] = new error_compiler ;
         } else {
+#ifdef DYNAMICSCHEDULING
           if(ri->get_info().rule_impl->get_rule_class()
              == rule_impl::INSERTION) // an insertion rule
             rule_process[*ri] = new insertion_rule_compiler(*ri) ;
@@ -195,7 +202,9 @@ namespace Loci {
           else if(ri->get_info().rule_impl->get_rule_class()
                   == rule_impl::ERASE) // a erase rule
             rule_process[*ri] = new erase_rule_compiler(*ri) ;
-          else if(ri->get_info().rule_impl->get_rule_class()
+          else
+#endif
+	    if(ri->get_info().rule_impl->get_rule_class()
                   == rule_impl::CONSTRAINT_RULE) // a constraint rule
             rule_process[*ri] = new constraint_compiler(*ri) ;
           else if(ri->get_info().rule_impl->get_rule_class()
@@ -294,9 +303,7 @@ namespace Loci {
     // timing variables
     double dst1=0,det1=0,dst2=0,det2=0,cst=0,cet=0,schedst=0,schedet=0 ;
     dst1 = MPI_Wtime() ;
-    //	timer_token dmm_graph_decoration_timer = new timer_token;
-    //	if(collect_perf_data)
-    //		dmm_graph_decoration_timer = perfAnalysis->start_timer("DMM Graph Decoration");
+
     // get all the recurrence information
     // i.e. the generalize, promote, priority and rename info
     recurInfoVisitor recv ;
@@ -345,21 +352,13 @@ namespace Loci {
                                rotlv.get_overlap_rotvars()) ;
     top_down_visit(dkv) ;
 
-    // Obsoleted, no longer needed any more, to be deleted
-//     // insert rule that invalidates the dynamic clones
-//     DynamicCloneInvalidatorVisitor dciv(facts,
-//                                         dkv.get_self_clone(),
-//                                         dkv.get_shadow_clone()) ;
-//     top_down_visit(dciv) ;
-
     // insert rule that redistribute dynamic keyspaces
 
 #ifdef COMPILE_PROGRESS
     if(Loci::MPI_rank==0)
       cerr << "[Graph Compile Phase] Passed Information Collection!" << endl ;
 #endif
-    //    if(collect_perf_data)
-    //      perfAnalysis->stop_timer(dmm_graph_decoration_timer);
+
     det1 = MPI_Wtime() ;
 
     if(use_dynamic_memory) {
@@ -379,8 +378,7 @@ namespace Loci {
       
       //	  timer_token chomping_subgraph_searching_timer = new timer_token;
       cst = MPI_Wtime() ;
-      //      if(collect_perf_data)
-      //      chomping_subgraph_searching_timer = perfAnalysis->start_timer("Chomping Subgraph Searching");
+
       chompPPVisitor cppv(facts,
                           rotlv.get_rotate_vars_table(),
                           rotlv.get_loop_shared_table(),
@@ -394,8 +392,6 @@ namespace Loci {
                            reduceV.get_apply2unit()) ;
       top_down_visit(crv) ;
       cet = MPI_Wtime() ;
-      //      if(collect_perf_data)
-      //        perfAnalysis->stop_timer(chomping_subgraph_searching_timer);
 		
       if(show_chomp)
         crv.visualize(cout) ;
@@ -412,8 +408,7 @@ namespace Loci {
     // dynamic memory management graph decoration
     if(use_dynamic_memory) {
       dst2 = MPI_Wtime() ;
-      //      if(collect_perf_data)
-      //        dmm_graph_decoration_timer = perfAnalysis->start_timer("DMM Graph Decoration");
+
       // get inter/intra supernode information
       snInfoVisitor snv ;
       top_down_visit(snv) ;
@@ -523,8 +518,7 @@ namespace Loci {
                              div.get_recur_source_other_rules()) ;
       if(!dmm_no_deallocation)
         top_down_visit(dgv) ;
-      //      if(collect_perf_data)
-      //        perfAnalysis->stop_timer(dmm_graph_decoration_timer);
+
       det2 = MPI_Wtime() ;
 	  
 #ifdef COMPILE_PROGRESS
@@ -654,10 +648,6 @@ namespace Loci {
     //bottom_up_visit(ov) ;
 	
     schedst = MPI_Wtime() ;
-    //    timer_token graph_scheduling_timer = new timer_token;
-    //    if(collect_perf_data)
-    //      graph_scheduling_timer = perfAnalysis->start_timer("Graph Scheduling");
-    
    
     if(randomized_memory_greedy_schedule && (!in_internal_query)){ 
       if(Loci::MPI_rank == 0)
@@ -741,8 +731,6 @@ namespace Loci {
       cerr << "[Graph Compile Phase] Passed Graph Scheduling!" << endl ;
 #endif
 
-    //    if(collect_perf_data)
-    //      perfAnalysis->stop_timer(graph_scheduling_timer);
     schedet = MPI_Wtime() ;
     
     assembleVisitor av(facts, scheds,
@@ -854,7 +842,7 @@ namespace Loci {
 #ifdef DIAGNOSTICS
     for(vi=vars.begin();vi!=vars.end();++vi) {
       storeRepP srp = facts.get_variable(*vi) ;
-      if(srp->RepType() == Loci::STORE) {
+      if(isSTORE(srp)) {
 	dom = v_requests[*vi] ;
 	total = interval(dom.Min(), dom.Max()) ;
 	unused = total - dom ;
@@ -864,7 +852,7 @@ namespace Loci {
     }
     for(vi=vars.begin();vi!=vars.end();++vi) {
       storeRepP srp = facts.get_variable(*vi) ;
-      if(srp->RepType() == Loci::STORE) {
+      if(isSTORE(srp)) {
 	dom = v_requests[*vi] ;
 	double size, wasted_space ;
 	total = interval(dom.Min(), dom.Max()) ;
@@ -927,7 +915,7 @@ namespace Loci {
             }
           }
         }
-	if(srp->RepType() == Loci::STORE) {
+	if(isSTORE(srp)) {
 	  entitySet tmp = interval(alloc_dom.Min(), alloc_dom.Max()) ;
 	  if(verbose && tmp.size() >= 2*srp->domain().size())
 	    Loci::debugout << "Variable = " << *vi << "  more than twice the space allocated :  allocated over " << alloc_dom << " size = " << tmp.size()  << "  while domain is only  " << srp->domain() << " size = " << srp->domain().size() << endl ;
@@ -998,10 +986,14 @@ namespace Loci {
     executeP top_level_schedule = 0;
 
 #ifdef PTHREADS
-    if(threading_pointwise || threading_global_reduction
-       || threading_local_reduction || threading_chomping) {
-      thread_control = new ThreadControl_pthread(num_threads);
-      schedule->append_list(new StartThreads());
+    // no threading schedule generated for internal query
+    if(!in_internal_query) {
+      if(threading_pointwise || threading_global_reduction
+          || threading_local_reduction || threading_chomping) {
+        thread_control =
+          new ThreadControl_pthread(num_threads,facts,scheds);
+        schedule->append_list(new StartThreads());
+      }
     }
 #endif
     
@@ -1014,9 +1006,11 @@ namespace Loci {
     schedule->append_list(top_level_schedule) ;
 
 #ifdef PTHREADS
-    if(threading_pointwise || threading_global_reduction
-       || threading_local_reduction || threading_chomping) {
-      schedule->append_list(new ShutDownThreads());
+    if(!in_internal_query) {
+      if(threading_pointwise || threading_global_reduction
+          || threading_local_reduction || threading_chomping) {
+        schedule->append_list(new ShutDownThreads());
+      }
     }
 #endif
     
@@ -1058,321 +1052,6 @@ namespace Loci {
     //digraph grt = gr.transpose() ;
   }
   
-#ifdef TO_BE_REMOVED
-  void dynamic_scheduling(digraph& gr, fact_db& facts,
-                          // we intend to change given
-                          // to include new generated facts
-                          variableSet& given, 
-                          const variableSet& target) {
-    // first we need to copy the fact_db
-    fact_db local_facts(facts) ;
-    // then generate a sched_db from the local_facts
-    sched_db scheds(local_facts) ;
-    
-    ruleSet rules = extract_rules(gr.get_all_vertices()) ;
-    variableSet constraints ;   // this set represents
-                                // static level constraints
-    ruleSet constraint_rules ;
-    // then we will need to find out whether there are any
-    // constraints being generated
-    for(ruleSet::const_iterator ri=rules.begin();
-        ri!=rules.end();++ri) {
-      if(ri->type() != rule::INTERNAL) {
-        // collect constraint rule
-        if(ri->get_info().rule_impl->get_rule_class() ==
-           rule_impl::CONSTRAINT_RULE) {
-          constraint_rules += *ri ;
-          variableSet targets = ri->targets() ;
-          for(variableSet::const_iterator vi=targets.begin();
-              vi!=targets.end();++vi) {
-            if(vi->time() != time_ident()) {
-              cerr << "computing constraints that are NOT in"
-                   << " the stationary time is NOT supported!"
-                   << endl ;
-              Loci::Abort() ;
-            }
-            else
-              constraints += *vi ;
-          }
-        }
-      } // end if(ri->type() != rule::INTERNAL)
-    }
-    if(constraints == EMPTY)
-      return ;
-    // we will need to construct a graph that computes the relations
-    digraph dgr ;
-    digraph grt = gr.transpose() ;
-    digraph::vertexSet targets ;
-    for(variableSet::const_iterator vi=constraints.begin();
-        vi!=constraints.end();++vi)
-      targets += vi->ident() ;
-    digraph::vertexSet working = targets ;
-    digraph::vertexSet visited ;
-    while(working!=EMPTY) {
-      visited += working ;
-      digraph::vertexSet new_vs ;
-      for(digraph::vertexSet::const_iterator vi=working.begin();
-          vi!=working.end();++vi)
-        new_vs += grt[*vi] ;
-      new_vs -= visited ;
-      working = new_vs ;
-    }
-    dgr = gr.subgraph(visited) ;
-    // check for cycles
-    vector<digraph::vertexSet> clusters =
-      component_sort(dgr).get_components() ;
-    
-    for(vector<digraph::vertexSet>::size_type i=0;i<clusters.size();++i) {
-      digraph::vertexSet potential_cycle_v = clusters[i] ;
-      if(potential_cycle_v.size() != 1) {
-        cerr << "Current dynamic scheduling only supports DAG!" << endl ;
-        Loci::Abort() ;
-      }
-    }
-
-    // now we have the digraph for this scheduling,
-    // we will have to set up any variable types in it.
-    set_var_types(local_facts,dgr,scheds) ;
-
-    digraph dgrt = dgr.transpose() ;
-    ruleSet allrules = extract_rules(dgr.get_all_vertices()) ;
-    // Collect information on unit rules in this level
-    map<rule,rule> apply_to_unit ;
-    for(ruleSet::const_iterator ri=allrules.begin();
-        ri!=allrules.end();++ri) {
-      if(ri->get_info().rule_impl->get_rule_class() == rule_impl::UNIT) {
-        variable unit_var = *(ri->targets().begin()) ;
-        ruleSet apply_rules = extract_rules(dgrt[unit_var.ident()]) ;
-        for(ruleSet::const_iterator rii=apply_rules.begin();
-            rii!=apply_rules.end();
-            ++rii) {
-          apply_to_unit[*rii] = *ri ;
-        }
-      }
-    }
-
-    rulecomp_map rule_process ;
-    for(ruleSet::const_iterator ri=allrules.begin();
-        ri!=allrules.end();++ri) {
-      if(ri->type() == rule::INTERNAL) {
-        if(ri->get_info().qualifier() == "promote")
-          rule_process[*ri] = new promote_compiler(*ri) ;
-        else if(ri->get_info().qualifier() == "generalize")
-          rule_process[*ri] = new generalize_compiler(*ri) ;
-        else if(ri->get_info().qualifier() == "priority")
-          rule_process[*ri] = new priority_compiler(*ri) ;
-        else
-          rule_process[*ri] = new error_compiler ;
-      } else {
-        if(ri->get_info().rule_impl->get_rule_class() != rule_impl::APPLY) {
-          if(ri->get_info().rule_impl->get_rule_class() ==
-             rule_impl::CONSTRAINT_RULE)
-            rule_process[*ri] = new constraint_compiler(*ri) ;
-          else
-            rule_process[*ri] = new impl_compiler(*ri) ;
-        }
-        else
-          rule_process[*ri] = new apply_compiler(*ri,apply_to_unit[*ri]) ;
-      } 
-    }
-    dynamic_compiler dc(rule_process,dgr,0) ;
-    dc.collect_reduce_info() ;
-    dc.schedule() ;
-    dc.compile() ;
-    dc.set_var_existence(local_facts,scheds) ;
-    dc.process_var_requests(local_facts,scheds) ;
-    exec_current_fact_db = &local_facts ;
-    (dc.create_execution_schedule(local_facts,scheds))->execute(local_facts) ;
-    ////clean the graph
-    
-    for(ruleSet::const_iterator ri=constraint_rules.begin();
-        ri!=constraint_rules.end();++ri) {
-      gr.remove_vertex(ri->ident()) ;
-    }
-    gr.remove_dangling_vertices() ;
-    // set up additional information
-    // add any additional facts into given
-    variableSet new_given = extract_vars(gr.get_source_vertices() -
-                                         gr.get_target_vertices()) ;
-    new_given -= given ;
-    if(new_given != EMPTY)
-      given += new_given ;
-
-    variableSet emptyConstraints ;
-    // finally we need to put anything useful into the global fact_db (facts)
-    for(variableSet::const_iterator vi=constraints.begin();
-        vi!=constraints.end();++vi) {
-      storeRepP srp = local_facts.get_variable(*vi) ;
-      // this fact needs to be intensional one
-      facts.create_intensional_fact(*vi,srp) ;
-      if(GLOBAL_AND(srp->domain()==EMPTY)) {
-        emptyConstraints += *vi ;
-      }
-    }
-    //cout << "emptyConstraints: " << emptyConstraints << endl ;
-
-    if(emptyConstraints != EMPTY) {
-      // Remove rules that are connected to empties
-      clean_empties(gr,given,target,emptyConstraints) ;
-
-      given -= emptyConstraints ;
-
-      // Clean any rules that don't connect after empties cleaned
-      clean_graph(gr,given,target) ;
-    }
-  }
-
-  void
-  dynamic_scheduling2(rule_db& par_rdb, fact_db& facts,
-                       const variableSet& user_query) {
-    // we'll first generate the dependency graph
-    // according to the initial facts and rules database
-    variableSet given = facts.get_typed_variables() ;
-    digraph gr ;
-    given -= variable("EMPTY") ;
-    gr = dependency_graph2(par_rdb,given,user_query).get_graph() ;
-
-    // If graph is empty, we just return without any further actions
-    if(gr.get_target_vertices() == EMPTY)
-      return ;
-
-    // then we need to copy the fact_db
-    fact_db local_facts(facts) ;
-    // then generate a sched_db from the local_facts
-    sched_db scheds(local_facts) ;
-    
-    ruleSet rules = extract_rules(gr.get_all_vertices()) ;
-    variableSet constraints ;   // this set represents
-                                // static level constraints
-    ruleSet constraint_rules ;
-    // then we will need to find out whether there are any
-    // constraints being generated
-    for(ruleSet::const_iterator ri=rules.begin();
-        ri!=rules.end();++ri) {
-      if(ri->type() != rule::INTERNAL) {
-        // collect constraint rule
-        if(ri->get_info().rule_impl->get_rule_class() ==
-           rule_impl::CONSTRAINT_RULE) {
-          constraint_rules += *ri ;
-          variableSet targets = ri->targets() ;
-          for(variableSet::const_iterator vi=targets.begin();
-              vi!=targets.end();++vi) {
-            if(vi->time() != time_ident()) {
-              cerr << "computing constraints that are NOT in"
-                   << " the stationary time is NOT supported!"
-                   << endl ;
-              Loci::Abort() ;
-            }
-            else
-              constraints += *vi ;
-          }
-        }
-      } // end if(ri->type() != rule::INTERNAL)
-    }
-    if(constraints == EMPTY)
-      return ;
-    // we will need to construct a graph that computes the relations
-    digraph dgr ;
-    digraph grt = gr.transpose() ;
-    digraph::vertexSet targets ;
-    for(variableSet::const_iterator vi=constraints.begin();
-        vi!=constraints.end();++vi)
-      targets += vi->ident() ;
-    digraph::vertexSet working = targets ;
-    digraph::vertexSet visited ;
-    while(working!=EMPTY) {
-      visited += working ;
-      digraph::vertexSet new_vs ;
-      for(digraph::vertexSet::const_iterator vi=working.begin();
-          vi!=working.end();++vi)
-        new_vs += grt[*vi] ;
-      new_vs -= visited ;
-      working = new_vs ;
-    }
-    dgr = gr.subgraph(visited) ;
-    // check for cycles
-    vector<digraph::vertexSet> clusters =
-      component_sort(dgr).get_components() ;
-    
-    for(vector<digraph::vertexSet>::size_type i=0;i<clusters.size();++i) {
-      digraph::vertexSet potential_cycle_v = clusters[i] ;
-      if(potential_cycle_v.size() != 1) {
-        cerr << "Current dynamic scheduling only supports DAG!" << endl ;
-        Loci::Abort() ;
-      }
-    }
-
-    // now we have the digraph for this scheduling,
-    // we will have to set up any variable types in it.
-    set_var_types(local_facts,dgr,scheds) ;
-
-    digraph dgrt = dgr.transpose() ;
-    ruleSet allrules = extract_rules(dgr.get_all_vertices()) ;
-    // Collect information on unit rules in this level
-    map<rule,rule> apply_to_unit ;
-    for(ruleSet::const_iterator ri=allrules.begin();
-        ri!=allrules.end();++ri) {
-      if(ri->get_info().rule_impl->get_rule_class() == rule_impl::UNIT) {
-        variable unit_var = *(ri->targets().begin()) ;
-        ruleSet apply_rules = extract_rules(dgrt[unit_var.ident()]) ;
-        for(ruleSet::const_iterator rii=apply_rules.begin();
-            rii!=apply_rules.end();
-            ++rii) {
-          apply_to_unit[*rii] = *ri ;
-        }
-      }
-    }
-
-    rulecomp_map rule_process ;
-    for(ruleSet::const_iterator ri=allrules.begin();
-        ri!=allrules.end();++ri) {
-      if(ri->type() == rule::INTERNAL) {
-        if(ri->get_info().qualifier() == "promote")
-          rule_process[*ri] = new promote_compiler(*ri) ;
-        else if(ri->get_info().qualifier() == "generalize")
-          rule_process[*ri] = new generalize_compiler(*ri) ;
-        else if(ri->get_info().qualifier() == "priority")
-          rule_process[*ri] = new priority_compiler(*ri) ;
-        else
-          rule_process[*ri] = new error_compiler ;
-      } else {
-        if(ri->get_info().rule_impl->get_rule_class() != rule_impl::APPLY) {
-          if(ri->get_info().rule_impl->get_rule_class() ==
-             rule_impl::CONSTRAINT_RULE)
-            rule_process[*ri] = new constraint_compiler(*ri) ;
-          else
-            rule_process[*ri] = new impl_compiler(*ri) ;
-        }
-        else
-          rule_process[*ri] = new apply_compiler(*ri,apply_to_unit[*ri]) ;
-      } 
-    }
-    dynamic_compiler dc(rule_process,dgr,0) ;
-    dc.collect_reduce_info() ;
-    dc.schedule() ;
-    dc.compile() ;
-    dc.set_var_existence(local_facts,scheds) ;
-    dc.process_var_requests(local_facts,scheds) ;
-    exec_current_fact_db = &local_facts ;
-    (dc.create_execution_schedule(local_facts,scheds))->execute(local_facts) ;
-
-    // then we remove in the rule database the rules
-    // that generate the constraints
-    par_rdb.remove_rules(constraint_rules) ;
-    
-    // finally we need to put anything useful into the global fact_db (facts)
-    for(variableSet::const_iterator vi=constraints.begin();
-        vi!=constraints.end();++vi) {
-      storeRepP srp = local_facts.get_variable(*vi) ;
-      // we don't create empty constraints in
-      // the global fact database
-      if(GLOBAL_AND(srp->domain()==EMPTY))
-        continue ;
-      // this fact needs to be intensional one
-      facts.create_intensional_fact(*vi,srp) ;
-    }
-  }
-#endif
   
   // this is the function to compute all maps
   // in the stationary time level
@@ -1447,7 +1126,7 @@ namespace Loci {
               if(!has_map) {
                 storeRepP srp ;
                 srp = ri->get_info().rule_impl->get_store(*vi) ;
-                if(srp->RepType() == Loci::MAP)
+                if(isMAP(srp))
                   has_map = true ;
               }
             }
@@ -1611,7 +1290,7 @@ namespace Loci {
               }
             // we do not need to remap any maps from local -> global
             // because they are generated in the global numbering
-            if(srp->RepType() == Loci::MAP)
+            if(isMAP(srp))
               facts.create_intensional_fact(*vi2,srp) ;
             else
               facts.create_intensional_fact(*vi2,srp->remap(dl2g)) ;
@@ -1667,214 +1346,5 @@ namespace Loci {
     in_internal_query = false ;
   }//end of stationary_map_gen
 
-#ifdef TO_BE_REMOVED
-  // experimental code to process static & dynamic constraints in
-  // a unified way, this is the stage 1 --- mainly to compute the
-  // static constraints and also to do some pre-process to those
-  // dynamic ones
-  // this function returns all the dynamic constraints discovered
-  // for the computations that lead to the supplied query.
-  variableSet
-  constraint_process_stage1(rule_db& rdb, fact_db& facts,
-                            const variableSet& query) {
-    // we'll first generate the dependency graph
-    // according to the initial facts and rules database
-    variableSet given = facts.get_typed_variables() ;
-    digraph gr ;
-    given -= variable("EMPTY") ;
-    gr = dependency_graph2(rdb,given,query).get_graph() ;
-
-    // If graph is empty, we just return without any further actions
-    if(gr.get_target_vertices() == EMPTY)
-      return variableSet(EMPTY) ;
-
-    // we will first classify static & dynamic constraints here
-    // based on the constructed dependency graph.    
-    ruleSet rules = extract_rules(gr.get_all_vertices()) ;
-    variableSet static_constraints ;
-    variableSet dynamic_constraints ;
-    ruleSet constraint_rules ;
-
-    // iterating all constraint rules and collect info.
-    for(ruleSet::const_iterator ri=rules.begin();
-        ri!=rules.end();++ri) {
-      if(ri->type() != rule::INTERNAL) {
-        // collect constraint rule
-        if(ri->get_info().rule_impl->get_rule_class() ==
-           rule_impl::CONSTRAINT_RULE) {
-          constraint_rules += *ri ;
-          variableSet targets = ri->targets() ;
-          for(variableSet::const_iterator vi=targets.begin();
-              vi!=targets.end();++vi) {
-            if(vi->time() != time_ident()) {
-              // classified as a dynamic constraint
-              // however, we need to drop any assigns or offsets
-              // it might have. e.g., the target of a constraint_rule
-              // may be of "A{n=0}", or "A{n+1}", however we want the
-              // normal form: "A{n}"
-              dynamic_constraints += (vi->new_offset(0)).drop_assign() ;
-            } else
-              static_constraints += *vi ;
-          }
-        }
-      } // end if(ri->type() != rule::INTERNAL)
-    }
-    // then we will need to compute those that are static here
-    if(static_constraints == EMPTY)
-      return dynamic_constraints ;
-    // we will need to construct a graph that computes the static ones
-    digraph dgr ;
-    digraph grt = gr.transpose() ;
-    digraph::vertexSet targets ;
-    for(variableSet::const_iterator vi=static_constraints.begin();
-        vi!=static_constraints.end();++vi)
-      targets += vi->ident() ;
-    digraph::vertexSet working = targets ;
-    digraph::vertexSet visited ;
-    while(working!=EMPTY) {
-      visited += working ;
-      digraph::vertexSet new_vs ;
-      for(digraph::vertexSet::const_iterator vi=working.begin();
-          vi!=working.end();++vi)
-        new_vs += grt[*vi] ;
-      new_vs -= visited ;
-      working = new_vs ;
-    }
-    dgr = gr.subgraph(visited) ;
-    // check for cycles
-    vector<digraph::vertexSet> clusters =
-      component_sort(dgr).get_components() ;
-    
-    for(vector<digraph::vertexSet>::size_type i=0;i<clusters.size();++i) {
-      digraph::vertexSet potential_cycle_v = clusters[i] ;
-      if(potential_cycle_v.size() != 1) {
-        cerr << "Error: cyclic dependence detected for static constraints"
-             << endl ;
-        Loci::Abort() ;
-      }
-    }
-
-    // The following is sort of a mini query, it is probably better
-    // in the future to use a unified query infrastructure!
-    // (to be revised in the future...)
-    
-    // we need to copy the fact_db for this local computation
-    fact_db local_facts(facts) ;
-    // then generate a sched_db from the local_facts
-    sched_db scheds(local_facts) ;
-        
-    // now we have the digraph for this scheduling,
-    // we will have to set up any variable types in it.
-    set_var_types(local_facts,dgr,scheds) ;
-
-    digraph dgrt = dgr.transpose() ;
-    ruleSet allrules = extract_rules(dgr.get_all_vertices()) ;
-    // Collect information on unit rules in this level
-    map<rule,rule> apply_to_unit ;
-    for(ruleSet::const_iterator ri=allrules.begin();
-        ri!=allrules.end();++ri) {
-      if(ri->get_info().rule_impl->get_rule_class() == rule_impl::UNIT) {
-        variable unit_var = *(ri->targets().begin()) ;
-        ruleSet apply_rules = extract_rules(dgrt[unit_var.ident()]) ;
-        for(ruleSet::const_iterator rii=apply_rules.begin();
-            rii!=apply_rules.end();
-            ++rii) {
-          apply_to_unit[*rii] = *ri ;
-        }
-      }
-    }
-
-    rulecomp_map rule_process ;
-    for(ruleSet::const_iterator ri=allrules.begin();
-        ri!=allrules.end();++ri) {
-      if(ri->type() == rule::INTERNAL) {
-        if(ri->get_info().qualifier() == "promote")
-          rule_process[*ri] = new promote_compiler(*ri) ;
-        else if(ri->get_info().qualifier() == "generalize")
-          rule_process[*ri] = new generalize_compiler(*ri) ;
-        else if(ri->get_info().qualifier() == "priority")
-          rule_process[*ri] = new priority_compiler(*ri) ;
-        else
-          rule_process[*ri] = new error_compiler ;
-      } else {
-        if(ri->get_info().rule_impl->get_rule_class() != rule_impl::APPLY) {
-          if(ri->get_info().rule_impl->get_rule_class() ==
-             rule_impl::CONSTRAINT_RULE)
-            rule_process[*ri] = new constraint_compiler(*ri) ;
-          else
-            rule_process[*ri] = new impl_compiler(*ri) ;
-        }
-        else
-          rule_process[*ri] = new apply_compiler(*ri,apply_to_unit[*ri]) ;
-      } 
-    }
-    dynamic_compiler dc(rule_process,dgr,0) ;
-    dc.collect_reduce_info() ;
-    dc.schedule() ;
-    dc.compile() ;
-    dc.set_var_existence(local_facts,scheds) ;
-    dc.process_var_requests(local_facts,scheds) ;
-    exec_current_fact_db = &local_facts ;
-    (dc.create_execution_schedule(local_facts,scheds))->execute(local_facts) ;
-
-    // finished static constraints computation.
-    variableSet empty_constraints ;
-    // finally we need to put anything useful into the global fact_db (facts)
-    for(variableSet::const_iterator vi=static_constraints.begin();
-        vi!=static_constraints.end();++vi) {
-      storeRepP srp = local_facts.get_variable(*vi) ;
-      FATAL(srp == 0) ;
-      // put the constraints into fact_db
-      facts.create_intensional_fact(*vi,srp) ;
-      if(GLOBAL_AND(srp->domain()==EMPTY)) {
-        empty_constraints += *vi ;
-      }
-    }
-
-    // we will remove those rules in the rdb that has any
-    // empty_constraints as sources because they do not
-    // constribute to any of the useful computation.
-    if(empty_constraints != EMPTY) {
-      ruleSet all_db_rules = rdb.all_rules() ;
-      ruleSet rules_to_remove ;
-      for(ruleSet::const_iterator ri=all_db_rules.begin();
-          ri!=all_db_rules.end();++ri) {
-        variableSet cs = ri->constraints() ;
-        if( (cs & empty_constraints) != EMPTY)
-          rules_to_remove += *ri ;
-      }
-      rdb.remove_rules(rules_to_remove) ;
-    }
-    return dynamic_constraints ;
-  }
-
-  // stage2 --- generate new rule_db and setting up things for
-  // dynamic constraints
-  rule_db
-  constraint_process_stage2(const rule_db& rdb, fact_db& facts,
-                            const variableSet& dynamic_constraints) {
-
-    // generate a new rule_db that splits the static & dynamic
-    // constraints inside the rule_impl data-structure
-    rule_db new_rdb ;
-    ruleSet all_rules = rdb.all_rules() ;
-
-    for(ruleSet::const_iterator ri=all_rules.begin();
-        ri!=all_rules.end();++ri) {
-
-      rule_implP rp = ri->get_rule_implP() ;
-      if(rp == 0) {
-        new_rdb.add_rule(*ri) ;
-        continue ;
-      }
-
-      // split static & dynamic constraints
-      rp->split_constraints(dynamic_constraints) ;
-      rule nr(rp) ;
-      new_rdb.add_rule(nr) ;
-    }
-    return new_rdb ;    
-  }
-#endif //TO_BE_REMOVED
 
 }

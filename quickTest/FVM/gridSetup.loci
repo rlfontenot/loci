@@ -1,0 +1,418 @@
+//#############################################################################
+//#
+//# Copyright 2015-2019, Mississippi State University
+//#
+//# This file is part of the flowPsi computational fluid dynamics solver.
+//#
+//# The flowPsi solver is free software: you can redistribute it and/or modify
+//# it under the terms of the GNU General Public License as published by
+//# the Free Software Foundation, either version 3 of the License, or
+//# (at your option) any later version.
+//#
+//# The flowPsi solver is distributed in the hope that it will be useful,
+//# but WITHOUT ANY WARRANTY; without even the implied warranty of
+//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//# GNU General Public License for more details.
+//#
+//# You should have received a copy of the GNU General Public License
+//# along with the flowPsi solver.  If not, see <http://www.gnu.org/licenses>
+//#
+//#############################################################################
+
+#include <Loci.h>
+
+#include <Tools/stream.h>
+#include "flowTypes.h"
+#include "readGrid.h"
+#include "periodic.h"
+#include <algorithm>
+
+#include <vector>
+#include <list>
+using std::list ;
+using std::vector ;
+using std::pair ;
+using std::make_pair ;
+using std::endl ;
+using std::cerr ;
+using std::cout ;
+
+using Loci::fill_clone ;
+using Loci::GLOBAL_OR ;
+using Loci::GLOBAL_MAX ;
+
+
+namespace Loci {
+    entitySet dist_collect_entitySet(entitySet inSet, const vector<entitySet> &ptn) ;
+} ;
+
+namespace flowPsi {
+
+  //Definition of global BC lists
+  register_BC_impl_list register_BC_list ;
+  //  BC_impl_list global_BC_list ;
+  
+  BC_impl_list::~BC_impl_list() {
+    BC_list_ent *p,*v ;
+    for(p=list;p!=0;p=v) {
+      v = p->next ;
+      delete p ;
+    }
+  }
+  void BC_impl_list::clear() {
+    BC_list_ent *p,*v ;
+    for(p=list;p!=0;p=v) {
+      v = p->next ;
+      delete p ;
+    }
+    list = 0 ;
+  }
+  void BC_impl_list::push_BC(register_BC_type *p) {
+    BC_list_ent *flp = new BC_list_ent(p,list) ;
+    list = flp ;
+  }
+  
+  void BC_impl_list::copy_BC_list(const BC_impl_list& rl) {
+    BC_list_ent *p, *v ;
+    for(p = rl.list; p != 0; p=v) {
+      push_BC(p->rr) ;
+      v = p->next ;
+    }
+  }
+  void BC_impl_list::copy_BC_list(const register_BC_impl_list& rl) {
+    BC_list_ent *p, *v ;
+    for(p = rl.global_list; p != 0; p=v) {
+      push_BC(p->rr) ;
+      v = p->next ;
+    }
+  }
+  
+  //Declaration of static variable global_list
+  BC_impl_list::BC_list_ent *register_BC_impl_list::global_list = 0 ;
+  
+  register_BC_impl_list::~register_BC_impl_list() {
+    BC_list_ent *p,*v ;
+    for(p=global_list;p!=0;p=v) {
+      v = p->next ;
+      delete p ;
+    }
+  }
+  void register_BC_impl_list::clear() {
+    BC_list_ent *p,*v ;
+    for(p=global_list;p!=0;p=v) {
+      v = p->next ;
+      delete p ;
+    }
+    global_list = 0 ;
+  }
+   bool register_BC_impl_list::empty() {
+     return (global_list == 0) ;
+   }
+  void register_BC_impl_list::push_BC(register_BC_type *p) {
+    BC_list_ent *flp = new BC_list_ent(p,global_list) ;
+    global_list = flp ;
+  }
+
+  bool check_scalar_units(const options_list &o, std::string option, std::string unit) {
+    bool check = false ;
+    if(o.getOptionValueType(option) == Loci::REAL)
+      check = true ;
+    if(o.getOptionValueType(option) == Loci::UNIT_VALUE) {
+      Loci::UNIT_type Tu ;
+      o.getOption(option,Tu) ;
+      if(Tu.is_compatible(unit)) {
+        check = true ;
+      }
+    }
+    return check ;
+  }    
+  
+  bool check_vector_units(const options_list &ol,std::string vname,
+                        std::string units) {
+    Loci::option_value_type ovt= ol.getOptionValueType(vname) ;
+    if(ovt == Loci::REAL) {
+      return true ;
+    } else if(ol.getOptionValueType(vname) == Loci::UNIT_VALUE) {
+      Loci::UNIT_type vu ;
+      ol.getOption(vname,vu) ;
+      if(!vu.is_compatible(units)) {
+        return false ;
+      }
+      return true ;
+    } else if(ovt == Loci::LIST) {
+      Loci::options_list::arg_list value_list ;
+      ol.getOption(vname,value_list) ;
+      if(value_list.size() != 3) {
+        return false ;
+      }
+      for(int i=0;i<3;++i)
+        if(value_list[i].type_of() != Loci::REAL &&
+           value_list[i].type_of() != Loci::UNIT_VALUE) {
+          return false ;
+        }
+      for(int i=0;i<3;++i) {
+        if(value_list[i].type_of() == Loci::UNIT_VALUE) {
+          Loci::UNIT_type vu ;
+          value_list[i].get_value(vu) ;
+          if(!vu.is_compatible(units)) {
+            return false ;
+          }
+        }
+      }
+      return true ;
+    } else if(ovt == Loci::FUNCTION) {
+      string name ;
+      Loci::options_list::arg_list value_list ;
+      ol.getOption(vname,name,value_list) ;
+      if(name != "polar") {
+        return false ;
+      }
+      if(value_list.size() != 3) {
+        return false ;
+      }
+      for(int i=0;i<3;++i)
+        if(value_list[i].type_of() != Loci::REAL &&
+           value_list[i].type_of() != Loci::UNIT_VALUE) {
+          return false ;
+        }
+      if(value_list[0].type_of() == Loci::UNIT_VALUE) {
+        Loci::UNIT_type vu ;
+        value_list[0].get_value(vu) ;
+        if(!vu.is_compatible(units)) {
+          return false ;
+        }
+      }
+      if(value_list[1].type_of() == Loci::UNIT_VALUE) {
+        Loci::UNIT_type vu ;
+        value_list[1].get_value(vu) ;
+        if(!vu.is_compatible("radians")) {
+          return false ;
+        }
+      } 
+      if(value_list[2].type_of() == Loci::UNIT_VALUE) {
+        Loci::UNIT_type vu ;
+        value_list[2].get_value(vu) ;
+        if(!vu.is_compatible("radians")) {
+          return false ;
+        }
+      } 
+      return true ;
+    } else {
+      return false ;
+    }
+  }  
+
+
+  class periodic_check : public BC_Check {
+    string error_message ;
+  public:
+    std::string boundaryConditions() { return "periodic" ; }
+    std::string variablesChecked() { return "rotate,translate,name,center,vector" ; }
+    bool checkOptions(const options_list& bc_options) {
+      error_message = "" ;
+      bool check = true ;
+      if(!bc_options.optionExists("name")) {
+        error_message = "all periodic boundaries must have a name " ;
+        check = false ;
+      }
+      if(bc_options.optionExists("center")) {
+        if(!check_vector_units(bc_options,"center","m")) {
+          error_message += "center has incorrect units " ;
+          check = false ;
+        }
+      }
+      if(bc_options.optionExists("translate")) {
+        if(!check_vector_units(bc_options,"translate","m")) {
+          error_message += "translate has incorrect units " ;
+          check = false ;
+        }
+      }
+      if(bc_options.optionExists("vector")) {
+        if(!check_vector_units(bc_options,"vector","")) {
+          error_message += "vector has incorrect units " ;
+          check = false ;
+        }
+      }
+      if(bc_options.optionExists("rotate")) {
+        if(!check_scalar_units(bc_options,"rotate","radians")) {
+          error_message += "rotate has incorrect units " ;
+          check = false ;
+        }
+      }
+
+      return check ;
+    }
+    std::ostream &ErrorMessage(std::ostream &s) { return s; }
+  } ;
+
+  register_BC<periodic_check> register_BC_periodic_check ;
+
+
+
+  class momentCenter_check : public BC_Check {
+    string error_message ;
+  public:
+    std::string boundaryConditions() { return "*" ; }
+    std::string variablesChecked() { return "momentCenter" ; }
+    bool checkOptions(const options_list& bc_options) {
+      error_message = "" ;
+      if(bc_options.optionExists("momentCenter"))
+        if(!check_vector_units(bc_options,"momentCenter","m")) {
+          error_message = "error in momentCenter specification" ;
+          return false ;
+        }
+      return true ;
+    }
+      
+    std::ostream &ErrorMessage(std::ostream &s) {
+      s << error_message << endl ;
+      return s;
+    }
+  } ;
+
+  register_BC<momentCenter_check> register_BC_momentCenter_check ;
+
+  
+  
+
+  struct bc_checker_info {
+    Loci::variableSet bc_check ;
+    Loci::variableSet bc_vars ;
+    BC_implP checker ;
+  };
+
+  bool check_boundary_conditions(fact_db &facts) {
+
+    list<bc_checker_info> bclist ;
+
+    for(BC_impl_list::iterator bci(register_BC_list.begin());
+        bci!=register_BC_list.end();
+        ++bci) {
+      bclist.push_back(bc_checker_info()) ;
+      Loci::variableSet bcs ;
+      if((*bci)->boundaryConditions() == "*") {
+        bcs = ~EMPTY ;
+      } else {
+        Loci::exprP bc_check =
+          Loci::expression::create((*bci)->boundaryConditions()) ;
+        bcs = Loci::variableSet(bc_check) ;
+      }
+      if((*bci)->variablesChecked().size() == 0) {
+        bclist.back().bc_vars = EMPTY ;
+      } else {
+        Loci::exprP bc_vars =
+          Loci::expression::create((*bci)->variablesChecked()) ;
+        bclist.back().bc_vars = Loci::variableSet(bc_vars) ;
+      }
+      bclist.back().bc_check = bcs ;
+      bclist.back().checker = *bci ;
+    }
+
+      
+    bool error = false ;
+
+    bool doprint = (Loci::MPI_rank == 0) ;
+    
+    param<options_list> bc_info ;
+    bc_info = facts.get_variable("boundary_conditions") ;
+    
+    options_list::option_namelist nl = bc_info->getOptionNameList() ;
+
+    options_list::option_namelist::iterator li;
+
+    for(li=nl.begin();li!=nl.end();++li) {
+      string bname = *li ;
+      Loci::option_value_type vt =
+        bc_info->getOptionValueType(bname);
+      Loci::option_values ov = bc_info->getOption(bname) ;
+      options_list::arg_list value_list ;
+      string name ;
+
+      switch(vt) {
+      case Loci::NAME :
+        ov.get_value(name) ;
+        bc_info->setOption(bname,name) ;
+        break ;
+      case Loci::FUNCTION:
+        ov.get_value(name) ;
+        ov.get_value(value_list) ;
+        bc_info->setOption(bname,name,value_list) ;
+        
+        break ;
+      default:
+        cerr << "setup_bc can not interpret value assigned to " << bname 
+             << " in boundary_conditions" << endl ;
+        exit(-1) ;
+      }
+      options_list ol ;
+      ol.Input(value_list) ;
+      Loci::variable bcv(name) ;
+
+      list<bc_checker_info>::iterator bi ;
+
+      options_list::option_namelist nlb = ol.getOptionNameList() ;
+
+      Loci::variableSet bvars ;
+      options_list::option_namelist::iterator lii;
+      for(lii=nlb.begin();lii!=nlb.end();++lii)
+        bvars += Loci::variable(*lii) ;
+
+      bool found_bcmatch = false;
+      bool found_empty_match = false ;
+      Loci::variableSet unchecked_variables = bvars ;
+      for(bi=bclist.begin();bi!=bclist.end();++bi) {
+        if(bi->bc_check.inSet(bcv)) {
+          if(bi->bc_check != ~EMPTY) {
+            found_bcmatch = true ;
+            if(bi->bc_vars == EMPTY) {
+              found_empty_match = true ;
+            }
+          }
+          if((bi->bc_vars & bvars) != EMPTY) {
+            try {
+              if(bi->checker->checkOptions(ol)) {
+                unchecked_variables -= bi->bc_vars ;
+              }
+            } catch(const Loci::BasicException &err) {
+              cerr << "ERROR: Boundary type " << name << " for boundary id "
+                   << bname << ":" << endl ;
+              err.Print(cerr) ;
+              error = true ;
+            }
+          }
+        }
+      }
+
+      if(!found_bcmatch) {
+        if(doprint)
+          cerr << "Boundary type '" << name << "' is unknown for boundary id "
+               << bname << endl ;
+        error = true ;
+      } else if (bvars == EMPTY && !found_empty_match) {
+        cerr << "Boundary type '" << name << "' requires argument(s) for boundary id " << bname << endl ;
+        error = true ;
+      } else if(unchecked_variables != EMPTY) {
+        if(doprint) {
+          bool errorprinted = false ;
+          for(bi=bclist.begin();bi!=bclist.end();++bi) {
+            if(bi->bc_check.inSet(bcv)) {
+              if((bi->bc_vars & unchecked_variables) != EMPTY) {
+                cerr << "check failed for boundary condition " << name 
+                     << " on boundary id " << bname << endl ;
+                bi->checker->ErrorMessage(cerr);
+                errorprinted = true ;
+              }
+            }
+          }
+          if(!errorprinted)
+            cerr << "variables " << unchecked_variables << " not compatible with boundary condition " << name  << " for boundary id " << bname << endl  ;
+        }
+        error = true ;
+      }
+      
+    }
+    return error ;
+  }
+
+
+}

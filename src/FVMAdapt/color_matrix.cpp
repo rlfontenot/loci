@@ -74,25 +74,16 @@ namespace Loci{
       
         long long array_size = num_original_nodes + num_inner_nodes;
       
-#ifdef H5_USE_16_API
-        group_id = H5Gcreate(file_id,"file_info",0) ;
-#else
         group_id = H5Gcreate(file_id,"file_info",
                              H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
 
         cout << "num_nodes = " << array_size << endl ;
       
         hsize_t dims = 1 ;
         hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
 
-#ifdef H5_USE_16_API      
-        hid_t att_id = H5Acreate(group_id,"numNodes", H5T_STD_I64BE,
-                                 dataspace_id, H5P_DEFAULT) ;
-#else
         hid_t att_id = H5Acreate(group_id,"numNodes", H5T_STD_I64BE,
                                  dataspace_id, H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
         H5Awrite(att_id,H5T_NATIVE_LLONG,&array_size) ;
         H5Aclose(att_id) ;
         H5Gclose(group_id) ;
@@ -102,12 +93,8 @@ namespace Loci{
 
 
         //prepare to write positions
-#ifdef H5_USE_16_API
-        group_id = H5Gcreate(file_id,"node_info",0) ;
-#else
         group_id = H5Gcreate(file_id,"node_info",
                              H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
       
         //create dataspace and dataset
         int rank = 1 ;
@@ -116,20 +103,11 @@ namespace Loci{
         typedef data_schema_traits<vect3d> traits_type ;
         Loci::DatatypeP dp = traits_type::get_type() ;
 
-#ifdef H5_INTERFACE_1_6_4
         hsize_t start = 0 ;
-#else
-        hssize_t start = 0 ;
-#endif
         hsize_t stride = 1 ;
       
-#ifdef H5_USE_16_API
-        hid_t dataset = H5Dcreate(group_id,"positions",dp->get_hdf5_type(),
-                                  dataspace, H5P_DEFAULT) ;
-#else
         hid_t dataset = H5Dcreate(group_id,"positions",dp->get_hdf5_type(),
                                   dataspace, H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
       
         //first write out pos
         hsize_t count = num_original_nodes ;
@@ -294,25 +272,16 @@ namespace Loci{
                          inner_cell_nodes_sizes[i] + inner_face_nodes_sizes[i] );
         //first write out numNodes
     
-#ifdef H5_USE_16_API
-        group_id = H5Gcreate(file_id,"file_info",0) ;
-#else
         group_id = H5Gcreate(file_id,"file_info",
                              H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
     
         cout << "num_nodes = " << array_size << endl ;
     
         hsize_t dims = 1 ;
         hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
     
-#ifdef H5_USE_16_API
-        hid_t att_id = H5Acreate(group_id,"numNodes", H5T_STD_I64BE,
-                                 dataspace_id, H5P_DEFAULT) ;
-#else
         hid_t att_id = H5Acreate(group_id,"numNodes", H5T_STD_I64BE,
                                  dataspace_id, H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
         H5Awrite(att_id,H5T_NATIVE_LLONG,&array_size) ;
         H5Aclose(att_id) ;
         H5Gclose(group_id) ;
@@ -320,12 +289,8 @@ namespace Loci{
         if(array_size == 0)
           return ;
 
-#ifdef H5_USE_16_API
-        group_id = H5Gcreate(file_id,"node_info",0) ;
-#else
         group_id = H5Gcreate(file_id,"node_info",
                              H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
         //create dataspace and dataset
         int rank = 1 ;
         hsize_t dimension = array_size ;
@@ -333,20 +298,11 @@ namespace Loci{
         typedef data_schema_traits<vect3d> traits_type ;
         Loci::DatatypeP dp = traits_type::get_type() ;
 
-#ifdef H5_INTERFACE_1_6_4
         hsize_t start = 0 ;
-#else
-        hssize_t start = 0 ;
-#endif
         hsize_t stride = 1 ;
     
-#ifdef H5_USE_16_API
-        hid_t dataset = H5Dcreate(group_id,"positions",dp->get_hdf5_type(),
-                                  dataspace, H5P_DEFAULT) ;
-#else
         hid_t dataset = H5Dcreate(group_id,"positions",dp->get_hdf5_type(),
                                   dataspace, H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
     
     
         //first write out pos
@@ -688,26 +644,16 @@ namespace Loci{
 
   
       //first write out numNodes
-     
-#ifdef H5_USE_16_API
-      group_id = H5Gcreate(file_id,"file_info",0) ;
-#else
       group_id = H5Gcreate(file_id,"file_info",
                            H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
     
       if(MPI_rank == 0) cout << "num_nodes = " << array_size << endl ;
     
       hsize_t dims = 1 ;
       hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
     
-#ifdef H5_USE_16_API
-      hid_t att_id = H5Acreate(group_id,"numNodes", H5T_STD_I64BE,
-                               dataspace_id, H5P_DEFAULT) ;
-#else
       hid_t att_id = H5Acreate(group_id,"numNodes", H5T_STD_I64BE,
                                dataspace_id, H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
       H5Awrite(att_id,H5T_NATIVE_LLONG,&array_size) ;
       H5Aclose(att_id) ;
       H5Gclose(group_id) ;
@@ -715,12 +661,8 @@ namespace Loci{
       if(array_size == 0)
         return ;
 
-#ifdef H5_USE_16_API
-      group_id = H5Gcreate(file_id,"node_info",0) ;
-#else
       group_id = H5Gcreate(file_id,"node_info",
                            H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
       //create dataspace and dataset
       int rank = 1 ;
       hsize_t stride = 1 ;
@@ -732,14 +674,8 @@ namespace Loci{
 
    
     
-#ifdef H5_USE_16_API
-      hid_t dataset = H5Dcreate(group_id,"positions",dp->get_hdf5_type(),
-                                dataspace, H5P_DEFAULT) ;
-#else
       hid_t dataset = H5Dcreate(group_id,"positions",dp->get_hdf5_type(),
                                 dataspace, H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
-  
  
  
       hid_t xfer_plist = create_xfer_plist(Loci::hdf5_const::dxfer_coll_type);

@@ -321,14 +321,14 @@ namespace Loci {
         // type appropriately in the fact database.
         if(rs != EMPTY) {
 	  rule pick = *rs.begin() ;
+	  // scan for rule that can type variable
+	  for(auto ri = rs.begin();ri!=rs.end();++ri)
+	    if(ri->get_info().rule_impl->get_store(vget)!= 0) {
+	      pick = *ri ;
+	      break ;
+	    }
+	  // Now get the type from the picked rule
 	  storeRepP st ;
-	  
-	  // this part of the code is a temporary hack 
-	  //rule_implP rp = pick.get_rule_implP() ;
-	  //rule_impl::info rinfo = rp->get_info() ;
-	  //if(!rinfo.conditionals.inSet(vget)) {
-	    
-	    //end hack 
 	  st = pick.get_info().rule_impl->get_store(vget) ;
 	  if(st == 0) {
 	    cerr << "rule " << pick << " unable to provide type for " << vget
@@ -412,11 +412,13 @@ namespace Loci {
         if(typed_vars.inSet(*vi)) {
           if(!skip_type_check) {
             storeRepP fact_type = facts.get_variable(*vi)->getRep() ;
-            if(typeid(*rule_type) != typeid(*fact_type)) {
+	    auto &rule_type_dr = *rule_type ;
+	    auto &fact_type_dr = *fact_type ;
+            if(typeid(rule_type_dr) != typeid(fact_type_dr)) {
               cerr << "variable type mismatch for variable " << *vi << " in rule "
                    << *ri << endl ;
-              cerr << "fact database has type " << typeid(*fact_type).name() << endl ;
-              cerr << "rule has type " << typeid(*rule_type).name() << endl ;
+              cerr << "fact database has type " << typeid(fact_type_dr).name() << endl ;
+              cerr << "rule has type " << typeid(rule_type_dr).name() << endl ;
               type_error = true ;
             }
           }

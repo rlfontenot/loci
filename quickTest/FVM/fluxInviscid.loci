@@ -1,0 +1,163 @@
+//#############################################################################
+//#
+//# Copyright 2015-2019, Mississippi State University
+//#
+//# This file is part of the flowPsi computational fluid dynamics solver.
+//#
+//# The flowPsi solver is free software: you can redistribute it and/or modify
+//# it under the terms of the GNU General Public License as published by
+//# the Free Software Foundation, either version 3 of the License, or
+//# (at your option) any later version.
+//#
+//# The flowPsi solver is distributed in the hope that it will be useful,
+//# but WITHOUT ANY WARRANTY; without even the implied warranty of
+//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//# GNU General Public License for more details.
+//#
+//# You should have received a copy of the GNU General Public License
+//# along with the flowPsi solver.  If not, see <http://www.gnu.org/licenses>
+//#
+//#############################################################################
+
+#include "inviscidFlux.h"
+$include "flowPsi.lh"
+
+namespace flowPsi {
+
+		  
+  void hllc_flux(real iflux[],
+		 real pgl, real Tl, vect3d Ul,
+		 real pgr, real Tr, vect3d Ur,
+		 vect3d an, real area,
+		 real pambient, real Rt,real gamma) {
+    real gm1 = gamma-1 ;
+    real rl = (pgl+pambient)/(Rt*Tl) ;
+    real rr = (pgr+pambient)/(Rt*Tr) ;
+    
+    real h0l = Rt*Tl*gamma/gm1 + 0.5*dot(Ul,Ul) ;
+    real h0r = Rt*Tr*gamma/gm1 + 0.5*dot(Ur,Ur) ;
+    const real e0l = h0l-Rt*Tl ;
+    const real e0r = h0r-Rt*Tr ;
+  
+    const real srl = sqrt(rl) ;          // coefficents used for
+    const real srr = sqrt(rr) ;          //  Roe averaging
+    const real roe_factor = 1./(srl+srr) ;
+
+#define RAVG(vl,vr) (((vl)*srl+(vr)*srr)*roe_factor) // Roe average
+
+    const vect3d U_ = RAVG(Ul,Ur) ;
+    const real ut_ = dot(U_,an) ; 
+
+    const real h0_ = RAVG(h0l,h0r) ;               // Roe total enthalpy
+    // Roe sound speed
+    const real a_ = sqrt(max<real>(gm1*(h0_-0.5*dot(U_,U_)),0.0)) ;
+
+    const real evl_ = (ut_ - a_) ;
+    const real evr_ = (ut_ + a_) ;
+
+    const real utla = dot(Ul,an) ;
+    const real utra = dot(Ur,an) ;
+    const real utl = utla ; 
+    const real utr = utra ; 
+    const real al2 = gamma*Rt*Tl ;
+    const real ar2 = gamma*Rt*Tr ;
+
+    // left and right wave speeds
+    real SL = min(evl_,(utl - sqrt(al2))) ;
+    real SR = max(evr_,(utr + sqrt(ar2))) ;
+
+    real lmdot = rl*utl ;
+    real rmdot = rr*utr ;
+    real pl = pgl+pambient ;
+    real pr = pgr+pambient ;
+    real coef = 0.5*area ;
+    real AL = coef*((SL > 0) ? (SR < 0 ? 1.:2.) : ( SR < 0 ? 0.:1. )) ;
+    real AR = coef*((SR < 0) ? (SL > 0 ? 1.:2.) : ( SL > 0 ? 0.:1. )) ;
+    real AM = coef*((SL > 0 || SR < 0) ? 0.:1.) ;
+
+    // Build up iflux first and F_l + F_r, 
+    iflux[0] = AL*lmdot+AR*rmdot ;
+    iflux[1] = AL*lmdot*Ul.x + AR*rmdot*Ur.x + an.x*(AL*pgl+AR*pgr) ;
+    iflux[2] = AL*lmdot*Ul.y + AR*rmdot*Ur.y + an.y*(AL*pgl+AR*pgr) ;
+    iflux[3] = AL*lmdot*Ul.z + AR*rmdot*Ur.z + an.z*(AL*pgl+AR*pgr) ;
+    iflux[4] = AL*(lmdot*e0l + pl*utla) + AR*(rmdot*e0r + pr*utra) ;
+
+
+    // subtract off SL*Ul and SR*Ur
+    iflux[0] -= AM*(SL*rl + SR*rr) ;
+    iflux[1] -= AM*(SL*rl*Ul.x + SR*rr*Ur.x) ;
+    iflux[2] -= AM*(SL*rl*Ul.y + SR*rr*Ur.y) ;
+    iflux[3] -= AM*(SL*rl*Ul.z + SR*rr*Ur.z) ;
+    iflux[4] -= AM*(SL*rl*e0l  + SR*rr*e0r) ;
+
+    // contact (middle) wave speed
+    const real SM = ((rr*utr*(SR-utr)-rl*utl*(SL-utl)+pgl-pgr)/
+		     (rr*(SR-utr)-rl*(SL-utl))) ;
+
+    // Now compute U_star_l and U_star_r
+    const real rl_star = rl*(SL-utl)/(SL-SM) ;
+    const real rr_star = rr*(SR-utr)/(SR-SM) ;
+    const real pg_star = rl*(utl-SL)*(utl-SM)+pgl ;
+    const real p_star = pg_star+pambient ;
+    const real rul_star = ((SL-utl)*rl*Ul.x + (pg_star-pgl)*an.x)/(SL-SM) ;
+    const real rvl_star = ((SL-utl)*rl*Ul.y + (pg_star-pgl)*an.y)/(SL-SM) ;
+    const real rwl_star = ((SL-utl)*rl*Ul.z + (pg_star-pgl)*an.z)/(SL-SM) ;
+    const real rur_star = ((SR-utr)*rr*Ur.x + (pg_star-pgr)*an.x)/(SR-SM) ;
+    const real rvr_star = ((SR-utr)*rr*Ur.y + (pg_star-pgr)*an.y)/(SR-SM) ;
+    const real rwr_star = ((SR-utr)*rr*Ur.z + (pg_star-pgr)*an.z)/(SR-SM) ;
+    const real re0l_star = ((SL-utl)*rl*e0l - pl*utl + p_star*SM)/(SL-SM) ;
+    const real re0r_star = ((SR-utr)*rr*e0r - pr*utr + p_star*SM)/(SR-SM) ;
+
+    const real CR = SR-abs(SM) ;
+    const real CL = SL+abs(SM) ;
+    iflux[0] += AM*(CR*rr_star   + CL*rl_star) ;
+    iflux[1] += AM*(CR*rur_star  + CL*rul_star) ;
+    iflux[2] += AM*(CR*rvr_star  + CL*rvl_star) ;
+    iflux[3] += AM*(CR*rwr_star  + CL*rwl_star) ;
+    iflux[4] += AM*(CR*re0r_star + CL*re0l_star) ;
+    
+  }
+
+  $rule pointwise(iflux <- 
+		  leftv3d(u),leftsP(temperature,Zero),
+		  leftsP(gagePressure,minPg),
+		  rightv3d(u),rightsP(temperature,Zero),
+		  rightsP(gagePressure,minPg),
+		  area,Pambient,Rtilde,gamma),
+    constraint((cl,cr)->(u,temperature,gagePressure)),
+    prelude {
+    $iflux.setVecSize(5) ;
+    } compute {
+    
+     inviscidRiemannFlux($iflux,
+			 $leftsP(gagePressure,minPg),
+			 $leftsP(temperature,Zero),
+			 $leftv3d(u),
+			 $rightsP(gagePressure,minPg),
+			 $rightsP(temperature,Zero),
+			 $rightv3d(u),
+			 $area.n,$area.sada,$Pambient,$Rtilde,$gamma) ;
+  }
+
+  
+  $rule unit(src),constraint(geom_cells) {
+    for(int i=0;i<5;++i)
+      $src[i] = 0 ;
+  }
+
+  // Inviscid flux contributions for interior faces
+  $rule apply((cl,cr)->src<-iflux)[Loci::Summation], 
+      constraint((cl,cr)->geom_cells) {
+      for(int i=0;i<5;++i)
+	$cl->$src[i] -= $iflux[i] ;
+      for(int i=0;i<5;++i)
+	$cr->$src[i] += $iflux[i] ;
+  }
+
+  // Inviscid flux contributions for boundary faces
+  $rule apply(cl->src<-iflux)[Loci::Summation],constraint(boundary_faces) {
+    for(int i=0;i<5;++i)
+      $cl->$src[i] -= $iflux[i] ;
+  }
+
+}

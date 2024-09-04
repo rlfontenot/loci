@@ -73,7 +73,7 @@ void Usage() {
        << "    where <grid> is the input file name sans the '.vog' postfix" <<endl
        << "    <ofile> is the output filename, can be .surf format or .surface format " << endl
        << "    .surf is the solidMesh format, .surface will add the node index map from surface mesh " << endl
-       << "     to volume mesh at the end of surf file. " <<endl 
+       << "     to volume mesh at the end of surf file. " <<endl
        <<  endl ;
   cout << "  Outputs: <grid>.surf/<ofile>.surf/<ofile>.surface  and <grid>.names" << endl ;
   exit(-1) ;
@@ -89,6 +89,7 @@ struct surface_info {
 
 
 void readSurfaces(string filename,
+		  vector<string> &surfnames,
 		  vector<surface_info> &surf_list,
 		  vector<vector3d<double> > &pos,
                   vector<int>& node_map) {
@@ -105,34 +106,30 @@ void readSurfaces(string filename,
   for(size_t i=0;i<boundary_ids.size();++i)
     surf_id[boundary_ids[i].first] = boundary_ids[i].second ;
 
-  hid_t input_fid ; 
+  if(surfnames.size() == 0) {
+    for(size_t i=0;i<boundary_ids.size();++i)
+      surfnames.push_back(boundary_ids[i].second) ;
+  }
+
+
+  hid_t input_fid ;
   input_fid = H5Fopen(filename.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT);
   if(input_fid <= 0) {
     cerr << "unable to open file '" << filename << "'"<< endl ;
     Usage() ;
   }
 
-#ifdef H5_USE_16_API  
-  hid_t face_g = H5Gopen(input_fid,"face_info") ;
-  // Read cluster sizes
-  hid_t dataset = H5Dopen(face_g,"cluster_sizes") ;
-#else
   hid_t face_g = H5Gopen(input_fid,"face_info",H5P_DEFAULT) ;
   // Read cluster sizes
   hid_t dataset = H5Dopen(face_g,"cluster_sizes",H5P_DEFAULT) ;
-#endif
-  
+
   hid_t dspace = H5Dget_space(dataset) ;
   hsize_t size = 0 ;
   H5Sget_simple_extent_dims(dspace,&size,NULL) ;
   vector<unsigned short> csizes(size) ;
   hsize_t dimension = size ;
   hsize_t stride = 1 ;
-#ifdef H5_INTERFACE_1_6_4
   hsize_t start = 0 ;
-#else
-  hssize_t start = 0 ;
-#endif
   hsize_t count = size ;
   H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&start,&stride,&count,NULL) ;
   int rank = 1 ;
@@ -147,11 +144,7 @@ void readSurfaces(string filename,
   H5Sclose(memspace) ;
 
   // Read in clusters and transform
-#ifdef H5_USE_16_API
-  dataset = H5Dopen(face_g,"cluster_info") ;
-#else
   dataset = H5Dopen(face_g,"cluster_info",H5P_DEFAULT) ;
-#endif
   dspace = H5Dget_space(dataset) ;
   start = 0 ;
   for(size_t c=0;c<size;++c) { // Loop over clusters
@@ -178,10 +171,10 @@ void readSurfaces(string filename,
     cl.allocate(fclust) ;
     cr.allocate(fclust) ;
     Loci::fillFaceInfo(&cluster[0],face2node,cl,cr,0) ;
-    // Now loop over faces in cluster to determine if any are boundary 
+    // Now loop over faces in cluster to determine if any are boundary
     // faces
     for(int f=0;f<nfaces;++f) {
-      if(cr[f] < 0) { // boundary face 
+      if(cr[f] < 0) { // boundary face
 	// Now check to see if we have encountered it before
 	map<int,int>::const_iterator mi = surf_lookup.find(-cr[f]) ;
 	int bc ;
@@ -231,34 +224,21 @@ void readSurfaces(string filename,
   }
 
   // read in positions
-#ifdef H5_USE_16_API
-  hid_t fi = H5Gopen(input_fid,"file_info") ;
-#else
   hid_t fi = H5Gopen(input_fid,"file_info",H5P_DEFAULT) ;
-#endif
   unsigned long numNodes = readAttributeLong(fi,"numNodes") ;
-    
+
   H5Gclose(fi) ;
 
   count = numNodes ;
 
-#ifdef H5_INTERFACE_1_6_4
     hsize_t lstart = 0 ;
-#else
-    hssize_t lstart = 0 ;
-#endif
-      
+
   // Read in pos data from file i
   vector<Loci::vector3d<double> > pos_dat(numNodes) ;
-#ifdef H5_USE_16_API
-  hid_t node_g = H5Gopen(input_fid,"node_info") ;
-  dataset = H5Dopen(node_g,"positions") ;
-#else
   hid_t node_g = H5Gopen(input_fid,"node_info",H5P_DEFAULT) ;
   dataset = H5Dopen(node_g,"positions",H5P_DEFAULT) ;
-#endif
   dspace = H5Dget_space(dataset) ;
-      
+
   H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&lstart,&stride,&count,NULL) ;
   rank = 1 ;
   dimension = count ;
@@ -281,10 +261,10 @@ void readSurfaces(string filename,
   vector<int> used(numNodes) ;
   for(size_t i=0;i<numNodes;++i)
     used[i] = 0 ;
-  
+
   int ssz = surf_list.size() ;
 
-  
+
   for(int i=0;i<ssz;++i) {
     for(size_t j=0;j<surf_list[i].trias.size();++j) {
       used[surf_list[i].trias[j][0]] = 1 ;
@@ -313,7 +293,7 @@ void readSurfaces(string filename,
 
   vector<vector3d<double> > ptmp(nnodes) ;
    node_map.resize(nnodes);
-  
+
   for(size_t i=0;i<numNodes;++i)
     {
       if(used[i] != 0){
@@ -348,7 +328,7 @@ void readSurfaces(string filename,
 
   for(int i=0;i<ssz;++i) {
     cout << "surf = " << surf_list[i].name << endl ;
-    cout << "ntrias=" << surf_list[i].trias.size() 
+    cout << "ntrias=" << surf_list[i].trias.size()
     << ",nquads=" << surf_list[i].quads.size()
     << ",ngenfs=" << surf_list[i].gen_faces.size()
          << endl;
@@ -362,9 +342,9 @@ void readSurfaces(string filename,
 void writeSurf(string filename_surf, string filename_name,
                vector<surface_info> &tmp_surf,
                vector<vector3d<double> > &tmp_p) {
-  
+
   std::ofstream ofile(filename_surf.c_str(),std::ios::out) ;
-  
+
   if(ofile.fail()) {
     cerr << "unable to open output file '" << filename_surf << "'" << endl ;
     Usage() ;
@@ -390,9 +370,9 @@ void writeSurf(string filename_surf, string filename_name,
     ofile << tmp_p[i].x << ' ' << tmp_p[i].y << ' ' << tmp_p[i].z
 	  << ' ' << normal_spacing << endl ;
   }
-  
+
   // output triangle faces
-  for(size_t i=0;i<tmp_surf.size();++i) {  
+  for(size_t i=0;i<tmp_surf.size();++i) {
     for(size_t j=0;j<tmp_surf[i].trias.size();++j)
       ofile << tmp_surf[i].trias[j][0] << ' '
 	    << tmp_surf[i].trias[j][1] << ' '
@@ -402,7 +382,7 @@ void writeSurf(string filename_surf, string filename_name,
 	    << 0 << endl ; // bc flag
   }
   // output quad faces
-  for(size_t i=0;i<tmp_surf.size();++i) {  
+  for(size_t i=0;i<tmp_surf.size();++i) {
     for(size_t j=0;j<tmp_surf[i].quads.size();++j)
       ofile << tmp_surf[i].quads[j][0] << ' '
 	    << tmp_surf[i].quads[j][1] << ' '
@@ -415,7 +395,7 @@ void writeSurf(string filename_surf, string filename_name,
   // Now write out general faces
   if(ngen > 0) {
     ofile << ngen << endl ;
-    for(size_t i=0;i<tmp_surf.size();++i) {  
+    for(size_t i=0;i<tmp_surf.size();++i) {
       for(size_t j=0;j<tmp_surf[i].gen_faces.size();++j) {
         size_t nf = tmp_surf[i].gen_faces[j].size() ;
         ofile << nf ;
@@ -438,14 +418,14 @@ void writeSurfaces(string filename,
                    vector<vector3d<double> > &pos,
                    vector<int> &node_map) {
   std::ofstream ofile(filename.c_str(),std::ios::out) ;
-  
+
   if(ofile.fail()) {
     cerr << "unable to open output file '" << filename << "'" << endl ;
     Usage() ;
   }
-  
+
   size_t  npos = pos.size();
-  
+
   ofile << npos << endl ;
   ofile.precision(14) ;
 
@@ -460,7 +440,7 @@ void writeSurfaces(string filename,
   for(size_t i = 0; i < nsurf; i++){
     ofile<<surf_list[i].name<<endl;
   }
-  for(size_t i = 0; i < nsurf; i++){ 
+  for(size_t i = 0; i < nsurf; i++){
     size_t ntris=surf_list[i].trias.size();
     size_t nquads = surf_list[i].quads.size();
     size_t ngens = surf_list[i].gen_faces.size();
@@ -471,9 +451,9 @@ void writeSurfaces(string filename,
 	    << surf_list[i].trias[j][1] << ' '
             << surf_list[i].trias[j][2] << endl;
     }
-    
+
     for(size_t j=0;j<nquads;++j){
-      
+
      ofile << surf_list[i].quads[j][0] << ' '
            << surf_list[i].quads[j][1] << ' '
            << surf_list[i].quads[j][2] << ' '
@@ -492,8 +472,8 @@ void writeSurfaces(string filename,
   for(size_t i=0;i<npos;++i) {
     ofile << node_map[i] << endl;
   }
-  ofile.close();  
-  
+  ofile.close();
+
 }
 
 
@@ -508,7 +488,7 @@ void writeSurfaces(string filename,
 //   string surface_file = "";
 //   string surf_file = "";
 //   string input_file = "";
-  
+
 //   for(int i=1;i<ac;++i) {
 //     string opt = av[i] ;
 //     bool parsed = false ;
@@ -530,48 +510,49 @@ void writeSurfaces(string filename,
 // 	parsed = true ;
 //       } else
 // 	parsed = false ;
-    
+
 //     if(!parsed) {
 //       cerr << "unable to parse command line argument '" << av[i] << "'" << endl ;
 //       Usage() ;
 //     }
 //   }
 
- 
+
 
 //   string name_file = input_file + ".names" ;
 //   string file_input = input_file + ".vog";
 //   if(surface_file=="" && surf_file=="")surf_file=input_file+".surf";
-  
-  
-  
+
+
+
 // #define DEBUG
 // #ifndef DEBUG
 //   /* Save old error handler */
 //   herr_t (*old_func)(void*) = 0;
 //   void *old_client_data = 0 ;
 //   H5Eget_auto(&old_func, &old_client_data);
-  
+
 //   /* Turn off error handling */
 //   H5Eset_auto(NULL, NULL);
 // #endif
-  
+
 //   vector<surface_info> tmp_surf ;
 //   vector<vector3d<double> > tmp_p ;
 //   readSurfaces(file_input,tmp_surf,tmp_p) ;
 
 
-  
+
 //   if(surface_file!="")writeSurfaces(surface_file, tmp_surf, tmp_p);
 //   if(surf_file!="")writeSurf(surf_file,name_file, tmp_surf, tmp_p);
 
-  
+
 
 //   Loci::Finalize();
 // }
 int main(int ac, char *av[]) {
   using Loci::entitySet ;
   using Loci::vector3d ;
+  vector<string> bclist ;
   Loci::Init(&ac, &av) ;
   if(Loci::MPI_processes > 1) {
     cerr << "vog2surf is not parallel! Run on only one processor!" << endl ;
@@ -584,7 +565,7 @@ int main(int ac, char *av[]) {
   string surface_file = "";
   string surf_file = "";
   string input_file = "";
-  
+
   for(int i=1;i<ac;++i) {
     string opt = av[i] ;
     bool parsed = false ;
@@ -606,43 +587,43 @@ int main(int ac, char *av[]) {
 	parsed = true ;
       } else
 	parsed = false ;
-    
+
     if(!parsed) {
       cerr << "unable to parse command line argument '" << av[i] << "'" << endl ;
       Usage() ;
     }
   }
 
- 
+
 
   string name_file = input_file + ".names" ;
   string file_input = input_file + ".vog";
   if(surface_file=="" && surf_file=="")surf_file=input_file+".surf";
-  
-  
-  
+
+
+
 #define H5DEBUG
 #ifndef H5DEBUG
   /* Save old error handler */
   herr_t (*old_func)(void*) = 0;
   void *old_client_data = 0 ;
   H5Eget_auto(&old_func, &old_client_data);
-  
+
   /* Turn off error handling */
   H5Eset_auto(NULL, NULL);
 #endif
-  
+
   vector<surface_info> tmp_surf ;
   vector<vector3d<double> > tmp_p ;
-   vector<int> tmp_map;
-  readSurfaces(file_input,tmp_surf,tmp_p,tmp_map) ;
+  vector<int> tmp_map;
+  readSurfaces(file_input,bclist,tmp_surf,tmp_p,tmp_map) ;
 
 
-  
+
   if(surface_file!="")writeSurfaces(surface_file, tmp_surf, tmp_p, tmp_map);
   if(surf_file!="")writeSurf(surf_file,name_file, tmp_surf, tmp_p);
 
-  
+
 
   Loci::Finalize();
 }

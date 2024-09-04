@@ -16,11 +16,11 @@
 
 
 namespace Loci {
-  
+
   /*
     hdf5PCreatFile, hdf5POpenFile and hdf5PCloseFile are replaced by hdf5CreateFile, hdf5OpenFile and hdfCloseFile. writeVOGOpen(), readVOGOpen and witeVOGOpen() can also be used.
 
-   
+
   */
 
   hid_t hdf5PCreateFile(const char *name, unsigned flags, hid_t create_id, hid_t access_id, size_t file_size_estimate,MPI_Comm comm) ;//obselete
@@ -38,7 +38,7 @@ namespace Loci {
       return 0 ;
 #else
     return H5Fopen(name,flags,access_id) ;
-#endif    
+#endif
   }
 
   inline hid_t hdf5POpenFile(const char *name, unsigned flags, hid_t access_id,
@@ -79,7 +79,7 @@ namespace Loci {
 #endif
   }
 
-  
+
   void findMapping(std::vector<int> &local_num,
                    std::vector<int> &procID,
                    entitySet read_set,
@@ -92,7 +92,7 @@ namespace Loci {
                                const std::vector<int> &local_num,
                                const std::vector<int> &procID) ;
 
-  
+
   template< class T >
   void sendData(std::vector<T>&recv_count,
                 const std::vector<int> &send_sz,
@@ -140,9 +140,9 @@ namespace Loci {
     std::vector<MPI_Status> statuslist(nreq) ;
     MPI_Waitall(nreq,&recv_Requests[0],&statuslist[0]) ;
     recv_count.swap(rbuf) ;
-    
+
   }
-  
+
   template< class T >
   void sendMultiData(std::vector<T>&recv_count,
                      const std::vector<int> &send_sz,
@@ -194,10 +194,10 @@ namespace Loci {
     std::vector<MPI_Status> statuslist(nreq) ;
     MPI_Waitall(nreq,&recv_Requests[0],&statuslist[0]) ;
     recv_count.swap(rbuf) ;
-    
+
   }
 
-  
+
   inline size_t containerSizeEstimateKb(storeRepP p) {
     entitySet dom = p->domain() ;
     int szkb = 0 ;
@@ -221,10 +221,10 @@ namespace Loci {
     return szkbtot ;
   }
 
-  
-  namespace pio{   
 
-   
+  namespace pio{
+
+
 
     template< class T > inline void writeMultiStoreS(hid_t file_id,
                                                      std::string vname,
@@ -481,7 +481,7 @@ namespace Loci {
               if(lcount != 0) {
                 static int flag = 0 ;
 
-	      
+
                 MPI_Irecv(&buffer[id][0],sizeof(T)*lcount,MPI_BYTE,k_new,0,
                           MPI_COMM_WORLD, &recv_Requests[id]) ;
 
@@ -519,7 +519,7 @@ namespace Loci {
       }
     }
 
-    
+
     template< class T > inline void writeMultiStoreS(hid_t file_id,
                                                      std::string vname,
                                                      multiStore<T> &var,
@@ -530,7 +530,7 @@ namespace Loci {
       writeMultiStoreS(file_id,vname,var_const,write_set,facts) ;
     }
   }
-    
+
   template< class T >
   inline void writeMultiStoreP(hid_t file_id, std::string vname,
                                multiStore<T> &var, entitySet write_set,
@@ -552,7 +552,7 @@ namespace Loci {
 #ifndef H5_HAVE_PARALLEL
     writeMultiStoreS(file_id,vname,var,write_set,facts) ; ;
 #else
-    
+
     //open the group
     hid_t group_id = -1 ;
     group_id = H5Gcreate(file_id,vname.c_str(),H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
@@ -718,11 +718,8 @@ namespace Loci {
       datatype = dp->get_hdf5_type() ;
       WARN(datatype<0) ;
 
-#ifdef H5_USE_16_API
-      hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT) ;
-#else
-      hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT) ;
-#endif
+      dataset = H5Dcreate(group_id,"data",datatype,
+			  dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) ;
 
       WARN(dataset<0) ;
 
@@ -811,7 +808,7 @@ namespace Loci {
     }
 #endif
   }
-  
+
   namespace pio{
     //removed inline here
     template< class T >  void readMultiStoreS(hid_t file_id,
@@ -1105,7 +1102,7 @@ namespace Loci {
       readVectorSerial(group_id,"block_schedule", block_schedule) ;
       readVectorSerial(group_id,"block_sets", block_sets) ;
     }
-    
+
     int bsize = block_schedule.size() ;
     MPI_Bcast(&bsize,1,MPI_INT,0,MPI_COMM_WORLD) ;
     if(0 != r) {
@@ -1276,10 +1273,10 @@ namespace Loci {
 #endif
   }
 
-  
 
 
-  
+
+
   template< class T >  inline void readMultiStore(hid_t file_id,
                                                   std::string vname,
                                                   multiStore<T> &var,
@@ -1294,15 +1291,15 @@ namespace Loci {
   inline void writeMultiStore(hid_t file_id, std::string vname,
                               multiStore<T> &var, entitySet write_set,
                               fact_db &facts) {
-    
-    
+
+
     if(use_parallel_io) writeMultiStoreP( file_id, vname,
                                           var, write_set,
                                           facts);
     else pio::writeMultiStoreS( file_id, vname,
                                 var, write_set,
                                 facts);
-    
+
   }
 
   template< class T >

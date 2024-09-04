@@ -21,13 +21,15 @@
 #ifndef LOCI_CONFIGURATION_INCLUDE
 #define LOCI_CONFIGURATION_INCLUDE
 
+#define DYNAMICSCHEDULING
+
 #ifdef restrict
 #undef restrict
 #endif
 
 #if defined(__GNUC__)
 
-#if defined(__clang__) 
+#if defined(__clang__)
 // clang compiler
 #define USE_MAP_FOR_HASH_MAP
 #define restrict __restrict__
@@ -105,7 +107,7 @@
 /* Sun CC compiler */
 #define USE_MAP_FOR_HASH_MAP
 #define SUN_CC
-#define restrict 
+#define restrict
 #else
 
 #define restrict
@@ -161,36 +163,6 @@
 
 #ifndef MPI_NO_CPPBIND
 #define MPI_NO_CPPBIND
-#endif
-
-#ifdef LINUX
-#if defined(__GNUC__)
-#if (__GNUC__ < 11)
-#define HAS_MALLINFO
-#endif
-#else
-#define HAS_MALLINFO
-#endif
-#endif
-
-#ifdef SPARC
-#if defined(__GNUC__)
-#if (__GNUC__ < 11)
-#define HAS_MALLINFO
-#endif
-#else
-#define HAS_MALLINFO
-#endif
-#endif
-
-#ifdef SGI
-#if defined(__GNUC__)
-#if (__GNUC__ < 11)
-#define HAS_MALLINFO
-#endif
-#else
-#define HAS_MALLINFO
-#endif
 #endif
 
 #endif

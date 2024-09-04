@@ -44,20 +44,20 @@ namespace Loci {
   extern std::ofstream debugout ;
   extern int MPI_processes;
   extern int MPI_rank ;
-  
+
   void Init(int* argc, char*** argv) ;
-  void Finalize() ; 
+  void Finalize() ;
   void Abort() ;
   size_t MPI_process_mem_avail() ;
-  
+
   dMap send_map(Map &dm, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
 
   std::vector<dMap> send_global_map(Map &attrib_data, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
   void fill_clone(storeRepP& sp, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
-  
+
   storeRepP send_clone_non(storeRepP& sp, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
   std::vector<storeRepP> send_global_clone_non(storeRepP &sp , entitySet &out_of_dom,  std::vector<entitySet> &init_ptn) ;
-  
+
   std::vector<entitySet>
   transpose_entitySet(const std::vector<entitySet>& in, MPI_Comm comm) ;
   std::vector<sequence>
@@ -65,11 +65,21 @@ namespace Loci {
 
   std::vector<entitySet> all_collect_vectors(entitySet &e,MPI_Comm comm) ;
   std::vector<entitySet> all_collect_vectors(entitySet &e) ;
+
+  entitySet all_collect_entitySet(const entitySet &e) ;
+
+  // This is equivalent to but more efficient than
+  // collectSet(entitySet iset) {
+  // dset = all_collect_entitySet(kset) ;
+  // return dset & domain
+  entitySet collectSet(const entitySet iset, const entitySet domain,
+		       MPI_Comm comm) ;
+
   int GLOBAL_OR(int b, MPI_Comm comm=MPI_COMM_WORLD) ;
   int GLOBAL_AND(int b, MPI_Comm comm=MPI_COMM_WORLD) ;
   int GLOBAL_MAX(int b, MPI_Comm comm=MPI_COMM_WORLD) ;
   int GLOBAL_MIN(int b, MPI_Comm comm=MPI_COMM_WORLD) ;
-  
+
   // We've added these back as they seem to be used
   // in the fuel cell program//from distribute.h //////
   Map distribute_global_map(Map &m, const std::vector<entitySet> &vset) ;
@@ -116,6 +126,7 @@ namespace Loci {
                std::vector<P2pCommInfo>& send,
                std::vector<P2pCommInfo>& recv) ;
 
+#ifdef DYNAMICSCHEDULING
   // given a communication structure on every process,
   // this function fulfills the data communication.
   // each process fills the "dst" store with the data that
@@ -195,7 +206,7 @@ namespace Loci {
                 const dMap* dst_unpack,
                 const entitySet& request,
                 const std::vector<entitySet>& src_ptn, MPI_Comm comm) ;
-  
+
   std::vector<entitySet>
   expand_store2(std::vector<storeRepP>& src,
                 // src also needs unpack because the "request"
@@ -209,7 +220,7 @@ namespace Loci {
                 const dMap* dst_unpack,
                 const entitySet& request,
                 const std::vector<entitySet>& src_ptn, MPI_Comm comm) ;
-  
+
   // we also need to push_store function to push the
   // contents to their originating process, to be done later
   //void
@@ -241,14 +252,15 @@ namespace Loci {
                CPTR<joiner> join_op,
                const std::vector<entitySet>& dst_ptn, MPI_Comm comm) ;
 
-  // this function provides a way to determine if an execution 
+#endif
+  // this function provides a way to determine if an execution
   // thread is the leading execution unit in the system.  for threads,
   // this is similar to determine if the calling process is ranked 0
   // in the MPI communication world.
   bool is_leading_execution();
 
   // these two functions are intended to provide a global atomic
-  // region of execution (the ideal use of them is to use the 
+  // region of execution (the ideal use of them is to use the
   // Loci preprocessor to hide these calls from the users)
   void global_atomic_region_begin();
   void global_atomic_region_end();
@@ -271,4 +283,4 @@ namespace Loci {
 
 
 #endif
- 
+

@@ -49,7 +49,8 @@ namespace Loci {
     dimension = num_intervals*2; //size of 1D Array
     if(dimension == 0) return;
     dataspace = H5Screate_simple(rank, &dimension, NULL);
-    dataset   = H5Dcreate(group_id, "Interval Set", datatype, dataspace, H5P_DEFAULT);
+    dataset   = H5Dcreate(group_id, "Interval Set", datatype, dataspace,
+			  H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT);
 
     std::vector<std::pair<T, T> > it(num_intervals);
 
@@ -74,10 +75,10 @@ namespace Loci {
     hsize_t    dimension;
     hid_t      dataset, dataspace;
 
-    H5Eset_auto (NULL, NULL);
+    H5Eset_auto (H5E_DEFAULT,NULL, NULL);
 
     eset = genIntervalSet<T>::EMPTY;
-    dataset  = H5Dopen(group_id, "Interval Set");
+    dataset  = H5Dopen(group_id, "Interval Set",H5P_DEFAULT);
     if( dataset > 0 ) {
       dataspace  = H5Dget_space(dataset);
       H5Sget_simple_extent_dims (dataspace, &dimension, NULL);
@@ -91,18 +92,16 @@ namespace Loci {
                 H5P_DEFAULT, &tmp_data[0]);
         
        eset =genIntervalSet<T>::EMPTY;
-       for(size_t i=0;i< dimension;i++){
+       for(size_t i=0;i< dimension;i+=2){
          eset |= std::pair<T, T>(T(tmp_data[i]),T(tmp_data[i+1]));
-         i++;
        }
      }else{//assume type match
        std::vector<T> data(dimension);
        H5Dread( dataset, datatype, H5S_ALL, dataspace,
                 H5P_DEFAULT, &data[0]);
        eset =genIntervalSet<T>::EMPTY;
-       for(size_t i=0;i< dimension;i++){
+       for(size_t i=0;i< dimension;i+=2){
          eset |= std::pair<T, T>(data[i],data[i+1]);
-         i++;
        }
      }
      H5Sclose(dataspace);
@@ -118,7 +117,7 @@ namespace Loci {
    hid_t vDatatype  = H5T_NATIVE_INT;
    if(sizeof(T) != sizeof(int)) vDatatype = HDF5_GENTITY_TYPE;
    hid_t vDataset   = H5Dcreate(group_id, "VecSize", vDatatype, vDataspace,
-                                H5P_DEFAULT);
+                                H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT);
    
    H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &size);
    H5Sclose( vDataspace );
@@ -129,11 +128,11 @@ namespace Loci {
     int     rank=1;
     hsize_t dimension = 1;
 
-    H5Eset_auto (NULL, NULL);
+    H5Eset_auto (H5E_DEFAULT,NULL, NULL);
 
     *size = 0;
   
-    hid_t vDataset   = H5Dopen( group_id, "VecSize");
+    hid_t vDataset   = H5Dopen( group_id, "VecSize",H5P_DEFAULT);
 
     if( vDataset > 0) {
       if(dimension == 0) return;

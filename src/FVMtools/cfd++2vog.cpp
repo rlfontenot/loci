@@ -338,7 +338,7 @@ int main(int ac, char* av[]) {
   }
 
 
-  FILE *NFP,*CFP,*BFP ;
+  FILE *NFP=0,*CFP=0,*BFP=0 ;
   int mnodes = 0 ;
   const int R = MPI_rank ;
   const int P = MPI_processes ;

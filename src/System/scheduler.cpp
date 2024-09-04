@@ -137,8 +137,9 @@ namespace Loci {
   extern bool threading_local_reduction;
   extern bool threading_chomping;
   extern bool threading_recursion;
-  extern int num_threads;  
-  // 
+  extern int num_threads;
+  extern int num_thread_blocks;
+  //
   int num_threaded_pointwise = 0;
   int num_total_pointwise = 0;
 
@@ -645,7 +646,7 @@ namespace Loci {
       cout << "This is super node: " << "SN" << levelcounter-2 << '\n' ;
       int err = system(cmd.c_str()) ;
       if(err != 0)
-	cerr << "system call returned " << err << " in call '" << cmd << "'" 
+	cerr << "system call returned " << err << " in call '" << cmd << "'"
 	     << endl ;
 
       // rm the generated "dot" file
@@ -657,66 +658,6 @@ namespace Loci {
 	     << cmd << "')" << endl ;
     }
   }
-#ifdef EXPERIMENTAL
-  // UNUSED
-  /////////////////////////////////////////////////////////////////////
-  //experimental functions
-  namespace {
-    void compare_dependency_graph(const digraph& gr1,
-                                  const digraph& gr2) {
-      ruleSet rules1 = extract_rules(gr1.get_all_vertices()) ;
-      ruleSet rules2 = extract_rules(gr2.get_all_vertices()) ;
-      ruleSet common = ruleSet(rules1 & rules2) ;
-      ruleSet only1 = ruleSet(rules1 - common) ;
-      ruleSet only2 = ruleSet(rules2 - common) ;
-      ruleSet only1d, only2d ;
-      map<rule,rule> set1, set2 ;
-      ruleSet::const_iterator ri ;
-      for(ri=only1.begin();ri!=only1.end();++ri) {
-        rule dp(*ri,time_ident()) ;
-        only1d += dp ;
-        set1[dp] = *ri ;
-      }
-      for(ri=only2.begin();ri!=only2.end();++ri) {
-        rule dp(*ri,time_ident()) ;
-        only2d += dp ;
-        set2[dp] = *ri ;
-      }
-
-      ruleSet common2 = ruleSet(only1d & only2d) ;
-      ruleSet only1_ad = ruleSet(only1d - common2) ;
-      ruleSet only2_ad = ruleSet(only2d - common2) ;
-
-      cerr << endl ;
-      cerr << "These rules are only in graph 1: {{{{{" << endl ;
-      for(ri=only1_ad.begin();ri!=only1_ad.end();++ri)
-        cerr << pretty_sig(set1[*ri]) << endl ;
-      cerr << "}}}}}" << endl << endl ;
-
-      cerr << "These rules are only in graph 2: {{{{{" << endl ;
-      for(ri=only2_ad.begin();ri!=only2_ad.end();++ri) {
-        cerr << pretty_sig(set2[*ri]) << endl ;
-      }
-      cerr << "}}}}}" << endl ;
-
-      variableSet vars1 = extract_vars(gr1.get_all_vertices()) ;
-      variableSet vars2 = extract_vars(gr2.get_all_vertices()) ;
-      variableSet vars_common = variableSet(vars1 & vars2) ;
-      variableSet vars1only = variableSet(vars1 - vars_common) ;
-      variableSet vars2only = variableSet(vars2 - vars_common) ;
-
-      cerr << "These variables are only in graph 1: {{{{{" << endl ;
-      cerr << vars1only << endl ;
-      cerr << "}}}}}" << endl << endl ;
-
-      cerr << "These variables are only in graph 2: {{{{{" << endl ;
-      cerr << vars2only << endl ;
-      cerr << "}}}}}" << endl << endl ;
-    }
-
-  }
-#endif
-
 
   void prune_graph(digraph& gr, variableSet& given,
                    const variableSet& target, fact_db& facts) {
@@ -743,22 +684,9 @@ namespace Loci {
     clean_graph(gr,given,target) ;
   }
 
-  template<class MULTIMAP>
-  void write_out_mmap(const MULTIMAP& m, char* s) {
-    ofstream o(s,std::ios::out) ;
-    for(entitySet::const_iterator ei=m.domain().begin();
-        ei!=m.domain().end();++ei) {
-      o << *ei << " --> " ;
-      for(int i=0;i<m.num_elems(*ei);++i)
-        o << m[*ei][i] << " " ;
-      o << endl ;
-    }
-    o.close() ;
-  }
-
+  extern rule_db rename_gpu_containers(fact_db  &facts,
+				       const rule_db &rdb) ;
 #define ENABLE_RELATION_GEN
-  //#define ENABLE_DYNAMIC_SCHEDULING
-  //#define ENABLE_DYNAMIC_SCHEDULING_2
   executeP create_execution_schedule(const rule_db &rdb,
                                      fact_db &facts,
                                      sched_db &scheds,
@@ -768,8 +696,13 @@ namespace Loci {
     parVars += facts.get_extensional_facts() ;
     rule_db par_rdb ;
     par_rdb = parametric_rdb(rdb,parVars) ;
+    // Not sure exactly why we need this, perhaps this is used by the
+    // dynamic execution feature?  CHEM passes quicktest without
+    // it.
     par_rdb = replace_map_constraints(facts,par_rdb) ;
 
+    // Rename gpu containers and insert
+    par_rdb = rename_gpu_containers(facts,par_rdb) ;
     ////////////////decorate the dependency graph/////////////////////
     //if(Loci::MPI_rank==0)
     //cout << "decorating dependency graph to include allocation..." << endl ;
@@ -783,28 +716,22 @@ namespace Loci {
     // then we need to perform global -> local renumbering
     if(facts.is_distributed_start()) {
       if((MPI_processes > 1))
-        get_clone(facts, rdb) ;
+        get_clone(facts, par_rdb) ;
       else
         Loci::serial_freeze(facts) ;
     } else {
       Loci::serial_freeze(facts) ;
     }
 
-#ifdef ENABLE_DYNAMIC_SCHEDULING_2
-    if(Loci::MPI_rank==0)
-      cout << "dynamic scheduling2..." << endl ;
-    dynamic_scheduling2(par_rdb,facts,target) ;
-#endif
-
     // then we can generate the dependency graph
     variableSet given = facts.get_typed_variables() ;
     if(Loci::MPI_rank==0)
       cout << "generating dependency graph..." << endl ;
 
-    
+
     stopWatch sw ;
     sw.start() ;
-	
+
     digraph gr ;
 
     given -= variable("EMPTY") ;
@@ -828,15 +755,10 @@ namespace Loci {
 	if(err != 0)
 	  cerr << "system call returned " << err << " on system('"
 	       << cmd << "')" << endl ;
-	
+
       }
     }
     ////////////////////////////////////////////////////////////////////////
-#ifdef ENABLE_DYNAMIC_SCHEDULING
-    if(Loci::MPI_rank==0)
-      cout << "dynamic scheduling..." << endl ;
-    dynamic_scheduling(gr,facts,given,target) ;
-#endif
 
     ////////////////////
     //prune_graph(gr,given,target,facts) ;
@@ -883,7 +805,7 @@ namespace Loci {
       //then that map may not have expanded enough to include necessrary existence.
       //For regular execution it won't affect the schedule but for duplication of work,
       //it is required for saving communication.
-      if(vp->RepType() == MAP) {
+      if(isMAP(vp)) {
 	if(facts.isDistributed()) {
 	  entitySet exist = scheds.variable_existence(*vi);
 	  exist = fill_entitySet(exist, facts);
@@ -891,7 +813,7 @@ namespace Loci {
 	}
       }
       if(variable(*vi).time().level_name() == "*" ) {
-	if(vp->RepType() == STORE) {
+	if(isSTORE(vp)) {
 	  ostringstream oss ;
 	  oss << "source(" <<"EMPTY"<<')' ;
 	  oss << ",target(" << *vi << ')' ;
@@ -916,13 +838,13 @@ namespace Loci {
 	  cerr << "Using default duplication policies." << endl;
 	  use_duplicate_model = false;
 	}
-	
+
 	if(use_duplicate_model) {
 	      double comm_ts, comm_tw;
 	      double comm_ts1, comm_ts2;
 	      fin >> comm_ts1 >> comm_ts2 >> comm_tw;
 	      comm_ts = comm_ts2;
-	      
+
 	      if(comm_tw < 0)
 		    comm_tw = 0;
 
@@ -938,7 +860,7 @@ namespace Loci {
 		    ts = ts2;
 		    if(tw < 0)
 			  tw = 0;
-		    
+
 		    pair<double, double> tmpModel(ts, tw);
 		    rule myRule = rule::get_rule_by_name(rule_name);
 		    if(myRule.get_info().name() == "NO_RULE") {
@@ -947,23 +869,23 @@ namespace Loci {
 		    else
 			  comp_info[myRule] = tmpModel;
 	      }
-	      scheds.add_model_info(comm_ts, comm_tw, comp_info);	
+	      scheds.add_model_info(comm_ts, comm_tw, comp_info);
 	}
       }
     }
 
     graph_compiler compile_graph(decomp, initial_vars) ;
     compile_graph.compile(facts,scheds,given,target) ;
-	
+
     Loci::debugout << "Time taken for graph processing  = "
                    << sw.stop() << "  seconds " << endl ;
 
     if(Loci::MPI_rank==0)
       cout << "existential analysis..." << endl ;
     sw.start() ;
-      
+
     compile_graph.existential_analysis(facts, scheds) ;
-      
+
     Loci::debugout << "Time taken for existential_analysis  = "
                    << sw.stop() << "  seconds " << endl ;
     ///////////////////////////////////
@@ -975,13 +897,14 @@ namespace Loci {
       }
     */
     ///////////////////////////////////
-    if(Loci::MPI_rank==0)
+    if(Loci::MPI_rank==0) {
 #ifdef PTHREADS
       if(threading_pointwise || threading_global_reduction
-         || threading_local_reduction || threading_chomping 
+         || threading_local_reduction || threading_chomping
          || threading_recursion) {
         cout << "creating multithreaded execution schedule ("
-             << num_threads << " threads per MPI process)" << endl;
+             << num_threads << " threads per MPI process, "
+             << num_thread_blocks << " blocks each)" << endl;
         cout << "--threading suitable ";
         if(threading_pointwise)
           cout << "[pointwise] ";
@@ -997,8 +920,9 @@ namespace Loci {
       } else
 #endif
         cout << "creating execution schedule..." << endl;
+    }
     sw.start() ;
-    
+
     executeP sched =  compile_graph.execution_schedule
       (facts,scheds,initial_vars) ;
     Loci::debugout << "Time taken for create execution schedule = "
@@ -1046,7 +970,7 @@ namespace Loci {
       double totalEvents ;
       double maxEvents ;
 bool operator <(const timingData &d) const {
-        return (max(accumTime.getTime(),maxTime) < 
+        return (max(accumTime.getTime(),maxTime) <
 		max(d.accumTime.getTime(),d.maxTime)) ;
       }
       timingData() : eventType(EXEC_CONTROL),totalTime(0),maxTime(0),meanTime(0),totalEvents(0),maxEvents(0) {}
@@ -1084,16 +1008,16 @@ bool operator <(const timingData &d) const {
                                double bytes);
     void accumulateDCM(const std::string& eventName,
                        long_long l1_dcm, long_long l2_dcm);
-      
+
     double getComputeTime() ;
     double getTotalTime() ;
-    
+
     void balanceAnalysis(MPI_Comm comm) ;
 
     ostream &PrintSummary(ostream &s) ;
-    
+
   } ;
-  
+
   void collectTiming::accumulateTime(const timeAccumulator &ta, executeEventType t, string eventName) {
     timingData td ;
     td.eventType =
@@ -1102,7 +1026,7 @@ bool operator <(const timingData &d) const {
     td.accumTime = ta ;
     if(!groups.empty())
       td.groupName = groups[0] ;
-    
+
     for(size_t i=1;i<groups.size();++i) {
       td.groupName += ':' ;
       td.groupName += groups[i] ;
@@ -1137,7 +1061,7 @@ bool operator <(const timingData &d) const {
 
   void collectTiming::balanceAnalysis(MPI_Comm comm)  {
     int np = 1 ;
-    int r =  0; 
+    int r =  0;
     MPI_Comm_size(comm,&np) ;
     MPI_Comm_rank(comm,&r) ;
     map<string,timingData> dataList ;
@@ -1145,7 +1069,7 @@ bool operator <(const timingData &d) const {
     std::list<timingData>::iterator  ti = timing_data.begin() ;
     // Collect timing data on this processor
     for(ti=timing_data.begin();ti!=timing_data.end();++ti) {
-      
+
       if((lp = dataList.find(ti->eventName)) != dataList.end()) {
 	debugout << "balanceAnalysis: event " << ti->eventName << " is duplicate!" << endl ;
 	lp->second.accumTime.addTime(ti->accumTime.getTime(),ti->accumTime.getEvents()) ;
@@ -1162,7 +1086,7 @@ bool operator <(const timingData &d) const {
 
     // start with process 0 as the source of entry types
     int psource = 0 ;
-    
+
     // process unprocessed data until all processors have no unprocessed
     // data
     bool processmore = false ;
@@ -1208,14 +1132,14 @@ bool operator <(const timingData &d) const {
       MPI_Allreduce(&pcandidate,&psource, 1, MPI_INT,MPI_MIN,comm) ;
 
       processmore = (psource != np) ;
-			    
+
     }  while (processmore) ;
 
     // Now that dataList is consistent across all processors, lets gather
     // data from all processors to get idea of load imbalances not visible from
     // any one processor
     int datasize = dataList.size() ;
-    
+
     vector<double> localTimes(datasize) ;
     vector<double> localEvents(datasize) ;
     int i = 0 ;
@@ -1291,14 +1215,14 @@ bool operator <(const timingData &d) const {
       double t = rti->accumTime.getTime() ;
       double e = double(rti->accumTime.getEvents()) ;
       s << " --- Local Time: " << t << " "
-        << ceil(1000.0*t/totTime)/10.0 << "% of total," 
+        << ceil(1000.0*t/totTime)/10.0 << "% of total,"
         <<  " time per entity: " << t/max(e,1.0)
         << endl ;
       double meanEvents = rti->totalEvents/double(MPI_processes) ;
       s << " === max " << rti->maxTime << ", mean = " << rti->meanTime
 	<< ", imbalance = " << 100.0*(rti->maxTime-rti->meanTime)/max(rti->meanTime,1e-10)<<"%" << endl	 ;
-      if(rti->eventType == EXEC_COMPUTATION) 
-	s << " === partition imbalance =" <<  100.0*(rti->maxEvents-meanEvents)/max(meanEvents,1.0) << "%" 
+      if(rti->eventType == EXEC_COMPUTATION)
+	s << " === partition imbalance =" <<  100.0*(rti->maxEvents-meanEvents)/max(meanEvents,1.0) << "%"
 	  << ", mean time per entity = " << rti->totalTime/max(rti->totalEvents,1.0) << endl;
 
       // DEBUG
@@ -1315,7 +1239,7 @@ bool operator <(const timingData &d) const {
         break ;
       }
       s << endl ;
-      ////////      
+      ////////
       s << "------------------------------------------------------------------------------" << endl ;
     }
 
@@ -1335,16 +1259,16 @@ bool operator <(const timingData &d) const {
         }
       if(working != "")
         groups.push_back(working) ;
-      for(size_t i=0;i<groups.size();++i) 
+      for(size_t i=0;i<groups.size();++i)
         group_times[groups[i]] += ti->accumTime.getTime() ;
     }
 
     s << "----- Time per category:" << endl ;
     for(gi=group_times.begin();gi!=group_times.end();++gi) {
       double t = gi->second ;
-      s << "Group " << gi->first << " time = " << gi->second << ", " 
+      s << "Group " << gi->first << " time = " << gi->second << ", "
         << ceil(1000.0*t/totTime)/10.0 << "% of total" << endl ;
-    }    
+    }
     s << "------------------------------------------------------------------------------" << endl ;
 
     // display the schedule memory consumption
@@ -1370,7 +1294,7 @@ bool operator <(const timingData &d) const {
       total_mem += si->bytes;
     s << "Total scheduler bean-counting memory: " << total_mem << " bytes"
       << endl;
-    
+
     std::list<schedData>::const_reverse_iterator rsi = sched_data.rbegin();
     lcnt = 10 ;
     if(verbose)
@@ -1382,7 +1306,7 @@ bool operator <(const timingData &d) const {
         << " | " << rsi->bytes << " bytes" << endl ;
       s << "------------------------------------------------------------------------------" << endl ;
     }
-    
+
 #ifdef PAPI_DEBUG
     // display the cache misses
     cache_data.sort();
@@ -1399,18 +1323,18 @@ bool operator <(const timingData &d) const {
       s << "------------------------------------------------------------------------------" << endl ;
     }
 #endif
-    
+
     return s ;
   }
-  
+
   double collectTiming::getComputeTime() {
     double totComp = 0 ;
     std::list<timingData>::const_iterator  ti = timing_data.begin() ;
     for(ti=timing_data.begin();ti!=timing_data.end();++ti)
-      if(ti->eventType==EXEC_COMPUTATION || ti->eventType == EXEC_CONTROL) 
+      if(ti->eventType==EXEC_COMPUTATION || ti->eventType == EXEC_CONTROL)
         totComp += ti->accumTime.getTime() ;
     return totComp ;
-  }  
+  }
 
   double collectTiming::getTotalTime() {
     double totComp = 0 ;
@@ -1418,8 +1342,8 @@ bool operator <(const timingData &d) const {
     for(ti=timing_data.begin();ti!=timing_data.end();++ti)
       totComp += ti->accumTime.getTime() ;
     return totComp ;
-  }  
-  
+  }
+
   // get profiling information from schedule
   class collectMemory : public collectData {
     struct spaceData {
@@ -1452,14 +1376,14 @@ bool operator <(const timingData &d) const {
     double event_count ;
   public:
     collectMemory() { event_count = 0 ; }
-      
+
     void accumulateTime(const timeAccumulator &ta, executeEventType t,
                         string eventName) ;
     void accumulateMemory(const std::string &var,
                           allocEventType t,
                           double maxMallocMemory,
                           double maxBeanMemory) ;
-      
+
     void accumulateSchedMemory(const std::string& eventName,
                                double bytes) {}
     void accumulateDCM(const std::string& eventName,
@@ -1468,12 +1392,12 @@ bool operator <(const timingData &d) const {
     double getComputeTime() ;
     double getTotalTime() ;
     ostream &PrintSummary(ostream &s) ;
-    
+
   } ;
-  
+
   void collectMemory::accumulateTime(const timeAccumulator &ta, executeEventType t, string eventName) {
   }
-  
+
   void collectMemory::accumulateMemory(const std::string &var,
                                        allocEventType t,
                                        double maxMallocMemory,
@@ -1494,7 +1418,7 @@ bool operator <(const timingData &d) const {
       variable_size[v] = var_size_info(beanMemory,event_count+create_count) ;
     }
   }
-  
+
   ostream &collectMemory::PrintSummary(ostream &s) {
     // Now scan through the data to get memory totals
     double tot_memory = 0 ;
@@ -1528,7 +1452,7 @@ bool operator <(const timingData &d) const {
     lcnt = min(int(l2.size()),lcnt) ;
     for(int i =0;i<lcnt;++i,++rti) {
       // Output variable that was allocated during max allocation
-      s << i << "- allocate var " << rti->alloc_var << " tot mem = " 
+      s << i << "- allocate var " << rti->alloc_var << " tot mem = "
         << rti->live_mem/(1024.0*1024.0) << "MB" << endl ;
       // Now sort liveset according to procesor-time product
       vector<pair<double,variable> > live_list ;
@@ -1589,7 +1513,7 @@ bool operator <(const timingData &d) const {
     if(gr.get_target_vertices() == EMPTY)
       return executeP(0) ;
 
-    
+
 //         std::string dottycmd = "dotty " ;
 //         if(Loci::MPI_rank==0) {
 //           if(show_graphs) {
@@ -1599,7 +1523,7 @@ bool operator <(const timingData &d) const {
 //             system(cmd.c_str()) ;
 //           }
 //         }
-    
+
 
     scheds.init(facts) ;
 #ifdef INTERNAL_VERBOSE
@@ -1632,7 +1556,7 @@ bool operator <(const timingData &d) const {
       //then that map may not have expanded enough to include necessrary
       //existence. For regular execution it won't affect the schedule but
       //for duplication of work, it is required for saving communication.
-      if(vp->RepType() == MAP) {
+      if(isMAP(vp)) {
 	if(facts.isDistributed()) {
 	  entitySet exist = scheds.variable_existence(*vi);
 	  exist = fill_entitySet(exist, facts);
@@ -1640,7 +1564,7 @@ bool operator <(const timingData &d) const {
 	}
       }
       if(variable(*vi).time().level_name() == "*" ) {
-	if(vp->RepType() == STORE) {
+	if(isSTORE(vp)) {
 	  ostringstream oss ;
 	  oss << "source(" <<"EMPTY"<<')' ;
 	  oss << ",target(" << *vi << ')' ;
@@ -1702,7 +1626,7 @@ bool operator <(const timingData &d) const {
                      const variableSet& query) {
     stopWatch sw ;
     sw.start() ;
-    
+
     if(MPI_rank == 0) {
       cout << "[Internal] Quering facts: " << query << endl ;
     }
@@ -1746,7 +1670,7 @@ bool operator <(const timingData &d) const {
   bool makeQuery(const rule_db &rdb, fact_db &facts,
                  const std::string& query) {
     REPORTMEM() ;
-	/*	
+	/*
 	  #ifdef USE_PAPI
 	  int perr,ev_set=PAPI_NULL;
 	  int i,ncnt,k;
@@ -1762,9 +1686,6 @@ bool operator <(const timingData &d) const {
     facts.setupDefaults(rdb) ;
     stopWatch sw ;
     sw.start() ;
-    //    timer_token execute_query_timer = new timer_token;
-    //    if(collect_perf_data)
-    //      execute_query_timer = perfAnalysis->start_timer("Execute Query");
 
     try {
       if(MPI_rank == 0) {
@@ -1849,7 +1770,7 @@ bool operator <(const timingData &d) const {
       if((perr=PAPI_start(ev_set)))
         cout<<"\nPAPI_start_event failed."<<PAPI_strerror(perr)<<"\n";
 #endif
-      
+
       */
 
       REPORTMEM() ;
@@ -1870,23 +1791,25 @@ bool operator <(const timingData &d) const {
       if(MPI_rank == 0)
         cout << "begin execution" << endl ;
 
-      if (threading_pointwise)
-        cout << "--threading " << num_threaded_pointwise
-          << "/" << num_total_pointwise << " pointwise rules" << endl;
-      if (threading_global_reduction)
-        cout << "--threading " << num_threaded_global_reduction
-          << "/" << num_total_global_reduction 
-          << " global reduction rules" << endl;
-      if (threading_local_reduction)
-        cout << "--threading " << num_threaded_local_reduction
-          << "/" << num_total_local_reduction 
-          << " local reduction rules" << endl;
-      if (threading_chomping)
-        cout << "--threading " << num_threaded_chomping
-          << "/" << num_total_chomping << " chomping rules" << endl;
-      if (threading_recursion)
-        cout << "--threading " << num_threaded_recursion
-          << "/" << num_total_recursion << " recursive rules" << endl;
+      if(MPI_rank == 0) {
+	if (threading_pointwise)
+	  cout << "--threading " << num_threaded_pointwise
+	       << "/" << num_total_pointwise << " pointwise rules" << endl;
+	if (threading_global_reduction)
+	  cout << "--threading " << num_threaded_global_reduction
+	       << "/" << num_total_global_reduction
+	       << " global reduction rules" << endl;
+	if (threading_local_reduction)
+	  cout << "--threading " << num_threaded_local_reduction
+	       << "/" << num_total_local_reduction
+	       << " local reduction rules" << endl;
+	if (threading_chomping)
+	  cout << "--threading " << num_threaded_chomping
+	       << "/" << num_total_chomping << " chomping rules" << endl;
+	if (threading_recursion)
+	  cout << "--threading " << num_threaded_recursion
+	       << "/" << num_total_recursion << " recursive rules" << endl;
+      }
 
       if(schedule_output) {
         // Save the schedule in the file schedule for reference
@@ -1921,7 +1844,7 @@ bool operator <(const timingData &d) const {
         schedule->dataCollate(memProf) ;
         memProf.PrintSummary(debugout) ;
       }
-      
+
       collectTiming timeProf ;
       schedule->dataCollate(timeProf) ;
 
@@ -1936,9 +1859,6 @@ bool operator <(const timingData &d) const {
 
       timeProf.PrintSummary(debugout) ;
 
-      REPORTMEM() ;
-      //      if(collect_perf_data)
-      //        perfAnalysis->stop_timer(execute_schedule_timer);
 
       /*
 #ifdef USE_PAPI
@@ -1980,8 +1900,8 @@ bool operator <(const timingData &d) const {
           facts.create_intensional_fact(*vi,srp) ;
         }
       }
-	  
-		
+
+
       if(profile_memory_usage) {
         Loci::debugout << "++++++++Memory Profiling Report++++++++"
                        << endl ;
@@ -2139,7 +2059,7 @@ bool operator <(const timingData &d) const {
                        << mytime << ", max = " << maxtime << endl ;
 
         mytime = ta_compute.getTime() ;
-        maxtime = 0 ;        
+        maxtime = 0 ;
         MPI_Allreduce(&mytime,&maxtime,1,MPI_DOUBLE,MPI_MAX,MPI_COMM_WORLD) ;
         Loci::debugout << "[dynamic] total compute time: "
                        << mytime << ", max = " << maxtime << endl ;
@@ -2314,17 +2234,10 @@ bool operator <(const timingData &d) const {
       cerr << "Unknown Exception Caught" << endl ;
       Loci::Abort() ;
     }
-    //	if(collect_perf_data)
-    //		perfAnalysis->stop_timer(execute_query_timer);
 
     debugout << "Time to execute query for '" << query << "' is " << sw.stop()
              << endl ;
 
-    //	if(collect_perf_data) {
-    //		if(MPI_rank == 0)
-    //			cout << "printing performance analysis data to perfAnalysis-*" << endl;
-    //		perfAnalysis->create_report();
-    //	 }
     return true ;
 
   }
