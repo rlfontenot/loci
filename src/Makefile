@@ -101,10 +101,6 @@ install: copy_config
 	$(MAKE)  -C Tools        $@
 	$(MAKE)  -C Tutorial     $@
 
-
-test:
-	cd quickTest; $(MAKE) LOCI_BASE="$(LOCI_BASE)"
-
 clean:
 	$(MAKE) -C 2dgv         $@
 	$(MAKE) -C FVMAdapt     $@
