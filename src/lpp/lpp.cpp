@@ -26,6 +26,7 @@
 #include <sstream>
 //#include <sys/timeb.h>
 #include <time.h>
+#include <vector>
 
 using std::istringstream ;
 using std::ostringstream ;
@@ -276,7 +277,7 @@ public:
   }
 } ;
 
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
 #endif
 template<class T> class templlist : public parsebase {
@@ -299,7 +300,7 @@ public:
         return s ;
       }
       if(s.peek() != ',') {
-        throw parseError("syntax error, expected comma") ;
+        throw parseError("syntax error, expected comma!") ;
       }
       s.get(); // get comma
     }
@@ -334,6 +335,7 @@ class typestuff : public parsebase {
 public:
   string name ;
   templlist<typestuff> templ_args ;
+  string scopedPostfix ;
   istream &get(istream &s) {
     parsebase::killsp(s) ;
     if(isalpha(s.peek()) || s.peek() == '_') {
@@ -347,12 +349,18 @@ public:
     } else
       throw parseError("syntax error") ;
     templ_args.get(s) ;
+    if(s.peek() == ':') {
+      char c = s.peek() ;
+      while(isalpha(c = s.peek()) || isdigit(c) || c == '_' ||  c == ':')
+        scopedPostfix += s.get() ;
+    }
     return s ;
   }
   string str() const {
     string s ;
     s+= name ;
     s+= templ_args.str() ;
+    s+= scopedPostfix ;
     return s ;
   }
   int num_lines() const {
@@ -490,7 +498,7 @@ public:
 	paren_contents += s.get() ;
 	while(s.peek() != '"') {
 	  if(s.peek() == EOF) {
-	    throw parseError("unexpected EOF parsing sting") ;
+	    throw parseError("unexpected EOF parsing string") ;
 	  }
 	  if(s.peek() == '\n' || s.peek() == '\r') {
 	    lines++ ;
