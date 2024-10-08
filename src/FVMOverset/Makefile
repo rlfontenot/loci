@@ -32,17 +32,22 @@ include $(LOCI_BASE)/Loci.conf
 JUNK = *~  core ti_files ii_files rii_files
 
 LIB_OBJS=$(OBJS:.o=_lo.o)
+FAD_OBJS=$(OBJS:.o=_FAD.o)
 
-default: $(MODULE_NAME)_m.so
+default: $(MODULE_NAME)_m.so $(MODULE_NAME)FAD_m.so
 
-all: $(MODULE_NAME)_m.so
+all: $(MODULE_NAME)_m.so $(MODULE_NAME)FAD_m.so
 
 $(MODULE_NAME)_m.so: $(LIB_OBJS)
 	$(SHARED_LD) $(SHARED_LD_FLAGS) $(MODULE_NAME)_m.so $(LIB_FLAGS) $(LIB_OBJS)
+
+$(MODULE_NAME)FAD_m.so: $(FAD_OBJS)
+	$(SHARED_LD) $(SHARED_LD_FLAGS) $(MODULE_NAME)FAD_m.so $(LIB_FLAGS) $(FAD_OBJS)
+
 FRC : 
 
 clean:
-	rm -fr $(OBJS) $(LIB_OBJS) $(MODULE_NAME)_m.so 
+	rm -fr $(OBJS) $(LIB_OBJS) $(FAD_OBJS) $(MODULE_NAME)_m.so $(MODULE_NAME)FAD_m.so 
 
 # Junk files that are created while editing and running cases
 JUNK = $(wildcard *~)  core 
@@ -50,7 +55,7 @@ JUNK = $(wildcard *~)  core
 LOCI_INTERMEDIATE_FILES = $(subst .loci,.cc, $(wildcard *.loci) )
 
 distclean: 
-	rm -fr $(OBJS) $(LIB_OBJS) $(MODULE_NAME)_m.so $(JUNK) $(LOCI_INTERMEDIATE_FILES) $(DEPEND_FILES)
+	rm -fr $(OBJS) $(LIB_OBJS) $(FAD_OBJS) $(MODULE_NAME)_m.so $(MODULE_NAME)FAD_m.so $(JUNK) $(LOCI_INTERMEDIATE_FILES) $(DEPEND_FILES)
 
 
 DEPEND_FILES=$(subst .o,.d,$(OBJS))

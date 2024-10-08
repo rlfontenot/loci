@@ -167,6 +167,9 @@ fi
 if [ ! -h fvm_m.so ]; then
   ln -s ../FVMMod/fvm_m.so fvm_m.so
 fi
+if [ ! -h fvmFAD_m.so ]; then
+  ln -s ../FVMMod/fvmFAD_m.so fvmFAD_m.so
+fi
 if [ ! -h libfvmadaptfunc.${LIB_POSTFIX} ]; then
   ln -s ../FVMAdapt/libfvmadaptfunc.${LIB_POSTFIX} libfvmadaptfunc.${LIB_POSTFIX}
 fi
@@ -175,6 +178,10 @@ if [ ! -h fvmadapt_m.so ]; then
 fi
 if [ ! -h fvmoverset_m.so ]; then
   ln -s ../FVMOverset/fvmoverset_m.so fvmoverset_m.so
+fi
+
+if [ ! -h fvmoversetFAD_m.so ]; then
+  ln -s ../FVMOverset/fvmoversetFAD_m.so fvmoversetFAD_m.so
 fi
 if [ ! ${DO_METIS_INSTALL} == 0 ]; then
     if [ ! -h libgk.${LIB_POSTFIX} ] ; then
