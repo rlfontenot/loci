@@ -18,7 +18,7 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
-#include <variable.h>
+#include <Tools/variable.h>
 
 using std::vector ;
 using std::string ;

@@ -26,8 +26,7 @@ TARGET = lpp
 
 
 # List your object files here
-#OBJS =  parsestruct.o parsebase.o parserule.o lpp.o main.o variable.o
-OBJS =  lpp.o parseLEX.o parseAST.o main.o variable.o
+OBJS =  lpp.o parseLEX.o parseAST.o main.o 
 
 
 LOCAL_LIBS =

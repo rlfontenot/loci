@@ -30,7 +30,7 @@
 #include <Tools/intervalSet.h>
 #include <Tools/cptr.h>
 #include <Tools/expr.h>
-#include <variable.h>
+#include <Tools/variable.h>
 #include <Map.h>
 #include <DMap.h>
 #include <store_rep.h>

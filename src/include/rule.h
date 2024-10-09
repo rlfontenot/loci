@@ -40,7 +40,7 @@
 
 #include <Tools/cptr.h>
 #include <Tools/expr.h>
-#include <variable.h>
+#include <Tools/variable.h>
 #include <Map.h>
 #include <parameter.h>
 #include <blackbox.h>

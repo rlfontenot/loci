@@ -24,7 +24,7 @@ using std::endl ;
 using std::cerr ;
 using std::cout ;
 
-#include "variable.h"
+#include "Tools/variable.h"
 
 // Setup for facilties for parsing and creating abstract syntax trees (AST)
 

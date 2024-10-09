@@ -38,7 +38,7 @@
 #include <fstream>
 #include <store_rep.h>
 #include <store.h>
-#include <variable.h>
+#include <Tools/variable.h>
 #include <Map_rep.h>
 #include <Map.h>
 #include <DMap.h>

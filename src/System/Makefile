@@ -30,7 +30,7 @@ include $(LOCI_BASE)/Loci.conf
 TARGET = libLoci.a #libLoci.so
 INCLUDES = -I$(LOCI_BASE)/sprng/include
 
-OBJS = Loci_version.o  Initialize.o Loci_Datatypes.o variable.o \
+OBJS = Loci_version.o  Initialize.o Loci_Datatypes.o \
        store_rep.o Map.o constraint.o DMap.o DMultiMap.o \
        rule.o fact_db.o execute.o depend_graph2.o \
        scheduler.o sched_tools.o sched_mlg.o sched_types.o \

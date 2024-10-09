@@ -293,10 +293,6 @@ for dir in $TOOLS_DIRS; do
     fi
   done
 done
-if [ ! -h $fulltarget/lpp/variable.cc ] ; then
-    echo ln -s $source/src/System/variable.cc $fulltarget/lpp/variable.cc
-    ln -s $source/src/System/variable.cc $fulltarget/lpp/variable.cc
-fi
 
 echo "Linking quickTest directory files"
 

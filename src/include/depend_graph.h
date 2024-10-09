@@ -28,7 +28,7 @@
 
 #include <Tools/digraph.h>
 #include <Tools/cptr.h>
-#include <variable.h>
+#include <Tools/variable.h>
 #include <rule.h>
 
 namespace Loci {
