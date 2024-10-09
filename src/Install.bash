@@ -39,9 +39,11 @@ fi
 cp Tools/libTools.$LIB_POSTFIX $INSTALL_PATH/lib
 cp System/libLoci.$LIB_POSTFIX $INSTALL_PATH/lib
 cp FVMMod/fvm_m.so $INSTALL_PATH/lib
+cp FVMMod/fvmFAD_m.so $INSTALL_PATH/lib
 cp FVMAdapt/fvmadapt_m.so $INSTALL_PATH/lib
 cp FVMAdapt/libfvmadaptfunc.$LIB_POSTFIX $INSTALL_PATH/lib
 cp FVMOverset/fvmoverset_m.so $INSTALL_PATH/lib
+cp FVMOverset/fvmoversetFAD_m.so $INSTALL_PATH/lib
 cp sprng/libsprng.$LIB_POSTFIX $INSTALL_PATH/lib
 
 if [ ! ${INSTALL_METIS} == 0 ]; then
