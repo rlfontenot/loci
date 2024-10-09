@@ -27,7 +27,7 @@ LOCI_COMPILE = true
 
 include $(LOCI_BASE)/Loci.conf
 
-TARGET = libLoci.a #libLoci.so
+TARGET = libLoci.$(LIB_SUFFIX)
 INCLUDES = -I$(LOCI_BASE)/sprng/include
 
 OBJS = Loci_version.o  Initialize.o Loci_Datatypes.o \
@@ -59,7 +59,7 @@ libLoci.a: $(OBJS)
 	$(RANLIB) libLoci.a
 
 LIB_OBJS=$(OBJS:.o=_lo.o)
-libLoci.so: $(LIB_OBJS) 
+libLoci.$(LIB_SUFFIX): $(LIB_OBJS) 
 	$(DYNAMIC_LD) $(DYNAMIC_LD_FLAGS) libLoci.$(LIB_SUFFIX) $(LIB_FLAGS) $(LIB_OBJS) $(PETSC_LIBS)
 
 Loci_version.o: FORCE

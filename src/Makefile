@@ -32,21 +32,14 @@ default: library lpp FVMtools FVMMod FVMAdapt FVMOverset
 
 library: shared
 
-static: Tools System
-shared: Tools/libTools.so System/libLoci.so METIS SPRNG 
+shared: Tools/libTools.$(LIB_SUFFIX) System/libLoci.$(LIB_SUFFIX) METIS SPRNG 
 
 docs:
-	cd Tutorial/docs; $(MAKE) LOCI_BASE="$(LOCI_BASE)"
+	$(MAKE) -C Tutorial/docs LOCI_BASE="$(LOCI_BASE)"
 
 install: default docs
 	INSTALL_DIR=$(INSTALL_DIR) LOCI_INSTALL_DIR=$(LOCI_INSTALL_DIR) INSTALL_METIS=$(INSTALL_METIS) bash Install.bash
 
-Tools : FRC
-	$(MAKE) -C Tools LOCI_BASE="$(LOCI_BASE)" libTools.a
-
-
-System : FRC
-	$(MAKE) -C System LOCI_BASE="$(LOCI_BASE)" libLoci.a
 
 METIS : FRC
 ifeq ($(INSTALL_METIS),1)
@@ -56,33 +49,33 @@ endif
 SPRNG : FRC
 	$(MAKE) -C sprng LOCI_BASE="$(LOCI_BASE)"
 
-Tools/libTools.so: FRC
-	$(MAKE) -C Tools LOCI_BASE="$(LOCI_BASE)" libTools.so
+Tools/libTools.$(LIB_SUFFIX): FRC
+	$(MAKE) -C Tools LOCI_BASE="$(LOCI_BASE)" libTools.$(LIB_SUFFIX)
 
-System/libLoci.so: FRC
-	$(MAKE) -C System LOCI_BASE="$(LOCI_BASE)" libLoci.so
+System/libLoci.$(LIB_SUFFIX): FRC
+	$(MAKE) -C System LOCI_BASE="$(LOCI_BASE)" libLoci.$(LIB_SUFFIX)
 
-lpp: library
+lpp: Tools/libTools.$(LIB_SUFFIX)
 	$(MAKE) -C lpp LOCI_BASE="$(LOCI_BASE)" lpp
 
 FVMtools: library lpp FVMAdapt 
 	$(MAKE) -C FVMtools LOCI_BASE="$(LOCI_BASE)" default
 FRC :
 
-FVMMod: library lpp
-	cd FVMMod; $(MAKE) LOCI_BASE="$(LOCI_BASE)" default
+FVMMod: lpp
+	$(MAKE) -C FVMMod LOCI_BASE="$(LOCI_BASE)" default
 
-FVMAdapt: library lpp
-	cd FVMAdapt; $(MAKE) LOCI_BASE="$(LOCI_BASE)" all
+FVMAdapt: lpp
+	$(MAKE) -C FVMAdapt LOCI_BASE="$(LOCI_BASE)" all
 
-FVMOverset: library lpp
-	cd FVMOverset; $(MAKE) LOCI_BASE="$(LOCI_BASE)" all
+FVMOverset: lpp
+	$(MAKE) -C FVMOverset LOCI_BASE="$(LOCI_BASE)" all
 
 JUNK =
 
 
 test:
-	cd quickTest; $(MAKE) LOCI_BASE="$(LOCI_BASE)" 
+	$(MAKE) -C quickTest LOCI_BASE="$(LOCI_BASE)" 
 
 clean:
 	rm -f $(JUNK)

@@ -24,7 +24,7 @@
 
 include $(LOCI_BASE)/Loci.conf
 
-TARGET = libTools.a libTools.so
+TARGET = libTools.$(LIB_SUFFIX)
 
 COPT = $(CC_DEBUG) $(CC_LIB_FLAGS) $(CC_OPT)
 
@@ -45,7 +45,7 @@ libTools.a: $(OBJS)
 	$(RANLIB) libTools.a
 
 LIB_OBJS=$(OBJS:.o=_lo.o)
-libTools.so: $(LIB_OBJS)
+libTools.$(LIB_SUFFIX): $(LIB_OBJS)
 	$(DYNAMIC_LD) $(DYNAMIC_LD_FLAGS) libTools.$(LIB_SUFFIX) $(LIB_FLAGS) $(LIB_OBJS)  
 
 
