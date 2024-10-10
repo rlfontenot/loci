@@ -55,17 +55,17 @@ Tools/libTools.$(LIB_SUFFIX): FRC
 System/libLoci.$(LIB_SUFFIX): FRC
 	$(MAKE) -C System LOCI_BASE="$(LOCI_BASE)" libLoci.$(LIB_SUFFIX)
 
-lpp: Tools/libTools.$(LIB_SUFFIX)
+lpp: Tools/libTools.$(LIB_SUFFIX) FRC
 	$(MAKE) -C lpp LOCI_BASE="$(LOCI_BASE)" lpp
 
-FVMtools: library lpp FVMAdapt 
+FVMtools: library lpp FVMAdapt FRC
 	$(MAKE) -C FVMtools LOCI_BASE="$(LOCI_BASE)" default
 FRC :
 
-FVMMod: lpp
+FVMMod: lpp FRC
 	$(MAKE) -C FVMMod LOCI_BASE="$(LOCI_BASE)" default
 
-FVMAdapt: lpp
+FVMAdapt: lpp FRC
 	$(MAKE) -C FVMAdapt LOCI_BASE="$(LOCI_BASE)" all
 
 FVMOverset: lpp
@@ -81,7 +81,9 @@ clean:
 	rm -f $(JUNK)
 	$(MAKE) -C Tools clean LOCI_BASE="$(LOCI_BASE)" 
 	$(MAKE) -C System clean LOCI_BASE="$(LOCI_BASE)" 
+ifeq ($(INSTALL_METIS),1)
 	$(MAKE) -C ParMetis-4.0 clean LOCI_BASE="$(LOCI_BASE)" 
+endif
 	$(MAKE) -C sprng clean LOCI_BASE="$(LOCI_BASE)" 
 	$(MAKE) -C FVMtools clean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C FVMMod clean LOCI_BASE="$(LOCI_BASE)"
@@ -94,7 +96,9 @@ distclean:
 	rm -f $(JUNK)
 	$(MAKE) -C Tools distclean LOCI_BASE="$(LOCI_BASE)" 
 	$(MAKE) -C System distclean LOCI_BASE="$(LOCI_BASE)" 
-	$(MAKE) -C ParMetis-4.0 distclean LOCI_BASE="$(LOCI_BASE)" 
+ifeq ($(INSTALL_METIS),1)
+	$(MAKE) -C ParMetis-4.0 distclean LOCI_BASE="$(LOCI_BASE)"
+endif
 	$(MAKE) -C sprng distclean LOCI_BASE="$(LOCI_BASE)" 
 	$(MAKE) -C FVMtools distclean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C FVMMod distclean LOCI_BASE="$(LOCI_BASE)"

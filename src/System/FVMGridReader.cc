@@ -60,14 +60,21 @@ using std::istringstream ;
 // RSM MOD 20181108
 // WRAP METIS in LOCI_USE_METIS
 #ifdef LOCI_USE_METIS
+#ifdef USE_SCOTCH
+#include <scotch.h>
+#endif
+#include <metis.h>
 #include <parmetis.h>
 
+#ifdef USE_SCOTCH
+typedef float metisreal_t ;
+#else
 #if REALTYPEWIDTH == 32
 typedef float metisreal_t ;
 #else
 typedef double metisreal_t ;
 #endif
-
+#endif
 
 #endif
 
@@ -2741,6 +2748,7 @@ namespace Loci {
 	
       }
       break ;
+#ifdef LOCI_USE_METIS
     case GRAPH: // METIS partition
       {
         cell_ptn = newMetisPartitionOfCells(local_cells,tmp_cl,tmp_cr,tmp_boundary_tags,cellwts) ;
@@ -2753,6 +2761,7 @@ namespace Loci {
 				  t_pos.domain()) ;
       }
       break ;
+#endif
     default: // SFC partition no weight balance
       {
 	store<int> cell_weights ;

@@ -23,19 +23,6 @@
 LD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:$LD_LIBRARY_PATH:/:/usr:/usr/local:/opt:/opt/local
 PETSC_BASE=$PETSC_DIR
 USE_PTHREADS=0
-if [ -e ParMetis-4.0/metis.h ] ; then
-INSTALL_METIS=1
-USE_METIS=1
-METIS_BASE="\$(LOCI_BASE)/ParMetis-4.0"
-METIS_LIBS="-lparmetis -lmetis -lgk"
-METIS_INCLUDE="-I\$(METIS_BASE) -DLOCI_USE_METIS"
-else
-INSTALL_METIS=0
-USE_METIS=0
-METIS_BASE=
-METIS_LIBS=
-METIS_INCLUDE=
-fi
 
 set +e
 set -u
@@ -80,6 +67,7 @@ find_lib() {
     done
 }
 
+
 OBJDIR=OBJ
 ARCH=`uname -s`
 
@@ -105,6 +93,11 @@ if [ $# -eq 0 ]; then
 fi
 
 MPI_BASE=/notselected
+
+METIS_BASE=/notselected
+METIS_LIBS=
+METIS_INCLUDE=
+USE_METIS=0
 
 while [ $# -ne 0 ]; do 
     case "$1" in
@@ -281,8 +274,10 @@ while [ $# -ne 0 ]; do
 	    OBJDIR=${tmp#--obj-dir\=}
 	    ;;
 	--nompi)
-	   NO_MPI=1
-	   ;;
+	    NO_MPI=1
+            USE_METIS=0
+            INSTALL_METIS=0
+	    ;;
 	 --help)
 	    echo "configure usage:"
 	    echo "./configure <options>"
@@ -312,26 +307,84 @@ while [ $# -ne 0 ]; do
     shift
 done
 
-if [ ${INSTALL_METIS} == 0 ] ; then
-GKLIB=""
-if [ -f ${METIS_BASE}/lib/libgk.so ] ; then
-    GKLIB="-lgk"
-fi
-if [ -f ${METIS_BASE}/lib/libgk.a ] ; then
-    GKLIB="-lgk"
-fi
-if [ -f ${METIS_BASE}/lib/libgk.dylib ] ; then
-    GKLIB="-lgk"
-fi
-if [ ${USE_METIS} == 0 ] ; then
-METIS_LIBS=""
-METIS_INCLUDE=""
-else
-METIS_LIBS="-L\$(METIS_BASE)/lib -lparmetis -lmetis $GKLIB"
-METIS_INCLUDE="-I\$(METIS_BASE)/include -DLOCI_USE_METIS"
-fi
+# if no metis was selected  and METIS is installed in Loci, then
+# setup to compile and install METIS
+if [ "$METIS_BASE" == "/notselected" ] ; then
+    if [ $NO_MPI == 1 ] ; then
+        METIS_BASE=""
+    else
+        if [ -e ParMetis-4.0/metis.h ] ; then
+            INSTALL_METIS=1
+            USE_METIS=1
+            METIS_BASE="\$(LOCI_BASE)/ParMetis-4.0"
+            METIS_LIBS="-lparmetis -lmetis -lgk"
+            METIS_INCLUDE="-I\$(METIS_BASE) -DLOCI_USE_METIS"
+        else
+            INSTALL_METIS=0
+            # here we search for possible options on METIS_BASE
+            find_lib parmetis
+            if [ $RETURN_VALUE != 0 ]; then
+                USE_METIS=1
+                METIS_BASE=${RETURN_VALUE%/lib*}
+                echo "Found ParMETIS, will use library: " ${RETURN_VALUE}
+            fi
+            find_lib scotch
+            if [ $RETURN_VALUE != 0 ]; then
+                USE_METIS=1 ;
+                METIS_BASE=${RETURN_VALUE%/lib*}
+                echo "Found PTSCOTCH METIS Compatibility library: " ${RETURN_VALUE}
+            fi
+        fi
+    fi
 fi
 
+# if Loci is not installing METIS setup METIS_LIBS and METIS_INCLUDES
+if [ $INSTALL_METIS == 0 && $USE_METIS == 1 ] ; then
+    if [ -e $METIS_BASE ] ; then
+        #figure out the metis install details
+        if [ $NO_MPI == 1 ]; then
+            USE_METIS=0
+        else
+            HAS_SCOTCH=0
+            
+            if [ -e $METIS_BASE/lib/libscotch.a ] ; then
+                HAS_SCOTCH=1
+            fi
+            if [ -e $METIS_BASE/lib/libscotch.so ] ; then
+                HAS_SCOTCH=1
+            fi
+            if [ -e $METIS_BASE/lib/libscotch.dylib ] ; then
+                HAS_SCOTCH=1
+            fi
+            if [ $HAS_SCOTCH == 1 ] ; then
+                USE_METIS=1
+                METIS_LIBS="-L\$(METIS_BASE)/lib -lscotch -lptscotch -lscotchmetisv5 -lptscotchparmetisv3 -lscotcherrexit"
+                METIS_INCLUDE="-I\$(METIS_BASE)/include -DLOCI_USE_METIS -DUSE_SCOTCH"
+            else
+                USE_METIS=1
+                GKLIB=""
+                if [ -f ${METIS_BASE}/lib/libgk.so ] ; then
+                    GKLIB="-lgk"
+                fi
+                if [ -f ${METIS_BASE}/lib/libgk.a ] ; then
+                    GKLIB="-lgk"
+                fi
+                if [ -f ${METIS_BASE}/lib/libgk.dylib ] ; then
+                    GKLIB="-lgk"
+                fi
+                METIS_LIBS="-L\$(METIS_BASE)/lib -lparmetis -lmetis $GKLIB"
+                METIS_INCLUDE="-I\$(METIS_BASE)/include -DLOCI_USE_METIS"
+            fi
+        fi
+    fi
+fi
+
+if [ $USE_METIS == 0 ] ; then
+    if [ $NO_MPI != 1 ] ; then
+        echo Graph Partitioner such as METIS will not be used.
+        echo    ** Default partitioner will use space filling curves
+    fi
+fi
 echo Setup for compiler \"$COMPILER\".
 #setup install directory
 echo INSTALL_DIR=$PREFIX > sys.conf
