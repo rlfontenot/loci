@@ -42,7 +42,7 @@ all: $(TARGET)
 
 TOOLS_LIBS = $(RPATH)$(LOCI_RPATH) -L$(LOCI_BASE)/lib -lTools -lm
 
-$(TARGET): $(OBJS) 
+$(TARGET): $(OBJS)  ../Tools/libTools.${LIB_SUFFIX}
 	$(LDBSL) -o $(TARGET) $(OBJS) $(LOCAL_LIBS) $(TOOLS_LIBS) $(LDFLAGS) $(PTHREADS_LIB)
 
 FRC : 
@@ -57,4 +57,6 @@ DEPEND_FILES=$(subst .o,.d,$(OBJS))
 
 
 #include automatically generated dependencies
+ifeq ($(filter $(MAKECMDGOALS),clean distclean ),)
 -include $(DEPEND_FILES)
+endif
