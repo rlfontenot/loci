@@ -339,7 +339,22 @@ if [ "$METIS_BASE" == "/notselected" ] ; then
 fi
 
 # if Loci is not installing METIS setup METIS_LIBS and METIS_INCLUDES
-if [ $INSTALL_METIS == 0 && $USE_METIS == 1 ] ; then
+if [ $NO_MPI == 1 ] ; then
+    INSTALL_METIS=0
+    USE_METIS=0
+    METIS_BASE=
+    METIS_INCLUDE=
+    METIS_LIBS=
+fi
+
+CHECK_METIS_CONFIG=0
+if [ $INSTALL_METIS == 0 ] ; then
+    if [ $USE_METIS == 1 ] ; then
+        CHECK_METIS_CONFIG=1
+    fi
+fi
+
+if [ $CHECK_METIS_CONFIG == 1 ] ; then
     if [ -e $METIS_BASE ] ; then
         #figure out the metis install details
         if [ $NO_MPI == 1 ]; then
