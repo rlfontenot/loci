@@ -43,9 +43,14 @@ DEPS = ../Tools/libTools.${LIB_SUFFIX} \
        ../System/libLoci.$(LIB_SUFFIX) \
        ../sprng/libsprng.$(LIB_SUFFIX)
 
+../Tools/libTools.${LIB_SUFFIX}:
+
+../System/libLoci.${LIB_SUFFIX}:
+
+../sprng/libsprng.${LIB_SUFFIX}:
+
 extract: $(OBJS) $(DEPS)
 	$(LD) -o extract $(OBJS) $(TEC360LIB) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
-
 
 libadf/libadf.a:
 	$(MAKE) -C libadf libadf.a
