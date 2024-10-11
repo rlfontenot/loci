@@ -421,7 +421,7 @@ if [ $MPI_BASE == "/notselected" ]; then
 	MPI_PATH="/usr"
     fi
     MPI_C_COMPILER=none
-    MPI_CPP_COMPILER=none
+    MPI_CXX_COMPILER=none
     MPI_F90_COMPILER=none
     
     if [ $NO_MPI_DRIVER == 0 ]; then
@@ -432,13 +432,13 @@ if [ $MPI_BASE == "/notselected" ]; then
 	    MPI_F90_COMPILER=mpif90
 	fi
 	if [ -e $MPI_PATH/mpic++ ]; then
-	    MPI_CPP_COMPILER=mpic++
+	    MPI_CXX_COMPILER=mpic++
 	else
 	    if [ -e $MPI_PATH/mpicxx ]; then
-		MPI_CPP_COMPILER=mpicxx
+		MPI_CXX_COMPILER=mpicxx
 	    else
 		if [ -e $MPI_PATH/mpiCC ]; then
-		    MPI_CPP_COMPILER=mpiCC
+		    MPI_CXX_COMPILER=mpiCC
 		fi
 	    fi
 	fi
@@ -448,7 +448,7 @@ if [ $MPI_BASE == "/notselected" ]; then
 else
     MPI_PATH=$MPI_BASE/bin
     MPI_C_COMPILER=none
-    MPI_CPP_COMPILER=none
+    MPI_CXX_COMPILER=none
     MPI_F90_COMPILER=none
     
     if [ -e $MPI_PATH/mpicc ]; then
@@ -458,13 +458,13 @@ else
 	MPI_F90_COMPILER=mpif90
     fi
     if [ -e $MPI_PATH/mpic++ ]; then
-	MPI_CPP_COMPILER=mpic++
+	MPI_CXX_COMPILER=mpic++
     else
 	if [ -e $MPI_PATH/mpicxx ]; then
-	    MPI_CPP_COMPILER=mpicxx
+	    MPI_CXX_COMPILER=mpicxx
 	else
 	    if [ -e $MPI_PATH/mpiCC ]; then
-		MPI_CPP_COMPILER=mpiCC
+		MPI_CXX_COMPILER=mpiCC
 	    fi
 	fi
     fi
@@ -508,13 +508,13 @@ if [ $NO_MPI == 1 ] ; then
     echo MPI_INCLUDE = -DMPI_STUBB -I\$\(LOCI_BASE\)/include/MPI_stubb >> sys.conf
     echo MPI_RUN = none >> sys.conf
     echo MPI_C_COMPILER = none >> sys.conf
-    echo MPI_CPP_COMPILER = none >> sys.conf
+    echo MPI_CXX_COMPILER = none >> sys.conf
     echo MPI_F90_COMPILER = none >> sys.conf
 else
     if [ "$MPI_C_COMPILER" == "none" ]; then
 	echo MPI_BASE =  $MPI_BASE >> sys.conf
 	echo MPI_LIBS =  -L$MPI_BASE/lib $MPI_LIBRARY >> sys.conf
-	echo MPI_INCLUDE = -DMPI_NO_CPPBIND -I$MPI_BASE/include  >> sys.conf
+	echo MPI_INCLUDE = -DMPI_NO_CXXBIND -I$MPI_BASE/include  >> sys.conf
 	echo MPI_RUN=$MPI_PATH/$MPIEXEC >> sys.conf
     else
 	echo MPI_BASE =  $MPI_BASE >> sys.conf
@@ -523,7 +523,7 @@ else
 	echo MPI_RUN=$MPI_PATH/$MPIEXEC >> sys.conf
     fi
     echo MPI_C_COMPILER = $MPI_C_COMPILER >> sys.conf
-    echo MPI_CPP_COMPILER = $MPI_CPP_COMPILER >> sys.conf
+    echo MPI_CXX_COMPILER = $MPI_CXX_COMPILER >> sys.conf
     echo MPI_F90_COMPILER = $MPI_F90_COMPILER >> sys.conf
     
 fi
