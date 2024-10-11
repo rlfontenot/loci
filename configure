@@ -50,20 +50,19 @@ find_exec() {
 }
 
 find_lib() {
+    SEARCHDIRS=${LD_LIBRARY_PATH}:/lib:/lib64:/usr/lib:/usr/lib64
     RETURN_VALUE=0
-    for i in ${LD_LIBRARY_PATH//:/ }; do
-	if [ -e $i/lib$1.a ]; then
-	    RETURN_VALUE=$i
-	    break;
-	fi
-	if [ -e $i/lib$1.so ]; then
-	    RETURN_VALUE=$i
-	    break ;
-	fi
-	if [ -e $i/lib$1.dylib ]; then
-	    RETURN_VALUE=$i
-	    break ;
-	fi
+    for i in ${SEARCHDIRS//:/ }; do
+        if [ -e $i ] ; then
+            #if file exists, check to see if it contains the library file
+            FILES=`ls $i | grep -F lib$1.`
+            if [ ! -z "$FILES"  ]; then
+                # found it so return the value
+#                echo SEARCHING for $1 found $FILES
+                RETURN_VALUE=$i
+                break ;
+            fi
+        fi
     done
 }
 
@@ -778,7 +777,10 @@ case "$COMPILER" in
     gcc)
     find_exec gfortran
     if [ $RETURN_VALUE != 0 ]; then
-	FORTRAN_LIBS=-lgfortran
+        find_lib gfortran
+        if [ $RETURN_VALUE != 0 ] ; then
+	    FORTRAN_LIBS=-lgfortran
+        fi
     else
 	find_exec g77
 	if [ $RETURN_VALUE != 0 ]; then
