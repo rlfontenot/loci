@@ -51,8 +51,8 @@ clean:
 
 # Junk files that are created while editing and running cases
 JUNK = $(wildcard *~)  core 
-# ".cc" files created from .loci files
-LOCI_INTERMEDIATE_FILES = $(subst .loci,.cc, $(wildcard *.loci) )
+# intermediate files created from .loci files
+LOCI_INTERMEDIATE_FILES = $(subst .loci,.$(LPP_I_SUFFIX), $(wildcard *.loci) )
 
 distclean: 
 	rm -fr $(OBJS) $(LIB_OBJS) $(FAD_OBJS) $(MODULE_NAME)_m.so $(MODULE_NAME)FAD_m.so $(JUNK) $(LOCI_INTERMEDIATE_FILES) $(DEPEND_FILES)

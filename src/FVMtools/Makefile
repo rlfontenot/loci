@@ -39,7 +39,7 @@ default: $(APPS)
 
 all: $(APPS)
 
-DEPS = ../Tools/libTools.${LIB_SUFFIX} \
+DEPS = #../Tools/libTools.${LIB_SUFFIX} \
        ../System/libLoci.$(LIB_SUFFIX) \
        ../sprng/libsprng.$(LIB_SUFFIX)
 
@@ -138,14 +138,17 @@ clean:
 	rm -fr $(OBJS) $(LIB_OBJS) $(APPS) $(JUNK) *.o
 	$(MAKE) -C libadf clean
 
-distclean: clean
-	rm -fr $(DEPEND_FILES) 
+# intermediate files created from .loci files
+LOCI_INTERMEDIATE_FILES = $(subst .loci,.$(LPP_I_SUFFIX), $(wildcard *.loci) )
+
+distclean: clean 
+	rm -fr $(DEPEND_FILES) $(LOCI_INTERMEDIATE_FILES)
 	$(MAKE) -C libadf distclean
 
 DEPEND_FILES=$(subst .o,.d,$(OBJS))
 
 
 #include automatically generated dependencies
-ifeq ($(filter $(MAKECMDGOALS),clean distclean ),)
--include $(DEPEND_FILES)
-endif
+#ifeq ($(filter $(MAKECMDGOALS),clean distclean ),)
+#-include $(DEPEND_FILES)
+#endif
