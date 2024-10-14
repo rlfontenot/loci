@@ -1,7 +1,7 @@
 
 include $(LOCI_BASE)/Loci.conf
 
-TARGET = libsprng.so
+TARGET = libsprng.$(LIB_SUFFIX)
 
 INCLUDES=-I./include -DSPRNG_MPI -DAdd_
 
@@ -14,12 +14,14 @@ SPRNG_COMMON_DEPEND = primes_32.o primes_64.o \
 OBJS = $(SPRNG_COMMON_DEPEND) sprng.o cmrg.o lcg.o lcg64.o lfg.o mlfg.o #pmlcg.o
 
 all: $(TARGET)
+
 libsprng.a: $(OBJS) 
 	$(AR) $(ARFLAGS) libsprng.a $(OBJS) 
 	$(RANLIB) libsprng.a
 
 LIB_OBJS=$(OBJS:.o=_lo.o)
-libsprng.so: $(LIB_OBJS)
+
+libsprng.$(LIB_SUFFIX): $(LIB_OBJS)
 	$(DYNAMIC_LD) $(DYNAMIC_LD_FLAGS) libsprng.$(LIB_SUFFIX) $(LIB_FLAGS) $(LIB_OBJS) 
 
 JUNK =  *~ core ii_files ti_files so_locations rii_files
@@ -27,14 +29,12 @@ JUNK =  *~ core ii_files ti_files so_locations rii_files
 clean:
 	rm -fr $(LIB_OBJS) $(OBJS) $(TARGET) $(JUNK)
 
-
 distclean:
 	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(JUNK) #$(DEPEND_FILES)
-	
 
-#DEPEND_FILES=$(subst .o,.d,$(OBJS))
-
+DEPEND_FILES=$(subst .o,.d,$(OBJS))
 
 #include automatically generated dependencies
-#-include $(DEPEND_FILES)
-# DO NOT DELETE
+ifeq ($(filter $(MAKECMDGOALS),clean distclean ),)
+-include $(DEPEND_FILES)
+endif

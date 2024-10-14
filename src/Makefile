@@ -39,11 +39,13 @@ install: default docs
 	INSTALL_DIR=$(INSTALL_DIR) LOCI_INSTALL_DIR=$(LOCI_INSTALL_DIR) INSTALL_METIS=$(INSTALL_METIS) bash Install.bash
 
 
+.PHONY: METIS
 METIS : 
 ifeq ($(INSTALL_METIS),1)
 	$(MAKE) -C ParMetis-4.0 LOCI_BASE="$(LOCI_BASE)"
 endif
 
+.PHONY : SPRNG
 SPRNG : 
 	$(MAKE) -C sprng LOCI_BASE="$(LOCI_BASE)"
 
