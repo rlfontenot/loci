@@ -30,8 +30,6 @@ MODULE_NAME = fvm
 
 include $(LOCI_BASE)/Loci.conf
 
-JUNK = *~  core ti_files ii_files rii_files
-
 LIB_OBJS=$(OBJS:.o=_lo.o)
 FAD_OBJS=$(OBJS:.o=_FAD.o)
 
@@ -45,20 +43,23 @@ $(MODULE_NAME)FAD_m.so: $(FAD_OBJS)
 
 FRC : 
 
+
+# intermediate files created from .loci files
+LOCI_INTERMEDIATE_FILES = $(subst .loci,.$(LPP_I_SUFFIX), $(wildcard *.loci) )
+
 clean:
-	rm -fr $(OBJS) $(LIB_OBJS) $(FAD_OBJS) $(MODULE_NAME)_m.so $(MODULE_NAME)FAD_m.so
+	rm -fr $(OBJS) $(LIB_OBJS) $(FAD_OBJS) $(MODULE_NAME)_m.so $(MODULE_NAME)FAD_m.so 
 
 # Junk files that are created while editing and running cases
 JUNK = $(wildcard *~)  core 
-# ".cc" files created from .loci files
-#LOCI_INTERMEDIATE_FILES = $(subst .loci,.lcc~, $(wildcard *.loci) )
 
 distclean: 
-	rm -fr $(OBJS) $(LIB_OBJS) $(FAD_OBJS) $(MODULE_NAME)_m.so $(MODULE_NAME)FAD_m.so $(JUNK) $(DEPEND_FILES)
+	rm -fr $(OBJS) $(LIB_OBJS) $(FAD_OBJS) $(MODULE_NAME)_m.so $(MODULE_NAME)FAD_m.so $(JUNK) $(DEPEND_FILES) $(LOCI_INTERMEDIATE_FILES)
 
 
 DEPEND_FILES=$(subst .o,.d,$(OBJS))
 
-
 #include automatically generated dependencies
+ifeq ($(filter $(MAKECMDGOALS),clean distclean ),)
 -include $(DEPEND_FILES)
+endif

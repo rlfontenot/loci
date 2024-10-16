@@ -50,20 +50,19 @@ find_exec() {
 }
 
 find_lib() {
+    SEARCHDIRS=${LD_LIBRARY_PATH}:/lib:/lib64:/usr/lib:/usr/lib64
     RETURN_VALUE=0
-    for i in ${LD_LIBRARY_PATH//:/ }; do
-	if [ -e $i/lib$1.a ]; then
-	    RETURN_VALUE=$i
-	    break;
-	fi
-	if [ -e $i/lib$1.so ]; then
-	    RETURN_VALUE=$i
-	    break ;
-	fi
-	if [ -e $i/lib$1.dylib ]; then
-	    RETURN_VALUE=$i
-	    break ;
-	fi
+    for i in ${SEARCHDIRS//:/ }; do
+        if [ -e $i ] ; then
+            #if file exists, check to see if it contains the library file
+            FILES=`ls $i | grep -F lib$1.`
+            if [ ! -z "$FILES"  ]; then
+                # found it so return the value
+#                echo SEARCHING for $1 found $FILES
+                RETURN_VALUE=$i
+                break ;
+            fi
+        fi
     done
 }
 
@@ -339,7 +338,22 @@ if [ "$METIS_BASE" == "/notselected" ] ; then
 fi
 
 # if Loci is not installing METIS setup METIS_LIBS and METIS_INCLUDES
-if [ $INSTALL_METIS == 0 && $USE_METIS == 1 ] ; then
+if [ $NO_MPI == 1 ] ; then
+    INSTALL_METIS=0
+    USE_METIS=0
+    METIS_BASE=
+    METIS_INCLUDE=
+    METIS_LIBS=
+fi
+
+CHECK_METIS_CONFIG=0
+if [ $INSTALL_METIS == 0 ] ; then
+    if [ $USE_METIS == 1 ] ; then
+        CHECK_METIS_CONFIG=1
+    fi
+fi
+
+if [ $CHECK_METIS_CONFIG == 1 ] ; then
     if [ -e $METIS_BASE ] ; then
         #figure out the metis install details
         if [ $NO_MPI == 1 ]; then
@@ -406,7 +420,7 @@ if [ $MPI_BASE == "/notselected" ]; then
 	MPI_PATH="/usr"
     fi
     MPI_C_COMPILER=none
-    MPI_CPP_COMPILER=none
+    MPI_CXX_COMPILER=none
     MPI_F90_COMPILER=none
     
     if [ $NO_MPI_DRIVER == 0 ]; then
@@ -417,13 +431,13 @@ if [ $MPI_BASE == "/notselected" ]; then
 	    MPI_F90_COMPILER=mpif90
 	fi
 	if [ -e $MPI_PATH/mpic++ ]; then
-	    MPI_CPP_COMPILER=mpic++
+	    MPI_CXX_COMPILER=mpic++
 	else
 	    if [ -e $MPI_PATH/mpicxx ]; then
-		MPI_CPP_COMPILER=mpicxx
+		MPI_CXX_COMPILER=mpicxx
 	    else
 		if [ -e $MPI_PATH/mpiCC ]; then
-		    MPI_CPP_COMPILER=mpiCC
+		    MPI_CXX_COMPILER=mpiCC
 		fi
 	    fi
 	fi
@@ -433,7 +447,7 @@ if [ $MPI_BASE == "/notselected" ]; then
 else
     MPI_PATH=$MPI_BASE/bin
     MPI_C_COMPILER=none
-    MPI_CPP_COMPILER=none
+    MPI_CXX_COMPILER=none
     MPI_F90_COMPILER=none
     
     if [ -e $MPI_PATH/mpicc ]; then
@@ -443,13 +457,13 @@ else
 	MPI_F90_COMPILER=mpif90
     fi
     if [ -e $MPI_PATH/mpic++ ]; then
-	MPI_CPP_COMPILER=mpic++
+	MPI_CXX_COMPILER=mpic++
     else
 	if [ -e $MPI_PATH/mpicxx ]; then
-	    MPI_CPP_COMPILER=mpicxx
+	    MPI_CXX_COMPILER=mpicxx
 	else
 	    if [ -e $MPI_PATH/mpiCC ]; then
-		MPI_CPP_COMPILER=mpiCC
+		MPI_CXX_COMPILER=mpiCC
 	    fi
 	fi
     fi
@@ -493,13 +507,13 @@ if [ $NO_MPI == 1 ] ; then
     echo MPI_INCLUDE = -DMPI_STUBB -I\$\(LOCI_BASE\)/include/MPI_stubb >> sys.conf
     echo MPI_RUN = none >> sys.conf
     echo MPI_C_COMPILER = none >> sys.conf
-    echo MPI_CPP_COMPILER = none >> sys.conf
+    echo MPI_CXX_COMPILER = none >> sys.conf
     echo MPI_F90_COMPILER = none >> sys.conf
 else
     if [ "$MPI_C_COMPILER" == "none" ]; then
 	echo MPI_BASE =  $MPI_BASE >> sys.conf
 	echo MPI_LIBS =  -L$MPI_BASE/lib $MPI_LIBRARY >> sys.conf
-	echo MPI_INCLUDE = -DMPI_NO_CPPBIND -I$MPI_BASE/include  >> sys.conf
+	echo MPI_INCLUDE = -DMPI_NO_CXXBIND -I$MPI_BASE/include  >> sys.conf
 	echo MPI_RUN=$MPI_PATH/$MPIEXEC >> sys.conf
     else
 	echo MPI_BASE =  $MPI_BASE >> sys.conf
@@ -508,7 +522,7 @@ else
 	echo MPI_RUN=$MPI_PATH/$MPIEXEC >> sys.conf
     fi
     echo MPI_C_COMPILER = $MPI_C_COMPILER >> sys.conf
-    echo MPI_CPP_COMPILER = $MPI_CPP_COMPILER >> sys.conf
+    echo MPI_CXX_COMPILER = $MPI_CXX_COMPILER >> sys.conf
     echo MPI_F90_COMPILER = $MPI_F90_COMPILER >> sys.conf
     
 fi
@@ -763,7 +777,10 @@ case "$COMPILER" in
     gcc)
     find_exec gfortran
     if [ $RETURN_VALUE != 0 ]; then
-	FORTRAN_LIBS=-lgfortran
+        find_lib gfortran
+        if [ $RETURN_VALUE != 0 ] ; then
+	    FORTRAN_LIBS=-lgfortran
+        fi
     else
 	find_exec g77
 	if [ $RETURN_VALUE != 0 ]; then

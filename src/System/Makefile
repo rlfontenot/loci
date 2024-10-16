@@ -30,7 +30,7 @@ include $(LOCI_BASE)/Loci.conf
 TARGET = libLoci.$(LIB_SUFFIX)
 INCLUDES = -I$(LOCI_BASE)/sprng/include
 
-OBJS = Loci_version.o  Initialize.o Loci_Datatypes.o \
+OBJS = Initialize.o Loci_Datatypes.o \
        store_rep.o Map.o constraint.o DMap.o DMultiMap.o \
        rule.o fact_db.o execute.o depend_graph2.o \
        scheduler.o sched_tools.o sched_mlg.o sched_types.o \
@@ -59,11 +59,10 @@ libLoci.a: $(OBJS)
 	$(RANLIB) libLoci.a
 
 LIB_OBJS=$(OBJS:.o=_lo.o)
-libLoci.$(LIB_SUFFIX): $(LIB_OBJS) 
-	$(DYNAMIC_LD) $(DYNAMIC_LD_FLAGS) libLoci.$(LIB_SUFFIX) $(LIB_FLAGS) $(LIB_OBJS) $(PETSC_LIBS)
+libLoci.$(LIB_SUFFIX): $(LIB_OBJS) Loci_version.cc
+	$(CXX) $(PIC_FLAGS) $(COPT) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) -o Loci_version_lo.o -c Loci_version.cc
+	$(DYNAMIC_LD) $(DYNAMIC_LD_FLAGS) libLoci.$(LIB_SUFFIX) $(LIB_FLAGS) $(LIB_OBJS) Loci_version_lo.o $(PETSC_LIBS)
 
-Loci_version.o: FORCE
-Loci_version_lo.o: FORCE
 
 .PHONY: FORCE
 FORCE:
@@ -72,15 +71,16 @@ JUNK =  *~ core ii_files ti_files KCC_files so_locations rii_files
 
 .PHONY: clean
 clean:
-	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(JUNK) libLoci.$(LIB_SUFFIX)
+	rm -fr $(OBJS) $(LIB_OBJS) Loci_version_lo.o $(TARGET) $(JUNK) libLoci.$(LIB_SUFFIX)
 
 .PHONY: distclean
-distclean:
-	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(JUNK) $(DEPEND_FILES) libLoci.$(LIB_SUFFIX)
+distclean: clean
+	rm -fr  $(DEPEND_FILES) 
 
 
 DEPEND_FILES=$(subst .o,.d,$(OBJS))
 
-
 #include automatically generated dependencies
+ifeq ($(filter $(MAKECMDGOALS),clean distclean ),)
 -include $(DEPEND_FILES)
+endif

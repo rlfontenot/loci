@@ -23,16 +23,14 @@ LOCI_BASE = $(shell pwd)
 LOCI_COMPILE = true
 include Loci.conf
 
-#include sys.conf
-#include comp.conf
 
 DEFINES = $(DEBUG) $(SYSTEM_DEFINES) $(MACHINE_SPECIFIC) 
 
-default: library lpp FVMtools FVMMod FVMAdapt FVMOverset
+.PHONEY: default library docs install lpp FVMtools FVMMod FVMAdapt FVMOverset
+.PHONEY: METIS SPRNG
+default: library lpp FVMtools FVMMod FVMAdapt FVMOverset METIS SPRNG
 
-library: shared
-
-shared: Tools/libTools.$(LIB_SUFFIX) System/libLoci.$(LIB_SUFFIX) METIS SPRNG 
+library: Tools/libTools.$(LIB_SUFFIX) System/libLoci.$(LIB_SUFFIX) 
 
 docs:
 	$(MAKE) -C Tutorial/docs LOCI_BASE="$(LOCI_BASE)"
@@ -41,31 +39,34 @@ install: default docs
 	INSTALL_DIR=$(INSTALL_DIR) LOCI_INSTALL_DIR=$(LOCI_INSTALL_DIR) INSTALL_METIS=$(INSTALL_METIS) bash Install.bash
 
 
-METIS : FRC
+.PHONY: METIS
+METIS : 
 ifeq ($(INSTALL_METIS),1)
 	$(MAKE) -C ParMetis-4.0 LOCI_BASE="$(LOCI_BASE)"
 endif
 
-SPRNG : FRC
+.PHONY : SPRNG
+SPRNG : 
 	$(MAKE) -C sprng LOCI_BASE="$(LOCI_BASE)"
 
-Tools/libTools.$(LIB_SUFFIX): FRC
+.PHONY: FORCE
+
+Tools/libTools.$(LIB_SUFFIX): FORCE
 	$(MAKE) -C Tools LOCI_BASE="$(LOCI_BASE)" libTools.$(LIB_SUFFIX)
 
-System/libLoci.$(LIB_SUFFIX): FRC
+System/libLoci.$(LIB_SUFFIX): FORCE
 	$(MAKE) -C System LOCI_BASE="$(LOCI_BASE)" libLoci.$(LIB_SUFFIX)
 
-lpp: Tools/libTools.$(LIB_SUFFIX) FRC
+lpp: Tools/libTools.$(LIB_SUFFIX) 
 	$(MAKE) -C lpp LOCI_BASE="$(LOCI_BASE)" lpp
 
-FVMtools: library lpp FVMAdapt FRC
+FVMtools: library lpp FVMAdapt 
 	$(MAKE) -C FVMtools LOCI_BASE="$(LOCI_BASE)" default
-FRC :
 
-FVMMod: lpp FRC
+FVMMod: lpp 
 	$(MAKE) -C FVMMod LOCI_BASE="$(LOCI_BASE)" default
 
-FVMAdapt: lpp FRC
+FVMAdapt: lpp 
 	$(MAKE) -C FVMAdapt LOCI_BASE="$(LOCI_BASE)" all
 
 FVMOverset: lpp
@@ -73,10 +74,11 @@ FVMOverset: lpp
 
 JUNK =
 
-
+.PHONY: test
 test:
 	$(MAKE) -C quickTest LOCI_BASE="$(LOCI_BASE)" 
 
+.PHONY: clean
 clean:
 	rm -f $(JUNK)
 	$(MAKE) -C Tools clean LOCI_BASE="$(LOCI_BASE)" 
@@ -92,18 +94,19 @@ endif
 	$(MAKE) -C quickTest clean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C lpp clean LOCI_BASE="$(LOCI_BASE)"
 
+.PHONY: distclean
 distclean:
 	rm -f $(JUNK)
-	$(MAKE) -C Tools distclean LOCI_BASE="$(LOCI_BASE)" 
-	$(MAKE) -C System distclean LOCI_BASE="$(LOCI_BASE)" 
 ifeq ($(INSTALL_METIS),1)
 	$(MAKE) -C ParMetis-4.0 distclean LOCI_BASE="$(LOCI_BASE)"
 endif
 	$(MAKE) -C sprng distclean LOCI_BASE="$(LOCI_BASE)" 
-	$(MAKE) -C FVMtools distclean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C FVMMod distclean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C FVMAdapt distclean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C FVMOverset distclean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C quickTest distclean LOCI_BASE="$(LOCI_BASE)"
+	$(MAKE) -C FVMtools distclean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C lpp distclean LOCI_BASE="$(LOCI_BASE)"
+	$(MAKE) -C System distclean LOCI_BASE="$(LOCI_BASE)" 
+	$(MAKE) -C Tools distclean LOCI_BASE="$(LOCI_BASE)" 
 

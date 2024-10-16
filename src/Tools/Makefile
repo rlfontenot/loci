@@ -54,12 +54,14 @@ JUNK =  *~ core ii_files ti_files KCC_files so_locations rii_files
 clean:
 	rm -fr $(LIB_OBJS) $(OBJS) $(TARGET) $(JUNK) libTools.$(LIB_SUFFIX)
 
+DEPEND_FILES=$(subst .o,.d,$(OBJS))
 
 distclean:
 	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(JUNK) $(DEPEND_FILES) libTools.$(LIB_SUFFIX)
 
-DEPEND_FILES=$(subst .o,.d,$(OBJS))
 
 
 #include automatically generated dependencies
+ifeq ($(filter $(MAKECMDGOALS),clean distclean ),)
 -include $(DEPEND_FILES)
+endif

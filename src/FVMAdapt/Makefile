@@ -128,8 +128,11 @@ FRC :
 clean:
 	rm -fr $(MODULE_OBJS)  $(LIB_OBJS) $(LIB_OBJS1) $(LIB_OBJS2) lib$(MODULE_NAME).so $(MODULE_NAME)_m.so lib$(LIB_NAME).so $(LIB_NAME)_m.so $(JUNK)
 
+# intermediate files created from .loci files
+LOCI_INTERMEDIATE_FILES = $(subst .loci,.$(LPP_I_SUFFIX), $(wildcard *.loci) )
+
 distclean: clean
-	rm -fr $(DEPEND_FILES)
+	rm -fr $(DEPEND_FILES) $(LOCI_INTERMEDIATE_FILES)
 
 DEPEND_FILES=$(subst .o,.d,$(MODULE_OBJS),$(LIB_OBJS))
 #include automatically generated dependencies
