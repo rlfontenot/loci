@@ -24,7 +24,7 @@
 #include <distribute.h>
 #include <vector>
 #include <string>
-//#define VERBOSE
+#define VERBOSE
 namespace Loci {
   using std::vector ;
   using std::string ;
@@ -96,10 +96,8 @@ namespace Loci {
     std::string tmp_str ;
     tmp_str.append(str) ;
     tmp_str.append("_m.so") ;
-    std::vector<std::string> default_ns_vec ;
     
     if((msi = mod_map.find(tmp_str)) == mod_map.end()) {
-      default_ns_vec.push_back(str) ;
       if(Loci::MPI_rank == 0)
 	cout << "Loading  in rules from  " << tmp_str << endl ;
       md.m_library = dlopen_helper(tmp_str) ;
@@ -138,14 +136,12 @@ namespace Loci {
     std::string tmp_str ;
     tmp_str.append(str) ;
     tmp_str.append("_m.so") ;
-    std::vector<std::string> default_ns_vec ;
 
 #ifdef VERBOSE
     debugout << "get_info("<< str << ","<<to_str<<","<< problem_name<<")"
              << endl ;
 #endif
     if((msi = mod_map.find(tmp_str)) == mod_map.end()) {
-      default_ns_vec.push_back(str) ;
       if(Loci::MPI_rank == 0)
 	cout << "Loading  in rules from  " << tmp_str << endl ;
       md.m_library = dlopen_helper(tmp_str) ;
@@ -241,18 +237,26 @@ namespace Loci {
     return module_rule ;
   }
 
+  ruleSet getAllRules(const rule_db &rdb) {
+    ruleSet allRules = rdb.all_rules() ;
+    allRules += rdb.get_default_rules() ;
+    allRules += rdb.get_optional_rules() ;
+    return allRules ;
+  }
+
   void load_module(const std::string from_str, std::string to_str, 
 		   rule_db& rdb, std::set<std::string> &str_set) {
 #ifdef VERBOSE
     debugout << "Calling load_module with " << from_str
              << "," << to_str << endl ;
 #endif
-    ruleSet allRules = rdb.all_rules() ;
-    allRules += rdb.get_default_rules() ;
-    allRules += rdb.get_optional_rules() ;
+    ruleSet allRules = getAllRules(rdb) ;
+
+    // load module into module_db
     std::vector<std::string> using_ns_vec ;
     str_set.insert(from_str) ;
-    mod md(from_str) ;
+    
+    mod md ;
     mod::mod_info m = md.get_info(from_str) ;
     variableSet nonamespace_vars  ;
 
@@ -332,36 +336,30 @@ namespace Loci {
   }
   
   void load_module(const std::string from_str, std::string to_str, const char* problem_name, fact_db &facts, rule_db& rdb, std::set<std::string> &str_set) { 
-    ruleSet allRules = rdb.all_rules() ;
-    allRules += rdb.get_default_rules() ;
-    allRules += rdb.get_optional_rules() ;
 #ifdef VERBOSE
     debugout << "load_module using " << from_str << "," << to_str
              << "," << problem_name << endl ;
 #endif
-    str_set.insert(from_str) ;
-    mod md(from_str, to_str, problem_name, facts) ;
-    mod::mod_info m = md.get_info(from_str, to_str, problem_name, facts) ;
-#ifdef VERBOSE
-    debugout << "after get_info" << endl ;
-#endif
-    variableSet input_vars, output_vars ;
-    std::vector<std::string> using_ns_vec ;
-    
-    variableSet nonamespace_vars  ;
-#ifdef VERBOSE
-    debugout << "unnamedVarList.size on entry to loadModule = "
-	     << unnamedVarList.size() << endl ;
-#endif
-    if(!unnamedVarList.empty())
-      nonamespace_vars = unnamedVarList.back() ;
+    ruleSet allRules = getAllRules(rdb) ;
 
+    // load module into module_db
+    std::vector<std::string> using_ns_vec ;
+    str_set.insert(from_str) ;
+
+    mod md ; 
+    mod::mod_info m = md.get_info(from_str, to_str, problem_name, facts) ;
+    variableSet nonamespace_vars  ;
+    
     Loci::register_module *module_rule = getModuleRule(m,from_str) ;
 
     if(to_str.empty() && module_rule != 0) {
       to_str = module_rule->load_nspace() ;
     }
 
+    if(!unnamedVarList.empty())
+      nonamespace_vars = unnamedVarList.back() ;
+
+    variableSet disable_compute_vars ;
     if(!to_str.empty()) {
       size_t tmp = 0 ;
       std::string sub_str = to_str ;
@@ -370,84 +368,80 @@ namespace Loci {
 	using_ns_vec.push_back(sub_str.substr(0,tmp)) ;
 	sub_str = sub_str.substr(tmp+1, sub_str.size()) ;
       }
-      for(rule_impl_list::iterator gi = m.loaded_rule_list.begin(); gi !=m.loaded_rule_list.end(); ++gi) {
-	if((gi.get_p())->rr->is_module_rule()) {
-	  //	  if(Loci::MPI_rank == 0)
-	  //	    cerr << "Module rule found in " << from_str << endl ;
-	  std::string load  =  ((Loci::register_module*)(gi.get_p()->rr))->using_nspace() ;
-	  std::vector<std::string> str_vec ;
-	  parse_str(load, str_vec) ;
-	  load = ((Loci::register_module*)(gi.get_p()->rr))->input_vars() ;
-	  input_vars = variableSet(expression::create(load)) ;
-	  load = ((Loci::register_module*)(gi.get_p()->rr))->output_vars() ;
-	  output_vars = variableSet(expression::create(load)) ;
-	  variableSet nonameset = input_vars ;
-	  nonameset += output_vars ;
-	  unnamedVarList.push_back(nonameset) ;
-	  for(size_t i = 0; i < str_vec.size(); ++i) 
-	    if(str_set.find(str_vec[i]) == str_set.end()) {
-	      if(Loci::MPI_rank == 0)
-		cout << "loading in rules from " << str_vec[i] <<"  for module " << to_str << endl ; 
-	      load_module(str_vec[i], to_str, problem_name, facts, rdb, str_set) ;
-	    }
-	  unnamedVarList.pop_back() ;
-	  nonamespace_vars += input_vars + output_vars ;
-	  break ;
-	}
+      if(module_rule != 0) {
+        std::string load  =  module_rule->using_nspace() ;
+        std::vector<std::string> str_vec ;
+        parse_str(load, str_vec) ;
+        load = module_rule->input_vars() ;
+        variableSet input_vars = variableSet(expression::create(load)) ;
+        load = module_rule->output_vars() ;
+        variableSet output_vars = variableSet(expression::create(load)) ;
+        load = module_rule->disable_compute_vars() ;
+        disable_compute_vars = variableSet(expression::create(load)) ;
+
+        variableSet nonameset = input_vars ;
+        nonameset += output_vars ;
+        unnamedVarList.push_back(nonameset) ;
+        for(size_t i = 0; i < str_vec.size(); ++i) 
+          if(str_set.find(str_vec[i]) == str_set.end()) {
+            if(Loci::MPI_rank == 0)
+              cout << "loading in rules from " << str_vec[i] <<"  for module " << to_str << endl ; 
+            load_module(str_vec[i], to_str, problem_name, facts, rdb, str_set) ;
+          }
+        unnamedVarList.pop_back() ;
+        nonamespace_vars += input_vars + output_vars ;
       }
 
       for(rule_impl_list::iterator gi = m.loaded_rule_list.begin(); gi !=m.loaded_rule_list.end(); ++gi) {
-	if(!(gi.get_p())->rr->is_module_rule()) {
-	  rule_implP rp = *gi ;
-	  variableSet vars = rp->get_var_list() ;
-	  if(!rp->is_specialized()) {
-	    if(rp->is_parametric_provided())
-	      vars += rp->get_parametric_variable() ;
-	  }
-	  std::map<variable,variable> new_vars;
-	  variableSet simpleVars, parametricVars ;
-	  simpleVars += variable("OUTPUT") ;
-	  simpleVars += variable("UNIVERSE") ;
-	  simpleVars += variable("EMPTY") ;
-	  variableSet::variableSetIterator vi ;
-	  for(vi=nonamespace_vars.begin();vi!=nonamespace_vars.end();++vi) {
-	    const vector<int> &vids = vi->v_ids;
-	    if(vids.size() == 0) {
-	      simpleVars += *vi ;
-	    } else {
-	      parametricVars += variable(vi->name) ;
-	    }
-	  }
-	  bool has_namespace = false ;
-	  for(variableSet::variableSetIterator i=vars.begin();i!=vars.end();++i) {
-	    variable v = *i ;
-	    if(v.get_namespace().size() !=0)
-	      has_namespace = true ;
-	    new_vars[v] = add_namespaceVar(v, simpleVars,parametricVars,
-					      using_ns_vec) ;
-	  }
+	if((gi.get_p())->rr->is_module_rule())
+          continue ;
+        rule_implP rp = *gi ;
+        variableSet output = rp->get_info().output_vars() ;
+        if((output&disable_compute_vars) != EMPTY)
+          continue ;
+        variableSet vars = rp->get_var_list() ;
+        if(!rp->is_specialized()) {
+          if(rp->is_parametric_provided())
+            vars += rp->get_parametric_variable() ;
+        }
+        std::map<variable,variable> new_vars;
+        variableSet simpleVars, parametricVars ;
+        simpleVars += variable("OUTPUT") ;
+        simpleVars += variable("UNIVERSE") ;
+        simpleVars += variable("EMPTY") ;
+        variableSet::variableSetIterator vi ;
+        for(vi=nonamespace_vars.begin();vi!=nonamespace_vars.end();++vi) {
+          const vector<int> &vids = vi->v_ids;
+          if(vids.size() == 0) {
+            simpleVars += *vi ;
+          } else {
+            parametricVars += variable(vi->name) ;
+          }
+        }
+        bool has_namespace = false ;
+        for(variableSet::variableSetIterator i=vars.begin();i!=vars.end();++i) {
+          variable v = *i ;
+          if(v.get_namespace().size() !=0)
+            has_namespace = true ;
+          new_vars[v] = add_namespaceVar(v, simpleVars,parametricVars,
+                                         using_ns_vec) ;
+        }
 #ifdef VERBOSE
-	  debugout << "processing " << Loci::rule(rp) << endl ;
+        debugout << "processing " << Loci::rule(rp) << endl ;
 #endif
-
-
-	  if(!has_namespace)
-	    rp->rename_vars(new_vars) ;
-	  Loci::rule newrule(rp) ;
-	  if(!allRules.inSet(newrule)) {
-	    rdb.add_rule(newrule) ;
+        if(!has_namespace)
+          rp->rename_vars(new_vars) ;
+        Loci::rule newrule(rp) ;
+        if(!allRules.inSet(newrule)) {
+          rdb.add_rule(newrule) ;
 #ifdef VERBOSE
-	    debugout << "installing " << newrule << endl ;
+          debugout << "installing " << newrule << endl ;
 #endif
-	  } else {
-	    if(has_namespace) {
-	      cerr << "warning, duplicate rule " <<newrule << endl ;
-	    }
-	  }
-	    
-
-
-	}
+        } else {
+          if(has_namespace) {
+            cerr << "warning, duplicate rule " <<newrule << endl ;
+          }
+        }
       }
     } else {
       for(rule_impl_list::iterator gi = m.loaded_rule_list.begin(); gi !=m.loaded_rule_list.end(); ++gi) {

@@ -1115,6 +1115,7 @@ namespace Loci {
     virtual std::string input_vars() const = 0 ;
     virtual std::string output_vars() const = 0 ;
     virtual std::string load_nspace() const ;
+    virtual std::string disable_compute_vars() const ;
   } ;
   
   class rule_db {
