@@ -43,6 +43,7 @@
 #include "FVMAdapt/defines.h"
 #include "FVMAdapt/dataxferDB.h"
 #include "FVMAdapt/gridInterface.h"
+#include "remap_plan_internal.h"
 #include "refinement_state_internal.h"
 
 using std::cerr;
@@ -275,6 +276,37 @@ namespace Loci {
                          const_store<vector3d<double> > &cell_center,
                          const_store<double> &vol,
                          fact_db &facts) {
+    setupRefinementMappingImpl(c2pg,volw,0,gradCells,deltas,
+                               cell_center,vol,facts) ;
+  }
+
+  void AMRrefinementMapping::
+  setupRefinementMapping(
+    const store<pair<int,int> > &c2pg,
+    const store<double> &sourceVolume,
+    const_store<vector3d<double> > &sourceCellCenter,
+    multiStore<int> &gradCells,
+    multiStore<vector3d<double> > &deltas,
+    const_store<vector3d<double> > &targetCellCenter,
+    const_store<double> &targetVolume,
+    fact_db &facts) {
+    setupRefinementMappingImpl(c2pg,sourceVolume,&sourceCellCenter,
+                               gradCells,deltas,targetCellCenter,
+                               targetVolume,facts) ;
+  }
+
+  void AMRrefinementMapping::
+  setupRefinementMappingImpl(
+    const store<pair<int,int> > &c2pg,
+    const store<double> &volw,
+    const const_store<vector3d<double> >* sourceCellCenter,
+    multiStore<int> &gradCells,
+    multiStore<vector3d<double> > &deltas,
+    const_store<vector3d<double> > &cell_center,
+    const_store<double> &vol,
+    fact_db &facts) {
+    remapPlan = static_cast<AMRRemapPlan*>(0) ;
+    remapReport = AMRRemapReport() ;
     //########################################################################
     //
     // get the geom_cells of child cells and convert to global  numbering
@@ -400,6 +432,14 @@ namespace Loci {
       p2c[i].second += cstart ;
     }
 
+    // Keep a target-owned copy for the public remap plan. getC2PGlobal()
+    // constructs c2pg from this processor's owned target cells, whereas p2c
+    // is redistributed below to the source-cell owners.
+    vector<pair<int,int> > targetSource(p2c.size()) ;
+    for(size_t i=0;i<p2c.size();++i)
+      targetSource[i] = pair<int,int>(p2c[i].second,p2c[i].first) ;
+    sort(targetSource.begin(),targetSource.end()) ;
+
 
     //########################################################################
     //
@@ -412,6 +452,20 @@ namespace Loci {
 
     sort(p2c.begin(),p2c.end()) ;
     Loci::parSplitSort(p2c,splits,MPI_COMM_WORLD) ;
+
+    store<int> sourceTargetCount ;
+    sourceTargetCount.allocate(volw.domain()) ;
+    FORALL(volw.domain(),ii) {
+      sourceTargetCount[ii] = 0 ;
+    } ENDFORALL ;
+    for(size_t i=0;i<p2c.size();) {
+      size_t end = i+1 ;
+      while(end<p2c.size() && p2c[end].first == p2c[i].first)
+        ++end ;
+      if(sourceTargetCount.domain().inSet(p2c[i].first))
+        sourceTargetCount[p2c[i].first] = int(end-i) ;
+      i = end ;
+    }
 
     //########################################################################
     //
@@ -742,6 +796,18 @@ namespace Loci {
         directWeights[k] *= rsum ;
       int cnt = j-i ;
       i+= cnt-1 ;
+    }
+
+    // A complete plan requires source centers; the legacy interpolation
+    // setup remains available without publishing incomplete geometry.
+    if(sourceCellCenter != 0) {
+      const_store<vector3d<double> > sourceCenters ;
+      sourceCenters.setRep(sourceCellCenter->Rep()) ;
+      detail::buildDistributedCellRemapPlan(
+        remapPlan,remapReport,remapSourceComm,targetSource,volw,
+        sourceCenters,sourceTargetCount,partition_parent,geom_cells_local,
+        l2g,cell_center,vol,parent,parent2child_l,vol_data,center_data,
+        MPI_COMM_WORLD) ;
     }
   }
 
