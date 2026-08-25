@@ -45,6 +45,8 @@ TestResults: test_fvmadapt_core.exe FRC
 	    exit $$status; \
 	  }
 	@echo "FVMAdaptTests/Core/test_fvmadapt_core: PASSED!" > $@
+	@$(MAKE) -C RemapPlan LOCI_BASE=$(LOCI_BASE) TEST_BASE=$(TEST_BASE)
+	@cat RemapPlan/TestResults >> $@
 	@cat $@
 
 examples: test_fvmadapt_core.exe
@@ -61,6 +63,7 @@ test_fvmadapt_core.exe: $(LOCI_BASE)/include/Config/version_info.h \
 
 clean:
 	rm -fr *.o *.exe *.d *.log *.log1 TestResults output
+	$(MAKE) -C RemapPlan LOCI_BASE=$(LOCI_BASE) TEST_BASE=$(TEST_BASE) clean
 
 distclean: clean
 
