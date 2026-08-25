@@ -26,6 +26,20 @@
 #include <memory>
 
 namespace Loci {
+  /// Components reconstructed with one limiter when a parent cell is refined.
+  ///
+  /// A common limiter preserves any linear identity already satisfied by the
+  /// parent stencil, while components omitted from every group retain the
+  /// ordinary component-wise limiting behavior. Component indices must be
+  /// unique within a group, and groups must not overlap.
+  struct AMRcomponentGroup {
+    std::vector<int> components ;
+
+    AMRcomponentGroup() {}
+    explicit AMRcomponentGroup(const std::vector<int>& componentList)
+      : components(componentList) {}
+  } ;
+
   void parallelClassifyCell(fact_db &facts) ;
 
   void createVOGNode(store<vector3d<double> > &new_pos,
@@ -131,6 +145,15 @@ namespace Loci {
     void interpolateData(storeVec<T> &parent_data,
                          storeVec<T> &child_data,
                          double limstop = 1.0) const {
+      const std::vector<AMRcomponentGroup> independentComponents ;
+      interpolateData(parent_data,child_data,independentComponents,limstop) ;
+    }
+
+    template<class T>
+    void interpolateData(storeVec<T> &parent_data,
+                         storeVec<T> &child_data,
+                         const std::vector<AMRcomponentGroup>& componentGroups,
+                         double limstop = 1.0) const {
       //########################################################################
       //
       // First interpolate to cells that resulted from splitting parent cells
@@ -147,6 +170,32 @@ namespace Loci {
       // conservative
       //
       const int vs = parent_data.vecSize() ;
+      std::vector<bool> componentIsGrouped(vs,false) ;
+      for(size_t group=0;group<componentGroups.size();++group) {
+        if(componentGroups[group].components.empty()) {
+          cerr << "AMR interpolation component groups cannot be empty"
+               << endl ;
+          Loci::Abort() ;
+        }
+        for(size_t entry=0;
+            entry<componentGroups[group].components.size();++entry) {
+          const int component = componentGroups[group].components[entry] ;
+          if(component < 0 || component >= vs) {
+            cerr << "AMR interpolation component " << component
+                 << " is outside the storeVec range [0," << vs << ')'
+                 << endl ;
+            Loci::Abort() ;
+          }
+          if(componentIsGrouped[component]) {
+            cerr << "AMR interpolation component " << component
+                 << " appears more than once in the component groups"
+                 << endl ;
+            Loci::Abort() ;
+          }
+          componentIsGrouped[component] = true ;
+        }
+      }
+
       // gather parent data needed to compute parent gradients
       storeVec<T> grad_data ;
       gradientComm.gatherData(grad_data,parent_data) ;
@@ -162,6 +211,9 @@ namespace Loci {
         refineCellDomain = interval(0,refcells-1) ;
       refineCell_data.allocate(refineCellDomain) ;
       int vsz = parent_data.vecSize() ;
+      std::vector<vector3d<double> > gradients(vsz) ;
+      std::vector<T> centerValues(vsz) ;
+      std::vector<T> componentLimiters(vsz) ;
       FORALL(parent.domain(),ii) {
         // get stencil size
         const int ssz = gradCellStencil.vec_size(ii) ;
@@ -198,12 +250,30 @@ namespace Loci {
               limi = min(limi,(min_val-Xcc)/(qdif-1e-100)) ;
           }
 
-          // reduce gradient by limiter factor
-          gradk *= limi ;
-          // compute child cell values
+          gradients[k] = gradk ;
+          centerValues[k] = Xcc ;
+          componentLimiters[k] = limi ;
+        }
+
+        // Components in a declared group use the most restrictive limiter.
+        // Since reconstruction and gradient formation are linear, this
+        // preserves linear identities already present throughout the stencil.
+        for(size_t group=0;group<componentGroups.size();++group) {
+          const std::vector<int>& components =
+            componentGroups[group].components ;
+          T groupLimiter = componentLimiters[components[0]] ;
+          for(size_t entry=1;entry<components.size();++entry)
+            groupLimiter = min(groupLimiter,
+                               componentLimiters[components[entry]]) ;
+          for(size_t entry=0;entry<components.size();++entry)
+            componentLimiters[components[entry]] = groupLimiter ;
+        }
+
+        for(int k=0;k<vsz;++k) {
+          gradients[k] *= componentLimiters[k] ;
           for(int j=0;j<child_dvs.vec_size(ii);++j) {
-            T val = Xcc + dot(vector3d<double>(gradk),
-                              child_dvs[ii][j]) ;
+            T val = centerValues[k] +
+              dot(vector3d<double>(gradients[k]),child_dvs[ii][j]) ;
             refineCell_data[parent2child_l[ii][j]][k] = val ;
           }
         }
@@ -499,6 +569,14 @@ namespace Loci {
                          storeVec<T> &child_data,
                          double limstop=1.0) const {
       interpolator->interpolateData(parent_data,child_data,limstop) ;
+    }
+    template<class T>
+    void interpolateData(storeVec<T> &parent_data,
+                         storeVec<T> &child_data,
+                         const std::vector<AMRcomponentGroup>& componentGroups,
+                         double limstop=1.0) const {
+      interpolator->interpolateData(parent_data,child_data,
+                                    componentGroups,limstop) ;
     }
     template<class T>
     void interpolateData(store<T> &parent_data,
