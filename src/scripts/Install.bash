@@ -83,6 +83,8 @@ soft_copy_dir FVMMod/fvmFAD_m.so $INSTALL_PATH/lib
 soft_copy_dir FVMMod/fvmVFAD_m.so $INSTALL_PATH/lib
 soft_copy_dir FVMAdapt/fvmadapt_m.so $INSTALL_PATH/lib
 soft_copy_dir FVMAdapt/libfvmadaptfunc.$LIB_POSTFIX $INSTALL_PATH/lib
+soft_copy_dir FVMAdapt2/fvmadapt2_m.so $INSTALL_PATH/lib
+soft_copy_dir FVMAdapt2/libfvmadapt2func.$LIB_POSTFIX $INSTALL_PATH/lib
 soft_copy_dir FVMOverset/fvmoverset_m.so $INSTALL_PATH/lib
 soft_copy_dir FVMOverset/fvmoversetFAD_m.so $INSTALL_PATH/lib
 soft_copy_dir FVMOverset/fvmoversetVFAD_m.so $INSTALL_PATH/lib
@@ -146,7 +148,7 @@ glob_soft_copy "include/*.h" $INSTALL_PATH/include
 glob_soft_copy "include/*.lh" $INSTALL_PATH/include
 soft_copy_dir include/Loci $INSTALL_PATH/include
 
-for i in  Tools Config MPI_stubb FVMAdapt FVMOverset FVMMod; do
+for i in  Tools Config MPI_stubb FVMAdapt FVMAdapt2 FVMOverset FVMMod; do
     mkdir -p $INSTALL_PATH/include/$i
     glob_soft_copy "include/$i/*.h" $INSTALL_PATH/include/$i
 done
@@ -154,6 +156,7 @@ soft_copy_dir include/FVMOverset/overset $INSTALL_PATH/include/FVMOverset
 glob_soft_copy "include/FVMOverset/*.lh" $INSTALL_PATH/include/FVMOverset
 glob_soft_copy "include/FVMMod/*.lh" $INSTALL_PATH/include/FVMMod
 glob_soft_copy "include/FVMAdapt/*.lh" $INSTALL_PATH/include/FVMAdapt
+glob_soft_copy "include/FVMAdapt2/*.lh" $INSTALL_PATH/include/FVMAdapt2
 
 mkdir -p $INSTALL_PATH/docs
 mkdir -p $INSTALL_PATH/docs/1D-Diffusion

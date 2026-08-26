@@ -115,7 +115,7 @@ if [ ${target:0:1} != "/" ]; then
    echo setting target to \'$target\'
 fi
 
-TARGET_DIRS="Tools System lpp FVMtools FVMMod FVMAdapt FVMOverset sprng include scripts"
+TARGET_DIRS="Tools System lpp FVMtools FVMMod FVMAdapt FVMAdapt2 FVMOverset sprng include scripts"
 echo -n "Making Directory Structure: "
 mkdir -p $target
 
@@ -256,6 +256,12 @@ if [ ! -h libfvmadaptfunc.${LIB_POSTFIX} ]; then
 fi
 if [ ! -h fvmadapt_m.so ]; then
   ln -s ../FVMAdapt/fvmadapt_m.so fvmadapt_m.so
+fi
+if [ ! -h libfvmadapt2func.${LIB_POSTFIX} ]; then
+  ln -s ../FVMAdapt2/libfvmadapt2func.${LIB_POSTFIX} libfvmadapt2func.${LIB_POSTFIX}
+fi
+if [ ! -h fvmadapt2_m.so ]; then
+  ln -s ../FVMAdapt2/fvmadapt2_m.so fvmadapt2_m.so
 fi
 if [ ! -h fvmoverset_m.so ]; then
   ln -s ../FVMOverset/fvmoverset_m.so fvmoverset_m.so

@@ -29,10 +29,10 @@ DEFINES = $(DEBUG) $(SYSTEM_DEFINES) $(MACHINE_SPECIFIC)
 
 .PHONY: default install uninstall clean distclean test testclean
 .PHONY: docs docs-clean docs-distclean 
-.PHONY: library lpp FVMtools FVMMod FVMAdapt FVMOverset
+.PHONY: library lpp FVMtools FVMMod FVMAdapt FVMAdapt2 FVMOverset
 .PHONY: METIS SPRNG FORCE
 
-default: library lpp FVMtools FVMMod FVMAdapt FVMOverset METIS SPRNG
+default: library lpp FVMtools FVMMod FVMAdapt FVMAdapt2 FVMOverset METIS SPRNG
 
 library: Tools/libTools.$(LIB_SUFFIX) System/libLoci.$(LIB_SUFFIX)
 
@@ -105,6 +105,9 @@ FVMMod: lpp FORCE
 FVMAdapt: lpp FORCE
 	$(MAKE) -C FVMAdapt LOCI_BASE="$(LOCI_BASE)" all
 
+FVMAdapt2: lpp FORCE
+	$(MAKE) -C FVMAdapt2 LOCI_BASE="$(LOCI_BASE)" all
+
 FVMOverset: lpp FORCE
 	$(MAKE) -C FVMOverset LOCI_BASE="$(LOCI_BASE)" all
 
@@ -129,6 +132,7 @@ endif
 	$(MAKE) -C FVMtools clean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C FVMMod clean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C FVMAdapt clean LOCI_BASE="$(LOCI_BASE)"
+	$(MAKE) -C FVMAdapt2 clean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C FVMOverset clean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C quickTest clean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C lpp clean LOCI_BASE="$(LOCI_BASE)"
@@ -152,6 +156,7 @@ endif
 	$(MAKE) -C sprng uninstall LOCI_BASE="$(LOCI_BASE)" LOCI_INSTALL_PATH="$(LOCI_INSTALL_PATH)"
 	$(MAKE) -C FVMMod uninstall LOCI_BASE="$(LOCI_BASE)" LOCI_INSTALL_PATH="$(LOCI_INSTALL_PATH)"
 	$(MAKE) -C FVMAdapt uninstall LOCI_BASE="$(LOCI_BASE)" LOCI_INSTALL_PATH="$(LOCI_INSTALL_PATH)"
+	$(MAKE) -C FVMAdapt2 uninstall LOCI_BASE="$(LOCI_BASE)" LOCI_INSTALL_PATH="$(LOCI_INSTALL_PATH)"
 	$(MAKE) -C FVMOverset uninstall LOCI_BASE="$(LOCI_BASE)" LOCI_INSTALL_PATH="$(LOCI_INSTALL_PATH)"
 	$(MAKE) -C FVMtools uninstall LOCI_BASE="$(LOCI_BASE)" LOCI_INSTALL_PATH="$(LOCI_INSTALL_PATH)"
 	$(MAKE) -C lpp uninstall LOCI_BASE="$(LOCI_BASE)" LOCI_INSTALL_PATH="$(LOCI_INSTALL_PATH)"
@@ -173,6 +178,7 @@ endif
 	$(MAKE) -C sprng distclean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C FVMMod distclean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C FVMAdapt distclean LOCI_BASE="$(LOCI_BASE)"
+	$(MAKE) -C FVMAdapt2 distclean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C FVMOverset distclean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C quickTest distclean LOCI_BASE="$(LOCI_BASE)"
 	$(MAKE) -C FVMtools distclean LOCI_BASE="$(LOCI_BASE)"

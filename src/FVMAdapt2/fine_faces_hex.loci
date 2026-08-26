@@ -1,0 +1,408 @@
+//#############################################################################
+//#
+//# Copyright 2008-2025, Mississippi State University
+//#
+//# This file is part of the Loci Framework.
+//#
+//# The Loci Framework is free software: you can redistribute it and/or modify
+//# it under the terms of the Lesser GNU General Public License as published by
+//# the Free Software Foundation, either version 3 of the License, or
+//# (at your option) any later version.
+//#
+//# The Loci Framework is distributed in the hope that it will be useful,
+//# but WITHOUT ANY WARRANTY; without even the implied warranty of
+//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//# Lesser GNU General Public License for more details.
+//#
+//# You should have received a copy of the Lesser GNU General Public License
+//# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
+//#
+//#############################################################################
+#include <iostream>
+#include <vector>
+#include <Loci.h>
+#include <Tools/tools.h>
+#include "hexcell.h"
+
+$include "FVM.lh"
+$include "fvmadapt_internal.lh"
+
+using std::cerr ;
+using std::endl ;
+using std::vector ;
+
+//by: Qiuhan Xue
+//
+// This file generate  fine_faces according refinement plans. The
+// original grid is hexcell element. Anisotropic refinement is used. the rules should be
+// used After node_offset and cell_offset has been set up.
+// FineFaces is defined as c1, c2,followed by face2node.
+
+
+/// Get fine_faces of hex cells
+$rule pointwise(fine_faces_cell <- balancedCellPlan,
+balanced_node_offset, balanced_cell_offset,
+hex2face, hex2node, hexOrientCode,
+(lower, upper, boundary_map)->(balancedFacePlan, fileNumber(face2node),
+                               balanced_node_offset),
+(lower, upper, boundary_map)->face2edge->(balancedEdgePlan,
+                                          balanced_node_offset),
+(lower, upper, boundary_map)->face2node->(pos, fileNumber(pos)),
+(lower, upper, boundary_map)->face2edge->edge2node->(pos, fileNumber(pos))),
+constraint(hexcells) {
+
+  if($balancedCellPlan.size() == 0) {
+    vector<vector<int> >().swap($fine_faces_cell) ;
+    return ;
+  }
+
+  std::list<Node*> bnode_list ; //boundary node
+  std::list<Edge*> edge_list ;
+  std::list<QuadFace*> face_list ;
+  std::list<Node*> node_list ; //inner node
+  int c1, c2 ;
+
+  // Build a Cell
+  HexCell* aCell = build_hex_cell($lower.begin(), $lower.size(),
+                                  $upper.begin(), $upper.size(),
+                                  $boundary_map.begin(), $boundary_map.size(),
+                                  $hex2face,
+                                  $hex2node,
+                                  $hexOrientCode,
+                                  $*face2node,
+                                  $*face2edge,
+                                  $*edge2node,
+                                  $*pos,
+                                  $*balancedEdgePlan,
+                                  $*balancedFacePlan,
+                                  $*balanced_node_offset,
+                                  $*fileNumber(face2node),
+                                  $*fileNumber(pos),
+                                  bnode_list,
+                                  edge_list,
+                                  face_list);
+
+  std::vector<HexCell*> cells ;
+
+  aCell->resplit($balancedCellPlan, node_list, edge_list, face_list, cells) ;
+
+  // Index the nodes
+  int nindex = 0 ;
+  for(std::list<Node*>::const_iterator np = node_list.begin(); np!= node_list.end(); np++, nindex++) {
+    (*np)->index = $balanced_node_offset + nindex ;
+  }
+
+  // set up inner faces
+  std::map<QuadFace*, NeibIndex> inner_faces ;
+  set_hex_faces(cells,inner_faces) ;
+
+  // put inner faces into fine_faces[cc]
+  std::vector<std::vector<int> >(inner_faces.size()).swap($fine_faces_cell) ;
+
+  int fptr = 0 ;
+  for(std::map<QuadFace*, NeibIndex>::const_iterator pf = inner_faces.begin();
+      pf != inner_faces.end(); pf++,fptr++) {
+
+    // face2node is store in faceVertex
+    std::list<int32> faceVertex ;
+
+    // for each face, set up face2node
+    pf->first->set_f2n(faceVertex) ;
+    // transfer c1 , c2 from local(inside a original cell) numbering  to file numbering
+    c2 = (pf->second).c2+$balanced_cell_offset ;
+    c1 = (pf->second).c1+$balanced_cell_offset ;
+
+    // put c1, c2 and faceVertex into one vector
+    int vec_size = faceVertex.size() + 2 ;
+    std::vector<int>(vec_size).swap($fine_faces_cell[fptr]) ;
+    $fine_faces_cell[fptr][0] = c1 ;
+    $fine_faces_cell[fptr][1] = c2 ;
+
+    std::list<int32>::const_iterator nptr = faceVertex.begin() ;
+    for(int i = 2; i < vec_size; i++,nptr++) {
+      $fine_faces_cell[fptr][i] = *nptr ;
+    }
+  }
+
+  // clean up
+  if(aCell != 0) {
+    delete aCell ;
+    aCell = 0 ;
+  }
+
+  // aCell will clean up these
+  cleanup_list(bnode_list, edge_list, face_list) ;
+  cleanup_list(node_list) ;
+}
+
+
+//get  fine_faces of interior faces
+$rule pointwise(fine_faces <- balancedFacePlan, balanced_node_offset,
+face2edge->(balancedEdgePlan, balanced_node_offset),
+(cl, cr)->(balancedCellPlan, balanced_cell_offset, hex2node, hex2face,
+           hexOrientCode),
+fl, fr,
+(cl, cr)->(upper, lower, boundary_map)->face2node->pos,
+(cl, cr)->(upper, lower, boundary_map)->face2edge->edge2node->pos,
+face2node->(pos, fileNumber(pos))),
+constraint((cl, cr)->hexcells) {
+
+  std::list<Node*> bnode_list, node_list ;
+  std::list<Edge*> edge_list ;
+  std::list<int32> faceVertex ;
+  int c1, c2 ;
+  QuadFace* aFace = build_quad_face($face2node.begin(),
+                                    $face2edge.begin(),
+                                    $*edge2node,
+                                    $*pos,
+                                    $*balancedEdgePlan,
+                                    $*balanced_node_offset,
+                                    $*fileNumber(pos),
+                                    bnode_list,
+                                    edge_list);
+
+  if($balancedFacePlan.size() == 0) {
+    // num of fine faces is 1
+    aFace->set_f2n(faceVertex) ;
+    vector<vector<int> >(1).swap($fine_faces) ;
+    int vec_size = faceVertex.size() + 2 ;
+    vector<int>(vec_size).swap($fine_faces[0]) ;
+
+    //get c1, c2(local numbering start with 1)
+
+    //get CL and CR
+    std::vector<int32> CL = get_c1_hex($cl->$balancedCellPlan,
+                                       $balancedFacePlan,
+                                       $cl->$hexOrientCode[$fl],
+                                       $fl);
+
+    if( CL.size()!= 1){
+      cerr << "WARNING: CL has the incorrect size" << endl ;
+      Loci::Abort() ;
+    }
+
+    std::vector<int32> CR = get_c1_hex($cr->$balancedCellPlan,
+                                       $balancedFacePlan,
+                                       $cr->$hexOrientCode[$fr],
+                                       $fr);
+
+    if( CR.size()!= 1) {
+      cerr << "WARNING: CR has the incorrect size" << endl ;
+      Loci::Abort() ;
+    }
+    c1 = $cl->$balanced_cell_offset +CL[0] ;
+    c2 = $cr->$balanced_cell_offset+CR[0] ;
+
+    $fine_faces[0][0] = c1 ;
+    $fine_faces[0][1] = c2 ;
+
+    std::list<int32>::const_iterator nptr = faceVertex.begin() ;
+    for(int i=2; i<vec_size; i++, nptr++) {
+      $fine_faces[0][i] = *nptr ;
+    }
+
+    // clean up
+    if(aFace != 0) { delete aFace ; }
+    cleanup_list(bnode_list, edge_list) ;
+    return ;
+  }
+
+  // split the face
+  std::vector<QuadFace*> leaves ;
+
+  aFace->resplit($balancedFacePlan, char(0), node_list, edge_list, leaves) ;
+
+  // and index the node_list
+  int nindex = 0 ;
+  for(std::list<Node*>::const_iterator np = node_list.begin(); np!= node_list.end(); np++,nindex++) {
+    (*np)->index = $balanced_node_offset + nindex ;
+  }
+
+  // get CL and CR
+  std::vector<int32> CL = get_c1_hex($cl->$balancedCellPlan,
+                                     $balancedFacePlan,
+                                     $cl->$hexOrientCode[$fl],
+                                     $fl) ;
+
+  if(leaves.size() != CL.size()) {
+    cerr << "WARNING: CL has the incorrect size" << endl ;
+    Loci::Abort() ;
+  }
+
+  std::vector<int32> CR = get_c1_hex($cr->$balancedCellPlan,
+                                     $balancedFacePlan,
+                                     $cr->$hexOrientCode[$fr],
+                                     $fr) ;
+
+  if(leaves.size() != CR.size()) {
+    cerr << "WARNING: CR has the incorrect size" << endl ;
+    Loci::Abort() ;
+  }
+
+  // set the size of fine_faces[f]
+  vector<std::vector<int> >(leaves.size()).swap($fine_faces) ;
+
+  // set fine_faces[f]
+  for(unsigned int fptr=0; fptr<leaves.size(); fptr++) {
+    // set c1
+    if($cl->$balancedCellPlan.size() == 0) {
+      c1= $cl->$balanced_cell_offset + 1 ;
+    }else {
+      c1 = $cl->$balanced_cell_offset + CL[fptr] ;
+    }
+
+    // set c2
+    if($cr->$balancedCellPlan.size() == 0) {
+      c2 = $cr->$balanced_cell_offset + 1 ;
+    }else {
+      c2 = $cr->$balanced_cell_offset + CR[fptr] ;
+    }
+
+    // set faceVertex
+    faceVertex.clear() ;
+    leaves[fptr]->set_f2n(faceVertex) ;
+
+    int vec_size = faceVertex.size() + 2 ;
+    vector<int>(vec_size).swap($fine_faces[fptr]) ;
+    $fine_faces[fptr][0] = c1 ;
+    $fine_faces[fptr][1] = c2 ;
+
+    std::list<int32>::const_iterator nptr = faceVertex.begin() ;
+    for(int i=2; i<vec_size; i++,nptr++) {
+      $fine_faces[fptr][i] = *nptr ;
+    }
+  }
+
+  // clean up
+  if(aFace != 0) {
+    delete aFace ;
+    aFace = 0 ;
+  }
+  cleanup_list(node_list) ;
+  cleanup_list(bnode_list, edge_list) ;
+}
+
+
+/// Get fine_faces of boundary faces
+$rule pointwise(fine_faces <- balancedFacePlan, balanced_node_offset,
+face2edge->(balancedEdgePlan, balanced_node_offset),
+cl->(balancedCellPlan, balanced_cell_offset, hex2face, hex2node,
+     hexOrientCode),
+fl,
+cl->(upper, lower, boundary_map)->face2node->pos,
+cl->(upper, lower, boundary_map)->face2edge->edge2node->pos,
+face2node->(pos, fileNumber(pos)), ref->boundary_tags),
+constraint(cl->hexcells, boundary_faces) {
+
+  std::list<Node*> bnode_list, node_list ;
+  std::list<Edge*> edge_list ;
+  std::list<int32> faceVertex ;
+  int c1 ;
+
+  int c2 = -atoi(&($ref->$boundary_tags[3])) ;
+
+  // build a face
+  QuadFace* aFace = build_quad_face($face2node.begin(),
+                                    $face2edge.begin(),
+                                    $*edge2node,
+                                    $*pos,
+                                    $*balancedEdgePlan,
+                                    $*balanced_node_offset,
+                                    $*fileNumber(pos),
+                                    bnode_list,
+                                    edge_list);
+
+  if($balancedFacePlan.size() == 0) {
+    // num of fine faces is 1
+    vector< std::vector<int> >(1).swap($fine_faces) ;
+
+    aFace->set_f2n(faceVertex) ;
+    int vec_size = faceVertex.size() + 2 ;
+    std::vector<int>(vec_size).swap($fine_faces[0]) ;
+
+    // get c1
+
+    // get CL
+    std::vector<int32> CL = get_c1_hex($cl->$balancedCellPlan,
+                                       $balancedFacePlan,
+                                       $cl->$hexOrientCode[$fl],
+                                       $fl);
+
+    if(CL.size()!= 1) {
+      cerr << "WARNING: CL has the incorrect size" << endl ;
+      Loci::Abort() ;
+    }
+
+    c1 = $cl->$balanced_cell_offset + CL[0] ;
+
+    $fine_faces[0][0] = c1 ;
+    $fine_faces[0][1] = c2 ;
+
+    std::list<int32>::const_iterator nptr = faceVertex.begin() ;
+    for(int i=2; i<vec_size; i++,nptr++) {
+      $fine_faces[0][i] = *nptr ;
+    }
+
+    // clean up
+    if(aFace != 0) {
+      delete aFace ;
+      aFace = 0 ;
+    }
+    cleanup_list(bnode_list, edge_list) ;
+    return ;
+  }
+
+  // split the face
+  std::vector<QuadFace*> leaves ;
+  aFace->resplit($balancedFacePlan, char(0), node_list, edge_list, leaves) ;
+
+  // and index the node_list
+  int nindex = 0 ;
+  for(std::list<Node*>::const_iterator np = node_list.begin(); np!= node_list.end(); np++,nindex++) {
+    (*np)->index = $balanced_node_offset + nindex ;
+  }
+
+  // get CL
+  std::vector<int32> CL = get_c1_hex($cl->$balancedCellPlan,
+                                     $balancedFacePlan,
+                                     $cl->$hexOrientCode[$fl],
+                                     $fl) ;
+
+  if(leaves.size() != CL.size()) {
+    cerr << "WARNING: CL has the incorrect size" << endl ;
+    Loci::Abort() ;
+  }
+
+  vector<vector<int> >(leaves.size()).swap($fine_faces) ;
+
+  // set face_vertices
+  for(unsigned int fptr=0; fptr<leaves.size(); fptr++) {
+    faceVertex.clear() ;
+    leaves[fptr]->set_f2n(faceVertex) ;
+
+    // set c1
+    if($cl->$balancedCellPlan.size() == 0) {
+      c1 = $cl->$balanced_cell_offset + 1 ;
+    }else {
+      c1 = $cl->$balanced_cell_offset + CL[fptr] ;
+    }
+
+    int vec_size = faceVertex.size() + 2 ;
+    vector<int>(vec_size).swap($fine_faces[fptr]) ;
+    $fine_faces[fptr][0] = c1 ;
+    $fine_faces[fptr][1] = c2 ;
+
+    std::list<int32>::const_iterator nptr = faceVertex.begin() ;
+    for(int i = 2; i < vec_size; i++, nptr++) {
+      $fine_faces[fptr][i] = *nptr ;
+    }
+  }
+
+  // clean up
+  if(aFace != 0) {
+    delete aFace ;
+    aFace = 0 ;
+  }
+  cleanup_list(node_list) ;
+  cleanup_list(bnode_list, edge_list) ;
+}
