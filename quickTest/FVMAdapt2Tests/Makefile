@@ -1,7 +1,7 @@
 TESTS = Core Module
 TEST_RESULTS = $(addsuffix /TestResults,$(TESTS))
 
-.PHONY: default $(TESTS) clean distclean FRC
+.PHONY: default $(TESTS) Illustrations illustrations clean distclean FRC
 
 default: TestResults
 
@@ -13,14 +13,19 @@ TestResults: $(TESTS)
 $(TESTS): FRC
 	$(MAKE) -C $@ LOCI_BASE=$(LOCI_BASE) TEST_BASE=$(TEST_BASE)
 
+Illustrations illustrations: FRC
+	$(MAKE) -C Illustrations LOCI_BASE=$(LOCI_BASE) TEST_BASE=$(TEST_BASE)
+
 clean:
 	rm -f TestResults
 	$(MAKE) -C Core LOCI_BASE=$(LOCI_BASE) TEST_BASE=$(TEST_BASE) clean
 	$(MAKE) -C Module LOCI_BASE=$(LOCI_BASE) TEST_BASE=$(TEST_BASE) clean
+	$(MAKE) -C Illustrations LOCI_BASE=$(LOCI_BASE) TEST_BASE=$(TEST_BASE) clean
 
 distclean:
 	rm -f TestResults
 	$(MAKE) -C Core LOCI_BASE=$(LOCI_BASE) TEST_BASE=$(TEST_BASE) distclean
 	$(MAKE) -C Module LOCI_BASE=$(LOCI_BASE) TEST_BASE=$(TEST_BASE) distclean
+	$(MAKE) -C Illustrations LOCI_BASE=$(LOCI_BASE) TEST_BASE=$(TEST_BASE) distclean
 
 FRC:

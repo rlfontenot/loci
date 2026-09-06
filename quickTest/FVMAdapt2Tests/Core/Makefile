@@ -11,7 +11,7 @@
 #
 ###############################################################################
 
-TESTS = RemapPlan NodeTransition CellRemap
+TESTS = Adaptation Transfer RemapPlan NodeTransition CellRemap
 TEST_RESULTS = $(addsuffix /TestResults,$(TESTS))
 
 .PHONY: default $(TESTS) clean distclean FRC

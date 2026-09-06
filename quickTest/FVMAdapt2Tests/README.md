@@ -1,21 +1,32 @@
-# FVMAdapt2 transition tests
+# FVMAdapt2 tests
 
-These tests belong to `369-fvmadapt_tests`. They require the FVMAdapt2 sources
-and build from `390-fvmadapt-rule-syntax-update`; run them in the combined
-integration checkout, not against the older implementation on 369 alone.
+All expanded adaptation tests live here on `369-fvmadapt_tests`. The original
+upstream `../FVMAdaptTest` suite remains separate and unchanged.
 
-After building and installing the combined checkout, run from its root:
+- `Core/Adaptation` checks refinement trees, plan operations, and refinement
+  depth, including the edge-ordering and level-refinement regressions.
+- The other `Core` groups check conservative transfer and cell, face, and node
+  remap contracts.
+- `Module` covers XML, parameter files, tags, plan restarts, thin extruded
+  meshes, refinement-state facts, and repeated face/node handoffs in MPI.
+- `Illustrations` produces optional VTK examples, outside the pass/fail suite.
+
+These tests require the FVMAdapt2 sources and build from 390. From a combined
+integration checkout with a local install:
 
 ```sh
-make -C quickTest/FVMAdapt2Tests -j4 \
-  LOCI_BASE="$PWD/loci_install" TEST_BASE="$PWD/quickTest"
+make -C quickTest FVMAdapt2Tests -j4 LOCI_BASE="$PWD/loci_install"
 ```
 
-The suite checks cell, face, and node remaps, repeated refinement and
-derefinement, plan replay, and the installed refinement-state facts. Module
-tests include serial and two- or three-rank MPI runs. `TestResults` summarizes
-the nine test groups; face-transition cases retain logs and schedules under
-their case directories for inspection.
+Use `LOCI_BASE="$PWD/OBJ"` to test an uninstalled build. The suite runs 18 test
+groups, including serial and two- or three-rank MPI cases. Offline cases use
+`marker2`, `refmesh2`, and `refine2`; the original tools still load FVMAdapt.
 
-`../FVMAdaptTests/Module/FaceRemap` separately exercises the public general-cell
-face handoff using only the installed FVMAdapt2 interface.
+The checked-in references retain the earlier behavioral baseline: mesh counts,
+volume, convexity, and extruded refinement modes. Moving the tests does not
+regenerate or relax those references. Face-transition cases also retain logs
+and schedules for inspection.
+The RefMesh case reuses the upstream suite's mesh and reference files read-only.
+
+The upstream suite is run independently with `make -C quickTest FVMAdaptTest`.
+Select the same `LOCI_BASE` explicitly, and clean before changing builds.
