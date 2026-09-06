@@ -165,6 +165,18 @@ $type inner_nodes_cell store<Loci::FineNodes> ;
 $type inner_nodes_face store<Loci::FineNodes> ;
 $type inner_nodes_edge store<Loci::FineNodes> ;
 
+/// Request node-transfer records while generating coordinates (default false).
+$type collectNodeAncestry param<bool> ;
+
+/// Construction provenance paired with node vectors when requested.
+$type inner_node_ancestry_cell store<Loci::FineNodeAncestry> ;
+$type inner_node_ancestry_face store<Loci::FineNodeAncestry> ;
+$type inner_node_ancestry_edge store<Loci::FineNodeAncestry> ;
+
 /// Fine faces created inside refined cells and from original mesh faces.
 $type fine_faces_cell store<Loci::FineFaces> ;
 $type fine_faces store<Loci::FineFaces> ;
+
+/// Accepted face and cell leaf paths, independent of cell topology.
+$type faceLeafPaths store<std::vector<int> > ;
+$type cellLeafPaths store<std::vector<int> > ;

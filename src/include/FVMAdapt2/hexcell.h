@@ -314,32 +314,25 @@ private:
   //calculate the centroid of the HexCell, it's defined as
   //the mean value of nodes
   inline Node* simple_center(){
-    Node* cellcenter = new Node();
     std::vector<Node*> vertices(8);
     get_nodes(vertices);
-    std::vector<vect3d> nodes(8);
-    for(int i = 0; i<8; i++){
-      nodes[i] = vertices[i]->p;
-    }
-    cellcenter->p = point_center(nodes);
-    return cellcenter;
+    return Node::constructed(
+          Loci::node_construction::cell, vertices, std::vector<double>(8, 1.0)) ;
   }
 
   inline Node* wireframe(){
     
     //allocate edgecenter
-    std::vector<vect3d> facecenter(6);
+    std::vector<Node*> facecenter(6) ;
     std::vector<double> areas(6);
     
     //get edge centers
     for(int i = 0; i < 6; i++){
-      facecenter[i]= getFaceCenter(i)->p;
+      facecenter[i] = getFaceCenter(i) ;
       areas[i] = face[i]->area();
     }
    
-    //calculate the mass center of the edge centers
-    vect3d p = weighted_center(facecenter, areas);
-    return new Node(p);
+    return Node::constructed(Loci::node_construction::cell, facecenter, areas) ;
   }
   //the center of the face, defined as the mass center of edge centers
   //precondition:: all its edges have been split

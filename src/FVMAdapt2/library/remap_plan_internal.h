@@ -15,24 +15,21 @@ namespace Loci {
   namespace detail {
 
     /// Assemble and collectively validate the target-owned cell remap slices.
-    bool buildDistributedCellRemapPlan(
-      CPTR<AMRRemapPlan>& plan,
-      AMRRemapReport& report,
-      gatherCommSchedule& sourceGather,
-      const std::vector<std::pair<int,int> >& targetSource,
-      const store<double>& sourceVolume,
-      const_store<vector3d<double> >& sourceCenter,
-      const store<int>& sourceTargetCount,
-      dataPartitionP sourcePartition,
-      const entitySet& localTargetCells,
-      const Map& targetLocalToGlobal,
-      const const_store<vector3d<double> >& targetCenter,
-      const const_store<double>& targetVolume,
-      const store<int>& refinedSource,
-      const multiStore<int>& refinedSourceToTarget,
-      const store<double>& gatheredTargetVolume,
-      const store<vector3d<double> >& gatheredTargetCenter,
-      MPI_Comm comm) ;
+    bool buildDistributedCellRemapPlan(CPTR<AMRRemapPlan>& plan,
+          AMRRemapReport& report, gatherCommSchedule& sourceGather,
+          const std::vector<std::pair<int, int>>& targetSource,
+          const store<double>& sourceVolume,
+          const_store<vector3d<double>>& sourceCenter,
+          const_store<CellId>& sourceCellId,
+          const store<int>& sourceTargetCount, dataPartitionP sourcePartition,
+          const entitySet& localTargetCells, const Map& targetLocalToGlobal,
+          const const_store<vector3d<double>>& targetCenter,
+          const const_store<double>& targetVolume,
+          const const_store<CellId>& targetCellId,
+          const store<int>& refinedSource,
+          const multiStore<int>& refinedSourceToTarget,
+          const store<double>& gatheredTargetVolume,
+          const store<vector3d<double>>& gatheredTargetCenter, MPI_Comm comm) ;
   }
 }
 

@@ -21,6 +21,8 @@
 #ifndef FVMADAPT2_DEFINES_H
 #define FVMADAPT2_DEFINES_H
 #include <Loci.h>
+#include <FVMAdapt2/mesh_transfer.h>
+#include <FVMAdapt2/node_transition.h>
 #include <vector>
 #include <functional>
 #include <string>
@@ -153,7 +155,7 @@ namespace Loci {
     std::set<unsigned long>::const_iterator end = obj.aset.end();
 
     s << obj.aset.size() << '{' ;
-    for(ci = begin; ci!=end; ci++) s << *ci << ' ';
+    for(ci = begin; ci!=end; ci++) s << *ci << ' ' ;
     s << '}';
     return s;
     
@@ -206,6 +208,77 @@ namespace Loci {
   
   typedef std::vector<vect3d> FineNodes;
   
+  /// Serializable construction data paired one-for-one with FineNodes.
+  ///
+  /// Pure hexahedral and prism refinement uses at most eight direct parents.
+  /// The public NodeConstruction remains dynamically sized; this bounded
+  /// record is only the Loci fact representation used while assembling a VOG.
+  struct FineNodeConstruction {
+    static const int maximumParents = 8 ;
+
+    NodeId node ;
+    int kind ;
+    long long baseFileNumber ;
+    int parentCount ;
+    Array<NodeId, maximumParents> parentIds ;
+    Array<int, maximumParents> parentNodeNumbers ;
+    Array<double, maximumParents> parentWeights ;
+
+    FineNodeConstruction()
+        : node(0), kind(node_construction::invalid), baseFileNumber(-1),
+          parentCount(0) {
+      for (int parent = 0; parent < maximumParents; ++parent) {
+        parentIds[parent] = 0 ;
+        parentNodeNumbers[parent] = 0 ;
+        parentWeights[parent] = 0.0 ;
+      }
+    }
+  } ;
+
+  inline std::ostream& operator<<(
+        std::ostream& stream, const FineNodeConstruction& construction) {
+    stream << construction.node << ' ' << construction.kind << ' '
+           << construction.baseFileNumber << ' ' << construction.parentCount ;
+    for (int parent = 0; parent < FineNodeConstruction::maximumParents;
+          ++parent) {
+      stream << ' ' << construction.parentIds[parent] << ' '
+             << construction.parentNodeNumbers[parent] << ' '
+             << construction.parentWeights[parent] ;
+    }
+    return stream ;
+  }
+
+  inline std::istream& operator>>(
+        std::istream& stream, FineNodeConstruction& construction) {
+    stream >> construction.node >> construction.kind >>
+          construction.baseFileNumber >> construction.parentCount ;
+    for (int parent = 0; parent < FineNodeConstruction::maximumParents;
+          ++parent) {
+      stream >> construction.parentIds[parent] >>
+            construction.parentNodeNumbers[parent] >>
+            construction.parentWeights[parent] ;
+    }
+    return stream ;
+  }
+
+  template <> struct data_schema_traits<FineNodeConstruction> {
+    typedef IDENTITY_CONVERTER Schema_Converter ;
+    static DatatypeP get_type() {
+      FineNodeConstruction value ;
+      CompoundDatatypeP type = CompoundFactory(value) ;
+      LOCI_INSERT_TYPE(type, FineNodeConstruction, node) ;
+      LOCI_INSERT_TYPE(type, FineNodeConstruction, kind) ;
+      LOCI_INSERT_TYPE(type, FineNodeConstruction, baseFileNumber) ;
+      LOCI_INSERT_TYPE(type, FineNodeConstruction, parentCount) ;
+      LOCI_INSERT_TYPE(type, FineNodeConstruction, parentIds) ;
+      LOCI_INSERT_TYPE(type, FineNodeConstruction, parentNodeNumbers) ;
+      LOCI_INSERT_TYPE(type, FineNodeConstruction, parentWeights) ;
+      return DatatypeP(type) ;
+    }
+  } ;
+
+  typedef std::vector<FineNodeConstruction> FineNodeAncestry ;
+
   class FineNodes_SchemaConverter ;
   template<>
   struct data_schema_traits<FineNodes> {
@@ -294,7 +367,7 @@ namespace Loci {
       int vec_size = RefObj.size();
       if(vec_size == 0) return 0;
       int total_size = 0;
-      for(int i = 0; i < vec_size; i++) total_size += RefObj[i].size();
+      for(int i = 0; i < vec_size; i++) total_size += RefObj[i].size() ;
       return total_size + vec_size + 1;
     }
     void getState(int* buf, int& size) {
@@ -437,20 +510,6 @@ namespace Loci {
                                  std::vector<pair<string,entitySet> >& volTags,
 				 Loci::storeRepP cellwts = 0) ;
 
-  bool setupFVMGridFromContainer(fact_db &facts,
-                                 std::vector<entitySet>& local_nodes,
-                                 std::vector<entitySet>& local_faces,
-                                 std::vector<entitySet>& local_cells,
-                                 store<vector3d<double> >& tmp_pos,
-                                 Map& tmp_cl,
-                                 Map& tmp_cr,
-                                 multiMap& tmp_face2node,
-                                 std::vector<pair<int,string> >& boundary_ids,
-                                 std::vector<pair<string,entitySet> >& volTags,
-                                 Loci::storeRepP cellwts,
-                                 const refinedCellState* cellState) ;
-  
-  
   inline std::ostream &operator <<(std::ostream &s, const std::vector<std::pair<int32,int32> > &v) {
     s << v.size() << endl ;
     for(size_t i=0;i<v.size();++i) {

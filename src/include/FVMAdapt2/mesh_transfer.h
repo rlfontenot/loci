@@ -17,66 +17,118 @@
 #include <Tools/cptr.h>
 
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
 namespace Loci {
 
+  /// Persistent identities used by mesh-transition relations.
+  ///
+  /// These values are derived from canonical refinement-tree keys rather than
+  /// from Loci entity numbers or the generated mesh's file order, both of
+  /// which may change when that mesh is repartitioned.
+  // Loci's long-long schema is the portable signed 64-bit store schema on
+  // supported builds.  std::int64_t aliases long on LP64 systems, whose
+  // legacy Loci schema is not a signed 64-bit atomic type.
+  typedef long long FaceId ;
+  typedef long long CellId ;
+  typedef long long NodeId ;
+  static_assert(sizeof(FaceId) == 8,
+        "persistent AMR identities require 64-bit long long") ;
+  static_assert(sizeof(CellId) == 8,
+        "persistent AMR identities require 64-bit long long") ;
+  static_assert(sizeof(NodeId) == 8,
+        "persistent AMR identities require 64-bit long long") ;
+
+  namespace node_transition_status {
+    enum value {
+      valid,
+      invalid_tolerance,
+      unsupported_topology,
+      missing_state,
+      missing_source_node,
+      cyclic_construction,
+      inconsistent_weights,
+      inconsistent_positions,
+      not_requested
+    } ;
+  }
+
+  /// Validation result for one previous-to-current node transition.
+  struct NodeTransitionReport {
+    node_transition_status::value status ;
+    bool valid ;
+    size_t sourceNodes ;
+    size_t targetNodes ;
+    size_t retainedNodes ;
+    size_t createdNodes ;
+    size_t contributions ;
+    size_t missingSourceNodes ;
+    size_t cyclicConstructions ;
+    size_t inconsistentWeights ;
+    size_t inconsistentPositions ;
+    double maximumWeightError ;
+    double maximumPositionError ;
+
+    NodeTransitionReport() ;
+  } ;
+
+
   /// Geometry for one face in either the source or target mesh.
-  struct AMRFaceGeometry {
-    int face ;
+  struct FaceGeometry {
+    FaceId face ;
     double area ;
     vector3d<double> centroid ;
 
-    AMRFaceGeometry()
-      : face(0), area(0.0), centroid(0.0,0.0,0.0) {}
-    AMRFaceGeometry(int faceId, double faceArea,
-                    const vector3d<double>& faceCentroid)
-      : face(faceId), area(faceArea), centroid(faceCentroid) {}
+    FaceGeometry() : face(0), area(0.0), centroid(0.0, 0.0, 0.0) {}
+    FaceGeometry(
+          FaceId faceId, double faceArea, const vector3d<double>& faceCentroid)
+        : face(faceId), area(faceArea), centroid(faceCentroid) {}
   } ;
 
-  /// Geometric contribution from one source face to one target face.
+  /// Shared geometry between a face before and a face after adaptation.
   ///
   /// orientation is +1 when their directed normals agree and -1 when they
-  /// oppose. overlapArea is deliberately unnormalized so consumers can form
+  /// oppose. area is deliberately unnormalized so consumers can form
   /// either source or target fractions without losing geometric information.
-  struct AMRFaceContribution {
-    int sourceFace ;
-    int targetFace ;
-    double overlapArea ;
-    vector3d<double> overlapCentroid ;
+  struct FaceOverlap {
+    FaceId source ;
+    FaceId target ;
+    double area ;
+    vector3d<double> centroid ;
     int orientation ;
 
-    AMRFaceContribution()
-      : sourceFace(0), targetFace(0), overlapArea(0.0),
-        overlapCentroid(0.0,0.0,0.0), orientation(1) {}
-    AMRFaceContribution(int source, int target, double area,
-                        const vector3d<double>& centroid,
-                        int orientationSign)
-      : sourceFace(source), targetFace(target), overlapArea(area),
-        overlapCentroid(centroid), orientation(orientationSign) {}
+    FaceOverlap()
+        : source(0), target(0), area(0.0), centroid(0.0, 0.0, 0.0),
+          orientation(1) {}
+    FaceOverlap(FaceId sourceId, FaceId targetId, double overlapArea,
+          const vector3d<double>& overlapCentroid, int orientationSign)
+        : source(sourceId), target(targetId), area(overlapArea),
+          centroid(overlapCentroid), orientation(orientationSign) {}
   } ;
 
-  /// A target face created inside one source cell during refinement.
-  struct AMRCreatedFace {
-    int targetFace ;
-    int sourceCell ;
+  /// A face created inside a cell of the immediately previous mesh.
+  /// sourceCell is not necessarily a base-mesh root cell.
+  struct CreatedFace {
+    FaceId targetFace ;
+    CellId sourceCell ;
 
-    AMRCreatedFace() : targetFace(0), sourceCell(0) {}
-    AMRCreatedFace(int face, int cell)
-      : targetFace(face), sourceCell(cell) {}
+    CreatedFace() : targetFace(0), sourceCell(0) {}
+    CreatedFace(FaceId face, CellId cell)
+        : targetFace(face), sourceCell(cell) {}
   } ;
 
-  /// A source face removed inside one target cell during derefinement.
-  struct AMRRemovedFace {
-    int sourceFace ;
-    int targetCell ;
+  /// A previous-mesh face removed inside a resulting cell during derefinement.
+  struct RemovedFace {
+    FaceId sourceFace ;
+    CellId targetCell ;
 
-    AMRRemovedFace() : sourceFace(0), targetCell(0) {}
-    AMRRemovedFace(int face, int cell)
-      : sourceFace(face), targetCell(cell) {}
+    RemovedFace() : sourceFace(0), targetCell(0) {}
+    RemovedFace(FaceId face, CellId cell)
+        : sourceFace(face), targetCell(cell) {}
   } ;
 
-  struct AMRFaceRemapReport {
+  struct FaceRemapReport {
     bool valid ;
     size_t sourceFaces ;
     size_t targetFaces ;
@@ -94,115 +146,169 @@ namespace Loci {
     double maximumSourceCentroidError ;
     double maximumTargetCentroidError ;
 
-    AMRFaceRemapReport() ;
+    FaceRemapReport() ;
   } ;
 
-  /// Immutable geometric relation between source and target mesh faces.
-  class AMRFaceRemap : public CPTR_type {
-  public:
-    static CPTR<AMRFaceRemap>
-    create(const std::vector<AMRFaceGeometry>& sourceGeometry,
-           const std::vector<AMRFaceGeometry>& targetGeometry,
-           const std::vector<AMRFaceContribution>& contributions,
-           const std::vector<AMRCreatedFace>& createdFaces,
-           const std::vector<AMRRemovedFace>& removedFaces,
-           AMRFaceRemapReport& report,
-           double relativeTolerance = 1.0e-10) ;
-
-    const std::vector<AMRFaceGeometry>& sourceFaceGeometry() const {
-      return sourceGeometry_ ;
-    }
-    const std::vector<AMRFaceGeometry>& targetFaceGeometry() const {
-      return targetGeometry_ ;
-    }
-    const std::vector<AMRFaceContribution>& faceContributions() const {
-      return contributions_ ;
-    }
-    const std::vector<AMRCreatedFace>& createdFaces() const {
-      return createdFaces_ ;
-    }
-    const std::vector<AMRRemovedFace>& removedFaces() const {
-      return removedFaces_ ;
-    }
-
-    bool faceContributions(int targetFace,
-                           size_t& begin, size_t& end) const ;
-    bool isCreatedFace(int targetFace, int& sourceCell) const ;
-    bool isRemovedFace(int sourceFace, int& targetCell) const ;
-
-    /// Assemble source face averages on target faces.
-    ///
-    /// mapped is false for newly created internal faces. If orientValues is
-    /// true, contributions are multiplied by their orientation signs.
-    bool remapFaceAverages(const std::vector<double>& sourceValues,
-                           std::vector<double>& targetValues,
-                           std::vector<unsigned char>& mapped,
-                           bool orientValues = true) const ;
-
-    /// Distribute source face integrals to target faces by overlap area.
-    bool remapFaceIntegrals(const std::vector<double>& sourceIntegrals,
-                            std::vector<double>& targetIntegrals,
-                            std::vector<unsigned char>& mapped,
-                            bool orientValues = true) const ;
-
-  private:
-    AMRFaceRemap() {}
-
-    std::vector<AMRFaceGeometry> sourceGeometry_ ;
-    std::vector<AMRFaceGeometry> targetGeometry_ ;
-    std::vector<AMRFaceContribution> contributions_ ;
-    std::vector<AMRCreatedFace> createdFaces_ ;
-    std::vector<AMRRemovedFace> removedFaces_ ;
-    std::vector<size_t> targetOffsets_ ;
-  } ;
-
-  namespace amr_node_origin {
+  namespace face_transition_status {
     enum value {
-      retained,
-      edge,
-      face,
-      cell
+      available,
+      unsupported_restart,
+      unsupported_topology,
+      unsupported_plan_change,
+      invalid_identity,
+      invalid_geometry,
+      inconsistent_relation
     } ;
   }
 
+  /// Construction status for the live face transition.
+  struct FaceTransitionReport {
+    face_transition_status::value status ;
+    bool valid ;
+    size_t sourceFaces ;
+    size_t targetFaces ;
+    size_t unsupportedRootPlans ;
+    size_t invalidIdentities ;
+    size_t invalidPolygons ;
+    FaceRemapReport remap ;
+
+    FaceTransitionReport() ;
+  } ;
+
+  /// Opaque history retained between in-process mesh transitions.
+  ///
+  /// Solvers should carry this handle unchanged. The refinement-tree
+  /// representation is private to FVMAdapt2.
+  class MeshState : public CPTR_type {
+  protected:
+    MeshState() {}
+  } ;
+
+  /// Immutable geometric relation for locally owned target mesh faces.
+  /// Source means the mesh before adaptation; target means the resulting mesh.
+  /// Source geometry contains the subset required by this rank and is not
+  /// necessarily locally owned on the source mesh.
+  class FaceRemap : public CPTR_type {
+  public:
+    static CPTR<FaceRemap> create(
+          const std::vector<FaceGeometry>& sourceGeometry,
+          const std::vector<FaceGeometry>& targetGeometry,
+          const std::vector<FaceOverlap>& contributions,
+          const std::vector<CreatedFace>& createdFaces,
+          const std::vector<RemovedFace>& removedFaces, FaceRemapReport& report,
+          double relativeTolerance = 1.0e-10) ;
+
+    /// Build a target-owned view of an already globally validated relation.
+    ///
+    /// Source faces may be present only for contributions to locally owned
+    /// targets, so source-side coverage is intentionally not revalidated.
+    /// Target coverage and all local identities remain fully checked.
+    static CPTR<FaceRemap> createTargetOwned(
+          const std::vector<FaceGeometry>& sourceGeometry,
+          const std::vector<FaceGeometry>& targetGeometry,
+          const std::vector<FaceOverlap>& contributions,
+          const std::vector<CreatedFace>& createdFaces,
+          const std::vector<RemovedFace>& removedFaces, FaceRemapReport& report,
+          double relativeTolerance = 1.0e-10) ;
+
+    const std::vector<FaceGeometry>& sourceFaceGeometry() const {
+      return sourceGeometry_ ;
+    }
+    const std::vector<FaceGeometry>& targetFaceGeometry() const {
+      return targetGeometry_ ;
+    }
+    const std::vector<FaceOverlap>& overlaps() const { return contributions_ ; }
+    const std::vector<CreatedFace>& createdFaces() const {
+      return createdFaces_ ;
+    }
+    const std::vector<RemovedFace>& removedFaces() const {
+      return removedFaces_ ;
+    }
+
+    /// Rows for one target face; a created face has a valid empty row range.
+    bool overlaps(FaceId targetFace, size_t& begin, size_t& end) const ;
+
+    /// Return locally owned target faces that receive a contribution from a
+    /// source face in this target-owned remap.
+    void targetFaces(FaceId sourceFace, std::vector<FaceId>& targets) const ;
+
+    bool isCreatedFace(FaceId targetFace, CellId& sourceCell) const ;
+    bool isRemovedFace(FaceId sourceFace, CellId& targetCell) const ;
+
+    /// Assemble source face averages on locally owned target faces.
+    ///
+    /// mapped is false for newly created internal faces. Set orientValues for
+    /// directed quantities such as fluxes; ordinary scalar averages are
+    /// assembled without an orientation sign by default. sourceValues follow
+    /// sourceFaceGeometry() order; targetValues follow targetFaceGeometry().
+    bool remapFaceAverages(const std::vector<double>& sourceValues,
+          std::vector<double>& targetValues, std::vector<unsigned char>& mapped,
+          bool orientValues = false) const ;
+
+    /// Distribute source face integrals to locally owned target faces by
+    /// overlap area. Input and output ordering matches sourceFaceGeometry()
+    /// and targetFaceGeometry(), respectively.
+    bool remapFaceIntegrals(const std::vector<double>& sourceIntegrals,
+          std::vector<double>& targetIntegrals,
+          std::vector<unsigned char>& mapped, bool orientValues = false) const ;
+
+  private:
+    FaceRemap() {}
+
+    static CPTR<FaceRemap> createImpl(
+          const std::vector<FaceGeometry>& sourceGeometry,
+          const std::vector<FaceGeometry>& targetGeometry,
+          const std::vector<FaceOverlap>& contributions,
+          const std::vector<CreatedFace>& createdFaces,
+          const std::vector<RemovedFace>& removedFaces, FaceRemapReport& report,
+          double relativeTolerance, bool validateSourceCoverage) ;
+
+    std::vector<FaceGeometry> sourceGeometry_ ;
+    std::vector<FaceGeometry> targetGeometry_ ;
+    std::vector<FaceOverlap> contributions_ ;
+    std::vector<CreatedFace> createdFaces_ ;
+    std::vector<RemovedFace> removedFaces_ ;
+    std::vector<size_t> targetOffsets_ ;
+    std::vector<size_t> sourceOffsets_ ;
+    std::vector<FaceId> sourceTargets_ ;
+  } ;
+
+  namespace node_origin {
+    enum value { base_node, edge, face, cell } ;
+  }
+
   /// Geometry for one node in either the source or target mesh.
-  struct AMRNodeGeometry {
-    int node ;
+  struct NodeGeometry {
+    NodeId node ;
     vector3d<double> position ;
 
-    AMRNodeGeometry() : node(0), position(0.0,0.0,0.0) {}
-    AMRNodeGeometry(int nodeId, const vector3d<double>& nodePosition)
-      : node(nodeId), position(nodePosition) {}
+    NodeGeometry() : node(0), position(0.0, 0.0, 0.0) {}
+    NodeGeometry(NodeId nodeId, const vector3d<double>& nodePosition)
+        : node(nodeId), position(nodePosition) {}
   } ;
 
   /// One source-node interpolation weight for a target node.
-  struct AMRNodeContribution {
-    int sourceNode ;
-    int targetNode ;
+  struct NodeContribution {
+    NodeId sourceNode ;
+    NodeId targetNode ;
     double weight ;
 
-    AMRNodeContribution() : sourceNode(0), targetNode(0), weight(0.0) {}
-    AMRNodeContribution(int source, int target, double nodeWeight)
-      : sourceNode(source), targetNode(target), weight(nodeWeight) {}
+    NodeContribution() : sourceNode(0), targetNode(0), weight(0.0) {}
+    NodeContribution(NodeId source, NodeId target, double nodeWeight)
+        : sourceNode(source), targetNode(target), weight(nodeWeight) {}
   } ;
 
   /// Topological origin of a target node.
-  ///
-  /// sourceEntity uses the source mesh numbering for the indicated entity
-  /// kind. For a retained node it is the corresponding source node.
-  struct AMRNodeOrigin {
-    int targetNode ;
-    amr_node_origin::value kind ;
-    int sourceEntity ;
+  struct NodeOrigin {
+    NodeId targetNode ;
+    node_origin::value kind ;
 
-    AMRNodeOrigin()
-      : targetNode(0), kind(amr_node_origin::retained), sourceEntity(0) {}
-    AMRNodeOrigin(int target, amr_node_origin::value originKind,
-                  int originEntity)
-      : targetNode(target), kind(originKind), sourceEntity(originEntity) {}
+    NodeOrigin() : targetNode(0), kind(node_origin::base_node) {}
+    NodeOrigin(NodeId target, node_origin::value originKind)
+        : targetNode(target), kind(originKind) {}
   } ;
 
-  struct AMRNodeRemapReport {
+  struct NodeRemapReport {
     bool valid ;
     size_t sourceNodes ;
     size_t targetNodes ;
@@ -216,37 +322,37 @@ namespace Loci {
     double maximumWeightError ;
     double maximumPositionError ;
 
-    AMRNodeRemapReport() ;
+    NodeRemapReport() ;
   } ;
 
-  /// Immutable source-node interpolation data for the target mesh nodes.
-  class AMRNodeRemap : public CPTR_type {
+  /// Immutable source-node interpolation data for locally owned target nodes.
+  /// Source geometry contains the subset needed by this rank and is not
+  /// necessarily locally owned on the source mesh.
+  class NodeRemap : public CPTR_type {
   public:
-    static CPTR<AMRNodeRemap>
-    create(const std::vector<AMRNodeGeometry>& sourceGeometry,
-           const std::vector<AMRNodeGeometry>& targetGeometry,
-           const std::vector<AMRNodeContribution>& contributions,
-           const std::vector<AMRNodeOrigin>& origins,
-           AMRNodeRemapReport& report,
-           double relativeTolerance = 1.0e-10) ;
+    static CPTR<NodeRemap> create(
+          const std::vector<NodeGeometry>& sourceGeometry,
+          const std::vector<NodeGeometry>& targetGeometry,
+          const std::vector<NodeContribution>& contributions,
+          const std::vector<NodeOrigin>& origins, NodeRemapReport& report,
+          double relativeTolerance = 1.0e-10) ;
 
-    const std::vector<AMRNodeGeometry>& sourceNodeGeometry() const {
+    const std::vector<NodeGeometry>& sourceNodeGeometry() const {
       return sourceGeometry_ ;
     }
-    const std::vector<AMRNodeGeometry>& targetNodeGeometry() const {
+    const std::vector<NodeGeometry>& targetNodeGeometry() const {
       return targetGeometry_ ;
     }
-    const std::vector<AMRNodeContribution>& nodeContributions() const {
+    const std::vector<NodeContribution>& nodeContributions() const {
       return contributions_ ;
     }
-    const std::vector<AMRNodeOrigin>& nodeOrigins() const {
-      return origins_ ;
-    }
+    const std::vector<NodeOrigin>& nodeOrigins() const { return origins_ ; }
 
-    bool nodeContributions(int targetNode,
-                           size_t& begin, size_t& end) const ;
-    bool nodeOrigin(int targetNode, AMRNodeOrigin& origin) const ;
+    bool nodeContributions(NodeId targetNode, size_t& begin, size_t& end) const ;
+    bool nodeOrigin(NodeId targetNode, NodeOrigin& origin) const ;
 
+    /// Input follows sourceNodeGeometry() order; output follows
+    /// targetNodeGeometry() order.
     bool interpolateNodeData(const std::vector<double>& sourceValues,
                              std::vector<double>& targetValues) const ;
     bool interpolateNodeData(
@@ -254,12 +360,12 @@ namespace Loci {
       std::vector<vector3d<double> >& targetValues) const ;
 
   private:
-    AMRNodeRemap() {}
+    NodeRemap() {}
 
-    std::vector<AMRNodeGeometry> sourceGeometry_ ;
-    std::vector<AMRNodeGeometry> targetGeometry_ ;
-    std::vector<AMRNodeContribution> contributions_ ;
-    std::vector<AMRNodeOrigin> origins_ ;
+    std::vector<NodeGeometry> sourceGeometry_ ;
+    std::vector<NodeGeometry> targetGeometry_ ;
+    std::vector<NodeContribution> contributions_ ;
+    std::vector<NodeOrigin> origins_ ;
     std::vector<size_t> targetOffsets_ ;
   } ;
 }

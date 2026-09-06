@@ -250,8 +250,8 @@ public:
   inline std::vector<Edge*> get_edges(){
   
     std::vector<Edge*> edges(3*nfold);
-    for(int i = 0; i < nfold; i++) edges[i] = gnrlface[0]->edge[i];
-    for(int i = nfold; i< 2*nfold; i++) edges[i] = gnrlface[1]->edge[i-nfold];
+    for(int i = 0; i < nfold; i++) edges[i] = gnrlface[0]->edge[i] ;
+    for(int i = nfold; i< 2*nfold; i++) edges[i] = gnrlface[1]->edge[i-nfold] ;
     for(int i = 2*nfold; i < 3*nfold; i++){
       int j = i%nfold;
       edges[i] = quadface[j]->edge[faceOrient.test(j)?1:3];
@@ -335,16 +335,10 @@ private:
   //the mean value of nodes
   
   inline Node* simple_center(){
-   
-    Node* cellcenter = new Node();
     std::vector<Node*> vertices(2*nfold);
     get_nodes(vertices);
-    std::vector<vect3d> nodes(2*nfold);
-    for(int i = 0; i<2*nfold; i++){
-      nodes[i] = vertices[i]->p;
-    }
-    cellcenter->p = point_center(nodes);
-    return cellcenter;
+    return Node::constructed(Loci::node_construction::cell, vertices,
+          std::vector<double>(2 * nfold, 1.0)) ;
   }
 
   //the center of the face, defined as the mass center of edge centers
@@ -364,20 +358,18 @@ private:
   inline Node* wireframe(){
     
     //allocate edgecenter
-    std::vector<vect3d> facecenter(nfold+2);
+    std::vector<Node*> facecenter(nfold + 2) ;
     std::vector<double> areas(nfold+2);
     
     //get edge centers
     for(int i = 0; i < nfold+2; i++){
-      facecenter[i]= getFaceCenter(i)->p;
+      facecenter[i] = getFaceCenter(i) ;
       if(i<2)areas[i] = gnrlface[i]->area();
       else areas[i] = quadface[i-2]->area();
      
     }
    
-    //calculate the mass center of the edge centers
-    vect3d p = weighted_center(facecenter, areas);
-    return new Node(p);
+    return Node::constructed(Loci::node_construction::cell, facecenter, areas) ;
   }
 
   

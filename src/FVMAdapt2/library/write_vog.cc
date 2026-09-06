@@ -19,9 +19,11 @@
 //#
 //#############################################################################
 #include <hdf5.h>
+#include <cstdint>
 #include <sstream>
 #include <iostream>
 #include <fstream>
+#include <set>
 #include <string>
 #include <Loci.h>
 #include <vector>
@@ -43,6 +45,7 @@
 #include "FVMAdapt2/defines.h"
 #include "FVMAdapt2/dataxferDB.h"
 #include "FVMAdapt2/gridInterface.h"
+#include "mesh_state.h"
 #include "remap_plan_internal.h"
 #include "refinement_state_internal.h"
 
@@ -90,6 +93,20 @@ typedef double metisreal_t ;
 #endif
 
 namespace Loci {
+  namespace {
+    CPTR<FaceState> internalFaceState(const CPTR<MeshState>& state) {
+      if(state == static_cast<MeshState*>(0))
+        return CPTR<FaceState>() ;
+      return CPTR<FaceState>(state) ;
+    }
+
+    CPTR<MeshState> publicMeshState(const CPTR<FaceState>& state) {
+      if(state == static_cast<FaceState*>(0))
+        return CPTR<MeshState>() ;
+      return CPTR<MeshState>(state) ;
+    }
+  }
+
   // get cell2parent map with cells in current global numbering
   
   storeRepP getC2PGlobal(fact_db &facts) {
@@ -276,8 +293,8 @@ namespace Loci {
                          const_store<vector3d<double> > &cell_center,
                          const_store<double> &vol,
                          fact_db &facts) {
-    setupRefinementMappingImpl(c2pg,volw,0,gradCells,deltas,
-                               cell_center,vol,facts) ;
+    setupRefinementMappingImpl(
+          c2pg, volw, 0, 0, gradCells, deltas, cell_center, vol, 0, facts) ;
   }
 
   void AMRrefinementMapping::
@@ -290,21 +307,30 @@ namespace Loci {
     const_store<vector3d<double> > &targetCellCenter,
     const_store<double> &targetVolume,
     fact_db &facts) {
-    setupRefinementMappingImpl(c2pg,sourceVolume,&sourceCellCenter,
-                               gradCells,deltas,targetCellCenter,
-                               targetVolume,facts) ;
+    setupRefinementMappingImpl(c2pg,sourceVolume,&sourceCellCenter,0,
+          gradCells, deltas, targetCellCenter, targetVolume, 0, facts) ;
   }
 
-  void AMRrefinementMapping::
-  setupRefinementMappingImpl(
-    const store<pair<int,int> > &c2pg,
-    const store<double> &volw,
-    const const_store<vector3d<double> >* sourceCellCenter,
-    multiStore<int> &gradCells,
+  void AMRrefinementMapping::setupRefinementMapping(
+        const store<pair<int, int>>& c2pg, const store<double>& sourceVolume,
+    const_store<vector3d<double> > &sourceCellCenter,
+        const_store<CellId>& sourceCellId, multiStore<int>& gradCells,
     multiStore<vector3d<double> > &deltas,
-    const_store<vector3d<double> > &cell_center,
-    const_store<double> &vol,
+    const_store<vector3d<double> > &targetCellCenter,
+        const_store<double>& targetVolume, const_store<CellId>& targetCellId,
     fact_db &facts) {
+    setupRefinementMappingImpl(c2pg,sourceVolume,&sourceCellCenter,
+          &sourceCellId, gradCells, deltas, targetCellCenter, targetVolume,
+          &targetCellId, facts) ;
+  }
+
+  void AMRrefinementMapping::setupRefinementMappingImpl(
+        const store<pair<int, int>>& c2pg, const store<double>& volw,
+    const const_store<vector3d<double> >* sourceCellCenter,
+        const const_store<CellId>* sourceCellId, multiStore<int>& gradCells,
+    multiStore<vector3d<double> > &deltas,
+        const_store<vector3d<double>>& cell_center, const_store<double>& vol,
+        const const_store<CellId>* targetCellId, fact_db& facts) {
     remapPlan = static_cast<AMRRemapPlan*>(0) ;
     remapReport = AMRRemapReport() ;
     //########################################################################
@@ -432,9 +458,9 @@ namespace Loci {
       p2c[i].second += cstart ;
     }
 
-    // Keep a target-owned copy for the public remap plan. getC2PGlobal()
-    // constructs c2pg from this processor's owned target cells, whereas p2c
-    // is redistributed below to the source-cell owners.
+    // Preserve the target-to-source relation for the public remap plan before
+    // p2c is redistributed below to the source-cell owners. The relation is
+    // placed with its target owners after the child partition is available.
     vector<pair<int,int> > targetSource(p2c.size()) ;
     for(size_t i=0;i<p2c.size();++i)
       targetSource[i] = pair<int,int>(p2c[i].second,p2c[i].first) ;
@@ -524,6 +550,13 @@ namespace Loci {
     MPI_Allgather(&csplit,1,MPI_INT,&csplits[0],1,MPI_INT,MPI_COMM_WORLD) ;
     for(int i=0;i<p-1;++i)
       splits[i] = pair<int,int>(csplits[i+1],std::numeric_limits<int>::lowest()) ;
+
+    // The equijoin that creates c2pg does not preserve target ownership.
+    // Place each target-to-source relation with the processor that owns the
+    // corresponding target cell before constructing the public remap plan.
+    sort(targetSource.begin(),targetSource.end()) ;
+    Loci::parSplitSort(targetSource,splits,MPI_COMM_WORLD) ;
+
     sort(c2p.begin(),c2p.end()) ;
 
     Loci::parSplitSort(c2p,splits,MPI_COMM_WORLD) ;
@@ -800,18 +833,21 @@ namespace Loci {
 
     // A complete plan requires source centers; the legacy interpolation
     // setup remains available without publishing incomplete geometry.
-    if(sourceCellCenter != 0) {
+    if(sourceCellCenter != 0 && sourceCellId != 0 && targetCellId != 0) {
       const_store<vector3d<double> > sourceCenters ;
+      const_store<CellId> sourceIds ;
+      const_store<CellId> targetIds ;
       sourceCenters.setRep(sourceCellCenter->Rep()) ;
-      detail::buildDistributedCellRemapPlan(
-        remapPlan,remapReport,remapSourceComm,targetSource,volw,
-        sourceCenters,sourceTargetCount,partition_parent,geom_cells_local,
-        l2g,cell_center,vol,parent,parent2child_l,vol_data,center_data,
-        MPI_COMM_WORLD) ;
+      sourceIds.setRep(sourceCellId->Rep()) ;
+      targetIds.setRep(targetCellId->Rep()) ;
+      detail::buildDistributedCellRemapPlan(remapPlan, remapReport,
+            remapSourceComm, targetSource, volw, sourceCenters, sourceIds,
+            sourceTargetCount, partition_parent, geom_cells_local, l2g,
+            cell_center, vol, targetIds, parent, parent2child_l, vol_data,
+            center_data, MPI_COMM_WORLD) ;
     }
   }
 
-  
   extern int metis_cpp_threshold ;
   
   storeRepP mapCellPartitionWeights(storeRepP wptr,
@@ -919,13 +955,319 @@ namespace Loci {
     return cellweightschild.Rep() ;
   }
 
+  static bool supportedCellTopology(fact_db& facts, bool allowGeneral) {
+    storeRepP cellsRep = facts.get_variable("geom_cells") ;
+    storeRepP hexCellsRep = facts.get_variable("hexcells") ;
+    storeRepP prismCellsRep = facts.get_variable("prisms") ;
+    storeRepP generalCellsRep = facts.get_variable("gnrlcells") ;
+    const int localFactsValid = cellsRep != 0 && hexCellsRep != 0 &&
+                                            prismCellsRep != 0 &&
+                                            generalCellsRep != 0
+                                      ? 1
+                                      : 0 ;
+    int globalFactsValid = 0 ;
+    MPI_Allreduce(&localFactsValid,&globalFactsValid,1,MPI_INT,MPI_MIN,
+                  MPI_COMM_WORLD) ;
+    if(globalFactsValid == 0)
+      return false ;
 
-  void onlineRefineMesh(Loci::CPTR<refinedGridData> &gridDataP,
-			rule_db &refmesh_rdb,
-			int adaptmode,
-			int level,
-			storeRepP tags,
-			string casename  ) {
+    constraint cells ;
+    constraint hexCells ;
+    constraint prismCells ;
+    constraint generalCells ;
+    cells = cellsRep ;
+    hexCells = hexCellsRep ;
+    prismCells = prismCellsRep ;
+    generalCells = generalCellsRep ;
+    const entitySet supportedCells =
+          (*hexCells + *prismCells + (allowGeneral ? *generalCells : EMPTY)) &
+          *cells ;
+    const int localTopologyValid =
+      (*cells-supportedCells).size() == 0 &&
+                      (*cells & *generalCells & (*hexCells + *prismCells))
+                                  .size() == 0 &&
+                      (*cells & *hexCells & *prismCells).size() == 0
+                ? 1
+                : 0 ;
+    int globalTopologyValid = 0 ;
+    MPI_Allreduce(&localTopologyValid, &globalTopologyValid, 1, MPI_INT,
+          MPI_MIN, MPI_COMM_WORLD) ;
+    return globalTopologyValid != 0 ;
+  }
+
+  static void createVOGNodeWithAncestry(store<vector3d<double>>& newPositions,
+        store<NodeId>& nodeIds, store<FineNodeConstruction>& nodeConstructions,
+    const store<FineNodes>& innerCellNodes,
+    const store<FineNodes>& innerFaceNodes,
+    const store<FineNodes>& innerEdgeNodes,
+    const store<FineNodeAncestry>& cellAncestry,
+    const store<FineNodeAncestry>& faceAncestry,
+        const store<FineNodeAncestry>& edgeAncestry, int& nodeCount,
+        fact_db& facts, vector<entitySet>& nodePartition) ;
+
+  static void createVOGFaceImpl(int numNodes,
+    const store<FineFaces>& fineFacesCell,
+        const store<FineFaces>& fineFaces, fact_db& facts, int& numFaces,
+        int& numCells, Map& leftCell, Map& rightCell, multiMap& faceToNode,
+    vector<entitySet>& localFaces, vector<entitySet>& localCells,
+    detail::FaceSources* faceSources) ;
+
+  /// Rebuild the previous static node state and, when requested, face state
+  /// from its cumulative plan.
+  ///
+  /// The replay uses an isolated fact database and the ordinary accepted-plan
+  /// rules, so it reads currentPlan without changing the transfer database.
+  /// Consequently its leaf paths, geometry, and persistent identities are
+  /// produced by the same machinery as the target state.
+  static bool reconstructStaticState(rule_db& refineRules,
+        const string& meshFile, storeRepP cellWeights, bool collectNodeState,
+        bool collectFaceState, CPTR<FaceState>& state,
+        FaceTransitionReport& report, store<NodeId>& nodeIds,
+    store<vector3d<double> >& nodePositions,
+        vector<entitySet>& nodePartition, NodeTransitionReport& nodeReport) {
+    state = CPTR<FaceState>() ;
+    report = FaceTransitionReport() ;
+    nodeReport = NodeTransitionReport() ;
+    const int localPlanAvailable =
+      Loci::DataXFER_DB.getItem("currentPlan") != 0 ? 1 : 0 ;
+    int globalPlanAvailable = 0 ;
+    MPI_Allreduce(&localPlanAvailable, &globalPlanAvailable, 1, MPI_INT,
+          MPI_MIN, MPI_COMM_WORLD) ;
+    if(globalPlanAvailable == 0) {
+      report.status = face_transition_status::unsupported_restart ;
+      nodeReport.status = node_transition_status::missing_state ;
+      return false ;
+    }
+
+    fact_db sourceFacts ;
+    const int localGridAvailable = Loci::setupFVMGridWithWeightInStore(
+                                         sourceFacts, meshFile, cellWeights)
+                                         ? 1
+                                         : 0 ;
+    int globalGridAvailable = 0 ;
+    MPI_Allreduce(&localGridAvailable, &globalGridAvailable, 1, MPI_INT,
+          MPI_MIN, MPI_COMM_WORLD) ;
+    if(globalGridAvailable == 0) {
+      report.status = face_transition_status::unsupported_restart ;
+      nodeReport.status = node_transition_status::missing_state ;
+      return false ;
+    }
+    Loci::createLowerUpper(sourceFacts) ;
+    Loci::createEdgesPar(sourceFacts) ;
+    Loci::parallelClassifyCell(sourceFacts) ;
+
+    if(!supportedCellTopology(sourceFacts, !collectNodeState)) {
+      report.status = face_transition_status::unsupported_topology ;
+      nodeReport.status = node_transition_status::missing_state ;
+      return false ;
+    }
+
+    param<std::string> acceptedPlanInput ;
+    *acceptedPlanInput = "currentPlan" ;
+    sourceFacts.create_fact("balanced_planDB_par",acceptedPlanInput) ;
+    param<bool> collectNodeAncestry ;
+    *collectNodeAncestry = collectNodeState ;
+    sourceFacts.create_fact("collectNodeAncestry", collectNodeAncestry) ;
+    string sourceQuery =
+      "inner_nodes_cell,inner_nodes_face,inner_nodes_edge,fileNumber(pos)" ;
+    if(collectNodeState)
+      sourceQuery += ",inner_node_ancestry_cell,inner_node_ancestry_face,"
+                     "inner_node_ancestry_edge" ;
+    if(collectFaceState)
+      sourceQuery += ",fine_faces_cell,fine_faces,balancedCellPlan,"
+        "faceLeafPaths,cellLeafPaths,fileNumber(face2node),"
+        "planRootFileNumber,balanced_cell_offset" ;
+    const int localQueryAvailable =
+      Loci::makeQuery(refineRules,sourceFacts,sourceQuery) ? 1 : 0 ;
+    int globalQueryAvailable = 0 ;
+    MPI_Allreduce(&localQueryAvailable, &globalQueryAvailable, 1, MPI_INT,
+          MPI_MIN, MPI_COMM_WORLD) ;
+    if(globalQueryAvailable == 0) {
+      report.status = face_transition_status::unsupported_restart ;
+      nodeReport.status = node_transition_status::missing_state ;
+      return false ;
+    }
+
+    storeRepP innerNodesCellRep = sourceFacts.get_variable("inner_nodes_cell") ;
+    storeRepP innerNodesFaceRep = sourceFacts.get_variable("inner_nodes_face") ;
+    storeRepP innerNodesEdgeRep = sourceFacts.get_variable("inner_nodes_edge") ;
+    storeRepP ancestryCellRep =
+      sourceFacts.get_variable("inner_node_ancestry_cell") ;
+    storeRepP ancestryFaceRep =
+      sourceFacts.get_variable("inner_node_ancestry_face") ;
+    storeRepP ancestryEdgeRep =
+      sourceFacts.get_variable("inner_node_ancestry_edge") ;
+    const int localNodeInputsValid =
+      innerNodesCellRep != 0 && innerNodesFaceRep != 0 &&
+                      innerNodesEdgeRep != 0 &&
+                      (!collectNodeState ||
+                            (ancestryCellRep != 0 && ancestryFaceRep != 0 &&
+                                  ancestryEdgeRep != 0))
+                ? 1
+                : 0 ;
+    int globalNodeInputsValid = 0 ;
+    MPI_Allreduce(&localNodeInputsValid,&globalNodeInputsValid,1,MPI_INT,
+                  MPI_MIN,MPI_COMM_WORLD) ;
+    if(globalNodeInputsValid == 0) {
+      report.status = face_transition_status::unsupported_restart ;
+      nodeReport.status = node_transition_status::missing_state ;
+      return false ;
+    }
+
+    store<Loci::FineNodes> innerNodesCell ;
+    store<Loci::FineNodes> innerNodesFace ;
+    store<Loci::FineNodes> innerNodesEdge ;
+    store<Loci::FineNodeAncestry> ancestryCell ;
+    store<Loci::FineNodeAncestry> ancestryFace ;
+    store<Loci::FineNodeAncestry> ancestryEdge ;
+    innerNodesCell = innerNodesCellRep ;
+    innerNodesFace = innerNodesFaceRep ;
+    innerNodesEdge = innerNodesEdgeRep ;
+    store<FineNodeConstruction> nodeConstructions ;
+    int numNodes = 0 ;
+    if(collectNodeState) {
+      ancestryCell = ancestryCellRep ;
+      ancestryFace = ancestryFaceRep ;
+      ancestryEdge = ancestryEdgeRep ;
+      createVOGNodeWithAncestry(nodePositions, nodeIds, nodeConstructions,
+            innerNodesCell, innerNodesFace, innerNodesEdge, ancestryCell,
+            ancestryFace, ancestryEdge, numNodes, sourceFacts, nodePartition) ;
+    }else {
+      createVOGNode(nodePositions, innerNodesCell, innerNodesFace,
+            innerNodesEdge, numNodes, sourceFacts, nodePartition) ;
+    }
+    const int localNodeStateValid =
+      !collectNodeState || (nodeIds.domain() == nodePositions.domain() &&
+                                     nodeConstructions.domain() ==
+                                           nodePositions.domain())
+                ? 1
+                : 0 ;
+    int globalNodeStateValid = 0 ;
+    MPI_Allreduce(&localNodeStateValid,&globalNodeStateValid,1,MPI_INT,
+                  MPI_MIN,MPI_COMM_WORLD) ;
+    if(globalNodeStateValid == 0) {
+      report.status = face_transition_status::unsupported_restart ;
+      nodeReport.status = node_transition_status::missing_state ;
+      return false ;
+    }
+    nodeReport.status = collectNodeState
+                              ? node_transition_status::valid
+                              : node_transition_status::unsupported_topology ;
+    nodeReport.valid = collectNodeState ;
+    if(!collectFaceState)
+      return true ;
+
+    storeRepP fineFacesCellRep = sourceFacts.get_variable("fine_faces_cell") ;
+    storeRepP fineFacesRep = sourceFacts.get_variable("fine_faces") ;
+    const int localFaceInputsValid =
+      fineFacesCellRep != 0 && fineFacesRep != 0 ? 1 : 0 ;
+    int globalFaceInputsValid = 0 ;
+    MPI_Allreduce(&localFaceInputsValid,&globalFaceInputsValid,1,MPI_INT,
+                  MPI_MIN,MPI_COMM_WORLD) ;
+    if(globalFaceInputsValid == 0) {
+      report.status = face_transition_status::unsupported_restart ;
+      return false ;
+    }
+    store<Loci::FineFaces> fineFacesCell ;
+    store<Loci::FineFaces> fineFaces ;
+    fineFacesCell = fineFacesCellRep ;
+    fineFaces = fineFacesRep ;
+    Map leftCell ;
+    Map rightCell ;
+    multiMap faceToNode ;
+    vector<entitySet> localFaces ;
+    vector<entitySet> localCells ;
+    int numFaces = 0 ;
+    int numCells = 0 ;
+    detail::FaceSources faceSources ;
+    createVOGFaceImpl(numNodes, fineFacesCell, fineFaces, sourceFacts, numFaces,
+          numCells, leftCell, rightCell, faceToNode, localFaces, localCells,
+          &faceSources) ;
+
+    store<FaceId> faceIds ;
+    store<CellId> cellIds ;
+    detail::collectAcceptedFaceState(numNodes, numFaces, fineFacesCell,
+          fineFaces, faceSources, nodePositions, faceToNode, localCells,
+          sourceFacts, state, faceIds, cellIds, report) ;
+    return true ;
+  }
+
+  static bool collectOriginalNodeState(fact_db& facts, store<NodeId>& nodeIds,
+        store<vector3d<double>>& positions, vector<entitySet>& partition,
+    NodeTransitionReport& report) {
+    report = NodeTransitionReport() ;
+    storeRepP positionRep = facts.get_variable("pos") ;
+    storeRepP fileNumberRep = facts.get_variable("fileNumber(pos)") ;
+    const int localInputsValid = positionRep != 0 && fileNumberRep != 0 ? 1 : 0 ;
+    int globalInputsValid = 0 ;
+    MPI_Allreduce(&localInputsValid,&globalInputsValid,1,MPI_INT,MPI_MIN,
+                  MPI_COMM_WORLD) ;
+    if(globalInputsValid == 0) {
+      report.status = node_transition_status::missing_state ;
+      return false ;
+    }
+    store<vector3d<double> > availablePositions ;
+    availablePositions = positionRep ;
+    store<int> fileNumbers ;
+    fileNumbers = fileNumberRep ;
+
+    entitySet ownedNodes = availablePositions.domain() ;
+    int localPartitionValid = 1 ;
+    if(MPI_processes > 1) {
+      const int nodeKeySpace = positionRep->getDomainKeySpace() ;
+      const vector<entitySet> initialPartition =
+        facts.get_init_ptn(nodeKeySpace) ;
+      localPartitionValid =
+        initialPartition.size() == size_t(MPI_processes) ? 1 : 0 ;
+      if(localPartitionValid != 0)
+        ownedNodes &= initialPartition[MPI_rank] ;
+    }
+    int globalPartitionValid = 0 ;
+    MPI_Allreduce(&localPartitionValid,&globalPartitionValid,1,MPI_INT,
+                  MPI_MIN,MPI_COMM_WORLD) ;
+    if(globalPartitionValid == 0) {
+      report.status = node_transition_status::missing_state ;
+      return false ;
+    }
+
+    const int localDomainsValid =
+      (ownedNodes-fileNumbers.domain()).size() == 0 ? 1 : 0 ;
+    int globalDomainsValid = 0 ;
+    MPI_Allreduce(&localDomainsValid,&globalDomainsValid,1,MPI_INT,MPI_MIN,
+                  MPI_COMM_WORLD) ;
+    if(globalDomainsValid == 0) {
+      report.status = node_transition_status::missing_state ;
+      return false ;
+    }
+    positions.allocate(ownedNodes) ;
+    nodeIds.allocate(ownedNodes) ;
+    int localInvalid = 0 ;
+    FORALL(ownedNodes,node) {
+      positions[node] = availablePositions[node] ;
+      nodeIds[node] = persistentBaseNodeId(fileNumbers[node]) ;
+      if(nodeIds[node] == 0)
+        ++localInvalid ;
+    }
+    ENDFORALL ;
+    int globalInvalid = 0 ;
+    MPI_Allreduce(
+          &localInvalid, &globalInvalid, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD) ;
+    if(globalInvalid != 0) {
+      report.status = node_transition_status::missing_state ;
+      report.missingSourceNodes = size_t(globalInvalid) ;
+      return false ;
+    }
+    partition = all_collect_vectors(ownedNodes) ;
+    report.sourceNodes = ownedNodes.size() ;
+    report.status = node_transition_status::valid ;
+    report.valid = true ;
+    return true ;
+  }
+
+  static void onlineRefineMeshImpl(Loci::CPTR<refinedGridData>& gridDataP,
+        const Loci::CPTR<FaceState>& priorFaceState, rule_db& refmesh_rdb,
+        int adaptmode, int level, storeRepP tags, string casename,
+        bool remapNodes) {
     gridDataP = new(refinedGridData) ;
       
         
@@ -946,6 +1288,18 @@ namespace Loci {
       
     // Read in the mesh file.
     Loci::storeRepP cellwt = Loci::DataXFER_DB.getItem("cellweights") ;
+    store<int> replayCellWeights ;
+    storeRepP replayCellWeightRep ;
+    if(level != 0 && cellwt != 0) {
+      const_store<int> inputCellWeights ;
+      inputCellWeights = cellwt ;
+      replayCellWeights.allocate(inputCellWeights.domain()) ;
+      FORALL(inputCellWeights.domain(),cell) {
+        replayCellWeights[cell] = inputCellWeights[cell] ;
+      }
+      ENDFORALL ;
+      replayCellWeightRep = replayCellWeights.Rep() ;
+    }
     if(!Loci::setupFVMGridWithWeightInStore(refine_facts,meshFile, cellwt)) {
       std::cerr << "unable to read grid file '" << meshFile << "'" << std::endl ;
       Loci::Abort() ;
@@ -968,7 +1322,80 @@ namespace Loci {
     Loci::createLowerUpper(refine_facts) ;
     Loci::createEdgesPar(refine_facts) ;
     Loci::parallelClassifyCell(refine_facts);
-       
+    const bool buildFaceTransition = supportedCellTopology(refine_facts, true) ;
+    const bool buildNodeTransition =
+          supportedCellTopology(refine_facts, false) && remapNodes ;
+    param<bool> collectNodeAncestry ;
+    *collectNodeAncestry = buildNodeTransition ;
+    refine_facts.create_fact("collectNodeAncestry", collectNodeAncestry) ;
+    if(!buildFaceTransition) {
+      gridDataP->faceTransitionReport.status =
+        face_transition_status::unsupported_topology ;
+    }
+    if(!buildNodeTransition) {
+      gridDataP->nodeTransitionReport.status =
+            remapNodes ? node_transition_status::unsupported_topology
+                       : node_transition_status::not_requested ;
+    }
+    const bool hasPriorState = priorFaceState != static_cast<FaceState*>(0) ;
+    const int localPriorState[2] = {
+      hasPriorState,
+      hasPriorState &&
+        priorFaceState->nodePartition.size() == size_t(MPI_processes)
+    } ;
+    int globalPriorState[2] = {0, 0} ;
+    MPI_Allreduce(localPriorState, globalPriorState, 2, MPI_INT, MPI_MIN,
+                  MPI_COMM_WORLD) ;
+    const bool usePriorFaceState =
+          buildFaceTransition && level != 0 && globalPriorState[0] != 0 ;
+    const bool usePriorNodeState =
+          buildNodeTransition && level != 0 && globalPriorState[1] != 0 ;
+
+    CPTR<FaceState> reconstructedSourceState ;
+    FaceTransitionReport reconstructedSourceReport ;
+    store<NodeId> sourceNodeIds ;
+    store<vector3d<double> > sourceNodePositions ;
+    vector<entitySet> sourceNodePartition ;
+    NodeTransitionReport sourceNodeReport ;
+    bool sourceNodeStateReady = false ;
+    if (usePriorNodeState) {
+      sourceNodeIds = priorFaceState->nodeIds.Rep() ;
+      sourceNodePositions = priorFaceState->nodePositions.Rep() ;
+      sourceNodePartition = priorFaceState->nodePartition ;
+      sourceNodeReport.status = node_transition_status::valid ;
+      sourceNodeReport.valid = true ;
+      sourceNodeStateReady = true ;
+    } else if (buildNodeTransition && level == 0) {
+      // Capture the original node state before the refinement query can
+      // release intermediate file-number facts under dynamic memory control.
+      const int localNodeQueryReady =
+        Loci::makeQuery(refine_rules, refine_facts, "fileNumber(pos)") ;
+      int globalNodeQueryReady = 0 ;
+      MPI_Allreduce(&localNodeQueryReady,&globalNodeQueryReady,1,MPI_INT,
+                    MPI_MIN,MPI_COMM_WORLD) ;
+      if(globalNodeQueryReady != 0)
+        sourceNodeStateReady =
+              collectOriginalNodeState(refine_facts, sourceNodeIds,
+                    sourceNodePositions, sourceNodePartition, sourceNodeReport) ;
+      else
+        sourceNodeReport.status = node_transition_status::missing_state ;
+    }
+    if (level != 0 &&
+        ((buildNodeTransition && !usePriorNodeState) ||
+         (buildFaceTransition && !usePriorFaceState))) {
+      const bool reconstructFaces = !usePriorFaceState ;
+      sourceNodeStateReady = reconstructStaticState(refine_rules, meshFile,
+            replayCellWeightRep, buildNodeTransition && !usePriorNodeState,
+            reconstructFaces, reconstructedSourceState,
+        reconstructedSourceReport,sourceNodeIds,sourceNodePositions,
+        sourceNodePartition,sourceNodeReport) ;
+      sourceNodeStateReady = sourceNodeStateReady && sourceNodeReport.valid ;
+    }
+    int localSourceNodeStateReady = sourceNodeStateReady ? 1 : 0 ;
+    int globalSourceNodeStateReady = 0 ;
+    MPI_Allreduce(&localSourceNodeStateReady,&globalSourceNodeStateReady,1,
+                  MPI_INT,MPI_MIN,MPI_COMM_WORLD) ;
+    sourceNodeStateReady = globalSourceNodeStateReady != 0 ;
       
     //this is a dummy parameter to trick Loci scheduler
     param<bool> beginWithMarker;
@@ -1032,15 +1459,32 @@ namespace Loci {
       *cellweight_outDB_par = "cellweights";
       refine_facts.create_fact("cellweight_outDB_par",cellweight_outDB_par);
         
-      if(!Loci::makeQuery(refine_rules,refine_facts,
-			  "cellplan_output,cellweight_output,cell2parent_DB,inner_nodes_cell,inner_nodes_face,inner_nodes_edge,fine_faces_cell,fine_faces,volTag_blackbox,fineRefinementDepth,fineAdaptResult,planRootFileNumber,balanced_cell_offset")) {
+      string refinementQuery =
+        "cellplan_output,cellweight_output,cell2parent_DB,inner_nodes_cell,"
+        "inner_nodes_face,inner_nodes_edge,fine_faces_cell,fine_faces,"
+        "volTag_blackbox,fineRefinementDepth,fineAdaptResult,"
+        "planRootFileNumber,balanced_cell_offset" ;
+      if(buildNodeTransition)
+        refinementQuery += ",inner_node_ancestry_cell,inner_node_ancestry_face,"
+          "inner_node_ancestry_edge" ;
+      if(buildFaceTransition) {
+        refinementQuery +=
+          ",balancedCellPlan,faceLeafPaths,cellLeafPaths,"
+          "fileNumber(pos),fileNumber(face2node),fileNumber(geom_cells)" ;
+      }
+      if(!Loci::makeQuery(refine_rules,refine_facts,refinementQuery)) {
 	std::cerr << "adapt query failed!" << std::endl;
 	Loci::Abort();
       }
     }
       
-    Loci::DataXFER_DB.deleteItem("currentPlan") ;
     Loci::storeRepP newPlan = Loci::DataXFER_DB.getItem("nextPlan") ;
+    if(newPlan == 0) {
+      if(Loci::MPI_rank == 0)
+        std::cerr << "adapt query did not publish nextPlan" << std::endl ;
+      Loci::Abort() ;
+    }
+    Loci::DataXFER_DB.deleteItem("currentPlan") ;
     Loci::DataXFER_DB.insertItem("currentPlan",newPlan) ;
     Loci::DataXFER_DB.deleteItem("nextPlan") ;
 	
@@ -1050,15 +1494,41 @@ namespace Loci {
     inner_nodes_face = refine_facts.get_variable("inner_nodes_face");
     store<Loci::FineNodes> inner_nodes_edge;
     inner_nodes_edge = refine_facts.get_variable("inner_nodes_edge");
-        
-       
+    store<FineNodeConstruction> nodeConstructions ;
     int num_nodes;
-    createVOGNode(gridDataP->new_pos,
-		  inner_nodes_cell,inner_nodes_face,inner_nodes_edge,
-		  num_nodes,
-		  refine_facts,
-		  gridDataP->local_nodes
-		  );
+    if(buildNodeTransition) {
+      store<Loci::FineNodeAncestry> ancestry_cell ;
+      store<Loci::FineNodeAncestry> ancestry_face ;
+      store<Loci::FineNodeAncestry> ancestry_edge ;
+      ancestry_cell = refine_facts.get_variable("inner_node_ancestry_cell") ;
+      ancestry_face = refine_facts.get_variable("inner_node_ancestry_face") ;
+      ancestry_edge = refine_facts.get_variable("inner_node_ancestry_edge") ;
+      createVOGNodeWithAncestry(gridDataP->new_pos, gridDataP->nodeIds,
+            nodeConstructions, inner_nodes_cell, inner_nodes_face,
+            inner_nodes_edge, ancestry_cell, ancestry_face, ancestry_edge,
+            num_nodes, refine_facts, gridDataP->local_nodes) ;
+    }else {
+      createVOGNode(gridDataP->new_pos,inner_nodes_cell,inner_nodes_face,
+            inner_nodes_edge, num_nodes, refine_facts, gridDataP->local_nodes) ;
+    }
+    if(buildNodeTransition) {
+      if(sourceNodeStateReady) {
+        NodeTransitionReport localNodeReport ;
+        CPTR<NodeRemap> nodeRemap = detail::buildNodeRemap(sourceNodeIds,
+              sourceNodePositions, sourceNodePartition, gridDataP->nodeIds,
+              nodeConstructions, gridDataP->new_pos, gridDataP->local_nodes,
+              localNodeReport) ;
+        NodeTransitionReport globalNodeReport ;
+        detail::reduceNodeTransitionReport(localNodeReport,globalNodeReport) ;
+        gridDataP->nodeTransitionReport = globalNodeReport ;
+        if (globalNodeReport.valid && nodeRemap != static_cast<NodeRemap*>(0))
+          gridDataP->nodeRemap = nodeRemap ;
+      }else {
+        NodeTransitionReport globalNodeReport ;
+        detail::reduceNodeTransitionReport(sourceNodeReport,globalNodeReport) ;
+        gridDataP->nodeTransitionReport = globalNodeReport ;
+      }
+    }
     if(Loci::MPI_rank ==0)
       cerr<< "num_nodes: " << num_nodes << " in adaptcycle" << endl;
         
@@ -1070,18 +1540,82 @@ namespace Loci {
     int num_faces = 0;
     int num_cells = 0;
       
-    createVOGFace( num_nodes,
-		   fine_faces_cell,
-		   fine_faces,
-		   refine_facts,
-		   num_faces,
-		   num_cells,
-		   gridDataP->new_cl,
-		   gridDataP->new_cr,
-		   gridDataP->new_face2node,
-		   gridDataP->local_faces,
-		   gridDataP->local_cells
-		   );
+    detail::FaceSources faceSources ;
+    createVOGFaceImpl(num_nodes, fine_faces_cell, fine_faces, refine_facts,
+          num_faces, num_cells, gridDataP->new_cl, gridDataP->new_cr,
+          gridDataP->new_face2node, gridDataP->local_faces,
+          gridDataP->local_cells, buildFaceTransition ? &faceSources : 0) ;
+
+    if(buildFaceTransition) {
+      CPTR<FaceState> acceptedState ;
+      FaceTransitionReport acceptedReport ;
+      if (!detail::collectAcceptedFaceState(num_nodes, num_faces,
+                fine_faces_cell, fine_faces, faceSources, gridDataP->new_pos,
+                gridDataP->new_face2node, gridDataP->local_cells, refine_facts,
+           acceptedState,gridDataP->faceIds,gridDataP->cellIds,
+           acceptedReport)) {
+        gridDataP->faceTransitionReport = acceptedReport ;
+      }else {
+        if (buildNodeTransition) {
+          acceptedState->retainNodes(gridDataP->nodeIds, gridDataP->new_pos,
+                gridDataP->local_nodes) ;
+        }
+        gridDataP->transitionState = publicMeshState(acceptedState) ;
+        CPTR<FaceState> sourceState ;
+        CPTR<FaceState> originalState ;
+        FaceTransitionReport sourceReport ;
+        if(usePriorFaceState) {
+          sourceState = priorFaceState ;
+        }else if(level != 0) {
+          if(reconstructedSourceState != static_cast<FaceState*>(0))
+            sourceState = reconstructedSourceState ;
+          else
+            gridDataP->faceTransitionReport = reconstructedSourceReport ;
+        }else if(detail::collectOriginalFaceState(
+                   refine_facts,originalState,sourceReport)) {
+          sourceState = originalState ;
+        }else {
+          gridDataP->faceTransitionReport = sourceReport ;
+        }
+
+        const int localSourceStateAvailable =
+          sourceState != static_cast<FaceState*>(0) ? 1 : 0 ;
+        int globalSourceStateCount = 0 ;
+        MPI_Allreduce(&localSourceStateAvailable,&globalSourceStateCount,1,
+                      MPI_INT,MPI_SUM,MPI_COMM_WORLD) ;
+        if(globalSourceStateCount == MPI_processes) {
+          size_t invalidSourceIdentities = 0 ;
+          size_t invalidTargetIdentities = 0 ;
+          const bool sourceIdsValid =
+            detail::validateFaceIdentityHashesDistributed(
+              sourceState->faceIdentities(),invalidSourceIdentities) ;
+          const bool targetIdsValid =
+            detail::validateFaceIdentityHashesDistributed(
+              acceptedState->faceIdentities(),invalidTargetIdentities) ;
+          if(!sourceIdsValid || !targetIdsValid) {
+            gridDataP->faceTransitionReport.status =
+              face_transition_status::invalid_identity ;
+            gridDataP->faceTransitionReport.invalidIdentities =
+              invalidSourceIdentities+invalidTargetIdentities ;
+          }else {
+            FaceTransitionReport transitionReport ;
+            CPTR<FaceRemap> transition =
+                  buildFaceRemap(sourceState, acceptedState, transitionReport) ;
+            FaceTransitionReport globalTransitionReport ;
+            detail::reduceFaceTransitionReport(
+                  transitionReport, globalTransitionReport) ;
+            gridDataP->faceTransitionReport = globalTransitionReport ;
+            if(globalTransitionReport.valid &&
+                  transition != static_cast<FaceRemap*>(0))
+              gridDataP->faceRemap = transition ;
+          }
+        }else if(globalSourceStateCount != 0) {
+          gridDataP->faceTransitionReport.status =
+            face_transition_status::invalid_identity ;
+          gridDataP->faceTransitionReport.invalidIdentities++ ;
+        }
+      }
+    }
 
     storeRepP fineDepthRep =
       refine_facts.get_variable("fineRefinementDepth") ;
@@ -1103,9 +1637,9 @@ namespace Loci {
     const_store<vector<int> > fineResult(fineResultRep) ;
     const_store<int> cellOffset(cellOffsetRep) ;
     const_store<int> rootFileNumber(rootFileNumberRep) ;
-    constraint geomCells ;
-    geomCells = geomCellsRep ;
-    const entitySet sourceCells = *geomCells & fineDepth.domain() ;
+    constraint geomCellsForState ;
+    geomCellsForState = geomCellsRep ;
+    const entitySet sourceCells = *geomCellsForState & fineDepth.domain() ;
 
     if(!detail::collectRefinedCellState(gridDataP->cellState,
                                         fineDepth,
@@ -1130,6 +1664,35 @@ namespace Loci {
       cerr<< "num_faces: " << num_faces << " in adaptcycle" <<endl;
       cerr<< "num_cells: " << num_cells << " in adaptcycle" << endl;
     }
+  }
+
+  void onlineRefineMesh(Loci::CPTR<refinedGridData> &gridDataP,
+        rule_db& refmesh_rdb, int adaptmode, int level, storeRepP tags,
+                        string casename) {
+    CPTR<FaceState> priorFaceState ;
+    if(gridDataP != static_cast<refinedGridData*>(0))
+      priorFaceState = internalFaceState(gridDataP->transitionState) ;
+    onlineRefineMeshImpl(gridDataP, priorFaceState, refmesh_rdb, adaptmode,
+          level, tags, casename, true) ;
+  }
+
+  void onlineRefineMesh(Loci::CPTR<refinedGridData> &gridDataP,
+        Loci::CPTR<MeshState>& transitionState, rule_db& refmesh_rdb,
+        int adaptmode, int level, storeRepP tags, string casename) {
+    onlineRefineMesh(gridDataP, transitionState, refmesh_rdb, adaptmode, level,
+          tags, casename, true) ;
+  }
+
+  void onlineRefineMesh(Loci::CPTR<refinedGridData>& gridDataP,
+        Loci::CPTR<MeshState>& transitionState, rule_db& refmesh_rdb,
+        int adaptmode, int level, storeRepP tags, string casename,
+        bool remapNodes) {
+    CPTR<FaceState> priorFaceState = internalFaceState(transitionState) ;
+    onlineRefineMeshImpl(gridDataP, priorFaceState, refmesh_rdb, adaptmode,
+          level, tags, casename, remapNodes) ;
+    transitionState = gridDataP == static_cast<refinedGridData*>(0)
+                            ? CPTR<MeshState>()
+                            : gridDataP->transitionState ;
   }
 
   void initializeGridFromPlan(Loci::CPTR<refinedGridData> &gridDataP,
@@ -1160,6 +1723,11 @@ namespace Loci {
     Loci::createLowerUpper(refine_facts) ;
     Loci::createEdgesPar(refine_facts) ;
     Loci::parallelClassifyCell(refine_facts);
+    const bool buildFaceTransition = supportedCellTopology(refine_facts,true) ;
+    const bool buildNodeTransition = supportedCellTopology(refine_facts,false) ;
+    param<bool> collectNodeAncestry ;
+    *collectNodeAncestry = buildNodeTransition ;
+    refine_facts.create_fact("collectNodeAncestry", collectNodeAncestry) ;
     blackbox<vector<pair<string, entitySet> > > origVolTags ;
     origVolTags.Rep()->allocate(~EMPTY) ;
     //if(MPI_rank==0){
@@ -1207,8 +1775,17 @@ namespace Loci {
     *balanced_planDB_par = "currentPlan" ;
     refine_facts.create_fact("balanced_planDB_par",balanced_planDB_par) ;
 	      
-    if(!Loci::makeQuery(refine_rules,refine_facts,
-			"inner_nodes_cell,inner_nodes_face,inner_nodes_edge,fine_faces,fine_faces_cell,volTag_blackbox,fineRefinementDepth,planRootFileNumber,balanced_cell_offset")) {
+    string refinementQuery =
+      "inner_nodes_cell,inner_nodes_face,inner_nodes_edge,fine_faces,"
+      "fine_faces_cell,volTag_blackbox,fineRefinementDepth,"
+      "planRootFileNumber,balanced_cell_offset" ;
+    if(buildNodeTransition)
+      refinementQuery += ",inner_node_ancestry_cell,inner_node_ancestry_face,"
+        "inner_node_ancestry_edge" ;
+    if(buildFaceTransition)
+      refinementQuery += ",balancedCellPlan,faceLeafPaths,"
+        "cellLeafPaths,fileNumber(pos),fileNumber(face2node)" ;
+    if(!Loci::makeQuery(refine_rules,refine_facts,refinementQuery)) {
       std::cerr << "adapt query failed!" << std::endl;
       Loci::Abort();
     }
@@ -1219,19 +1796,35 @@ namespace Loci {
     inner_nodes_face = refine_facts.get_variable("inner_nodes_face");
     store<Loci::FineNodes> inner_nodes_edge;
     inner_nodes_edge = refine_facts.get_variable("inner_nodes_edge");
-
-	  
+    store<FineNodeConstruction> nodeConstructions ;
     gridDataP = new(refinedGridData) ;
+    if(!buildFaceTransition) {
+      gridDataP->faceTransitionReport.status =
+        face_transition_status::unsupported_topology ;
+    }
+    if(!buildNodeTransition) {
+      gridDataP->nodeTransitionReport.status =
+        node_transition_status::unsupported_topology ;
+    }
     gridDataP->boundary_ids.clear();
-    Loci::readBCfromVOG(meshFile, gridDataP->boundary_ids); 
+    Loci::readBCfromVOG(meshFile, gridDataP->boundary_ids);
        
     int num_nodes;
-    createVOGNode(gridDataP->new_pos,
-		  inner_nodes_cell,inner_nodes_face,inner_nodes_edge,
-		  num_nodes,
-		  refine_facts,
-		  gridDataP->local_nodes
-		  );
+    if(buildNodeTransition) {
+      store<Loci::FineNodeAncestry> ancestry_cell ;
+      store<Loci::FineNodeAncestry> ancestry_face ;
+      store<Loci::FineNodeAncestry> ancestry_edge ;
+      ancestry_cell = refine_facts.get_variable("inner_node_ancestry_cell") ;
+      ancestry_face = refine_facts.get_variable("inner_node_ancestry_face") ;
+      ancestry_edge = refine_facts.get_variable("inner_node_ancestry_edge") ;
+      createVOGNodeWithAncestry(gridDataP->new_pos, gridDataP->nodeIds,
+            nodeConstructions, inner_nodes_cell, inner_nodes_face,
+            inner_nodes_edge, ancestry_cell, ancestry_face, ancestry_edge,
+                    num_nodes,refine_facts,gridDataP->local_nodes) ;
+    } else {
+      createVOGNode(gridDataP->new_pos, inner_nodes_cell, inner_nodes_face,
+            inner_nodes_edge, num_nodes, refine_facts, gridDataP->local_nodes) ;
+    }
     if(Loci::MPI_rank ==0)cerr<< "num_nodes: " << num_nodes << " before chem run" <<  endl;
         
     store<Loci::FineFaces> fine_faces_cell;
@@ -1242,18 +1835,30 @@ namespace Loci {
     int num_faces = 0;
     int num_cells = 0;
 	      
-    createVOGFace( num_nodes,
-		   fine_faces_cell,
-		   fine_faces,
-		   refine_facts,
-		   num_faces,
-		   num_cells,
-		   gridDataP->new_cl,
-		   gridDataP->new_cr,
-		   gridDataP->new_face2node,
-		   gridDataP->local_faces,
-		   gridDataP->local_cells
-		   );
+    detail::FaceSources faceSources ;
+    createVOGFaceImpl(num_nodes, fine_faces_cell, fine_faces, refine_facts,
+          num_faces, num_cells, gridDataP->new_cl, gridDataP->new_cr,
+          gridDataP->new_face2node, gridDataP->local_faces,
+          gridDataP->local_cells, buildFaceTransition ? &faceSources : 0) ;
+
+    if(buildFaceTransition) {
+      CPTR<FaceState> acceptedState ;
+      FaceTransitionReport acceptedReport ;
+      if (!detail::collectAcceptedFaceState(num_nodes, num_faces,
+                fine_faces_cell, fine_faces, faceSources, gridDataP->new_pos,
+                gridDataP->new_face2node, gridDataP->local_cells, refine_facts,
+           acceptedState,gridDataP->faceIds,gridDataP->cellIds,
+           acceptedReport) ||
+         acceptedState == static_cast<FaceState*>(0)) {
+        gridDataP->faceTransitionReport = acceptedReport ;
+      }else {
+        if (buildNodeTransition) {
+          acceptedState->retainNodes(gridDataP->nodeIds, gridDataP->new_pos,
+                gridDataP->local_nodes) ;
+        }
+        gridDataP->transitionState = publicMeshState(acceptedState) ;
+      }
+    }
 
     storeRepP fineDepthRep =
       refine_facts.get_variable("fineRefinementDepth") ;
@@ -1669,8 +2274,8 @@ namespace Loci {
     } ENDFORALL ;
 
     pos = t_pos.Rep()->remap(identity_map);
-    cl = tmp_cl.Rep()->remap(identity_map);
-    cr = tmp_cr.Rep()->remap(identity_map);
+    cl = MapRepP(tmp_cl.Rep())->MapRemap(identity_map,identity_map);
+    cr = MapRepP(tmp_cr.Rep())->MapRemap(identity_map,identity_map);
     face2node = MapRepP(tmp_face2node.Rep())->get_map();
 
   }
@@ -1703,8 +2308,20 @@ namespace Loci{
   // add offset to domain to get actual file numbering)
   // distribution info pointer (dist)
   // MPI Communicator(comm)
-  storeRepP Global2FileOrder(storeRepP sp, entitySet dom, int &offset,
-                             fact_db::distribute_infoP dist, MPI_Comm comm) {
+  static storeRepP Global2FileOrderWithCompanion(storeRepP sp,
+        storeRepP companion, storeRepP& reorderedCompanion, entitySet dom,
+        int& offset, fact_db::distribute_infoP dist, MPI_Comm comm) {
+
+    const int localCompanionValid =
+          companion == 0 || (dom - companion->domain()).size() == 0 ? 1 : 0 ;
+    int globalCompanionValid = 0 ;
+    MPI_Allreduce(&localCompanionValid,&globalCompanionValid,1,MPI_INT,
+                  MPI_MIN,comm) ;
+    if(globalCompanionValid == 0) {
+      cerr << "Global2FileOrder companion does not cover its source domain"
+           << endl ;
+      Loci::Abort() ;
+    }
 
     int keyspace = sp->getDomainKeySpace() ;
     // Now get global to file numbering
@@ -1788,12 +2405,17 @@ namespace Loci{
     // allocate store over shifted domain
     storeRepP qcol_rep ;
     qcol_rep = sp->new_store(file_dom) ;
+    reorderedCompanion =
+          companion == 0 ? storeRepP() : companion->new_store(file_dom) ;
 
     // Now communicate the container
     vector<int> send_sizes(p),recv_sizes(p) ;
 
-    for(int i=0;i<p;++i)
+    for(int i=0;i<p;++i) {
       send_sizes[i] = sp->pack_size(send_sets[i]) ;
+      if(companion != 0)
+        send_sizes[i] += companion->pack_size(send_sets[i]) ;
+    }
 
     MPI_Alltoall(&send_sizes[0],1,MPI_INT,
                  &recv_sizes[0],1,MPI_INT,
@@ -1815,21 +2437,38 @@ namespace Loci{
 
     for(int i=0;i<p;++i) {
       int loc_pack = 0 ;
-      sp->pack(&send_store[send_dspl[i]],loc_pack, send_sizes[i],
-               send_sets[i]) ;
+      if(send_sizes[i] != 0) {
+        sp->pack(
+              &send_store[send_dspl[i]], loc_pack, send_sizes[i], send_sets[i]) ;
+        if(companion != 0)
+          companion->pack(&send_store[send_dspl[i]],loc_pack,send_sizes[i],
+                          send_sets[i]) ;
+      }
     }
 
-    MPI_Alltoallv(&send_store[0], &send_sizes[0], &send_dspl[0], MPI_PACKED,
-		  &recv_store[0], &recv_sizes[0], &recv_dspl[0], MPI_PACKED,
-		  comm) ;
+    MPI_Alltoallv(send_store.empty() ? 0 : &send_store[0], &send_sizes[0],
+          &send_dspl[0], MPI_PACKED, recv_store.empty() ? 0 : &recv_store[0],
+          &recv_sizes[0], &recv_dspl[0], MPI_PACKED, comm) ;
 
     for(int i=0;i<p;++i) {
       int loc_pack = 0 ;
-      qcol_rep->unpack(&recv_store[recv_dspl[i]],loc_pack,recv_sizes[i],
-                       recv_seqs[i]) ;
+      if(recv_sizes[i] != 0) {
+        qcol_rep->unpack(
+              &recv_store[recv_dspl[i]], loc_pack, recv_sizes[i], recv_seqs[i]) ;
+        if(reorderedCompanion != 0)
+          reorderedCompanion->unpack(&recv_store[recv_dspl[i]],loc_pack,
+                                     recv_sizes[i],recv_seqs[i]) ;
+      }
     }
     return qcol_rep ;
   } 
+
+  storeRepP Global2FileOrder(storeRepP sp, entitySet dom, int &offset,
+                             fact_db::distribute_infoP dist, MPI_Comm comm) {
+    storeRepP noCompanion ;
+    return Global2FileOrderWithCompanion(
+      sp,storeRepP(),noCompanion,dom,offset,dist,comm) ;
+  }
 
   extern  bool useDomainKeySpaces  ;
   extern void remapGrid(vector<entitySet> &node_ptn,
@@ -1850,6 +2489,13 @@ namespace Loci{
                         store<string> &boundary_tags, 
                         entitySet bcsurfset,
                         fact_db &facts) ;
+
+  static bool allRanksValid(bool localValid) {
+    const int local = localValid ? 1 : 0 ;
+    int global = 0 ;
+    MPI_Allreduce(&local,&global,1,MPI_INT,MPI_MIN,MPI_COMM_WORLD) ;
+    return global != 0 ;
+  }
 
   static bool installCellStateSerial(fact_db& facts,
                                      const refinedCellState& source,
@@ -1896,9 +2542,12 @@ namespace Loci{
     const vector<entitySet>& cellPtn,
     const vector<entitySet>& cellPtnT,
     const entitySet& destinationCells) {
-    if(source.refinementDepth.domain() != sourceCells ||
-       source.rootCellFileNumber.domain() != sourceCells ||
-       (source.hasAdaptResult && source.adaptResult.domain() != sourceCells))
+    const bool sourceValid =
+      source.refinementDepth.domain() == sourceCells &&
+      source.rootCellFileNumber.domain() == sourceCells &&
+          (!source.hasAdaptResult ||
+                source.adaptResult.domain() == sourceCells) ;
+    if(!allRanksValid(sourceValid))
       return false ;
 
     store<int> refinementDepth ;
@@ -1919,6 +2568,13 @@ namespace Loci{
                              adaptResult.Rep()) ;
     }
 
+    const bool destinationValid =
+      refinementDepth.domain() == destinationCells &&
+      rootCellFileNumber.domain() == destinationCells &&
+      (!source.hasAdaptResult || adaptResult.domain() == destinationCells) ;
+    if(!allRanksValid(destinationValid))
+      return false ;
+
     facts.create_fact("refinementDepth", refinementDepth) ;
     facts.create_fact("rootCellFileNumber", rootCellFileNumber) ;
     if(source.hasAdaptResult)
@@ -1926,18 +2582,257 @@ namespace Loci{
     return true ;
   }
 
-  bool inputFVMGrid(fact_db &facts,
-                    vector<entitySet>& local_nodes,
-                    vector<entitySet>& local_faces,
-                    vector<entitySet>& local_cells,
-                    store<vector3d<double> >& t_pos,
-                    Map& tmp_cl,
-                    Map& tmp_cr,
-                    multiMap& tmp_face2node,
-                    vector<pair<int,string> >& boundary_ids,
-                    vector<pair<string,entitySet> >& volTags,
-                    storeRepP cellwts,
-                    const refinedCellState* cellState) {
+  static bool installCellIdsSerial(fact_db& facts, const store<CellId>& source,
+        const entitySet& sourceCells, const entitySet& destinationCells) {
+    if(source.domain() != sourceCells ||
+       sourceCells.size() != destinationCells.size())
+      return false ;
+    store<CellId> destination ;
+    destination.allocate(destinationCells) ;
+    entitySet::const_iterator sourceCell = sourceCells.begin() ;
+    entitySet::const_iterator destinationCell = destinationCells.begin() ;
+    while(sourceCell != sourceCells.end() &&
+          destinationCell != destinationCells.end()) {
+      destination[*destinationCell] = source[*sourceCell] ;
+      ++sourceCell ;
+      ++destinationCell ;
+    }
+    facts.create_fact("cellId",destination) ;
+    return true ;
+  }
+
+  static bool installCellIdsParallel(fact_db& facts,
+        const store<CellId>& source, const entitySet& sourceCells,
+        const vector<entitySet>& cellPtn, const vector<entitySet>& cellPtnT,
+    const entitySet& destinationCells) {
+    const bool sourceValid = source.domain() == sourceCells ;
+    if(!sourceValid)
+      cerr << "rank " << MPI_rank
+           << " AMR cell id source domain=" << source.domain()
+           << " expected=" << sourceCells << endl ;
+    if(!allRanksValid(sourceValid))
+      return false ;
+    store<CellId> destination ;
+    destination.allocate(destinationCells) ;
+    redistribute_container(
+          cellPtn, cellPtnT, destinationCells, source.Rep(), destination.Rep()) ;
+    const bool destinationValid = destination.domain() == destinationCells ;
+    if(!destinationValid)
+      cerr << "rank " << MPI_rank
+           << " AMR cell id destination domain=" << destination.domain()
+           << " expected=" << destinationCells << endl ;
+    if(!allRanksValid(destinationValid))
+      return false ;
+    facts.create_fact("cellId",destination) ;
+    return true ;
+  }
+
+  static bool installNodeIdsSerial(fact_db& facts, const store<NodeId>& source,
+        const entitySet& sourceNodes, const entitySet& destinationNodes) {
+    if(source.domain() != sourceNodes ||
+       sourceNodes.size() != destinationNodes.size())
+      return false ;
+    store<NodeId> destination ;
+    destination.allocate(destinationNodes) ;
+    entitySet::const_iterator sourceNode = sourceNodes.begin() ;
+    entitySet::const_iterator destinationNode = destinationNodes.begin() ;
+    while(sourceNode != sourceNodes.end() &&
+          destinationNode != destinationNodes.end()) {
+      destination[*destinationNode] = source[*sourceNode] ;
+      ++sourceNode ;
+      ++destinationNode ;
+    }
+    facts.create_fact("nodeId",destination) ;
+    return true ;
+  }
+
+  static bool nodeRemapTargetsMatch(const CPTR<NodeRemap>& remap,
+        const store<NodeId>& nodeIds, const entitySet& nodes) {
+    if(remap == static_cast<NodeRemap*>(0) || nodeIds.domain() != nodes)
+      return false ;
+    std::set<NodeId> expected ;
+    FORALL(nodes,node) {
+      if(nodeIds[node] == 0 || !expected.insert(nodeIds[node]).second)
+        return false ;
+    }
+    ENDFORALL ;
+    const std::vector<NodeGeometry>& targets = remap->targetNodeGeometry() ;
+    if(targets.size() != expected.size())
+      return false ;
+    std::set<NodeId> actual ;
+    for(size_t target=0;target<targets.size();++target)
+      if(expected.find(targets[target].node) == expected.end() ||
+         !actual.insert(targets[target].node).second)
+        return false ;
+    return actual == expected ;
+  }
+
+  static bool installNodeIdsParallel(fact_db& facts,
+        const store<NodeId>& source, const entitySet& sourceNodes,
+        const vector<entitySet>& nodePtn, const vector<entitySet>& nodePtnT,
+    const entitySet& destinationNodes) {
+    if(!allRanksValid(source.domain() == sourceNodes))
+      return false ;
+    store<NodeId> destination ;
+    destination.allocate(destinationNodes) ;
+    redistribute_container(
+          nodePtn, nodePtnT, destinationNodes, source.Rep(), destination.Rep()) ;
+    if(!allRanksValid(destination.domain() == destinationNodes))
+      return false ;
+    facts.create_fact("nodeId",destination) ;
+    return true ;
+  }
+
+  static void installNodeTransition(fact_db& facts,
+        const CPTR<NodeRemap>& remap, const NodeTransitionReport* report) {
+    if(report != 0) {
+      blackbox<NodeTransitionReport> reportFact ;
+      reportFact.set_entitySet(~EMPTY) ;
+      *reportFact = *report ;
+      facts.create_fact("nodeTransitionReport",reportFact) ;
+    }
+    if(report != 0 || remap != static_cast<NodeRemap*>(0)) {
+      blackbox<CPTR<NodeRemap> > remapFact ;
+      remapFact.set_entitySet(~EMPTY) ;
+      *remapFact = remap ;
+      facts.create_fact("nodeRemap",remapFact) ;
+    }
+  }
+
+  static void installFaceRemap(fact_db& facts, const CPTR<FaceRemap>& remap,
+    const FaceTransitionReport* report) {
+    if(report != 0) {
+      blackbox<FaceTransitionReport> reportFact ;
+      reportFact.set_entitySet(~EMPTY) ;
+      *reportFact = *report ;
+      facts.create_fact("faceTransitionReport",reportFact) ;
+    }
+    if(report != 0 || remap != static_cast<FaceRemap*>(0)) {
+      blackbox<CPTR<FaceRemap> > remapFact ;
+      remapFact.set_entitySet(~EMPTY) ;
+      *remapFact = remap ;
+      facts.create_fact("faceRemap",remapFact) ;
+    }
+  }
+
+  static bool installFaceIdsSerial(fact_db& facts,
+        const store<FaceId>& generatedIds, const entitySet& generatedFaces,
+                                   const entitySet& installedFaces) {
+    if(generatedIds.domain() != generatedFaces ||
+       generatedFaces.size() != installedFaces.size())
+      return false ;
+    store<FaceId> installedIds ;
+    installedIds.allocate(installedFaces) ;
+    entitySet::const_iterator source = generatedFaces.begin() ;
+    entitySet::const_iterator target = installedFaces.begin() ;
+    while(source != generatedFaces.end() && target != installedFaces.end()) {
+      installedIds[*target] = generatedIds[*source] ;
+      ++source ;
+      ++target ;
+    }
+    facts.create_fact("faceId",installedIds) ;
+    return true ;
+  }
+
+  static bool installParallelFaceIds(fact_db& facts,
+                                     const store<FaceId>& generatedIds,
+                                     const vector<entitySet>& generatedFacePtn,
+        const entitySet& installedFaces, size_t faceKeySpace) {
+    if(!allRanksValid(generatedFacePtn.size() == size_t(MPI_processes)))
+      return false ;
+    const entitySet generatedFaces = generatedFacePtn[MPI_rank] ;
+    if(!allRanksValid(generatedIds.domain() == generatedFaces))
+      return false ;
+    fact_db::distribute_infoP distribution = facts.get_distribute_info() ;
+    const bool distributionValid =
+      distribution != 0 && faceKeySpace < distribution->g2fv.size() ;
+    if(!distributionValid)
+      cerr << "rank " << MPI_rank
+           << " AMR face id install has no distribution/key space "
+           << faceKeySpace << endl ;
+    if(!allRanksValid(distributionValid))
+      return false ;
+    dMap globalToFile ;
+    globalToFile = distribution->g2fv[faceKeySpace].Rep() ;
+    const bool fileMapValid =
+      (installedFaces-globalToFile.domain()).size() == 0 ;
+    if(!fileMapValid)
+      cerr << "rank " << MPI_rank
+           << " AMR face id install faces=" << installedFaces
+           << " g2f domain=" << globalToFile.domain() << endl ;
+    if(!allRanksValid(fileMapValid))
+      return false ;
+    entitySet requiredGeneratedFaces ;
+    FORALL(installedFaces,face) {
+      requiredGeneratedFaces += globalToFile[face] ;
+    }
+    ENDFORALL ;
+    dstore<FaceId> idsByGeneratedFace ;
+    FORALL(generatedFaces,face) {
+      idsByGeneratedFace[face] = generatedIds[face] ;
+    }
+    ENDFORALL ;
+    entitySet localGeneratedFaces = generatedFaces ;
+    std::vector<entitySet> initialPartition =
+      all_collect_vectors(localGeneratedFaces,MPI_COMM_WORLD) ;
+    storeRepP expandedIds = idsByGeneratedFace.Rep() ;
+    fill_clone(expandedIds,requiredGeneratedFaces,initialPartition) ;
+    idsByGeneratedFace.setRep(expandedIds) ;
+    const bool expandedIdsValid =
+      (requiredGeneratedFaces-idsByGeneratedFace.domain()).size() == 0 ;
+    if(!expandedIdsValid) {
+      cerr << "rank " << MPI_rank
+           << " AMR face id install requires generated faces "
+           << requiredGeneratedFaces << " but has "
+           << idsByGeneratedFace.domain() << " from partition" ;
+      for(size_t process=0;process<initialPartition.size();++process)
+        cerr << " p" << process << "=" << initialPartition[process] ;
+      cerr << endl ;
+    }
+    if(!allRanksValid(expandedIdsValid))
+      return false ;
+    store<FaceId> installedIds ;
+    installedIds.allocate(installedFaces) ;
+    FORALL(installedFaces,face) {
+      installedIds[face] = idsByGeneratedFace[globalToFile[face]] ;
+    }
+    ENDFORALL ;
+    facts.create_fact("faceId",installedIds) ;
+    return true ;
+  }
+
+  bool inputFVMGrid(fact_db& facts, vector<entitySet>& local_nodes,
+        vector<entitySet>& local_faces, vector<entitySet>& local_cells,
+        store<vector3d<double>>& t_pos, Map& tmp_cl, Map& tmp_cr,
+        multiMap& tmp_face2node, vector<pair<int, string>>& boundary_ids,
+        vector<pair<string, entitySet>>& volTags, storeRepP cellwts,
+                    const refinedGridData* amrData) {
+    const refinedCellState* cellState = amrData == 0 ? 0 : &amrData->cellState ;
+    const CPTR<FaceRemap> faceRemap =
+          amrData == 0 ? CPTR<FaceRemap>() : amrData->faceRemap ;
+    const FaceTransitionReport* faceTransitionReport =
+          amrData == 0 ? 0 : &amrData->faceTransitionReport ;
+    const store<FaceId>* faceIds =
+          amrData == 0 || amrData->transitionState == static_cast<MeshState*>(0)
+                ? 0
+                : &amrData->faceIds ;
+    const store<CellId>* cellIds =
+          amrData == 0 || amrData->transitionState == static_cast<MeshState*>(0)
+                ? 0
+                : &amrData->cellIds ;
+    const CPTR<NodeRemap> nodeRemap =
+          amrData == 0 ? CPTR<NodeRemap>() : amrData->nodeRemap ;
+    const NodeTransitionReport* nodeTransitionReport =
+          amrData == 0 ? 0 : &amrData->nodeTransitionReport ;
+    const store<NodeId>* nodeIds =
+          amrData == 0 ||
+                      amrData->nodeTransitionReport.status ==
+                            node_transition_status::unsupported_topology ||
+                      amrData->nodeTransitionReport.status ==
+                            node_transition_status::not_requested ||
+                      amrData->transitionState == static_cast<MeshState*>(0)
+                ? 0
+                : &amrData->nodeIds ;
     double t1 = MPI_Wtime() ;
     // Identify boundary tags
     if(Loci::MPI_processes == 1) {
@@ -1998,6 +2893,45 @@ namespace Loci{
           cerr << "Unable to install refined-cell state" << endl ;
         return false ;
       }
+      if(cellIds != 0 &&
+         !installCellIdsSerial(facts,*cellIds,local_cells[0],cells)) {
+        cerr << "Unable to install persistent AMR cell identities" << endl ;
+        return false ;
+      }
+      if(nodeRemap != static_cast<NodeRemap*>(0) &&
+         (nodeIds == 0 || nodeTransitionReport == 0 ||
+          !nodeTransitionReport->valid ||
+                  !nodeRemapTargetsMatch(
+                        nodeRemap, *nodeIds, local_nodes[0]))) {
+        cerr << "AMR node remap has no valid transition report or exact "
+                "target identities"
+             << endl ;
+        return false ;
+      }
+      if(nodeTransitionReport != 0 && nodeTransitionReport->valid &&
+         nodeRemap == static_cast<NodeRemap*>(0)) {
+        cerr << "Valid AMR node transition has no remap" << endl ;
+        return false ;
+      }
+      if(nodeIds != 0 &&
+         !installNodeIdsSerial(facts,*nodeIds,local_nodes[0],nodes)) {
+        cerr << "Unable to install persistent AMR node identities" << endl ;
+        return false ;
+      }
+      if(faceIds != 0 &&
+         !installFaceIdsSerial(facts,*faceIds,local_faces[0],faces)) {
+        cerr << "Unable to install persistent AMR face identities" << endl ;
+        return false ;
+      }
+      if(faceRemap != static_cast<FaceRemap*>(0) &&
+         (faceIds == 0 || cellIds == 0)) {
+        cerr << "AMR face transition has incomplete persistent target "
+                "identities"
+             << endl ;
+        return false ;
+      }
+      installFaceRemap(facts,faceRemap,faceTransitionReport) ;
+      installNodeTransition(facts,nodeRemap,nodeTransitionReport) ;
 
       int cells_base = local_cells[0].Min() ;
       for(size_t i=0;i<volTags.size();++i) {
@@ -2241,7 +3175,6 @@ namespace Loci{
         cerr << "Unable to install refined-cell state" << endl ;
       return false ;
     }
-
     Loci::debugout << "nodes = " << nodes << ", size= "
                    << nodes.size() << endl;
     Loci::debugout << "faces = " << faces << ", size = "
@@ -2264,6 +3197,92 @@ namespace Loci{
     tmp_cr.Rep()->setDomainKeySpace(fk) ;
     tmp_face2node.Rep()->setDomainKeySpace(fk) ;
 
+    if(cellIds != 0 &&
+       !installCellIdsParallel(facts,*cellIds,local_cells[MPI_rank],
+                               cell_ptn,cell_ptn_t,cells)) {
+      if(MPI_rank == 0)
+        cerr << "Unable to install persistent AMR cell identities" << endl ;
+      return false ;
+    }
+    if(faceRemap != static_cast<FaceRemap*>(0) &&
+       (faceIds == 0 || cellIds == 0)) {
+      if(MPI_rank == 0)
+        cerr << "AMR face transition has incomplete persistent target "
+                "identities"
+             << endl ;
+      return false ;
+    }
+    CPTR<FaceRemap> installedFaceRemap = faceRemap ;
+    FaceTransitionReport installedFaceReport ;
+    const FaceTransitionReport* installedFaceReportPtr = faceTransitionReport ;
+    if(faceRemap != static_cast<FaceRemap*>(0)) {
+      if(faceTransitionReport == 0) {
+        if(MPI_rank == 0)
+          cerr << "AMR face transition has no validation report" << endl ;
+        return false ;
+      }
+      installedFaceRemap =
+            detail::redistributeFaceRemap(faceRemap, *faceTransitionReport,
+                  face_ptn, cell_ptn, *faceIds, *cellIds, installedFaceReport) ;
+      if(installedFaceRemap == static_cast<FaceRemap*>(0) ||
+         !installedFaceReport.valid) {
+        cerr << "rank " << MPI_rank
+             << " unable to redistribute AMR face transition: status="
+             << int(installedFaceReport.status)
+             << " invalidIds=" << installedFaceReport.invalidIdentities
+             << " invalidGeometry=" << installedFaceReport.remap.invalidGeometry
+             << " missingSource="
+             << installedFaceReport.remap.missingSourceFaces
+             << " missingTarget="
+             << installedFaceReport.remap.missingTargetFaces << endl ;
+        return false ;
+      }
+      installedFaceReportPtr = &installedFaceReport ;
+    }
+
+    int localNodeTransitionValid = 1 ;
+    if(nodeRemap != static_cast<NodeRemap*>(0)) {
+      localNodeTransitionValid =
+            nodeIds != 0 && nodeTransitionReport != 0 &&
+        nodeTransitionReport->valid &&
+                        nodeRemapTargetsMatch(
+                              nodeRemap, *nodeIds, local_nodes[MPI_rank])
+                  ? 1
+                  : 0 ;
+    }else if(nodeTransitionReport != 0 && nodeTransitionReport->valid) {
+      localNodeTransitionValid = 0 ;
+    }
+    int globalNodeTransitionValid = 0 ;
+    MPI_Allreduce(&localNodeTransitionValid,&globalNodeTransitionValid,1,
+                  MPI_INT,MPI_MIN,MPI_COMM_WORLD) ;
+    if(globalNodeTransitionValid == 0) {
+      if(MPI_rank == 0)
+        cerr << "AMR node remap has no valid transition report or exact "
+                "target identities"
+             << endl ;
+      return false ;
+    }
+    CPTR<NodeRemap> installedNodeRemap = nodeRemap ;
+    NodeTransitionReport installedNodeReport ;
+    const NodeTransitionReport* installedNodeReportPtr = nodeTransitionReport ;
+    if(nodeRemap != static_cast<NodeRemap*>(0)) {
+      installedNodeReport = *nodeTransitionReport ;
+      installedNodeRemap = detail::redistributeNodeRemap(
+        nodeRemap,node_ptn,*nodeIds,installedNodeReport) ;
+      if(installedNodeRemap == static_cast<NodeRemap*>(0) ||
+         !installedNodeReport.valid) {
+        cerr << "rank " << MPI_rank
+             << " unable to redistribute AMR node remap: status="
+             << int(installedNodeReport.status)
+             << " missingSource=" << installedNodeReport.missingSourceNodes
+             << " weightErrors=" << installedNodeReport.inconsistentWeights
+             << " positionErrors=" << installedNodeReport.inconsistentPositions
+             << endl ;
+        return false ;
+      }
+      installedNodeReportPtr = &installedNodeReport ;
+    }
+
     store<vector3d<double> > pos ;
     store<string> boundary_names,boundary_tags ;
     remapGrid(node_ptn, face_ptn, cell_ptn,
@@ -2282,6 +3301,23 @@ namespace Loci{
     facts.create_fact("face2node",face2node) ;
     facts.create_fact("boundary_names", boundary_names) ;
     facts.create_fact("boundary_tags", boundary_tags) ;
+
+    if(nodeIds != 0 &&
+       !installNodeIdsParallel(facts,*nodeIds,local_nodes[MPI_rank],
+                               node_ptn,node_ptn_t,nodes)) {
+      if(MPI_rank == 0)
+        cerr << "Unable to install persistent AMR node identities" << endl ;
+      return false ;
+    }
+    installNodeTransition(facts, installedNodeRemap, installedNodeReportPtr) ;
+
+    if (faceIds != 0 && !installParallelFaceIds(facts, *faceIds, local_faces,
+                              faces, size_t(fk))) {
+      if(MPI_rank == 0)
+        cerr << "Unable to install persistent AMR face identities" << endl ;
+      return false ;
+    }
+    installFaceRemap(facts,installedFaceRemap,installedFaceReportPtr) ;
 
     // update remap from global to file numbering for faces after sorting
     fact_db::distribute_infoP df = facts.get_distribute_info() ;
@@ -2313,58 +3349,31 @@ namespace Loci{
              << endl ;
     REPORTMEM() ;
     return true ;
-    
   }
 
+  bool setupFVMGridFromContainer(fact_db& facts, vector<entitySet>& local_nodes,
+        vector<entitySet>& local_faces, vector<entitySet>& local_cells,
+        store<vector3d<double>>& tmp_pos, Map& tmp_cl, Map& tmp_cr,
+        multiMap& tmp_face2node, vector<pair<int, string>>& boundary_ids,
+        vector<pair<string, entitySet>>& volTags, storeRepP cellwts) {
+    if (!inputFVMGrid(facts, local_nodes, local_faces, local_cells, tmp_pos,
+              tmp_cl, tmp_cr, tmp_face2node, boundary_ids, volTags, cellwts, 0))
+      return false ;
+    REPORTMEM() ;
   
-  bool setupFVMGridFromContainer(fact_db &facts,
-                                 vector<entitySet>& local_nodes,
-                                 vector<entitySet>& local_faces,
-                                 vector<entitySet>& local_cells,
-                                 store<vector3d<double> >& tmp_pos,
-                                 Map& tmp_cl,
-                                 Map& tmp_cr,
-                                 multiMap& tmp_face2node,
-                                 vector<pair<int,string> >& boundary_ids,
-                                 vector<pair<string,entitySet> >& volTags,
-				 storeRepP cellwts) {
-    return setupFVMGridFromContainer(facts,
-                                     local_nodes,
-                                     local_faces,
-                                     local_cells,
-                                     tmp_pos,
-                                     tmp_cl,
-                                     tmp_cr,
-                                     tmp_face2node,
-                                     boundary_ids,
-                                     volTags,
-                                     cellwts,
-                                     0) ;
+    create_face_info(facts) ;
+    create_ref(facts) ;
+    create_ghost_cells(facts) ;
+
+    return true ;
   }
 
-  bool setupFVMGridFromContainer(fact_db &facts,
-                                 vector<entitySet>& local_nodes,
-                                 vector<entitySet>& local_faces,
-                                 vector<entitySet>& local_cells,
-                                 store<vector3d<double> >& t_pos,
-                                 Map& tmp_cl,
-                                 Map& tmp_cr,
-                                 multiMap& tmp_face2node,
-                                 vector<pair<int,string> >& boundary_ids,
-                                 vector<pair<string,entitySet> >& volTags,
-                                 storeRepP cellwts,
-                                 const refinedCellState* cellState) {
-       
-    if(!inputFVMGrid(facts,
-                     local_nodes,
-                     local_faces,
-                     local_cells,
-                     t_pos,
-                     tmp_cl,
-                     tmp_cr,
-                     tmp_face2node,
-                     boundary_ids,
-                     volTags, cellwts, cellState))
+  bool setupFVMGridFromContainer(
+        fact_db& facts, refinedGridData& grid, storeRepP cellwts) {
+    if (!inputFVMGrid(facts, grid.local_nodes, grid.local_faces,
+              grid.local_cells, grid.new_pos, grid.new_cl, grid.new_cr,
+              grid.new_face2node, grid.boundary_ids, grid.volTags, cellwts,
+                     &grid))
       return false ;
     REPORTMEM() ;
 
@@ -2401,21 +3410,71 @@ namespace Loci {
     Loci::Abort() ;
   }
 
+  static void redistributeNodeStore(storeRepP source, storeRepP target,
+        const vector<entitySet>& send_sets, const vector<sequence>& recv_seqs) {
+    const int processes = Loci::MPI_processes ;
+    vector<int> send_sizes(processes,0), recv_sizes(processes,0) ;
+    for(int process=0;process<processes;++process)
+      send_sizes[process] = source->pack_size(send_sets[process]) ;
+    MPI_Alltoall(send_sizes.data(),1,MPI_INT,recv_sizes.data(),1,MPI_INT,
+                 MPI_COMM_WORLD) ;
+
+    vector<int> send_displacements(processes,0) ;
+    vector<int> receive_displacements(processes,0) ;
+    for(int process=1;process<processes;++process) {
+      send_displacements[process] =
+            send_displacements[process - 1] + send_sizes[process - 1] ;
+      receive_displacements[process] =
+            receive_displacements[process - 1] + recv_sizes[process - 1] ;
+    }
+    const int send_size =
+          processes == 0 ? 0 : send_displacements.back() + send_sizes.back() ;
+    const int receive_size =
+          processes == 0 ? 0 : receive_displacements.back() + recv_sizes.back() ;
+    vector<unsigned char> send_buffer(send_size) ;
+    vector<unsigned char> receive_buffer(receive_size) ;
+    for(int process=0;process<processes;++process) {
+      if(send_sizes[process] == 0)
+        continue ;
+      int packed = 0 ;
+      source->pack(send_buffer.data()+send_displacements[process],packed,
+                   send_sizes[process],send_sets[process]) ;
+    }
+    MPI_Alltoallv(send_buffer.empty() ? 0 : send_buffer.data(),
+                  send_sizes.data(),send_displacements.data(),MPI_PACKED,
+          receive_buffer.empty() ? 0 : receive_buffer.data(), recv_sizes.data(),
+          receive_displacements.data(), MPI_PACKED, MPI_COMM_WORLD) ;
+    for(int process=0;process<processes;++process) {
+      if(recv_sizes[process] == 0)
+        continue ;
+      int unpacked = 0 ;
+      target->unpack(receive_buffer.data()+receive_displacements[process],
+                     unpacked,recv_sizes[process],recv_seqs[process]) ;
+    }
+  }
+
   //create a new store new_pos from pos and inner_nodes
   //re_number the nodes in pos and inner_nodes,
   //and then redistribute them across the processes
-  void createVOGNode(store<vector3d<double> > &new_pos,
+  static void createVOGNodeImpl(store<vector3d<double>>& new_pos,
+        store<NodeId>* nodeIds, store<FineNodeConstruction>* nodeConstructions,
                      const store<Loci::FineNodes> &inner_nodes_cell,
                      const store<Loci::FineNodes> &inner_nodes_face,
                      const store<Loci::FineNodes> &inner_nodes_edge,
-                     
-                     int& num_nodes,
+                     const store<Loci::FineNodeAncestry>* ancestry_cell,
+                     const store<Loci::FineNodeAncestry>* ancestry_face,
+        const store<Loci::FineNodeAncestry>* ancestry_edge, int& num_nodes,
                      fact_db & facts,//in global numbering
-                     vector<entitySet>& nodes_ptn
-                     ){
+                     vector<entitySet>& nodes_ptn) {
+    const bool assembleAncestry = nodeIds != 0 && nodeConstructions != 0 &&
+                                  ancestry_cell != 0 && ancestry_face != 0 &&
+                                  ancestry_edge != 0 ;
     //get store pos
     store<vector3d<double> > pos;
     pos =  facts.get_variable("pos");
+    store<int> nodeFileNumber ;
+    if(assembleAncestry)
+      nodeFileNumber = facts.get_variable("fileNumber(pos)") ;
        
     if(MPI_processes == 1){
       //firsr write out numNodes
@@ -2435,12 +3494,24 @@ namespace Loci {
       long npnts = num_original_nodes + num_inner_nodes;
       entitySet new_domain= interval(node_base, node_base+npnts-1);
       new_pos.allocate(new_domain);
+      if(assembleAncestry) {
+        nodeIds->allocate(new_domain) ;
+        nodeConstructions->allocate(new_domain) ;
+      }
     
       entitySet::const_iterator nei = new_domain.begin();
       entitySet::const_iterator ei = pos.domain().begin();
     
       for(long count = 0; count < num_original_nodes; count++, nei++, ei++){
         new_pos[*nei] = pos[*ei];
+        if(assembleAncestry) {
+          FineNodeConstruction construction ;
+          construction.node = persistentBaseNodeId(nodeFileNumber[*ei]) ;
+          construction.kind = node_construction::base_node ;
+          construction.baseFileNumber = nodeFileNumber[*ei] ;
+          (*nodeIds)[*nei] = construction.node ;
+          (*nodeConstructions)[*nei] = construction ;
+        }
       }
 
       Loci::constraint faces, geom_cells;
@@ -2449,18 +3520,46 @@ namespace Loci {
       entitySet local_edges = facts.get_variable("edge2node")->domain();
 
       FORALL(local_edges, cc){
+        if(assembleAncestry &&
+           inner_nodes_edge[cc].size() != (*ancestry_edge)[cc].size()) {
+          cerr << "edge node ancestry does not match generated nodes" << endl ;
+          Loci::Abort() ;
+        }
         for(unsigned int i = 0; i < inner_nodes_edge[cc].size(); i++, nei++){
           new_pos[*nei] = inner_nodes_edge[cc][i];
+          if(assembleAncestry) {
+            (*nodeConstructions)[*nei] = (*ancestry_edge)[cc][i] ;
+            (*nodeIds)[*nei] = (*ancestry_edge)[cc][i].node ;
+          }
         }
       }ENDFORALL;
       FORALL(*geom_cells, cc){
+        if(assembleAncestry &&
+           inner_nodes_cell[cc].size() != (*ancestry_cell)[cc].size()) {
+          cerr << "cell node ancestry does not match generated nodes" << endl ;
+          Loci::Abort() ;
+        }
         for(unsigned int i = 0; i < inner_nodes_cell[cc].size(); i++, nei++){
           new_pos[*nei] = inner_nodes_cell[cc][i];
+          if(assembleAncestry) {
+            (*nodeConstructions)[*nei] = (*ancestry_cell)[cc][i] ;
+            (*nodeIds)[*nei] = (*ancestry_cell)[cc][i].node ;
+          }
         }
-      }ENDFORALL; 
+      }
+      ENDFORALL ;
       FORALL(*faces, cc){
+        if(assembleAncestry &&
+           inner_nodes_face[cc].size() != (*ancestry_face)[cc].size()) {
+          cerr << "face node ancestry does not match generated nodes" << endl ;
+          Loci::Abort() ;
+        }
         for(unsigned int i = 0; i < inner_nodes_face[cc].size(); i++, nei++){
           new_pos[*nei] = inner_nodes_face[cc][i];
+          if(assembleAncestry) {
+            (*nodeConstructions)[*nei] = (*ancestry_face)[cc][i] ;
+            (*nodeIds)[*nei] = (*ancestry_face)[cc][i].node ;
+          }
         }
       }ENDFORALL;
       num_nodes = new_domain.size();
@@ -2469,10 +3568,9 @@ namespace Loci {
       return;
     }
 
- 
- 
-  
-    store<vector3d<double> > pos_t; //temp container 
+    store<vector3d<double> > pos_t; //temp container
+    store<NodeId> ids_t ;
+    store<FineNodeConstruction> constructions_t ;
     vector<entitySet> temp_node_ptn;
     entitySet my_temp_nodes;
     {
@@ -2496,25 +3594,48 @@ namespace Loci {
       int noffset, eoffset, coffset, foffset;
       noffset = 0;
       store<vector3d<double> > pos_io;
-      pos_io = Loci::Global2FileOrder(pos.Rep(), local_nodes, noffset, dist, MPI_COMM_WORLD) ;
-      entitySet file_nodes = pos_io.domain(); 
-    
+      store<int> node_file_number_io ;
+      storeRepP nodeFileNumberIoRep ;
+      pos_io = Global2FileOrderWithCompanion(pos.Rep(),
+            assembleAncestry ? nodeFileNumber.Rep() : storeRepP(),
+        nodeFileNumberIoRep,local_nodes,noffset,dist,MPI_COMM_WORLD) ;
+      if(assembleAncestry)
+        node_file_number_io = nodeFileNumberIoRep ;
+      entitySet file_nodes = pos_io.domain();
     
       eoffset = 0;
       store<Loci::FineNodes> edge_inner_nodes;
-      edge_inner_nodes = Loci::Global2FileOrder(inner_nodes_edge.Rep(),local_edges,eoffset,dist,MPI_COMM_WORLD) ;
+      store<Loci::FineNodeAncestry> edge_ancestry ;
+      storeRepP edgeAncestryRep ;
+      edge_inner_nodes = Global2FileOrderWithCompanion(inner_nodes_edge.Rep(),
+        assembleAncestry ? ancestry_edge->Rep() : storeRepP(),
+        edgeAncestryRep,local_edges,eoffset,dist,MPI_COMM_WORLD) ;
+      if(assembleAncestry)
+        edge_ancestry = edgeAncestryRep ;
       entitySet file_edges = edge_inner_nodes.domain();
       
       coffset= 0;
       // Create container 
       store<Loci::FineNodes> cell_inner_nodes;
-      cell_inner_nodes = Loci::Global2FileOrder(inner_nodes_cell.Rep(),local_cells,coffset,dist,MPI_COMM_WORLD) ;
+      store<Loci::FineNodeAncestry> cell_ancestry ;
+      storeRepP cellAncestryRep ;
+      cell_inner_nodes = Global2FileOrderWithCompanion(inner_nodes_cell.Rep(),
+        assembleAncestry ? ancestry_cell->Rep() : storeRepP(),
+        cellAncestryRep,local_cells,coffset,dist,MPI_COMM_WORLD) ;
+      if(assembleAncestry)
+        cell_ancestry = cellAncestryRep ;
       entitySet file_cells = cell_inner_nodes.domain();
   
       foffset= 0;
       // Create container
       store<Loci::FineNodes> face_inner_nodes;
-      face_inner_nodes = Loci::Global2FileOrder(inner_nodes_face.Rep(),local_faces,foffset,dist,MPI_COMM_WORLD) ;
+      store<Loci::FineNodeAncestry> face_ancestry ;
+      storeRepP faceAncestryRep ;
+      face_inner_nodes = Global2FileOrderWithCompanion(inner_nodes_face.Rep(),
+        assembleAncestry ? ancestry_face->Rep() : storeRepP(),
+        faceAncestryRep,local_faces,foffset,dist,MPI_COMM_WORLD) ;
+      if(assembleAncestry)
+        face_ancestry = faceAncestryRep ;
       entitySet file_faces = face_inner_nodes.domain();
       
       //Now allocate temp entitySet in file numbering
@@ -2599,33 +3720,72 @@ namespace Loci {
       my_temp_nodes = my_original_nodes + my_inner_edge_nodes + 
         my_inner_cell_nodes + my_inner_face_nodes;
       pos_t.allocate(my_temp_nodes);
+      if(assembleAncestry) {
+        ids_t.allocate(my_temp_nodes) ;
+        constructions_t.allocate(my_temp_nodes) ;
+      }
     
       //fill container pos_t will pos_io
       entitySet::const_iterator ti = my_temp_nodes.begin();
       FORALL(file_nodes, ei){
         pos_t[*ti] = pos_io[ei];
+        if(assembleAncestry) {
+          FineNodeConstruction construction ;
+          construction.node = persistentBaseNodeId(node_file_number_io[ei]) ;
+          construction.kind = node_construction::base_node ;
+          construction.baseFileNumber = node_file_number_io[ei] ;
+          ids_t[*ti] = construction.node ;
+          constructions_t[*ti] = construction ;
+        }
         ti++;
       }ENDFORALL;
       //fill container pos_t will edge nodes
       FORALL(file_edges, ei){
+        if(assembleAncestry &&
+           edge_inner_nodes[ei].size() != edge_ancestry[ei].size()) {
+          cerr << "edge node ancestry does not match generated nodes" << endl ;
+          Loci::Abort() ;
+        }
         for(unsigned int i = 0; i < edge_inner_nodes[ei].size(); i++){
           pos_t[*ti] = edge_inner_nodes[ei][i];
+          if(assembleAncestry) {
+            constructions_t[*ti] = edge_ancestry[ei][i] ;
+            ids_t[*ti] = edge_ancestry[ei][i].node ;
+          }
           ti++;
         }
      
       }ENDFORALL;
       //fill container pos_t will cell nodes
       FORALL(file_cells, ei){
+        if(assembleAncestry &&
+           cell_inner_nodes[ei].size() != cell_ancestry[ei].size()) {
+          cerr << "cell node ancestry does not match generated nodes" << endl ;
+          Loci::Abort() ;
+        }
         for(unsigned int i = 0; i < cell_inner_nodes[ei].size(); i++){
           pos_t[*ti] = cell_inner_nodes[ei][i];
+          if(assembleAncestry) {
+            constructions_t[*ti] = cell_ancestry[ei][i] ;
+            ids_t[*ti] = cell_ancestry[ei][i].node ;
+          }
           ti++;
         }
       
       }ENDFORALL;
       //fill container pos_t will face nodes
       FORALL(file_faces, ei){
+        if(assembleAncestry &&
+           face_inner_nodes[ei].size() != face_ancestry[ei].size()) {
+          cerr << "face node ancestry does not match generated nodes" << endl ;
+          Loci::Abort() ;
+        }
         for(unsigned int i = 0; i < face_inner_nodes[ei].size(); i++){
           pos_t[*ti] = face_inner_nodes[ei][i];
+          if(assembleAncestry) {
+            constructions_t[*ti] = face_ancestry[ei][i] ;
+            ids_t[*ti] = face_ancestry[ei][i].node ;
+          }
           ti++;
         }
       }ENDFORALL;
@@ -2657,6 +3817,10 @@ namespace Loci {
     
     entitySet new_nodes = nodes_ptn[MPI_rank];
     new_pos.allocate(new_nodes) ;
+    if(assembleAncestry) {
+      nodeIds->allocate(new_nodes) ;
+      nodeConstructions->allocate(new_nodes) ;
+    }
   
     // Now compute where to send data
     int p = Loci::MPI_processes;
@@ -2672,68 +3836,47 @@ namespace Loci {
     //Get the sequences of where we place the data when we receive it
     vector<sequence> recv_seqs = transposeSeq(send_seqs) ;
   
-    storeRepP sp =pos_t.Rep();
-    storeRepP qcol_rep =new_pos.Rep();
-  
-  
-    // Now communicate the container
-    vector<int> send_sizes(p),recv_sizes(p) ;
-
-    for(int i=0;i<p;++i)
-      send_sizes[i] = sp->pack_size(send_sets[i]) ;
-    
-    MPI_Alltoall(&send_sizes[0],1,MPI_INT,
-                 &recv_sizes[0],1,MPI_INT,
-                 MPI_COMM_WORLD ) ;
-    
-    vector<int> send_dspl(p),recv_dspl(p) ;
-    send_dspl[0] = 0 ;
-    recv_dspl[0] = 0 ;
-    for(int i=1;i<p;++i) {
-      send_dspl[i] = send_dspl[i-1] + send_sizes[i-1] ;
-      recv_dspl[i] = recv_dspl[i-1] + recv_sizes[i-1] ;
-    }
-    int send_sz = send_dspl[p-1] + send_sizes[p-1] ;
-    int recv_sz = recv_dspl[p-1] + recv_sizes[p-1] ;
-
-    vector<unsigned char> send_store(send_sz) ;
-    vector<unsigned char> recv_store(recv_sz) ;
-
-
-    for(int i=0;i<p;++i) {
-      int loc_pack = 0 ;
-      sp->pack(&send_store[send_dspl[i]],loc_pack, send_sizes[i],
-               send_sets[i]) ;
-    }
-
-    MPI_Alltoallv(&send_store[0], &send_sizes[0], &send_dspl[0], MPI_PACKED,
-		  &recv_store[0], &recv_sizes[0], &recv_dspl[0], MPI_PACKED,
-                  MPI_COMM_WORLD ) ;
-
-    for(int i=0;i<p;++i) {
-      int loc_pack = 0 ;
-      qcol_rep->unpack(&recv_store[recv_dspl[i]],loc_pack,recv_sizes[i],
-                       recv_seqs[i]) ;
+    redistributeNodeStore(pos_t.Rep(),new_pos.Rep(),send_sets,recv_seqs) ;
+    if(assembleAncestry) {
+      redistributeNodeStore(ids_t.Rep(),nodeIds->Rep(),send_sets,recv_seqs) ;
+      redistributeNodeStore(constructions_t.Rep(),nodeConstructions->Rep(),
+                            send_sets,recv_seqs) ;
     }
     pos_t.allocate(EMPTY) ;
   }
 
+  void createVOGNode(store<vector3d<double> > &new_pos,
+                     const store<Loci::FineNodes> &inner_nodes_cell,
+                     const store<Loci::FineNodes> &inner_nodes_face,
+        const store<Loci::FineNodes>& inner_nodes_edge, int& num_nodes,
+        fact_db& facts, vector<entitySet>& nodes_ptn) {
+    createVOGNodeImpl(new_pos,0,0,inner_nodes_cell,inner_nodes_face,
+                      inner_nodes_edge,0,0,0,num_nodes,facts,nodes_ptn) ;
+  }
+
+  static void createVOGNodeWithAncestry(store<vector3d<double>>& new_pos,
+        store<NodeId>& nodeIds, store<FineNodeConstruction>& nodeConstructions,
+                     const store<Loci::FineNodes> &inner_nodes_cell,
+                     const store<Loci::FineNodes> &inner_nodes_face,
+                     const store<Loci::FineNodes> &inner_nodes_edge,
+                     const store<Loci::FineNodeAncestry>& ancestry_cell,
+                     const store<Loci::FineNodeAncestry>& ancestry_face,
+        const store<Loci::FineNodeAncestry>& ancestry_edge, int& num_nodes,
+        fact_db& facts, vector<entitySet>& nodes_ptn) {
+    createVOGNodeImpl(new_pos, &nodeIds, &nodeConstructions, inner_nodes_cell,
+          inner_nodes_face, inner_nodes_edge, &ancestry_cell, &ancestry_face,
+          &ancestry_edge, num_nodes, facts, nodes_ptn) ;
+  }
 
   //create cl, cr and face2node maps from fine_faces
   //re_number the nodes in pos and inner_nodes,
   //and then redistribute them across the processes
-  void createVOGFace(int numNodes,
+  static void createVOGFaceImpl(int numNodes,
                      const store<Loci::FineFaces> &fine_faces_cell,
-                     const store<Loci::FineFaces> &fine_faces,
-                     fact_db & facts,
-                     int& numFaces,
-                     int& ncells,
-                     Map& cl,
-                     Map& cr,
-                     multiMap& face2node,
-                     vector<entitySet>& local_faces,
-                     vector<entitySet>& local_cells
-                     ){
+        const store<Loci::FineFaces>& fine_faces, fact_db& facts, int& numFaces,
+        int& ncells, Map& cl, Map& cr, multiMap& face2node,
+        vector<entitySet>& local_faces, vector<entitySet>& local_cells,
+        detail::FaceSources* faceSources) {
 
     //compute numFaces
     constraint my_faces, my_geom_cells;
@@ -2745,6 +3888,7 @@ namespace Loci {
     for(entitySet::const_iterator ei = domc.begin(); ei != domc.end(); ei++){
       local_num_face += fine_faces_cell[*ei].size();
     }
+    const int cellFaceCount = local_num_face ;
     for(entitySet::const_iterator ei = dom.begin(); ei != dom.end(); ei++){
       local_num_face += fine_faces[*ei].size();
     }
@@ -2768,6 +3912,15 @@ namespace Loci {
     cl.allocate(faces);
     cr.allocate(faces);
     count.allocate(faces);
+    if(faceSources != 0) {
+      const entitySet cellFaces =
+            cellFaceCount == 0
+                  ? EMPTY
+                  : entitySet(interval(face_min, face_min + cellFaceCount - 1)) ;
+      faceSources->cell.allocate(cellFaces) ;
+      faceSources->face.allocate(faces-cellFaces) ;
+      faceSources->ordinal.allocate(faces) ;
+    }
 
     local_faces.resize(MPI_processes);
     local_faces = all_collect_vectors(faces);
@@ -2782,6 +3935,10 @@ namespace Loci {
     entitySet::const_iterator fid = faces.begin();
     for(entitySet::const_iterator ei = domc.begin(); ei != domc.end(); ei++){
       for(unsigned int i = 0; i < fine_faces_cell[*ei].size(); i++){
+        if(faceSources != 0) {
+          faceSources->cell[*fid] = *ei ;
+          faceSources->ordinal[*fid] = int(i) ;
+        }
         cl[*fid] = fine_faces_cell[*ei][i][0] + cell_base -1;// -1 finefaces cell index start at 1
         if(fine_faces_cell[*ei][i][1]>=0) cr[*fid] = fine_faces_cell[*ei][i][1] + cell_base -1;
         else  cr[*fid] = fine_faces_cell[*ei][i][1];
@@ -2795,6 +3952,10 @@ namespace Loci {
     }
     for(entitySet::const_iterator ei = dom.begin(); ei != dom.end(); ei++){
       for(unsigned int i = 0; i < fine_faces[*ei].size(); i++){
+        if(faceSources != 0) {
+          faceSources->face[*fid] = *ei ;
+          faceSources->ordinal[*fid] = int(i) ;
+        }
         cl[*fid] = fine_faces[*ei][i][0] + cell_base -1;// -1 finefaces cell index start at 1
         if(fine_faces[*ei][i][1]>=0) cr[*fid] = fine_faces[*ei][i][1] + cell_base -1;
         else  cr[*fid] = fine_faces[*ei][i][1];
@@ -2828,10 +3989,8 @@ namespace Loci {
       int j = MPI_processes - i - 1 ;
       int cell_accum_update = cell_accum + cell_ivl + ((j<cell_ivl_rem)?1:0) ;
     
-      if(i == MPI_processes-1) {
-        local_cells[i] = interval(cell_base + cell_accum,
-                                  cell_base + ncells-1) ;
-      } else {
+      local_cells[i] = EMPTY ;
+      if(cell_accum_update > cell_accum) {
         local_cells[i] = interval(cell_base + cell_accum,
                                   cell_base + cell_accum_update - 1) ;
       }
@@ -2866,6 +4025,13 @@ namespace Loci {
     colorMatrix(cl, cr, face2node);
   }
   
+  void createVOGFace(int numNodes, const store<FineFaces>& fineFacesCell,
+        const store<FineFaces>& fineFaces, fact_db& facts, int& numFaces,
+        int& numCells, Map& leftCell, Map& rightCell, multiMap& faceToNode,
+        vector<entitySet>& localFaces, vector<entitySet>& localCells) {
+    createVOGFaceImpl(numNodes, fineFacesCell, fineFaces, facts, numFaces,
+          numCells, leftCell, rightCell, faceToNode, localFaces, localCells, 0) ;
+  }
 }
 
 namespace Loci{

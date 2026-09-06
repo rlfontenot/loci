@@ -19,6 +19,7 @@
 //#
 //#############################################################################
 #include <hdf5.h>
+#include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -921,6 +922,11 @@ void colorMatrix(Map &cl, Map &cr, multiMap &face2node) {
             }
         }
       }
+      // Neighbor order does not affect whether the coloring is valid, but it
+      // can change the numeric colors and therefore the generated winding.
+      // Sort each frontier so replaying the same plan is deterministic.
+      std::sort(working.begin(), working.end()) ;
+      working.erase(std::unique(working.begin(), working.end()), working.end()) ;
       work.swap(working) ;
     }
     left_out = EMPTY ;

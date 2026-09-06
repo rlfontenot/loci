@@ -21,13 +21,13 @@
 namespace Loci {
 
   AMRRemapReport::AMRRemapReport()
-    : valid(false), sourceCells(0), targetCells(0), contributions(0),
-      invalidGeometry(0), duplicateContributions(0), missingSourceCells(0),
-      missingTargetCells(0), inconsistentSourceMoments(0),
-      inconsistentTargetMoments(0), unsupportedRelations(0),
-      sourceCoverageChecked(false),
-      maximumSourceVolumeError(0.0), maximumTargetVolumeError(0.0),
-      maximumSourceCentroidError(0.0), maximumTargetCentroidError(0.0) {}
+      : valid(false), sourceCells(0), targetCells(0), contributions(0),
+        invalidGeometry(0), invalidIdentities(0), duplicateContributions(0),
+        missingSourceCells(0), missingTargetCells(0),
+        inconsistentSourceMoments(0), inconsistentTargetMoments(0),
+        unsupportedRelations(0), sourceCoverageChecked(false),
+        maximumSourceVolumeError(0.0), maximumTargetVolumeError(0.0),
+        maximumSourceCentroidError(0.0), maximumTargetCentroidError(0.0) {}
 
   namespace {
     bool finiteVector(const vector3d<double>& value) {
@@ -71,6 +71,17 @@ namespace Loci {
       if(location == geometry.end() || location->cell != cell)
         return -1 ;
       return int(location-geometry.begin()) ;
+    }
+
+    size_t identityIndex(
+          const std::vector<std::pair<CellId, size_t>>& identities,
+          CellId cellId) {
+      const std::pair<CellId, size_t> key(cellId, 0) ;
+      const std::vector<std::pair<CellId, size_t>>::const_iterator entry =
+            std::lower_bound(identities.begin(), identities.end(), key) ;
+      if (entry == identities.end() || entry->first != cellId)
+        return identities.size() ;
+      return entry->second ;
     }
   }
 
@@ -141,6 +152,7 @@ namespace Loci {
         report.invalidGeometry++ ;
       if(i != 0 && plan->sourceGeometry_[i-1].cell == geometry.cell)
         report.invalidGeometry++ ;
+      plan->sourceIdentityIndex_.push_back(std::make_pair(geometry.cellId, i)) ;
     }
     for(size_t i=0;i<plan->targetGeometry_.size();++i) {
       const AMRCellGeometry& geometry = plan->targetGeometry_[i] ;
@@ -150,7 +162,20 @@ namespace Loci {
         report.invalidGeometry++ ;
       if(i != 0 && plan->targetGeometry_[i-1].cell == geometry.cell)
         report.invalidGeometry++ ;
+      plan->targetIdentityIndex_.push_back(std::make_pair(geometry.cellId, i)) ;
     }
+    std::sort(
+          plan->sourceIdentityIndex_.begin(), plan->sourceIdentityIndex_.end()) ;
+    std::sort(
+          plan->targetIdentityIndex_.begin(), plan->targetIdentityIndex_.end()) ;
+    for (size_t i = 1; i < plan->sourceIdentityIndex_.size(); ++i)
+      if (plan->sourceIdentityIndex_[i - 1].first ==
+            plan->sourceIdentityIndex_[i].first)
+        report.invalidIdentities++ ;
+    for (size_t i = 1; i < plan->targetIdentityIndex_.size(); ++i)
+      if (plan->targetIdentityIndex_[i - 1].first ==
+            plan->targetIdentityIndex_[i].first)
+        report.invalidIdentities++ ;
 
     plan->sourceDegrees_.assign(plan->sourceGeometry_.size(),0) ;
     plan->targetDegrees_.assign(plan->targetGeometry_.size(),0) ;
@@ -173,6 +198,11 @@ namespace Loci {
          contribution.overlapVolume <= 0.0 ||
          !finiteVector(contribution.overlapCentroid)) {
         report.invalidGeometry++ ;
+        continue ;
+      }
+      if (contribution.sourceCellId != plan->sourceGeometry_[source].cellId ||
+            contribution.targetCellId != plan->targetGeometry_[target].cellId) {
+        report.invalidIdentities++ ;
         continue ;
       }
       if(!uniqueContributions.insert(
@@ -272,13 +302,13 @@ namespace Loci {
     }
     plan->targetOffsets_[plan->targetGeometry_.size()] = contribution ;
 
-    report.valid = report.invalidGeometry == 0 &&
-      report.duplicateContributions == 0 &&
-      report.missingSourceCells == 0 &&
-      report.missingTargetCells == 0 &&
-      report.inconsistentSourceMoments == 0 &&
-      report.inconsistentTargetMoments == 0 &&
-      report.unsupportedRelations == 0 ;
+    report.valid =
+          report.invalidGeometry == 0 && report.invalidIdentities == 0 &&
+          report.duplicateContributions == 0 &&
+          report.missingSourceCells == 0 && report.missingTargetCells == 0 &&
+          report.inconsistentSourceMoments == 0 &&
+          report.inconsistentTargetMoments == 0 &&
+          report.unsupportedRelations == 0 ;
     if(!report.valid)
       return CPTR<AMRRemapPlan>() ;
     return plan ;
@@ -294,12 +324,42 @@ namespace Loci {
     return true ;
   }
 
+  bool AMRRemapPlan::cellContributions(
+        CellId targetCellId, size_t& begin, size_t& end) const {
+    const size_t target = identityIndex(targetIdentityIndex_, targetCellId) ;
+    if (target == targetIdentityIndex_.size())
+      return false ;
+    begin = targetOffsets_[target] ;
+    end = targetOffsets_[target + 1] ;
+    return true ;
+  }
+
+  const AMRCellGeometry* AMRRemapPlan::sourceCellGeometry(
+        CellId sourceCellId) const {
+    const size_t source = identityIndex(sourceIdentityIndex_, sourceCellId) ;
+    return source == sourceIdentityIndex_.size() ? 0 : &sourceGeometry_[source] ;
+  }
+
+  const AMRCellGeometry* AMRRemapPlan::targetCellGeometry(
+        CellId targetCellId) const {
+    const size_t target = identityIndex(targetIdentityIndex_, targetCellId) ;
+    return target == targetIdentityIndex_.size() ? 0 : &targetGeometry_[target] ;
+  }
+
   void AMRRemapPlan::targetCells(int sourceCell,
                                  std::vector<int>& targets) const {
     targets.clear() ;
     for(size_t i=0;i<contributions_.size();++i)
       if(contributions_[i].sourceCell == sourceCell)
         targets.push_back(contributions_[i].targetCell) ;
+  }
+
+  void AMRRemapPlan::targetCells(
+        CellId sourceCellId, std::vector<CellId>& targets) const {
+    targets.clear() ;
+    for (size_t i = 0; i < contributions_.size(); ++i)
+      if (contributions_[i].sourceCellId == sourceCellId)
+        targets.push_back(contributions_[i].targetCellId) ;
   }
 
   bool AMRRemapPlan::cellTransition(
@@ -319,6 +379,14 @@ namespace Loci {
     transition = sourceDegrees_[source] > 1 ?
       amr_cell_transition::refined : amr_cell_transition::retained ;
     return true ;
+  }
+
+  bool AMRRemapPlan::cellTransition(
+        CellId targetCellId, amr_cell_transition::value& transition) const {
+    const size_t target = identityIndex(targetIdentityIndex_, targetCellId) ;
+    if (target == targetIdentityIndex_.size())
+      return false ;
+    return cellTransition(targetGeometry_[target].cell, transition) ;
   }
 
   bool AMRRemapPlan::

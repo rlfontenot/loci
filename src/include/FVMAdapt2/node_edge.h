@@ -28,24 +28,140 @@
 #include <fstream>
 #include <iostream>
 #include <queue>
+#include <cmath>
 #include "defines.h"
+#include "node_transition.h"
 using std::queue;
 //head--------> tail, edge point from head to tail
 //edge2node[0]-------->edge2node[1]
 
 //declaration of class Node, Edge and Face
 class Node{
+  struct ConstructionParent {
+    Node* node ;
+    double weight ;
+
+    ConstructionParent(Node* parent, double parentWeight)
+        : node(parent), weight(parentWeight) {}
+  } ;
+
 public:
   //constructors
-  Node():index(0),tag(0){}
-  Node(vect3d& p0):p(p0), index(0), tag(0){}
-  Node(const Loci::vector3d<double>& p0):p(p0),index(0),tag(0){}
-  Node(vect3d& p0, int32 n):p(p0), index(n), tag(0){}
-  Node(const Loci::vector3d<double>& p0, int32 n):p(p0), index(n), tag(0){}
+  Node()
+      : index(0), tag(0), constructionKind(Loci::node_construction::invalid),
+        baseFileNumber(-1), persistentId(0) {}
+  Node(vect3d& p0)
+      : p(p0), index(0), tag(0),
+        constructionKind(Loci::node_construction::invalid), baseFileNumber(-1),
+        persistentId(0) {}
+  Node(const Loci::vector3d<double>& p0)
+      : p(p0), index(0), tag(0),
+        constructionKind(Loci::node_construction::invalid), baseFileNumber(-1),
+        persistentId(0) {}
+  Node(vect3d& p0, int32 n)
+      : p(p0), index(n), tag(0),
+        constructionKind(Loci::node_construction::base_node), baseFileNumber(n),
+        persistentId(Loci::persistentBaseNodeId(n)) {}
+  Node(const Loci::vector3d<double>& p0, int32 n)
+      : p(p0), index(n), tag(0),
+        constructionKind(Loci::node_construction::base_node), baseFileNumber(n),
+        persistentId(Loci::persistentBaseNodeId(n)) {}
+
+  /// Construct a node from the exact geometric parents used by refinement.
+  static Node* constructed(Loci::node_construction::value kind,
+        const std::vector<Node*>& parents,
+        const std::vector<double>& unnormalizedWeights) {
+    if (parents.empty() || parents.size() != unnormalizedWeights.size())
+      return new Node() ;
+    double weightSum = 0.0 ;
+    vect3d position(0.0, 0.0, 0.0) ;
+    bool hasProvenance = kind >= Loci::node_construction::edge &&
+                         kind <= Loci::node_construction::cell ;
+    for (size_t parent = 0; parent < parents.size(); ++parent) {
+      if (parents[parent] == 0 || !std::isfinite(unnormalizedWeights[parent]))
+        return new Node() ;
+      if (parents[parent]->persistentId == 0)
+        hasProvenance = false ;
+      weightSum += unnormalizedWeights[parent] ;
+      position += unnormalizedWeights[parent] * parents[parent]->p ;
+    }
+    if (!std::isfinite(weightSum) || weightSum <= 0.0)
+      return new Node() ;
+    Node* node = new Node(position / weightSum) ;
+    // Many legacy tree builders carry geometry only. Preserve their centroid
+    // behavior while leaving ancestry unavailable for that construction path.
+    if (!hasProvenance)
+      return node ;
+    node->constructionKind = kind ;
+    std::vector<Loci::NodeId> parentIds ;
+    parentIds.reserve(parents.size()) ;
+    node->constructionParents.reserve(parents.size()) ;
+    for (size_t parent = 0; parent < unnormalizedWeights.size(); ++parent) {
+      const double weight = unnormalizedWeights[parent] / weightSum ;
+      parentIds.push_back(parents[parent]->persistentId) ;
+      node->constructionParents.push_back(
+            ConstructionParent(parents[parent], weight)) ;
+    }
+    node->persistentId = Loci::persistentConstructedNodeId(kind, parentIds) ;
+    return node ;
+  }
+
+  /// Return this node's persistent construction record.
+  bool construction(Loci::NodeConstruction& result) const {
+    if (constructionKind == Loci::node_construction::base_node) {
+      result = Loci::NodeConstruction::baseNode(baseFileNumber, p) ;
+      return result.node == persistentId && persistentId != 0 ;
+    }
+    if (constructionKind < Loci::node_construction::edge ||
+          constructionKind > Loci::node_construction::cell ||
+          persistentId == 0 || constructionParents.empty())
+      return false ;
+    std::vector<Loci::NodeParent> parents ;
+    parents.reserve(constructionParents.size()) ;
+    for (size_t parent = 0; parent < constructionParents.size(); ++parent) {
+      if (constructionParents[parent].node == 0 ||
+            constructionParents[parent].node->persistentId == 0)
+        return false ;
+      parents.push_back(
+            Loci::NodeParent(constructionParents[parent].node->persistentId,
+                  constructionParents[parent].weight)) ;
+    }
+    result = Loci::NodeConstruction::constructed(constructionKind, p, parents) ;
+    return result.node == persistentId ;
+  }
+
+  /// Serialize construction provenance beside the node coordinate.
+  bool fineConstruction(Loci::FineNodeConstruction& result) const {
+    Loci::NodeConstruction constructionRecord ;
+    if (!construction(constructionRecord) ||
+          constructionRecord.parents.size() >
+                size_t(Loci::FineNodeConstruction::maximumParents))
+      return false ;
+    result = Loci::FineNodeConstruction() ;
+    result.node = constructionRecord.node ;
+    result.kind = int(constructionRecord.kind) ;
+    result.baseFileNumber = constructionRecord.baseFileNumber ;
+    result.parentCount = int(constructionRecord.parents.size()) ;
+    for (size_t parent = 0; parent < constructionRecord.parents.size();
+          ++parent) {
+      result.parentIds[parent] = constructionRecord.parents[parent].node ;
+      result.parentNodeNumbers[parent] =
+            int(constructionParents[parent].node->index) ;
+      result.parentWeights[parent] = constructionRecord.parents[parent].weight ;
+    }
+    return true ;
+  }
+
 public:
   vect3d p; //coordiantes
   int32 index;//the index of node in input or output grid file, start with 1
   char tag; // 1 or 0, indicate the node need to be refined or not 
+
+private:
+  Loci::node_construction::value constructionKind ;
+  long long baseFileNumber ;
+  Loci::NodeId persistentId ;
+  std::vector<ConstructionParent> constructionParents ;
 };
 
 class Edge{
@@ -73,7 +189,11 @@ public:
   }
   //calculate the middle point of the edge
   inline Node* centroid(){
-    return new Node(0.5*(head->p + tail->p));
+    std::vector<Node*> parents(2) ;
+    parents[0] = head ;
+    parents[1] = tail ;
+    return Node::constructed(
+          Loci::node_construction::edge, parents, std::vector<double>(2, 0.5)) ;
   }
 
   inline double length(){
@@ -169,5 +289,3 @@ inline void cleanup_list(std::list<Node*>& node_list){
 }
 
 #endif
-
-

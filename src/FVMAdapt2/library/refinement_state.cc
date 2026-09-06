@@ -67,6 +67,29 @@ namespace {
     return true ;
   }
 
+  bool collect_diamond_paths(const DiamondCell* cell,
+        const std::vector<int>& path,
+        std::map<int, std::vector<int>>& indexedPaths) {
+    DiamondCell** children = cell->getChildCell() ;
+    if (children == 0) {
+      const int leafIndex = cell->getCellIndex() ;
+      return leafIndex >= 1 &&
+             indexedPaths.insert(std::make_pair(leafIndex, path)).second ;
+    }
+
+    const int childCount = 2 * cell->getNfold() + 2 ;
+    for (int child = 0; child < childCount; ++child) {
+      if (children[child] == 0)
+        return false ;
+      std::vector<int> childPath = path ;
+      childPath.push_back(1) ;
+      childPath.push_back(child) ;
+      if (!collect_diamond_paths(children[child], childPath, indexedPaths))
+        return false ;
+    }
+    return true ;
+  }
+
   bool collect_hex_depths(const HexCell* cell,
                           int depth,
                           std::map<int, int>& indexedDepths) {
@@ -150,6 +173,57 @@ namespace Loci {
       finish_depths(indexedDepths, depths) ;
   }
 
+  bool replayGeneralCellPlan(
+        Cell* root, const std::vector<char>& plan, int& leafCount) {
+    leafCount = 0 ;
+    if (root == 0 || (!plan.empty() && plan[0] != 1))
+      return false ;
+    for (size_t code = 0; code < plan.size(); ++code)
+      if (plan[code] != 0 && plan[code] != 1)
+        return false ;
+
+    std::vector<char> normalizedPlan = plan ;
+    while (!normalizedPlan.empty() && normalizedPlan.back() == 0)
+      normalizedPlan.pop_back() ;
+
+    leafCount = root->empty_resplit(plan) ;
+    return leafCount > 0 && root->make_cellplan() == normalizedPlan ;
+  }
+
+  bool getLeafRefinementPaths(
+        const Cell* root, std::vector<std::vector<int>>& paths) {
+    paths.clear() ;
+    if (root == 0)
+      return false ;
+    if (root->child == 0) {
+      paths.resize(1) ;
+      return true ;
+    }
+
+    std::map<int, std::vector<int>> indexedPaths ;
+    for (int child = 0; child < root->numNode; ++child) {
+      if (root->child[child] == 0)
+        return false ;
+      std::vector<int> childPath ;
+      childPath.push_back(1) ;
+      childPath.push_back(child) ;
+      if (!collect_diamond_paths(root->child[child], childPath, indexedPaths))
+        return false ;
+    }
+
+    paths.resize(indexedPaths.size()) ;
+    for (std::map<int, std::vector<int>>::const_iterator leaf =
+                indexedPaths.begin();
+          leaf != indexedPaths.end(); ++leaf) {
+      if (leaf->first > int(paths.size()) || !paths[leaf->first - 1].empty()) {
+        paths.clear() ;
+        return false ;
+      }
+      paths[leaf->first - 1] = leaf->second ;
+    }
+    return true ;
+  }
+
   bool classifyAdaptResult(
     const std::vector<std::pair<int32, int32> >& cell2parent,
     int firstNewCell,
@@ -215,9 +289,15 @@ namespace Loci {
     const const_store<int>& rootFileNumber,
     const entitySet& sourceCells,
     const std::vector<entitySet>& localCells) {
-    if(localCells.size() != size_t(MPI_processes)) {
-      std::cerr << "Refined-cell partitions do not cover every MPI rank"
-                << std::endl ;
+    const int localPartitionValid =
+          localCells.size() == size_t(MPI_processes) ? 1 : 0 ;
+    int globalPartitionValid = 0 ;
+    MPI_Allreduce(&localPartitionValid, &globalPartitionValid, 1, MPI_INT,
+          MPI_MIN, MPI_COMM_WORLD) ;
+    if (globalPartitionValid == 0) {
+      if (localPartitionValid == 0)
+        std::cerr << "Refined-cell partitions do not cover every MPI rank"
+                  << std::endl ;
       return false ;
     }
 
@@ -230,15 +310,34 @@ namespace Loci {
         cellBase = localCells[rank].Min() ;
       foundCell = true ;
     }
-    if(!foundCell) {
-      std::cerr << "Refined-cell partitions contain no generated cells"
-                << std::endl ;
+    const int localFoundCell = foundCell ? 1 : 0 ;
+    int globalFoundCell = 0 ;
+    MPI_Allreduce(&localFoundCell, &globalFoundCell, 1, MPI_INT, MPI_MIN,
+          MPI_COMM_WORLD) ;
+    if (globalFoundCell == 0) {
+      if (!foundCell)
+        std::cerr << "Refined-cell partitions contain no generated cells"
+                  << std::endl ;
       return false ;
     }
 
     const bool includeAdaptResult = fineResult != 0 ;
+    const int localAdaptResult = includeAdaptResult ? 1 : 0 ;
+    int minimumAdaptResult = 0 ;
+    int maximumAdaptResult = 0 ;
+    MPI_Allreduce(&localAdaptResult, &minimumAdaptResult, 1, MPI_INT, MPI_MIN,
+          MPI_COMM_WORLD) ;
+    MPI_Allreduce(&localAdaptResult, &maximumAdaptResult, 1, MPI_INT, MPI_MAX,
+          MPI_COMM_WORLD) ;
+    if (minimumAdaptResult != maximumAdaptResult) {
+      std::cerr << "Rank " << MPI_rank
+                << " found inconsistent refined-cell result availability"
+                << std::endl ;
+      return false ;
+    }
 
     std::vector<std::vector<int> > outgoing(MPI_processes) ;
+    bool localStateValid = true ;
     FORALL(sourceCells, cell) {
       if(!cellOffset.domain().inSet(cell) ||
          !rootFileNumber.domain().inSet(cell) ||
@@ -246,14 +345,16 @@ namespace Loci {
         std::cerr << "Rank " << MPI_rank
                   << " is missing refined-cell state for source cell "
                   << cell << std::endl ;
-        return false ;
+        localStateValid = false ;
+        continue ;
       }
       if(includeAdaptResult &&
          fineDepth[cell].size() != (*fineResult)[cell].size()) {
         std::cerr << "Rank " << MPI_rank
                   << " found mismatched depth and result vectors for cell "
                   << cell << std::endl ;
-        return false ;
+        localStateValid = false ;
+        continue ;
       }
 
       for(size_t leaf = 0; leaf < fineDepth[cell].size(); ++leaf) {
@@ -262,7 +363,8 @@ namespace Loci {
         if(destination < 0) {
           std::cerr << "Rank " << MPI_rank << " cannot place generated cell "
                     << generatedCell << std::endl ;
-          return false ;
+          localStateValid = false ;
+          continue ;
         }
         outgoing[destination].push_back(generatedCell) ;
         outgoing[destination].push_back(fineDepth[cell][leaf]) ;
@@ -271,6 +373,12 @@ namespace Loci {
                                          (*fineResult)[cell][leaf] : 0) ;
       }
     } ENDFORALL ;
+    const int localState = localStateValid ? 1 : 0 ;
+    int globalState = 0 ;
+    MPI_Allreduce(
+          &localState, &globalState, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD) ;
+    if (globalState == 0)
+      return false ;
 
     std::vector<int> sendCounts(MPI_processes, 0) ;
     std::vector<int> receiveCounts(MPI_processes, 0) ;

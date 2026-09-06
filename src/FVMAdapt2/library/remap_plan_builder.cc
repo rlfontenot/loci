@@ -20,27 +20,37 @@
 namespace Loci {
   namespace detail {
 
-    bool buildDistributedCellRemapPlan(
-      CPTR<AMRRemapPlan>& plan,
-      AMRRemapReport& report,
-      gatherCommSchedule& sourceGather,
-      const std::vector<std::pair<int,int> >& targetSource,
-      const store<double>& sourceVolume,
-      const_store<vector3d<double> >& sourceCenter,
-      const store<int>& sourceTargetCount,
-      dataPartitionP sourcePartition,
-      const entitySet& localTargetCells,
-      const Map& targetLocalToGlobal,
-      const const_store<vector3d<double> >& targetCenter,
-      const const_store<double>& targetVolume,
-      const store<int>& refinedSource,
-      const multiStore<int>& refinedSourceToTarget,
-      const store<double>& gatheredTargetVolume,
-      const store<vector3d<double> >& gatheredTargetCenter,
-      MPI_Comm comm) {
+    bool buildDistributedCellRemapPlan(CPTR<AMRRemapPlan>& plan,
+          AMRRemapReport& report, gatherCommSchedule& sourceGather,
+          const std::vector<std::pair<int, int>>& targetSource,
+          const store<double>& sourceVolume,
+          const_store<vector3d<double>>& sourceCenter,
+          const_store<CellId>& sourceCellId,
+          const store<int>& sourceTargetCount, dataPartitionP sourcePartition,
+          const entitySet& localTargetCells, const Map& targetLocalToGlobal,
+          const const_store<vector3d<double>>& targetCenter,
+          const const_store<double>& targetVolume,
+          const const_store<CellId>& targetCellId,
+          const store<int>& refinedSource,
+          const multiStore<int>& refinedSourceToTarget,
+          const store<double>& gatheredTargetVolume,
+          const store<vector3d<double>>& gatheredTargetCenter, MPI_Comm comm) {
       const double tolerance = 1.0e-8 ;
       plan = static_cast<AMRRemapPlan*>(0) ;
       report = AMRRemapReport() ;
+
+      int localIdentityDomainsValid =
+            sourceCellId.domain() == sourceVolume.domain() &&
+                        (localTargetCells - targetCellId.domain()).size() == 0
+                  ? 1
+                  : 0 ;
+      int identityDomainsValid = 0 ;
+      MPI_Allreduce(&localIdentityDomainsValid, &identityDomainsValid, 1,
+            MPI_INT, MPI_MIN, comm) ;
+      if (identityDomainsValid == 0) {
+        report.invalidIdentities = 1 ;
+        return false ;
+      }
 
       entitySet requestedSources ;
       for(size_t i=0;i<targetSource.size();++i)
@@ -70,11 +80,13 @@ namespace Loci {
       store<double> importedSourceVolume ;
       store<vector3d<double> > importedSourceCenter ;
       store<vector3d<double> > importedReconstructionPoint ;
+      store<CellId> importedSourceCellId ;
       store<int> importedSourceTargetCount ;
       sourceGather.gatherData(importedSourceVolume,sourceVolume) ;
       sourceGather.gatherData(importedSourceCenter,sourceCenter) ;
       sourceGather.gatherData(importedReconstructionPoint,
                               reconstructionPoint) ;
+      sourceGather.gatherData(importedSourceCellId, sourceCellId) ;
       sourceGather.gatherData(importedSourceTargetCount,
                               sourceTargetCount) ;
 
@@ -97,9 +109,10 @@ namespace Loci {
           source!=requestedSources.end();++source) {
         const int localSource = sourceToLocal[*source] ;
         sourceGeometry.push_back(
-          AMRCellGeometry(*source,importedSourceVolume[localSource],
-                          importedSourceCenter[localSource],
-                          importedReconstructionPoint[localSource])) ;
+              AMRCellGeometry(*source, importedSourceCellId[localSource],
+                    importedSourceVolume[localSource],
+                    importedSourceCenter[localSource],
+                    importedReconstructionPoint[localSource])) ;
         sourceDegrees.push_back(
           size_t(importedSourceTargetCount[localSource])) ;
       }
@@ -108,9 +121,9 @@ namespace Loci {
       targetGeometry.reserve(targetToLocal.size()) ;
       for(std::map<int,Entity>::const_iterator target=targetToLocal.begin();
           target!=targetToLocal.end();++target)
-        targetGeometry.push_back(
-          AMRCellGeometry(target->first,targetVolume[target->second],
-                          targetCenter[target->second])) ;
+        targetGeometry.push_back(AMRCellGeometry(target->first,
+              targetCellId[target->second], targetVolume[target->second],
+              targetCenter[target->second])) ;
 
       std::vector<AMRCellContribution> contributions ;
       contributions.reserve(targetSource.size()) ;
@@ -129,9 +142,10 @@ namespace Loci {
           overlapVolume = importedSourceVolume[localSource] ;
           overlapCentroid = importedSourceCenter[localSource] ;
         }
-        contributions.push_back(
-          AMRCellContribution(source,target,overlapVolume,
-                              overlapCentroid)) ;
+        contributions.push_back(AMRCellContribution(source, target,
+              importedSourceCellId[localSource],
+              targetCellId[localTarget->second], overlapVolume,
+              overlapCentroid)) ;
       }
 
       AMRRemapReport localReport ;
@@ -191,21 +205,22 @@ namespace Loci {
           std::max(maximumSourceVolumeError,volumeError) ;
       } ENDFORALL ;
 
-      unsigned long long localCounts[10] = {
-        static_cast<unsigned long long>(sourceVolume.domain().size()),
-        static_cast<unsigned long long>(localTargetCells.size()),
-        static_cast<unsigned long long>(targetSource.size()),
-        static_cast<unsigned long long>(localReport.invalidGeometry),
-        static_cast<unsigned long long>(localReport.duplicateContributions),
-        static_cast<unsigned long long>(sourceCoverageErrors),
-        static_cast<unsigned long long>(localReport.missingTargetCells),
-        static_cast<unsigned long long>(sourceMomentErrors),
-        static_cast<unsigned long long>(localReport.inconsistentTargetMoments),
-        static_cast<unsigned long long>(localReport.unsupportedRelations)
-      } ;
-      unsigned long long globalCounts[10] = {0,0,0,0,0,0,0,0,0,0} ;
-      MPI_Allreduce(localCounts,globalCounts,10,MPI_UNSIGNED_LONG_LONG,
-                    MPI_SUM,comm) ;
+      unsigned long long localCounts[11] = {
+            static_cast<unsigned long long>(sourceVolume.domain().size()),
+            static_cast<unsigned long long>(localTargetCells.size()),
+            static_cast<unsigned long long>(targetSource.size()),
+            static_cast<unsigned long long>(localReport.invalidGeometry),
+            static_cast<unsigned long long>(localReport.invalidIdentities),
+            static_cast<unsigned long long>(localReport.duplicateContributions),
+            static_cast<unsigned long long>(sourceCoverageErrors),
+            static_cast<unsigned long long>(localReport.missingTargetCells),
+            static_cast<unsigned long long>(sourceMomentErrors),
+            static_cast<unsigned long long>(
+                  localReport.inconsistentTargetMoments),
+            static_cast<unsigned long long>(localReport.unsupportedRelations)} ;
+      unsigned long long globalCounts[11] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} ;
+      MPI_Allreduce(localCounts, globalCounts, 11, MPI_UNSIGNED_LONG_LONG,
+            MPI_SUM, comm) ;
 
       double localErrors[4] = {
         maximumSourceVolumeError,
@@ -225,23 +240,26 @@ namespace Loci {
       report.targetCells = size_t(globalCounts[1]) ;
       report.contributions = size_t(globalCounts[2]) ;
       report.invalidGeometry = size_t(globalCounts[3]) ;
-      report.duplicateContributions = size_t(globalCounts[4]) ;
-      report.missingSourceCells = size_t(globalCounts[5]) ;
-      report.missingTargetCells = size_t(globalCounts[6]) ;
-      report.inconsistentSourceMoments = size_t(globalCounts[7]) ;
-      report.inconsistentTargetMoments = size_t(globalCounts[8]) ;
-      report.unsupportedRelations = size_t(globalCounts[9]) ;
+      report.invalidIdentities = size_t(globalCounts[4]) ;
+      report.duplicateContributions = size_t(globalCounts[5]) ;
+      report.missingSourceCells = size_t(globalCounts[6]) ;
+      report.missingTargetCells = size_t(globalCounts[7]) ;
+      report.inconsistentSourceMoments = size_t(globalCounts[8]) ;
+      report.inconsistentTargetMoments = size_t(globalCounts[9]) ;
+      report.unsupportedRelations = size_t(globalCounts[10]) ;
       report.sourceCoverageChecked = true ;
       report.maximumSourceVolumeError = globalErrors[0] ;
       report.maximumTargetVolumeError = globalErrors[1] ;
       report.maximumSourceCentroidError = globalErrors[2] ;
       report.maximumTargetCentroidError = globalErrors[3] ;
       report.valid = allPlansValid != 0 && report.invalidGeometry == 0 &&
-        report.duplicateContributions == 0 &&
-        report.missingSourceCells == 0 && report.missingTargetCells == 0 &&
-        report.inconsistentSourceMoments == 0 &&
-        report.inconsistentTargetMoments == 0 &&
-        report.unsupportedRelations == 0 ;
+                     report.invalidIdentities == 0 &&
+                     report.duplicateContributions == 0 &&
+                     report.missingSourceCells == 0 &&
+                     report.missingTargetCells == 0 &&
+                     report.inconsistentSourceMoments == 0 &&
+                     report.inconsistentTargetMoments == 0 &&
+                     report.unsupportedRelations == 0 ;
       if(report.valid)
         plan = localPlan ;
       return report.valid ;

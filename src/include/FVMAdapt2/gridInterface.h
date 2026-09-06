@@ -22,6 +22,7 @@
 #define FVMADAPT2_GRID_INTERFACE_H
 #include <store_rep.h>
 #include <FVMAdapt2/defines.h>
+#include <FVMAdapt2/mesh_transfer.h>
 #include <FVMAdapt2/remap_plan.h>
 #include <FVMAdapt2/refinement_state.h>
 #include <map>
@@ -43,6 +44,9 @@ namespace Loci {
   } ;
 
   void parallelClassifyCell(fact_db &facts) ;
+
+  /// Install topology-derived node, face, and cell identities on an input grid.
+  bool installBaseMeshIds(fact_db& facts) ;
 
   void createVOGNode(store<vector3d<double> > &new_pos,
                      const store<Loci::FineNodes> &inner_nodes_cell,
@@ -83,7 +87,19 @@ namespace Loci {
     vector<pair<int,string> > boundary_ids;
     vector<pair<string,entitySet> > volTags;
     refinedCellState cellState;
+    store<NodeId> nodeIds ;
+    CPTR<NodeRemap> nodeRemap ;
+    NodeTransitionReport nodeTransitionReport ;
+    store<FaceId> faceIds ;
+    store<CellId> cellIds ;
+    CPTR<MeshState> transitionState ;
+    CPTR<FaceRemap> faceRemap ;
+    FaceTransitionReport faceTransitionReport ;
   } ;
+
+  /// Install a grid and the validated AMR handoff carried with it.
+  bool setupFVMGridFromContainer(
+        fact_db& facts, refinedGridData& grid, storeRepP cellwts = 0) ;
 
   void initializeGridFromPlan(Loci::CPTR<refinedGridData> &gridDataP,
 			      int &level,
@@ -98,6 +114,18 @@ namespace Loci {
 			storeRepP tags,
 			string casename  ) ;
 
+  /// Refine while retaining the opaque history needed by the next in-process
+  /// mesh transition.
+  void onlineRefineMesh(Loci::CPTR<refinedGridData>& gridDataP,
+        Loci::CPTR<MeshState>& transitionState, rule_db& refmesh_rdb,
+        int adaptmode, int level, storeRepP tags, string casename) ;
+
+  /// As above, but callers that only need faces may omit node-transfer work.
+  /// The existing overloads request both face and node remaps.
+  void onlineRefineMesh(Loci::CPTR<refinedGridData>& gridDataP,
+        Loci::CPTR<MeshState>& transitionState, rule_db& refmesh_rdb,
+        int adaptmode, int level, storeRepP tags, string casename,
+        bool remapNodes) ;
 
   storeRepP getC2PGlobal(fact_db &facts) ;
   
@@ -141,15 +169,15 @@ namespace Loci {
     CPTR<AMRRemapPlan> remapPlan ;
     AMRRemapReport remapReport ;
   private:
-    void setupRefinementMappingImpl(
-      const store<pair<int,int> > &c2pg,
-      const store<double> &sourceVolume,
-      const const_store<vector3d<double> >* sourceCellCenter,
-      multiStore<int> &gradCells,
-      multiStore<vector3d<double> > &deltas,
-      const_store<vector3d<double> > &targetCellCenter,
-      const_store<double> &targetVolume,
-      fact_db &facts) ;
+    void setupRefinementMappingImpl(const store<pair<int, int>>& c2pg,
+          const store<double>& sourceVolume,
+          const const_store<vector3d<double>>* sourceCellCenter,
+          const const_store<CellId>* sourceCellId, multiStore<int>& gradCells,
+          multiStore<vector3d<double>>& deltas,
+          const_store<vector3d<double>>& targetCellCenter,
+          const_store<double>& targetVolume,
+          const const_store<CellId>* targetCellId, fact_db& facts) ;
+
   public:
     void setupRefinementMapping(const store<pair<int,int> > &c2pg,
                                 const store<double> &volw,
@@ -167,6 +195,14 @@ namespace Loci {
       const_store<vector3d<double> > &targetCellCenter,
       const_store<double> &targetVolume,
       fact_db &facts) ;
+    void setupRefinementMapping(const store<pair<int, int>>& c2pg,
+          const store<double>& sourceVolume,
+          const_store<vector3d<double>>& sourceCellCenter,
+          const_store<CellId>& sourceCellId, multiStore<int>& gradCells,
+          multiStore<vector3d<double>>& deltas,
+          const_store<vector3d<double>>& targetCellCenter,
+          const_store<double>& targetVolume, const_store<CellId>& targetCellId,
+          fact_db& facts) ;
     const_CPTR<AMRRemapPlan> getRemapPlan() const {
       return const_CPTR<AMRRemapPlan>(remapPlan) ;
     }
@@ -657,6 +693,19 @@ namespace Loci {
       interpolator->setupRefinementMapping(
         c2pg,sourceVolume,sourceCellCenter,gradCells,deltas,
         targetCellCenter,targetVolume,facts) ;
+    }
+    void setupRefinementMapping(const store<pair<int, int>>& c2pg,
+          const store<double>& sourceVolume,
+          const_store<vector3d<double>>& sourceCellCenter,
+          const_store<CellId>& sourceCellId, multiStore<int>& gradCells,
+          multiStore<vector3d<double>>& deltas,
+          const_store<vector3d<double>>& targetCellCenter,
+          const_store<double>& targetVolume, const_store<CellId>& targetCellId,
+          fact_db& facts) {
+      interpolator = std::make_shared<AMRrefinementMapping>() ;
+      interpolator->setupRefinementMapping(c2pg, sourceVolume, sourceCellCenter,
+            sourceCellId, gradCells, deltas, targetCellCenter, targetVolume,
+            targetCellId, facts) ;
     }
     const_CPTR<AMRRemapPlan> getRemapPlan() const {
       return interpolator->getRemapPlan() ;

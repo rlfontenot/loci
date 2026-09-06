@@ -34,6 +34,14 @@ namespace Loci {
     bool getLeafRefinementDepths(const Prism* root,
                                  std::vector<int>& depths) ;
 
+    /// Replay a general-cell plan and reject codes not represented by its tree.
+    bool replayGeneralCellPlan(
+          Cell* root, const std::vector<char>& plan, int& leafCount) ;
+
+    /// Gather general-cell leaf paths in plan-assigned output order.
+    bool getLeafRefinementPaths(
+          const Cell* root, std::vector<std::vector<int>>& paths) ;
+
     /// Classify each new leaf from the cardinality of the old/new relation.
     bool classifyAdaptResult(
       const std::vector<std::pair<int32, int32> >& cell2parent,

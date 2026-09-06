@@ -13,10 +13,13 @@
 #ifndef FVMADAPT2_REMAP_PLAN_H
 #define FVMADAPT2_REMAP_PLAN_H
 
+#include <FVMAdapt2/mesh_transfer.h>
+
 #include <Tools/basic_types.h>
 #include <Tools/cptr.h>
 
 #include <cstddef>
+#include <utility>
 #include <vector>
 
 namespace Loci {
@@ -28,39 +31,48 @@ namespace Loci {
   /// volume-weighted centroid of its target contributions to preserve its
   /// integral exactly under linear reconstruction.
   struct AMRCellGeometry {
+    /// Transition-local index used by the existing interpolation schedules.
     int cell ;
+    /// Persistent identity independent of entity numbering and MPI ownership.
+    CellId cellId ;
     double volume ;
     vector3d<double> centroid ;
     vector3d<double> reconstructionPoint ;
 
     AMRCellGeometry()
-      : cell(0), volume(0.0), centroid(0.0,0.0,0.0),
-        reconstructionPoint(0.0,0.0,0.0) {}
-    AMRCellGeometry(int cellId, double cellVolume,
-                    const vector3d<double>& cellCentroid)
-      : cell(cellId), volume(cellVolume), centroid(cellCentroid),
-        reconstructionPoint(cellCentroid) {}
-    AMRCellGeometry(int cellId, double cellVolume,
-                    const vector3d<double>& cellCentroid,
-                    const vector3d<double>& sourceReconstructionPoint)
-      : cell(cellId), volume(cellVolume), centroid(cellCentroid),
-        reconstructionPoint(sourceReconstructionPoint) {}
+        : cell(0), cellId(0), volume(0.0), centroid(0.0, 0.0, 0.0),
+          reconstructionPoint(0.0, 0.0, 0.0) {}
+    AMRCellGeometry(int cellIndex, CellId persistentId, double cellVolume,
+          const vector3d<double>& cellCentroid)
+        : cell(cellIndex), cellId(persistentId), volume(cellVolume),
+          centroid(cellCentroid), reconstructionPoint(cellCentroid) {}
+    AMRCellGeometry(int cellIndex, CellId persistentId, double cellVolume,
+          const vector3d<double>& cellCentroid,
+          const vector3d<double>& sourceReconstructionPoint)
+        : cell(cellIndex), cellId(persistentId), volume(cellVolume),
+          centroid(cellCentroid),
+          reconstructionPoint(sourceReconstructionPoint) {}
   } ;
 
   /// Geometric contribution from one source cell to one target cell.
   struct AMRCellContribution {
+    /// Transition-local source and target indices.
     int sourceCell ;
     int targetCell ;
+    /// Persistent source and target identities for public consumers.
+    CellId sourceCellId ;
+    CellId targetCellId ;
     double overlapVolume ;
     vector3d<double> overlapCentroid ;
 
     AMRCellContribution()
-      : sourceCell(0), targetCell(0), overlapVolume(0.0),
-        overlapCentroid(0.0,0.0,0.0) {}
-    AMRCellContribution(int source, int target, double volume,
-                        const vector3d<double>& centroid)
-      : sourceCell(source), targetCell(target), overlapVolume(volume),
-        overlapCentroid(centroid) {}
+        : sourceCell(0), targetCell(0), sourceCellId(0), targetCellId(0),
+          overlapVolume(0.0), overlapCentroid(0.0, 0.0, 0.0) {}
+    AMRCellContribution(int sourceIndex, int targetIndex, CellId sourceId,
+          CellId targetId, double volume, const vector3d<double>& centroid)
+        : sourceCell(sourceIndex), targetCell(targetIndex),
+          sourceCellId(sourceId), targetCellId(targetId), overlapVolume(volume),
+          overlapCentroid(centroid) {}
   } ;
 
   namespace amr_cell_transition {
@@ -78,6 +90,7 @@ namespace Loci {
     size_t targetCells ;
     size_t contributions ;
     size_t invalidGeometry ;
+    size_t invalidIdentities ;
     size_t duplicateContributions ;
     size_t missingSourceCells ;
     size_t missingTargetCells ;
@@ -136,12 +149,27 @@ namespace Loci {
     bool cellContributions(int targetCell,
                            size_t& begin, size_t& end) const ;
 
+    /// Return the contribution range for a persistent target-cell identity.
+    bool cellContributions(
+          CellId targetCellId, size_t& begin, size_t& end) const ;
+
+    /// Find source or target geometry by persistent identity.
+    const AMRCellGeometry* sourceCellGeometry(CellId sourceCellId) const ;
+    const AMRCellGeometry* targetCellGeometry(CellId targetCellId) const ;
+
     /// Return all target cells that receive a contribution from a source cell.
     void targetCells(int sourceCell, std::vector<int>& targets) const ;
+
+    /// Return locally owned targets receiving data from a persistent source.
+    void targetCells(CellId sourceCellId, std::vector<CellId>& targets) const ;
 
     /// Classify a target cell from source/target relation cardinality.
     bool cellTransition(int targetCell,
                         amr_cell_transition::value& transition) const ;
+
+    /// Classify a target cell selected by its persistent identity.
+    bool cellTransition(
+          CellId targetCellId, amr_cell_transition::value& transition) const ;
 
     /// Transfer source-cell averages with piecewise-constant reconstruction.
     bool remapCellAverages(const std::vector<double>& sourceValues,
@@ -175,6 +203,8 @@ namespace Loci {
     std::vector<size_t> targetOffsets_ ;
     std::vector<size_t> sourceDegrees_ ;
     std::vector<size_t> targetDegrees_ ;
+    std::vector<std::pair<CellId, size_t>> sourceIdentityIndex_ ;
+    std::vector<std::pair<CellId, size_t>> targetIdentityIndex_ ;
   } ;
 }
 

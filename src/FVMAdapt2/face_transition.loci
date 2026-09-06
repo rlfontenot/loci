@@ -1,0 +1,91 @@
+//#############################################################################
+//#
+//# Copyright 2008-2026, Mississippi State University
+//#
+//# This file is part of the Loci Framework.
+//#
+//# This program is free software: you can redistribute it and/or modify
+//# it under the terms of the Lesser GNU General Public License as published by
+//# the Free Software Foundation, either version 3 of the License, or
+//# (at your option) any later version.
+//#
+//#############################################################################
+
+#include "library/mesh_state.h"
+#include <Loci.h>
+
+#include "diamondcell.h"
+#include "library/refinement_state_internal.h"
+
+$include "FVM.lh"
+$include "fvmadapt_internal.lh"
+
+using std::cerr ;
+using std::endl ;
+
+/// Preserve accepted face leaf paths as (split code, child ordinal) steps
+/// before output numbering flattens the tree into ordinary mesh faces.
+$rule pointwise(faceLeafPaths <- balancedFacePlan, is_quadface, face2node),
+constraint(faces) {
+  const bool encoded = $is_quadface
+        ? Loci::detail::encodeQuadFaceLeafPaths(
+                $balancedFacePlan, $faceLeafPaths)
+        : Loci::detail::encodeGeneralFaceLeafPaths(
+                $balancedFacePlan, $face2node.size(), $faceLeafPaths) ;
+  if (!encoded) {
+    cerr << "Unable to encode an accepted face plan" << endl ;
+    Loci::Abort() ;
+  }
+}
+
+/// Preserve accepted hexahedral-cell leaf paths as (split code, child ordinal)
+/// steps so cell-interior faces can be identified by the leaves they separate.
+$rule pointwise(cellLeafPaths <- balancedCellPlan), constraint(hexcells) {
+  if (!Loci::detail::encodeHexCellLeafPaths(
+            $balancedCellPlan, $cellLeafPaths)) {
+    cerr << "Unable to encode an accepted hexahedral cell plan" << endl ;
+    Loci::Abort() ;
+  }
+}
+
+/// Preserve accepted prism-cell leaf paths as (split code, child ordinal)
+/// steps so cell-interior faces can be identified by the leaves they separate.
+$rule pointwise(cellLeafPaths <- balancedCellPlan), constraint(prisms) {
+  if (!Loci::detail::encodePrismCellLeafPaths(
+            $balancedCellPlan, $cellLeafPaths)) {
+    cerr << "Unable to encode an accepted prism cell plan" << endl ;
+    Loci::Abort() ;
+  }
+}
+
+/// Preserve accepted general-cell leaf paths in generated-cell order.
+$rule pointwise(cellLeafPaths <- balancedCellPlan, balanced_num_fine_cells,
+(lower, upper, boundary_map)->face2node->fileNumber(pos),
+(lower, upper, boundary_map)->face2edge->edge2node->fileNumber(pos)),
+constraint(gnrlcells) {
+  std::list<Node*> nodeList ;
+  std::list<Edge*> edgeList ;
+  std::list<Face*> faceList ;
+
+  Cell* cell = build_general_cell($lower.begin(), $lower.size(), $upper.begin(),
+        $upper.size(), $boundary_map.begin(), $boundary_map.size(),
+        $*face2node, $*face2edge, $*edge2node, nodeList, edgeList,
+        faceList, $*fileNumber(pos)) ;
+
+  int leafCount = 0 ;
+  std::vector<std::vector<int>> paths ;
+  const bool valid = Loci::detail::replayGeneralCellPlan(
+                           cell, $balancedCellPlan, leafCount) &&
+        Loci::detail::getLeafRefinementPaths(cell, paths) &&
+        leafCount == $balanced_num_fine_cells &&
+        paths.size() == size_t($balanced_num_fine_cells) &&
+        Loci::detail::encodeLeafPaths(paths, $cellLeafPaths) ;
+
+  delete cell ;
+  cleanup_list(nodeList, edgeList, faceList) ;
+
+  if (!valid) {
+    cerr << "Unable to encode an accepted general-cell plan" << endl ;
+    Loci::Abort() ;
+  }
+}

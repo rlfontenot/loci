@@ -252,20 +252,16 @@ public:
   inline Node* wireframe(){
     
     //allocate edgecenter
-    std::vector<vect3d> edgecenter(4);
+    std::vector<Node*> centerNodes(4) ;
     std::vector<double> len(4);
     
     //get edge centers
     for(int i = 0; i < 4; i++){
-      edgecenter[i] = edge[i]->child[0]->tail->p;
+      centerNodes[i] = edge[i]->child[0]->tail ;
       len[i] = edge[i]->length();
     }
    
-    //calculate the mass center of the edge centers
-    vect3d p = weighted_center(edgecenter, len);
-
-   
-    return new Node(p);
+    return Node::constructed(Loci::node_construction::face, centerNodes, len) ;
   }
 
   
@@ -288,18 +284,18 @@ public:
     
   //the center of the face, defined as the mass center of 4 nodes
   inline Node* simple_center(){
-    std::vector<vect3d> nodes(4);
+    std::vector<Node*> nodes(4) ;
     //get nodes
     for(int i = 0; i <2; i++){
-      nodes[i] = edge[i]->head->p;
+      nodes[i] = edge[i]->head ;
     }
     for(int i = 2; i <4; i++){
-      nodes[i] = edge[i]->tail->p;
+      nodes[i] = edge[i]->tail ;
     }
     
     //calculate the mass center of nodes
-    vect3d p = point_center(nodes);
-    return new Node(p);
+    return Node::constructed(
+          Loci::node_construction::face, nodes, std::vector<double>(4, 1.0)) ;
   }
   
 

@@ -1,0 +1,35 @@
+//#############################################################################
+//#
+//# Copyright 2008-2026, Mississippi State University
+//#
+//# This file is part of the Loci Framework.
+//#
+//# This program is free software: you can redistribute it and/or modify
+//# it under the terms of the Lesser GNU General Public License as published by
+//# the Free Software Foundation, either version 3 of the License, or
+//# (at your option) any later version.
+//#
+//#############################################################################
+
+/// Persistent identity on mesh nodes, not a Loci entity or file number.
+$type nodeId store<Loci::NodeId> ;
+
+/// Valid source-to-target node relation from the latest supported AMR cycle.
+$type nodeRemap blackbox<Loci::CPTR<Loci::NodeRemap> > ;
+
+/// Construction result for the latest attempted node transition.
+$type nodeTransitionReport blackbox<Loci::NodeTransitionReport> ;
+
+/// Old-face overlaps and created/removed faces from the latest adaptation.
+/// Source is the previous mesh; target is the resulting mesh. This blackbox
+/// describes locally owned target faces, not a per-face store.
+$type faceRemap blackbox<Loci::CPTR<Loci::FaceRemap> > ;
+
+/// Construction result for the latest attempted face transition.
+$type faceTransitionReport blackbox<Loci::FaceTransitionReport> ;
+
+/// Persistent identity on mesh faces, not a Loci entity or file number.
+$type faceId store<Loci::FaceId> ;
+
+/// Persistent identity on geom_cells, not a Loci entity or file number.
+$type cellId store<Loci::CellId> ;

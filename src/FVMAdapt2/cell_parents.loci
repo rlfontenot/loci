@@ -109,8 +109,17 @@ constraint(gnrlcells) {
                                    $*fileNumber(pos)) ;
 
   $parent_num_fine_cells = aCell->empty_resplit($parentPlan) ;
-  $balanced_num_fine_cells = aCell->empty_resplit($balancedCellPlan) ;
-  aCell->traverse($parentPlan, $indexMap) ;
+  if($balancedCellPlan.empty()) {
+    // All old leaves contribute to the single restored root cell. Replaying
+    // an empty general-cell plan does not remove the previous tree's children.
+    $balanced_num_fine_cells = 1 ;
+    $indexMap.clear() ;
+    for(int oldCell=1;oldCell<=$parent_num_fine_cells;++oldCell)
+      $indexMap.push_back(make_pair(1, oldCell)) ;
+  }else {
+    $balanced_num_fine_cells = aCell->empty_resplit($balancedCellPlan) ;
+    aCell->traverse($parentPlan, $indexMap) ;
+  }
   reduce_vector($indexMap) ;
 
   // clean up
@@ -390,5 +399,9 @@ option(disable_threading), prelude {
     }
   }ENDFORALL ;
 
+  // A new cell-to-parent relation invalidates its cached global-numbering
+  // form from the preceding adaptation.
+  Loci::DataXFER_DB.deleteItem("c2pglobal") ;
+  Loci::DataXFER_DB.deleteItem("c2p") ;
   Loci::DataXFER_DB.insertItem("c2p",c2pset.Rep()) ;
 } ;

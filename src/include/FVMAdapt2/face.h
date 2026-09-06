@@ -76,13 +76,12 @@ public:
   }
 
   inline Node* simple_center(){
-    std::vector<vect3d> nodes(numEdge);
+    std::vector<Node*> nodes(numEdge) ;
     for(int i = 0; i < numEdge; i++){
-      nodes[i] =  edge[i]->head->p;
+      nodes[i] = edge[i]->head ;
     }
-    //calculate the mass center of the edge centers
-    vect3d p = point_center(nodes);
-    return new Node(p);
+    return Node::constructed(Loci::node_construction::face, nodes,
+          std::vector<double>(numEdge, 1.0)) ;
   }
     
   inline double area(){
@@ -113,18 +112,16 @@ public:
   inline Node* wireframe(){
     
     //allocate edgecenter
-    std::vector<vect3d> edgecenter(numEdge);
+    std::vector<Node*> edgecenter(numEdge) ;
     std::vector<double> len(numEdge);
     
     //get edge centers
     for(int i = 0; i < numEdge; i++){
-      edgecenter[i] = edge[i]->child[0]->tail->p;
+      edgecenter[i] = edge[i]->child[0]->tail ;
       len[i] = edge[i]->length();
     }
    
-    //calculate the mass center of the edge centers
-    vect3d p = weighted_center(edgecenter, len);
-    return new Node(p);
+    return Node::constructed(Loci::node_construction::face, edgecenter, len) ;
   }
 
 
@@ -334,4 +331,3 @@ inline void cleanup_list( std::list<Face*>& face_list){
 
 
 #endif
-
