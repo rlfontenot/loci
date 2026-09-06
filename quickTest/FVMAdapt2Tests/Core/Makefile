@@ -1,4 +1,17 @@
-TESTS = RefMesh UniformHex Prism Mixed PlanInputs ExtrudedModes RefinementState FaceRemap
+###############################################################################
+#
+# Copyright 2008-2026, Mississippi State University
+#
+# This file is part of the Loci Framework.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the Lesser GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+###############################################################################
+
+TESTS = RemapPlan NodeTransition CellRemap
 TEST_RESULTS = $(addsuffix /TestResults,$(TESTS))
 
 .PHONY: default $(TESTS) clean distclean FRC

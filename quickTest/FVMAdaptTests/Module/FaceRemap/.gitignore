@@ -1,0 +1,8 @@
+debug/
+output/
+tet.vog
+tet.convert
+currentPlan
+nextPlan
+*.plan
+*.quality

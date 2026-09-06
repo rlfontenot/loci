@@ -1,0 +1,22 @@
+# Test output and executables.
+TestResults
+*.exe
+debug/
+output/
+*.vog
+*.convert
+currentPlan
+nextPlan
+*.plan
+*.quality
+plan_restart.h5
+missing_plan_restart_weights.h5
+
+# Working copies of the source grids.
+/Module/FaceTransition/hex.ugrid
+/Module/GeneralCellPaths/tet.ugrid
+/Module/MixedTransition/mixed.ugrid
+/Module/PlanRestart/hex.ugrid
+/Module/PlanRestart/tet.ugrid
+/Module/PrismTransition/prism.ugrid
+/Module/RefinementState/prism.ugrid

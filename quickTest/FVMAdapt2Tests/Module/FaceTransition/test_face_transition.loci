@@ -1,0 +1,1237 @@
+//#############################################################################
+//#
+//# Copyright 2008-2026, Mississippi State University
+//#
+//# This file is part of the Loci Framework.
+//#
+//# This program is free software: you can redistribute it and/or modify
+//# it under the terms of the Lesser GNU General Public License as published by
+//# the Free Software Foundation, either version 3 of the License, or
+//# (at your option) any later version.
+//#
+//#############################################################################
+
+#include <Loci.h>
+#include <LociGridReaders.h>
+#include <FVMAdapt2/dataxferDB.h>
+#include "mesh_state.h"
+#include <FVMAdapt2/gridInterface.h>
+
+#define DOCTEST_CONFIG_IMPLEMENT
+#include <doctest.h>
+
+#include <algorithm>
+#include <cmath>
+#include <limits>
+#include <map>
+#include <set>
+
+$include "FVM.lh"
+$include "FVMAdapt2/mesh_transfer.lh"
+
+using namespace Loci ;
+
+$type expectedCreatedFaces param<int> ;
+$type expectedRemovedFaces param<int> ;
+$type faceRemapChecked param<bool> ;
+
+/// Confirm that a solver rule can consume the validated face remap fact.
+$rule singleton(faceRemapChecked <- faceRemap,
+faceTransitionReport,
+expectedCreatedFaces, expectedRemovedFaces) {
+  const CPTR<FaceRemap>& remap = $faceRemap ;
+  const FaceTransitionReport& report = $faceTransitionReport ;
+  $faceRemapChecked = remap != static_cast<FaceRemap*>(0) && report.valid &&
+        report.remap.contributions > 0 &&
+        int(report.remap.createdFaces) == $expectedCreatedFaces &&
+        int(report.remap.removedFaces) == $expectedRemovedFaces ;
+}
+
+namespace {
+std::string meshCase ;
+CPTR<FaceState> internal_face_state(const CPTR<MeshState>& state) {
+  if (state == static_cast<MeshState*>(0))
+    return CPTR<FaceState>() ;
+  return CPTR<FaceState>(state) ;
+}
+
+bool all_ranks_pass(bool local_passed) {
+  int local = local_passed ? 1 : 0 ;
+  int global = 0 ;
+  MPI_Allreduce(&local, &global, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD) ;
+  return global != 0 ;
+}
+
+struct CellTagRecord {
+  CellId cell ;
+  char tag ;
+} ;
+
+storeRepP generated_order_tags(fact_db& facts, const store<char>& solverTags,
+      const store<CellId>& generatedIds) {
+  storeRepP installedIdsRep = facts.get_variable("cellId") ;
+  if (!all_ranks_pass(installedIdsRep != 0))
+    return storeRepP() ;
+  const_store<CellId> installedIds(installedIdsRep) ;
+  if (!all_ranks_pass(installedIds.domain() == solverTags.domain()))
+    return storeRepP() ;
+
+  std::vector<CellTagRecord> local(installedIds.domain().size()) ;
+  size_t record = 0 ;
+  FORALL (installedIds.domain(), cell) {
+    local[record].cell = installedIds[cell] ;
+    local[record].tag = solverTags[cell] ;
+    ++record ;
+  } ENDFORALL ;
+  std::vector<int> counts(MPI_processes, 0) ;
+  std::vector<int> offsets(MPI_processes, 0) ;
+  const int localCount = int(local.size()) ;
+  MPI_Allgather(
+        &localCount, 1, MPI_INT, &counts[0], 1, MPI_INT, MPI_COMM_WORLD) ;
+  for (int process = 1; process < MPI_processes; ++process)
+    offsets[process] = offsets[process - 1] + counts[process - 1] ;
+  const int globalCount = offsets.back() + counts.back() ;
+  std::vector<CellTagRecord> global(static_cast<size_t>(globalCount)) ;
+  MPI_Datatype recordType ;
+  MPI_Type_contiguous(int(sizeof(CellTagRecord)), MPI_BYTE, &recordType) ;
+  MPI_Type_commit(&recordType) ;
+  MPI_Allgatherv(local.empty() ? 0 : &local[0], localCount, recordType,
+        global.empty() ? 0 : &global[0], &counts[0], &offsets[0], recordType,
+        MPI_COMM_WORLD) ;
+  MPI_Type_free(&recordType) ;
+
+  std::map<CellId, char> tagById ;
+  bool valid = true ;
+  for (size_t entry = 0; entry < global.size(); ++entry) {
+    if (tagById.find(global[entry].cell) != tagById.end())
+      valid = false ;
+    tagById[global[entry].cell] = global[entry].tag ;
+  }
+  store<char> orderedTags ;
+  orderedTags.allocate(generatedIds.domain()) ;
+  FORALL (generatedIds.domain(), cell) {
+    const std::map<CellId, char>::const_iterator tag =
+          tagById.find(generatedIds[cell]) ;
+    if (tag == tagById.end())
+      valid = false ;
+    else
+      orderedTags[cell] = tag->second ;
+  } ENDFORALL ;
+  if (!all_ranks_pass(valid))
+    return storeRepP() ;
+  return orderedTags.Rep() ;
+}
+
+bool has_wide_identity(fact_db& facts, const char* name) {
+  storeRepP idsRep = facts.get_variable(name) ;
+  if (idsRep == 0)
+    return false ;
+  const_store<FaceId> ids(idsRep) ;
+  int localWide = 0 ;
+  FORALL (ids.domain(), entity) {
+    if (ids[entity] < std::numeric_limits<int>::min() ||
+          ids[entity] > std::numeric_limits<int>::max())
+      localWide = 1 ;
+  } ENDFORALL ;
+  int globalWide = 0 ;
+  MPI_Allreduce(&localWide, &globalWide, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD) ;
+  return globalWide != 0 ;
+}
+
+void report_failure(const char* stage, const FaceTransitionReport& report) {
+  if (MPI_rank != 0)
+    return ;
+  std::cerr << stage << " face transition: status=" << int(report.status)
+            << ", valid=" << report.valid
+            << ", sourceFaces=" << report.sourceFaces
+            << ", targetFaces=" << report.targetFaces
+            << ", invalidIdentities=" << report.invalidIdentities
+            << ", invalidPolygons=" << report.invalidPolygons
+            << ", unsupportedPlans=" << report.unsupportedRootPlans
+            << ", remapMissingSource=" << report.remap.missingSourceFaces
+            << ", remapMissingTarget=" << report.remap.missingTargetFaces
+            << std::endl ;
+}
+
+CPTR<FaceRemap> installed_remap(fact_db& facts) {
+  storeRepP remapRep = facts.get_variable("faceRemap") ;
+  if (remapRep == 0)
+    return CPTR<FaceRemap>() ;
+  blackbox<CPTR<FaceRemap>> remap ;
+  remap = remapRep ;
+  return *remap ;
+}
+
+bool target_faces_match(fact_db& facts) {
+  const CPTR<FaceRemap> remap = installed_remap(facts) ;
+  if (remap == static_cast<FaceRemap*>(0)) {
+    std::cerr << "rank " << MPI_rank << " face identity check has no remap"
+              << std::endl ;
+    return false ;
+  }
+
+  storeRepP faceIdRep = facts.get_variable("faceId") ;
+  if (faceIdRep == 0) {
+    std::cerr << "rank " << MPI_rank << " installed grid has no faceId"
+              << std::endl ;
+    return false ;
+  }
+  const_store<FaceId> faceId(faceIdRep) ;
+
+  std::set<FaceId> installedFaces ;
+  FORALL (faceId.domain(), face) {
+    installedFaces.insert(faceId[face]) ;
+  } ENDFORALL ;
+
+  std::set<FaceId> transitionFaces ;
+  const std::vector<FaceGeometry>& targetGeometry = remap->targetFaceGeometry() ;
+  for (size_t face = 0; face < targetGeometry.size(); ++face)
+    transitionFaces.insert(targetGeometry[face].face) ;
+  const bool matches = installedFaces == transitionFaces &&
+        transitionFaces.size() == targetGeometry.size() ;
+  if (!matches) {
+    std::cerr << "rank " << MPI_rank
+              << " face identity mismatch: installed=" << installedFaces.size()
+              << ", transition=" << transitionFaces.size()
+              << ", geometry=" << targetGeometry.size() << std::endl ;
+    for (std::set<FaceId>::const_iterator face = installedFaces.begin();
+          face != installedFaces.end(); ++face)
+      if (transitionFaces.count(*face) == 0)
+        std::cerr << "  installed-only face " << *face << std::endl ;
+    for (std::set<FaceId>::const_iterator face = transitionFaces.begin();
+          face != transitionFaces.end(); ++face)
+      if (installedFaces.count(*face) == 0)
+        std::cerr << "  transition-only face " << *face << std::endl ;
+  }
+  return matches ;
+}
+
+bool local_cell_ids(fact_db& facts, std::set<CellId>& cells) {
+  storeRepP cellsRep = facts.get_variable("geom_cells") ;
+  storeRepP idsRep = facts.get_variable("cellId") ;
+  if (cellsRep == 0 || idsRep == 0) {
+    std::cerr << "rank " << MPI_rank
+              << " installed grid has incomplete AMR cell identities"
+              << std::endl ;
+    return false ;
+  }
+  constraint geomCells ;
+  geomCells = cellsRep ;
+  const_store<CellId> ids(idsRep) ;
+  if (ids.domain() != *geomCells)
+    return false ;
+  cells.clear() ;
+  FORALL (*geomCells, cell) {
+    cells.insert(ids[cell]) ;
+  } ENDFORALL ;
+  return cells.size() == (*geomCells).size() ;
+}
+
+template <class Id>
+bool global_ids(fact_db& facts, const char* name, std::set<Id>& ids) {
+  storeRepP idsRep = facts.get_variable(name) ;
+  if (!all_ranks_pass(idsRep != 0))
+    return false ;
+  const_store<Id> localIds(idsRep) ;
+  const int localCount = localIds.domain().size() ;
+  std::vector<int> counts(MPI_processes, 0) ;
+  std::vector<int> offsets(MPI_processes, 0) ;
+  MPI_Allgather(
+        &localCount, 1, MPI_INT, &counts[0], 1, MPI_INT, MPI_COMM_WORLD) ;
+  for (int process = 1; process < MPI_processes; ++process)
+    offsets[process] = offsets[process - 1] + counts[process - 1] ;
+  const int globalCount = offsets.back() + counts.back() ;
+  std::vector<Id> local(static_cast<size_t>(localCount)) ;
+  int index = 0 ;
+  FORALL (localIds.domain(), entity) {
+    local[index++] = localIds[entity] ;
+  } ENDFORALL ;
+  std::vector<Id> global(static_cast<size_t>(globalCount)) ;
+  MPI_Allgatherv(localCount == 0 ? 0 : &local[0], localCount, MPI_LONG_LONG,
+        globalCount == 0 ? 0 : &global[0], &counts[0], &offsets[0],
+        MPI_LONG_LONG, MPI_COMM_WORLD) ;
+  ids.clear() ;
+  ids.insert(global.begin(), global.end()) ;
+  return ids.size() == global.size() ;
+}
+
+bool global_subset_ids(
+      fact_db& facts, const char* subset_name, std::set<FaceId>& ids) {
+  storeRepP subsetRep = facts.get_variable(subset_name) ;
+  storeRepP idsRep = facts.get_variable("faceId") ;
+  if (!all_ranks_pass(subsetRep != 0 && idsRep != 0))
+    return false ;
+  constraint subset ;
+  subset = subsetRep ;
+  const_store<FaceId> localIds(idsRep) ;
+  const bool localDomainValid = ((*subset) - localIds.domain()) == EMPTY ;
+  if (!all_ranks_pass(localDomainValid))
+    return false ;
+
+  const int localCount = (*subset).size() ;
+  std::vector<int> counts(MPI_processes, 0) ;
+  std::vector<int> offsets(MPI_processes, 0) ;
+  MPI_Allgather(
+        &localCount, 1, MPI_INT, &counts[0], 1, MPI_INT, MPI_COMM_WORLD) ;
+  for (int process = 1; process < MPI_processes; ++process)
+    offsets[process] = offsets[process - 1] + counts[process - 1] ;
+  const int globalCount = offsets.back() + counts.back() ;
+  std::vector<FaceId> local(static_cast<size_t>(localCount)) ;
+  int index = 0 ;
+  FORALL (*subset, entity) {
+    local[index++] = localIds[entity] ;
+  } ENDFORALL ;
+  std::vector<FaceId> global(static_cast<size_t>(globalCount)) ;
+  MPI_Allgatherv(localCount == 0 ? 0 : &local[0], localCount, MPI_LONG_LONG,
+        globalCount == 0 ? 0 : &global[0], &counts[0], &offsets[0],
+        MPI_LONG_LONG, MPI_COMM_WORLD) ;
+  ids.clear() ;
+  ids.insert(global.begin(), global.end()) ;
+  return ids.size() == global.size() ;
+}
+
+bool local_subset_ids(
+      fact_db& facts, const char* subset_name, std::set<FaceId>& ids) {
+  storeRepP subsetRep = facts.get_variable(subset_name) ;
+  storeRepP idsRep = facts.get_variable("faceId") ;
+  if (subsetRep == 0 || idsRep == 0)
+    return false ;
+  constraint subset ;
+  subset = subsetRep ;
+  const_store<FaceId> localIds(idsRep) ;
+  if (((*subset) - localIds.domain()) != EMPTY)
+    return false ;
+  ids.clear() ;
+  FORALL (*subset, entity) {
+    ids.insert(localIds[entity]) ;
+  } ENDFORALL ;
+  return ids.size() == (*subset).size() ;
+}
+
+/// Boundary faces inherit only from boundary faces; faces created or
+/// removed inside a cell must remain internal.
+bool boundary_ancestry_matches(fact_db& sourceFacts, fact_db& targetFacts) {
+  const CPTR<FaceRemap> remap = installed_remap(targetFacts) ;
+  if (remap == static_cast<FaceRemap*>(0))
+    return false ;
+
+  std::set<FaceId> sourceBoundary ;
+  std::set<FaceId> targetBoundary ;
+  if (!global_subset_ids(sourceFacts, "boundary_faces", sourceBoundary) ||
+        !local_subset_ids(targetFacts, "boundary_faces", targetBoundary))
+    return false ;
+
+  bool valid = true ;
+  std::set<FaceId> inheritedBoundary ;
+  const std::vector<FaceOverlap>& contributions = remap->overlaps() ;
+  for (size_t entry = 0; entry < contributions.size(); ++entry) {
+    const bool sourceIsBoundary =
+          sourceBoundary.count(contributions[entry].source) != 0 ;
+    const bool targetIsBoundary =
+          targetBoundary.count(contributions[entry].target) != 0 ;
+    valid = valid && sourceIsBoundary == targetIsBoundary ;
+    if (sourceIsBoundary && targetIsBoundary)
+      inheritedBoundary.insert(contributions[entry].target) ;
+  }
+  const std::vector<CreatedFace>& created = remap->createdFaces() ;
+  for (size_t face = 0; face < created.size(); ++face)
+    valid = valid && targetBoundary.count(created[face].targetFace) == 0 ;
+  const std::vector<RemovedFace>& removed = remap->removedFaces() ;
+  for (size_t face = 0; face < removed.size(); ++face)
+    valid = valid && sourceBoundary.count(removed[face].sourceFace) == 0 ;
+  valid = valid && inheritedBoundary == targetBoundary ;
+  if (!valid)
+    std::cerr << "rank " << MPI_rank
+              << " boundary-face ancestry mismatch: source="
+              << sourceBoundary.size() << ", target=" << targetBoundary.size()
+              << ", inherited=" << inheritedBoundary.size() << std::endl ;
+  return valid ;
+}
+
+bool created_faces_belong_to(
+      const_CPTR<FaceRemap> remap, const std::set<CellId>& sourceCells) {
+  const std::vector<CreatedFace>& created = remap->createdFaces() ;
+  for (size_t face = 0; face < created.size(); ++face)
+    if (sourceCells.count(created[face].sourceCell) == 0)
+      return false ;
+  return true ;
+}
+
+bool removed_faces_belong_to(
+      const_CPTR<FaceRemap> remap, const std::set<CellId>& targetCells) {
+  const std::vector<RemovedFace>& removed = remap->removedFaces() ;
+  for (size_t face = 0; face < removed.size(); ++face)
+    if (targetCells.count(removed[face].targetCell) == 0)
+      return false ;
+  return true ;
+}
+
+bool source_faces_belong_to(
+      const_CPTR<FaceRemap> remap, const std::set<FaceId>& sourceFaces) {
+  const std::vector<FaceGeometry>& geometry = remap->sourceFaceGeometry() ;
+  for (size_t face = 0; face < geometry.size(); ++face)
+    if (sourceFaces.count(geometry[face].face) == 0)
+      return false ;
+  return true ;
+}
+
+template <class Id>
+bool new_ids_do_not_overlap(const std::set<Id>& first,
+      const std::set<Id>& second, const std::set<Id>& base) {
+  bool firstHasNew = false ;
+  bool secondHasNew = false ;
+  for (typename std::set<Id>::const_iterator id = first.begin();
+        id != first.end(); ++id)
+    if (base.count(*id) == 0)
+      firstHasNew = true ;
+  for (typename std::set<Id>::const_iterator id = second.begin();
+        id != second.end(); ++id) {
+    if (base.count(*id) != 0)
+      continue ;
+    secondHasNew = true ;
+    if (first.count(*id) != 0)
+      return false ;
+  }
+  return firstHasNew && secondHasNew ;
+}
+
+bool same_value(double left, double right) {
+  const double scale = std::max(1.0, std::max(std::abs(left), std::abs(right))) ;
+  return std::abs(left - right) <= 1.0e-12 * scale ;
+}
+
+bool same_point(const vector3d<double>& left, const vector3d<double>& right) {
+  return same_value(left.x, right.x) && same_value(left.y, right.y) &&
+        same_value(left.z, right.z) ;
+}
+
+/// Check the solver-visible node relation against the immediately previous
+/// installed mesh, including its geometric interpolation contract.
+bool node_transition_matches(
+      fact_db& facts, const std::set<NodeId>& previousNodeIds) {
+  storeRepP positionRep = facts.get_variable("pos") ;
+  storeRepP idRep = facts.get_variable("nodeId") ;
+  storeRepP remapRep = facts.get_variable("nodeRemap") ;
+  storeRepP reportRep = facts.get_variable("nodeTransitionReport") ;
+  if (positionRep == 0 || idRep == 0 || remapRep == 0 || reportRep == 0)
+    return false ;
+
+  const_store<vector3d<double>> position(positionRep) ;
+  const_store<NodeId> ids(idRep) ;
+  blackbox<CPTR<NodeRemap>> remapFact ;
+  blackbox<NodeTransitionReport> reportFact ;
+  remapFact = remapRep ;
+  reportFact = reportRep ;
+  const CPTR<NodeRemap> remap = *remapFact ;
+  const NodeTransitionReport& report = *reportFact ;
+  if (ids.domain() != position.domain() ||
+        remap == static_cast<NodeRemap*>(0) || !report.valid ||
+        report.status != node_transition_status::valid)
+    return false ;
+
+  std::map<NodeId, vector3d<double>> installedTargets ;
+  FORALL (ids.domain(), node) {
+    if (!installedTargets.insert(std::make_pair(ids[node], position[node]))
+                .second)
+      return false ;
+  } ENDFORALL ;
+
+  const std::vector<NodeGeometry>& sourceGeometry = remap->sourceNodeGeometry() ;
+  const std::vector<NodeGeometry>& targetGeometry = remap->targetNodeGeometry() ;
+  const std::vector<NodeContribution>& contributions =
+        remap->nodeContributions() ;
+  const std::vector<NodeOrigin>& origins = remap->nodeOrigins() ;
+  if (targetGeometry.size() != installedTargets.size() ||
+        origins.size() != targetGeometry.size())
+    return false ;
+
+  std::map<NodeId, vector3d<double>> sourcePositions ;
+  for (size_t source = 0; source < sourceGeometry.size(); ++source) {
+    if (previousNodeIds.count(sourceGeometry[source].node) == 0 ||
+          !sourcePositions
+                 .insert(std::make_pair(sourceGeometry[source].node,
+                       sourceGeometry[source].position))
+                 .second)
+      return false ;
+  }
+
+  std::set<NodeId> originTargets ;
+  for (size_t origin = 0; origin < origins.size(); ++origin)
+    if (!originTargets.insert(origins[origin].targetNode).second)
+      return false ;
+
+  std::set<NodeId> remapTargets ;
+  for (size_t target = 0; target < targetGeometry.size(); ++target) {
+    const NodeId targetId = targetGeometry[target].node ;
+    const std::map<NodeId, vector3d<double>>::const_iterator installed =
+          installedTargets.find(targetId) ;
+    if (installed == installedTargets.end() ||
+          !remapTargets.insert(targetId).second ||
+          originTargets.count(targetId) == 0 ||
+          !same_point(installed->second, targetGeometry[target].position))
+      return false ;
+
+    size_t begin = 0 ;
+    size_t end = 0 ;
+    if (!remap->nodeContributions(targetId, begin, end) || begin == end)
+      return false ;
+    double weight = 0.0 ;
+    vector3d<double> reproduced(0.0, 0.0, 0.0) ;
+    for (size_t entry = begin; entry < end; ++entry) {
+      const NodeContribution& contribution = contributions[entry] ;
+      const std::map<NodeId, vector3d<double>>::const_iterator source =
+            sourcePositions.find(contribution.sourceNode) ;
+      if (contribution.targetNode != targetId ||
+            source == sourcePositions.end())
+        return false ;
+      weight += contribution.weight ;
+      reproduced += contribution.weight * source->second ;
+    }
+    if (!same_value(weight, 1.0) ||
+          !same_point(reproduced, targetGeometry[target].position))
+      return false ;
+
+    // A node already live in the previous mesh must retain that exact
+    // identity instead of being expanded through older ancestors.
+    if (previousNodeIds.count(targetId) != 0 &&
+          (end - begin != 1 || contributions[begin].sourceNode != targetId ||
+                !same_value(contributions[begin].weight, 1.0)))
+      return false ;
+  }
+  return remapTargets.size() == installedTargets.size() ;
+}
+
+/// Verify that reconstructing the source state from currentPlan produces
+/// the same face relation as retaining the prior in-process state.
+bool same_face_remap(
+      const_CPTR<FaceRemap> expected, const_CPTR<FaceRemap> reconstructed) {
+  if (expected == static_cast<FaceRemap*>(0) ||
+        reconstructed == static_cast<FaceRemap*>(0))
+    return false ;
+
+  const std::vector<FaceGeometry>& expectedSource =
+        expected->sourceFaceGeometry() ;
+  const std::vector<FaceGeometry>& actualSource =
+        reconstructed->sourceFaceGeometry() ;
+  const std::vector<FaceGeometry>& expectedTarget =
+        expected->targetFaceGeometry() ;
+  const std::vector<FaceGeometry>& actualTarget =
+        reconstructed->targetFaceGeometry() ;
+  if (expectedSource.size() != actualSource.size() ||
+        expectedTarget.size() != actualTarget.size())
+    return false ;
+  for (size_t face = 0; face < expectedSource.size(); ++face)
+    if (expectedSource[face].face != actualSource[face].face ||
+          !same_value(expectedSource[face].area, actualSource[face].area) ||
+          !same_point(
+                expectedSource[face].centroid, actualSource[face].centroid))
+      return false ;
+  for (size_t face = 0; face < expectedTarget.size(); ++face)
+    if (expectedTarget[face].face != actualTarget[face].face ||
+          !same_value(expectedTarget[face].area, actualTarget[face].area) ||
+          !same_point(
+                expectedTarget[face].centroid, actualTarget[face].centroid))
+      return false ;
+
+  const std::vector<FaceOverlap>& expectedContributions = expected->overlaps() ;
+  const std::vector<FaceOverlap>& actualContributions =
+        reconstructed->overlaps() ;
+  if (expectedContributions.size() != actualContributions.size())
+    return false ;
+  for (size_t entry = 0; entry < expectedContributions.size(); ++entry) {
+    const FaceOverlap& expectedEntry = expectedContributions[entry] ;
+    const FaceOverlap& actualEntry = actualContributions[entry] ;
+    if (expectedEntry.source != actualEntry.source ||
+          expectedEntry.target != actualEntry.target ||
+          expectedEntry.orientation != actualEntry.orientation ||
+          !same_value(expectedEntry.area, actualEntry.area) ||
+          !same_point(expectedEntry.centroid, actualEntry.centroid))
+      return false ;
+  }
+  const std::vector<CreatedFace>& expectedCreated = expected->createdFaces() ;
+  const std::vector<CreatedFace>& actualCreated = reconstructed->createdFaces() ;
+  if (expectedCreated.size() != actualCreated.size())
+    return false ;
+  for (size_t face = 0; face < expectedCreated.size(); ++face)
+    if (expectedCreated[face].targetFace != actualCreated[face].targetFace ||
+          expectedCreated[face].sourceCell != actualCreated[face].sourceCell)
+      return false ;
+
+  const std::vector<RemovedFace>& expectedRemoved = expected->removedFaces() ;
+  const std::vector<RemovedFace>& actualRemoved = reconstructed->removedFaces() ;
+  if (expectedRemoved.size() != actualRemoved.size())
+    return false ;
+  for (size_t face = 0; face < expectedRemoved.size(); ++face)
+    if (expectedRemoved[face].sourceFace != actualRemoved[face].sourceFace ||
+          expectedRemoved[face].targetCell != actualRemoved[face].targetCell)
+      return false ;
+  return true ;
+}
+
+bool replay_matches(const_CPTR<FaceState> cachedSource,
+      const CPTR<refinedGridData>& grid, const char* stage) {
+  const CPTR<FaceState> targetState = grid == static_cast<refinedGridData*>(0)
+        ? CPTR<FaceState>()
+        : internal_face_state(grid->transitionState) ;
+  if (cachedSource == static_cast<FaceState*>(0) ||
+        grid == static_cast<refinedGridData*>(0) ||
+        targetState == static_cast<FaceState*>(0) ||
+        grid->faceRemap == static_cast<FaceRemap*>(0))
+    return false ;
+  FaceTransitionReport cachedReport ;
+  const CPTR<FaceRemap> cachedTransition =
+        buildFaceRemap(cachedSource, targetState, cachedReport) ;
+  const bool matches = cachedReport.valid &&
+        cachedTransition != static_cast<FaceRemap*>(0) &&
+        same_face_remap(cachedTransition, grid->faceRemap) ;
+  if (!matches)
+    std::cerr << "rank " << MPI_rank << ", " << stage
+              << ": currentPlan replay differs from cached source state"
+              << std::endl ;
+  return matches ;
+}
+
+bool base_ids_match(fact_db& facts) {
+  storeRepP faceIdsRep = facts.get_variable("faceId") ;
+  storeRepP cellIdsRep = facts.get_variable("cellId") ;
+  storeRepP nodeIdsRep = facts.get_variable("nodeId") ;
+  storeRepP faceNumberRep = facts.get_variable("fileNumber(face2node)") ;
+  storeRepP cellNumberRep = facts.get_variable("fileNumber(geom_cells)") ;
+  storeRepP nodeNumberRep = facts.get_variable("fileNumber(pos)") ;
+  if (faceIdsRep == 0 || cellIdsRep == 0 || nodeIdsRep == 0 ||
+        faceNumberRep == 0 || cellNumberRep == 0 || nodeNumberRep == 0)
+    return false ;
+  const_store<FaceId> faceIds(faceIdsRep) ;
+  const_store<CellId> cellIds(cellIdsRep) ;
+  const_store<NodeId> nodeIds(nodeIdsRep) ;
+  const_store<int> faceNumber(faceNumberRep) ;
+  const_store<int> cellNumber(cellNumberRep) ;
+  const_store<int> nodeNumber(nodeNumberRep) ;
+  int localFirstFace = std::numeric_limits<int>::max() ;
+  int localFirstCell = std::numeric_limits<int>::max() ;
+  FORALL (faceNumber.domain(), face) {
+    localFirstFace = std::min(localFirstFace, faceNumber[face]) ;
+  } ENDFORALL ;
+  FORALL (cellNumber.domain(), cell) {
+    localFirstCell = std::min(localFirstCell, cellNumber[cell]) ;
+  } ENDFORALL ;
+  int firstFace = localFirstFace ;
+  int firstCell = localFirstCell ;
+  MPI_Allreduce(
+        &localFirstFace, &firstFace, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD) ;
+  MPI_Allreduce(
+        &localFirstCell, &firstCell, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD) ;
+  bool matches = faceIds.domain() == faceNumber.domain() &&
+        cellIds.domain() == cellNumber.domain() &&
+        nodeIds.domain() == nodeNumber.domain() ;
+  FORALL (faceIds.domain(), face) {
+    const FaceKey key(face_origin::base_face, faceNumber[face] - firstFace, {}) ;
+    if (faceIds[face] != persistentFaceId(key))
+      matches = false ;
+  } ENDFORALL ;
+  FORALL (cellIds.domain(), cell) {
+    if (cellIds[cell] != persistentCellId(cellNumber[cell] - firstCell, {}))
+      matches = false ;
+  } ENDFORALL ;
+  FORALL (nodeIds.domain(), node) {
+    if (nodeIds[node] != persistentBaseNodeId(nodeNumber[node]))
+      matches = false ;
+  } ENDFORALL ;
+  return matches ;
+}
+
+bool install_and_check(fact_db& facts, CPTR<refinedGridData> grid,
+      rule_db& rules, const std::set<NodeId>& previousNodeIds,
+      int expected_created, int expected_removed) {
+  bool ready = grid != static_cast<refinedGridData*>(0) &&
+        grid->faceRemap != static_cast<FaceRemap*>(0) &&
+        grid->faceTransitionReport.valid &&
+        grid->nodeRemap != static_cast<NodeRemap*>(0) &&
+        grid->nodeTransitionReport.valid ;
+  if (!ready) {
+    if (grid != static_cast<refinedGridData*>(0)) {
+      report_failure("installed", grid->faceTransitionReport) ;
+      if (MPI_rank == 0)
+        std::cerr << "installed node transition: status="
+                  << int(grid->nodeTransitionReport.status)
+                  << ", valid=" << grid->nodeTransitionReport.valid
+                  << ", sourceNodes=" << grid->nodeTransitionReport.sourceNodes
+                  << ", targetNodes=" << grid->nodeTransitionReport.targetNodes
+                  << ", missingSource="
+                  << grid->nodeTransitionReport.missingSourceNodes
+                  << ", weightErrors="
+                  << grid->nodeTransitionReport.inconsistentWeights
+                  << ", positionErrors="
+                  << grid->nodeTransitionReport.inconsistentPositions
+                  << std::endl ;
+    }
+  }
+  if (!all_ranks_pass(ready))
+    return false ;
+
+  const bool installed = Loci::setupFVMGridFromContainer(facts, *grid, 0) ;
+  if (!installed && MPI_rank == 0)
+    std::cerr << "adapted grid installation failed" << std::endl ;
+  if (!all_ranks_pass(installed))
+    return false ;
+
+  const bool identitiesMatch = target_faces_match(facts) ;
+  if (!all_ranks_pass(identitiesMatch))
+    return false ;
+  const bool nodesMatch = node_transition_matches(facts, previousNodeIds) ;
+  if (!all_ranks_pass(nodesMatch)) {
+    if (MPI_rank == 0)
+      std::cerr << "installed node transition validation failed" << std::endl ;
+    return false ;
+  }
+
+  param<int> created ;
+  param<int> removed ;
+  *created = expected_created ;
+  *removed = expected_removed ;
+  facts.create_fact("expectedCreatedFaces", created) ;
+  facts.create_fact("expectedRemovedFaces", removed) ;
+  const bool queried = Loci::makeQuery(
+        rules, facts, "faceRemapChecked,fileNumber(geom_cells)") ;
+  if (!queried && MPI_rank == 0)
+    std::cerr << "face transition consumer query failed" << std::endl ;
+  if (!all_ranks_pass(queried))
+    return false ;
+
+  param<bool> checked ;
+  checked = facts.get_variable("faceRemapChecked") ;
+  if (!*checked)
+    std::cerr << "rank " << MPI_rank
+              << " face transition consumer validation failed" << std::endl ;
+  return all_ranks_pass(*checked) ;
+}
+}
+
+/// Refine, refine an existing child, and coarsen again. The installed face
+/// and node relations must keep the immediately previous mesh as their source.
+TEST_CASE("successive mesh changes preserve face and node ancestry") {
+  bool replay = false ;
+  SUBCASE("retain the previous mesh state") {
+  }
+  SUBCASE("reconstruct the previous mesh from its plan") {
+    replay = true ;
+  }
+  DataXFER_DB.clearDB() ;
+  const std::string case_name = meshCase ;
+  bool passed = true ;
+  fact_db source_facts ;
+  if (passed && !Loci::setupFVMGrid(source_facts, case_name + ".vog"))
+    passed = false ;
+  REQUIRE(all_ranks_pass(passed)) ;
+
+  rule_db refmesh_rules ;
+  rule_db consumer_rules ;
+  if (passed) {
+    Loci::load_module("fvmadapt2", refmesh_rules) ;
+    Loci::load_module("fvm", consumer_rules) ;
+    consumer_rules.add_rules(global_rule_list) ;
+    passed = Loci::makeQuery(consumer_rules, source_facts,
+          "fileNumber(pos),fileNumber(face2node),fileNumber(geom_cells)") ;
+  }
+  REQUIRE(all_ranks_pass(passed)) ;
+
+  if (passed)
+    passed = Loci::installBaseMeshIds(source_facts) &&
+          base_ids_match(source_facts) ;
+  REQUIRE(all_ranks_pass(passed)) ;
+
+  std::set<FaceId> source_face_ids ;
+  std::set<CellId> source_cell_ids ;
+  std::set<NodeId> source_node_ids ;
+  if (passed)
+    passed = global_ids(source_facts, "faceId", source_face_ids) &&
+          global_ids(source_facts, "cellId", source_cell_ids) &&
+          global_ids(source_facts, "nodeId", source_node_ids) ;
+  REQUIRE(all_ranks_pass(passed)) ;
+
+  const bool prism_case = case_name == "prism" ;
+  const std::set<FaceId> base_face_ids = source_face_ids ;
+  const std::set<CellId> base_cell_ids = source_cell_ids ;
+  const std::set<NodeId> base_node_ids = source_node_ids ;
+  std::set<FaceId> base_boundary_ids ;
+  if (passed && prism_case)
+    passed = source_face_ids.size() == 5 && source_cell_ids.size() == 1 &&
+          global_subset_ids(
+                source_facts, "boundary_faces", base_boundary_ids) &&
+          base_boundary_ids == source_face_ids ;
+  REQUIRE(all_ranks_pass(passed)) ;
+
+  store<char> refine_tags ;
+  if (passed) {
+    constraint geom_cells ;
+    geom_cells = source_facts.get_variable("geom_cells") ;
+    refine_tags.allocate(*geom_cells) ;
+    FORALL (*geom_cells, cell) {
+      refine_tags[cell] = 1 ;
+    } ENDFORALL ;
+  }
+
+  CPTR<refinedGridData> grid = 0 ;
+  CPTR<MeshState> transition_state = 0 ;
+  if (passed) {
+    Loci::onlineRefineMesh(grid, transition_state, refmesh_rules, 2, 0,
+          refine_tags.Rep(), case_name) ;
+    if (grid == static_cast<refinedGridData*>(0) ||
+          grid->faceRemap == static_cast<FaceRemap*>(0)) {
+      if (grid != static_cast<refinedGridData*>(0))
+        report_failure("refine", grid->faceTransitionReport) ;
+      passed = false ;
+    }
+  }
+  REQUIRE(all_ranks_pass(passed)) ;
+
+  fact_db refined_facts ;
+  std::set<CellId> refined_cells ;
+  size_t created_faces = 0 ;
+  if (passed) {
+    created_faces = grid->faceTransitionReport.remap.createdFaces ;
+    passed = created_faces > 0 &&
+          grid->faceTransitionReport.remap.removedFaces == 0 &&
+          install_and_check(refined_facts, grid, consumer_rules,
+                source_node_ids, int(created_faces), 0) ;
+  }
+  REQUIRE(all_ranks_pass(passed)) ;
+  if (passed) {
+    const CPTR<FaceRemap> remap = installed_remap(refined_facts) ;
+    passed = remap != static_cast<FaceRemap*>(0) &&
+          local_cell_ids(refined_facts, refined_cells) &&
+          source_faces_belong_to(remap, source_face_ids) &&
+          created_faces_belong_to(remap, source_cell_ids) ;
+  }
+  REQUIRE(all_ranks_pass(passed)) ;
+  if (passed)
+    passed = boundary_ancestry_matches(source_facts, refined_facts) ;
+  REQUIRE(all_ranks_pass(passed)) ;
+  if (passed)
+    passed = has_wide_identity(refined_facts, "faceId") &&
+          has_wide_identity(refined_facts, "cellId") &&
+          has_wide_identity(refined_facts, "nodeId") ;
+  REQUIRE(all_ranks_pass(passed)) ;
+  if (passed)
+    passed = global_ids(refined_facts, "faceId", source_face_ids) &&
+          global_ids(refined_facts, "cellId", source_cell_ids) &&
+          global_ids(refined_facts, "nodeId", source_node_ids) ;
+  REQUIRE(all_ranks_pass(passed)) ;
+
+  const std::set<FaceId> first_refined_face_ids = source_face_ids ;
+  const std::set<CellId> first_refined_cell_ids = source_cell_ids ;
+  const std::set<NodeId> first_refined_node_ids = source_node_ids ;
+  std::set<FaceId> first_refined_boundary_ids ;
+  if (passed && prism_case)
+    passed = source_cell_ids.size() == 6 &&
+          global_subset_ids(
+                refined_facts, "boundary_faces", first_refined_boundary_ids) ;
+  REQUIRE(all_ranks_pass(passed)) ;
+
+  // Seed the derived cache from the current relation so the next adaptation
+  // must invalidate it before publishing the replacement relation.
+  if (passed) {
+    storeRepP current_c2p = Loci::DataXFER_DB.getItem("c2p") ;
+    passed = current_c2p != 0 ;
+    if (passed) {
+      Loci::DataXFER_DB.deleteItem("c2pglobal") ;
+      Loci::DataXFER_DB.insertItem("c2pglobal", current_c2p) ;
+      passed = Loci::DataXFER_DB.getItem("c2pglobal") != 0 ;
+    }
+  }
+  REQUIRE(all_ranks_pass(passed)) ;
+
+  store<char> deeper_refine_tags ;
+  if (passed) {
+    constraint geom_cells ;
+    geom_cells = refined_facts.get_variable("geom_cells") ;
+    int local_min = (*geom_cells).size() == 0 ? std::numeric_limits<int>::max()
+                                              : (*geom_cells).Min() ;
+    int global_min = local_min ;
+    MPI_Allreduce(&local_min, &global_min, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD) ;
+    deeper_refine_tags.allocate(*geom_cells) ;
+    FORALL (*geom_cells, cell) {
+      deeper_refine_tags[cell] = cell == global_min ? 1 : 0 ;
+    } ENDFORALL ;
+  }
+
+  CPTR<FaceState> cached_source_state ;
+  if (passed) {
+    // Exercise either retained state or replay from the cumulative plan.
+    storeRepP deeper_tags_file_order = generated_order_tags(
+          refined_facts, deeper_refine_tags, grid->cellIds) ;
+    passed = deeper_tags_file_order != 0 ;
+    if (passed) {
+      const_store<char> orderedTags(deeper_tags_file_order) ;
+      unsigned long long localMarked = 0 ;
+      FORALL (orderedTags.domain(), cell) {
+        if (orderedTags[cell] == 1)
+          ++localMarked ;
+      } ENDFORALL ;
+      unsigned long long marked = 0 ;
+      MPI_Allreduce(&localMarked, &marked, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM,
+            MPI_COMM_WORLD) ;
+      if (marked != 1 && MPI_rank == 0)
+        std::cerr << "incremental refinement expected one marked leaf, got "
+                  << marked << std::endl ;
+      passed = marked == 1 ;
+    }
+    cached_source_state = internal_face_state(transition_state) ;
+    if (replay)
+      transition_state = CPTR<MeshState>() ;
+    grid = 0 ;
+    if (passed)
+      Loci::onlineRefineMesh(grid, transition_state, refmesh_rules, 2, 1,
+            deeper_tags_file_order, case_name) ;
+    if (grid == static_cast<refinedGridData*>(0) ||
+          grid->faceRemap == static_cast<FaceRemap*>(0)) {
+      if (grid == static_cast<refinedGridData*>(0) && MPI_rank == 0)
+        std::cerr << "incremental refinement returned no grid" << std::endl ;
+      else
+        report_failure("incremental refine", grid->faceTransitionReport) ;
+      passed = false ;
+    }
+  }
+  REQUIRE(all_ranks_pass(passed)) ;
+
+  if (passed) {
+    const bool parentMapReady = Loci::DataXFER_DB.getItem("c2p") != 0 &&
+          Loci::DataXFER_DB.getItem("c2pglobal") == 0 ;
+    if (!parentMapReady && MPI_rank == 0)
+      std::cerr << "incremental refinement did not replace the cached "
+                   "cell-parent relation"
+                << std::endl ;
+    passed = parentMapReady ;
+  }
+  REQUIRE(all_ranks_pass(passed)) ;
+
+  if (passed)
+    passed = replay_matches(cached_source_state, grid, "incremental refine") ;
+  REQUIRE(all_ranks_pass(passed)) ;
+
+  fact_db deeper_facts ;
+  size_t incremental_created_faces = 0 ;
+  if (passed) {
+    incremental_created_faces = grid->faceTransitionReport.remap.createdFaces ;
+    passed = incremental_created_faces > 0 &&
+          grid->faceTransitionReport.remap.removedFaces == 0 &&
+          install_and_check(deeper_facts, grid, consumer_rules, source_node_ids,
+                int(incremental_created_faces), 0) ;
+  }
+  REQUIRE(all_ranks_pass(passed)) ;
+  if (passed) {
+    const CPTR<FaceRemap> remap = installed_remap(deeper_facts) ;
+    passed = remap != static_cast<FaceRemap*>(0) &&
+          source_faces_belong_to(remap, source_face_ids) &&
+          created_faces_belong_to(remap, source_cell_ids) ;
+  }
+  REQUIRE(all_ranks_pass(passed)) ;
+  if (passed)
+    passed = boundary_ancestry_matches(refined_facts, deeper_facts) ;
+  REQUIRE(all_ranks_pass(passed)) ;
+  if (passed)
+    passed = global_ids(deeper_facts, "faceId", source_face_ids) &&
+          global_ids(deeper_facts, "cellId", source_cell_ids) &&
+          global_ids(deeper_facts, "nodeId", source_node_ids) ;
+  REQUIRE(all_ranks_pass(passed)) ;
+  if (passed && prism_case)
+    // Refining one of six first-level prism leaves replaces it with eight.
+    passed = source_cell_ids.size() == 13 ;
+  REQUIRE(all_ranks_pass(passed)) ;
+
+  store<char> partial_derefine_tags ;
+  if (passed) {
+    constraint geom_cells ;
+    geom_cells = deeper_facts.get_variable("geom_cells") ;
+    const_store<int> refinement_depth ;
+    refinement_depth = deeper_facts.get_variable("refinementDepth") ;
+    partial_derefine_tags.allocate(*geom_cells) ;
+    FORALL (*geom_cells, cell) {
+      partial_derefine_tags[cell] = refinement_depth[cell] == 2 ? 2 : 0 ;
+    } ENDFORALL ;
+  }
+
+  if (passed) {
+    // Exercise the same cache-independent reconstruction while coarsening.
+    storeRepP partial_tags_file_order = generated_order_tags(
+          deeper_facts, partial_derefine_tags, grid->cellIds) ;
+    passed = partial_tags_file_order != 0 ;
+    if (replay)
+      transition_state = CPTR<MeshState>() ;
+    grid = 0 ;
+    if (passed)
+      Loci::onlineRefineMesh(grid, transition_state, refmesh_rules, 2, 2,
+            partial_tags_file_order, case_name) ;
+    if (grid == static_cast<refinedGridData*>(0) ||
+          grid->faceRemap == static_cast<FaceRemap*>(0)) {
+      if (grid != static_cast<refinedGridData*>(0))
+        report_failure("incremental derefine", grid->faceTransitionReport) ;
+      passed = false ;
+    }
+  }
+  REQUIRE(all_ranks_pass(passed)) ;
+
+  fact_db partially_derefined_facts ;
+  std::set<CellId> partially_derefined_cells ;
+  size_t incremental_removed_faces = 0 ;
+  if (passed) {
+    incremental_removed_faces = grid->faceTransitionReport.remap.removedFaces ;
+    passed = incremental_removed_faces > 0 &&
+          grid->faceTransitionReport.remap.createdFaces == 0 &&
+          install_and_check(partially_derefined_facts, grid, consumer_rules,
+                source_node_ids, 0, int(incremental_removed_faces)) ;
+  }
+  REQUIRE(all_ranks_pass(passed)) ;
+  if (passed) {
+    const CPTR<FaceRemap> remap = installed_remap(partially_derefined_facts) ;
+    passed = remap != static_cast<FaceRemap*>(0) &&
+          local_cell_ids(
+                partially_derefined_facts, partially_derefined_cells) &&
+          source_faces_belong_to(remap, source_face_ids) &&
+          removed_faces_belong_to(remap, partially_derefined_cells) ;
+  }
+  REQUIRE(all_ranks_pass(passed)) ;
+  if (passed)
+    passed = boundary_ancestry_matches(deeper_facts, partially_derefined_facts) ;
+  REQUIRE(all_ranks_pass(passed)) ;
+  if (passed)
+    passed = global_ids(partially_derefined_facts, "faceId", source_face_ids) &&
+          global_ids(partially_derefined_facts, "cellId", source_cell_ids) &&
+          global_ids(partially_derefined_facts, "nodeId", source_node_ids) ;
+  REQUIRE(all_ranks_pass(passed)) ;
+  if (passed && prism_case) {
+    std::set<FaceId> partial_boundary_ids ;
+    passed = source_face_ids == first_refined_face_ids &&
+          source_cell_ids == first_refined_cell_ids &&
+          source_node_ids == first_refined_node_ids &&
+          global_subset_ids(partially_derefined_facts, "boundary_faces",
+                partial_boundary_ids) &&
+          partial_boundary_ids == first_refined_boundary_ids ;
+  }
+  REQUIRE(all_ranks_pass(passed)) ;
+
+  store<char> derefine_tags ;
+  if (passed && MPI_processes == 1) {
+    constraint geom_cells ;
+    geom_cells = partially_derefined_facts.get_variable("geom_cells") ;
+    derefine_tags.allocate(*geom_cells) ;
+    FORALL (*geom_cells, cell) {
+      derefine_tags[cell] = 2 ;
+    } ENDFORALL ;
+  }
+
+  if (passed && MPI_processes == 1) {
+    storeRepP derefine_tags_file_order = generated_order_tags(
+          partially_derefined_facts, derefine_tags, grid->cellIds) ;
+    passed = derefine_tags_file_order != 0 ;
+    if (replay)
+      transition_state = CPTR<MeshState>() ;
+    grid = 0 ;
+    if (passed)
+      Loci::onlineRefineMesh(grid, transition_state, refmesh_rules, 2, 3,
+            derefine_tags_file_order, case_name) ;
+    if (grid == static_cast<refinedGridData*>(0) ||
+          grid->faceRemap == static_cast<FaceRemap*>(0)) {
+      if (grid != static_cast<refinedGridData*>(0))
+        report_failure("full derefine", grid->faceTransitionReport) ;
+      passed = false ;
+    }
+  }
+  REQUIRE(all_ranks_pass(passed)) ;
+
+  fact_db coarse_facts ;
+  std::set<CellId> coarse_cells ;
+  size_t removed_faces = 0 ;
+  if (passed && MPI_processes == 1) {
+    removed_faces = grid->faceTransitionReport.remap.removedFaces ;
+    passed = removed_faces > 0 &&
+          grid->faceTransitionReport.remap.createdFaces == 0 &&
+          install_and_check(coarse_facts, grid, consumer_rules, source_node_ids,
+                0, int(removed_faces)) ;
+  }
+  REQUIRE(all_ranks_pass(passed)) ;
+  if (passed && MPI_processes == 1) {
+    const CPTR<FaceRemap> remap = installed_remap(coarse_facts) ;
+    passed = remap != static_cast<FaceRemap*>(0) &&
+          local_cell_ids(coarse_facts, coarse_cells) &&
+          source_faces_belong_to(remap, source_face_ids) &&
+          removed_faces_belong_to(remap, coarse_cells) ;
+  }
+  REQUIRE(all_ranks_pass(passed)) ;
+  if (passed && MPI_processes == 1)
+    passed = boundary_ancestry_matches(partially_derefined_facts, coarse_facts) ;
+  REQUIRE(all_ranks_pass(passed)) ;
+
+  if (passed && prism_case && MPI_processes == 1) {
+    std::set<FaceId> coarse_face_ids ;
+    std::set<CellId> coarse_cell_ids ;
+    std::set<NodeId> coarse_node_ids ;
+    std::set<FaceId> coarse_boundary_ids ;
+    passed = global_ids(coarse_facts, "faceId", coarse_face_ids) &&
+          global_ids(coarse_facts, "cellId", coarse_cell_ids) &&
+          global_ids(coarse_facts, "nodeId", coarse_node_ids) &&
+          global_subset_ids(
+                coarse_facts, "boundary_faces", coarse_boundary_ids) &&
+          coarse_face_ids == base_face_ids &&
+          coarse_cell_ids == base_cell_ids &&
+          coarse_node_ids == base_node_ids &&
+          coarse_boundary_ids == base_boundary_ids ;
+  }
+  REQUIRE(all_ranks_pass(passed)) ;
+
+  size_t alternate_created_faces = 0 ;
+  if (passed && !prism_case && MPI_processes == 1) {
+    // Re-refine the restored root with the 2-D split mode. Persistent IDs
+    // must distinguish this split direction from the earlier full split.
+    constraint geom_cells ;
+    geom_cells = coarse_facts.get_variable("geom_cells") ;
+    store<char> alternate_tags ;
+    alternate_tags.allocate(*geom_cells) ;
+    FORALL (*geom_cells, cell) {
+      alternate_tags[cell] = 1 ;
+    } ENDFORALL ;
+    storeRepP alternate_tags_file_order =
+          generated_order_tags(coarse_facts, alternate_tags, grid->cellIds) ;
+    passed = alternate_tags_file_order != 0 ;
+    if (replay)
+      transition_state = CPTR<MeshState>() ;
+    grid = 0 ;
+    if (passed)
+      Loci::onlineRefineMesh(grid, transition_state, refmesh_rules, 1, 4,
+            alternate_tags_file_order, case_name) ;
+    if (grid == static_cast<refinedGridData*>(0) ||
+          grid->faceRemap == static_cast<FaceRemap*>(0)) {
+      if (grid != static_cast<refinedGridData*>(0))
+        report_failure(
+              "alternate-direction refine", grid->faceTransitionReport) ;
+      passed = false ;
+    }
+  }
+  REQUIRE(all_ranks_pass(passed)) ;
+
+  fact_db alternate_facts ;
+  if (passed && !prism_case && MPI_processes == 1) {
+    alternate_created_faces = grid->faceTransitionReport.remap.createdFaces ;
+    passed = alternate_created_faces > 0 &&
+          grid->faceTransitionReport.remap.removedFaces == 0 &&
+          install_and_check(alternate_facts, grid, consumer_rules,
+                base_node_ids, int(alternate_created_faces), 0) ;
+  }
+  REQUIRE(all_ranks_pass(passed)) ;
+
+  if (passed && !prism_case && MPI_processes == 1) {
+    std::set<CellId> alternate_cell_ids ;
+    std::set<FaceId> first_created_face_ids ;
+    std::set<FaceId> alternate_created_face_ids ;
+    const CPTR<FaceRemap> firstRemap = installed_remap(refined_facts) ;
+    const CPTR<FaceRemap> remap = installed_remap(alternate_facts) ;
+    if (firstRemap != static_cast<FaceRemap*>(0)) {
+      const std::vector<CreatedFace>& created = firstRemap->createdFaces() ;
+      for (size_t face = 0; face < created.size(); ++face)
+        first_created_face_ids.insert(created[face].targetFace) ;
+    }
+    if (remap != static_cast<FaceRemap*>(0)) {
+      const std::vector<CreatedFace>& created = remap->createdFaces() ;
+      for (size_t face = 0; face < created.size(); ++face)
+        alternate_created_face_ids.insert(created[face].targetFace) ;
+    }
+    const std::set<FaceId> no_base_faces ;
+    const bool distinctFaceIds = new_ids_do_not_overlap(
+          first_created_face_ids, alternate_created_face_ids, no_base_faces) ;
+    const bool distinctCellIds =
+          global_ids(alternate_facts, "cellId", alternate_cell_ids) &&
+          new_ids_do_not_overlap(
+                first_refined_cell_ids, alternate_cell_ids, base_cell_ids) ;
+    if (!distinctFaceIds && MPI_rank == 0)
+      std::cerr << "alternate split reused an intra-cell face ID from the "
+                   "first split"
+                << std::endl ;
+    if (!distinctCellIds && MPI_rank == 0)
+      std::cerr << "alternate split reused cell IDs from the first split"
+                << std::endl ;
+    passed = distinctFaceIds && distinctCellIds &&
+          remap != static_cast<FaceRemap*>(0) &&
+          source_faces_belong_to(remap, base_face_ids) &&
+          created_faces_belong_to(remap, base_cell_ids) &&
+          boundary_ancestry_matches(coarse_facts, alternate_facts) ;
+  }
+  REQUIRE(all_ranks_pass(passed)) ;
+
+  if (MPI_rank == 0) {
+    std::cout << "FVMAdapt2 face/node transition: "
+              << (passed ? "PASSED" : "FAILED")
+              << ", first-created=" << created_faces
+              << ", incremental-created=" << incremental_created_faces
+              << ", incremental-removed=" << incremental_removed_faces
+              << ", final-removed=" << removed_faces
+              << ", alternate-created=" << alternate_created_faces << std::endl ;
+  }
+}
+
+/// A caller transferring only face fields can skip node ancestry, then request
+/// it on a later cycle without losing the ability to reconstruct that history.
+TEST_CASE("face-only adaptation can enable node remapping later") {
+  DataXFER_DB.clearDB() ;
+  rule_db rules, geometryRules ;
+  load_module("fvmadapt2", rules) ;
+  load_module("fvm", geometryRules) ;
+  fact_db source ;
+  REQUIRE(all_ranks_pass(setupFVMGrid(source, meshCase + ".vog"))) ;
+  REQUIRE(all_ranks_pass(makeQuery(geometryRules, source, "geom_cells"))) ;
+  constraint cells ;
+  cells = source.get_variable("geom_cells") ;
+  store<char> tags ;
+  tags.allocate(*cells) ;
+  FORALL (tags.domain(), cell) {
+    tags[cell] = 1 ;
+  } ENDFORALL ;
+
+  CPTR<refinedGridData> grid ;
+  CPTR<MeshState> history ;
+  onlineRefineMesh(grid, history, rules, 2, 0, tags.Rep(), meshCase, false) ;
+  REQUIRE(all_ranks_pass(grid != static_cast<refinedGridData*>(0))) ;
+  CHECK(grid->nodeTransitionReport.status ==
+        node_transition_status::not_requested) ;
+  CHECK(grid->nodeRemap == static_cast<NodeRemap*>(0)) ;
+  REQUIRE(all_ranks_pass(grid->faceTransitionReport.valid)) ;
+  fact_db faceOnly ;
+  REQUIRE(all_ranks_pass(setupFVMGridFromContainer(faceOnly, *grid))) ;
+
+  // Keep the same mesh, first without and then with the optional node remap.
+  for (int cycle = 1; cycle <= 2; ++cycle) {
+    tags.allocate(grid->cellIds.domain()) ;
+    FORALL (tags.domain(), cell) {
+      tags[cell] = 0 ;
+    } ENDFORALL ;
+    onlineRefineMesh(
+          grid, history, rules, 2, cycle, tags.Rep(), meshCase, cycle == 2) ;
+    REQUIRE(all_ranks_pass(grid != static_cast<refinedGridData*>(0))) ;
+    REQUIRE(all_ranks_pass(grid->faceTransitionReport.valid)) ;
+    if (cycle == 1) {
+      CHECK(grid->nodeTransitionReport.status ==
+            node_transition_status::not_requested) ;
+    } else {
+      CHECK(grid->nodeTransitionReport.valid) ;
+      CHECK(grid->nodeTransitionReport.createdNodes == 0) ;
+    }
+    fact_db installed ;
+    REQUIRE(all_ranks_pass(setupFVMGridFromContainer(installed, *grid))) ;
+  }
+}
+
+int main(int argc, char** argv) {
+  Loci::Init(&argc, &argv) ;
+  if (argc < 2) {
+    if (MPI_rank == 0)
+      std::cerr << "usage: test_face_transition [test options] <case>\n" ;
+    Loci::Finalize() ;
+    return 1 ;
+  }
+  meshCase = argv[argc - 1] ;
+  doctest::Context context(argc - 1, argv) ;
+  const int result = context.run() ;
+  const bool passed = all_ranks_pass(result == 0) ;
+  DataXFER_DB.clearDB() ;
+  Loci::Finalize() ;
+  return passed ? 0 : 1 ;
+}

@@ -10,8 +10,14 @@ The suite separates direct library behavior from complete adaptation workflows:
 
 ## Behavioral reference data
 
-Each Module scenario writes a small `*.actual` manifest and compares it with a
-checked-in file under that scenario's `dats/` directory. A manifest records the
+`Module/FaceRemap` checks the public FVMAdapt2 face handoff with `TEST_CASE`
+assertions: old-face contributors, originating old cells for new internal
+faces, and a tetrahedron refinement/retention/coarsening cycle. It requires
+the FVMAdapt2 build from 390; its [case notes](Module/FaceRemap/README.md)
+include the command for testing from 369 against that build.
+
+The offline Module scenarios write a small `*.actual` manifest and compare it
+with a checked-in file under that scenario's `dats/` directory. A manifest records the
 observable mesh behavior that should survive an implementation refactor:
 
 ```text
