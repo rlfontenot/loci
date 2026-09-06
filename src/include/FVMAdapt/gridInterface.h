@@ -21,27 +21,9 @@
 #ifndef GRID_INTERFACE_H
 #define GRID_INTERFACE_H
 #include <store_rep.h>
-#include <FVMAdapt/defines.h>
-#include <FVMAdapt/remap_plan.h>
-#include <FVMAdapt/refinement_state.h>
-#include <map>
 #include <memory>
 
 namespace Loci {
-  /// Components reconstructed with one limiter when a parent cell is refined.
-  ///
-  /// A common limiter preserves any linear identity already satisfied by the
-  /// parent stencil, while components omitted from every group retain the
-  /// ordinary component-wise limiting behavior. Component indices must be
-  /// unique within a group, and groups must not overlap.
-  struct AMRcomponentGroup {
-    std::vector<int> components ;
-
-    AMRcomponentGroup() {}
-    explicit AMRcomponentGroup(const std::vector<int>& componentList)
-      : components(componentList) {}
-  } ;
-
   void parallelClassifyCell(fact_db &facts) ;
 
   void createVOGNode(store<vector3d<double> > &new_pos,
@@ -82,7 +64,6 @@ namespace Loci {
     vector<entitySet> local_cells;
     vector<pair<int,string> > boundary_ids;
     vector<pair<string,entitySet> > volTags;
-    refinedCellState cellState;
   } ;
 
   void initializeGridFromPlan(Loci::CPTR<refinedGridData> &gridDataP,
@@ -134,23 +115,8 @@ namespace Loci {
     entitySet directMapCells ;
     // Communicationschedule gathering parent cell data to children
     gatherCommSchedule directMapComm ;
-    // Source-cell gather used by the target-owned public remap plan
-    gatherCommSchedule remapSourceComm ;
     // Weights for volume weighted average for coarsened cells
     vector<double>  directWeights ;
-    CPTR<AMRRemapPlan> remapPlan ;
-    AMRRemapReport remapReport ;
-  private:
-    void setupRefinementMappingImpl(
-      const store<pair<int,int> > &c2pg,
-      const store<double> &sourceVolume,
-      const const_store<vector3d<double> >* sourceCellCenter,
-      multiStore<int> &gradCells,
-      multiStore<vector3d<double> > &deltas,
-      const_store<vector3d<double> > &targetCellCenter,
-      const_store<double> &targetVolume,
-      fact_db &facts) ;
-  public:
     void setupRefinementMapping(const store<pair<int,int> > &c2pg,
                                 const store<double> &volw,
                                 multiStore<int> &gradCells,
@@ -158,82 +124,9 @@ namespace Loci {
                                 const_store<vector3d<double> > &cell_center,
                                 const_store<double> &vol,
                                 fact_db &facts) ;
-    void setupRefinementMapping(
-      const store<pair<int,int> > &c2pg,
-      const store<double> &sourceVolume,
-      const_store<vector3d<double> > &sourceCellCenter,
-      multiStore<int> &gradCells,
-      multiStore<vector3d<double> > &deltas,
-      const_store<vector3d<double> > &targetCellCenter,
-      const_store<double> &targetVolume,
-      fact_db &facts) ;
-    const_CPTR<AMRRemapPlan> getRemapPlan() const {
-      return const_CPTR<AMRRemapPlan>(remapPlan) ;
-    }
-    const AMRRemapReport& getRemapReport() const { return remapReport ; }
-    template<class T>
-    bool gatherSourceCellData(const store<T>& sourceData,
-                              std::vector<T>& gatheredData) const {
-      if(remapPlan == static_cast<AMRRemapPlan*>(0))
-        return false ;
-      store<T> gathered ;
-      remapSourceComm.gatherData(gathered,sourceData) ;
-      const size_t sourceCount = remapPlan->sourceCellGeometry().size() ;
-      if(size_t(gathered.domain().size()) != sourceCount)
-        return false ;
-      gatheredData.resize(sourceCount) ;
-      for(size_t source=0;source<sourceCount;++source)
-        gatheredData[source] = gathered[int(source)] ;
-      return true ;
-    }
-    template<class T>
-    bool assignTargetCellData(const std::vector<T>& targetData,
-                              store<T>& destination) const {
-      if(remapPlan == static_cast<AMRRemapPlan*>(0) ||
-         targetData.size() != remapPlan->targetCellGeometry().size())
-        return false ;
-      std::map<int,size_t> targetIndex ;
-      for(size_t target=0;
-          target<remapPlan->targetCellGeometry().size();++target)
-        targetIndex[remapPlan->targetCellGeometry()[target].cell] = target ;
-      destination.allocate(geom_cells_local) ;
-      FORALL(geom_cells_local,cell) {
-        const typename std::map<int,size_t>::const_iterator target =
-          targetIndex.find(l2g[cell]) ;
-        if(target == targetIndex.end())
-          return false ;
-        destination[cell] = targetData[target->second] ;
-      } ENDFORALL ;
-      return true ;
-    }
-    bool remapCellAverages(const store<double>& sourceData,
-                           store<double>& targetData) const {
-      std::vector<double> sourceValues ;
-      std::vector<double> targetValues ;
-      return gatherSourceCellData(sourceData,sourceValues) &&
-        remapPlan->remapCellAverages(sourceValues,targetValues) &&
-        assignTargetCellData(targetValues,targetData) ;
-    }
-    bool remapCellIntegrals(const store<double>& sourceData,
-                            store<double>& targetData) const {
-      std::vector<double> sourceValues ;
-      std::vector<double> targetValues ;
-      return gatherSourceCellData(sourceData,sourceValues) &&
-        remapPlan->remapCellIntegrals(sourceValues,targetValues) &&
-        assignTargetCellData(targetValues,targetData) ;
-    }
     template<class T>
     void interpolateData(storeVec<T> &parent_data,
                          storeVec<T> &child_data,
-                         double limstop = 1.0) const {
-      const std::vector<AMRcomponentGroup> independentComponents ;
-      interpolateData(parent_data,child_data,independentComponents,limstop) ;
-    }
-
-    template<class T>
-    void interpolateData(storeVec<T> &parent_data,
-                         storeVec<T> &child_data,
-                         const std::vector<AMRcomponentGroup>& componentGroups,
                          double limstop = 1.0) const {
       //########################################################################
       //
@@ -251,32 +144,6 @@ namespace Loci {
       // conservative
       //
       const int vs = parent_data.vecSize() ;
-      std::vector<bool> componentIsGrouped(vs,false) ;
-      for(size_t group=0;group<componentGroups.size();++group) {
-        if(componentGroups[group].components.empty()) {
-          cerr << "AMR interpolation component groups cannot be empty"
-               << endl ;
-          Loci::Abort() ;
-        }
-        for(size_t entry=0;
-            entry<componentGroups[group].components.size();++entry) {
-          const int component = componentGroups[group].components[entry] ;
-          if(component < 0 || component >= vs) {
-            cerr << "AMR interpolation component " << component
-                 << " is outside the storeVec range [0," << vs << ')'
-                 << endl ;
-            Loci::Abort() ;
-          }
-          if(componentIsGrouped[component]) {
-            cerr << "AMR interpolation component " << component
-                 << " appears more than once in the component groups"
-                 << endl ;
-            Loci::Abort() ;
-          }
-          componentIsGrouped[component] = true ;
-        }
-      }
-
       // gather parent data needed to compute parent gradients
       storeVec<T> grad_data ;
       gradientComm.gatherData(grad_data,parent_data) ;
@@ -292,9 +159,6 @@ namespace Loci {
         refineCellDomain = interval(0,refcells-1) ;
       refineCell_data.allocate(refineCellDomain) ;
       int vsz = parent_data.vecSize() ;
-      std::vector<vector3d<double> > gradients(vsz) ;
-      std::vector<T> centerValues(vsz) ;
-      std::vector<T> componentLimiters(vsz) ;
       FORALL(parent.domain(),ii) {
         // get stencil size
         const int ssz = gradCellStencil.vec_size(ii) ;
@@ -331,30 +195,12 @@ namespace Loci {
               limi = min(limi,(min_val-Xcc)/(qdif-1e-100)) ;
           }
 
-          gradients[k] = gradk ;
-          centerValues[k] = Xcc ;
-          componentLimiters[k] = limi ;
-        }
-
-        // Components in a declared group use the most restrictive limiter.
-        // Since reconstruction and gradient formation are linear, this
-        // preserves linear identities already present throughout the stencil.
-        for(size_t group=0;group<componentGroups.size();++group) {
-          const std::vector<int>& components =
-            componentGroups[group].components ;
-          T groupLimiter = componentLimiters[components[0]] ;
-          for(size_t entry=1;entry<components.size();++entry)
-            groupLimiter = min(groupLimiter,
-                               componentLimiters[components[entry]]) ;
-          for(size_t entry=0;entry<components.size();++entry)
-            componentLimiters[components[entry]] = groupLimiter ;
-        }
-
-        for(int k=0;k<vsz;++k) {
-          gradients[k] *= componentLimiters[k] ;
+          // reduce gradient by limiter factor
+          gradk *= limi ;
+          // compute child cell values
           for(int j=0;j<child_dvs.vec_size(ii);++j) {
-            T val = centerValues[k] +
-              dot(vector3d<double>(gradients[k]),child_dvs[ii][j]) ;
+            T val = Xcc + dot(vector3d<double>(gradk),
+                              child_dvs[ii][j]) ;
             refineCell_data[parent2child_l[ii][j]][k] = val ;
           }
         }
@@ -644,58 +490,12 @@ namespace Loci {
       interpolator->setupRefinementMapping(c2pg,volw,gradCells,deltas,
                                            cell_center,vol,facts) ;
     }
-    void setupRefinementMapping(
-      const store<pair<int,int> > &c2pg,
-      const store<double> &sourceVolume,
-      const_store<vector3d<double> > &sourceCellCenter,
-      multiStore<int> &gradCells,
-      multiStore<vector3d<double> > &deltas,
-      const_store<vector3d<double> > &targetCellCenter,
-      const_store<double> &targetVolume,
-      fact_db &facts) {
-      interpolator = std::make_shared<AMRrefinementMapping>() ;
-      interpolator->setupRefinementMapping(
-        c2pg,sourceVolume,sourceCellCenter,gradCells,deltas,
-        targetCellCenter,targetVolume,facts) ;
-    }
-    const_CPTR<AMRRemapPlan> getRemapPlan() const {
-      return interpolator->getRemapPlan() ;
-    }
-    const AMRRemapReport& getRemapReport() const {
-      return interpolator->getRemapReport() ;
-    }
-    template<class T>
-    bool gatherSourceCellData(const store<T>& sourceData,
-                              std::vector<T>& gatheredData) const {
-      return interpolator->gatherSourceCellData(sourceData,gatheredData) ;
-    }
-    template<class T>
-    bool assignTargetCellData(const std::vector<T>& targetData,
-                              store<T>& destination) const {
-      return interpolator->assignTargetCellData(targetData,destination) ;
-    }
-    bool remapCellAverages(const store<double>& sourceData,
-                           store<double>& targetData) const {
-      return interpolator->remapCellAverages(sourceData,targetData) ;
-    }
-    bool remapCellIntegrals(const store<double>& sourceData,
-                            store<double>& targetData) const {
-      return interpolator->remapCellIntegrals(sourceData,targetData) ;
-    }
     entitySet getOutputAllocate() const { return interpolator->geom_cells_global; }
     template<class T>
     void interpolateData(storeVec<T> &parent_data,
                          storeVec<T> &child_data,
                          double limstop=1.0) const {
       interpolator->interpolateData(parent_data,child_data,limstop) ;
-    }
-    template<class T>
-    void interpolateData(storeVec<T> &parent_data,
-                         storeVec<T> &child_data,
-                         const std::vector<AMRcomponentGroup>& componentGroups,
-                         double limstop=1.0) const {
-      interpolator->interpolateData(parent_data,child_data,
-                                    componentGroups,limstop) ;
     }
     template<class T>
     void interpolateData(store<T> &parent_data,

@@ -28,7 +28,7 @@ COPT = $(COPTLESS)
 
 APPS = extract plot3d2vog make_periodic ugrid2vog msh2vog foam2vog \
        cfd++2vog fluent2vog cobalt2vog vogmerge vogcut vogcheck \
-       extruder vog2surf ccm2vog refmesh marker refine cgns2vog \
+       extruder vog2surf ccm2vog refmesh marker refine refmesh2 marker2 refine2 cgns2vog \
        ugrid2cgns cgns2ugrid cgns2ensight cgns2surf
 
 # List your object files here
@@ -140,6 +140,13 @@ marker: marker.o $(DEPS) $(LOCI_BASE)/lib/libfvmadaptfunc.${LIB_SUFFIX}
 refine: refine.o $(DEPS) $(LOCI_BASE)/lib/libfvmadaptfunc.${LIB_SUFFIX}
 	$(LD) -o  refine  refine.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS) -lfvmadaptfunc
 
+# Build the same command-line tools against the separately loaded module.
+refmesh2 marker2 refine2: %: %.o $(DEPS) $(LOCI_BASE)/lib/libfvmadapt2func.${LIB_SUFFIX}
+	$(LD) -o $@ $< $(LOCAL_LIBS) $(LIBS) $(LDFLAGS) -lfvmadapt2func
+
+refmesh2.o marker2.o refine2.o: %2.o: %.cc
+	$(CXX) $(COPT) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) \
+	  -DUSE_FVMADAPT2 -MMD -MP -o $@ -c $<
 
 clean:
 	rm -fr $(OBJS) $(LIB_OBJS) $(APPS) $(JUNK) *.o
@@ -158,7 +165,7 @@ distclean: clean
 
 ALL_SOURCES=$(call loci_compile_files,)
 ALL_OBJS=$(call loci_file2objs,$(ALL_SOURCES))
-DEPEND_FILES=$(subst .o,.d,$(ALL_OBJS))
+DEPEND_FILES=$(subst .o,.d,$(ALL_OBJS)) marker2.d refmesh2.d refine2.d
 
 
 #include automatically generated dependencies

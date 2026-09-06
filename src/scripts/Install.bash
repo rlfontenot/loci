@@ -125,6 +125,9 @@ soft_copy_dir FVMtools/extruder $INSTALL_PATH/bin
 soft_copy_dir FVMtools/refmesh $INSTALL_PATH/bin
 soft_copy_dir FVMtools/marker $INSTALL_PATH/bin
 soft_copy_dir FVMtools/refine $INSTALL_PATH/bin
+soft_copy_dir FVMtools/refmesh2 $INSTALL_PATH/bin
+soft_copy_dir FVMtools/marker2 $INSTALL_PATH/bin
+soft_copy_dir FVMtools/refine2 $INSTALL_PATH/bin
 soft_copy_dir FVMtools/cgns2ensight $INSTALL_PATH/bin
 soft_copy_dir FVMtools/cgns2surf $INSTALL_PATH/bin
 soft_copy_dir FVMtools/ugrid2cgns $INSTALL_PATH/bin

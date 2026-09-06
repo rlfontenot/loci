@@ -30,7 +30,6 @@
 #include <vector>
 #include <queue>
 #include "hexcell.h"
-#include "plan_operations.h"
 #include "tables.h"
 using std::queue;
 using std::cerr;
@@ -40,8 +39,7 @@ using std::list;
 //using namespace std;
 
 
-std::vector<char> extract_hex_face(const std::vector<char>& cellPlan,
-                                   DIRECTION direction){
+std::vector<char>  extract_hex_face(const  std::vector<char>& cellPlan,  DIRECTION dd){
 
   //output faceCodeTable
   /*  for(int i=0; i<42; i++){
@@ -93,7 +91,7 @@ std::vector<char> extract_hex_face(const std::vector<char>& cellPlan,
         faceCode = 0;
       }
       else{
-        faceCode = faceCodeTable[direction*7+cellCode- 1];
+        faceCode = faceCodeTable[dd*7+cellCode- 1];
       }
      
       facePlan.push_back(faceCode);
@@ -103,7 +101,7 @@ std::vector<char> extract_hex_face(const std::vector<char>& cellPlan,
     
     
     if(cellCode != 0){
-      std::vector<bool> childrenID = faceIDTable[direction*7+cellCode-1];
+      std::vector<bool> childrenID = faceIDTable[dd*7+cellCode-1];
       if(!needExtract){
         for(unsigned int i = 0; i < childrenID.size(); i++)childrenID[i] = 0;
       }

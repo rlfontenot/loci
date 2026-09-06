@@ -351,6 +351,11 @@ fi
 if [ ! -h refine ] ; then
   ln -s ../FVMtools/refine refine
 fi
+for tool in marker2 refmesh2 refine2; do
+  if [ ! -h "$tool" ]; then
+    ln -s "../FVMtools/$tool" "$tool"
+  fi
+done
 if [ ! -h cgns2vog ] ; then
   ln -s ../FVMtools/cgns2vog cgns2vog
 fi

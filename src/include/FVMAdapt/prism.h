@@ -280,8 +280,7 @@ public:
                                          const std::vector<char>& facePlan,
                                          char orientCode,
                                          int faceID);
-  friend std::vector<char> extract_prism_face(const std::vector<char>& cellPlan,
-                                              int faceID);
+  friend std::vector<char>  extract_prism_face(const  std::vector<char>& cellPlan, int dd);
   
   void print();
 private:

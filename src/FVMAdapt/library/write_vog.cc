@@ -43,8 +43,6 @@
 #include "FVMAdapt/defines.h"
 #include "FVMAdapt/dataxferDB.h"
 #include "FVMAdapt/gridInterface.h"
-#include "remap_plan_internal.h"
-#include "refinement_state_internal.h"
 
 using std::cerr;
 using std::cout;
@@ -276,37 +274,6 @@ namespace Loci {
                          const_store<vector3d<double> > &cell_center,
                          const_store<double> &vol,
                          fact_db &facts) {
-    setupRefinementMappingImpl(c2pg,volw,0,gradCells,deltas,
-                               cell_center,vol,facts) ;
-  }
-
-  void AMRrefinementMapping::
-  setupRefinementMapping(
-    const store<pair<int,int> > &c2pg,
-    const store<double> &sourceVolume,
-    const_store<vector3d<double> > &sourceCellCenter,
-    multiStore<int> &gradCells,
-    multiStore<vector3d<double> > &deltas,
-    const_store<vector3d<double> > &targetCellCenter,
-    const_store<double> &targetVolume,
-    fact_db &facts) {
-    setupRefinementMappingImpl(c2pg,sourceVolume,&sourceCellCenter,
-                               gradCells,deltas,targetCellCenter,
-                               targetVolume,facts) ;
-  }
-
-  void AMRrefinementMapping::
-  setupRefinementMappingImpl(
-    const store<pair<int,int> > &c2pg,
-    const store<double> &volw,
-    const const_store<vector3d<double> >* sourceCellCenter,
-    multiStore<int> &gradCells,
-    multiStore<vector3d<double> > &deltas,
-    const_store<vector3d<double> > &cell_center,
-    const_store<double> &vol,
-    fact_db &facts) {
-    remapPlan = static_cast<AMRRemapPlan*>(0) ;
-    remapReport = AMRRemapReport() ;
     //########################################################################
     //
     // get the geom_cells of child cells and convert to global  numbering
@@ -432,14 +399,6 @@ namespace Loci {
       p2c[i].second += cstart ;
     }
 
-    // Keep a target-owned copy for the public remap plan. getC2PGlobal()
-    // constructs c2pg from this processor's owned target cells, whereas p2c
-    // is redistributed below to the source-cell owners.
-    vector<pair<int,int> > targetSource(p2c.size()) ;
-    for(size_t i=0;i<p2c.size();++i)
-      targetSource[i] = pair<int,int>(p2c[i].second,p2c[i].first) ;
-    sort(targetSource.begin(),targetSource.end()) ;
-
 
     //########################################################################
     //
@@ -452,20 +411,6 @@ namespace Loci {
 
     sort(p2c.begin(),p2c.end()) ;
     Loci::parSplitSort(p2c,splits,MPI_COMM_WORLD) ;
-
-    store<int> sourceTargetCount ;
-    sourceTargetCount.allocate(volw.domain()) ;
-    FORALL(volw.domain(),ii) {
-      sourceTargetCount[ii] = 0 ;
-    } ENDFORALL ;
-    for(size_t i=0;i<p2c.size();) {
-      size_t end = i+1 ;
-      while(end<p2c.size() && p2c[end].first == p2c[i].first)
-        ++end ;
-      if(sourceTargetCount.domain().inSet(p2c[i].first))
-        sourceTargetCount[p2c[i].first] = int(end-i) ;
-      i = end ;
-    }
 
     //########################################################################
     //
@@ -518,7 +463,7 @@ namespace Loci {
     //########################################################################
     //
     // Use parSplitSort to map child to parent map to processors according to
-    // child distribution.
+    // child distribution.
     //
     vector<int> csplits(p) ;
     MPI_Allgather(&csplit,1,MPI_INT,&csplits[0],1,MPI_INT,MPI_COMM_WORLD) ;
@@ -797,18 +742,6 @@ namespace Loci {
       int cnt = j-i ;
       i+= cnt-1 ;
     }
-
-    // A complete plan requires source centers; the legacy interpolation
-    // setup remains available without publishing incomplete geometry.
-    if(sourceCellCenter != 0) {
-      const_store<vector3d<double> > sourceCenters ;
-      sourceCenters.setRep(sourceCellCenter->Rep()) ;
-      detail::buildDistributedCellRemapPlan(
-        remapPlan,remapReport,remapSourceComm,targetSource,volw,
-        sourceCenters,sourceTargetCount,partition_parent,geom_cells_local,
-        l2g,cell_center,vol,parent,parent2child_l,vol_data,center_data,
-        MPI_COMM_WORLD) ;
-    }
   }
 
   
@@ -1033,7 +966,7 @@ namespace Loci {
       refine_facts.create_fact("cellweight_outDB_par",cellweight_outDB_par);
         
       if(!Loci::makeQuery(refine_rules,refine_facts,
-			  "cellplan_output,cellweight_output,cell2parent_DB,inner_nodes_cell,inner_nodes_face,inner_nodes_edge,fine_faces_cell,fine_faces,volTag_blackbox,fineRefinementDepth,fineAdaptResult,planRootFileNumber,balanced_cell_offset")) {
+			  "cellplan_output,cellweight_output,cell2parent_DB,inner_nodes_cell,inner_nodes_face,inner_nodes_edge,fine_faces_cell,fine_faces,volTag_blackbox")) {
 	std::cerr << "adapt query failed!" << std::endl;
 	Loci::Abort();
       }
@@ -1082,42 +1015,6 @@ namespace Loci {
 		   gridDataP->local_faces,
 		   gridDataP->local_cells
 		   );
-
-    storeRepP fineDepthRep =
-      refine_facts.get_variable("fineRefinementDepth") ;
-    storeRepP fineResultRep =
-      refine_facts.get_variable("fineAdaptResult") ;
-    storeRepP cellOffsetRep =
-      refine_facts.get_variable("balanced_cell_offset") ;
-    storeRepP rootFileNumberRep =
-      refine_facts.get_variable("planRootFileNumber") ;
-    storeRepP geomCellsRep = refine_facts.get_variable("geom_cells") ;
-    if(fineDepthRep == 0 || fineResultRep == 0 || cellOffsetRep == 0 ||
-       rootFileNumberRep == 0 || geomCellsRep == 0) {
-      if(Loci::MPI_rank == 0)
-        cerr << "Missing a required refined-cell state fact" << endl ;
-      Loci::Abort() ;
-    }
-
-    const_store<vector<int> > fineDepth(fineDepthRep) ;
-    const_store<vector<int> > fineResult(fineResultRep) ;
-    const_store<int> cellOffset(cellOffsetRep) ;
-    const_store<int> rootFileNumber(rootFileNumberRep) ;
-    constraint geomCells ;
-    geomCells = geomCellsRep ;
-    const entitySet sourceCells = *geomCells & fineDepth.domain() ;
-
-    if(!detail::collectRefinedCellState(gridDataP->cellState,
-                                        fineDepth,
-                                        &fineResult,
-                                        cellOffset,
-                                        rootFileNumber,
-                                        sourceCells,
-                                        gridDataP->local_cells)) {
-      if(Loci::MPI_rank == 0)
-        cerr << "Unable to assemble refined-cell state" << endl ;
-      Loci::Abort() ;
-    }
 
     //update volume tags
     {
@@ -1208,7 +1105,7 @@ namespace Loci {
     refine_facts.create_fact("balanced_planDB_par",balanced_planDB_par) ;
 	      
     if(!Loci::makeQuery(refine_rules,refine_facts,
-			"inner_nodes_cell,inner_nodes_face,inner_nodes_edge,fine_faces,fine_faces_cell,volTag_blackbox,fineRefinementDepth,planRootFileNumber,balanced_cell_offset")) {
+			"inner_nodes_cell,inner_nodes_face,inner_nodes_edge,fine_faces,fine_faces_cell,volTag_blackbox")) {
       std::cerr << "adapt query failed!" << std::endl;
       Loci::Abort();
     }
@@ -1254,39 +1151,6 @@ namespace Loci {
 		   gridDataP->local_faces,
 		   gridDataP->local_cells
 		   );
-
-    storeRepP fineDepthRep =
-      refine_facts.get_variable("fineRefinementDepth") ;
-    storeRepP cellOffsetRep =
-      refine_facts.get_variable("balanced_cell_offset") ;
-    storeRepP rootFileNumberRep =
-      refine_facts.get_variable("planRootFileNumber") ;
-    storeRepP geomCellsRep = refine_facts.get_variable("geom_cells") ;
-    if(fineDepthRep == 0 || cellOffsetRep == 0 ||
-       rootFileNumberRep == 0 || geomCellsRep == 0) {
-      if(Loci::MPI_rank == 0)
-        cerr << "Missing a required refined-cell state fact" << endl ;
-      Loci::Abort() ;
-    }
-
-    const_store<vector<int> > fineDepth(fineDepthRep) ;
-    const_store<int> cellOffset(cellOffsetRep) ;
-    const_store<int> rootFileNumber(rootFileNumberRep) ;
-    constraint geomCells ;
-    geomCells = geomCellsRep ;
-    const entitySet sourceCells = *geomCells & fineDepth.domain() ;
-
-    if(!detail::collectRefinedCellState(gridDataP->cellState,
-                                        fineDepth,
-                                        0,
-                                        cellOffset,
-                                        rootFileNumber,
-                                        sourceCells,
-                                        gridDataP->local_cells)) {
-      if(Loci::MPI_rank == 0)
-        cerr << "Unable to assemble refined-cell state" << endl ;
-      Loci::Abort() ;
-    }
 
     if(Loci::MPI_rank ==0)cerr<< "num_faces: " << num_faces << " before chem run" <<  endl;
     if(Loci::MPI_rank ==0)cerr<< "num_cells: " << num_cells << " before chem run" <<  endl;
@@ -1709,7 +1573,7 @@ namespace Loci{
     int keyspace = sp->getDomainKeySpace() ;
     // Now get global to file numbering
     dMap g2f ;
-    g2f = dist->g2fv[keyspace].Rep() ;
+    g2f = dist->g2fv[keyspace].Rep() ; 
 
     // Compute map from local numbering to file numbering
     Map newnum ;
@@ -1851,81 +1715,6 @@ namespace Loci{
                         entitySet bcsurfset,
                         fact_db &facts) ;
 
-  static bool installCellStateSerial(fact_db& facts,
-                                     const refinedCellState& source,
-                                     const entitySet& sourceCells,
-                                     const entitySet& destinationCells) {
-    if(source.refinementDepth.domain() != sourceCells ||
-       source.rootCellFileNumber.domain() != sourceCells ||
-       (source.hasAdaptResult && source.adaptResult.domain() != sourceCells) ||
-       sourceCells.size() != destinationCells.size())
-      return false ;
-
-    store<int> refinementDepth ;
-    store<int> rootCellFileNumber ;
-    store<int> adaptResult ;
-    refinementDepth.allocate(destinationCells) ;
-    rootCellFileNumber.allocate(destinationCells) ;
-    if(source.hasAdaptResult)
-      adaptResult.allocate(destinationCells) ;
-
-    entitySet::const_iterator sourceCell = sourceCells.begin() ;
-    entitySet::const_iterator destinationCell = destinationCells.begin() ;
-    while(sourceCell != sourceCells.end() &&
-          destinationCell != destinationCells.end()) {
-      refinementDepth[*destinationCell] = source.refinementDepth[*sourceCell] ;
-      rootCellFileNumber[*destinationCell] =
-        source.rootCellFileNumber[*sourceCell] ;
-      if(source.hasAdaptResult)
-        adaptResult[*destinationCell] = source.adaptResult[*sourceCell] ;
-      ++sourceCell ;
-      ++destinationCell ;
-    }
-
-    facts.create_fact("refinementDepth", refinementDepth) ;
-    facts.create_fact("rootCellFileNumber", rootCellFileNumber) ;
-    if(source.hasAdaptResult)
-      facts.create_fact("adaptResult", adaptResult) ;
-    return true ;
-  }
-
-  static bool installCellStateParallel(
-    fact_db& facts,
-    const refinedCellState& source,
-    const entitySet& sourceCells,
-    const vector<entitySet>& cellPtn,
-    const vector<entitySet>& cellPtnT,
-    const entitySet& destinationCells) {
-    if(source.refinementDepth.domain() != sourceCells ||
-       source.rootCellFileNumber.domain() != sourceCells ||
-       (source.hasAdaptResult && source.adaptResult.domain() != sourceCells))
-      return false ;
-
-    store<int> refinementDepth ;
-    store<int> rootCellFileNumber ;
-    store<int> adaptResult ;
-    refinementDepth.allocate(destinationCells) ;
-    rootCellFileNumber.allocate(destinationCells) ;
-    redistribute_container(cellPtn, cellPtnT, destinationCells,
-                           source.refinementDepth.Rep(),
-                           refinementDepth.Rep()) ;
-    redistribute_container(cellPtn, cellPtnT, destinationCells,
-                           source.rootCellFileNumber.Rep(),
-                           rootCellFileNumber.Rep()) ;
-    if(source.hasAdaptResult) {
-      adaptResult.allocate(destinationCells) ;
-      redistribute_container(cellPtn, cellPtnT, destinationCells,
-                             source.adaptResult.Rep(),
-                             adaptResult.Rep()) ;
-    }
-
-    facts.create_fact("refinementDepth", refinementDepth) ;
-    facts.create_fact("rootCellFileNumber", rootCellFileNumber) ;
-    if(source.hasAdaptResult)
-      facts.create_fact("adaptResult", adaptResult) ;
-    return true ;
-  }
-
   bool inputFVMGrid(fact_db &facts,
                     vector<entitySet>& local_nodes,
                     vector<entitySet>& local_faces,
@@ -1936,8 +1725,7 @@ namespace Loci{
                     multiMap& tmp_face2node,
                     vector<pair<int,string> >& boundary_ids,
                     vector<pair<string,entitySet> >& volTags,
-                    storeRepP cellwts,
-                    const refinedCellState* cellState) {
+                    storeRepP cellwts) {
     double t1 = MPI_Wtime() ;
     // Identify boundary tags
     if(Loci::MPI_processes == 1) {
@@ -1991,13 +1779,6 @@ namespace Loci{
       facts.create_fact("face2node",face2node) ;
       facts.create_fact("boundary_names", boundary_names) ;
       facts.create_fact("boundary_tags", boundary_tags) ;
-
-      if(cellState != 0 &&
-         !installCellStateSerial(facts, *cellState, local_cells[0], cells)) {
-        if(MPI_rank == 0)
-          cerr << "Unable to install refined-cell state" << endl ;
-        return false ;
-      }
 
       int cells_base = local_cells[0].Min() ;
       for(size_t i=0;i<volTags.size();++i) {
@@ -2233,15 +2014,6 @@ namespace Loci{
 
     entitySet cells = facts.get_distributed_alloc(cell_alloc,0).first ;//Fix This
 
-    if(cellState != 0 &&
-       !installCellStateParallel(facts, *cellState,
-                                 local_cells[MPI_rank],
-                                 cell_ptn, cell_ptn_t, cells)) {
-      if(MPI_rank == 0)
-        cerr << "Unable to install refined-cell state" << endl ;
-      return false ;
-    }
-
     Loci::debugout << "nodes = " << nodes << ", size= "
                    << nodes.size() << endl;
     Loci::debugout << "faces = " << faces << ", size = "
@@ -2286,7 +2058,7 @@ namespace Loci{
     // update remap from global to file numbering for faces after sorting
     fact_db::distribute_infoP df = facts.get_distribute_info() ;
     dMap g2f ;
-    g2f = df->g2fv[0].Rep() ; // FIX THIS
+    g2f = df->g2fv[0].Rep() ; 
 
     int cells_base=local_cells[0].Min() ;
     for(size_t i=0;i<volTags.size();++i) {
@@ -2321,39 +2093,13 @@ namespace Loci{
                                  vector<entitySet>& local_nodes,
                                  vector<entitySet>& local_faces,
                                  vector<entitySet>& local_cells,
-                                 store<vector3d<double> >& tmp_pos,
-                                 Map& tmp_cl,
-                                 Map& tmp_cr,
-                                 multiMap& tmp_face2node,
-                                 vector<pair<int,string> >& boundary_ids,
-                                 vector<pair<string,entitySet> >& volTags,
-				 storeRepP cellwts) {
-    return setupFVMGridFromContainer(facts,
-                                     local_nodes,
-                                     local_faces,
-                                     local_cells,
-                                     tmp_pos,
-                                     tmp_cl,
-                                     tmp_cr,
-                                     tmp_face2node,
-                                     boundary_ids,
-                                     volTags,
-                                     cellwts,
-                                     0) ;
-  }
-
-  bool setupFVMGridFromContainer(fact_db &facts,
-                                 vector<entitySet>& local_nodes,
-                                 vector<entitySet>& local_faces,
-                                 vector<entitySet>& local_cells,
                                  store<vector3d<double> >& t_pos,
                                  Map& tmp_cl,
                                  Map& tmp_cr,
                                  multiMap& tmp_face2node,
                                  vector<pair<int,string> >& boundary_ids,
                                  vector<pair<string,entitySet> >& volTags,
-                                 storeRepP cellwts,
-                                 const refinedCellState* cellState) {
+				 storeRepP cellwts) {
        
     if(!inputFVMGrid(facts,
                      local_nodes,
@@ -2364,7 +2110,7 @@ namespace Loci{
                      tmp_cr,
                      tmp_face2node,
                      boundary_ids,
-                     volTags, cellwts, cellState))
+                     volTags,cellwts))
       return false ;
     REPORTMEM() ;
 
@@ -2416,7 +2162,7 @@ namespace Loci {
     //get store pos
     store<vector3d<double> > pos;
     pos =  facts.get_variable("pos");
-       
+
     if(MPI_processes == 1){
       //firsr write out numNodes
       long  num_original_nodes  = pos.domain().size();
@@ -2496,6 +2242,7 @@ namespace Loci {
       int noffset, eoffset, coffset, foffset;
       noffset = 0;
       store<vector3d<double> > pos_io;
+      
       pos_io = Loci::Global2FileOrder(pos.Rep(), local_nodes, noffset, dist, MPI_COMM_WORLD) ;
       entitySet file_nodes = pos_io.domain(); 
     
@@ -2756,7 +2503,7 @@ namespace Loci {
     int face_min = std::numeric_limits<int>::lowest()+2048 ;
     if(MPI_processes == 1)
       face_min = numNodes ;
-
+    
     for(int i =0; i < MPI_rank; i++) face_min += face_sizes[i];
 
     int face_max = face_min + face_sizes[MPI_rank] -1;
@@ -2772,10 +2519,10 @@ namespace Loci {
     local_faces.resize(MPI_processes);
     local_faces = all_collect_vectors(faces);
     //fill up the maps cl , cr and count 
-    int cell_base = numNodes ;
+    int cell_base = numNodes  ;
     if(MPI_processes == 1)
       cell_base += numFaces ;
-
+    
     int cell_max = std::numeric_limits<int>::min();
     int cell_min = std::numeric_limits<int>::max();
 

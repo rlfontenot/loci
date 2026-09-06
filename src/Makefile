@@ -96,7 +96,7 @@ System/libLoci.$(LIB_SUFFIX): include/Config/version_info.h include/Config/versi
 lpp: Tools/libTools.$(LIB_SUFFIX) include/Config/version_info.h include/Config/version_details.h FORCE
 	$(MAKE) -C lpp LOCI_BASE="$(LOCI_BASE)" lpp
 
-FVMtools: library lpp FVMAdapt SPRNG FORCE
+FVMtools: library lpp FVMAdapt FVMAdapt2 SPRNG FORCE
 	$(MAKE) -C FVMtools LOCI_BASE="$(LOCI_BASE)" default
 
 FVMMod: lpp FORCE

@@ -148,27 +148,32 @@ void Prism::resplit( int level,
                      std::list<Edge*>& edge_list,
                      std::list<QuadFace*>& quadface_list,
                      std::list<Face*>& face_list){
+ 
   if(level <= 0) return;
-
+  int currentLevel = level;
+  
   queue<Prism*> Q;
   Q.push(this);
-
-  for(int currentLevel = 0; currentLevel < level; currentLevel++){
-    size_t cellsAtLevel = Q.size();
-    for(size_t i = 0; i < cellsAtLevel; i++){
-      Prism* current = Q.front();
-      Q.pop();
-
+  Prism* current;
+  
+ 
+  while(!Q.empty()){
+    current = Q.front();
+    
+    if(currentLevel > 0){
       current-> mySplitCode = 3;
       current->split(node_list, edge_list, quadface_list, face_list);
-
-      if(currentLevel + 1 < level){
-        for(int child = 0; child < current->numChildren(); child++){
-          Q.push(current->childCell[child]);
-        }
+      
+      for(int i = 0; i <current->numChildren(); i++){
+        Q.push(current->childCell[i]);
       }
+      currentLevel--;
     }
-  }
+    else{
+      current-> mySplitCode = 0;
+    }
+    Q.pop();
+  } 
 }
 
 
@@ -1350,3 +1355,4 @@ void Prism::derefine(){
     mySplitCode = 0;
   }
 }
+

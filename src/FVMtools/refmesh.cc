@@ -22,7 +22,13 @@
 #include <iostream>
 #include <string>
 #include <Loci.h>
+#ifdef USE_FVMADAPT2
+#include "./FVMAdapt2/defines.h"
+#define FVMADAPT_MODULE "fvmadapt2"
+#else
 #include "./FVMAdapt/defines.h"
+#define FVMADAPT_MODULE "fvmadapt"
+#endif
 using std::string;
 using std::cout;
 using std::endl;
@@ -162,7 +168,7 @@ int main(int argc, char ** argv) {
  
   Loci:: parallelClassifyCell(facts);
   
- Loci::load_module("fvmadapt", rules);
+ Loci::load_module(FVMADAPT_MODULE, rules);
  // if(Loci::MPI_rank==0){
 //     Loci::ruleSet all_rules = rules.all_rules();
 //     for(Loci::ruleSet::const_iterator ri = all_rules.begin();

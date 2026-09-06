@@ -25,7 +25,6 @@
 #include "hex_defines.h"
 #include "defines.h"
 #include "face.h"
-#include "plan_operations.h"
 #include "quadface.h"
 
 using std::vector;

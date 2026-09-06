@@ -30,7 +30,6 @@
 #include <vector>
 #include <queue>
 #include <iostream>
-#include "plan_operations.h"
 #include "tables.h"
 
 using std::queue;
@@ -38,9 +37,7 @@ using std::cerr;
 using std::endl;
 //using namespace std;
 
-void extract_quad_edge(const std::vector<char>& facePlan,
-                       std::vector<char>& edgePlan,
-                       unsigned int faceEdgeID){
+void  extract_quad_edge(const  std::vector<char>& facePlan, std::vector<char>& edgePlan, unsigned int dd){
   
   //output edgeCodeTable
   /* for(int i=0; i<12; i++){
@@ -84,7 +81,7 @@ void extract_quad_edge(const std::vector<char>& facePlan,
         edgeCode = 0;
       }
       else{
-        edgeCode = edgeCodeTable[faceEdgeID*3+ faceCode-1];
+        edgeCode = edgeCodeTable[dd*3+ faceCode-1];
       }
      
       edgePlan.push_back(edgeCode);
@@ -94,7 +91,7 @@ void extract_quad_edge(const std::vector<char>& facePlan,
     
     
     if(faceCode != 0){
-      std::vector<bool> childrenID = edgeIDTable[faceEdgeID*3+faceCode-1];
+      std::vector<bool> childrenID = edgeIDTable[dd*3+faceCode-1];
       if(!needExtract){
         for(unsigned int i = 0; i < childrenID.size(); i++)childrenID[i] = 0;
       }

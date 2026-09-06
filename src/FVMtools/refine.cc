@@ -26,7 +26,13 @@
 #include <Loci.h>
 #include <stdlib.h>
 #include <limits>
+#ifdef USE_FVMADAPT2
+#include "./FVMAdapt2/globals.h"
+#define FVMADAPT_MODULE "fvmadapt2"
+#else
 #include "./FVMAdapt/globals.h"
+#define FVMADAPT_MODULE "fvmadapt"
+#endif
 #include <Loci>
 
 using std::cout ;
@@ -440,7 +446,7 @@ int main(int argc, char ** argv) {
   *split_mode_par = split_mode;
   facts.create_fact("split_mode_par", split_mode_par);
 
-  Loci::load_module("fvmadapt", rules);
+  Loci::load_module(FVMADAPT_MODULE, rules);
   //  if(Loci::MPI_rank==0){
   //     Loci::ruleSet all_rules = rules.all_rules();
   //     for(Loci::ruleSet::const_iterator ri = all_rules.begin();

@@ -16,6 +16,12 @@ both. Keeping separate module, library, and include names lets existing
 applications continue using FVMAdapt while applications that need the richer
 transition contract opt into FVMAdapt2.
 
+The original FVMAdapt sources and tests are kept at the upstream version.
+Offline callers can select FVMAdapt2 with `marker2`, `refmesh2`, and `refine2`.
+These use the same command-line options as the original tools, but link only
+`libfvmadapt2func` and load `fvmadapt2`. The original `marker`, `refmesh`, and
+`refine` continue to use FVMAdapt.
+
 ## Source organization
 
 - The top-level `.loci` files expose scheduler-visible plans, relations,
