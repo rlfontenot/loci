@@ -30,26 +30,20 @@ using std::endl;
 
 /**
  * @file extract_hex_edge.cc
- * @brief Extracts one quad-face edge refinement plan from a face refinement
- *        plan.
  *
- * The implementation walks the face plan in breadth-first order without
- * constructing a Face or QuadFace tree. `edgeIDTable` selects which child
- * branches contribute to the requested edge, and `edgeCodeTable` maps face
- * split codes to edge split codes.
+ * Extract edge refinement plans from QuadFace plans.
  */
 
 /**
- * Extracts the refinement plan for one edge of a quadrilateral face.
+ * Extract the plan for edge dd of a QuadFace, where dd is in [0, 4).
  *
- * The output vector is replaced with the extracted edge plan. Leading and
- * trailing no-op entries, including the special propagation code `8`, are
- * trimmed after extraction.
+ * For a nonempty facePlan, append the extracted codes to edgePlan, then
+ * remove codes 0 and 8 from its beginning and end. Pass an empty edgePlan to
+ * extract a standalone plan. An empty facePlan clears edgePlan.
  *
- * @param facePlan Breadth-first quad-face refinement plan.
- * @param edgePlan Output edge plan for edge @p dd.
- * @param dd       Quad-face edge index, used to select `edgeIDTable` and
- *                 `edgeCodeTable` rows.
+ * edgeCodeTable gives each edge split code; edgeIDTable selects the child
+ * faces that meet the edge. Code 8 continues extraction without splitting the
+ * edge at that level.
  */
 void extract_quad_edge(const std::vector<char>& facePlan, std::vector<char>& edgePlan, unsigned int dd) {
 

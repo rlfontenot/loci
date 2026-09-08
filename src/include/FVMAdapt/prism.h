@@ -43,8 +43,8 @@ using std::list ;
 
 /**
  * @file prism.h
- * @ingroup fvmadapt_elements
- * @brief Prism cell refinement tree with triangular and quadrilateral faces.
+ *
+ * Prism refinement with Face end faces and QuadFace side faces.
  */
 std::vector<int32> get_c1_prism(const std::vector<char>& cellPlan,
                                 const std::vector<char>& facePlan,
@@ -52,15 +52,12 @@ std::vector<int32> get_c1_prism(const std::vector<char>& cellPlan,
                                 int faceID) ;
 
 /**
- * @brief Prism-family cell tree used by the existing FVMAdapt implementation.
- * @ingroup fvmadapt_elements
+ * Cell with two nfold-sided Face end faces and nfold QuadFace side faces. An
+ * original triangular prism has nfold == 3. Splitting the end faces creates
+ * children with nfold == 4.
  *
- * Verified from the current code: `nfold` sizes the side-face array and the
- * two end-face loops. The default root uses `nfold == 3`; split paths that
- * create children around the side-face ring construct those children with
- * `nfold == 4`. The terminology and child-ordering contract for those
- * `nfold == 4` children still need a focused audit before this comment is
- * expanded.
+ * mySplitCode selects an axial split (1), an end-face split (2), or both (3).
+ * numChildren() returns 2, nfold, or 2*nfold for those codes.
  */
 class Prism{
 public:
@@ -74,7 +71,6 @@ public:
     faceOrient.reset() ;
   }
 
-  /// Destructor
   ~Prism(){
     if(childCell != 0) {
       int nc = numChildren() ;
@@ -100,9 +96,15 @@ public:
     }
   }
 
-  /// If all children are tagged as 2, remove all children
+  /// Return true if this cell has children, every child is a leaf requesting
+  /// derefinement through its node tags, and no boundary edge has
+  /// grandchildren. This only tests eligibility; it does not remove children.
   bool needDerefine() ;
+  /// Test the same leaf and edge conditions as needDerefine(), using each
+  /// child's cell tag (getTag() == 2) instead of its node tags.
   bool needDerefine_ctag() ;
+  /// Delete the children and reset mySplitCode to 0. This does not check tags
+  /// or derefinement eligibility.
   void derefine() ;
   char getTag() const { return tag ; }
   void setTag(char c) { tag=c ; }
@@ -155,7 +157,7 @@ public:
     return -1 ;
   }
 
-  /// Used in build_prismcell.cc
+  /// Set gnrlface[faceID] to aFace.
   void setFace(int faceID, Face* aFace) {
     gnrlface[faceID] = aFace ;
   }
@@ -166,7 +168,8 @@ public:
 
   double get_min_edge_length() ;
 
-  /// For mxfpc
+  /// Return the number of leaf faces on the cell boundary, used to compute the
+  /// maximum faces per cell (mxfpc).
   int get_num_fine_faces() ;
 
   int whichChild() {
@@ -177,8 +180,8 @@ public:
     return -1 ;
   }
 
-  /// Splits diamondcell isotropially once newly created nodes,
-  /// edges and faces are put into the lists.
+  /// Split this Prism according to mySplitCode. Append new nodes, root edges,
+  /// and root QuadFace and Face objects to the supplied lists.
   void split(std::list<Node*>& node_list,
              std::list<Edge*>& edge_list,
              std::list<QuadFace*>& quadface_list,
@@ -191,7 +194,9 @@ public:
                std::list<Face*>& face_list,
                std::vector<Prism*>& prism_cells) ;
 
-  /// Used in make_prism_cellplan.cc
+  /// Apply level isotropic cell splits in breadth-first order. The counter
+  /// decreases for each split cell, rather than for each tree level. Append
+  /// new nodes, root edges, and root faces to the supplied lists.
   void resplit(int level,
                std::list<Node*>& node_list,
                std::list<Edge*>& edge_list,
@@ -201,19 +206,23 @@ public:
   void empty_split() ;
   int empty_resplit(const std::vector<char>& cellPlan) ;
 
-  /// After the cell is split into a tree, get the indexMap from current index
-  /// to parent index
+  /// Replace indexMap with pairs of local fine-cell indices from the current
+  /// tree and parentPlan. Refinement or derefinement can produce several pairs
+  /// for one cell. Return the number of leaves in parentPlan.
   int32 traverse(const std::vector<char>& parentPlan,
                  vector<pair<int32, int32> >& indexMap) ;
 
-  /// Checks if aCell is my sibling neighbor. Sibling means same size face,
-  /// not necessarily has same parent
+  /// Return true if aCell is a neighbor across face dd with the same face
+  /// size, and set nf to its face index. The cells need not have the same
+  /// parent.
   bool isSiblingNeighbor(const Prism* aCell, int dd, int &nf) const ;
 
-  /// Get real sibling neib
+  /// Find the neighbor across face dd among children of parentCell, and set nf
+  /// to its face index. Return 0 if there is no such sibling.
   Prism* getSiblingNeib(int dd, int& nf) ;
 
-  /// Only use it when dd >=2
+  /// Return the parent-face index for side face dd. Requires dd >= 2 and a
+  /// nonnull parentCell.
   int parentFace(int dd) {
     if(parentCell->mySplitCode == 1) {
       return dd ;
@@ -226,26 +235,27 @@ public:
     return -1 ;
   }
 
-  /// Checks if aCell is my neighbor is direction dd edge neighbor is
-  /// excluded. if two faces overlap area is not zero their cells are
-  /// neighbors
+  /// Return true if aCell shares a nonzero area with face dd, and set nf to
+  /// its face index. Contact along an edge alone does not count.
   bool isNeighbor(const Prism* aCell, int dd, int& nf) const ;
 
-  /// Finds my face neighbor.
-  /// ff: in,  my faceID,
-  /// nf: out, the faceID of neibCell
+  /// Find the neighbor across face d within the original Prism, setting nf to
+  /// its face index. Return 0 at the original cell boundary. The returned cell
+  /// may have children.
   Prism* findNeighbor(int d, int& nf) ;
 
-  /// Define if this is tagged for refinement, derefinement or unchanged
+  /// Return 2 if all cell nodes request derefinement, 1 if any requests
+  /// refinement, and 0 otherwise.
   int get_tagged() ;
+  /// Return the refinement request from the supplied spacing sources.
   int get_tagged(const vector<source_par>& s) ;
   void setSplitCode(int split_mode, double tol) ;
 
-  /// After a cell is split, compose the cell plan according to the tree
-  /// structure
+  /// Make a breadth-first cell refinement plan from this tree.
   std::vector<char> make_cellplan() ;
 
-  /// Make a plan for isotropical split an original prism cell level levels
+  /// Make a plan for level levels of isotropic refinement of an original
+  /// triangular Prism, using split code 3.
   std::vector<char> make_cellplan(int level) ;
 
   std::vector<Edge*> get_edges() {
@@ -260,8 +270,10 @@ public:
     return edges ;
   }
 
-  /// If any edge is more than 1 levels down than my level, split myself, then
-  /// balance each child
+  /// Add the splits required by boundary-edge refinement and
+  /// Globals::balance_option, using split_mode, then balance the children.
+  /// Append new nodes, root edges, and root faces to the supplied lists.
+  /// Return true if a split was added.
   bool balance_cell(int split_mode,
                     std::list<Node*>& node_list,
                     std::list<Edge*>& edge_list,
@@ -296,9 +308,8 @@ private:
   // 3 for normal prism, 4 for the children of prism when quadface is split.
   char nfold ;
 
-  /// Prism-specific split code consumed by split() and empty_split().
-  /// numChildren() maps codes 0..3 to 0, 2, nfold, and 2*nfold children.
-  /// Do not read this as HexCell's three-bit xyz mask.
+  /// Split code used by split() and empty_split(). Codes 0, 1, 2, and 3 give
+  /// 0, 2, nfold, and 2*nfold children.
   char mySplitCode ;
 
   Face** gnrlface ;
@@ -309,17 +320,16 @@ private:
   /// The parent of the cell
   Prism *parentCell ;
 
-  /// An dynamic array of pointers to children cells
+  /// Array of child-cell pointers.
   Prism **childCell ;
 
   // If the face in direction RIGHT, LEFT... has been checked
   std::bitset<6> faceMarked ;
 
-  /// When a Prism is first created, gnrlface[0] points inward, gnrlface[1] points outward
-  /// thress quadfaces point outward. When it is split, gnrlface orientation won't change
-  /// quadface orientation of the children need to be defined because when a new face is created,
-  /// it can not make both of two children sharing it keep their face orientation
-  /// so when nfold==4, if quadface[i] points inward, faceOrient[i] = 1; else faceOrient[i] = 0;
+  /// Side-face orientation flags: 1 points inward and 0 points outward. The
+  /// three side faces of an original Prism point outward; children with nfold
+  /// == 4 use these flags for shared faces. gnrlface[0] points inward and
+  /// gnrlface[1] points outward throughout refinement.
   std::bitset<4> faceOrient ;
 
   char tag ;
@@ -334,7 +344,8 @@ private:
   /// Get all the leaves
   void get_leaves(std::vector<Prism*>& leaf_cell) ;
 
-  /// Get 6 nodes
+  /// Resize node to 2*nfold entries and fill it with existing corner-node
+  /// pointers, first from gnrlface[0], then gnrlface[1].
   void get_nodes(std::vector<Node*>& node) {
     node.resize(2*nfold) ;
     for(int i=0; i<nfold; i++) {
@@ -346,8 +357,8 @@ private:
   // Get all the 4*3 edges
   // inline void get_edges(Edge** edge){}
 
-  /// Calculate the centroid of the Prism, it's defined as the mean value of
-  /// nodes.
+  /// Return a new Node at the mean position of the 2*nfold corner nodes. The
+  /// caller deletes it.
   Node* simple_center() {
 
     Node* cellcenter = new Node() ;
@@ -361,8 +372,9 @@ private:
     return cellcenter ;
   }
 
-  /// The center of the face, defined as the mass center of edge centers
-  /// Precondition:: all its edges have been split
+  /// Return a new cell-center Node using the formula selected by CENTROID. The
+  /// wireframe() formula requires existing face-center nodes. The caller
+  /// deletes the returned Node.
   Node* centroid() {
     switch(CENTROID) {
     case 0:
@@ -443,8 +455,9 @@ Prism* build_prism_cell(const Entity* lower, int lower_size,
                         const const_store<int>& node_remap) ;
 
 
-/// Build a cell with edgePlan and facePlan, tag the nodes then resplit the
-/// edges and faces with edgePlan1 and facePlan1.
+/// Build the cell using edgePlan, facePlan, and cellPlan, copy the node tags,
+/// then apply edgePlan1 and facePlan1 to its boundary. Keep allocated objects
+/// in the supplied lists for cleanup.
 Prism* build_resplit_prism_cell(const Entity* lower, int lower_size,
                                 const Entity* upper, int upper_size,
                                 const Entity* boundary_map, int boundary_map_size,
@@ -471,8 +484,9 @@ Prism* build_resplit_prism_cell(const Entity* lower, int lower_size,
                                 const  std::vector<char>& cellNodeTag) ;
 
 
-/// Build a cell with edgePlan and facePlan, tag the nodes
-/// then resplit the edges and faces with edgePlan1 and facePlan1
+/// Build the cell using edgePlan, facePlan, and cellPlan, copy fineCellTag to
+/// the fine cells, then apply edgePlan1 and facePlan1 to its boundary. Keep
+/// allocated objects in the supplied lists for cleanup.
 Prism* build_resplit_prism_cell_ctag(const Entity* lower, int lower_size,
                                      const Entity* upper, int upper_size,
                                      const Entity* boundary_map, int boundary_map_size,
@@ -532,7 +546,10 @@ Prism* build_prism_cell(const Entity* lower, int lower_size,
                         const const_store<int>& node_remap) ;
 
 
-/// Parallel version
+/// Build a Prism with boundary refinement and assign node indices using
+/// node_l2f and node_offset. Use face_l2f to order the mesh faces. Append
+/// allocated nodes, root edges, and root faces to the supplied lists; the
+/// caller deletes the returned Prism.
 Prism* build_prism_cell(const Entity* lower, int lower_size,
                         const Entity* upper, int upper_size,
                         const Entity* boundary_map, int boundary_map_size,

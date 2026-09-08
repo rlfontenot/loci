@@ -27,7 +27,6 @@
 #include <fstream>
 #include "defines.h"
 
-/// Some machine, long int and int have the same size, both are 32 bits
 typedef Loci::vector3d<int64> IntegerPoint ;
 typedef Loci::vector2d<int64>  Point2d ;
 
@@ -36,13 +35,12 @@ class Node ;
 class Edge ;
 class QuadFace ;
 
-/// The direction of neighbor cells, also as faceID
-/// RIGHT: x = 1; LEFT: x = -1
-/// FRONT: y = 1; BACK: y = -1
-/// UP:    z = 1; DOWN: z = -1
+/// Local neighbor directions, also used as HexCell face indices. RIGHT/LEFT
+/// are the positive/negative xi directions, FRONT/BACK are positive/negative
+/// eta, and UP/DOWN are positive/negative zeta.
 enum DIRECTION{RIGHT, LEFT, FRONT, BACK, UP, DOWN} ;
 
-/// The direction of normal of faces
+/// Local face-normal axes: XX for xi, YY for eta, and ZZ for zeta.
 enum NORMAL_DIRECTION{XX, YY, ZZ} ;
 
 

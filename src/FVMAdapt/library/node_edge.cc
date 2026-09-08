@@ -26,10 +26,8 @@
 
 /**
  * @file node_edge.cc
- * @brief Edge-tree operations used by FVMAdapt refinement plans.
  *
- * Edges are represented as binary trees. A split creates two child edges and a
- * midpoint node; resplitting replays a stored edge plan in breadth-first order.
+ * Apply Edge refinement plans and traverse edge trees.
  */
 
 

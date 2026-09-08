@@ -32,7 +32,8 @@ using std::cout;
 
 /**
  * @file get_c1_general.cc
- * @brief Computes owner-cell ids for fine faces generated on general cells.
+ *
+ * Find the local fine-cell indices adjacent to fine faces of a general Cell.
  */
 
 std::vector<int32> contain_2d(const std::vector<pair<Range2d, int32> >& faceMap,
@@ -46,28 +47,6 @@ struct Cell_Face{
 };
 
 
-/**
- * Computes first-cell ids for a general face using Face tree traversal.
- *
- * This helper builds the general cell topology, replays @p cellPlan and
- * @p facePlan into empty trees, and follows the selected face through the cell
- * refinement tree. The returned vector follows the leaf order of the face tree.
- *
- * @param lower              Cell lower-face map entries.
- * @param lower_size         Number of lower-face entries.
- * @param upper              Cell upper-face map entries.
- * @param upper_size         Number of upper-face entries.
- * @param boundary_map       Cell boundary-face map entries.
- * @param boundary_map_size  Number of boundary-face entries.
- * @param face2node          Face-to-node map.
- * @param face2edge          Face-to-edge map.
- * @param edge2node          Edge-to-node map.
- * @param cellPlan           Breadth-first general-cell refinement plan.
- * @param facePlan           Breadth-first general-face refinement plan.
- * @param ff                 Face entity being queried.
- * @param node_remap         Node remapping used by build_general_cell().
- * @return Cell index for each fine face leaf.
- */
 std::vector<int32> get_c1(const Entity* lower, int lower_size,
                           const Entity* upper, int upper_size,
                           const Entity* boundary_map, int boundary_map_size,
@@ -243,27 +222,13 @@ std::vector<int32> get_c1(const Entity* lower, int lower_size,
 }
 
 /**
- * Computes first-cell ids for a selected face of a general cell.
+ * Return the local fine-cell index adjacent to each fine face on face ff.
+ * Indices start at 1 within the original Cell and follow the leaf order of
+ * facePlan.
  *
- * Quad faces use transfer_plan_q2g() first so the general-face traversal can be
- * reused, then map the resulting ids back to the quad-face leaf ranges.
- * Non-quad faces use get_c1() directly.
- *
- * @param lower              Cell lower-face map entries.
- * @param lower_size         Number of lower-face entries.
- * @param upper              Cell upper-face map entries.
- * @param upper_size         Number of upper-face entries.
- * @param boundary_map       Cell boundary-face map entries.
- * @param boundary_map_size  Number of boundary-face entries.
- * @param is_quadface        Whether @p ff is a quadrilateral face.
- * @param face2node          Face-to-node map.
- * @param face2edge          Face-to-edge map.
- * @param edge2node          Edge-to-node map.
- * @param cellPlan           Breadth-first general-cell refinement plan.
- * @param facePlan           Breadth-first face refinement plan for @p ff.
- * @param ff                 Face entity being queried.
- * @param node_remap         Node remapping used by build_general_cell().
- * @return Cell index for each fine face leaf.
+ * For is_quadface, convert the four-way splits with transfer_plan_q2g(), call
+ * get_c1(), then match the original QuadFace leaf ranges to the resulting
+ * cell indices. Other faces use get_c1() directly.
  */
 std::vector<int32> get_c1_general(const Entity* lower, int lower_size,
                                   const Entity* upper, int upper_size,

@@ -40,14 +40,7 @@ using std::vector ;
 //   else if(nd->tag == 1) cerr << " p: " << p << " ," << char(nd->tag + '0')<< endl;
 // }
 
-/**
- * Return cell node entities sorted by their remapped node order.
- *
- * @param node_remap Maps each node entity to the integer position it should
- *        occupy in the ordered node list. * @param localSet Node entities
- *        collected for one general cell.
- * @return Node entities from localSet sorted by increasing node_remap value.
- */
+/// Return the node entities in localSet sorted by their node_remap values.
 std::vector<Entity> reorder_nodes(const const_store<int>& node_remap,
                                   const entitySet& localSet) {
 
@@ -66,13 +59,9 @@ std::vector<Entity> reorder_nodes(const const_store<int>& node_remap,
 }
 
 /**
- * Return cell edge entities sorted by their endpoint node order.
- *
- * @param node_remap Maps each node entity to the integer position it should
- *        occupy in the ordered node list.
- * @param edge2node Maps each edge entity to its two endpoint node entities.
- * @param localSet Edge entities collected for one general cell.
- * @return Edge entities from localSet sorted by increasing endpoint node order.
+ * Return the edge entities in localSet sorted by the remapped first endpoint,
+ * with the edge entity breaking ties. The sort key uses edge2node[e][0] for
+ * both node entries; it does not compare the second endpoint.
  */
 std::vector<Entity> reorder_edges(const const_store<int>& node_remap,
                                   const const_MapVec<2>& edge2node,
@@ -100,17 +89,8 @@ std::vector<Entity> reorder_edges(const const_store<int>& node_remap,
 }
 
 /**
- * Reorder cell face entities by their remapped face-node sequence.
- *
- * Each face is keyed by the node_remap values of its face2node entries, and
- * those keys are sorted lexicographically.
- *
- * @param node_remap Maps each node entity to the integer position it should
- *        occupy in the ordered node list.
- * @param face2node Maps each face entity to its ordered node entities.
- * @param localSet Face entities collected for one general cell; reordered in place.
- * @param orient Face-orientation flags paired with localSet; reordered to keep
- *        each flag with its face.
+ * Sort localSet by the sequence of node_remap values for each face. Reorder
+ * orient with the faces so each flag stays with its face.
  */
 void reorder_faces(const const_store<int>& node_remap,
                    const const_multiMap& face2node,
@@ -136,35 +116,6 @@ void reorder_faces(const const_store<int>& node_remap,
   }
 }
 
-/**
- * Build a general Cell from the faces adjacent to one cell entity.
- *
- * The lower, upper, and boundary_map arrays provide the face entities for the
- * cell. This routine collects the referenced nodes and edges, orders them using
- * node_remap, creates the Cell topology from face2node/face2edge/edge2node, and
- * applies edgePlan and facePlan to split edges and faces.
- *
- * Original comment: parallel version in set_general_nums.loci
- *
- * @param lower Lower-side face entities for the cell.
- * @param lower_size Number of entries in lower.
- * @param upper Upper-side face entities for the cell.
- * @param upper_size Number of entries in upper.
- * @param boundary_map Boundary face entities for the cell.
- * @param boundary_map_size Number of entries in boundary_map.
- * @param is_quadface Marks faces whose facePlan is stored in quad-face order.
- * @param face2node Maps each face entity to its node entities.
- * @param face2edge Maps each face entity to its edge entities.
- * @param edge2node Maps each edge entity to its endpoint node entities.
- * @param pos Maps each node entity to its spatial position.
- * @param edgePlan Split plans indexed by edge entity.
- * @param facePlan Split plans indexed by face entity.
- * @param bnode_list Receives allocated nodes, including nodes created by splits.
- * @param edge_list Receives allocated edges, including edges created by splits.
- * @param face_list Receives allocated faces, including faces created by splits.
- * @param node_remap Maps each node entity to its ordered node index.
- * @return Newly allocated Cell built from the collected topology.
- */
 Cell* build_general_cell(const Entity* lower, int lower_size,
                          const Entity* upper, int upper_size,
                          const Entity* boundary_map, int boundary_map_size,
@@ -283,22 +234,9 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
 
 
 /**
- * Return the ordered face index for one face in a general Cell.
- *
- * The lower, upper, and boundary_map arrays are combined into one face list, then
- * reordered the same way build_general_cell() orders Cell::face. The returned
- * index can be used to access the matching face and faceOrient entries.
- *
- * @param lower Lower-side face entities for the cell.
- * @param lower_size Number of entries in lower.
- * @param upper Upper-side face entities for the cell.
- * @param upper_size Number of entries in upper.
- * @param boundary_map Boundary face entities for the cell.
- * @param boundary_map_size Number of entries in boundary_map.
- * @param face2node Maps each face entity to its node entities.
- * @param f Face entity to find.
- * @param node_remap Maps each node entity to its ordered node index.
- * @return Index of f in the reordered face list.
+ * Return the index of f in the face order used by build_general_cell(). The
+ * face must occur in lower, upper, or boundary_map; the routine aborts if it
+ * is not found.
  */
 int find_face_index(const Entity* lower, int lower_size,
                     const Entity* upper, int upper_size,

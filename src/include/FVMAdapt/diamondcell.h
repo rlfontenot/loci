@@ -36,8 +36,8 @@
 
 /**
  * @file diamondcell.h
- * @ingroup fvmadapt_elements
- * @brief General-cell refinement helpers based on diamond-cell decomposition.
+ *
+ * General Cell and DiamondCell refinement operations.
  */
 
 using std::cerr ;
@@ -47,31 +47,22 @@ using std::list ;
 class Cell ;
 
 /**
- * @brief Diamond-shaped subcell used in general-cell refinement trees.
- * @ingroup fvmadapt_elements
+ * Cell created when a general Cell is split at its vertices. Each original
+ * vertex produces a DiamondCell whose nfold is the number of faces meeting at
+ * that vertex.
  *
- * Isotropically splitting a general cell creates one DiamondCell for each
- * original cell node. A DiamondCell is formed from each of the original
- * general cell's nodes.
- *
- * `nfold` is the number of faces that meet at the original node that was used
- * to form the DiamondCell. For a DiamondCell, there are two nodes that have
- * the highest number of faces that touch them, all of the other nodes of the
- * DiamondCell have fewer faces.
- *
- * An n-fold DiamondCell has `2n + 2` nodes, `2n` quadrilateral faces, and
- * `4n` edges. Of those faces, `n` share node `0` and `n` share node `1`.
+ * An nfold DiamondCell has 2*nfold quadrilateral faces, 2*nfold+2 nodes, and
+ * 4*nfold edges. Nodes 0 and 1 each meet nfold edges; each other node meets
+ * three edges.
  */
 class DiamondCell {
 public:
 
-  /// Constructor
   DiamondCell(char m):nfold(m),cellIndex(0),parentCell(0),childCell(0),
               face(new Face*[2*m]), faceOrient(new char[2*m]), faceMarked(0),
               tag(0){}
 
 
-  /// Destructor
   ~DiamondCell() {
     if(childCell != 0) {
       for(int i=0; i<2*nfold+2; i++) {
@@ -103,27 +94,22 @@ public:
   }
 
   /**
-  * Delete this cell's children and mark it as a leaf.
-  */
+   * Delete this cell's children and make it a leaf. This does not check
+   * whether derefinement is allowed.
+   */
   void derefine() ;
 
   /**
-  * Return true if this DiamondCell can collapse its immediate children.
-  *
-  * Derefinement is allowed when this cell has children, each existing child
-  * is tagged `2`, no child is itself refined, and no edge in this cell has
-  * been split more than one level below the cell.
-  */
+   * Return true if this cell has children and they can be removed. Every
+   * existing child must be a leaf with get_tagged() == 2, and no boundary
+   * edge may have grandchildren. get_tagged() uses node tags.
+   */
   bool needDerefine() ;
 
   /**
-  * Return true if this DiamondCell can collapse its immediate children using
-  * cell tags.
-  *
-  * This is the cell-tag variant of needDerefine(): each existing child must have
-  * `getTag() == 2`, no child may already be refined, and no edge in this cell may
-  * be split more than one level below the cell.
-  */
+   * Test the same leaf and edge conditions as needDerefine(), using each
+   * child's cell tag (getTag() == 2) instead of its node tags.
+   */
   bool needDerefine_ctag() ;
 
   char getTag() const { return tag ; }
@@ -139,31 +125,22 @@ public:
   int getLevel() const{ return face[0]->edge[0]->level ; }
 
   /**
-  * Return this cell's adaptation state from its node tags.
-  *
-  * Returns `2` when every node is tagged for derefinement, `1` when at least
-  * one node is tagged for refinement, and `0` otherwise. Partial derefinement
-  * tags do not derefine the cell. This does not read the DiamondCell's own
-  * `tag` field.
-  */
+   * Return 2 if all nodes request derefinement, 1 if any node requests
+   * refinement, and 0 otherwise. This reads node tags, not the cell's tag
+   * member.
+   */
   int get_tagged() ;
 
   /**
-  * Return the refinement state implied by PAR-file spacing sources.
-  *
-  * The cell nodes and minimum edge length are passed to tag_cell(). The
-  * `source_par` entries describe geometric spacing sources read from
-  * `parfile_par`; this returns `1` when those sources indicate that the cell
-  * should be refined and `0` otherwise.
-  */
+   * Return the refinement request from tag_cell(), using the cell vertices,
+   * the shortest boundary edge, and the supplied source_par entries.
+   */
   int get_tagged(const vector<source_par>& s) ;
 
   /**
-  * Return the total number of fine face pieces on this DiamondCell.
-  *
-  * This sums get_num_leaves() over the cell's `2*nfold` face trees.
-  * (used for mxfpc...max faces per cell)
-  */
+   * Return the number of leaf faces on the cell boundary, used to compute the
+   * maximum faces per cell (mxfpc).
+   */
   int get_num_fine_faces() ;
 
   inline void setParentCell( DiamondCell* parent) { parentCell = parent ; }
@@ -174,42 +151,35 @@ public:
   inline DiamondCell** getChildCell() const { return childCell ; }
 
   /**
-  * Return the parentCell face index that contains this cell's face[faceID].
-  *
-  * Only face indices `[nfold, 2*nfold)` map to parentCell faces. Indices
-  * `[0, nfold)` are internal faces between children created by the split.
-  *
-  * @param faceID face index in `[nfold, 2*nfold)`.
-  * @return Face index in `parentCell`, or `-1` if @p faceID has no parent-face
-  *         mapping.
-  */
+   * Return the index of the parent face containing face[faceID]. parentCell
+   * must be nonnull.
+   *
+   * Indices outside [nfold, 2*nfold) return -1 because they do not name
+   * parent-boundary faces. An index in that range must have a matching parent
+   * face; otherwise the routine aborts.
+   */
   int parentFace(int faceID) const ;
 
   /**
-  * Split this DiamondCell by `level` additional isotropic refinement levels.
-  *
-  * If `level <= 0`, this does nothing. Newly created nodes, edges, and
-  * faces are appended to the supplied lists.
-  */
+   * Split toward the level getLevel() + level, appending new nodes, root
+   * edges, and root faces to the supplied lists. Existing splits are
+   * retained; level <= 0 does nothing.
+   */
   void resplit(int level, std::list<Node*>& node_list,
                std::list<Edge*>& edge_list, std::list<Face*>& face_list) ;
 
   /**
-  * Split this DiamondCell once.
-  *
-  * If the cell is already split, this returns without changing the lists.
-  * Otherwise it creates the child-cell geometry and appends newly allocated
-  * nodes, edges, and faces to the supplied lists.
-  */
+   * Split this DiamondCell once, appending new nodes, root edges, and root
+   * faces to the supplied lists. If childCell already exists, do nothing.
+   */
   void split(std::list<Node*>& node_list, std::list<Edge*>& edge_list,
              std::list<Face*>& face_list);
 
-  /// This function splits diamondcell isotropically once only define childCell
+  /// Create the child DiamondCells for one isotropic split, without nodes,
+  /// edges, or faces.
   void empty_split() ;
 
-  /// This function checks if `aFace` is one of the faces of this cell.
-  /// return -1: No
-  /// return i in [0, 2*nfold), Yes, face[i] == aFace
+  /// Return the index i for which face[i] == aFace, or -1 if no face matches.
   inline int containFace(Face* aFace) {
     for(int i=0; i<2*nfold; i++) {
       if(face[i] == aFace) { return i ; }
@@ -218,44 +188,35 @@ public:
   }
 
   /**
-  * Return the single DiamondCell adjacent to this cell across local face `mf`.
-  *
-  * `mf` must be in `[0, 2*nfold)`. Internal faces `[0, nfold)` are resolved by
-  * getSiblingNeib(). Faces `[nfold, 2*nfold)` are mapped up through parent
-  * DiamondCells until a neighboring branch is found, then mapped back down when
-  * needed. This routine is used where the matching neighbor face is represented
-  * by one DiamondCell, not by a set of finer neighbors.
-  *
-  * `nf` is set to the matching local face index on the returned neighbor.
-  * Returns `0` when the face has no neighbor inside the parent general cell.
-  */
+   * Find the neighbor across face mf within aCell, where mf is in [0,
+   * 2*nfold). Return a coarser leaf or a neighbor at this cell's level; the
+   * latter may have children.
+   *
+   * Set nf to the neighbor's face index. Return 0 if no neighbor is found
+   * inside the original general Cell; nf is then unspecified.
+   */
   DiamondCell* findNeighbor(const Cell* aCell,
                             const std::vector<std::vector<Edge*> >& n2e,
                             int mf, int& nf)const;
 
   /**
-  * Return the DiamondCell that shares this cell's internal face.
-  *
-  * @param aCell General-cell parent used to resolve top-level DiamondCell
-  *        neighbors.
-  * @param n2e Node-to-edge table used when this cell has no DiamondCell parent.
-  * @param mf Local face index on this cell; must be in `[0, nfold)`.
-  * @param nf Output local face index on the returned neighboring DiamondCell.
-  * @return Neighboring DiamondCell that shares `face[mf]`, or `0` if a
-  *         top-level sibling cannot be found.
-  */
+   * Find the sibling across internal face mf, where mf is in [0, nfold), and
+   * set nf to its face index.
+   *
+   * For a cell directly under aCell, use the original cell's node-to-edge
+   * table n2e. Otherwise use parentCell and whichChild. Return 0 if a sibling
+   * in aCell cannot be found.
+   */
   DiamondCell* getSiblingNeib(const Cell* aCell,
                               const std::vector<std::vector<Edge*> >& n2e,
                               int mf, int& nf) const ;
 
   /**
-  * Balance this DiamondCell subtree by adding required splits.
-  *
-  * Existing children are balanced recursively. A leaf is split when any edge is
-  * more than one level deeper than the cell, or when the enabled face-balance
-  * checks require a split. Newly created nodes, edges, and faces are appended to
-  * the supplied lists. Returns true if this cell or a descendant was split.
-  */
+   * Add the splits required by boundary-edge refinement and the enabled face
+   * checks in Globals::balance_option. Balance children recursively and
+   * append new nodes, root edges, and root faces to the supplied lists.
+   * Return true if this cell or a descendant was split.
+   */
   bool balance_cell(std::list<Node*>& node_list,
                     std::list<Edge*>& edge_list,
                     std::list<Face*>& face_list) ;
@@ -263,21 +224,16 @@ public:
   void sort_leaves(std::list<DiamondCell*>& v1) ;
 
   /**
-  * Build oriented connectivity for interior fine faces of a split general cell.
-  *
-  * @param aCell Parent cell used to resolve DiamondCell neighbors.
-  * @param cells Leaf DiamondCells in the split tree.
-  * @param n2e Parent-cell node-to-edge table used for neighbor lookup.
-  * @param fine_face Output `(face, NeibIndex)` pairs. `NeibIndex::c1` and
-  *        `NeibIndex::c2` are the oriented local indices of the two leaf cells
-  *        adjacent to that face.
-  */
+   * Append interior fine faces and their NeibIndex values to the output list.
+   * c1 and c2 are local fine-cell indices ordered by face orientation. Use
+   * aCell and its node-to-edge table n2e to find neighbors of the leaf cells.
+   */
   friend void set_general_faces(const Cell* aCell,
                                 const std::vector<DiamondCell*>& cells,
                                 const std::vector<std::vector<Edge*> >& n2e,
                                 std::list<pair<Face*, NeibIndex> >& fine_face);
 
-  /// Find the minimum edge length in a cell(before split)
+  /// Return the minimum length of the cell boundary edges.
   inline double get_min_edge_length() {
     std::set<Edge*> edge ;
     get_edges(edge) ;
@@ -295,10 +251,11 @@ private:
   /// node 0 and node 1 have nfold edges, other vertices have 3 edges
   char nfold;
 
-  /// The index of the cell. Cell indices start with 1
+  /// Local fine-cell index, starting at 1. Zero is used before numbering or
+  /// for non-leaf state.
   int32 cellIndex ;
 
-  /// The parent of the cell
+  /// Parent DiamondCell, or null for a child directly under the original Cell.
   DiamondCell *parentCell ;
 
   // A dynamic array of pointers to children cells
@@ -306,19 +263,17 @@ private:
 
   Face** face ;
 
-  /// Orientation of a face.
-  /// 0 - Point outward
-  /// 1 - Points inward
-  /// i.e. faceOrient[i] = 1; else faceOrient[i] = 0;
+  /// Face orientation: 0 points outward from this cell; 1 points inward.
   char* faceOrient ; //the face points inward or outward
 
-  /// If the face has been checked. size: 2*nfold
+  /// Faces visited by set_general_faces(); 2*nfold entries.
   bool* faceMarked ;
 
-  /// Used in findNeighbor() function
+  /// Index of this child in its parent's child array, used for neighbor
+  /// lookup.
   char whichChild ;
 
-  /// Cell tag
+  /// Cell tag: 0 unchanged, 1 refine, 2 derefine.
   char tag ;
 
   /// Assignment and copying are prohibited
@@ -328,13 +283,14 @@ private:
 
   friend class Cell ;
 private:
-  /// Get all the leaves
   //   void get_leaves(std::vector<DiamondCell*>& leaf_cell);
 
-  /// Get the 2*nfold+2 nodes
+  /// Insert the existing 2*nfold+2 node pointers into node. The output set
+  /// must initially be empty.
   void get_nodes(std::set<Node*>& node);
 
-  /// Get the 4*nfold edges of the DiamondCell
+  /// Insert the existing 4*nfold edge pointers into edge. The output set must
+  /// initially be empty.
   void get_edges(std::set<Edge*>& edge);
 
   /// Calculate the centroid of the DiamondCell, it's defined as the mean value
@@ -386,19 +342,18 @@ private:
     }
   }
 
-  /// Get the facecenter
-  /// Condition: facecenter will be allocated and deallocated by the caller
-  /// Precondition: the faces have been splitted
+  /// Fill the caller's array of 2*nfold pointers with the existing face-center
+  /// nodes. All faces must already be split; no nodes are allocated or
+  /// transferred.
   inline void getFaceCenter(Node** facecenter) {
     for(int i = 0; i < 2*nfold; i++) {
       facecenter[i] = face[i]->child[0]->edge[2]->head ;
     }
   }
 
-  /// Get the edgecenter
-  /// Precondition: all the faces and edges has been split
-  /// Condition: edgecenter needs to be allocated and deallocated by the caller
-  /// edge center is defined from the edges of faces according to the number system and faceOrient
+  /// Fill the caller's array of 4*nfold pointers with the existing edge
+  /// midpoints, in the DiamondCell edge order. All edges must already be
+  /// split; no nodes are allocated or transferred.
   inline void getEdgeCenter(Node** edgecenter){
     for(int i = 0; i <nfold; i++){
       Node* ecenter[4];//edgecenter of a face
@@ -429,7 +384,7 @@ private:
 };
 
 
-/// This class defines the general cell
+/// General polyhedral cell represented by nodes, edges, and Face objects.
 class Cell{
 public:
   // constructors
@@ -470,9 +425,15 @@ public:
     }
   }
 
-  /// If all children are tagged as 2, remove all children
+  /// Return true if this cell has children, every existing child is a leaf
+  /// requesting derefinement through its node tags, and no boundary edge has
+  /// grandchildren. This only tests eligibility; it does not remove children.
   bool needDerefine() ;
+  /// Test the same leaf and edge conditions as needDerefine(), using each
+  /// child's cell tag (getTag() == 2) instead of its node tags.
   bool needDerefine_ctag() ;
+  /// Delete the children. This does not check tags or derefinement
+  /// eligibility.
   void derefine() ;
 
 
@@ -515,18 +476,20 @@ public:
     }
   }
 
-  /// Precondition: all the faces have been split.
-  /// Condition: facecenter is allocated and deallocated by the caller
+  /// Fill the caller's array of numFace pointers with existing face-center
+  /// nodes. All faces must already be split; no nodes are allocated or
+  /// transferred.
   inline void getFaceCenter(Node** facecenter) {
     for(int i = 0; i < numFace; i++) {
       facecenter[i] = face[i]->child[0]->edge[2]->head ;
     }
   }
 
-  /// Depth first search
+  /// Append DiamondCell leaves in depth-first child order. An unsplit Cell
+  /// contributes no DiamondCell leaves.
   void sort_leaves(std::list<DiamondCell*>& v1) ;
 
-  /// Find the minimum edge length in a cell(before split)
+  /// Return the minimum length of the cell boundary edges.
   inline double get_min_edge_length() {
     double min_length = norm(edge[0]->head->p - edge[0]->tail->p) ;
     for(int i = 1; i < numEdge; i++) {
@@ -535,7 +498,8 @@ public:
     return min_length ;
   }
 
-  /// Split a general cell isotropically into DiamondCells
+  /// Split this Cell into one DiamondCell per vertex. Append new nodes, root
+  /// edges, and root faces to the supplied lists.
   void split(std::list<Node*>& node_list,
              std::list<Edge*>& edge_list,
              std::list<Face*>& face_list);
@@ -546,39 +510,49 @@ public:
                std::list<Face*>& face_list,
                std::vector<DiamondCell*>& cells);
 
-  /// Split a general cell isotropically into DiamondCells only define child
+  /// Create one child DiamondCell per vertex, without constructing split
+  /// geometry.
   void empty_split();
 
-  /// Return num_fine_cell
+  /// Apply cellPlan to the child-cell structure, assign local leaf indices
+  /// starting at 1, and return the leaf count. No split geometry is created.
   int32 empty_resplit(const std::vector<char>& cellPlan);
 
   //  void get_leaves(std::vector<DiamondCell*>& leaf_cell);
 
-  /// After the cell is split into a tree, get the indexMap from current index
-  /// to parent index
+  /// Replace indexMap with pairs of local fine-cell indices from the current
+  /// tree and parentPlan. Refinement or derefinement can produce several pairs
+  /// for one cell. Return the number of leaves in parentPlan.
   int32 traverse(const std::vector<char>& parentPlan,
                  vector<pair<int32, int32> >& indexMap);
 
-  /// For calculating mxfpc
+  /// Return the number of leaf faces on the cell boundary, used to compute the
+  /// maximum faces per cell (mxfpc).
   int get_num_fine_faces();
 
-  /// Find the node2edge of for all nodes, for each node, n2e[i] and n2e[i+1]
-  /// share a face.
+  /// For each node, return its incident edges in an order where consecutive
+  /// edges share a face.
   std::vector<std::vector<Edge*> > set_n2e();
 
-  /// Find the info for node nindex. rot.size() == n2f.size()
-  /// if j=rot[i] >= 0,the orient of n2f[i] is 1, and node[nindex] is the jth node of n2f[i]
-  /// if j=rot[i] < 0, the orient of n2f[i] is -1, and  node[nindex] is (-j-1)th node of n2f[i]
+  /// Collect and order the faces and edges meeting node[nindex]. Consecutive
+  /// faces n2f[i] and n2f[i+1] share n2e[i], with the last face followed by
+  /// the first.
+  ///
+  /// For an outward face (faceOrient == 0), rot stores the node's position in
+  /// that face. For an inward face (faceOrient == 1), rot stores -position-1.
   void set_n2f_n2e(std::vector<Face*>& n2f, std::vector<Edge*>& n2e, std::vector<int>& rot, int nindex);
 
-  /// Check if the cell is tagged for refinement, derefinement, or unchanged
+  /// Return 2 if all cell nodes request derefinement, 1 if any requests
+  /// refinement, and 0 otherwise.
   int get_tagged();
 
-  /// Check if the cell is tagged for refinement
+  /// Return the refinement request from the supplied spacing sources.
   int get_tagged(const vector<source_par>& s) ;
 
-  /// If any edge is more than 1 levels down than my level, split myself, then
-  /// balance each child
+  /// Add the splits required by boundary-edge refinement and
+  /// Globals::balance_option, then balance the children. Append new nodes,
+  /// root edges, and root faces to the supplied lists. Return true if a split
+  /// was added.
   bool balance_cell(std::list<Node*>& node_list,
                     std::list<Edge*>& edge_list,
                     std::list<Face*>& face_list) ;
@@ -597,9 +571,7 @@ public:
   Edge** edge ;
   Face** face ;
 
-  /// The face points inward or outward.
-  /// points inward: faceOrient[i] = 1
-  /// points outward: faceOrient[i] = 0
+  /// Face orientation: 0 points outward from this cell; 1 points inward.
   char* faceOrient ;
 
   // A dynamic array of pointers to children cells
@@ -613,8 +585,12 @@ int find_face_index(const Entity* lower, int lower_size,
                     Entity f,
                     const const_store<int>& node_remap) ;
 
-/// Build a Cell from Loci data structures, the locations of nodes are defined
-/// edges and faces are split according to edgePlan and facePlan
+/// Build a Cell from the faces in lower, upper, and boundary_map. Order its
+/// nodes, edges, and faces using node_remap, set node positions from pos, and
+/// split boundary edges and faces according to edgePlan and facePlan.
+///
+/// The caller deletes the returned Cell. Allocated nodes, root edges, and root
+/// faces are appended to bnode_list, edge_list, and face_list for cleanup.
 Cell* build_general_cell(const Entity* lower, int lower_size,
                          const Entity* upper, int upper_size,
                          const Entity* boundary_map, int boundary_map_size,
@@ -630,9 +606,9 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
                          std::list<Face*>& face_list,
                          const const_store<int>& node_remap);
 
-/// Build a Cell from Loci data structures, the locations of nodes are defined
-/// edges and faces are split according to edgePlan and facePlan
-/// and all boundary nodes are tagged
+/// Build a Cell with boundary refinement and copy posTag and nodeTag to its
+/// boundary nodes. Append allocated nodes, root edges, and root faces to the
+/// supplied lists; the caller deletes the returned Cell.
 Cell* build_general_cell(const Entity* lower, int lower_size,
                          const Entity* upper, int upper_size,
                          const Entity* boundary_map, int boundary_map_size,
@@ -650,8 +626,9 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
                          std::list<Face*>& face_list,
                          const const_store<int>& node_remap);
 
-/// Build a cell with edgePlan and facePlan, tag the nodes then resplit the
-/// edges and faces with edgePlan1 and facePlan1
+/// Build the cell using edgePlan, facePlan, and cellPlan, copy the node tags,
+/// then apply edgePlan1 and facePlan1 to its boundary. Keep allocated objects
+/// in the supplied lists for cleanup.
 Cell* build_resplit_general_cell(const Entity* lower, int lower_size,
                                  const Entity* upper, int upper_size,
                                  const Entity* boundary_map, int boundary_map_size,
@@ -674,8 +651,9 @@ Cell* build_resplit_general_cell(const Entity* lower, int lower_size,
                                  const std::vector<char>& cellPlan,
                                  const  std::vector<char>& cellNodeTag);
 
-/// Build a cell with edgePlan and facePlan, tag the cells then resplit the
-/// edges and faces with edgePlan1 and facePlan1
+/// Build the cell using edgePlan, facePlan, and cellPlan, copy fineCellTag to
+/// the fine cells, then apply edgePlan1 and facePlan1 to its boundary. Keep
+/// allocated objects in the supplied lists for cleanup.
 Cell* build_resplit_general_cell_ctag(const Entity* lower, int lower_size,
                                       const Entity* upper, int upper_size,
                                       const Entity* boundary_map, int boundary_map_size,
@@ -696,8 +674,9 @@ Cell* build_resplit_general_cell_ctag(const Entity* lower, int lower_size,
                                       const std::vector<char>& cellPlan,
                                       const  std::vector<char>& fineCellTag);
 
-/// Build a Cell from Loci data structures, the locations of nodes are defined
-/// and all boundary nodes are tagged
+/// Build a Cell with node coordinates from pos and copy posTag to its boundary
+/// nodes. Append allocated nodes, root edges, and root faces to the supplied
+/// lists; the caller deletes the returned Cell.
 Cell* build_general_cell(const Entity* lower, int lower_size,
                          const Entity* upper, int upper_size,
                          const Entity* boundary_map, int boundary_map_size,
@@ -711,7 +690,9 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
                          std::list<Face*>& face_list,
                          const const_store<int>& node_remap);
 
-/// Build a Cell from Loci data structures, the locations of nodes are defined
+/// Build an unsplit Cell with node coordinates from pos. Append allocated
+/// nodes, root edges, and root faces to the supplied lists; the caller deletes
+/// the returned Cell.
 Cell* build_general_cell(const Entity* lower, int lower_size,
                          const Entity* upper, int upper_size,
                          const Entity* boundary_map, int boundary_map_size,
@@ -724,7 +705,9 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
                          std::list<Face*>& face_list,
                          const const_store<int>& node_remap);
 
-/// Build a Cell from Loci data structures, the locations of nodes are not defined
+/// Build the Cell topology without setting node coordinates. Append allocated
+/// nodes, root edges, and root faces to the supplied lists; the caller deletes
+/// the returned Cell.
 Cell* build_general_cell(const Entity* lower, int lower_size,
                          const Entity* upper, int upper_size,
                          const Entity* boundary_map, int boundary_map_size,
@@ -753,9 +736,13 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
                          const const_store<int>& node_remap);
 
 
-/// This function first builds a Face f and a Cell cl[f]/cr[f], then splits
-/// the Face according to facePlan and splits the Cell according to cellPlan.
-/// For each fine face, find the index of fine cell that it belongs to.
+/// Return the local fine-cell index adjacent to each fine face on face ff.
+/// Indices start at 1 within the original Cell and follow the leaf order of
+/// facePlan.
+///
+/// Build the Cell from the mesh maps, apply cellPlan and facePlan without
+/// creating split geometry, and follow the selected face through the cell
+/// tree. The plans must describe compatible cell and face subdivisions.
 std::vector<int32> get_c1(const Entity* lower, int lower_size,
                           const Entity* upper, int upper_size,
                           const Entity* boundary_map, int boundary_map_size,
@@ -779,10 +766,10 @@ std::vector<int32> get_c1_general(const Entity* lower, int lower_size,
                                   Entity f,
                                   const const_store<int>& node_remap);
 
-/// This function merges two isotropical facePlan
+/// Merge two isotropic Face refinement plans.
 std::vector<char> merge_faceplan(std::vector<char>& planl, std::vector<char>& planr, int numNodes);
 
-/// This function extracts facePlan from a cellPlan
+/// Extract the refinement plan for one face of a general Cell from cellPlan.
 std::vector<char> extract_general_face(const Entity* lower, int lower_size,
                                        const Entity* upper, int upper_size,
                                        const Entity* boundary_map, int boundary_map_size,

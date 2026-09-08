@@ -39,13 +39,10 @@ using std::vector;
 
 /**
  * @file build_hexcell.cc
- * @ingroup fvmadapt_plans
  *
- * This file containing the functions that build a HexCell according to Loci
- * data structures and refinementplans. When building a hexcell, each edge is
- * defined as local edge in cell and resplit with needReverse. Each face is
- * defined as local face in hexcell and resplit with orientcode
- *
+ * Build HexCell objects from Loci mesh maps and refinement plans. Edges and
+ * faces use the cell order; needReverse and orientCode map their plans to
+ * that order.
  */
 
 

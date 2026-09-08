@@ -104,15 +104,12 @@ double get_distance(const vect3d& p, const vect3d& p1, const vect3d& p2){
 }
 
 /**
- * Evaluates the requested spacing from one source at a point.
+ * Return the spacing requested by source s at point p. Let r be the distance
+ * to the segment from p1 to p2.
  *
- * Points within the cylindrical core of radius `r0` and between the source
- * endpoints use `s0`. Points within `r1` use `s1`; outside `r1`, spacing grows
- * as `s1 * (r/r1)^a`.
- *
- * @param p  Query point.
- * @param s  Source definition.
- * @return Requested spacing from source @p s at point @p p.
+ * Use s0 when r <= r0 and the projection of p lies strictly between the
+ * endpoints. Otherwise use s1 for r <= r1, or s1 * pow(r/r1, a) outside that
+ * distance.
  */
 double get_spacing(const vect3d& p, const source_par& s){
  
@@ -125,11 +122,8 @@ double get_spacing(const vect3d& p, const source_par& s){
 }
 
 /**
- * Computes the arithmetic center of a cell's node positions.
- *
- * @param nodes Cell vertices.
- * @return Average of the node coordinates, or the zero vector when @p nodes is
- *         empty.
+ * Return the mean of nodes[i]->p. An empty nodes vector reports an error and
+ * returns the zero vector.
  */
 vect3d get_center(const vector<Node*>& nodes){
   vect3d center = vect3d(0.0, 0.0, 0.0);
@@ -145,11 +139,8 @@ vect3d get_center(const vector<Node*>& nodes){
 }
 
 /**
- * Computes the minimum requested spacing over cell vertices and the cell center.
- *
- * @param nodes Cell vertices.
- * @param ss    Source definitions.
- * @return Minimum spacing requested by any source at any vertex or the center.
+ * Return the minimum source spacing sampled at the cell vertices and their
+ * mean position. If ss is empty, return numeric_limits<double>::max().
  */
 double get_min_spacing(const vector<Node*>& nodes, const vector<source_par>& ss){
   vect3d center = get_center(nodes);
@@ -165,16 +156,13 @@ double get_min_spacing(const vector<Node*>& nodes, const vector<source_par>& ss)
 
 
 /**
- * Tags a cell for refinement from source spacing and geometry checks.
+ * Return 1 if a source-spacing check requests refinement, otherwise 0.
  *
- * The function returns `1` when the current cell size is large relative to a
- * nearby source request, or when the minimum edge length is at least twice the
- * minimum requested spacing sampled at vertices and the cell center.
- *
- * @param nodes         Cell vertices.
- * @param sources       Source definitions.
- * @param min_edge_len  Current cell minimum edge length.
- * @return `1` to request refinement, otherwise `0`.
+ * For a source with min_edge_len > r1/2, refine if either endpoint is inside
+ * the cell bounding box or the distance from the mean vertex position to the
+ * segment midpoint is less than min_edge_len + r1. Otherwise, refine if
+ * min_edge_len is at least twice the minimum spacing sampled at the vertices
+ * and their mean position.
  */
 int tag_cell(const vector<Node*>& nodes, const vector<source_par>& sources, double min_edge_len){
 

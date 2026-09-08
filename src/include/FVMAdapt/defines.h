@@ -33,7 +33,8 @@ using std::ostream ;
 using std::istream ;
 
 
-/// Some machine, long int, and int have the same size, both are 32 bits
+/// Unsigned integer types used for refinement coordinates and indices. The
+/// width of unsigned long is platform-dependent.
 typedef unsigned long int64 ;
 typedef unsigned int int32 ;
 typedef Loci::vector3d<double> vect3d ;
@@ -44,13 +45,12 @@ const int MAXLEVEL = sizeof(int64)*8 - 2 ;
 
 //const int MAXLEVEL = 30;
 
-/// Threshold used when normalizing a vector. Vectors with all elements
-/// smaller than this threshold are not normalized at all.
+/// Threshold for normalizing vectors. Leave a vector unchanged when every
+/// absolute component is less than or equal to this value.
 const double NORMALIZE_ZERO_THRESHOLD = 1e-10 ;
 
-/// 0: simple(node average)
-/// 1: wireframe for face, area_weighted for cell
-/// 2: extract
+/// Center formula: 0 selects simple_center(); 1 and other values select
+/// wireframe().
 const int CENTROID = 1 ;
 
 inline void normalize(vect3d& v) {
@@ -76,7 +76,7 @@ inline bool int_equal(const vect3d& v1, const vect3d& v2) {
   return (int64(v1.x) == int64(v2.x) && int64(v1.y) == int64(v2.y)) ;
 }
 
-/// To reduce the memory allocation of a vector to its size
+/// Copy and swap a vector to reduce unused capacity.
 template<class T> inline void reduce_vector(std::vector<T>& v1) {
   std::vector<T> tmpVec = v1 ;
   std::swap(v1, tmpVec) ;
@@ -98,11 +98,9 @@ inline vect3d point_center(const std::vector<vect3d>& fnodes) {
  }
 
 /**
-* Return the weighted average of the input point coordinates.
-*
-* `fnodes` and `weights` must have the same nonzero length, and the sum of
-* `weights` must be nonzero.
-*/
+ * Return the weighted mean of the input points. fnodes and weights must have
+ * the same nonzero length, and the weight sum must be nonzero.
+ */
 inline vect3d weighted_center(const std::vector<vect3d>& fnodes,
                               const std::vector<double>& weights) {
   vect3d nodesum = vect3d(0.0, 0.0, 0.0) ;
@@ -117,11 +115,9 @@ inline vect3d weighted_center(const std::vector<vect3d>& fnodes,
 }
 
 /**
- * Adjacent cell indices for an interior fine-face record.
- *
- * `c1` and `c2` are the two cells adjacent to the face. Face-building helpers
- * order them so that an outward-facing face stores the current cell as `c1`;
- * inward-facing faces store the current cell as `c2`.
+ * Local fine-cell indices on the two sides of an interior face. Face builders
+ * place the current cell in c1 for an outward face and in c2 for an inward
+ * face.
  */
 struct NeibIndex{
   int c1 ;

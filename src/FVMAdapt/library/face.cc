@@ -36,11 +36,8 @@ using std::cout;
 
 /**
  * @file face.cc
- * @brief General polygon-face tree operations used by FVMAdapt.
  *
- * A Face can represent a triangular, quadrilateral, or more general polygonal
- * face. Splitting creates one quadrilateral child face per parent edge by
- * connecting edge midpoints to a new face-center node.
+ * Split polygonal faces and apply Face refinement plans.
  */
 
 int general_edgeID_orient_f2c(int i, char orientCode, int numEdge){
@@ -316,8 +313,6 @@ std::vector<char> Face::make_faceplan(){
 }
 
 
-/// Build a Face from Loci data structures, the locations of nodes are defined
-/// and edges are split according to edgePlan
 Face* build_general_face( const Entity* face2node, int num_edge,
                           const Entity* face2edge,
                           const const_MapVec<2>& edge2node,
@@ -366,7 +361,6 @@ Face* build_general_face( const Entity* face2node, int num_edge,
 }
 
 
-/// Parallel version, build a face and index all the boundary nodes
 Face* build_general_face( const Entity* face2node, int num_edge,
                           const Entity* face2edge,
                           const const_MapVec<2>& edge2node,
@@ -427,7 +421,6 @@ Face* build_general_face( const Entity* face2node, int num_edge,
 }
 
 
-/// This function is used in build_general_cell with quadface
 Face* build_tmp_general_face( const Entity* face2node, int num_edge,
                               const Entity* face2edge,
                               const const_MapVec<2>& edge2node,

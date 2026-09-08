@@ -33,18 +33,14 @@ using std::vector;
 
 /**
  * @file read_par.h
- * @ingroup fvmadapt_input
- * @brief Source-parameter helpers used by FVMAdapt refinement tagging.
+ *
+ * Read spacing sources and use them to request cell refinement.
  */
 
 /**
- * Source-based spacing request used by tag_cell().
- *
- * @ingroup fvmadapt_input
- *
- * The source is represented by a segment from `p1` to `p2`. The remaining
- * fields define requested spacing near and away from that segment; see
- * get_spacing() for the exact evaluation used by the current implementation.
+ * Spacing source represented by the segment from p1 to p2. The remaining
+ * fields define requested spacing near and away from the segment; see
+ * get_spacing().
  */
 struct source_par {
   vect3d p1 ;

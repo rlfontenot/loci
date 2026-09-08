@@ -46,22 +46,18 @@ using std::list;
 
 /**
  * @file hexcell.h
- * @ingroup fvmadapt_elements
- * @brief Hexahedral cell refinement tree with anisotropic split codes.
+ *
+ * HexCell refinement and fine-face connectivity.
  */
 
 /**
- * Computes the first-cell id for each fine face leaf on a hex face.
+ * Return the local fine-cell index adjacent to each fine face on face findex.
+ * Indices start at 1 within the original HexCell and follow the leaf order of
+ * facePlan.
  *
- * The face plan is replayed into 2D integer ranges, and the cell plan is
- * replayed into the matching cell-side ranges for the selected hex face. Each
- * fine face leaf is then mapped to the containing cell-side range.
- *
- * @param cellPlan   Breadth-first hex-cell refinement plan.
- * @param facePlan   Breadth-first quad-face refinement plan.
- * @param orientCode Face orientation code for the selected cell face.
- * @param findex     Hex face index used to select faceCodeTable rows.
- * @return Cell index for each fine face leaf.
+ * findex is in [0, 6). orientCode maps face2node order to the face order in
+ * the HexCell. Use integer face ranges to match fine faces to the cells
+ * produced by cellPlan.
  */
 std::vector<int32> get_c1_hex(const std::vector<char>& cellPlan,
                               const std::vector<char>& facePlan,
@@ -69,29 +65,21 @@ std::vector<int32> get_c1_hex(const std::vector<char>& cellPlan,
                               char findex) ;
 
 /**
- * @brief Hexahedral refinement tree used by FVMAdapt.
- * @ingroup fvmadapt_elements
+ * Hexahedral cell with directional refinement. mySplitCode uses bits 4, 2,
+ * and 1 for the local xi, eta, and zeta directions. Splitting one, two, or
+ * three directions creates two, four, or eight children.
  *
- * `mySplitCode` is a three-bit local-direction mask. The current
- * `numChildren()` implementation maps one active split direction to two
- * children, two active directions to four children, and three active directions
- * to eight children.
- *
- * @warning Hex child ordering, face ordering, and `tables.h` extraction tables
- * are a single contract. A local-looking change in one of those areas can break
- * shared-face consistency with neighboring cells.
+ * The face and child numbering is used by the extraction tables in tables.h.
  */
 class HexCell
 {
 public:
 
-  /// Constructor
   HexCell():cellIndex(0), mySplitCode(0), face(0), parentCell(0),
             childCell(0),tag(0){}
 
   HexCell(QuadFace** f):cellIndex(0), mySplitCode(0), face(f), parentCell(0),
                         childCell(0),tag(0){}
-  /// Destructor
   ~HexCell(){
     if(childCell != 0) {
       for(int i = 0; i < numChildren(); i++) {
@@ -111,9 +99,15 @@ public:
     }
   }
 
-  /// If all children are tagged as 2, remove all children
+  /// Delete the children and reset mySplitCode to 0. This does not check tags
+  /// or derefinement eligibility.
   void derefine() ;
+  /// Return true if this cell has children, every child is a leaf requesting
+  /// derefinement through its node tags, and no boundary edge has
+  /// grandchildren. This only tests eligibility.
   bool needDerefine() ;
+  /// Test the same leaf and edge conditions as needDerefine(), using each
+  /// child's cell tag (getTag() == 2) instead of its node tags.
   bool needDerefine_ctag() ;
   char getTag() const { return tag ; }
   void setTag(char c) { tag=c ; }
@@ -123,17 +117,19 @@ public:
   HexCell* getChildCell(int i) const { return childCell[i] ; }
   HexCell* getParentCell() { return parentCell ; }
 
-  /// Define if this is tagged for refinement, derefinement or unchanged
+  /// Return 2 if all cell nodes request derefinement, 1 if any requests
+  /// refinement, and 0 otherwise.
   int get_tagged() ;
+  /// Return the refinement request from the supplied spacing sources.
   int get_tagged(const vector<source_par>& s) ;
 
   // return a splitCode
   // find average_edge_length in XX , YY and ZZ directions
   // find min_edge_length in all directions
 
-  /// if max_edge_length/min_edge_length > Globals::factor1 and there are in
-  /// if max_edge_length/min_edge_length > Globals::factor1 and they are in different direction
-  /// split the max_length edge
+  /// Choose mySplitCode using split_mode and tol. Automatic directional
+  /// splitting compares ratios of average edge lengths in the local directions
+  /// with Globals::factor.
   void setSplitCode(int split_mode, double tol) ;
 
   int getLevel(NORMAL_DIRECTION d) const {
@@ -217,7 +213,8 @@ public:
   /// Find num_fine_cells without actually building the tree
   int32 num_fine_cells( const std::vector<char>& cellPlan) const ;
 
-  /// For mxfpc
+  /// Return the number of leaf faces on the cell boundary, used to compute the
+  /// maximum faces per cell (mxfpc).
   int get_num_fine_faces() const ;
   double get_min_edge_length() ;
 
@@ -225,14 +222,17 @@ public:
              std::list<Edge*>& edge_list,
              std::list<QuadFace*>& face_list) ;
 
-  /// Only define childCell
+  /// Create the child HexCells selected by mySplitCode, without nodes, edges,
+  /// or faces.
   void empty_split() ;
 
-  /// Return num_fine_cells
+  /// Apply cellPlan to the child-cell structure, assign local leaf indices
+  /// starting at 1, and return the leaf count. No split geometry is created.
   int empty_resplit(const std::vector<char>& cellPlan) ;
 
-  /// After the cell is split into a tree, get the indexMap from current index
-  /// to parent index
+  /// Replace indexMap with pairs of local fine-cell indices from the current
+  /// tree and parentPlan. Refinement or derefinement can produce several pairs
+  /// for one cell. Return the number of leaves in parentPlan.
   int32 traverse(const std::vector<char>& parentPlan,
                  vector<pair<int32, int32> >& indexMap) ;
 
@@ -248,9 +248,7 @@ public:
                std::list<Edge*>& edge_list,
                std::list<QuadFace*>& face_list) ;
 
-  /// This function checks if aFace is one of the face.
-  /// return -1: No
-  /// return i in [0, 6), Yes, face[i] == aFace
+  /// Return the index i for which face[i] == aFace, or -1 if no face matches.
   int containFace(QuadFace* aFace) {
     for(int i=0; i<6; i++) {
       if(face[i] == aFace) { return i ; }
@@ -258,29 +256,29 @@ public:
     return -1 ;
   }
 
-  /// This function checks if aCell is my sibling neighbor.
-  /// sibling means same size face, not necessarily has same parent
+  /// Return true if aCell is a neighbor in direction dd with the same face
+  /// size. The cells need not have the same parent.
   bool isSiblingNeighbor(const HexCell* aCell, DIRECTION dd) const ;
 
-  /// This function checks if aCell is my neighbor is direction dd
-  /// edge neighbor is excluded. if two faces overlap area is not zero
-  /// their cells are neighbors
+  /// Return true if aCell shares a nonzero face area in direction dd. Contact
+  /// along an edge alone does not count.
   bool isNeighbor(const HexCell* aCell, DIRECTION dd) const ;
 
-  /// This function finds my face neighbor,
-  /// ff: in,  my faceID
-  /// nf: out, the faceID of neibCell
+  /// Find the face neighbor in direction d within the original HexCell. Return
+  /// 0 at its boundary. The returned cell may have children.
   HexCell* findNeighbor(DIRECTION d) ;
 
-  /// After a cell is split, compose the cell plan according to the tree
-  /// structure
+  /// Make a breadth-first cell refinement plan from this tree.
   std::vector<char> make_cellplan() ;
 
-  /// Make a plan for isotropical split an original hex cell level levels
+  /// Make a plan for level levels of isotropic refinement of an original
+  /// HexCell, using split code 7.
   std::vector<char> make_cellplan(int level) ;
 
-  /// If any edge is more than 1 levels down than my level, split myself,
-  /// then balance each child
+  /// Add the splits required by boundary-edge refinement and
+  /// Globals::balance_option, using split_mode, then balance the children.
+  /// Append new nodes, root edges, and root faces to the supplied lists.
+  /// Return true if a split was added.
   bool balance_cell(int split_mode,
                     std::list<Node*>& node_list,
                     std::list<Edge*>& edge_list,
@@ -293,24 +291,24 @@ public:
                        std::list<Edge*>& edge_list,
                        std::list<QuadFace*>& face_list) ;
 
-  /// After a hexcell is resplit, find all it's inner faces and their c1, c2
+  /// Find interior fine faces and store their NeibIndex values in faces. c1
+  /// and c2 are local fine-cell indices ordered by face orientation.
   friend void set_hex_faces(const std::vector<HexCell*>& cells,
                             std::map<QuadFace*, NeibIndex>& faces) ;
 
-  /// Find c1 for all the leaves of a face
   friend std::vector<int32> get_c1_hex(const std::vector<char>& cellPlan,
                                        const std::vector<char>& facePlan,
                                        char orientCode,
                                        char findex) ;
 private:
 
-  /// The index of the cell, start with 1
+  /// Local fine-cell index, starting at 1. Zero is used before numbering or
+  /// for non-leaf state.
   int32 cellIndex ;
 
-  /// Three-bit local-direction split mask, written in xyz order.
-  /// Code `0` means no split. In nonzero codes, each set bit means split that
-  /// local direction: `100`/`4` splits x, `010`/`2` splits y, `001`/`1`
-  /// splits z. For example, `011`/`3` splits y and z.
+  /// Local-direction split mask: bit 4 splits xi, bit 2 splits eta, and bit 1
+  /// splits zeta. Code 0 requests no split; code 3 splits eta and zeta, for
+  /// example.
   char mySplitCode ;
 
   /// 6 faces,  pointing to positive xi, eta, or zeta direction
@@ -329,7 +327,7 @@ private:
   // A dynamic array of pointers to children cells
   HexCell **childCell ;
 
-  /// If the face in direction RIGHT, LEFT... has been checked
+  /// Faces visited by set_hex_faces().
   std::bitset<6> faceMarked ;
 
   char tag ;
@@ -342,7 +340,8 @@ private:
 
 private:
 
-  /// Get 8 nodes
+  /// Fill eight entries of node with existing corner-node pointers. The caller
+  /// must size the vector to at least eight entries.
   void get_nodes(std::vector<Node*>& node) {
     for(int i=0; i<4; i++) {
       node[i] = face[0]->getNode(i) ;
@@ -350,8 +349,8 @@ private:
     }
   }
 
-  /// Calculate the centroid of the HexCell, it's defined as the mean value
-  /// of nodes
+  /// Return a new Node at the mean position of the eight corner nodes. The
+  /// caller deletes it.
   Node* simple_center() {
     Node* cellcenter = new Node() ;
     std::vector<Node*> vertices(8) ;
@@ -381,8 +380,9 @@ private:
     return new Node(p) ;
   }
 
-  /// The center of the face, defined as the mass center of edge centers.
-  /// Precondition:: all its edges have been split
+  /// Return a new cell-center Node using the formula selected by CENTROID. The
+  /// wireframe() formula requires existing face-center nodes. The caller
+  /// deletes the returned Node.
   Node* centroid() {
     switch(CENTROID) {
     case 0:
@@ -394,9 +394,8 @@ private:
     }
   }
 
-  /// Get the facecenter.
-  /// Condition: facecenter will be allocated and deallocated by the caller
-  /// Precondition: the faces have been split
+  /// Fill the caller's array of six pointers with existing face-center nodes.
+  /// Each face must have split code 3; no nodes are allocated or transferred.
   void getFaceCenter(Node** facecenter) {
     for(int i=0; i<6; i++) {
       facecenter[i] = face[i]->getCenter() ;
@@ -444,8 +443,9 @@ HexCell* build_hex_cell(const Entity* lower, int lower_size,
                         std::list<QuadFace*>& face_list,
                         const const_store<int>& node_remap);
 
-/// Build a cell with edgePlan and facePlan, tag the nodes then resplit the
-/// edges and faces with edgePlan1 and facePlan1.
+/// Build the cell using edgePlan, facePlan, and cellPlan, copy the node tags,
+/// then apply edgePlan1 and facePlan1 to its boundary. Keep allocated objects
+/// in the supplied lists for cleanup.
 HexCell* build_resplit_hex_cell(const Entity* lower, int lower_size,
                                 const Entity* upper, int upper_size,
                                 const Entity* boundary_map, int boundary_map_size,
@@ -470,8 +470,9 @@ HexCell* build_resplit_hex_cell(const Entity* lower, int lower_size,
                                 const std::vector<char>& cellPlan,
                                 const  std::vector<char>& cellNodeTag);
 
-/// Build a cell with edgePlan and facePlan, tag the nodes then resplit the
-/// edges and faces with edgePlan1 and facePlan1.
+/// Build the cell using edgePlan, facePlan, and cellPlan, copy fineCellTag to
+/// the fine cells, then apply edgePlan1 and facePlan1 to its boundary. Keep
+/// allocated objects in the supplied lists for cleanup.
 HexCell* build_resplit_hex_cell_ctag(const Entity* lower, int lower_size,
                                      const Entity* upper, int upper_size,
                                      const Entity* boundary_map, int boundary_map_size,
@@ -494,7 +495,10 @@ HexCell* build_resplit_hex_cell_ctag(const Entity* lower, int lower_size,
                                      const std::vector<char>& cellPlan,
                                      const  std::vector<char>& fineCellTag);
 
-/// Parallel version
+/// Build a HexCell with boundary refinement and assign node indices using
+/// node_l2f and node_offset. Use face_l2f to order the mesh faces. Append
+/// allocated nodes, root edges, and root faces to the supplied lists; the
+/// caller deletes the returned HexCell.
 HexCell* build_hex_cell(const Entity* lower, int lower_size,
                         const Entity* upper, int upper_size,
                         const Entity* boundary_map, int boundary_map_size,
@@ -555,8 +559,8 @@ Array<Entity, 6> collect_hex_faces(const Entity*  lower,int lower_size,
 Array<Entity, 8> collect_hex_vertices(const const_multiMap& face2node, const Array<Entity, 6>& faces,
                                       const Array<char, 8>& hex2node);
 
-/// Collects the entity designation of all 12 edges of the hexcell in the
-/// all_edges entitySet. The direction of edges are stored in needReverse.
+/// Return the 12 edge entities in HexCell order and fill needReverse with
+/// their directions relative to edge2node.
 Array<Entity, 12> collect_hex_edges(const Array<Entity, 6>& faces, const Array<Entity, 8>& hex_vertices,
                                     const const_multiMap& face2edge, const const_MapVec<2>& edge2node,
                                     Array<bool,12>& needReverse);

@@ -31,7 +31,8 @@ using std::list;
 
 /**
  * @file get_c1_prism.cc
- * @brief Computes owner-cell ids for fine faces generated on a prism face.
+ *
+ * Find the local fine-cell indices adjacent to fine faces of a Prism.
  */
 
 std::vector<char>  merge_tri_face_p(const  std::vector<char>& cellPlan1, int dd1, char orientCode1);
@@ -102,17 +103,13 @@ struct Prism_Face{
 };
 
 /**
- * Computes the first-cell id for each fine face leaf on a prism face.
+ * Return the local fine-cell index adjacent to each fine face on face faceID.
+ * Indices start at 1 within the original Prism and follow the leaf order of
+ * facePlan.
  *
- * Quad prism side faces (`faceID >= 2`) are handled with integer face ranges.
- * Triangular end faces (`faceID < 2`) are handled with Face tree traversal. The
- * returned vector follows the fine-face order generated from @p facePlan.
- *
- * @param cellPlan   Breadth-first prism-cell refinement plan.
- * @param facePlan   Breadth-first face refinement plan.
- * @param orientCode Face orientation code for the selected prism face.
- * @param faceID     Prism face index.
- * @return Cell index for each fine face leaf.
+ * faceID is in [0, 5): 0 and 1 select the triangular end faces, handled with
+ * Face trees; the other indices select QuadFace side faces, handled with
+ * Range2d. orientCode maps face2node order to the face order in the Prism.
  */
 std::vector<int32> get_c1_prism(const std::vector<char>& cellPlan,
                                 const std::vector<char>& facePlan,

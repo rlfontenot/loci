@@ -37,40 +37,35 @@ struct Range2d ;
 
 /**
  * @file quadface.h
- * @ingroup fvmadapt_elements
- * @brief Directional quadrilateral face tree and orientation helpers.
+ *
+ * QuadFace directional refinement and face-orientation helpers.
  */
 
 // f2c orient functions are used when a quadface is built as in cell and the
 // facePlan is for the face defined by face2node
 /**
- * @brief Convert a face-plan split code to the cell-local quadface axes.
- *
- * Leaf (`0`) and two-axis (`3`) split codes are unchanged. For orientations
- * that swap the local face axes, face-local y (`1`) and x (`2`) splits are
- * exchanged.
+ * Convert a QuadFace split code from face2node order to the face order in the
+ * cell. orientCode is in [0, 8). Orientations that exchange x and y exchange
+ * split codes 1 and 2; codes 0 and 3 are unchanged.
  */
 char orient_splitCode_f2c(char splitCode, char orientCode) ;
 char orient_childID_f2c(char childID, char orientCode, char splitCode) ;
 char orient_edgeID_f2c(char edgeID, char orientCode) ;
 
-/// c2f orient functions are used when the face is defined by face2node
-/// and facePlan is extracted from cell
+/// Map a QuadFace edge index from the face order in the cell to face2node
+/// order. edgeID is in [0, 4) and orientCode is in [0, 8).
 char orient_edgeID_c2f(char edgeID, char orientCode);
 
-/// For get_c1_hex and get_c1_prism, when a cell is empty_split, faceMap is
-/// created and face is split to generate leaves. By looking up faceMap, c1 can
-/// be computed. Use Range2d to avoid fully splitting the cell and face.
+/// For each range in leaves, return the index paired with the first faceMap
+/// range that contains it. Every leaf range must have a match. get_c1_hex()
+/// and get_c1_prism() use these ranges to find local fine-cell indices without
+/// creating split geometry.
 std::vector<int32> contain_2d(const std::vector<pair<Range2d, int32> >& faceMap,
                               const std::vector<Range2d>& leaves);
 
 /**
- * @brief Directional quadrilateral-face refinement tree.
- * @ingroup fvmadapt_elements
- *
- * QuadFace is the directional face tree used by @ref HexCell and @ref Prism
- * for anisotropic refinement of quadrilateral faces. It stores each face with
- * a fixed local corner ordering and zero-based `edge[]` ordering:
+ * Quadrilateral face with directional refinement, used by HexCell and
+ * Prism. Corner indices and stored edge directions are:
  *
  * <pre>
  *                         edge[2] (3 -> 2)
@@ -84,12 +79,8 @@ std::vector<int32> contain_2d(const std::vector<pair<Range2d, int32> >& faceMap,
  *                         edge[0] (0 -> 1)
  * </pre>
  *
- * The corner labels are face-local node indices, not global mesh node IDs. The
- * edge arrows show each stored boundary-edge direction.
- *
- * For split code `3`, the face is split in both local directions. The four
- * `child[]` entries are the quadrants of the face, while `childx[]` and
- * `childy[]` provide the column and row views of the same split:
+ * For split code 3, child[] holds the four quarters. childx[] holds the
+ * left and right halves; childy[] holds the lower and upper halves:
  *
  * <pre>
  *                              local x direction
@@ -102,21 +93,12 @@ std::vector<int32> contain_2d(const std::vector<pair<Range2d, int32> >& faceMap,
  *                    local y increases upward
  * </pre>
  *
- * In other words, `childx[0]` is the left half, `childx[1]` is the right half,
- * `childy[0]` is the lower half, and `childy[1]` is the upper half.
- *
- * Quad face plans use code `0` for a leaf, `1` for a face-local y split, `2`
- * for a face-local x split, and `3` for both directions. The `childx`,
- * `childy`, and `child` arrays intentionally encode overlapping views of the
- * same directional split tree.
- *
- * @warning Child and orientation ordering are coupled to hex/prism face
- * extraction and merge helpers. Do not change child layout without updating the
- * orientation helpers and plan-extraction tables together.
+ * Plans use code 0 for no split, 1 for a y split, 2 for an x split, and
+ * 3 for both directions. With code 3, childx and childy share the four
+ * child faces shown above.
  */
 class QuadFace{
 public:
-  /// Constructors
   QuadFace(int numEdge):edge(new Edge*[numEdge]),child(0),childx(0), childy(0),code(char(0)){}
 
   //Constructor used for empty_split
@@ -209,7 +191,8 @@ public:
 //       }
 //     }
 //   }
-  /// Destructor, it works this way without memory leakage
+  /// Delete child faces and pointer arrays, accounting for children shared by
+  /// childx and childy. Edge and Node objects are deleted separately.
   ~QuadFace() {
     switch(code) {
     case 3:
@@ -356,11 +339,9 @@ public:
   }
 
   /**
-   * Returns the midpoint node for each boundary edge.
-   *
-   * Requires all boundary edges to have been split. The caller provides an
-   * array of at least four Node* entries; this function fills it with borrowed
-   * midpoint-node pointers.
+   * Fill the caller's array of at least four pointers with existing edge
+   * midpoints. All boundary edges must already be split; no nodes are
+   * allocated or transferred.
    */
   void getEdgeCenter(Node** edgecenter) const {
     for(int i=0; i<4; i++) {
@@ -369,19 +350,16 @@ public:
   }
 
   /**
-   * Returns the midpoint node for edge[edgeID].
-   *
-   * Requires edge[edgeID] to have been split. The returned pointer is borrowed.
+   * Return the existing midpoint node of edge[edgeID]. The edge must already
+   * be split.
    */
   Node* getEdgeCenter(int edgeID) const {
     return edge[edgeID]->child[0]->tail ;
   }
 
   /**
-   * Returns the QuadFace corner node numbered nodeID.
-   *
-   * Valid nodeID values are 0 through 3, matching the corner ordering in the
-   * class diagram. The returned pointer is borrowed.
+   * Return the existing corner-node pointer for nodeID in [0, 4), using the
+   * numbering in the class diagram.
    */
   Node* getNode(int nodeID) const {
     if(nodeID==0 || nodeID == 1) {
@@ -396,35 +374,36 @@ public:
     return child[0]->edge[1]->tail ; //unsafe version
   }
 
-  /**
-   * Appends the terminal unsplit subfaces below this QuadFace to leaves.
-   *
-   * Existing contents of leaves are preserved. Any non-leaf node must already
-   * have the child array for its split code populated.
-   */
+  /// Append the leaf faces in depth-first child order to leaves.
   void get_leaves(std::vector<QuadFace*>& leaves) ;
 
-  /// This has been built as defined in cell, and has been resplit with
-  /// orientCode. Get leaves that is in the same order as the face is bulit as
-  /// defined by face2node and resplit without orientCode.
+  /// Append the faces selected by facePlan in the breadth-first order of the
+  /// plan. The tree must already be split consistently with facePlan and
+  /// orientCode.
   void get_leaves(const std::vector<char>& facePlan, char orientCode,
                   std::vector<QuadFace*>& fine_faces) ;
 
-  /// Define face2node
+  /// Fill f2n with the boundary node indices in face order.
   void set_f2n(std::list<int32>& f2n) ;
 
   int get_num_leaves( )const ;
 
-  /// Used in building cells, quadface is built as defined in cell, and split with orientCode.
-  /// All new nodes and edges are put into node_list and edge_list.
+  /// Split this QuadFace according to splitCode in face2node order, using
+  /// orientCode to map to its stored cell order. Append new nodes and root
+  /// edges to the supplied lists.
+  ///
+  /// If the face is already split in one direction, a split in the other
+  /// direction adds the missing children to form a four-way split.
   void split(char splitCode, char orientCode, std::list<Node*>& node_list,
              std::list<Edge*>& edge_list) ;
 
-  /// Only used in transfer_plan_q2g
+  /// Create child QuadFace objects for splitCode without nodes or edges. An
+  /// already-split face is unchanged.
   void empty_split(char splitCode);
 
-  /// Used in building cells, quadface is built as defined in cell, and split with orientCode.
-  /// All new nodes and edges are put into node_list and edge_list.
+  /// Apply facePlan in breadth-first order, using orientCode to map face2node
+  /// order to the face order in the cell. Append new nodes and root edges to
+  /// the supplied lists. Existing splits are not removed.
   void resplit(const std::vector<char>& facePlan, char orientCode,
                std::list<Node*>& node_list,
                std::list<Edge*>& edge_list);
@@ -436,7 +415,13 @@ public:
                std::list<Edge*>& edge_list,
                std::vector<QuadFace*>& fine_faces);
 
-  /// Only used in transfer_plan_q2g
+  /// Apply facePlan to a QuadFace tree without creating nodes or edges, and
+  /// append the selected faces in plan order. orientCode maps face2node order
+  /// to the stored cell order.
+  ///
+  /// The tree must be consistent with the plan. A nonzero plan code is checked
+  /// against an existing nonzero code; a zero or omitted entry appends the
+  /// current face without checking or removing its children.
   void empty_resplit(const std::vector<char>& facePlan, char orientCode,
                      std::vector<QuadFace*>& fine_faces) ;
 
@@ -461,7 +446,9 @@ QuadFace* build_quad_face(const Entity* face2node,
                           std::list<Node*>& bnode_list,
                           std::list<Edge*>& edge_list) ;
 
-/// Parallel version
+/// Build a QuadFace with split boundary edges and assign node indices from
+/// node_l2f and node_offset. Append allocated nodes and root edges to the
+/// supplied lists; the caller deletes the returned QuadFace.
 QuadFace* build_quad_face(const Entity* face2node,
                           const Entity* face2edge,
                           const const_MapVec<2>& edge2node,
@@ -472,7 +459,10 @@ QuadFace* build_quad_face(const Entity* face2node,
                           std::list<Node*>& bnode_list,
                           std::list<Edge*>& edge_list) ;
 
-/// This function is used in build_general_cell with quadface
+/// Build a QuadFace on an integer reference square with edges split according
+/// to edgePlan. Used to match nodes between face plans. Append allocated nodes
+/// and root edges to the supplied lists; the caller deletes the returned
+/// QuadFace.
 QuadFace* build_tmp_quad_face(const Entity* face2node,
                               const Entity* face2edge,
                               const const_MapVec<2>& edge2node,
@@ -480,7 +470,7 @@ QuadFace* build_tmp_quad_face(const Entity* face2node,
                               std::list<Node*>& bnode_list,
                               std::list<Edge*>& edge_list) ;
 
-/// If the intersection of the leaves of f1 and the leaves of f2 is empty
+/// Return true if the two face trees share a leaf face pointer.
 bool is_overlapped(QuadFace* f1, QuadFace* f2);
 
 /// Return the intersection of leaves of f1 and leaves of f2
@@ -490,11 +480,13 @@ std::vector<QuadFace*> overlap(QuadFace* f1, QuadFace* f2) ;
 void write_quad_inner_faces(const std::map<QuadFace*, NeibIndex>& faces,
                              int cell_offset, int& mxppf, ofstream& ofile) ;
 
-/// When a quadface is resplit according to faceplan and its node need to be
-/// tagged according to faceplan1, assume the node is stored in bnode_list
-/// that start at bnode_begin++ until the end of list, build 2 temp quadface,
-/// resplit them according to faceplan and faceplan1, find the node
-/// correspondence and tag the node in bnode_list.
+/// Transfer nodeTag from nodes created by facePlan to matching nodes created
+/// by facePlan1, using temporary faces with integer coordinates to find
+/// matches.
+///
+/// The destination nodes must occupy bnode_list from the entry after
+/// bnode_begin to the end, in the order created by facePlan1. Nodes without a
+/// match retain their tags.
 void tag_quad_face(const Entity* face2node,
                    const Entity* face2edge,
                    const const_MapVec<2>& edge2node,
@@ -505,8 +497,9 @@ void tag_quad_face(const Entity* face2node,
                    std::list<Node*>& bnode_list, //node list from facePlan1
                    std::list<Node*>::const_iterator bnode_begin) ; //the ++bnode_begin is the start point
 
-/// Compile the facePlan according the tree structure of aQuadFace
-/// std::vector<char> make_faceplan( QuadFace* aFace);
+/// Delete the listed nodes, root edges, and root QuadFaces, then clear the
+/// lists. Each object must appear only once. Child edges and faces are deleted
+/// by their parents and must not also appear in the lists.
 inline void cleanup_list(std::list<Node*>& node_list,
                          std::list<Edge*>& edge_list,
                          std::list<QuadFace*>& face_list) {

@@ -33,26 +33,18 @@ using std::queue;
 
 /**
  * @file node_edge.h
- * @ingroup fvmadapt_elements
- * @brief Node and binary-edge helper trees used by FVMAdapt refinement plans.
  *
- * For reference here:
- * head--------> tail, edges point from head to tail
- * edge2node[0]-------->edge2node[1]
+ * Nodes and binary edge refinement trees. An Edge points from its stored head
+ * to tail.
  */
 
 
 /**
- * @brief Node record used by the FVMAdapt helper-tree builders.
- * @ingroup fvmadapt_elements
- *
- * A Node stores the coordinates of a mesh vertex, along with an optional
- * one-based grid-file index and an adaptation tag. Nodes are used in edge,
- * face, and cell refinement trees.
+ * Node coordinates, a caller-assigned node index, and a refinement tag. Tag
+ * values are 0 for unchanged, 1 for refinement, and 2 for derefinement.
  */
 class Node{
 public:
-  /// Constructors
   Node():index(0),tag(0){}
   Node(vect3d& p0):p(p0), index(0), tag(0){}
   Node(const Loci::vector3d<double>& p0):p(p0),index(0),tag(0){}
@@ -62,40 +54,29 @@ public:
   /// Coordinate of the node
   vect3d p ;
 
-  /// The index of node in input or output grid file, starts with 1
+  /// Node index assigned by the caller, for example from node_l2f or
+  /// node_offset. Constructors initialize it to 0.
   int32 index ;
 
-  /// Marker used by edge, face, and cell logic. 1 or 0, indicates if the
-  /// node needs to be refined or not.
+  /// Node tag: 0 unchanged, 1 refine, 2 derefine.
   char tag ;
 };
 
 /**
- * @brief Oriented mesh edge with a binary midpoint-refinement tree.
- * @ingroup fvmadapt_elements
+ * Edge from head to tail, split at its midpoint into two child edges. The
+ * edge vector is tail->p - head->p.
  *
- * An Edge connects `head` to `tail` and may be split at its midpoint into two
- * child edges. Repeated splits form a binary tree that can be replayed from an
- * edge plan: code `1` splits the current edge, while code `0` leaves it as a
- * leaf.
- *
- * The reversed `resplit()` overload lets faces replay the same edge plan
- * in the orientation needed by their local edge ordering.
- *
- *
- * head-------->tail. The edge points from head to tail.
- * The vector is: tail->p - head->p
- *
+ * An edge plan uses code 1 to split the current edge and code 0 to request no
+ * split. resplit() can reverse child traversal to match the edge direction
+ * needed by the face.
  */
 class Edge{
 public:
-  /// Constructors
   Edge(Node* p0, Node* p1):head(p0), tail(p1), child(0), parent(0),level(0) {}
   Edge(Node* p0, Node* p1, int lev):head(p0), tail(p1),child(0),parent(0), level(lev){}
   Edge(Node* p0, Node* p1, int lev, Edge* p):head(p0), tail(p1),child(0),parent(p), level(lev){}
   Edge():child(0), parent(0),level(0){}
 
-  /// Destructor
   ~Edge(){
     if(child!=0){
       if(child[1] != 0){
@@ -111,25 +92,23 @@ public:
     }
   }
 
-  /// Calculate the middle point of the edge
+  /// Return a new Node at the edge midpoint. The caller deletes it.
   Node* centroid(){
     return new Node(0.5*(head->p + tail->p));
   }
 
-  /// Euclidean edge length
+  /// Return the edge length.
   double length(){
     return norm(head->p - tail->p);
   }
 
-  /// Duplicate of the length() method. TODO: One of these can be deprecated.
+  /// Return the edge length, as in length().
   double get_length(){
     return norm(tail->p - head->p);
   }
 
-  /// Check if the edge contains the `theNode`.
-  /// return 0 -> the node is the head
-  /// return 1 -> the node is the tail
-  /// return -1 -> the edge does not contain the node
+  /// Return 0 if theNode is head, 1 if it is tail, or -1 if neither endpoint
+  /// matches.
   int containNode(Node* theNode){
     if(head == theNode) return 0 ;
     if(tail == theNode) return 1 ;
@@ -156,7 +135,7 @@ public:
     }
   }
 
-  /// Return true if this edge has been split more than one level below itself.
+  /// Return true if either child edge has children.
   bool depth_greater_than_1(){
     if(child == 0) return false ;
     if(child[0]->child != 0) return true ;
@@ -171,54 +150,40 @@ public:
   */
   void sort_leaves(std::list<Edge*>& leaves) ;
 
-  /// Return the maximum refinement-tree level below this edge.
+  /// Currently returns 0; the implementation does not collect the leaf edges
+  /// before checking their levels.
   int get_depth() ;
 
   /**
-  * Replay a breadth-first edge plan, optionally reversing child traversal.
-  *
-  * Each plan entry is applied to the next queued edge. Code `1` splits that
-  * edge at its midpoint and queues its two children; code `0` leaves it as a
-  * leaf. If `needReverse` is true, child edges are queued in reverse order.
-  * New midpoint nodes are appended to `node_list`.
-  *
-  * @param edgePlan    Breadth-first edge refinement plan.
-  * @param needReverse Whether to queue children in reverse edge order.
-  * @param node_list   Receives midpoint nodes created by split().
-  */
+   * Apply edgePlan in breadth-first order. Code 1 splits the current edge and
+   * queues its children; code 0 or an omitted entry requests no split.
+   * Existing children are not removed.
+   *
+   * If needReverse is true, queue child[1] before child[0]. Otherwise use
+   * head-to-tail order. Append new midpoint nodes to node_list.
+   */
   void resplit(const std::vector<char>& edgePlan, bool needReverse,
                std::list<Node*>& node_list) ;
 
   /**
-  * Replay a breadth-first edge plan in this edge's head-to-tail order.
-  *
-  * This overload is used when the edge orientation already matches the caller's
-  * local ordering.
-  *
-  * @param edgePlan  Breadth-first edge refinement plan.
-  * @param node_list Receives midpoint nodes created by split().
-  */
+   * Apply edgePlan in breadth-first, head-to-tail order and append new
+   * midpoint nodes to node_list. Existing children are not removed.
+   */
   void resplit(const std::vector<char>& edgePlan,
                std::list<Node*>& node_list) ;
 
 public:
-  Node* head ;  ///< Start node in this edge's local orientation. edge2node[0]
-  Node* tail ; ///< End node in this edge's local orientation. edge2node[1]
+  Node* head ;  ///< Start node in the stored edge direction.
+  Node* tail ; ///< End node in the stored edge direction.
   Edge** child ; ///< Two midpoint-split child edges, or null for a leaf edge.
   Edge* parent ; ///< Parent edge in the refinement tree, or null for the root.
-  int level ; ///< Refinement tree depth of this edge. Root edges a level 0
+  int level ; ///< Stored level; children have level+1, roots can start above 0.
 };
 
 /**
- * Delete all Node and Edge pointers in the supplied lists and clear the lists.
- *
- * Each pointer is deleted at most once by this function, so callers must only
- * pass lists that own the objects they contain. Deleting an Edge also deletes
- * its child-edge subtree; Node objects referenced by edges must still be owned
- * and deleted through node_list.
- *
- * @param[in,out] node_list Owned node pointers to delete; cleared on return.
- * @param[in,out] edge_list Owned root edge pointers to delete; cleared on return.
+ * Delete the listed nodes and root edges, then clear the lists. Each object
+ * must appear only once. An Edge deletes its children, so child edges must
+ * not also appear in edge_list. Edge nodes are deleted through node_list.
  */
 inline void cleanup_list(std::list<Node*>& node_list,
                          std::list<Edge*>& edge_list) {
@@ -241,9 +206,8 @@ inline void cleanup_list(std::list<Node*>& node_list,
 }
 
 /**
- * Delete all Node pointers in the supplied list and clear the list.
- *
- * @param[in,out] node_list Owned node pointers to delete; cleared on return.
+ * Delete the listed nodes and clear the list. Each node must appear only
+ * once.
  */
 inline void cleanup_list(std::list<Node*>& node_list) {
 

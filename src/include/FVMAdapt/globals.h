@@ -29,10 +29,10 @@ public:
   static int levels;
   static double factor;
 
-  /// Balance options:
-  /// 0: no edge's depth is greater than 1
-  /// 1: 0 and no cell has more than half of its face split
-  /// 2: 0 and 1 and no cell has two opposite faces split
+  /// Controls the additional face checks in balance_cell(). Boundary-edge
+  /// checks apply at all settings. Values 1 and 2 enable further checks on
+  /// split faces; the exact tests depend on the cell type and split_mode. See
+  /// @ref fvmadapt_plans_and_balancing.
   static int balance_option;
   static vect3d split;
   static vect3d nosplit;

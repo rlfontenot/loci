@@ -36,7 +36,8 @@ using std::ofstream;
 
 /**
  * @file get_c1_hex.cc
- * @brief Computes owner-cell ids for fine faces generated on a hex face.
+ *
+ * Find the local fine-cell indices adjacent to fine faces of a HexCell.
  */
 
 struct Cell_QuadFace {

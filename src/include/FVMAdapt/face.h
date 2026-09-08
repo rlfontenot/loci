@@ -31,74 +31,44 @@
 
 /**
  * @file face.h
- * @ingroup fvmadapt_elements
- * @brief Polygonal face tree used for general faces and prism end faces.
  *
- *  this file include the declaration of class Face. Class Face is the abstraction
- * of general face(polygon). It's defined as a collection of edges and the directions
- *  of edges. it supports only isotropic refinement.
- * If the face is built as face2node, it can resplit without orientCode(as used in
- * DiamondCell and  general Cell), A face can also be built as defined in cell, and
- * resplit with orientCode(as used in Prism)
- *
+ * Polygonal Face objects and isotropic face refinement.
  */
 
 
 /**
- * @brief Isotropic polygon-face refinement tree.
- * @ingroup fvmadapt_elements
+ * Polygonal face stored as an ordered array of Edge pointers. needReverse
+ * records each edge's direction relative to the face node order. A split
+ * creates one quadrilateral child per boundary edge.
  *
- * A `Face` is stored as an ordered set of `Edge*` values plus a `needReverse`
- * array that records how each edge direction relates to face-local node order.
- * Splitting creates one quadrilateral child per parent edge by connecting edge
- * midpoints through a face-center node.
- *
- * @warning The face owns the `edge` pointer array and any child faces, but it
- * does not own the pointed-to edges. Shared edge ownership is coordinated by
- * the builder cleanup lists.
+ * A Face deletes its edge and needReverse arrays and its child faces. The
+ * Edge objects are shared and are deleted separately through the builders'
+ * cleanup lists.
  */
 class Face{
 public:
   /**
-   * Constructs a face with storage for @p n boundary edges.
-   *
-   * The edge and needReverse arrays are allocated but not initialized; callers
-   * fill them before using the face geometry. The child pointer is initialized
-   * to null so split/replay code can test whether the face is a leaf.
-   *
-   * @param n Number of boundary edges in the polygon.
+   * Allocate arrays for n boundary edges and their direction flags. The
+   * entries are uninitialized; callers must fill them before using the face
+   * geometry.
    */
   Face(int n):numEdge(n),edge(new Edge*[n]),needReverse(new bool[n]),child(0){}
 
   /**
-   * Constructs a face around existing boundary-edge arrays.
-   *
-   * Ownership of the @p e and @p r arrays is transferred to the Face. The Face
-   * destructor deletes those arrays, but it does not delete the Edge objects
-   * referenced by @p e.
-   *
-   * @param n Number of boundary edges in the polygon.
-   * @param e Boundary-edge pointer array.
-   * @param r Per-edge orientation flags.
+   * Use the supplied edge and direction arrays. The Face takes ownership of
+   * arrays e and r, but does not delete the Edge objects referenced by e.
    */
   Face(int n, Edge** e, bool* r):numEdge(n),edge(e), needReverse(r),child(0){}
 
   /**
-   * Constructs an empty face placeholder.
-   *
-   * Empty faces are used when replaying tree shape without constructing the
-   * geometric edge/node data. Callers that use the placeholder as a child set
-   * numEdge and any needed arrays afterward. Geometry helpers are not valid
-   * until that topology has been populated.
+   * Create an empty Face without boundary arrays. Set numEdge before building
+   * its child tree; geometric operations also require the boundary edges.
    */
   Face():numEdge(0),edge(0),needReverse(0),child(0){}
 
   /**
-   * Deletes child face subtrees and owned pointer arrays.
-   *
-   * The destructor owns the child array, the edge pointer array, and the
-   * needReverse array. It does not own or delete the Edge objects referenced by
-   * edge; those are tracked by builder cleanup lists.
+   * Delete child faces and the child, edge, and needReverse arrays. The Edge
+   * objects are deleted separately.
    */
   ~Face(){
     if(child!= 0) {
@@ -216,11 +186,9 @@ public:
 
 
   /**
-   * Returns the midpoint node for each boundary edge.
-   *
-   * @pre All boundary edges have already been split.
-   * @param edgecenter Caller-provided array of at least numEdge Node*
-   * entries. The function fills it with borrowed midpoint-node pointers.
+   * Fill the caller's array of at least numEdge pointers with existing edge
+   * midpoints. All boundary edges must already be split; no nodes are
+   * allocated or transferred.
    */
   void getEdgeCenter(Node** edgecenter) const {
     for(int i=0; i<numEdge; i++) {
@@ -230,10 +198,8 @@ public:
 
 
   /**
-   * Finds an immediate child face by pointer identity.
-   *
-   * @param theFace Face pointer to search for.
-   * @return Child index in [0, numEdge), or -1 if no immediate child matches.
+   * Return the child index for theFace, or -1 if it is not an immediate
+   * child.
    */
   int containFace(Face* theFace) const {
     if(child !=0) {
@@ -247,12 +213,7 @@ public:
   }
 
 
-  /**
-   * Finds a boundary edge by pointer identity.
-   *
-   * @param theEdge Edge pointer to search for.
-   * @return Edge index in [0, numEdge), or -1 if the edge is not on this face.
-   */
+  /// Return the boundary-edge index for theEdge, or -1 if it is not found.
   int containEdge(Edge* theEdge) const {
     for(int i=0; i<numEdge; i++) {
       if(edge[i] == theEdge) {
@@ -264,14 +225,9 @@ public:
 
 
   /**
-   * Finds a face vertex by pointer identity in face-to-node order.
-   *
-   * The needReverse flags are used to choose the endpoint that represents each
-   * face-local vertex.
-   *
-   * @param theNode Node pointer to search for.
-   * @return Vertex index in [0, numEdge), or -1 if the node is not a face
-   * vertex.
+   * Return the vertex index for theNode in face node order, using needReverse
+   * to select edge endpoints. Compare node pointers; return -1 if none
+   * matches.
    */
   int containNode(const Node* theNode) const {
     std::vector<Node*> f2n(numEdge) ;
@@ -290,14 +246,7 @@ public:
   }
 
 
-  /**
-   * Collects leaf faces in tree traversal order.
-   *
-   * Existing contents of @p leaves are preserved; this function only appends
-   * leaves from the receiver.
-   *
-   * @param leaves Output vector receiving leaf faces.
-   */
+  /// Append the leaf faces in depth-first child order to leaves.
   void get_leaves(std::vector<Face*>& leaves) ;
 
 
@@ -313,53 +262,38 @@ public:
 
 
   /**
-   * Splits a general face once.
-   *
-   * The method first ensures every boundary edge has a midpoint split, then
-   * creates a face-center node, radial edges from the center to each edge
-   * midpoint, and one quadrilateral child face for each parent edge.
-   *
-   * @param node_list Receives newly created midpoint and face-center nodes.
-   * @param edge_list Receives newly created edge objects.
+   * Split each unsplit boundary edge, create the face-center node and edges
+   * to the midpoints, and create one quadrilateral child per boundary edge.
+   * Append new nodes and root edges to the supplied lists. An already-split
+   * face is unchanged.
    */
   void split(std::list<Node*>& node_list, std::list<Edge*>& edge_list) ;
 
 
   /**
-   * Splits a general face once using a prism face orientation code.
-   *
-   * Boundary edges are split in the orientation-adjusted order returned by
-   * general_edgeID_orient_f2c(). The created child topology is otherwise the
-   * same as split(std::list<Node*>&, std::list<Edge*>&).
-   *
-   * @param orientCode Orientation code associated with the face in the prism.
-   * @param node_list  Receives newly created midpoint and face-center nodes.
-   * @param edge_list  Receives newly created edge objects.
+   * Split this face using the prism's orientCode to order boundary-edge
+   * splits. The child layout is the same as split() without orientation, but
+   * new nodes are appended in face2node order. An already-split face is
+   * unchanged.
    */
   void split(char orientCode, std::list<Node*>& node_list, std::list<Edge*>& edge_list) ;
 
 
   /**
-   * Creates empty child Face objects without creating nodes or edges.
-   *
-   * This is used when replaying or converting plan vectors where only the tree
-   * shape is needed.
+   * Create child Face objects without nodes or edges. Used when only the
+   * refinement tree is needed.
    */
   void empty_split() ;
 
 
   /**
-   * Replays a face refinement plan and returns the resulting leaf faces.
+   * Apply facePlan in breadth-first order and append the selected faces to
+   * fine_face. Code 1 splits a face and queues its children; code 0 or an
+   * omitted entry selects the current face without removing existing
+   * children. The tree must be consistent with the plan.
    *
-   * Code `1` splits the current face and queues its children. Code `0`, or a
-   * missing trailing code after the plan vector is exhausted, leaves the current
-   * face as a leaf. See @ref fvmadapt_refinement_plans for the shared plan
-   * encoding convention.
-   *
-   * @param facePlan Breadth-first general-face refinement plan.
-   * @param node_list Receives nodes created during splitting.
-   * @param edge_list Receives edges created during splitting.
-   * @param fine_face Receives leaf faces in traversal order.
+   * Append new nodes and root edges to the supplied lists. See @ref
+   * fvmadapt_plans_and_balancing for plan encoding.
    */
   void resplit(const std::vector<char>& facePlan,
                std::list<Node*>& node_list,
@@ -368,15 +302,9 @@ public:
 
 
   /**
-   * Replays a face refinement plan without collecting the leaf faces.
-   *
-   * This overload creates the same child geometry as resplit(facePlan,
-   * node_list, edge_list, fine_face), but leaves callers to traverse the tree
-   * later if they need the final leaves.
-   *
-   * @param facePlan Breadth-first general-face refinement plan.
-   * @param node_list Receives nodes created during splitting.
-   * @param edge_list Receives edges created during splitting.
+   * Apply the splits in facePlan in breadth-first order, without collecting
+   * faces. Append new nodes and root edges to the supplied lists. Existing
+   * splits are not removed.
    */
   void resplit(const std::vector<char>& facePlan,
                std::list<Node*>& node_list,
@@ -384,16 +312,9 @@ public:
 
 
   /**
-   * Replays a face refinement plan using a prism-local orientation code.
-   *
-   * This overload is used for triangular prism faces whose stored edge order
-   * follows the prism cell while the refinement plan is interpreted in
-   * face-to-node order.
-   *
-   * @param facePlan Breadth-first general-face refinement plan.
-   * @param orientCode Orientation code associated with the face in the prism.
-   * @param node_list Receives nodes created during splitting.
-   * @param edge_list Receives edges created during splitting.
+   * Apply facePlan to a prism face stored in cell order. Use orientCode to
+   * follow the plan in face2node order, appending new nodes and root edges to
+   * the supplied lists. Existing splits are not removed.
    */
   void resplit(const std::vector<char>& facePlan,
                char orientCode,
@@ -402,37 +323,26 @@ public:
 
 
   /**
-   * Replays a face plan into empty child faces and returns the leaf count.
-   *
-   * This builds tree shape only; it does not create geometric nodes or edges.
-   *
-   * @param facePlan Breadth-first general-face refinement plan.
-   * @return Number of leaf faces represented by the plan.
+   * Apply facePlan without creating nodes or edges and return the number of
+   * faces selected by zero or omitted entries. Existing children are not
+   * removed, so the tree must be consistent with the plan.
    */
   int empty_resplit(const std::vector<char>& facePlan) ;
 
 
   /**
-   * Replays a face plan into empty child faces and returns the leaves.
-   *
-   * Existing contents of @p leaves are preserved; this function only appends
-   * leaves from the replayed tree.
-   *
-   * @param facePlan Breadth-first general-face refinement plan.
-   * @param leaves Receives leaf faces in traversal order.
+   * Apply facePlan without creating nodes or edges, appending faces selected
+   * by zero or omitted entries to leaves in plan order. Existing children are
+   * not removed, so the tree must be consistent with the plan.
    */
   void empty_resplit(const std::vector<char>& facePlan, std::vector<Face*>& leaves) ;
 
 
   /**
-   * Replays a face plan into empty child faces with prism orientation.
-   *
-   * This merge helper uses general_childID_orient_c2f() when queueing children.
-   * Code `8` is treated as a propagation case: the current face is queued
-   * again instead of being split or finalized.
-   *
-   * @param facePlan Breadth-first general-face refinement plan.
-   * @param orientCode Orientation code associated with the face in the prism.
+   * Apply an extracted prism face plan to the child tree in face2node order.
+   * orientCode maps from the prism face order. Code 1 splits the current
+   * face; code 8 queues the same face again without splitting it. No nodes or
+   * edges are created.
    */
   void empty_resplit(const std::vector<char>& facePlan, char orientCode) ;
 
@@ -448,11 +358,7 @@ public:
   std::vector<char> make_faceplan() ;
 
 
-  /**
-   * Counts leaf faces under this face tree.
-   *
-   * @return Number of leaves reachable from this face.
-   */
+  /// Return the number of leaf faces in this tree.
   int get_num_leaves() const ; //for mxfpc
 public:
   int numEdge ;
@@ -472,22 +378,9 @@ public:
 
 
 /**
- * Builds a polygon face from Loci face maps and edge plans.
- *
- * The face boundary nodes are created from @p pos. Each boundary edge is
- * created from @p edge2node and replayed with the corresponding entry in
- * @p edgePlan. Created nodes and edges are appended to the caller-owned cleanup
- * lists.
- *
- * @param face2node Face-to-node connectivity in face-local order.
- * @param num_edge Number of edges in the polygonal face.
- * @param face2edge Face-to-edge connectivity in face-local order.
- * @param edge2node Global edge-to-node connectivity.
- * @param pos Node coordinates.
- * @param edgePlan Refinement plans for boundary edges.
- * @param bnode_list Receives boundary and edge-interior nodes.
- * @param edge_list Receives created edge objects.
- * @return Newly allocated Face tree root.
+ * Build a Face in face2node order, with node positions from pos and boundary
+ * edges split according to edgePlan. Append allocated nodes and root edges to
+ * bnode_list and edge_list. The caller deletes the returned Face.
  */
 Face* build_general_face( const Entity* face2node, int num_edge,
                           const Entity* face2edge,
@@ -499,22 +392,10 @@ Face* build_general_face( const Entity* face2node, int num_edge,
 
 
 /**
- * Builds a polygon face and assigns parallel node indices.
- *
- * This overload is used when boundary nodes need local-to-file indices while
- * edge-interior nodes are assigned from @p node_offset for each boundary edge.
- *
- * @param face2node Face-to-node connectivity in face-local order.
- * @param num_edge Number of edges in the polygonal face.
- * @param face2edge Face-to-edge connectivity in face-local order.
- * @param edge2node Global edge-to-node connectivity.
- * @param pos Node coordinates.
- * @param node_offset First index assigned to each edge's interior nodes.
- * @param edgePlan Refinement plans for boundary edges.
- * @param bnode_list Receives boundary and edge-interior nodes.
- * @param edge_list Receives created edge objects.
- * @param node_l2f Local-to-file node index map for boundary nodes.
- * @return Newly allocated Face tree root.
+ * Build a Face with split boundary edges. Assign original node indices from
+ * node_l2f and edge-interior indices from node_offset. Append allocated nodes
+ * and root edges to bnode_list and edge_list. The caller deletes the returned
+ * Face.
  */
 Face* build_general_face( const Entity* face2node, int num_edge,
                           const Entity* face2edge,
@@ -528,20 +409,10 @@ Face* build_general_face( const Entity* face2node, int num_edge,
 
 
 /**
- * Builds a temporary polygon face for general-cell/quad-face interaction.
- *
- * Temporary nodes are placed on a reference square rather than using physical
- * coordinates. Boundary edges are replayed from @p edgePlan so the resulting
- * tree can be compared or merged with quad-face refinement state.
- *
- * @param face2node Face-to-node connectivity in face-local order.
- * @param num_edge Number of edges in the polygonal face.
- * @param face2edge Face-to-edge connectivity in face-local order.
- * @param edge2node Global edge-to-node connectivity.
- * @param edgePlan Refinement plans for boundary edges.
- * @param bnode_list Receives temporary boundary and edge-interior nodes.
- * @param edge_list Receives created edge objects.
- * @return Newly allocated temporary Face tree root.
+ * Build a four-edge Face on an integer reference square, applying edgePlan to
+ * its boundary. num_edge must be 4. Used to match nodes with a temporary
+ * QuadFace. Append allocated nodes and root edges to the supplied lists; the
+ * caller deletes the returned Face.
  */
 Face* build_tmp_general_face( const Entity* face2node, int num_edge,
                               const Entity* face2edge,
@@ -551,70 +422,35 @@ Face* build_tmp_general_face( const Entity* face2node, int num_edge,
                               std::list<Edge*>& edge_list) ;
 
 
-/**
- * Checks whether two face trees share any leaf Face pointer.
- *
- * @param f1 First face tree.
- * @param f2 Second face tree.
- * @return true when the two trees have at least one identical leaf pointer.
- */
+/// Return true if the two face trees share a leaf face pointer.
 bool is_overlapped(Face* f1, Face* f2) ;
 
 
 /**
- * Maps a child index from cell-local order to face-local order.
- *
- * This conversion is used by prism face handling when child faces need to be
- * interpreted in the face-to-node ordering.
- *
- * @param childID_c Child index in cell-local ordering.
- * @param orientCode Orientation code associated with the face in the cell.
- * @param numEdge Number of parent face edges.
- * @return Child index in face-local ordering.
+ * Map a child index from the prism face order to face2node order. numEdge is
+ * 3 or 4; orientCode uses the prism face convention.
  */
 int general_childID_orient_c2f(int childID_c, char orientCode, int numEdge) ;
 
 
 /**
- * Maps a child index from face-local order to cell-local order.
- *
- * This is the opposite conversion from general_childID_orient_c2f() for the
- * same orientation-code convention.
- *
- * @param childID_f Child index in face-local ordering.
- * @param orientCode Orientation code associated with the face in the cell.
- * @param numEdge Number of parent face edges.
- * @return Child index in cell-local ordering.
+ * Map a child index from face2node order to the prism face order. numEdge is
+ * 3 or 4; orientCode uses the prism face convention.
  */
 int general_childID_orient_f2c(int childID_f, char orientCode, int numEdge) ;
 
 
 /**
- * Maps a face-local edge index to the cell-local edge index for an orientation.
- *
- * This helper is used when a general face is split through a prism-local
- * orientation. The implementation has explicit cases for triangular and
- * quadrilateral faces.
- *
- * @param i Face-local edge index.
- * @param orientCode Orientation code associated with the face in the cell.
- * @param numEdge Number of parent face edges.
- * @return Edge index in the oriented cell-local ordering.
+ * Map an edge index from face2node order to the prism face order. numEdge is
+ * 3 or 4, and i is in [0, numEdge).
  */
 int general_edgeID_orient_f2c(int i, char orientCode, int numEdge) ;
 
 
 /**
- * Deletes owned temporary nodes, edges, and faces, then clears the lists.
- *
- * These lists are used by builder and replay routines to track allocations
- * that are not owned directly by a single Face. Pass only lists that contain
- * unique owning pointers; child subtrees are handled by the destructors of the
- * listed Edge and Face roots.
- *
- * @param node_list Owning list of Node pointers to delete.
- * @param edge_list Owning list of Edge pointers to delete.
- * @param face_list Owning list of Face pointers to delete.
+ * Delete the listed nodes, root edges, and root faces, then clear the lists.
+ * Each object must appear only once. Edge and Face destructors delete their
+ * children, so those children must not also appear in the lists.
  */
 inline void cleanup_list(std::list<Node*>& node_list,
                          std::list<Edge*>& edge_list,
@@ -646,9 +482,8 @@ inline void cleanup_list(std::list<Node*>& node_list,
 
 
 /**
- * Deletes owned temporary faces, then clears the list.
- *
- * @param face_list Owning list of Face pointers to delete.
+ * Delete the listed root faces and clear the list. Each face must appear only
+ * once; child faces are deleted by their parent.
  */
 inline void cleanup_list( std::list<Face*>& face_list) {
   for(std::list<Face*>::iterator p = face_list.begin();  p != face_list.end(); p++) {

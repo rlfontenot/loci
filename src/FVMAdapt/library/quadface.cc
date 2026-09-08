@@ -27,20 +27,10 @@ using std::endl ;
 
 /**
  * @file quadface.cc
- * @brief Quadrilateral-face orientation, splitting, and leaf traversal helpers.
+ *
+ * Split QuadFace objects, map face orientations, and find leaf faces.
  */
 
-/**
- * Finds the owning coarse-cell id for each face leaf range.
- *
- * `faceMap` stores larger cell-side ranges paired with the cell index that
- * owns that range. Each entry in @p leaves is matched to the first map range
- * that fully contains it.
- *
- * @param faceMap Cell-side face ranges paired with cell indices.
- * @param leaves  Fine-face ranges to locate.
- * @return Cell index for each entry in @p leaves.
- */
 std::vector<int32> contain_2d(const std::vector<pair<Range2d, int32> >& faceMap,
                               const std::vector<Range2d>& leaves){
   std::vector<int32> c1(leaves.size()) ;
@@ -64,16 +54,6 @@ std::vector<int32> contain_2d(const std::vector<pair<Range2d, int32> >& faceMap,
   return c1 ;
 }
 
-/**
- * Converts a face-local quad split code to the cell-local face orientation.
- *
- * Split codes `1` and `2` are exchanged for orientation codes that swap the
- * local face axes. Codes `0` and `3` are unchanged by the current mapping.
- *
- * @param splitCode  Split code from the face-local plan.
- * @param orientCode Face orientation code for the cell-local view.
- * @return Split code expressed in the cell-local face orientation.
- */
 char orient_splitCode_f2c(char splitCode, char orientCode) {
   switch(orientCode) {
   case 0:
@@ -111,15 +91,9 @@ char orient_splitCode_f2c(char splitCode, char orientCode) {
 }
 
 /**
- * Converts a face-local child id to the cell-local child id.
- *
- * The mapping depends on the face-local split code because one-dimensional
- * splits have two children while a two-direction split has four children.
- *
- * @param childID    Child id in the face-local plan ordering.
- * @param orientCode Face orientation code for the cell-local view.
- * @param splitCode  Face-local split code.
- * @return Child id in the cell-local face ordering.
+ * Convert a child index from face2node order to the face order in the cell.
+ * splitCode is in face2node order: codes 1 and 2 have two children, and code
+ * 3 has four. orientCode is in [0, 8).
  */
 char orient_childID_f2c(char childID, char orientCode, char splitCode){
   Point2d p ;
@@ -172,13 +146,6 @@ char orient_childID_f2c(char childID, char orientCode, char splitCode){
   return -1 ;
 }
 
-/**
- * Converts a cell-local quad edge id to face-local order.
- *
- * @param edgeID     Edge id in the cell-local face ordering.
- * @param orientCode Face orientation code for the cell-local view.
- * @return Edge id in the face-local ordering.
- */
 char orient_edgeID_c2f(char edgeID, char orientCode) {
   if(orientCode/4 == 0) {
     return char((edgeID +orientCode)%4) ;
@@ -188,11 +155,8 @@ char orient_edgeID_c2f(char edgeID, char orientCode) {
 }
 
 /**
- * Converts a face-local quad edge id to cell-local order.
- *
- * @param edgeID     Edge id in the face-local ordering.
- * @param orientCode Face orientation code for the cell-local view.
- * @return Edge id in the cell-local face ordering.
+ * Convert a QuadFace edge index from face2node order to the face order in the
+ * cell. edgeID is in [0, 4) and orientCode is in [0, 8).
  */
 char orient_edgeID_f2c(char edgeID, char orientCode) {
   if(orientCode/4 ==0) {
@@ -207,19 +171,6 @@ char orient_edgeID_f2c(char edgeID, char orientCode) {
 #pragma GCC diagnostic ignored "-Wchar-subscripts"
 #endif
 
-/**
- * Applies one oriented split code to this quad-face tree node.
- *
- * The face is stored in cell-local edge order, while @p splitCode is from the
- * face-local plan. New midpoint or center nodes and new edges are appended to
- * the supplied lists. The method also handles combining an existing one-axis
- * split with the other axis to form the two-axis child layout.
- *
- * @param splitCode  Face-local split code to apply.
- * @param orientCode Face orientation code for the cell-local view.
- * @param node_list  Receives nodes created during the split.
- * @param edge_list  Receives edges created during the split.
- */
 void QuadFace::split(char splitCode, char orientCode,
                      std::list<Node*>& node_list,
                      std::list<Edge*>& edge_list) {
@@ -684,16 +635,6 @@ void QuadFace::split(char splitCode, char orientCode,
 
 }
 
-/**
- * Creates child QuadFace objects for one split code without creating geometry.
- *
- * This is used when only the refinement-tree shape is needed. The current
- * implementation expects the receiver to be unsplit when called.
- *
- * @warning Calling this on a face with nonzero `code` leaves the tree unchanged.
- *
- * @param splitCode Split code to record on this tree node.
- */
 void QuadFace::empty_split(char splitCode) {
   if(code != 0) {
     Loci::debugout << "WARNING: QuadFace::empty_split() is called on a face "
@@ -756,18 +697,6 @@ void QuadFace::empty_split(char splitCode) {
   }
 }
 
-/**
- * Replays a face-local plan onto this cell-local quad-face tree.
- *
- * Split codes are converted with orient_splitCode_f2c() before splitting the
- * current tree node. Created nodes and edges are appended to the supplied
- * lists.
- *
- * @param facePlan   Breadth-first face-local refinement plan.
- * @param orientCode Face orientation code for the cell-local view.
- * @param node_list  Receives nodes created during splitting.
- * @param edge_list  Receives edges created during splitting.
- */
 void QuadFace::resplit(const std::vector<char>& facePlan, char orientCode,
                        std::list<Node*>& node_list,
                        std::list<Edge*>& edge_list ){
@@ -822,16 +751,10 @@ void QuadFace::resplit(const std::vector<char>& facePlan, char orientCode,
 }
 
 /**
- * Replays a face-local plan and records the resulting fine faces.
- *
- * The returned fine-face vector follows the face-local plan ordering rather
- * than the cell-local storage order.
- *
- * @param facePlan   Breadth-first face-local refinement plan.
- * @param orientCode Face orientation code for the cell-local view.
- * @param node_list  Receives nodes created during splitting.
- * @param edge_list  Receives edges created during splitting.
- * @param fine_faces Receives leaf faces in face-local order.
+ * Apply facePlan and append the selected fine faces in the breadth-first
+ * order of the plan. orientCode maps face2node order to the stored cell
+ * order. Append new nodes and root edges to the supplied lists. Existing
+ * splits are not removed.
  */
 void QuadFace::resplit(const std::vector<char>& facePlan, char orientCode,
                        std::list<Node*>& node_list,
@@ -893,16 +816,6 @@ void QuadFace::resplit(const std::vector<char>& facePlan, char orientCode,
   }
 }
 
-/**
- * Collects leaves in the same order as the face-local plan.
- *
- * This assumes the tree has already been split consistently with @p facePlan
- * and @p orientCode.
- *
- * @param facePlan   Breadth-first face-local refinement plan.
- * @param orientCode Face orientation code for the cell-local view.
- * @param fine_faces Receives leaf faces in face-local order.
- */
 void QuadFace::get_leaves(const std::vector<char>& facePlan, char orientCode,
                           std::vector<QuadFace*>& fine_faces ){
   if(facePlan.size() == 0) {
@@ -957,19 +870,6 @@ void QuadFace::get_leaves(const std::vector<char>& facePlan, char orientCode,
   }
 }
 
-/**
- * Replays a face-local plan into an empty tree and returns leaf faces.
- *
- * No nodes or edges are created. The output leaves follow the face-local plan
- * ordering.
- *
- * @warning The routine verifies existing split codes and aborts when the plan
- * does not match an already-created tree node.
- *
- * @param facePlan   Breadth-first face-local refinement plan.
- * @param orientCode Face orientation code for the cell-local view.
- * @param fine_faces Receives leaf faces in face-local order.
- */
 void QuadFace::empty_resplit(const std::vector<char>& facePlan, char orientCode,
                              std::vector<QuadFace*>& fine_faces ){
 
@@ -1033,12 +933,6 @@ void QuadFace::empty_resplit(const std::vector<char>& facePlan, char orientCode,
 
 
 
-/**
- * Appends the terminal unsplit subfaces below this QuadFace to leaves.
- *
- * Existing contents of leaves are preserved. Any non-leaf node must already
- * have the child array for its split code populated.
- */
 void QuadFace::get_leaves(std::vector<QuadFace*>& leaves){
   if(code == 0){
     leaves.push_back(this);
@@ -1066,13 +960,6 @@ void QuadFace::get_leaves(std::vector<QuadFace*>& leaves){
   }
 }
 
-/**
- * Checks whether two quad-face trees share any leaf QuadFace pointer.
- *
- * @param f1 First face tree.
- * @param f2 Second face tree.
- * @return true when the two trees have at least one identical leaf pointer.
- */
 bool is_overlapped( QuadFace* f1,  QuadFace* f2){
   if(f1 == f2) return true;
 
@@ -1088,13 +975,6 @@ bool is_overlapped( QuadFace* f1,  QuadFace* f2){
   return !(intersection.empty());
 }
 
-/**
- * Returns the shared leaf QuadFace pointers from two face trees.
- *
- * @param f1 First face tree.
- * @param f2 Second face tree.
- * @return Intersection of the two leaf-pointer sets.
- */
 std::vector<QuadFace*> overlap( QuadFace* f1,   QuadFace* f2){
   std::vector<QuadFace*> intersection;
 
@@ -1112,11 +992,7 @@ std::vector<QuadFace*> overlap( QuadFace* f1,   QuadFace* f2){
   return intersection;
 }
 
-/**
- * Counts leaf faces below this quad-face tree node.
- *
- * @return Number of leaf QuadFace nodes reachable from this face.
- */
+/// Return the number of leaf faces in this tree.
 int QuadFace::get_num_leaves()const{
   if(code ==0) return 1;
 
