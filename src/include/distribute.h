@@ -452,13 +452,28 @@ namespace Loci {
   } ;
 
 
-  dMap send_map(Map &dm, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
+  // send_map and send_global_map 
+  inline  dMap send_map(Map &dm, entitySet &out_of_dom, std::vector<entitySet> &init_ptn)  {
+    cerr << "send_map is deprecated" << endl ;
+    Loci::Abort() ;
+    dMap m ;
+    return m ;
+  }
 
-  std::vector<dMap> send_global_map(Map &attrib_data, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
+  inline  std::vector<dMap> send_global_map(Map &attrib_data, entitySet &out_of_dom, std::vector<entitySet> &init_ptn)  {
+    cerr << "send_global_map is deprecated" << endl ;
+    Loci::Abort() ;
+    std::vector<dMap> m ;
+    return m ;
+  }
+  inline storeRepP send_clone_non(storeRepP& sp, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) {
+    cerr << "send_clone_non is deprecated" << endl ;
+    Loci::Abort() ;
+    return 0 ;
+  }
+  
   void fill_clone(storeRepP& sp, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
   
-  storeRepP send_clone_non(storeRepP& sp, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
-  std::vector<storeRepP> send_global_clone_non(storeRepP &sp , entitySet &out_of_dom,  std::vector<entitySet> &init_ptn) ;
   
   std::vector<std::pair<int, entitySet> >
   transpose_entitySet(const std::vector<std::pair<int,entitySet> > &in,
@@ -556,19 +571,27 @@ namespace Loci {
   std::string gen_local_name(const std::string& prefix,
                              const std::string& suffix="");
 
+
+  /// This class is used to describe how entities are partitioned and
+  /// distributed to processor.  This is used to give information about
+  /// the how data stored in Loci store containers are distributed across
+  /// processors.  It is assumed that the data will be stored in a local
+  /// numbering, and a mapping from the local numbering to the global
+  /// and file numbering is provided.  Note that these global and file
+  /// numberings will be numbered within a key space.
   class  entityPartitionInfo {
     entityPartitionInfo() {}
-    // Entities owned by this processor in local numbering
+    /// Entities owned by this processor in local numbering
     entitySet my_entities ;
-    // Map from local to global numbering
+    /// Map from local to global numbering
     Map l2g ;
-    // Key space for each local entity
+    /// Key space for each local entity
     store<unsigned char> key_domain ;
-    // Map from local to file numbering
+    /// Map from local to file numbering
     Map l2f ;
-    // Partition for global numbering of each key space
+    /// Partition for global numbering of each key space
     std::vector<dataPartitionP> keyspacePartitions ;
-    // MPI communicator for distribution
+    /// MPI communicator for distribution
     MPI_Comm comm ;
   public:
     entityPartitionInfo(entitySet &scope,
@@ -585,18 +608,40 @@ namespace Loci {
 
     /// return entities this processor owns in local numbering
     entitySet myEntities() const { return my_entities ; }
+    /// return the MPI communicator that this distribution is over
     MPI_Comm getCommunicator() const { return comm ; }
+    /// return map from local numbering to global numbering
     storeRepP getLocal2GlobalMap() const { return l2g.Rep() ; }
+    /// return map from local numbering to file numbering
     storeRepP getLocal2FileMap() const { return l2f.Rep() ; }
+    /// return the key domain for the input set in local numbering
+    ///
+    /// @param[in] dom The input set in local numbering
     int getKeyDomain(entitySet dom) const ;
+
+    /// Convert container from local numbering to file numbering, return
+    /// converted containe.  Note, this is a collective operation on the
+    /// stored MPI communicator
+    ///
+    /// @param[in] sp, store representation for the input store container
+    /// @param[in] dom, local numbering of domain to convert to global numbering
+    /// @param[out] offset, offset in file numbering (each processor will
+    /// allocate from zero, add offset to domain to get actual file numbering)
+    storeRepP Local2FileOrder(storeRepP sp, entitySet dom, int &offset) ;
+
+    /// Convert container from file numbering to local numbering
+    ///
+    /// @param[out] resulting container in local numbering
+    /// @param[in] resultSet, set in local numbering that will be converted
+    /// @param[in] input, input container in file numbering
+    /// @param[in] offset, add this to input domain to obtain true file
+    /// numbering
+    void File2LocalOrder(storeRepP &result,entitySet resultSet,
+                         storeRepP input, int offset) ;
   } ;
   
 
 }
-
-
-
-
 
 #endif
  

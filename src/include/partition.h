@@ -44,17 +44,30 @@ namespace Loci {
 
     /// Method that will partition an entity set to the owning processor.
     /// Returns a list of pairs of processor number and set that is owned
-    /// by that processor
-    virtual std::vector<std::pair<int,entitySet> > partitionEntitySet(entitySet set) = 0 ;
+    /// by that processor.
+    ///
+    /// @param[in]  set input set to be partitioned to processors
+    virtual std::vector<std::pair<int,entitySet> > partitionEntitySet(entitySet set) const = 0 ;
+    /// Convert list of entities to processor owner
+    ///
+    /// @param[out] proc corresponding processor array, may be allocated prior
+    /// to invocation, if not allocated, this method will resize vector to input
+    /// @param[in] entities vector of input entities that will be mapped onto
+    /// processors
+    virtual void processorLookup(std::vector<int> &proc,
+                                 const std::vector<int> &entities) const = 0 ;
     /// Return set that is owned by processor i
-    virtual entitySet getAllocation(int i) = 0 ;
+    ///
+    /// @param[in] param i the processor that we wish to obtain the set of
+    /// all entities partition to that processor.
+    virtual entitySet getAllocation(int i) const = 0 ;
   } ;
 
   /// The most general partition where the assignment of sets to processors is
   /// just an array of sets.  This will require p intersections to peerform
   /// the partitionEntitySet operation
   class dataPartitionGeneral: public dataPartition {
-    /// Partition set array of size p
+    /// Partition set array of size p duplicated on every processor
     std::vector<entitySet> ptn ;
   public:
     dataPartitionGeneral(const std::vector<entitySet> &iptn, const MPI_Comm &icomm):
@@ -68,8 +81,27 @@ namespace Loci {
         Loci::debugout << i << " - " << ptn[i] << endl ;
 #endif
     }
-    std::vector<std::pair<int,entitySet> > partitionEntitySet(entitySet set) ;
-    entitySet getAllocation(int i) ;
+
+
+    /// Method that will partition an entity set to the owning processor.
+    /// Returns a list of pairs of processor number and set that is owned
+    /// by that processor.
+    ///
+    /// @param[in]  set input set to be partitioned to processors
+    std::vector<std::pair<int,entitySet> > partitionEntitySet(entitySet set) const ; 
+    /// Convert list of entities to processor owner
+    ///
+    /// @param[out] proc corresponding processor array, may be allocated prior
+    /// to invocation, if not allocated, this method will resize vector to input
+    /// @param[in] entities vector of input entities that will be mapped onto
+    /// processors
+    virtual void processorLookup(std::vector<int> &proc,
+                                 const std::vector<int> &entities) const ;
+    /// Return set that is owned by processor i
+    ///
+    /// @param[in] param i the processor that we wish to obtain the set of
+    /// all entities partition to that processor.
+    entitySet getAllocation(int i) const ;
   } ;
 
 
@@ -94,8 +126,25 @@ namespace Loci {
       Loci::debugout << endl ;
 #endif
     }
-    std::vector<std::pair<int,entitySet> > partitionEntitySet(entitySet set) ;
-    entitySet getAllocation(int i) ;
+    /// Method that will partition an entity set to the owning processor.
+    /// Returns a list of pairs of processor number and set that is owned
+    /// by that processor.
+    ///
+    /// @param[in]  set input set to be partitioned to processors
+    std::vector<std::pair<int,entitySet> > partitionEntitySet(entitySet set) const ;
+    /// Convert list of entities to processor owner
+    ///
+    /// @param[out] proc corresponding processor array, may be allocated prior
+    /// to invocation, if not allocated, this method will resize vector to input
+    /// @param[in] entities vector of input entities that will be mapped onto
+    /// processors
+    virtual void processorLookup(std::vector<int> &proc,
+                                 const std::vector<int> &entities) const ;
+    /// Return set that is owned by processor i
+    ///
+    /// @param[in] param i the processor that we wish to obtain the set of
+    /// all entities partition to that processor.
+    entitySet getAllocation(int i) const ;
   } ;
 
 
@@ -111,8 +160,25 @@ namespace Loci {
       Loci::debugout << "start=" << start << ", delta=" << delta << endl ;
 #endif
     }
-    std::vector<std::pair<int,entitySet> > partitionEntitySet(entitySet set) ;
-    entitySet getAllocation(int i) ;
+    /// Method that will partition an entity set to the owning processor.
+    /// Returns a list of pairs of processor number and set that is owned
+    /// by that processor.
+    ///
+    /// @param[in]  set input set to be partitioned to processors
+    std::vector<std::pair<int,entitySet> > partitionEntitySet(entitySet set) const ; 
+    /// Convert list of entities to processor owner
+    ///
+    /// @param[out] proc corresponding processor array, may be allocated prior
+    /// to invocation, if not allocated, this method will resize vector to input
+    /// @param[in] entities vector of input entities that will be mapped onto
+    /// processors
+    virtual void processorLookup(std::vector<int> &proc,
+                                 const std::vector<int> &entities) const ;
+    /// Return set that is owned by processor i
+    ///
+    /// @param[in] param i the processor that we wish to obtain the set of
+    /// all entities partition to that processor.
+    entitySet getAllocation(int i) const ;
   } ;    
 
 

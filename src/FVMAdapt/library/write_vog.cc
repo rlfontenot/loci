@@ -1554,7 +1554,6 @@ namespace Loci {
   
   std::vector<int> simplePartitionVec(int mn, int mx, int p);
   vector<entitySet> simplePartition(int mn, int mx, MPI_Comm comm);
-  vector<sequence> transposeSeq(const vector<sequence> sv);
 }
 void colorMatrix(Map &cl, Map &cr, multiMap &face2node) ;
 
@@ -1636,7 +1635,7 @@ namespace Loci{
     }
 
     //Get the sequences of where we place the data when we receive it
-    vector<sequence> recv_seqs = transposeSeq(send_seqs) ;
+    vector<sequence> recv_seqs = transposeSeq(send_seqs,comm) ;
 
 
     // shift by the offset
@@ -2417,7 +2416,7 @@ namespace Loci {
       send_seqs[i] = s ;
     }
     //Get the sequences of where we place the data when we receive it
-    vector<sequence> recv_seqs = transposeSeq(send_seqs) ;
+    vector<sequence> recv_seqs = transposeSeq(send_seqs,MPI_COMM_WORLD) ;
   
     storeRepP sp =pos_t.Rep();
     storeRepP qcol_rep =new_pos.Rep();
