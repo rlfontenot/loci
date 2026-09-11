@@ -153,6 +153,7 @@ done
 soft_copy_dir include/FVMOverset/overset $INSTALL_PATH/include/FVMOverset
 glob_soft_copy "include/FVMOverset/*.lh" $INSTALL_PATH/include/FVMOverset
 glob_soft_copy "include/FVMMod/*.lh" $INSTALL_PATH/include/FVMMod
+glob_soft_copy "include/FVMMod/geometry/*.h" $INSTALL_PATH/include/FVMMod/geometry
 glob_soft_copy "include/FVMAdapt/*.lh" $INSTALL_PATH/include/FVMAdapt
 
 mkdir -p $INSTALL_PATH/docs

@@ -36,10 +36,9 @@ $type componentTransformMap blackbox<std::map<std::string,std::vector<Loci::comp
 /// componentXform. Solvers provide the rules that set this variable.
 $type componentMotionData blackbox<std::map<std::string,Loci::componentXform> > ;
 
-
 /// Map of component geometry names to their associated geometry types. Used for hole-cutting.
 $type componentGeometryData blackbox<std::map<std::string, Loci::CPTR<Loci::geometry_type> > > ;
-                            
+
 /// List of geometry types for each componentGeometry, after the transformation
 /// sequences have been applied. Used for hole-cutting.
 $type componentGeometryList blackbox<std::vector<Loci::CPTR<Loci::geometry_type> > > ;

@@ -437,12 +437,12 @@ namespace Loci {
           if(id != i) {
             double rmin = realToDouble(rmin2) ;
             int pi = -1 ;
-            // If no geometry is defined, then by default the geometry
-            // is everything.  Otherwise check to see if it is in geometry
-            bool inGeol;
-            $componentGeometryList[nd][i]->inGeometry(&$pos[nd],&inGeol,1);
-            bool inGeom =
-              ($componentGeometryList[nd][i] == 0 || inGeol) ;
+            bool inGeom = false;
+            if ($componentGeometryList[nd][i] == 0) {
+              inGeom = true;
+            } else {
+              $componentGeometryList[nd][i]->inGeometry(&$pos[nd],&inGeom,1);
+            }
             if(kdlist[i] != 0 && inGeom) {
               pi = kdlist[i]->find_closest(p,rmin) ;
             }
